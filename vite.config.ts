@@ -34,7 +34,7 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        popup: 'public/index.html',
+        popup: 'index.html',
       },
     },
     outDir: 'dist',

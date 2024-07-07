@@ -10,11 +10,9 @@ let currentSettings: SettingsData = {
   excludeBase64Images: false,
 };
 
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('Image Bulk Downloads extension installed');
-  loadSettings();
-});
-
+/**
+ * Load the current settings from storage
+ */
 function loadSettings() {
   chrome.storage.sync.get(['settings'], (result) => {
     if (result.settings) {
@@ -24,13 +22,9 @@ function loadSettings() {
   });
 }
 
-chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'sync' && changes.settings) {
-    currentSettings = changes.settings.newValue;
-    applySettings();
-  }
-});
-
+/**
+ * Apply the current settings to all tabs
+ */
 function applySettings() {
   if (!currentSettings.showImageCount) {
     clearAllBadges();
@@ -39,6 +33,9 @@ function applySettings() {
   }
 }
 
+/**
+ * Clear the badge text for all tabs
+ */
 function clearAllBadges() {
   chrome.tabs.query({}, (tabs) => {
     tabs.forEach((tab) => {
@@ -49,6 +46,9 @@ function clearAllBadges() {
   });
 }
 
+/**
+ * Update the badge text for all tabs
+ */
 function updateAllTabsBadges() {
   chrome.tabs.query({}, (tabs) => {
     tabs.forEach((tab) => {
@@ -59,11 +59,20 @@ function updateAllTabsBadges() {
   });
 }
 
+/**
+ * Update the badge text for the given tab
+ *
+ * @param {number} tabId The ID of the tab to update
+ */
 function updateTabBadge(tabId: number) {
   chrome.tabs.sendMessage(tabId, 'GET_IMAGES', (images: ImageInfo[]) => {
+    // Ignore errors when sending messages to tabs
     if (chrome.runtime.lastError) {
-      console.error(chrome.runtime.lastError);
-    } else if (images) {
+      return;
+    }
+
+    // Show the badge only if there are images on the page
+    if (images) {
       const filteredImages = filterImages(images);
       const badgeText = filteredImages.length.toString();
       chrome.action.setBadgeText({ text: badgeText, tabId });
@@ -79,19 +88,38 @@ function filterImages(images: ImageInfo[]): ImageInfo[] {
   );
 }
 
+console.log('Background script loaded');
+
+chrome.runtime.onInstalled.addListener(() => {
+  console.log('Image Bulk Downloads extension installed');
+  loadSettings();
+});
+
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace === 'sync' && changes.settings) {
+    currentSettings = changes.settings.newValue;
+    applySettings();
+  }
+});
+
+chrome.tabs.onActivated.addListener((activeInfo) => {
+    if (currentSettings.showImageCount) {
+        updateTabBadge(activeInfo.tabId);
+    }
+} );
+
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab.url) {
     if (currentSettings.showImageCount) {
       updateTabBadge(tabId);
     }
+  } else{
+    chrome.action.setBadgeText({ text: '...', tabId });
+    chrome.action.setBadgeBackgroundColor({ color: '#4F46E5', tabId });
   }
 });
 
-chrome.runtime.onMessage.addListener((
-    message: ChromeMessage,
-    sender: chrome.runtime.MessageSender,
-    sendResponse: (response: DownloadResponse) => void
-) => {
+chrome.runtime.onMessage.addListener(( message: ChromeMessage, sender: chrome.runtime.MessageSender, sendResponse: ( response: DownloadResponse ) => void ) => {
   if (typeof message === 'object' && message.type === 'DOWNLOAD_IMAGES') {
     const downloadMessage = message as DownloadMessage;
     const images: ImageInfo[] = downloadMessage.images;
@@ -99,13 +127,17 @@ chrome.runtime.onMessage.addListener((
     const filteredImages = filterImages(images);
 
     filteredImages.forEach((image, index) => {
+
+      console.log(currentSettings.downloadPath)
+      console.log(image.src.split('.').pop())
+
       const fileExtension = image.src.split('.').pop()?.split('?')[0] || 'jpg';
       const fileName = `${currentSettings.fileNamePrefix}${index + 1}.${fileExtension}`;
       const fullPath = currentSettings.downloadPath ? `${currentSettings.downloadPath}/${fileName}` : fileName;
 
       chrome.downloads.download({
         url: image.src,
-        filename: fullPath,
+        // filename: fullPath,
         saveAs: false
       });
     });

@@ -41,8 +41,6 @@ export interface SettingsData {
 
 export interface FilterOptions {
   imageType: string;
-  minWidth: number;
-  minHeight: number;
-  maxFileSize: number;
+  minSize: number;
   includeBase64: boolean;
 }

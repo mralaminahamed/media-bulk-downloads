@@ -1,33 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
-import ImageList from '@/extension/popup/components/ImageList';
-import Settings from '@/extension/popup/components/Settings';
+import ImageList from './components/ImageList';
+import Settings from './components/Settings';
 import FilterToolbar from './components/FilterToolbar';
 import { ImageInfo, AppState, DownloadMessage, DownloadResponse, SettingsData, FilterOptions } from '@/types';
+import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
     status: '',
     images: [],
     filteredImages: [],
-    isLoading: false
+    isLoading: true
   });
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<SettingsData>({
     downloadPath: '',
     fileNamePrefix: 'image_',
-    popupWidth: 600,
-    popupHeight: 400,
+    popupWidth: 400,
+    popupHeight: 600,
     showImageCount: true,
     minimumImageSize: 0,
     excludeBase64Images: false,
-  });
-  const [filters, setFilters] = useState<FilterOptions>({
-    imageType: 'all',
-    minWidth: 0,
-    minHeight: 0,
-    maxFileSize: 0,
-    includeBase64: true,
   });
 
   useEffect(() => {
@@ -49,13 +42,17 @@ const App: React.FC = () => {
   };
 
   const fetchImages = async (): Promise<void> => {
-    setState(prevState => ({ ...prevState, isLoading: true, status: 'Collecting images...' }));
+    setState(prevState => ({ ...prevState, isLoading: true, status: 'Getting images...' }));
 
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
+      console.log('tab: ', tab)
+
       if (tab.id) {
         chrome.tabs.sendMessage(tab.id, 'GET_IMAGES', (imageList: ImageInfo[]) => {
+          console.log('imageList: ', imageList)
+
           if (chrome.runtime.lastError) {
             setState(prevState => ({
               ...prevState,
@@ -63,17 +60,17 @@ const App: React.FC = () => {
               isLoading: false
             }));
           } else if (imageList && imageList.length > 0) {
-            const filteredImages = filterImages(imageList);
             setState(prevState => ({
               ...prevState,
-              images: filteredImages,
-              status: `Found ${filteredImages.length} images.`,
+              images: imageList,
+              filteredImages: imageList,
+              status: `Found ${imageList.length} images.`,
               isLoading: false
             }));
           } else {
             setState(prevState => ({
               ...prevState,
-              status: 'No images found on this page.',
+              status: 'No images found!',
               isLoading: false
             }));
           }
@@ -88,15 +85,21 @@ const App: React.FC = () => {
     }
   };
 
+  const handleFilterChange = (filters: FilterOptions) => {
+    const filteredImages = applyFilters(state.images, filters);
+    setState(prevState => ({
+      ...prevState,
+      filteredImages,
+      status: `Showing ${filteredImages.length} of ${state.images.length} images.`
+    }));
+  };
+
   const applyFilters = (images: ImageInfo[], filters: FilterOptions): ImageInfo[] => {
-    return images.filter( ( img : ImageInfo ) : boolean => {
-      if (filters.imageType !== 'all' && !img.src.toLowerCase().includes(filters.imageType)) {
+    return images.filter(img => {
+      if (filters.imageType !== 'all' && img.type !== filters.imageType) {
         return false;
       }
-      if (img.width < filters.minWidth || img.height < filters.minHeight) {
-        return false;
-      }
-      if (filters.maxFileSize > 0 && img.fileSize && img.fileSize > filters.maxFileSize * 1024) {
+      if (img.fileSize < filters.minSize * 1024) { // Convert KB to bytes
         return false;
       }
 
@@ -104,22 +107,11 @@ const App: React.FC = () => {
     });
   };
 
-  const handleFilterChange = (newFilters: FilterOptions) => {
-    setFilters(newFilters);
-    const filteredImages = applyFilters(state.images, newFilters);
-    setState(prevState => ({ ...prevState, filteredImages }));
-  };
+  const handleDownload = (images: ImageInfo | ImageInfo[]): void => {
+    const imagesToDownload = Array.isArray(images) ? images : [images];
+    setState(prevState => ({ ...prevState, status: `Initiating download of ${imagesToDownload.length} image(s)...` }));
 
-  const filterImages = (images: ImageInfo[]): ImageInfo[] => {
-    return images.filter(img =>
-        (img.width >= settings.minimumImageSize && img.height >= settings.minimumImageSize) &&
-        (!settings.excludeBase64Images || !img.src.startsWith('data:'))
-    );
-  };
-
-  const handleDownload = (): void => {
-    setState(prevState => ({ ...prevState, status: 'Initiating download...' }));
-    const message: DownloadMessage = { type: 'DOWNLOAD_IMAGES', images: state.images };
+    const message: DownloadMessage = { type: 'DOWNLOAD_IMAGES', images: imagesToDownload };
     chrome.runtime.sendMessage(message, (response: DownloadResponse) => {
       if (chrome.runtime.lastError) {
         setState(prevState => ({
@@ -132,67 +124,73 @@ const App: React.FC = () => {
     });
   };
 
-  /**
-   * Handle settings change
-   *
-   * @param newSettings
-   */
+  const handleBulkDownload = (): void => {
+    const imagesToDownload = state.filteredImages.length > 0 ? state.filteredImages : state.images;
+    handleDownload(imagesToDownload);
+  };
+
+  const handleSingleImageDownload = (image: ImageInfo): void => {
+    handleDownload(image);
+  };
+
   const handleSettingsChange = (newSettings: SettingsData) => {
     setSettings(newSettings);
-    void fetchImages();
+    chrome.storage.sync.set({ settings: newSettings }, () => {
+      console.log('Settings saved');
+    });
   };
+
+  console.log(state.images)
 
   return (
       <div className="bg-neutral-50 min-h-screen p-4 space-y-4 animate-fade-in">
         <header className="flex justify-between items-center">
           <h1 className="text-2xl font-bold text-primary-700">Image Bulk Downloads</h1>
-          <button
-              onClick={() => setShowSettings(true)}
-              className="p-2 text-neutral-600 hover:text-primary-600 transition-colors"
-              title="Settings"
-          >
+          <button onClick={() => setShowSettings(true)} className="p-2 text-neutral-600 hover:text-primary-600 transition-colors" title="Settings">
             <Cog6ToothIcon className="w-6 h-6" />
           </button>
         </header>
 
-        <FilterToolbar onFilterChange={handleFilterChange} />
+        {state.isLoading ? (
+            <div className="flex justify-center items-center h-32">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+              <p className="ml-2 text-neutral-600">Getting images...</p>
+            </div>
+        ) : state.images.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-xl text-neutral-600">No images found!</p>
+              <button onClick={fetchImages} className="mt-4 px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors">
+                Refresh
+              </button>
+            </div>
+        ) : (
+            <>
+              <FilterToolbar onFilterChange={handleFilterChange} extensionSettings={settings} />
 
-        <div className="bg-white rounded-lg shadow-md p-4 space-y-4 animate-slide-up">
-          <div className="flex justify-between items-center">
-            <button
-                onClick={handleDownload}
-                disabled={state.isLoading || state.images.length === 0}
-                className="flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ArrowDownTrayIcon className="w-5 h-5" />
-              <span>Download Images</span>
-            </button>
-            <button
-                onClick={fetchImages}
-                className="p-2 text-neutral-600 hover:text-primary-600 transition-colors"
-                title="Refresh Images"
-            >
-              <ArrowPathIcon className="w-5 h-5" />
-            </button>
-          </div>
+              <div className="bg-white rounded-lg shadow-md p-4 space-y-4 animate-slide-up">
+                <div className="flex justify-between items-center">
+                  <button
+                      onClick={handleBulkDownload}
+                      disabled={state.filteredImages.length === 0}
+                      className="flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ArrowDownTrayIcon className="w-5 h-5" />
+                    <span>Download Images</span>
+                  </button>
+                  <button onClick={fetchImages} className="p-2 text-neutral-600 hover:text-primary-600 transition-colors" title="Refresh Images">
+                    <ArrowPathIcon className="w-5 h-5" />
+                  </button>
+                </div>
 
-          <p className="text-sm text-neutral-600 italic">{state.status}</p>
+                <p className="text-sm text-neutral-600 italic">{state.status}</p>
 
-          {state.isLoading ? (
-              <div className="flex justify-center items-center h-32">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                <ImageList images={state.filteredImages} onImageDownload={handleSingleImageDownload} />
               </div>
-          ) : (
-              <ImageList images={state.filteredImages.length > 0 ? state.filteredImages : state.images} onImageDownload={handleDownload}/>
-          )}
-        </div>
+            </>
+        )}
 
         {showSettings && (
-            <Settings
-                onClose={() => setShowSettings(false)}
-                onSettingsChange={handleSettingsChange}
-                settings={settings}
-            />
+            <Settings onClose={() => setShowSettings(false)} onSettingsChange={handleSettingsChange} settings={settings}/>
         )}
       </div>
   );

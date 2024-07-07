@@ -23,7 +23,14 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload }) => {
     const k : number = 1024;
     const sizes : string[] = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
     const i : number = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+
+    const imageSize = parseFloat((bytes / Math.pow(k, i)).toFixed(2));
+
+    if ( Number.isNaN(imageSize) ) return '0 Bytes';
+    if (imageSize < 0.01) return '0 Bytes';
+    if (imageSize < 0.1) return '0.01 KB';
+
+    return imageSize + ' ' + sizes[i] || '';
   };
 
   return (
