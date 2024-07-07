@@ -5,20 +5,33 @@ import manifest from './src/manifest.json'
 import path from 'path'
 
 export default defineConfig({
-  plugins: [react(), crx({manifest})],
+  plugins: [
+    react(),
+    crx({ manifest }),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
   },
   css: {
-    modules: {
-      localsConvention: 'camelCaseOnly'
+    postcss: './postcss.config.cjs',
+  },
+  build: {
+    rollupOptions: {
+      input: {
+        popup: 'src/popup/index.html',
+      },
     },
-    preprocessorOptions: {
-      scss: {
-        additionalData: `@import "./src/styles/variables.scss";`
-      }
-    }
-  }
-})
+    outDir: 'dist',
+    emptyOutDir: true,
+    sourcemap: process.env.NODE_ENV !== 'production',
+  },
+  server: {
+    port: 3000,
+    strictPort: true,
+    hmr: {
+      port: 3000,
+    },
+  },
+});

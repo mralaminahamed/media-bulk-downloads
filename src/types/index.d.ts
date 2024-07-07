@@ -24,3 +24,13 @@ export interface AppState {
   images: ImageInfo[];
   isLoading: boolean;
 }
+
+export interface SettingsData {
+  downloadPath: string;
+  fileNamePrefix: string;
+  popupWidth: number;
+  popupHeight: number;
+  showImageCount: boolean;
+  minimumImageSize: number;
+  excludeBase64Images: boolean;
+}

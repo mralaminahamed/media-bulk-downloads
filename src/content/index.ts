@@ -1,9 +1,9 @@
-import { ImageInfo, GetImagesMessage } from '../types';
+import { ImageInfo, GetImagesMessage } from '@/types';
 
 function getAllImages(): ImageInfo[] {
   const images = Array.from(document.images);
   const svgs = Array.from(document.querySelectorAll('svg'));
-  
+
   const imageInfos: ImageInfo[] = images.map(img => ({
     src: img.src,
     alt: img.alt,
