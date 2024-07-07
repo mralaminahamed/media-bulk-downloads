@@ -84,7 +84,7 @@ function updateTabBadge(tabId: number) {
 function filterImages(images: ImageInfo[]): ImageInfo[] {
   return images.filter(img =>
       (img.width >= currentSettings.minimumImageSize && img.height >= currentSettings.minimumImageSize) &&
-      (!currentSettings.excludeBase64Images || !img.src.startsWith('data:'))
+      (!currentSettings.excludeBase64Images || !img.isBase64) // Changed from checking src to using isBase64 property
   );
 }
 
@@ -119,7 +119,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
-chrome.runtime.onMessage.addListener(( message: ChromeMessage, sender: chrome.runtime.MessageSender, sendResponse: ( response: DownloadResponse ) => void ) => {
+chrome.runtime.onMessage.addListener((message: ChromeMessage, sender: chrome.runtime.MessageSender, sendResponse: (response: DownloadResponse) => void) => {
   if (typeof message === 'object' && message.type === 'DOWNLOAD_IMAGES') {
     const downloadMessage = message as DownloadMessage;
     const images: ImageInfo[] = downloadMessage.images;
@@ -127,17 +127,13 @@ chrome.runtime.onMessage.addListener(( message: ChromeMessage, sender: chrome.ru
     const filteredImages = filterImages(images);
 
     filteredImages.forEach((image, index) => {
-
-      console.log(currentSettings.downloadPath)
-      console.log(image.src.split('.').pop())
-
-      const fileExtension = image.src.split('.').pop()?.split('?')[0] || 'jpg';
+      const fileExtension = image.type || 'jpg'; // Use the image type instead of parsing from URL
       const fileName = `${currentSettings.fileNamePrefix}${index + 1}.${fileExtension}`;
       const fullPath = currentSettings.downloadPath ? `${currentSettings.downloadPath}/${fileName}` : fileName;
 
       chrome.downloads.download({
         url: image.src,
-        // filename: fullPath,
+        filename: fullPath,
         saveAs: false
       });
     });
@@ -146,3 +142,5 @@ chrome.runtime.onMessage.addListener(( message: ChromeMessage, sender: chrome.ru
   }
   return true;
 });
+
+export { filterImages, updateTabBadge, loadSettings }; // Export for testing

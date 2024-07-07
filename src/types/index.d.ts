@@ -3,9 +3,10 @@ export interface ImageInfo {
   alt: string;
   width: number;
   height: number;
-  fileSize: number; // in bytes
   type: string; // 'jpeg', 'png', 'gif', 'svg', 'webp', 'unknown', etc.
+  fileSize: number; // in bytes
   isBase64: boolean;
+  fromSrcset?: boolean;
 }
 
 export interface DownloadMessage {

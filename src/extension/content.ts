@@ -1,42 +1,37 @@
 /**
  * content.ts
  *
- * This script safely collects information about images on the current webpage,
- * including file sizes. It uses asynchronous operations to fetch file sizes
- * without blocking the main thread.
+ * This script collects information about images on the current webpage,
+ * including those in srcset attributes and CSS backgrounds.
  */
 
-import {ImageInfo} from '@/types';
-
+import { ImageInfo } from '@/types';
 
 /**
  * Determines if a URL is a base64-encoded image.
- *
  * @param {string} src The URL to check.
  * @returns {boolean} True if the URL is a base64-encoded image, false otherwise.
  */
-function isBase64Image(src: string): boolean {
+export function isBase64Image(src: string): boolean {
   return src.startsWith('data:image/');
 }
 
 /**
  * Extracts the image type from a base64 data URI.
- *
  * @param {string} src The base64 data URI.
  * @returns {string} The image type.
  */
-function getBase64ImageType(src: string): string {
+export function getBase64ImageType(src: string): string {
   const match = src.match(/^data:image\/(\w+);base64,/);
   return match ? match[1] : 'unknown';
 }
 
 /**
  * Calculates the size of a base64-encoded image in bytes.
- *
  * @param {string} src The base64 data URI.
  * @returns {number} The size of the image in bytes.
  */
-function getBase64ImageSize(src: string): number {
+export function getBase64ImageSize(src: string): number {
   const base64 = src.split(',')[1];
   return base64 ? Math.ceil((base64.length * 3) / 4) : 0;
 }
@@ -46,7 +41,7 @@ function getBase64ImageSize(src: string): number {
  * @param {HTMLImageElement} img - The image element.
  * @returns {{ width: number, height: number }} The dimensions of the image.
  */
-function getImageDimensions(img: HTMLImageElement): { width: number, height: number } {
+export function getImageDimensions(img: HTMLImageElement): { width: number, height: number } {
   return {
     width: img.naturalWidth || img.width,
     height: img.naturalHeight || img.height
@@ -54,16 +49,11 @@ function getImageDimensions(img: HTMLImageElement): { width: number, height: num
 }
 
 /**
- * Determines the image type from its URL or data URI.
- * @param {string} src - The source URL or data URI of the image.
+ * Determines the image type from its URL.
+ * @param {string} src - The source URL of the image.
  * @returns {string} The determined image type.
  */
-function getImageType(src: string): string {
-  // Check if the image is a base64 data URI
-  if (isBase64Image(src)) {
-    return getBase64ImageType(src);
-  }
-
+export function getImageType(src: string): string {
   const extension = src.split('.').pop()?.toLowerCase() || '';
   switch (extension) {
     case 'jpg':
@@ -84,70 +74,88 @@ function getImageType(src: string): string {
  * @param {string} url - The URL of the image.
  * @returns {Promise<number>} A promise that resolves with the file size in bytes.
  */
-async function getFileSize(url: string): Promise<number> {
+export async function getFileSize(url: string): Promise<number> {
   try {
     const response = await fetch(url, { method: 'HEAD' });
     return parseInt(response.headers.get('Content-Length') || '0');
   } catch (error) {
+    console.error(`Failed to get file size for ${url}:`, error);
     return 0;
   }
+}
+
+/**
+ * Parses a srcset attribute and returns an array of URLs.
+ * @param {string} srcset - The srcset attribute value to parse.
+ * @returns {string[]} An array of image URLs extracted from the srcset.
+ */
+export function parseSrcset(srcset: string): string[] {
+  return srcset.split(',').map(src => src.trim().split(' ')[0]);
 }
 
 /**
  * Collects information about all images on the page.
  * @returns {Promise<ImageInfo[]>} A promise that resolves with an array of image information objects.
  */
-async function collectImages(): Promise<ImageInfo[]> {
+export async function collectImages(): Promise<ImageInfo[]> {
   const images: ImageInfo[] = [];
   const seenSources = new Set<string>();
 
   const collectImageInfo = async (src: string, alt: string = '', width: number = 0, height: number = 0) => {
     if (!seenSources.has(src)) {
       seenSources.add(src);
-      const fileSize = await getFileSize(src);
       const isBase64 = isBase64Image(src);
+      const fileSize = isBase64 ? getBase64ImageSize(src) : await getFileSize(src);
+      const type = isBase64 ? getBase64ImageType(src) : getImageType(src);
 
-      if (isBase64) {
-        images.push({
-          src,
-          alt,
-          width,
-          height,
-          type: getBase64ImageType(src),
-          fileSize: getBase64ImageSize(src),
-          isBase64: true
-        });
-      } else {
-        images.push({
-          src,
-          alt,
-          width,
-          height,
-          type: getImageType(src),
-          fileSize,
-          isBase64
-        });
-      }
+      images.push({
+        src,
+        alt,
+        width,
+        height,
+        type,
+        fileSize,
+        isBase64
+      });
     }
   };
 
-  // Collect images from <img> tags
-  const imgPromises = Array.from(document.querySelectorAll('img')).map(img => {
+  // Collect images from <img> tags and their srcset
+  const imgPromises = Array.from(document.querySelectorAll('img')).flatMap(img => {
     const { width, height } = getImageDimensions(img);
-    return collectImageInfo(img.src, img.alt, width, height);
+    const promises = [collectImageInfo(img.src, img.alt, width, height)];
+    
+    if (img.srcset) {
+      promises.push(...parseSrcset(img.srcset).map(src => collectImageInfo(src, img.alt)));
+    }
+    
+    return promises;
   });
 
   // Collect images from <picture> elements
-  const picturePromises = Array.from(document.querySelectorAll('picture')).map(picture => {
+  const picturePromises = Array.from(document.querySelectorAll('picture')).flatMap(picture => {
+    const promises: Promise<void>[] = [];
     const img = picture.querySelector('img');
+    
     if (img) {
       const { width, height } = getImageDimensions(img);
-      return collectImageInfo(img.src, img.alt, width, height);
+      promises.push(collectImageInfo(img.src, img.alt, width, height));
+      
+      if (img.srcset) {
+        promises.push(...parseSrcset(img.srcset).map(src => collectImageInfo(src, img.alt)));
+      }
     }
-    return Promise.resolve();
+    
+    picture.querySelectorAll('source').forEach(source => {
+      if (source.srcset) {
+        promises.push(...parseSrcset(source.srcset).map(src => collectImageInfo(src)));
+      }
+    });
+    
+    return promises;
   });
 
-  // Collect background images (safely)
+  // Collect background images
   const bgImagePromises = Array.from(document.querySelectorAll('*')).map(el => {
     const style = window.getComputedStyle(el);
     const bgImage = style.getPropertyValue('background-image');
