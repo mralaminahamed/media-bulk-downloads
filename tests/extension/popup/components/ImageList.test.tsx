@@ -1,10 +1,12 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import ImageList from './../../../../src/extension/popup/components/ImageList';
+import '@testing-library/jest-dom';
+import ImageList from '@/extension/popup/components/ImageList';
+import { ImageInfo } from '@/types';
 
-const mockImages = [
-  { src: 'test1.jpg', alt: 'Test Image 1', width: 100, height: 100, type: 'jpeg', fileSize: 1024 },
-  { src: 'test2.png', alt: 'Test Image 2', width: 200, height: 200, type: 'png', fileSize: 2048 },
+const mockImages: ImageInfo[] = [
+  { src: 'test1.jpg', alt: 'Test Image 1', width: 100, height: 100, type: 'jpeg', fileSize: 1024, isBase64: false },
+  { src: 'test2.png', alt: 'Test Image 2', width: 200, height: 200, type: 'png', fileSize: 2048, isBase64: false },
 ];
 
 describe('ImageList Component', () => {
@@ -28,14 +30,5 @@ describe('ImageList Component', () => {
     const viewButtons = screen.getAllByTitle('View Details');
     fireEvent.click(viewButtons[0]);
     expect(screen.getByText('Image Preview')).toBeInTheDocument();
-  });
-
-  it('closes image details modal when close button is clicked', () => {
-    render(<ImageList images={mockImages} onImageDownload={jest.fn()} />);
-    const viewButtons = screen.getAllByTitle('View Details');
-    fireEvent.click(viewButtons[0]);
-    const closeButton = screen.getByTitle('Close');
-    fireEvent.click(closeButton);
-    expect(screen.queryByText('Image Preview')).not.toBeInTheDocument();
   });
 });

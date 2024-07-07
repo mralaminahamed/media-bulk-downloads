@@ -79,7 +79,6 @@ export async function getFileSize(url: string): Promise<number> {
     const response = await fetch(url, { method: 'HEAD' });
     return parseInt(response.headers.get('Content-Length') || '0');
   } catch (error) {
-    console.error(`Failed to get file size for ${url}:`, error);
     return 0;
   }
 }

@@ -9,7 +9,8 @@ export const mockChrome = {
       sendMessage: jest.fn(),
     },
     tabs: {
-      query: jest.fn(),
+      query: jest.fn().mockImplementation(() => Promise.resolve([])),
+      sendMessage: jest.fn().mockImplementation(() => Promise.resolve()),
     },
     downloads: {
       download: jest.fn(),

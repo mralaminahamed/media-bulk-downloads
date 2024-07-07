@@ -1,3 +1,4 @@
+import { Sign } from 'crypto';
 import { filterImages, updateTabBadge, loadSettings } from './../../src/extension/background';
 import { ImageInfo, SettingsData } from './../../src/types';
 
@@ -32,8 +33,8 @@ describe('Background Script', () => {
     describe('filterImages', () => {
       it('filters images based on minimum size', () => {
         const images: ImageInfo[] = [
-          { src: 'image1.jpg', width: 100, height: 100, type: 'jpeg', fileSize: 1000, isBase64: false },
-          { src: 'image2.jpg', width: 50, height: 50, type: 'jpeg', fileSize: 500, isBase64: false },
+          { src: 'image1.jpg', width: 100, height: 100, alt: 'image1', type: 'jpeg', fileSize: 1000, isBase64: false },
+          { src: 'image2.jpg', width: 50, height: 50, alt: 'image2', type: 'jpeg', fileSize: 500, isBase64: false },
         ];
   
         const result = filterImages(images);
@@ -48,8 +49,8 @@ describe('Background Script', () => {
   
       it('excludes base64 images when setting is enabled', () => {
         const images: ImageInfo[] = [
-          { src: 'image1.jpg', width: 100, height: 100, type: 'jpeg', fileSize: 1000, isBase64: false },
-          { src: 'data:image/png;base64,abc123', width: 100, height: 100, type: 'png', fileSize: 500, isBase64: true },
+          { src: 'image1.jpg', width: 100, height: 100, alt: 'image1', type: 'jpeg', fileSize: 1000, isBase64: false },
+          { src: 'data:image/png;base64,abc123', width: 100, alt: 'abc123', height: 100, type: 'png', fileSize: 500, isBase64: true },
         ];
   
         (global as any).currentSettings = { minimumImageSize: 0, excludeBase64Images: true };
@@ -63,11 +64,11 @@ describe('Background Script', () => {
       it('updates badge with image count', () => {
         const tabId = 1;
         const images: ImageInfo[] = [
-          { src: 'image1.jpg', width: 100, height: 100, type: 'jpeg', fileSize: 1000, isBase64: false },
-          { src: 'image2.jpg', width: 100, height: 100, type: 'jpeg', fileSize: 1000, isBase64: false },
+          { src: 'image1.jpg', width: 100, height: 100, alt: 'image1', type: 'jpeg', fileSize: 1000, isBase64: false },
+          { src: 'image2.jpg', width: 100, height: 100, alt: 'image2', type: 'jpeg', fileSize: 1000, isBase64: false },
         ];
   
-        mockChrome.tabs.sendMessage.mockImplementation((id, message, callback) => {
+        mockChrome.tabs.sendMessage.mockImplementation((id: string, message: string, callback : any ) => {
           callback(images);
         });
   

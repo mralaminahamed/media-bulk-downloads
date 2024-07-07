@@ -21,7 +21,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
 
     const handleSave = () => {
         chrome.storage.sync.set({ settings }, () => {
-            console.log('Settings saved', settings);
             onSettingsChange(settings);
             onClose();
         });

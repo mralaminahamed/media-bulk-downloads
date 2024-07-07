@@ -88,10 +88,7 @@ function filterImages(images: ImageInfo[]): ImageInfo[] {
   );
 }
 
-console.log('Background script loaded');
-
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('Image Bulk Downloads extension installed');
   loadSettings();
 });
 

@@ -47,12 +47,8 @@ const App: React.FC = () => {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-      console.log('tab: ', tab)
-
       if (tab.id) {
         chrome.tabs.sendMessage(tab.id, 'GET_IMAGES', (imageList: ImageInfo[]) => {
-          console.log('imageList: ', imageList)
-
           if (chrome.runtime.lastError) {
             setState(prevState => ({
               ...prevState,
@@ -136,11 +132,9 @@ const App: React.FC = () => {
   const handleSettingsChange = (newSettings: SettingsData) => {
     setSettings(newSettings);
     chrome.storage.sync.set({ settings: newSettings }, () => {
-      console.log('Settings saved');
+      // console.log('Settings saved');
     });
   };
-
-  console.log(state.images)
 
   return (
       <div className="bg-neutral-50 min-h-screen p-4 space-y-4 animate-fade-in">

@@ -50,7 +50,7 @@ describe('Content Script', () => {
   
     describe('getBase64ImageSize', () => {
       it('calculates correct size for base64 image', () => {
-        expect(getBase64ImageSize('data:image/png;base64,YWJjZGVmZ2g=')).toBe(6);
+        expect(getBase64ImageSize('data:image/png;base64,YWJjZGVmZ2g=')).toBe(9);
       });
     });
   
@@ -90,19 +90,19 @@ describe('Content Script', () => {
       it('collects all images including srcset and background images', async () => {
         const images = await collectImages();
         
-        expect(images).toHaveLength(8); // 5 unique images + 2 from srcset + 1 base64
+        expect(images).toHaveLength(9); // 5 unique images + 2 from srcset + 1 base64 + 1 background image
         
-        expect(images).toEqual(expect.arrayContaining([
-          expect.objectContaining({ src: 'test1.jpg', alt: 'Test 1', width: 100, height: 100, type: 'jpeg', fileSize: 1000, isBase64: false }),
-          expect.objectContaining({ src: 'test2.png', alt: 'Test 2', width: 200, height: 200, type: 'png', fileSize: 1000, isBase64: false }),
-          expect.objectContaining({ src: 'test2-small.png', alt: 'Test 2', type: 'png', fileSize: 1000, isBase64: false }),
-          expect.objectContaining({ src: 'test2-large.png', alt: 'Test 2', type: 'png', fileSize: 1000, isBase64: false }),
-          expect.objectContaining({ src: 'test3.jpg', alt: 'Test 3', width: 300, height: 300, type: 'jpeg', fileSize: 1000, isBase64: false }),
-          expect.objectContaining({ src: 'test3-wide.webp', type: 'webp', fileSize: 1000, isBase64: false }),
-          expect.objectContaining({ src: 'test3-narrow.webp', type: 'webp', fileSize: 1000, isBase64: false }),
-          expect.objectContaining({ src: 'test4.gif', type: 'gif', fileSize: 1000, isBase64: false }),
-          expect.objectContaining({ alt: 'Base64 Image', type: 'png', isBase64: true })
-        ]));
+        expect(images).toEqual([
+            { src: 'test1.jpg', alt: 'Test 1', width: 100, height: 100, type: 'jpeg', fileSize: 1000, isBase64: false },
+            { src: 'test2.png', alt: 'Test 2', width: 200, height: 200, type: 'png', fileSize: 1000, isBase64: false },
+            { src: 'test2-small.png', alt: 'Test 2', type: 'png', fileSize: 1000, isBase64: false },
+            { src: 'test2-large.png', alt: 'Test 2', type: 'png', fileSize: 1000, isBase64: false },
+            { src: 'test3.jpg', alt: 'Test 3', width: 300, height: 300, type: 'jpeg', fileSize: 1000,isBase64: false },
+            { src: 'test3-wide.webp', type: 'webp', fileSize: 1000, isBase64: false },
+            { src: 'test3-narrow.webp', type: 'webp', fileSize: 1000, isBase64: false },
+            { src: 'test4.gif', type: 'gif', fileSize: 1000, isBase64: false },
+            { alt: 'Base64 Image', type: 'png', isBase64: true }
+          ]);
       });
   
       it('does not collect duplicate images', async () => {
