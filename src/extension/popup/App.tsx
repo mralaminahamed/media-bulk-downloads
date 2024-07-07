@@ -1,24 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import ImageList from './components/ImageList';
-import Settings from './components/Settings';
-import { ImageInfo, AppState, DownloadMessage, DownloadResponse, SettingsData } from '@/types';
 import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import ImageList from '@/extension/popup/components/ImageList';
+import Settings from '@/extension/popup/components/Settings';
+import FilterToolbar from './components/FilterToolbar';
+import { ImageInfo, AppState, DownloadMessage, DownloadResponse, SettingsData, FilterOptions } from '@/types';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
     status: '',
     images: [],
+    filteredImages: [],
     isLoading: false
   });
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<SettingsData>({
     downloadPath: '',
     fileNamePrefix: 'image_',
-    popupWidth: 400,
-    popupHeight: 600,
+    popupWidth: 600,
+    popupHeight: 400,
     showImageCount: true,
     minimumImageSize: 0,
     excludeBase64Images: false,
+  });
+  const [filters, setFilters] = useState<FilterOptions>({
+    imageType: 'all',
+    minWidth: 0,
+    minHeight: 0,
+    maxFileSize: 0,
+    includeBase64: true,
   });
 
   useEffect(() => {
@@ -79,6 +88,28 @@ const App: React.FC = () => {
     }
   };
 
+  const applyFilters = (images: ImageInfo[], filters: FilterOptions): ImageInfo[] => {
+    return images.filter( ( img : ImageInfo ) : boolean => {
+      if (filters.imageType !== 'all' && !img.src.toLowerCase().includes(filters.imageType)) {
+        return false;
+      }
+      if (img.width < filters.minWidth || img.height < filters.minHeight) {
+        return false;
+      }
+      if (filters.maxFileSize > 0 && img.fileSize && img.fileSize > filters.maxFileSize * 1024) {
+        return false;
+      }
+
+      return !(!filters.includeBase64 && img.isBase64);
+    });
+  };
+
+  const handleFilterChange = (newFilters: FilterOptions) => {
+    setFilters(newFilters);
+    const filteredImages = applyFilters(state.images, newFilters);
+    setState(prevState => ({ ...prevState, filteredImages }));
+  };
+
   const filterImages = (images: ImageInfo[]): ImageInfo[] => {
     return images.filter(img =>
         (img.width >= settings.minimumImageSize && img.height >= settings.minimumImageSize) &&
@@ -124,6 +155,8 @@ const App: React.FC = () => {
           </button>
         </header>
 
+        <FilterToolbar onFilterChange={handleFilterChange} />
+
         <div className="bg-white rounded-lg shadow-md p-4 space-y-4 animate-slide-up">
           <div className="flex justify-between items-center">
             <button
@@ -150,7 +183,7 @@ const App: React.FC = () => {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
               </div>
           ) : (
-              <ImageList images={state.images} />
+              <ImageList images={state.filteredImages.length > 0 ? state.filteredImages : state.images} onImageDownload={handleDownload}/>
           )}
         </div>
 

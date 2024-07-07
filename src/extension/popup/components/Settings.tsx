@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { SettingsData } from '@/types';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { SettingsData } from '@/types';
 
 export interface SettingsProps {
     onClose: () => void;

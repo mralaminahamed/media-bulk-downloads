@@ -4,9 +4,10 @@ import { EyeIcon, ArrowDownTrayIcon, ArrowTopRightOnSquareIcon } from '@heroicon
 
 interface ImageListProps {
   images: ImageInfo[];
+  onImageDownload: (image: ImageInfo) => void;
 }
 
-const ImageList: React.FC<ImageListProps> = ({ images }) => {
+const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload }) => {
   const [selectedImage, setSelectedImage] = useState<ImageInfo | null>(null);
 
   const handleImageClick = (image: ImageInfo) => {
@@ -17,14 +18,18 @@ const ImageList: React.FC<ImageListProps> = ({ images }) => {
     setSelectedImage(null);
   };
 
-  const handleDownloadImage = (image: ImageInfo) => {
-    chrome.runtime.sendMessage({ type: 'DOWNLOAD_IMAGES', images: [image] });
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k : number = 1024;
+    const sizes : string[] = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i : number = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   return (
       <div>
         <div className="grid grid-cols-3 gap-4">
-          {images.map((image, index) => (
+          {images.map((image: ImageInfo, index : number) => (
               <div key={index} className="bg-white border border-neutral-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow group">
                 <div className="relative aspect-square">
                   <img src={image.src} alt={image.alt} className="w-full h-full object-cover" />
@@ -36,7 +41,7 @@ const ImageList: React.FC<ImageListProps> = ({ images }) => {
                       <EyeIcon className="w-4 h-4" />
                     </button>
                     <button
-                        onClick={() => handleDownloadImage(image)}
+                        onClick={() => onImageDownload(image)}
                         className="text-white text-xs bg-secondary-600 px-2 py-1 rounded-full hover:bg-secondary-700 transition-colors"
                     >
                       <ArrowDownTrayIcon className="w-4 h-4" />
@@ -45,7 +50,10 @@ const ImageList: React.FC<ImageListProps> = ({ images }) => {
                 </div>
                 <div className="p-2 text-xs">
                   <p className="truncate text-neutral-600">{image.alt || 'No alt text'}</p>
-                  <p className="text-neutral-500">{image.width}x{image.height}</p>
+                  <p className="text-neutral-500">
+                    {image.width}x{image.height} - {formatFileSize(image.fileSize)} - {image.type.toUpperCase()}
+                    {image.isBase64 && ' (Base64)'}
+                  </p>
                 </div>
               </div>
           ))}
@@ -75,12 +83,14 @@ const ImageList: React.FC<ImageListProps> = ({ images }) => {
                   <img src={selectedImage.src} alt={selectedImage.alt} className="max-w-full max-h-[60vh] object-contain mx-auto" />
                   <div className="mt-4 text-sm text-neutral-600">
                     <p>Dimensions: {selectedImage.width}x{selectedImage.height}</p>
-                    <p>Source: {selectedImage.src}</p>
+                    <p>File size: {formatFileSize(selectedImage.fileSize)}</p>
+                    <p>Type: {selectedImage.type.toUpperCase()}{selectedImage.isBase64 ? ' (Base64)' : ''}</p>
+                    <p>Source: {selectedImage.src.substring(0, 100)}...</p>
                   </div>
                 </div>
                 <div className="p-4 border-t border-neutral-200 flex justify-end">
                   <button
-                      onClick={() => handleDownloadImage(selectedImage)}
+                      onClick={() => onImageDownload(selectedImage)}
                       className="flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-2 px-4 rounded-md transition-colors"
                   >
                     <ArrowDownTrayIcon className="w-5 h-5" />

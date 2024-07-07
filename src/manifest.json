@@ -14,17 +14,23 @@
     "<all_urls>"
   ],
   "background": {
-    "service_worker": "src/background/index.ts",
+    "service_worker": "src/extension/background.ts",
     "type": "module"
   },
   "action": {
-    "default_popup": "src/popup/index.html"
+    "default_popup": "public/index.html"
   },
-  "options_page": "src/popup/index.html",
+  "options_page": "public/index.html",
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["src/content/index.ts"]
+      "js": ["src/extension/content.ts"]
     }
-  ]
+  ],
+  "icons": {
+    "16": "public/assets/icon16.png",
+    "32": "public/assets/icon32.png",
+    "48": "public/assets/icon48.png",
+    "128": "public/assets/icon128.png"
+  }
 }

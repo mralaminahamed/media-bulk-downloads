@@ -67,7 +67,7 @@ function updateTabBadge(tabId: number) {
       const filteredImages = filterImages(images);
       const badgeText = filteredImages.length.toString();
       chrome.action.setBadgeText({ text: badgeText, tabId });
-      chrome.action.setBadgeBackgroundColor({ color: '#4CAF50', tabId });
+      chrome.action.setBadgeBackgroundColor({ color: '#4F46E5', tabId });
     }
   });
 }
@@ -114,5 +114,3 @@ chrome.runtime.onMessage.addListener((
   }
   return true;
 });
-
-export {}

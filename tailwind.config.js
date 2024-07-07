@@ -1,8 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
-    "./src/popup/index.html",
-    "./src/popup/**/*.{js,jsx,ts,tsx}",
+    "./src/extension/popup/index.html",
+    "./src/extension/popup/**/*.{js,jsx,ts,tsx}",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   presets: [],
@@ -146,7 +146,6 @@ export default {
       slate: colors.slate,
       gray: colors.gray,
       zinc: colors.zinc,
-      neutral: colors.neutral,
       stone: colors.stone,
       red: colors.red,
       orange: colors.orange,
@@ -165,6 +164,37 @@ export default {
       fuchsia: colors.fuchsia,
       pink: colors.pink,
       rose: colors.rose,
+      // Custom colors
+      primary: {
+        DEFAULT: '#4F46E5',
+        50: '#EBEAFD',
+        100: '#D7D5FB',
+        200: '#AFABF8',
+        300: '#8781F4',
+        400: '#5F57F1',
+        500: '#4F46E5',
+        600: '#2418DC',
+        700: '#1C12AA',
+        800: '#140D78',
+        900: '#0C0846'
+      },
+      secondary: {
+        DEFAULT: '#14B8A6',
+        50: '#ACEFE7',
+        100: '#9AECE2',
+        200: '#76E5D7',
+        300: '#52DECC',
+        400: '#2ED7C1',
+        500: '#14B8A6',
+        600: '#0F8A7D',
+        700: '#0A5C54',
+        800: '#062E2A',
+        900: '#010101'
+      },
+      neutral: {
+        ...colors.neutral,
+        DEFAULT: '#6B7280',
+      },
     }),
     columns: {
       auto: 'auto',
