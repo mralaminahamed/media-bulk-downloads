@@ -1,0 +1,23 @@
+.App {
+  text-align: center;
+  padding: 16px;
+}
+
+button {
+  margin-top: 10px;
+  padding: 8px 16px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+button:hover {
+  background-color: #45a049;
+}
+
+.status {
+  margin-top: 10px;
+  font-style: italic;
+}

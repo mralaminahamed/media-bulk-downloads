@@ -1,0 +1,27 @@
+.imageList {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.imageItem {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  overflow: hidden;
+  padding: 5px;
+}
+
+.thumbnail {
+  height: auto;
+  max-width: 100%;
+  object-fit: cover;
+}
+
+.imageInfo {
+  font-size: 12px;
+  margin-top: 5px;
+  text-align: center;
+}
