@@ -100,6 +100,9 @@ export async function collectImages(): Promise<ImageInfo[]> {
   const images: ImageInfo[] = [];
   const seenSources = new Set<string>();
 
+  console.log('Collecting images...');
+  console.log(document.body.innerHTML)
+
   const collectImageInfo = async (src: string, alt: string = '', width: number = 0, height: number = 0) => {
     if (!seenSources.has(src)) {
       seenSources.add(src);
@@ -123,11 +126,11 @@ export async function collectImages(): Promise<ImageInfo[]> {
   const imgPromises = Array.from(document.querySelectorAll('img')).flatMap(img => {
     const { width, height } = getImageDimensions(img);
     const promises = [collectImageInfo(img.src, img.alt, width, height)];
-    
+
     if (img.srcset) {
       promises.push(...parseSrcset(img.srcset).map(src => collectImageInfo(src, img.alt)));
     }
-    
+
     return promises;
   });
 
@@ -135,22 +138,22 @@ export async function collectImages(): Promise<ImageInfo[]> {
   const picturePromises = Array.from(document.querySelectorAll('picture')).flatMap(picture => {
     const promises: Promise<void>[] = [];
     const img = picture.querySelector('img');
-    
+
     if (img) {
       const { width, height } = getImageDimensions(img);
       promises.push(collectImageInfo(img.src, img.alt, width, height));
-      
+
       if (img.srcset) {
         promises.push(...parseSrcset(img.srcset).map(src => collectImageInfo(src, img.alt)));
       }
     }
-    
+
     picture.querySelectorAll('source').forEach(source => {
       if (source.srcset) {
         promises.push(...parseSrcset(source.srcset).map(src => collectImageInfo(src)));
       }
     });
-    
+
     return promises;
   });
 

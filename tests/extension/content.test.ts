@@ -1,4 +1,4 @@
-import  {isBase64Image,getBase64ImageType,getBase64ImageSize,getImageDimensions,getImageType,getFileSize,parseSrcset,collectImages} from './../../src/extension/content';
+import  {isBase64Image,getBase64ImageType,getBase64ImageSize,getImageDimensions,getImageType,getFileSize,parseSrcset,collectImages} from '@/extension/content';
 
 describe('Content Script', () => {
     beforeEach(() => {
@@ -13,16 +13,16 @@ describe('Content Script', () => {
         <div style="background-image: url('test4.gif');"></div>
         <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==" alt="Base64 Image">
       `;
-  
+
       // Mock fetch for file size
-      global.fetch = jest.fn().mockImplementation(() => 
+      global.fetch = jest.fn().mockImplementation(() =>
         Promise.resolve({
           headers: {
             get: jest.fn().mockReturnValue('1000'), // mock file size of 1000 bytes
           },
         })
       );
-  
+
       // Mock chrome API
       global.chrome = {
         runtime: {
@@ -32,14 +32,14 @@ describe('Content Script', () => {
         },
       } as any;
     });
-  
+
     describe('isBase64Image', () => {
       it('correctly identifies base64 images', () => {
         expect(isBase64Image('data:image/png;base64,abc123')).toBe(true);
         expect(isBase64Image('https://example.com/image.png')).toBe(false);
       });
     });
-  
+
     describe('getBase64ImageType', () => {
       it('extracts correct image type from base64 string', () => {
         expect(getBase64ImageType('data:image/png;base64,abc123')).toBe('png');
@@ -47,20 +47,20 @@ describe('Content Script', () => {
         expect(getBase64ImageType('invalid string')).toBe('unknown');
       });
     });
-  
+
     describe('getBase64ImageSize', () => {
       it('calculates correct size for base64 image', () => {
         expect(getBase64ImageSize('data:image/png;base64,YWJjZGVmZ2g=')).toBe(9);
       });
     });
-  
+
     describe('getImageDimensions', () => {
       it('returns correct dimensions for an image', () => {
         const img = document.querySelector('img') as HTMLImageElement;
         expect(getImageDimensions(img)).toEqual({ width: 100, height: 100 });
       });
     });
-  
+
     describe('getImageType', () => {
       it('determines correct image type from URL', () => {
         expect(getImageType('image.jpg')).toBe('jpeg');
@@ -71,27 +71,27 @@ describe('Content Script', () => {
         expect(getImageType('file.txt')).toBe('unknown');
       });
     });
-  
+
     describe('getFileSize', () => {
       it('fetches correct file size', async () => {
         const size = await getFileSize('https://example.com/image.jpg');
         expect(size).toBe(1000);
       });
     });
-  
+
     describe('parseSrcset', () => {
       it('correctly parses srcset string', () => {
         const srcset = 'image-1x.png 1x, image-2x.png 2x, image-3x.png 3x';
         expect(parseSrcset(srcset)).toEqual(['image-1x.png', 'image-2x.png', 'image-3x.png']);
       });
     });
-  
+
     describe('collectImages', () => {
       it('collects all images including srcset and background images', async () => {
         const images = await collectImages();
-        
+
         expect(images).toHaveLength(9); // 5 unique images + 2 from srcset + 1 base64 + 1 background image
-        
+
         expect(images).toEqual([
             { src: 'test1.jpg', alt: 'Test 1', width: 100, height: 100, type: 'jpeg', fileSize: 1000, isBase64: false },
             { src: 'test2.png', alt: 'Test 2', width: 200, height: 200, type: 'png', fileSize: 1000, isBase64: false },
@@ -104,7 +104,7 @@ describe('Content Script', () => {
             { alt: 'Base64 Image', type: 'png', isBase64: true }
           ]);
       });
-  
+
       it('does not collect duplicate images', async () => {
         document.body.innerHTML += `<img src="test1.jpg" alt="Duplicate Test 1">`;
         const images = await collectImages();
@@ -112,14 +112,14 @@ describe('Content Script', () => {
         expect(test1Images).toHaveLength(1);
       });
     });
-  
+
     describe('Message Handling', () => {
       it('responds with collected images when GET_IMAGES message is received', async () => {
         const sendResponse = jest.fn();
         const messageListener = (chrome.runtime.onMessage.addListener as jest.Mock).mock.calls[0][0];
-        
+
         await messageListener('GET_IMAGES', {}, sendResponse);
-        
+
         expect(sendResponse).toHaveBeenCalledWith(expect.arrayContaining([
           expect.objectContaining({ src: 'test1.jpg' }),
           expect.objectContaining({ src: 'test2.png' }),
@@ -131,13 +131,13 @@ describe('Content Script', () => {
           expect.objectContaining({ src: 'test4.gif' })
         ]));
       });
-  
+
       it('does not respond to unknown message types', async () => {
         const sendResponse = jest.fn();
         const messageListener = (chrome.runtime.onMessage.addListener as jest.Mock).mock.calls[0][0];
-        
+
         await messageListener('UNKNOWN_MESSAGE', {}, sendResponse);
-        
+
         expect(sendResponse).not.toHaveBeenCalled();
     });
   });
@@ -145,20 +145,20 @@ describe('Content Script', () => {
   describe('Error Handling', () => {
     it('handles fetch errors gracefully', async () => {
       global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
-      
+
       const images = await collectImages();
       const failedImage = images.find(img => img.src === 'test1.jpg');
-      
+
       expect(failedImage).toBeDefined();
       expect(failedImage?.fileSize).toBe(0);
     });
 
     it('handles invalid base64 data gracefully', async () => {
       document.body.innerHTML += `<img src="data:image/png;base64,invalid" alt="Invalid Base64">`;
-      
+
       const images = await collectImages();
       const invalidBase64Image = images.find(img => img.alt === 'Invalid Base64');
-      
+
       expect(invalidBase64Image).toBeDefined();
       expect(invalidBase64Image?.fileSize).toBe(0);
       expect(invalidBase64Image?.type).toBe('png');
