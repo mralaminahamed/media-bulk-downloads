@@ -130,7 +130,7 @@ export function collectImages(): ImageInfo[] {
     let w = width;
     let h = height;
     if (w === 0 && h === 0) {
-      const dims = parseUrlDimensions(original) ?? parseUrlDimensions(resolved);
+      const dims = parseUrlDimensions(resolved) ?? parseUrlDimensions(original);
       if (dims) {
         w = dims.width;
         h = dims.height;

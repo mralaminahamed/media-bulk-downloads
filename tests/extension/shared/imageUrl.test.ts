@@ -108,4 +108,19 @@ describe('upgradeToOriginal', () => {
     const r = upgradeToOriginal('https://acme.imgix.net/a.jpg?w=200&s=abc123');
     expect(new URL(r.original).searchParams.get('s')).toBe('abc123');
   });
+
+  it('discards a wikimedia rewrite that would empty the path', () => {
+    // Real wikimedia thumb URLs always have a directory path ahead of `/thumb/`
+    // (e.g. /wikipedia/commons/thumb/a/ab/Cat.jpg/320px-Cat.jpg), so the rewrite
+    // normally leaves a filename behind. This URL is a synthetic edge case —
+    // `/thumb/` sits directly at the root with no directory segments — so
+    // stripping `/thumb/` and then the `NNNpx-` size segment collapses the
+    // entire path to `/`, with no filename left. That trips the guard in
+    // upgradeToOriginal, which must discard the rewrite and return the input
+    // unchanged rather than emit a rewritten-but-broken URL.
+    const input = 'https://upload.wikimedia.org/thumb/220px-Example.jpg';
+    const r = upgradeToOriginal(input);
+    expect(r.original).toBe(input);
+    expect(r.thumbnail).toBeUndefined();
+  });
 });
