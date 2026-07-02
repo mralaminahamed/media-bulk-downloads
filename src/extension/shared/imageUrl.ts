@@ -80,7 +80,7 @@ function dropParams(u: URL, keys: string[]): void {
   keys.forEach((k) => u.searchParams.delete(k));
 }
 
-const RESIZE_PARAMS = ['w', 'h', 'fit', 'resize', 'quality', 'q', 'dpr', 'crop', 's'];
+const RESIZE_PARAMS = ['w', 'h', 'fit', 'resize', 'quality', 'q', 'dpr', 'crop'];
 
 const RULES: CdnRule[] = [
   {
@@ -102,7 +102,10 @@ const RULES: CdnRule[] = [
     // Shopify: strip a _WxH (or _WxH@2x) size suffix before the extension.
     match: (u) => u.hostname === 'cdn.shopify.com',
     rewrite: (u) => {
-      u.pathname = u.pathname.replace(/_(\d{1,5})?x(\d{1,5})?(@\dx)?(?=\.[a-z0-9]+$)/i, '');
+      u.pathname = u.pathname.replace(
+        /_(?:\d{1,5}x\d{1,5}|\d{1,5}x|x\d{1,5})(@\dx)?(?=\.[a-z0-9]+$)/i,
+        '',
+      );
     },
   },
   {

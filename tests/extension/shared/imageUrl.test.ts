@@ -97,4 +97,15 @@ describe('upgradeToOriginal', () => {
   it('passes through a malformed url unchanged', () => {
     expect(upgradeToOriginal('not a url')).toEqual({ original: 'not a url' });
   });
+
+  it('does not strip a shopify filename that merely ends in _x', () => {
+    const r = upgradeToOriginal('https://cdn.shopify.com/s/files/1/x/vertex_x.png?v=1');
+    expect(r.original).toBe('https://cdn.shopify.com/s/files/1/x/vertex_x.png?v=1');
+    expect(r.thumbnail).toBeUndefined();
+  });
+
+  it('preserves the signature param on a signed imgix url', () => {
+    const r = upgradeToOriginal('https://acme.imgix.net/a.jpg?w=200&s=abc123');
+    expect(new URL(r.original).searchParams.get('s')).toBe('abc123');
+  });
 });
