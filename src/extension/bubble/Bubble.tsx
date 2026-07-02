@@ -10,6 +10,8 @@ interface BubbleProps {
 
 const FAB = 48;
 const EDGE = 8;
+/** Pointer travel (px) that separates an intentional drag from a click's jitter. */
+const DRAG_THRESHOLD = 6;
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
@@ -33,6 +35,7 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
   const [grabbing, setGrabbing] = useState(false);
 
   const dragging = useRef(false);
+  const origin = useRef({ x: 0, y: 0 });
   const moved = useRef(0);
 
   // Keep corner/position in sync when changed from the popup settings.
@@ -77,13 +80,17 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
   const onPointerDown = (e: React.PointerEvent) => {
     dragging.current = true;
     moved.current = 0;
+    origin.current = { x: e.clientX, y: e.clientY };
     setGrabbing(true);
     (e.target as Element).setPointerCapture?.(e.pointerId);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
     if (!dragging.current) return;
-    moved.current += Math.abs(e.movementX) + Math.abs(e.movementY);
+    // Travel measured from the press origin — robust where movementX is unreliable.
+    moved.current = Math.abs(e.clientX - origin.current.x) + Math.abs(e.clientY - origin.current.y);
+    // Keep the FAB anchored until travel proves this is a drag, not a click.
+    if (moved.current < DRAG_THRESHOLD) return;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const nx = corner.endsWith('left') ? e.clientX - FAB / 2 : vw - e.clientX - FAB / 2;
@@ -95,7 +102,7 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
     if (!dragging.current) return;
     dragging.current = false;
     setGrabbing(false);
-    if (moved.current < 5) {
+    if (moved.current < DRAG_THRESHOLD) {
       setOpen((o) => !o); // treated as a click
     } else {
       persist({ corner, x: pos.x, y: pos.y });
