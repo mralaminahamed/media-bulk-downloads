@@ -5,6 +5,10 @@ import { EyeIcon, ArrowDownTrayIcon, ArrowTopRightOnSquareIcon, XMarkIcon } from
 interface ImageListProps {
   images: ImageInfo[];
   onImageDownload: (image: ImageInfo) => void;
+  /** Fixed thumbnail edge in px; the grid reflows columns to fit the width. */
+  thumbnailSize?: number;
+  /** Fixed size (px) of the preview modal and its image box. */
+  previewSize?: number;
 }
 
 const SIZE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
@@ -23,13 +27,18 @@ export const formatFileSize = (bytes: number): string => {
 
 const typeLabel = (img: ImageInfo): string => (img.isBase64 ? 'B64' : img.type.toUpperCase());
 
-const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload }) => {
+const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnailSize = 120, previewSize = 360 }) => {
   const [selectedImage, setSelectedImage] = useState<ImageInfo | null>(null);
   const close = () => setSelectedImage(null);
 
   return (
     <div>
-      <div className="grid grid-cols-3 gap-2.5">
+      {/* Fixed-size thumbnails; a wider panel reflows into more columns rather
+          than stretching each image. */}
+      <div
+        className="grid justify-center gap-2.5"
+        style={{ gridTemplateColumns: `repeat(auto-fill, ${thumbnailSize}px)` }}
+      >
         {images.map((image, index) => (
           <figure
             key={`${image.src}-${index}`}
@@ -82,6 +91,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload }) => {
         >
           <div
             className="sheet-in flex max-h-full w-full flex-col overflow-hidden rounded-[12px] border hairline bg-[var(--panel)] shadow-2xl"
+            style={{ maxWidth: Math.max(320, previewSize) }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-2 border-b hairline px-4 py-2.5">
@@ -105,7 +115,12 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload }) => {
 
             <div className="scroll-thin overflow-y-auto p-4">
               <div className="checker overflow-hidden rounded-[8px] border hairline">
-                <img src={selectedImage.src} alt={selectedImage.alt} className="mx-auto max-h-[280px] w-full object-contain" />
+                <img
+                  src={selectedImage.src}
+                  alt={selectedImage.alt}
+                  className="mx-auto w-full object-contain"
+                  style={{ maxHeight: previewSize }}
+                />
               </div>
 
               <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[12px]">

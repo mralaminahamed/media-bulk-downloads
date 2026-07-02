@@ -129,6 +129,16 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
                 <input type="number" name="popupHeight" min="400" max="600" value={settings.popupHeight} onChange={handleChange} className="field num" />
               </label>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="mb-1 block text-[12px] text-[var(--ink-2)]">Thumbnail Size (px):</span>
+                <input type="number" name="thumbnailSize" min="64" max="240" value={settings.thumbnailSize} onChange={handleChange} className="field num" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[12px] text-[var(--ink-2)]">Preview Size (px):</span>
+                <input type="number" name="previewSize" min="240" max="900" value={settings.previewSize} onChange={handleChange} className="field num" />
+              </label>
+            </div>
             <ToggleRow
               id="set-showImageCount"
               label="Show Image Count in Popup Icon"

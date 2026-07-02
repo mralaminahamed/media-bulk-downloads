@@ -234,7 +234,12 @@ const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'po
         ) : total === 0 ? (
           <EmptyState message={state.status} onRefresh={fetchImages} />
         ) : (
-          <ImageList images={state.filteredImages} onImageDownload={handleSingleImageDownload} />
+          <ImageList
+            images={state.filteredImages}
+            onImageDownload={handleSingleImageDownload}
+            thumbnailSize={settings.thumbnailSize}
+            previewSize={settings.previewSize}
+          />
         )}
       </main>
 

@@ -139,6 +139,8 @@ describe('Background Script', () => {
         showImageCount: true,
         minimumImageSize: 50,
         excludeBase64Images: true,
+        thumbnailSize: 120,
+        previewSize: 360,
         bubbleEnabled: false,
         bubblePosition: { corner: 'bottom-right', x: 20, y: 20 },
         bubbleWidth: 440,

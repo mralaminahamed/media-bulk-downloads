@@ -65,6 +65,10 @@ export interface SettingsData {
   showImageCount: boolean;
   minimumImageSize: number;
   excludeBase64Images: boolean;
+  /** Fixed thumbnail edge (px) in the image grid; the grid reflows columns. */
+  thumbnailSize: number;
+  /** Fixed size (px) of the image preview modal / its image box. */
+  previewSize: number;
   /** Show the on-page floating bubble (in-page app surface). */
   bubbleEnabled: boolean;
   bubblePosition: BubblePosition;

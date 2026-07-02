@@ -13,6 +13,8 @@ describe('Settings Component', () => {
     showImageCount: true,
     minimumImageSize: 0,
     excludeBase64Images: false,
+    thumbnailSize: 120,
+    previewSize: 360,
     bubbleEnabled: false,
     bubblePosition: { corner: 'bottom-right' as const, x: 20, y: 20 },
     bubbleWidth: 440,
@@ -88,6 +90,18 @@ describe('Settings Component', () => {
     fireEvent.change(screen.getByLabelText('Minimum Image Size (px):'), { target: { value: '128' } });
     fireEvent.click(screen.getByText('Save'));
     expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ minimumImageSize: 128 }));
+  });
+
+  it('saves the thumbnail and preview sizes as numbers', () => {
+    render(
+      <Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />
+    );
+    fireEvent.change(screen.getByLabelText('Thumbnail Size (px):'), { target: { value: '96' } });
+    fireEvent.change(screen.getByLabelText('Preview Size (px):'), { target: { value: '500' } });
+    fireEvent.click(screen.getByText('Save'));
+    expect(mockOnSettingsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ thumbnailSize: 96, previewSize: 500 }),
+    );
   });
 
   it('reveals the corner selector only after enabling the bubble', () => {
