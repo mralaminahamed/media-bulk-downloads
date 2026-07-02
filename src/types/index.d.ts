@@ -7,6 +7,8 @@ export interface ImageInfo {
   fileSize: number; // in bytes
   isBase64: boolean;
   fromSrcset?: boolean;
+  /** Small/fast variant to preview in the grid when `src` was upgraded to the original. */
+  thumbnailSrc?: string;
 }
 
 export interface DownloadMessage {

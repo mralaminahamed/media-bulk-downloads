@@ -46,7 +46,12 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
             style={{ animationDelay: `${Math.min(index, 12) * 0.022}s` }}
           >
             <div className="checker relative aspect-square">
-              <img src={image.src} alt={image.alt} loading="lazy" className="h-full w-full object-cover" />
+              <img
+                src={image.thumbnailSrc ?? image.src}
+                alt={image.alt}
+                loading="lazy"
+                className="h-full w-full object-cover"
+              />
 
               {/* Type tag */}
               <span className="eyebrow absolute left-1.5 top-1.5 rounded-[5px] bg-white/85 px-1.5 py-0.5 text-[9px] leading-none text-[var(--ink)] backdrop-blur-sm">
