@@ -42,8 +42,9 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
                 <div className="mt-3 p-4 bg-white rounded-md shadow-md">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Image Type</label>
+                            <label htmlFor="filter-image-type" className="block text-sm font-medium text-gray-700 mb-1">Image Type</label>
                             <select
+                                id="filter-image-type"
                                 value={filters.imageType}
                                 onChange={(e) => handleFilterChange('imageType', e.target.value)}
                                 className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
@@ -58,11 +59,12 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Size (KB)</label>
+                            <label htmlFor="filter-min-size" className="block text-sm font-medium text-gray-700 mb-1">Minimum Size (KB)</label>
                             <input
+                                id="filter-min-size"
                                 type="number"
                                 value={filters.minSize}
-                                onChange={(e) => handleFilterChange('minSize', parseInt(e.target.value))}
+                                onChange={(e) => handleFilterChange('minSize', parseInt(e.target.value, 10) || 0)}
                                 min="0"
                                 className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
                             />

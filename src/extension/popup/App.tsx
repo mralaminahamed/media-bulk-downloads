@@ -1,31 +1,44 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ImageList from './components/ImageList';
 import Settings from './components/Settings';
 import FilterToolbar from './components/FilterToolbar';
-import { ImageInfo, AppState, DownloadMessage, DownloadResponse, SettingsData, FilterOptions } from '@/types';
+import { AppState, DownloadMessage, DownloadResponse, FilterOptions, ImageInfo, SettingsData } from '@/types';
+import { filterImagesBySettings } from '../shared/filters';
+import { getImageFileSize, mapWithConcurrency } from './utils';
 import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+
+const DEFAULT_SETTINGS: SettingsData = {
+  downloadPath: '',
+  fileNamePrefix: 'image_',
+  popupWidth: 400,
+  popupHeight: 600,
+  showImageCount: true,
+  minimumImageSize: 0,
+  excludeBase64Images: false,
+};
+
+// Concurrent HEAD requests when enriching remote image sizes.
+const SIZE_FETCH_CONCURRENCY = 6;
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
     status: '',
     images: [],
     filteredImages: [],
-    isLoading: true
+    isLoading: true,
   });
   const [showSettings, setShowSettings] = useState(false);
-  const [settings, setSettings] = useState<SettingsData>({
-    downloadPath: '',
-    fileNamePrefix: 'image_',
-    popupWidth: 400,
-    popupHeight: 600,
-    showImageCount: true,
-    minimumImageSize: 0,
-    excludeBase64Images: false,
-  });
+  const [settings, setSettings] = useState<SettingsData>(DEFAULT_SETTINGS);
+
+  // All images collected from the page, before any settings/toolbar filtering.
+  const rawImagesRef = useRef<ImageInfo[]>([]);
+  // Generation guard so a newer refresh cancels stale size-enrichment writes.
+  const enrichGenRef = useRef(0);
 
   useEffect(() => {
     loadSettings();
     void fetchImages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -36,86 +49,135 @@ const App: React.FC = () => {
   const loadSettings = () => {
     chrome.storage.sync.get(['settings'], (result) => {
       if (result.settings) {
-        setSettings(result.settings);
+        setSettings({ ...DEFAULT_SETTINGS, ...result.settings });
       }
     });
   };
 
-  const fetchImages = async (): Promise<void> => {
-    setState(prevState => ({ ...prevState, isLoading: true, status: 'Getting images...' }));
+  /**
+   * Lazily fills in remote image byte sizes. Runs only from the popup on the
+   * active tab (user-initiated), never from the background badge path.
+   */
+  const enrichImageSizes = useCallback(async (images: ImageInfo[]): Promise<void> => {
+    const generation = ++enrichGenRef.current;
+    const targets = images.filter((img) => !img.isBase64 && img.fileSize <= 0);
+
+    await mapWithConcurrency(targets, SIZE_FETCH_CONCURRENCY, async (img) => {
+      const size = await getImageFileSize(img.src);
+      // A newer refresh started, or nothing useful came back — drop this write.
+      if (generation !== enrichGenRef.current || size <= 0) return;
+
+      const apply = (list: ImageInfo[]) =>
+        list.map((i) => (i.src === img.src ? { ...i, fileSize: size } : i));
+
+      setState((prev) => ({
+        ...prev,
+        images: apply(prev.images),
+        filteredImages: apply(prev.filteredImages),
+      }));
+    });
+  }, []);
+
+  const fetchImages = useCallback(async (): Promise<void> => {
+    enrichGenRef.current++; // cancel any in-flight enrichment
+    setState((prev) => ({ ...prev, isLoading: true, status: 'Getting images...' }));
 
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-      if (tab.id) {
-        chrome.tabs.sendMessage(tab.id, 'GET_IMAGES', (imageList: ImageInfo[]) => {
-          if (chrome.runtime.lastError) {
-            setState(prevState => ({
-              ...prevState,
-              status: `Error: ${chrome.runtime.lastError?.message || 'Unknown error occurred'}`,
-              isLoading: false
-            }));
-          } else if (imageList && imageList.length > 0) {
-            setState(prevState => ({
-              ...prevState,
-              images: imageList,
-              filteredImages: imageList,
-              status: `Found ${imageList.length} images.`,
-              isLoading: false
-            }));
-          } else {
-            setState(prevState => ({
-              ...prevState,
-              status: 'No images found!',
-              isLoading: false
-            }));
-          }
-        });
+      if (!tab?.id) {
+        setState((prev) => ({ ...prev, status: 'No active tab found.', isLoading: false }));
+        return;
       }
-    } catch (error) {
-      setState(prevState => ({
-        ...prevState,
+
+      chrome.tabs.sendMessage(tab.id, 'GET_IMAGES', (imageList: ImageInfo[]) => {
+        if (chrome.runtime.lastError) {
+          setState((prev) => ({
+            ...prev,
+            status: `Error: ${chrome.runtime.lastError?.message || 'Unknown error occurred'}`,
+            isLoading: false,
+          }));
+          return;
+        }
+
+        const raw = Array.isArray(imageList) ? imageList : [];
+        rawImagesRef.current = raw;
+        const eligible = filterImagesBySettings(raw, settings);
+
+        setState((prev) => ({
+          ...prev,
+          images: eligible,
+          filteredImages: eligible,
+          status: eligible.length > 0 ? `Found ${eligible.length} images.` : 'No images found!',
+          isLoading: false,
+        }));
+
+        void enrichImageSizes(eligible);
+      });
+    } catch {
+      setState((prev) => ({
+        ...prev,
         status: 'An error occurred while fetching images.',
-        isLoading: false
+        isLoading: false,
       }));
     }
-  };
+  }, [settings, enrichImageSizes]);
 
-  const handleFilterChange = (filters: FilterOptions) => {
-    const filteredImages = applyFilters(state.images, filters);
-    setState(prevState => ({
-      ...prevState,
-      filteredImages,
-      status: `Showing ${filteredImages.length} of ${state.images.length} images.`
+  // Re-derive the eligible base list when the settings that affect it change.
+  useEffect(() => {
+    if (rawImagesRef.current.length === 0) return;
+    const eligible = filterImagesBySettings(rawImagesRef.current, settings);
+    setState((prev) => ({
+      ...prev,
+      images: eligible,
+      filteredImages: eligible,
+      status: `Showing ${eligible.length} of ${rawImagesRef.current.length} images.`,
     }));
-  };
+    void enrichImageSizes(eligible);
+    // Intentionally keyed on the two settings fields that affect eligibility,
+    // not the whole `settings` object (avoids re-running on popup size changes).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.minimumImageSize, settings.excludeBase64Images, enrichImageSizes]);
 
   const applyFilters = (images: ImageInfo[], filters: FilterOptions): ImageInfo[] => {
-    return images.filter(img => {
+    const minBytes = (Number.isFinite(filters.minSize) ? filters.minSize : 0) * 1024;
+    return images.filter((img) => {
       if (filters.imageType !== 'all' && img.type !== filters.imageType) {
         return false;
       }
-      if (img.fileSize < filters.minSize * 1024) { // Convert KB to bytes
+      // Only apply the size floor when the size is actually known (>0).
+      if (minBytes > 0 && img.fileSize > 0 && img.fileSize < minBytes) {
         return false;
       }
-
       return !(!filters.includeBase64 && img.isBase64);
     });
   };
 
+  const handleFilterChange = (filters: FilterOptions) => {
+    const filteredImages = applyFilters(state.images, filters);
+    setState((prev) => ({
+      ...prev,
+      filteredImages,
+      status: `Showing ${filteredImages.length} of ${state.images.length} images.`,
+    }));
+  };
+
   const handleDownload = (images: ImageInfo | ImageInfo[]): void => {
     const imagesToDownload = Array.isArray(images) ? images : [images];
-    setState(prevState => ({ ...prevState, status: `Initiating download of ${imagesToDownload.length} image(s)...` }));
+    setState((prev) => ({
+      ...prev,
+      status: `Initiating download of ${imagesToDownload.length} image(s)...`,
+    }));
 
     const message: DownloadMessage = { type: 'DOWNLOAD_IMAGES', images: imagesToDownload };
     chrome.runtime.sendMessage(message, (response: DownloadResponse) => {
       if (chrome.runtime.lastError) {
-        setState(prevState => ({
-          ...prevState,
-          status: `Error: ${chrome.runtime.lastError?.message || 'Unknown error occurred'}`
+        setState((prev) => ({
+          ...prev,
+          status: `Error: ${chrome.runtime.lastError?.message || 'Unknown error occurred'}`,
         }));
       } else {
-        setState(prevState => ({ ...prevState, status: response.message }));
+        setState((prev) => ({ ...prev, status: response.message }));
       }
     });
   };
@@ -129,11 +191,10 @@ const App: React.FC = () => {
     handleDownload(image);
   };
 
+  // Single source of truth for persistence: the popup owns writing settings.
   const handleSettingsChange = (newSettings: SettingsData) => {
     setSettings(newSettings);
-    chrome.storage.sync.set({ settings: newSettings }, () => {
-      // console.log('Settings saved');
-    });
+    chrome.storage.sync.set({ settings: newSettings });
   };
 
   return (

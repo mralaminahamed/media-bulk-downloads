@@ -20,10 +20,9 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
     };
 
     const handleSave = () => {
-        chrome.storage.sync.set({ settings }, () => {
-            onSettingsChange(settings);
-            onClose();
-        });
+        // Persistence is owned by the parent (App.handleSettingsChange).
+        onSettingsChange(settings);
+        onClose();
     };
 
     return (
