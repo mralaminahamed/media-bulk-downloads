@@ -31,6 +31,35 @@
 
   --font-sans: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+
+  /* Adapt native controls (scrollbars, form widgets, focus) to the theme. */
+  color-scheme: light dark;
+}
+
+/* ── Dark theme ──────────────────────────────────────────────────────────────
+   Follows the OS setting. Every surface reads from tokens, so overriding the
+   ramp here re-skins the whole popup and the bubble's Shadow DOM in one place.
+   Same near-black canvas / lifted panels / light ink, brighter indigo accent
+   so the single accent still reads against a dark background. */
+@media (prefers-color-scheme: dark) {
+  :root,
+  :host {
+    --paper: #0e0f13;
+    --panel: #16181e;
+    --panel-2: #1e2029;
+
+    --ink: #e9eaef;
+    --ink-2: #a4a6b2;
+    --ink-3: #6d6f7c;
+
+    --line: #23252e;
+    --line-strong: #33353f;
+
+    --brand: #818cf8;
+    --brand-ink: #6366f1;
+    --brand-soft: #1c1b39;
+    --ring: rgba(129, 140, 248, 0.4);
+  }
 }
 
 * {
@@ -153,7 +182,7 @@ body {
 .chip.is-active {
   background: var(--ink);
   border-color: var(--ink);
-  color: #fff;
+  color: var(--paper); /* inverts with the theme so text stays legible on --ink */
 }
 
 /* Square icon button. */
@@ -290,14 +319,22 @@ body {
 }
 
 .checker {
-  background-color: #fff;
+  --checker-bg: #ffffff;
+  --checker-sq: #f0f0f4;
+  background-color: var(--checker-bg);
   background-image:
-    linear-gradient(45deg, #f0f0f4 25%, transparent 25%),
-    linear-gradient(-45deg, #f0f0f4 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #f0f0f4 75%),
-    linear-gradient(-45deg, transparent 75%, #f0f0f4 75%);
+    linear-gradient(45deg, var(--checker-sq) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--checker-sq) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--checker-sq) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--checker-sq) 75%);
   background-size: 14px 14px;
   background-position: 0 0, 0 7px, 7px -7px, -7px 0;
+}
+@media (prefers-color-scheme: dark) {
+  .checker {
+    --checker-bg: #1a1b20;
+    --checker-sq: #262830;
+  }
 }
 
 /* Motion. */
