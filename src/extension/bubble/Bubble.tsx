@@ -16,11 +16,32 @@ const GAP = 10;
 const PANEL_MARGIN = 16;
 /** Pointer travel (px) that separates an intentional drag from a click's jitter. */
 const DRAG_THRESHOLD = 6;
-/** Panel size bounds — kept in sync with the Settings width/height inputs. */
+/** Lower bounds for the panel. The upper bound is the live viewport (below). */
 const MIN_W = 320;
-const MAX_W = 900;
 const MIN_H = 360;
-const MAX_H = 900;
+
+/**
+ * Largest panel that fits the current window for a given placement — so a big
+ * screen allows a big panel, and a small one is capped to what's visible.
+ * Mirrors the reserve used by panelPlacementStyle for each placement.
+ */
+function maxPanelSize(
+  placement: BubblePanelPlacement,
+  pos: { x: number; y: number },
+): { w: number; h: number } {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const reserveV =
+    placement === 'anchored'
+      ? pos.y + FAB + GAP + EDGE
+      : placement === 'center' || placement === 'free'
+        ? EDGE * 2
+        : PANEL_MARGIN * 2;
+  return {
+    w: Math.max(MIN_W, vw - EDGE * 2),
+    h: Math.max(MIN_H, vh - reserveV),
+  };
+}
 
 /**
  * Which panel edges are free to grow (not pinned) for the current placement.
@@ -221,10 +242,13 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
   const { freeRight, freeBottom } = panelFreeEdges(placement, corner);
   const resizeStart = useRef<{ sx: number; sy: number; w: number; h: number } | null>(null);
 
-  const resizeTo = (e: React.PointerEvent, r: NonNullable<typeof resizeStart.current>) => ({
-    w: clamp(r.w + (freeRight ? e.clientX - r.sx : r.sx - e.clientX), MIN_W, MAX_W),
-    h: clamp(r.h + (freeBottom ? e.clientY - r.sy : r.sy - e.clientY), MIN_H, MAX_H),
-  });
+  const resizeTo = (e: React.PointerEvent, r: NonNullable<typeof resizeStart.current>) => {
+    const max = maxPanelSize(placement, pos);
+    return {
+      w: clamp(r.w + (freeRight ? e.clientX - r.sx : r.sx - e.clientX), MIN_W, max.w),
+      h: clamp(r.h + (freeBottom ? e.clientY - r.sy : r.sy - e.clientY), MIN_H, max.h),
+    };
+  };
 
   const onResizeDown = (e: React.PointerEvent) => {
     e.stopPropagation();
