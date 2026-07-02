@@ -169,9 +169,17 @@ export function buildDownloadFilename(
   index: number,
   settings: SettingsData,
 ): string {
-  const prefix = sanitizePathSegment(settings.fileNamePrefix) || 'image_';
   const extension = extensionForType(image.type);
-  const fileName = `${prefix}${index + 1}.${extension}`;
+  const prefixed = `${sanitizePathSegment(settings.fileNamePrefix) || 'image_'}${index + 1}.${extension}`;
+
+  let fileName: string;
+  if (settings.namingMode === 'original') {
+    const name = originalNameFromUrl(image.src);
+    fileName = name ? `${name}.${extension}` : prefixed;
+  } else {
+    fileName = prefixed;
+  }
+
   const dir = sanitizePathSegment(settings.downloadPath);
   return dir ? `${dir}/${fileName}` : fileName;
 }
@@ -241,7 +249,8 @@ chrome.runtime.onMessage.addListener(
         chrome.downloads.download({
           url: image.src,
           filename: buildDownloadFilename(image, index, currentSettings),
-          saveAs: false,
+          saveAs: currentSettings.saveAs,
+          conflictAction: 'uniquify',
         });
       });
 

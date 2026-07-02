@@ -85,6 +85,22 @@ describe('Background Script', () => {
       const s = { ...settings, fileNamePrefix: '..' };
       expect(buildDownloadFilename(img({ type: 'gif' }), 0, s)).toBe('image_1.gif');
     });
+
+    it('uses the original URL name in original mode, with type-derived extension', () => {
+      const s = { ...settings, namingMode: 'original' as const };
+      // extension comes from image.type, NOT the URL's extension.
+      expect(buildDownloadFilename(img({ src: 'https://x.com/a/cat.png', type: 'jpeg' }), 0, s)).toBe('cat.jpg');
+    });
+
+    it('falls back to the prefix+index when the URL has no usable name', () => {
+      const s = { ...settings, namingMode: 'original' as const };
+      expect(buildDownloadFilename(img({ src: 'data:image/png;base64,AAAA', type: 'png' }), 4, s)).toBe('image_5.png');
+    });
+
+    it('prepends the subfolder in original mode too', () => {
+      const s = { ...settings, namingMode: 'original' as const, downloadPath: 'Pics' };
+      expect(buildDownloadFilename(img({ src: 'https://x.com/a/dog.webp', type: 'webp' }), 0, s)).toBe('Pics/dog.webp');
+    });
   });
 
   describe('isInjectableUrl', () => {
