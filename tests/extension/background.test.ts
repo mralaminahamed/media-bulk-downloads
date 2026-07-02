@@ -4,6 +4,7 @@ import {
   extensionForType,
   sanitizePathSegment,
   buildDownloadFilename,
+  isInjectableUrl,
   DEFAULT_SETTINGS,
 } from '@/extension/background';
 import { ImageInfo, SettingsData } from '@/types';
@@ -80,6 +81,22 @@ describe('Background Script', () => {
     it('falls back to a default prefix when sanitized away', () => {
       const s = { ...settings, fileNamePrefix: '..' };
       expect(buildDownloadFilename(img({ type: 'gif' }), 0, s)).toBe('image_1.gif');
+    });
+  });
+
+  describe('isInjectableUrl', () => {
+    it('accepts http(s) and file pages', () => {
+      expect(isInjectableUrl('https://example.com')).toBe(true);
+      expect(isInjectableUrl('http://example.com/page')).toBe(true);
+      expect(isInjectableUrl('file:///Users/me/pic.html')).toBe(true);
+    });
+
+    it('rejects browser pages, the extension gallery, and the Web Store', () => {
+      expect(isInjectableUrl('chrome://extensions')).toBe(false);
+      expect(isInjectableUrl('chrome-extension://abc/index.html')).toBe(false);
+      expect(isInjectableUrl('https://chromewebstore.google.com/detail/x')).toBe(false);
+      expect(isInjectableUrl('https://chrome.google.com/webstore/detail/x')).toBe(false);
+      expect(isInjectableUrl(undefined)).toBe(false);
     });
   });
 

@@ -47,6 +47,15 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
     return () => chrome.storage.onChanged.removeListener(listener);
   }, []);
 
+  // Toolbar-icon clicks (when the popup is disabled) toggle the panel.
+  useEffect(() => {
+    const listener = (message: unknown) => {
+      if (message === 'TOGGLE_BUBBLE') setOpen((o) => !o);
+    };
+    chrome.runtime.onMessage.addListener(listener);
+    return () => chrome.runtime.onMessage.removeListener(listener);
+  }, []);
+
   // Close on Escape.
   useEffect(() => {
     if (!open) return;

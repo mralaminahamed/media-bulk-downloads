@@ -21,7 +21,10 @@ export interface DownloadResponse {
 
 export type GetImagesMessage = 'GET_IMAGES';
 
-export type ChromeMessage = DownloadMessage | GetImagesMessage;
+/** Sent to the content script to toggle the on-page bubble open/closed. */
+export type ToggleBubbleMessage = 'TOGGLE_BUBBLE';
+
+export type ChromeMessage = DownloadMessage | GetImagesMessage | ToggleBubbleMessage;
 
 export interface AppState {
   status: string;

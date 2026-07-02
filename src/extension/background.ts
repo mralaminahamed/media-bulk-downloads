@@ -29,6 +29,38 @@ function applySettings(): void {
   } else {
     updateAllTabsBadges();
   }
+  updateAllTabsActionMode();
+}
+
+/**
+ * Whether the on-page bubble can be injected into a given URL. Content scripts
+ * don't run on browser pages, the extension gallery, or the Chrome Web Store.
+ */
+export function isInjectableUrl(url: string | undefined): boolean {
+  if (!url || !/^(https?|file):/i.test(url)) return false;
+  if (/^https:\/\/chromewebstore\.google\.com/i.test(url)) return false;
+  if (/^https:\/\/chrome\.google\.com\/webstore/i.test(url)) return false;
+  return true;
+}
+
+/**
+ * When the bubble is enabled on an injectable page, clear the toolbar popup so a
+ * click toggles the on-page bubble instead. Everywhere else, keep the popup as a
+ * fallback (it's the only surface that works on restricted pages).
+ */
+function updateTabActionMode(tabId: number, url: string | undefined): void {
+  const useBubble = currentSettings.bubbleEnabled && isInjectableUrl(url);
+  chrome.action.setPopup({ tabId, popup: useBubble ? '' : 'index.html' });
+}
+
+function updateAllTabsActionMode(): void {
+  chrome.tabs.query({}, (tabs) => {
+    tabs.forEach((tab) => {
+      if (tab.id) {
+        updateTabActionMode(tab.id, tab.url);
+      }
+    });
+  });
 }
 
 /**
@@ -147,9 +179,25 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
   if (currentSettings.showImageCount) {
     updateTabBadge(activeInfo.tabId);
   }
+  chrome.tabs.get(activeInfo.tabId, (tab) => {
+    if (chrome.runtime.lastError || !tab?.id) return;
+    updateTabActionMode(tab.id, tab.url);
+  });
+});
+
+// When the bubble is enabled, the popup is cleared for injectable tabs, so a
+// toolbar click lands here instead of opening the popup — toggle the bubble.
+chrome.action.onClicked.addListener((tab) => {
+  if (tab.id) {
+    chrome.tabs.sendMessage(tab.id, 'TOGGLE_BUBBLE', () => void chrome.runtime.lastError);
+  }
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' || changeInfo.url) {
+    updateTabActionMode(tabId, tab.url);
+  }
+
   if (!currentSettings.showImageCount) {
     return;
   }
