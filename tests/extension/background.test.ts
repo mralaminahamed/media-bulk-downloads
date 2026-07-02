@@ -4,6 +4,7 @@ import {
   extensionForType,
   sanitizePathSegment,
   buildDownloadFilename,
+  isInjectableUrl,
   DEFAULT_SETTINGS,
 } from '@/extension/background';
 import { ImageInfo, SettingsData } from '@/types';
@@ -24,6 +25,8 @@ describe('Background Script', () => {
       action: {
         setBadgeText: jest.fn(),
         setBadgeBackgroundColor: jest.fn(),
+        setPopup: jest.fn(),
+        onClicked: { addListener: jest.fn() },
       },
       runtime: {
         lastError: null,
@@ -83,6 +86,22 @@ describe('Background Script', () => {
     });
   });
 
+  describe('isInjectableUrl', () => {
+    it('accepts http(s) and file pages', () => {
+      expect(isInjectableUrl('https://example.com')).toBe(true);
+      expect(isInjectableUrl('http://example.com/page')).toBe(true);
+      expect(isInjectableUrl('file:///Users/me/pic.html')).toBe(true);
+    });
+
+    it('rejects browser pages, the extension gallery, and the Web Store', () => {
+      expect(isInjectableUrl('chrome://extensions')).toBe(false);
+      expect(isInjectableUrl('chrome-extension://abc/index.html')).toBe(false);
+      expect(isInjectableUrl('https://chromewebstore.google.com/detail/x')).toBe(false);
+      expect(isInjectableUrl('https://chrome.google.com/webstore/detail/x')).toBe(false);
+      expect(isInjectableUrl(undefined)).toBe(false);
+    });
+  });
+
   describe('updateTabBadge', () => {
     it('updates badge with the eligible image count', () => {
       const tabId = 1;
@@ -120,6 +139,14 @@ describe('Background Script', () => {
         showImageCount: true,
         minimumImageSize: 50,
         excludeBase64Images: true,
+        thumbnailSize: 120,
+        previewSize: 360,
+        bubbleEnabled: false,
+        bubblePosition: { corner: 'bottom-right', x: 20, y: 20 },
+        bubbleWidth: 440,
+        bubbleHeight: 560,
+        bubblePanelPlacement: 'anchored',
+        bubblePanelPoint: { x: 40, y: 40 },
       };
       mockChrome.storage.sync.get.mockImplementation((_keys: string[], cb: (r: any) => void) =>
         cb({ settings: stored }),
@@ -131,6 +158,38 @@ describe('Background Script', () => {
       expect(mockChrome.storage.sync.get).toHaveBeenCalledWith(['settings'], expect.any(Function));
       // showImageCount true → refreshes all tab badges.
       expect(mockChrome.tabs.query).toHaveBeenCalled();
+    });
+  });
+
+  describe('action mode + badges', () => {
+    const load = (settings: Partial<SettingsData>, tabs: Array<{ id?: number; url?: string }>) => {
+      mockChrome.storage.sync.get.mockImplementation((_k: string[], cb: (r: any) => void) =>
+        cb({ settings: { ...DEFAULT_SETTINGS, ...settings } }),
+      );
+      mockChrome.tabs.query.mockImplementation((_q: any, cb: (t: any[]) => void) => cb(tabs));
+      mockChrome.tabs.sendMessage.mockImplementation((_id: number, _m: string, cb: any) => cb([]));
+      loadSettings();
+    };
+
+    it('clears badges for every tab when showImageCount is off', () => {
+      load({ showImageCount: false }, [{ id: 1 }, { id: 2 }]);
+      expect(mockChrome.action.setBadgeText).toHaveBeenCalledWith({ text: '', tabId: 1 });
+      expect(mockChrome.action.setBadgeText).toHaveBeenCalledWith({ text: '', tabId: 2 });
+    });
+
+    it('clears the popup on injectable tabs when the bubble is enabled', () => {
+      load({ bubbleEnabled: true }, [{ id: 5, url: 'https://example.com' }]);
+      expect(mockChrome.action.setPopup).toHaveBeenCalledWith({ tabId: 5, popup: '' });
+    });
+
+    it('keeps the popup on restricted tabs even when the bubble is enabled', () => {
+      load({ bubbleEnabled: true }, [{ id: 6, url: 'chrome://extensions' }]);
+      expect(mockChrome.action.setPopup).toHaveBeenCalledWith({ tabId: 6, popup: 'index.html' });
+    });
+
+    it('keeps the popup everywhere when the bubble is disabled', () => {
+      load({ bubbleEnabled: false }, [{ id: 7, url: 'https://example.com' }]);
+      expect(mockChrome.action.setPopup).toHaveBeenCalledWith({ tabId: 7, popup: 'index.html' });
     });
   });
 });

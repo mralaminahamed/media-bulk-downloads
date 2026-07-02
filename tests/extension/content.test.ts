@@ -225,6 +225,94 @@ describe('Content Script', () => {
     });
   });
 
+  describe('parseSrcset edge cases', () => {
+    it('returns an empty array for empty or whitespace input', () => {
+      expect(parseSrcset('')).toEqual([]);
+      expect(parseSrcset('   ')).toEqual([]);
+    });
+
+    it('tolerates a trailing comma', () => {
+      expect(parseSrcset('a.jpg 1x,')).toEqual(['a.jpg']);
+    });
+
+    it('handles protocol-relative URLs', () => {
+      expect(parseSrcset('//cdn.example.com/x.jpg 2x, b.jpg')).toEqual([
+        '//cdn.example.com/x.jpg',
+        'b.jpg',
+      ]);
+    });
+
+    it('collapses extra whitespace between url and descriptor', () => {
+      expect(parseSrcset('a.jpg    2x')).toEqual(['a.jpg']);
+    });
+  });
+
+  describe('getImageType edge cases', () => {
+    it('is case-insensitive', () => {
+      expect(getImageType('PHOTO.JPG')).toBe('jpeg');
+      expect(getImageType('https://x/A.JPEG?y=1')).toBe('jpeg');
+    });
+
+    it('uses only the final extension', () => {
+      expect(getImageType('archive.tar.gz')).toBe('unknown');
+      expect(getImageType('sprite.png')).toBe('png');
+    });
+  });
+
+  describe('getBase64ImageType / size edge cases', () => {
+    it('extracts a compound mime subtype', () => {
+      expect(getBase64ImageType('data:image/svg+xml;charset=utf-8;base64,PD8=')).toBe('svg+xml');
+    });
+
+    it('sizes a single-byte payload with padding', () => {
+      expect(getBase64ImageSize('data:image/png;base64,YQ==')).toBe(1);
+    });
+
+    it('returns 0 when there is no comma-separated payload', () => {
+      expect(getBase64ImageSize('not-a-data-uri')).toBe(0);
+    });
+  });
+
+  describe('resolveUrl edge cases', () => {
+    it('resolves protocol-relative URLs using the document scheme', () => {
+      expect(resolveUrl('//cdn.example.com/x.png')).toBe('http://cdn.example.com/x.png');
+    });
+
+    it('returns the input unchanged when it cannot be parsed', () => {
+      // Absolute URL with an invalid host — throws even with a base.
+      expect(resolveUrl('http://[')).toBe('http://[');
+    });
+  });
+
+  describe('collectImages edge cases', () => {
+    it('parses single, double, and unquoted background-image URLs', () => {
+      document.body.innerHTML =
+        `<div style="background-image: url(&quot;q.png&quot;), url('r.png'), url(s.png);"></div>`;
+      const srcs = collectImages().map((i) => i.src);
+      expect(srcs).toEqual(
+        expect.arrayContaining([abs('q.png'), abs('r.png'), abs('s.png')]),
+      );
+    });
+
+    it('ignores background-image: none', () => {
+      document.body.innerHTML = '<div style="background-image: none"></div>';
+      expect(collectImages()).toHaveLength(0);
+    });
+
+    it('deduplicates the same resolved URL across <img> and background', () => {
+      document.body.innerHTML =
+        '<img src="shared.png"><div style="background-image: url(shared.png)"></div>';
+      expect(collectImages().filter((i) => i.src === abs('shared.png'))).toHaveLength(1);
+    });
+
+    it('collects blob: URLs with an unknown type', () => {
+      document.body.innerHTML = '<img src="blob:https://example.com/abc-123">';
+      const blob = collectImages().find((i) => i.src.startsWith('blob:'));
+      expect(blob).toBeDefined();
+      expect(blob?.type).toBe('unknown');
+    });
+  });
+
   describe('Performance', () => {
     it('handles a large number of images efficiently', () => {
       for (let i = 0; i < 1000; i++) {

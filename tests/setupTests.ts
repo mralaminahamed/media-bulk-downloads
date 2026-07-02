@@ -11,11 +11,13 @@ global.chrome = {
         },
         onMessage: {
             addListener: jest.fn(),
+            removeListener: jest.fn(),
         },
         lastError: undefined,
     },
     tabs: {
         query: jest.fn().mockResolvedValue([]),
+        get: jest.fn(),
         sendMessage: jest.fn(),
         onActivated: {
             addListener: jest.fn(),
@@ -31,6 +33,7 @@ global.chrome = {
         },
         onChanged: {
             addListener: jest.fn(),
+            removeListener: jest.fn(),
         },
     },
     downloads: {
@@ -39,6 +42,10 @@ global.chrome = {
     action: {
         setBadgeText: jest.fn(),
         setBadgeBackgroundColor: jest.fn(),
+        setPopup: jest.fn(),
+        onClicked: {
+            addListener: jest.fn(),
+        },
     },
     windows: {
         getCurrent: jest.fn(),

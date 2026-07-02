@@ -15,6 +15,11 @@ preview, filter, and download them individually or in bulk.
 - **Toolbar badge** showing the eligible image count on each tab (toggleable).
 - **Settings** for download path, filename prefix, popup size, minimum image
   size, and base64 exclusion — persisted with `chrome.storage.sync`.
+- **On-page bubble (opt-in)** — a draggable floating launcher injected into the
+  page that opens the full app in-place via an isolated Shadow DOM, for a native
+  feel. Enable it in Settings and pick a corner. The toolbar popup keeps working
+  as a full fallback (it always opens, including on `chrome://`, the Web Store,
+  and PDF pages where content scripts can't run).
 
 ## Tech stack
 

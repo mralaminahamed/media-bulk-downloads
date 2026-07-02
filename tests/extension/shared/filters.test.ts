@@ -9,6 +9,14 @@ const base: SettingsData = {
   showImageCount: true,
   minimumImageSize: 0,
   excludeBase64Images: false,
+  thumbnailSize: 120,
+  previewSize: 360,
+  bubbleEnabled: false,
+  bubblePosition: { corner: 'bottom-right', x: 20, y: 20 },
+  bubbleWidth: 440,
+  bubbleHeight: 560,
+  bubblePanelPlacement: 'anchored',
+  bubblePanelPoint: { x: 40, y: 40 },
 };
 
 const img = (over: Partial<ImageInfo>): ImageInfo => ({

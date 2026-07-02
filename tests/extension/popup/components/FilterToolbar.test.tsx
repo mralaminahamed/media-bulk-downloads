@@ -14,6 +14,14 @@ describe('FilterToolbar Component', () => {
     showImageCount: true,
     minimumImageSize: 0,
     excludeBase64Images: false,
+    thumbnailSize: 120,
+    previewSize: 360,
+    bubbleEnabled: false,
+    bubblePosition: { corner: 'bottom-right', x: 20, y: 20 },
+    bubbleWidth: 440,
+    bubbleHeight: 560,
+    bubblePanelPlacement: 'anchored',
+    bubblePanelPoint: { x: 40, y: 40 },
   };
 
   const renderToolbar = (over: Partial<SettingsData> = {}) =>
@@ -60,6 +68,21 @@ describe('FilterToolbar Component', () => {
 
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ imageType: 'all', minSize: 0, includeBase64: true }),
+    );
+  });
+
+  it('applies a size bucket when a size pill is clicked', () => {
+    renderToolbar();
+    fireEvent.click(screen.getByRole('button', { name: 'Large' }));
+    expect(mockOnFilterChange).toHaveBeenCalledWith(expect.objectContaining({ sizeBucket: 'large' }));
+  });
+
+  it('includes the size bucket in a reset', () => {
+    renderToolbar();
+    fireEvent.click(screen.getByRole('button', { name: 'Small' }));
+    fireEvent.click(screen.getByText('Reset'));
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sizeBucket: 'all' }),
     );
   });
 });

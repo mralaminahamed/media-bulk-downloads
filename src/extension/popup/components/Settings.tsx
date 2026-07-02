@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { SettingsData } from '@/types';
+import { BubbleCorner, BubblePanelPlacement, SettingsData } from '@/types';
 
 export interface SettingsProps {
   onClose: () => void;
@@ -129,12 +129,95 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
                 <input type="number" name="popupHeight" min="400" max="600" value={settings.popupHeight} onChange={handleChange} className="field num" />
               </label>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="mb-1 block text-[12px] text-[var(--ink-2)]">Thumbnail Size (px):</span>
+                <input type="number" name="thumbnailSize" min="64" max="240" value={settings.thumbnailSize} onChange={handleChange} className="field num" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[12px] text-[var(--ink-2)]">Preview Size (px):</span>
+                <input type="number" name="previewSize" min="240" max="900" value={settings.previewSize} onChange={handleChange} className="field num" />
+              </label>
+            </div>
             <ToggleRow
               id="set-showImageCount"
               label="Show Image Count in Popup Icon"
               checked={settings.showImageCount}
               onToggle={() => toggle('showImageCount')}
             />
+          </section>
+
+          {/* On-page bubble */}
+          <section className="space-y-3">
+            <span className="eyebrow">On-page bubble</span>
+            <ToggleRow
+              id="set-bubbleEnabled"
+              label="Show floating bubble on pages"
+              checked={settings.bubbleEnabled}
+              onToggle={() => toggle('bubbleEnabled')}
+            />
+            {settings.bubbleEnabled && (
+              <>
+                <label className="block">
+                  <span className="mb-1 block text-[12px] text-[var(--ink-2)]">Bubble Corner:</span>
+                  <select
+                    name="bubbleCorner"
+                    value={settings.bubblePosition.corner}
+                    onChange={(e) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        bubblePosition: { ...prev.bubblePosition, corner: e.target.value as BubbleCorner },
+                      }))
+                    }
+                    className="field"
+                  >
+                    <option value="bottom-right">Bottom right</option>
+                    <option value="bottom-left">Bottom left</option>
+                    <option value="top-right">Top right</option>
+                    <option value="top-left">Top left</option>
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[12px] text-[var(--ink-2)]">Panel Position:</span>
+                  <select
+                    name="bubblePanelPlacement"
+                    value={settings.bubblePanelPlacement}
+                    onChange={(e) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        bubblePanelPlacement: e.target.value as BubblePanelPlacement,
+                      }))
+                    }
+                    className="field"
+                  >
+                    <option value="anchored">Next to button</option>
+                    <option value="center">Center of screen</option>
+                    <option value="free">Custom (drag panel header)</option>
+                    <option value="bottom-right">Corner · bottom right</option>
+                    <option value="bottom-left">Corner · bottom left</option>
+                    <option value="top-right">Corner · top right</option>
+                    <option value="top-left">Corner · top left</option>
+                  </select>
+                </label>
+                <p className="text-[11px] leading-relaxed text-[var(--ink-3)]">
+                  Tip: drag the panel by its header on any page to drop it exactly where you want.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] text-[var(--ink-2)]">Bubble Width:</span>
+                    <input type="number" name="bubbleWidth" min="320" max="3840" value={settings.bubbleWidth} onChange={handleChange} className="field num" />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] text-[var(--ink-2)]">Bubble Height:</span>
+                    <input type="number" name="bubbleHeight" min="360" max="2160" value={settings.bubbleHeight} onChange={handleChange} className="field num" />
+                  </label>
+                </div>
+              </>
+            )}
+            <p className="text-[11px] leading-relaxed text-[var(--ink-3)]">
+              Drag the bubble on any page to fine-tune its position. Works everywhere the
+              popup can run except restricted pages (chrome://, the Web Store, PDFs).
+            </p>
           </section>
         </div>
 
