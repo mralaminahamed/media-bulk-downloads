@@ -11,6 +11,7 @@
  */
 
 import { ImageInfo } from '@/types';
+import { detectType, parseUrlDimensions, upgradeToOriginal } from '@/extension/shared/imageUrl';
 
 /** Determines if a URL is a base64-encoded image. */
 export function isBase64Image(src: string): boolean {
@@ -100,15 +101,53 @@ export function collectImages(): ImageInfo[] {
 
   const collectImageInfo = (rawSrc: string, alt = '', width = 0, height = 0): void => {
     if (!rawSrc) return;
-    const src = resolveUrl(rawSrc);
-    if (seenSources.has(src)) return;
-    seenSources.add(src);
+    const resolved = resolveUrl(rawSrc);
 
-    const isBase64 = isBase64Image(src);
-    const fileSize = isBase64 ? getBase64ImageSize(src) : 0; // remote size unknown
-    const type = isBase64 ? getBase64ImageType(src) : getImageType(src);
+    if (isBase64Image(resolved)) {
+      if (seenSources.has(resolved)) return;
+      seenSources.add(resolved);
+      images.push({
+        src: resolved,
+        alt,
+        width,
+        height,
+        type: getBase64ImageType(resolved),
+        fileSize: getBase64ImageSize(resolved),
+        isBase64: true,
+      });
+      return;
+    }
 
-    images.push({ src, alt, width, height, type, fileSize, isBase64 });
+    const { original, thumbnail } = upgradeToOriginal(resolved);
+    if (seenSources.has(original)) return;
+    seenSources.add(original);
+
+    // DOM dimensions win; otherwise fall back to whatever the URL encodes.
+    // The upgraded `original` URL often has its size hint stripped away (that's
+    // the point of the upgrade), so also try the pre-upgrade `resolved` URL,
+    // which still carries the thumbnail's size token (e.g. Shopify `_800x600`,
+    // Twitter `name=360x360`).
+    let w = width;
+    let h = height;
+    if (w === 0 && h === 0) {
+      const dims = parseUrlDimensions(resolved) ?? parseUrlDimensions(original);
+      if (dims) {
+        w = dims.width;
+        h = dims.height;
+      }
+    }
+
+    const info: ImageInfo = {
+      src: original,
+      alt,
+      width: w,
+      height: h,
+      type: detectType(original),
+      fileSize: 0, // remote size unknown at collection time
+      isBase64: false,
+    };
+    if (thumbnail) info.thumbnailSrc = thumbnail;
+    images.push(info);
   };
 
   // <img> tags and their srcset.

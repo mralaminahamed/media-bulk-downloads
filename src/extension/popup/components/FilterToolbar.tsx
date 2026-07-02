@@ -10,6 +10,7 @@ const DEFAULT_FILTERS: FilterOptions = {
   imageType: 'all',
   minSize: 0,
   includeBase64: true,
+  sizeBucket: 'all',
 };
 
 const TYPE_OPTIONS: { value: string; label: string }[] = [
@@ -19,6 +20,13 @@ const TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: 'gif', label: 'GIF' },
   { value: 'svg', label: 'SVG' },
   { value: 'webp', label: 'WebP' },
+];
+
+const SIZE_OPTIONS: { value: 'all' | 'small' | 'medium' | 'large'; label: string }[] = [
+  { value: 'all', label: 'Any size' },
+  { value: 'small', label: 'Small' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'large', label: 'Large' },
 ];
 
 const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extensionSettings }) => {
@@ -37,7 +45,10 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
 
   const base64Disabled = extensionSettings.excludeBase64Images;
   const isDirty =
-    filters.imageType !== 'all' || filters.minSize > 0 || (!filters.includeBase64 && !base64Disabled);
+    filters.imageType !== 'all' ||
+    filters.minSize > 0 ||
+    filters.sizeBucket !== 'all' ||
+    (!filters.includeBase64 && !base64Disabled);
 
   return (
     <section className="border-b hairline bg-[var(--panel)] px-4 py-2.5">
@@ -61,6 +72,24 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
             onClick={() => update({ imageType: opt.value })}
             className={`chip ${filters.imageType === opt.value ? 'is-active' : ''}`}
             aria-pressed={filters.imageType === opt.value}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Size buckets */}
+      <div
+        className="scroll-thin -mx-1 mt-2 flex gap-1.5 overflow-x-auto px-1 pb-1"
+        role="group"
+        aria-label="Image size"
+      >
+        {SIZE_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => update({ sizeBucket: opt.value })}
+            className={`chip ${filters.sizeBucket === opt.value ? 'is-active' : ''}`}
+            aria-pressed={filters.sizeBucket === opt.value}
           >
             {opt.label}
           </button>
