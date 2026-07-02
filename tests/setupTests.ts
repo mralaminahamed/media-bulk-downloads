@@ -1,14 +1,46 @@
 import '@testing-library/jest-dom';
 
-// Mock chrome API
+// A reasonably complete Chrome API mock so extension modules (which register
+// event listeners at import time) can be imported without crashing. Individual
+// tests override specific methods as needed.
 global.chrome = {
     runtime: {
         sendMessage: jest.fn(),
+        onInstalled: {
+            addListener: jest.fn(),
+        },
         onMessage: {
             addListener: jest.fn(),
         },
+        lastError: undefined,
     },
     tabs: {
-        query: jest.fn(),
+        query: jest.fn().mockResolvedValue([]),
+        sendMessage: jest.fn(),
+        onActivated: {
+            addListener: jest.fn(),
+        },
+        onUpdated: {
+            addListener: jest.fn(),
+        },
     },
-} as any;
+    storage: {
+        sync: {
+            get: jest.fn(),
+            set: jest.fn(),
+        },
+        onChanged: {
+            addListener: jest.fn(),
+        },
+    },
+    downloads: {
+        download: jest.fn(),
+    },
+    action: {
+        setBadgeText: jest.fn(),
+        setBadgeBackgroundColor: jest.fn(),
+    },
+    windows: {
+        getCurrent: jest.fn(),
+    },
+} as unknown as typeof chrome;
