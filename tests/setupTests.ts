@@ -11,6 +11,7 @@ global.chrome = {
         },
         onMessage: {
             addListener: jest.fn(),
+            removeListener: jest.fn(),
         },
         lastError: undefined,
     },
@@ -32,6 +33,7 @@ global.chrome = {
         },
         onChanged: {
             addListener: jest.fn(),
+            removeListener: jest.fn(),
         },
     },
     downloads: {

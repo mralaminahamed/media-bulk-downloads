@@ -76,4 +76,32 @@ describe('Settings Component', () => {
       showImageCount: false,
     }));
   });
+
+  it('saves number fields as numbers', () => {
+    render(
+      <Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />
+    );
+    fireEvent.change(screen.getByLabelText('Minimum Image Size (px):'), { target: { value: '128' } });
+    fireEvent.click(screen.getByText('Save'));
+    expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ minimumImageSize: 128 }));
+  });
+
+  it('reveals the corner selector only after enabling the bubble', () => {
+    render(
+      <Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />
+    );
+    expect(screen.queryByLabelText('Bubble Corner:')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('switch', { name: /show floating bubble/i }));
+    const corner = screen.getByLabelText('Bubble Corner:');
+    fireEvent.change(corner, { target: { value: 'top-left' } });
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(mockOnSettingsChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bubbleEnabled: true,
+        bubblePosition: expect.objectContaining({ corner: 'top-left' }),
+      }),
+    );
+  });
 });

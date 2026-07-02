@@ -25,6 +25,8 @@ describe('Background Script', () => {
       action: {
         setBadgeText: jest.fn(),
         setBadgeBackgroundColor: jest.fn(),
+        setPopup: jest.fn(),
+        onClicked: { addListener: jest.fn() },
       },
       runtime: {
         lastError: null,
@@ -150,6 +152,38 @@ describe('Background Script', () => {
       expect(mockChrome.storage.sync.get).toHaveBeenCalledWith(['settings'], expect.any(Function));
       // showImageCount true → refreshes all tab badges.
       expect(mockChrome.tabs.query).toHaveBeenCalled();
+    });
+  });
+
+  describe('action mode + badges', () => {
+    const load = (settings: Partial<SettingsData>, tabs: Array<{ id?: number; url?: string }>) => {
+      mockChrome.storage.sync.get.mockImplementation((_k: string[], cb: (r: any) => void) =>
+        cb({ settings: { ...DEFAULT_SETTINGS, ...settings } }),
+      );
+      mockChrome.tabs.query.mockImplementation((_q: any, cb: (t: any[]) => void) => cb(tabs));
+      mockChrome.tabs.sendMessage.mockImplementation((_id: number, _m: string, cb: any) => cb([]));
+      loadSettings();
+    };
+
+    it('clears badges for every tab when showImageCount is off', () => {
+      load({ showImageCount: false }, [{ id: 1 }, { id: 2 }]);
+      expect(mockChrome.action.setBadgeText).toHaveBeenCalledWith({ text: '', tabId: 1 });
+      expect(mockChrome.action.setBadgeText).toHaveBeenCalledWith({ text: '', tabId: 2 });
+    });
+
+    it('clears the popup on injectable tabs when the bubble is enabled', () => {
+      load({ bubbleEnabled: true }, [{ id: 5, url: 'https://example.com' }]);
+      expect(mockChrome.action.setPopup).toHaveBeenCalledWith({ tabId: 5, popup: '' });
+    });
+
+    it('keeps the popup on restricted tabs even when the bubble is enabled', () => {
+      load({ bubbleEnabled: true }, [{ id: 6, url: 'chrome://extensions' }]);
+      expect(mockChrome.action.setPopup).toHaveBeenCalledWith({ tabId: 6, popup: 'index.html' });
+    });
+
+    it('keeps the popup everywhere when the bubble is disabled', () => {
+      load({ bubbleEnabled: false }, [{ id: 7, url: 'https://example.com' }]);
+      expect(mockChrome.action.setPopup).toHaveBeenCalledWith({ tabId: 7, popup: 'index.html' });
     });
   });
 });
