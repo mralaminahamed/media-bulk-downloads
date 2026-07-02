@@ -1,15 +1,38 @@
 {
-  "name": "image-bulk-downloads",
+  "name": "@mralaminahamed/image-bulk-downloads",
   "private": true,
   "version": "1.0.0",
+  "description": "Chrome (Manifest V3) extension to collect and bulk-download every image on a web page — including srcset, <picture>, and CSS background images.",
   "type": "module",
+  "license": "MIT",
+  "author": "Al Amin Ahamed <mrabir.ahamed@gmail.com>",
+  "homepage": "https://github.com/mralaminahamed/image-bulk-downloads#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mralaminahamed/image-bulk-downloads.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mralaminahamed/image-bulk-downloads/issues"
+  },
+  "keywords": [
+    "chrome-extension",
+    "browser-extension",
+    "manifest-v3",
+    "image-downloader",
+    "bulk-download",
+    "react",
+    "vite"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "packageManager": "yarn@4.17.0",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "eslint": "eslint .",
-    "eslint:fix": "eslint . --fix",
+    "lint:fix": "eslint . --fix",
     "type-check": "tsc --noEmit",
     "test": "jest --coverage",
     "test:watch": "jest --watch"
@@ -47,6 +70,5 @@
     "ts-jest": "^29.4.11",
     "typescript": "^6.0.3",
     "vite": "^8.1.3"
-  },
-  "packageManager": "yarn@4.17.0"
+  }
 }
