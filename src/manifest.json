@@ -4,10 +4,8 @@
   "version": "1.0.0",
   "description": "Collect and download all images from a webpage",
   "permissions": [
-    "activeTab",
     "downloads",
     "storage",
-    "scripting",
     "tabs"
   ],
   "host_permissions": [
