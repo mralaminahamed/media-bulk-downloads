@@ -3,127 +3,152 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 import { SettingsData } from '@/types';
 
 export interface SettingsProps {
-    onClose: () => void;
-    onSettingsChange: (newSettings: SettingsData) => void;
-    settings: SettingsData;
+  onClose: () => void;
+  onSettingsChange: (newSettings: SettingsData) => void;
+  settings: SettingsData;
 }
 
+const ToggleRow: React.FC<{ id: string; label: string; checked: boolean; onToggle: () => void }> = ({
+  id,
+  label,
+  checked,
+  onToggle,
+}) => (
+  <div className="flex items-center justify-between gap-3 py-1.5">
+    <label htmlFor={id} className="text-[13px] text-[var(--ink)]">
+      {label}
+    </label>
+    <button
+      id={id}
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={onToggle}
+      className="switch"
+    />
+  </div>
+);
+
 const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings: initialSettings }) => {
-    const [settings, setSettings] = useState<SettingsData>(initialSettings);
+  const [settings, setSettings] = useState<SettingsData>(initialSettings);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value, type, checked } = e.target;
-        setSettings((prev) => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : type === 'number' ? Number(value) : value,
-        }));
-    };
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type } = e.target;
+    setSettings((prev) => ({
+      ...prev,
+      [name]: type === 'number' ? Number(value) : value,
+    }));
+  };
 
-    const handleSave = () => {
-        chrome.storage.sync.set({ settings }, () => {
-            onSettingsChange(settings);
-            onClose();
-        });
-    };
+  const toggle = (name: keyof SettingsData) => {
+    setSettings((prev) => ({ ...prev, [name]: !prev[name] }));
+  };
 
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center animate-fade-in">
-            <div className="bg-white rounded-lg shadow-xl w-96 max-h-[90vh] overflow-y-auto animate-slide-up">
-                <div className="p-4 border-b border-neutral-200 flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-primary-700">Settings</h2>
-                    <button onClick={onClose} className="text-neutral-500 hover:text-neutral-700">
-                        <XMarkIcon className="w-5 h-5" />
-                    </button>
-                </div>
-                <div className="p-4 space-y-4">
-                    <label className="block">
-                        <span className="text-neutral-700">Download Path:</span>
-                        <input
-                            type="text"
-                            name="downloadPath"
-                            value={settings.downloadPath}
-                            onChange={handleChange}
-                            placeholder="e.g., Downloads/Images"
-                            className="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
-                        />
-                    </label>
-                    <label className="block">
-                        <span className="text-neutral-700">File Name Prefix:</span>
-                        <input
-                            type="text"
-                            name="fileNamePrefix"
-                            value={settings.fileNamePrefix}
-                            onChange={handleChange}
-                            className="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
-                        />
-                    </label>
-                    <label className="block">
-                        <span className="text-neutral-700">Popup Width:</span>
-                        <input
-                            type="number"
-                            name="popupWidth"
-                            value={settings.popupWidth}
-                            onChange={handleChange}
-                            min="200"
-                            max="800"
-                            className="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
-                        />
-                    </label>
-                    <label className="block">
-                        <span className="text-neutral-700">Popup Height:</span>
-                        <input
-                            type="number"
-                            name="popupHeight"
-                            value={settings.popupHeight}
-                            onChange={handleChange}
-                            min="300"
-                            max="1000"
-                            className="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
-                        />
-                    </label>
-                    <label className="flex items-center">
-                        <input
-                            type="checkbox"
-                            name="showImageCount"
-                            checked={settings.showImageCount}
-                            onChange={handleChange}
-                            className="rounded border-neutral-300 text-primary-600 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
-                        />
-                        <span className="ml-2 text-neutral-700">Show Image Count in Popup Icon</span>
-                    </label>
-                    <label className="block">
-                        <span className="text-neutral-700">Minimum Image Size (px):</span>
-                        <input
-                            type="number"
-                            name="minimumImageSize"
-                            value={settings.minimumImageSize}
-                            onChange={handleChange}
-                            min="0"
-                            className="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
-                        />
-                    </label>
-                    <label className="flex items-center">
-                        <input
-                            type="checkbox"
-                            name="excludeBase64Images"
-                            checked={settings.excludeBase64Images}
-                            onChange={handleChange}
-                            className="rounded border-neutral-300 text-primary-600 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
-                        />
-                        <span className="ml-2 text-neutral-700">Exclude Base64 Images</span>
-                    </label>
-                </div>
-                <div className="p-4 border-t border-neutral-200 flex justify-end space-x-4">
-                    <button onClick={onClose} className="px-4 py-2 border border-neutral-300 rounded-md text-neutral-700 hover:bg-neutral-50 transition-colors">
-                        Cancel
-                    </button>
-                    <button onClick={handleSave} className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors">
-                        Save
-                    </button>
-                </div>
+  const handleSave = () => {
+    // Persistence is owned by the parent (App.handleSettingsChange).
+    onSettingsChange(settings);
+    onClose();
+  };
+
+  return (
+    <div className="overlay-in fixed inset-0 z-50 flex items-stretch justify-end bg-[var(--ink)]/50 backdrop-blur-[2px]" onClick={onClose}>
+      <div
+        className="sheet-in flex h-full w-full max-w-[380px] flex-col bg-[var(--panel)] shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="flex items-center justify-between border-b hairline px-4 py-3">
+          <div>
+            <h2 className="text-[13px] font-semibold text-[var(--ink)]">Settings</h2>
+            <p className="eyebrow mt-0.5">Preferences</p>
+          </div>
+          <button onClick={onClose} className="iconbtn" title="Close" aria-label="Close">
+            <XMarkIcon className="h-[18px] w-[18px]" />
+          </button>
+        </header>
+
+        <div className="scroll-thin flex-1 space-y-5 overflow-y-auto px-4 py-4">
+          {/* Downloads */}
+          <section className="space-y-3">
+            <span className="eyebrow">Downloads</span>
+            <label className="block">
+              <span className="mb-1 block text-[12px] text-[var(--ink-2)]">Download Path:</span>
+              <input
+                type="text"
+                name="downloadPath"
+                value={settings.downloadPath}
+                onChange={handleChange}
+                placeholder="e.g. Images/Collected"
+                className="field"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[12px] text-[var(--ink-2)]">File Name Prefix:</span>
+              <input
+                type="text"
+                name="fileNamePrefix"
+                value={settings.fileNamePrefix}
+                onChange={handleChange}
+                className="field"
+              />
+            </label>
+          </section>
+
+          {/* Collection */}
+          <section className="space-y-3">
+            <span className="eyebrow">Collection</span>
+            <label className="block">
+              <span className="mb-1 block text-[12px] text-[var(--ink-2)]">Minimum Image Size (px):</span>
+              <input
+                type="number"
+                name="minimumImageSize"
+                min="0"
+                value={settings.minimumImageSize}
+                onChange={handleChange}
+                className="field num"
+              />
+            </label>
+            <ToggleRow
+              id="set-excludeBase64Images"
+              label="Exclude Base64 Images"
+              checked={settings.excludeBase64Images}
+              onToggle={() => toggle('excludeBase64Images')}
+            />
+          </section>
+
+          {/* Appearance */}
+          <section className="space-y-3">
+            <span className="eyebrow">Appearance</span>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="mb-1 block text-[12px] text-[var(--ink-2)]">Popup Width:</span>
+                <input type="number" name="popupWidth" min="320" max="800" value={settings.popupWidth} onChange={handleChange} className="field num" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[12px] text-[var(--ink-2)]">Popup Height:</span>
+                <input type="number" name="popupHeight" min="400" max="600" value={settings.popupHeight} onChange={handleChange} className="field num" />
+              </label>
             </div>
+            <ToggleRow
+              id="set-showImageCount"
+              label="Show Image Count in Popup Icon"
+              checked={settings.showImageCount}
+              onToggle={() => toggle('showImageCount')}
+            />
+          </section>
         </div>
-    );
+
+        <footer className="flex justify-end gap-2 border-t hairline px-4 py-3">
+          <button onClick={onClose} className="btn btn-ghost">
+            Cancel
+          </button>
+          <button onClick={handleSave} className="btn btn-primary">
+            Save
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
 };
 
 export default Settings;

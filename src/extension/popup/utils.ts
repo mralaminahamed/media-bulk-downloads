@@ -1,41 +1,41 @@
 /**
- * Determines whether the current page is the extension popup or a regular tab.
- * @returns A promise that resolves to true if it's the popup, false otherwise.
+ * Fetches the byte size of a remote image via a HEAD request.
+ *
+ * Runs from the popup (an extension-origin page), so host_permissions let it
+ * bypass page CORS — unlike a content script. Returns 0 on any failure or when
+ * the server omits Content-Length.
  */
-export async function isExtensionPopup(): Promise<boolean> {
-    // If chrome.action is not available, we're not in an extension context
-    if (!chrome.action) {
-        return false;
+export async function getImageFileSize(url: string): Promise<number> {
+    try {
+        const response = await fetch(url, { method: 'HEAD' });
+        const length = response.headers.get('Content-Length');
+        return length ? parseInt(length, 10) || 0 : 0;
+    } catch {
+        return 0;
     }
-
-    return new Promise((resolve) => {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            // If there's no active tab, we're in the popup
-            if (!tabs.length) {
-                resolve(true);
-                return;
-            }
-
-            // Check if the current window is the popup
-            chrome.windows.getCurrent((window) => {
-                resolve(window.type === 'popup');
-            });
-        });
-    });
 }
 
 /**
- * Determines the current context of the script execution.
- * @returns A string indicating the context: 'popup', 'options', 'content-script', or 'other'.
+ * Runs an async mapper over items with a bounded number of concurrent tasks,
+ * so enriching many images doesn't fire hundreds of simultaneous requests.
  */
-export function getExtensionContext(): string {
-    if (chrome.extension) {
-        const url = window.location.href;
-        if (url.includes('index.html')) {
-            return 'popup';
-        } else if (chrome.runtime?.getManifest()) {
-            return 'content-script';
+export async function mapWithConcurrency<T, R>(
+    items: readonly T[],
+    limit: number,
+    fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+    const results = new Array<R>(items.length);
+    let cursor = 0;
+
+    const worker = async (): Promise<void> => {
+        while (cursor < items.length) {
+            const index = cursor++;
+            results[index] = await fn(items[index], index);
         }
-    }
-    return 'other';
+    };
+
+    const workerCount = Math.max(1, Math.min(limit, items.length));
+    await Promise.all(Array.from({ length: workerCount }, worker));
+
+    return results;
 }

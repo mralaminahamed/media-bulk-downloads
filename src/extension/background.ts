@@ -1,31 +1,36 @@
 import { ChromeMessage, DownloadMessage, DownloadResponse, ImageInfo, SettingsData } from '@/types';
+import { filterImagesBySettings } from './shared/filters';
 
-let currentSettings: SettingsData = {
+export const DEFAULT_SETTINGS: SettingsData = {
   downloadPath: '',
   fileNamePrefix: 'image_',
-  popupWidth: 400,
+  popupWidth: 460,
   popupHeight: 600,
   showImageCount: true,
   minimumImageSize: 0,
   excludeBase64Images: false,
 };
 
+let currentSettings: SettingsData = { ...DEFAULT_SETTINGS };
+
+const BADGE_COLOR = '#4F46E5';
+
 /**
- * Load the current settings from storage
+ * Load the current settings from storage.
  */
-function loadSettings() {
+function loadSettings(): void {
   chrome.storage.sync.get(['settings'], (result) => {
     if (result.settings) {
-      currentSettings = result.settings;
+      currentSettings = { ...DEFAULT_SETTINGS, ...result.settings };
       applySettings();
     }
   });
 }
 
 /**
- * Apply the current settings to all tabs
+ * Apply the current settings to all tabs.
  */
-function applySettings() {
+function applySettings(): void {
   if (!currentSettings.showImageCount) {
     clearAllBadges();
   } else {
@@ -34,9 +39,9 @@ function applySettings() {
 }
 
 /**
- * Clear the badge text for all tabs
+ * Clear the badge text for all tabs.
  */
-function clearAllBadges() {
+function clearAllBadges(): void {
   chrome.tabs.query({}, (tabs) => {
     tabs.forEach((tab) => {
       if (tab.id) {
@@ -47,9 +52,9 @@ function clearAllBadges() {
 }
 
 /**
- * Update the badge text for all tabs
+ * Update the badge text for all tabs.
  */
-function updateAllTabsBadges() {
+function updateAllTabsBadges(): void {
   chrome.tabs.query({}, (tabs) => {
     tabs.forEach((tab) => {
       if (tab.id) {
@@ -60,84 +65,132 @@ function updateAllTabsBadges() {
 }
 
 /**
- * Update the badge text for the given tab
- *
- * @param {number} tabId The ID of the tab to update
+ * Update the badge text for the given tab.
  */
-function updateTabBadge(tabId: number) {
+function updateTabBadge(tabId: number): void {
   chrome.tabs.sendMessage(tabId, 'GET_IMAGES', (images: ImageInfo[]) => {
-    // Ignore errors when sending messages to tabs
+    // Tabs without a content script (chrome://, the web store, etc.) surface a
+    // lastError; ignore them.
     if (chrome.runtime.lastError) {
       return;
     }
 
-    // Show the badge only if there are images on the page
     if (images) {
-      const filteredImages = filterImages(images);
-      const badgeText = filteredImages.length.toString();
+      const badgeText = filterImagesBySettings(images, currentSettings).length.toString();
       chrome.action.setBadgeText({ text: badgeText, tabId });
-      chrome.action.setBadgeBackgroundColor({ color: '#4F46E5', tabId });
+      chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR, tabId });
     }
   });
 }
 
-function filterImages(images: ImageInfo[]): ImageInfo[] {
-  return images.filter(img =>
-      (img.width >= currentSettings.minimumImageSize && img.height >= currentSettings.minimumImageSize) &&
-      (!currentSettings.excludeBase64Images || !img.isBase64) // Changed from checking src to using isBase64 property
-  );
+/**
+ * Maps a collected image type to a safe file extension.
+ */
+export function extensionForType(type: string): string {
+  switch (type) {
+    case 'jpeg':
+      return 'jpg';
+    case 'png':
+    case 'gif':
+    case 'webp':
+    case 'svg':
+    case 'avif':
+    case 'bmp':
+    case 'ico':
+      return type;
+    default:
+      return 'jpg';
+  }
+}
+
+/**
+ * Sanitizes a user-supplied path segment: strips path traversal, leading
+ * slashes and characters illegal in download filenames. chrome.downloads
+ * already rejects absolute paths and "..", but we normalize defensively.
+ */
+export function sanitizePathSegment(segment: string): string {
+  return segment
+    // Control chars are intentionally part of the illegal-filename set.
+    // eslint-disable-next-line no-control-regex
+    .replace(/[<>:"|?*\x00-\x1f]/g, '')
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter((part) => part && part !== '.' && part !== '..')
+    .join('/');
+}
+
+/**
+ * Builds a safe, relative download path for an image.
+ */
+export function buildDownloadFilename(
+  image: ImageInfo,
+  index: number,
+  settings: SettingsData,
+): string {
+  const prefix = sanitizePathSegment(settings.fileNamePrefix) || 'image_';
+  const extension = extensionForType(image.type);
+  const fileName = `${prefix}${index + 1}.${extension}`;
+  const dir = sanitizePathSegment(settings.downloadPath);
+  return dir ? `${dir}/${fileName}` : fileName;
 }
 
 chrome.runtime.onInstalled.addListener(() => {
   loadSettings();
 });
 
+// Service workers are ephemeral; reload settings whenever the worker starts.
+if (chrome.storage?.sync) {
+  loadSettings();
+}
+
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'sync' && changes.settings) {
-    currentSettings = changes.settings.newValue;
+    currentSettings = { ...DEFAULT_SETTINGS, ...(changes.settings.newValue as Partial<SettingsData>) };
     applySettings();
   }
 });
 
 chrome.tabs.onActivated.addListener((activeInfo) => {
-    if (currentSettings.showImageCount) {
-        updateTabBadge(activeInfo.tabId);
-    }
-} );
+  if (currentSettings.showImageCount) {
+    updateTabBadge(activeInfo.tabId);
+  }
+});
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (!currentSettings.showImageCount) {
+    return;
+  }
+
   if (changeInfo.status === 'complete' && tab.url) {
-    if (currentSettings.showImageCount) {
-      updateTabBadge(tabId);
-    }
-  } else{
+    updateTabBadge(tabId);
+  } else if (changeInfo.status === 'loading') {
     chrome.action.setBadgeText({ text: '...', tabId });
-    chrome.action.setBadgeBackgroundColor({ color: '#4F46E5', tabId });
+    chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR, tabId });
   }
 });
 
-chrome.runtime.onMessage.addListener((message: ChromeMessage, sender: chrome.runtime.MessageSender, sendResponse: (response: DownloadResponse) => void) => {
-  if (typeof message === 'object' && message.type === 'DOWNLOAD_IMAGES') {
-    const downloadMessage = message as DownloadMessage;
-    const images: ImageInfo[] = downloadMessage.images;
+chrome.runtime.onMessage.addListener(
+  (
+    message: ChromeMessage,
+    _sender: chrome.runtime.MessageSender,
+    sendResponse: (response: DownloadResponse) => void,
+  ) => {
+    if (typeof message === 'object' && message.type === 'DOWNLOAD_IMAGES') {
+      const { images } = message as DownloadMessage;
+      const eligible = filterImagesBySettings(images, currentSettings);
 
-    const filteredImages = filterImages(images);
-
-    filteredImages.forEach((image, index) => {
-      const fileExtension = image.type || 'jpg'; // Use the image type instead of parsing from URL
-      const fileName = `${currentSettings.fileNamePrefix}${index + 1}.${fileExtension}`;
-      const fullPath = currentSettings.downloadPath ? `${currentSettings.downloadPath}/${fileName}` : fileName;
-
-      chrome.downloads.download({
-        url: image.src,
-        filename: fullPath,
-        saveAs: false
+      eligible.forEach((image, index) => {
+        chrome.downloads.download({
+          url: image.src,
+          filename: buildDownloadFilename(image, index, currentSettings),
+          saveAs: false,
+        });
       });
-    });
 
-    sendResponse({ status: 'success', message: `Downloading ${filteredImages.length} images...` });
-  }
-  return true;
-});
+      sendResponse({ status: 'success', message: `Downloading ${eligible.length} images...` });
+    }
+    return true;
+  },
+);
 
-export { filterImages, updateTabBadge, loadSettings }; // Export for testing
+export { updateTabBadge, loadSettings };
