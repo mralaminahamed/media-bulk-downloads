@@ -1,4 +1,4 @@
-import { detectType, parseUrlDimensions } from '@/extension/shared/imageUrl';
+import { detectType, parseUrlDimensions, upgradeToOriginal } from '@/extension/shared/imageUrl';
 
 describe('detectType', () => {
   it('reads a plain extension', () => {
@@ -39,5 +39,62 @@ describe('parseUrlDimensions', () => {
   it('returns null for named sizes and size-free urls', () => {
     expect(parseUrlDimensions('https://pbs.twimg.com/media/ABC?name=orig')).toBeNull();
     expect(parseUrlDimensions('https://img.test/photo.jpg')).toBeNull();
+  });
+});
+
+describe('upgradeToOriginal', () => {
+  const cases: Array<[string, string, string]> = [
+    [
+      'twitter name -> orig',
+      'https://pbs.twimg.com/media/ABC?format=jpg&name=360x360',
+      'https://pbs.twimg.com/media/ABC?format=jpg&name=orig',
+    ],
+    [
+      'wordpress strips resize params + -scaled',
+      'https://i0.wp.com/site.com/wp-content/a-scaled.jpg?w=600&h=400&fit=crop',
+      'https://i0.wp.com/site.com/wp-content/a.jpg',
+    ],
+    [
+      'shopify strips _WxH suffix',
+      'https://cdn.shopify.com/s/files/1/x/y_800x600.jpg?v=1',
+      'https://cdn.shopify.com/s/files/1/x/y.jpg?v=1',
+    ],
+    [
+      'unsplash drops resize params',
+      'https://images.unsplash.com/photo-123?w=400&q=80&fit=crop',
+      'https://images.unsplash.com/photo-123',
+    ],
+    [
+      'imgix drops resize params',
+      'https://acme.imgix.net/a.jpg?w=200&h=200&fit=crop',
+      'https://acme.imgix.net/a.jpg',
+    ],
+    [
+      'wikimedia drops /thumb/ and size segment',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Cat.jpg/320px-Cat.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/a/ab/Cat.jpg',
+    ],
+  ];
+
+  it.each(cases)('%s', (_name, input, expected) => {
+    const { original, thumbnail } = upgradeToOriginal(input);
+    expect(original).toBe(expected);
+    expect(thumbnail).toBe(input);
+  });
+
+  it('cloudinary removes the transform segment', () => {
+    const { original } = upgradeToOriginal(
+      'https://res.cloudinary.com/demo/image/upload/w_300,h_200,c_fill/sample.jpg',
+    );
+    expect(original).toBe('https://res.cloudinary.com/demo/image/upload/sample.jpg');
+  });
+
+  it('passes through an unknown host with no thumbnail', () => {
+    const r = upgradeToOriginal('https://example.com/pics/photo.jpg');
+    expect(r).toEqual({ original: 'https://example.com/pics/photo.jpg' });
+  });
+
+  it('passes through a malformed url unchanged', () => {
+    expect(upgradeToOriginal('not a url')).toEqual({ original: 'not a url' });
   });
 });
