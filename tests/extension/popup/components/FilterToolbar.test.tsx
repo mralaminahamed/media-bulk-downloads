@@ -1,94 +1,65 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import FilterToolbar from '@/extension/popup/components/FilterToolbar';
-import { FilterOptions, SettingsData } from '@/types';
+import { SettingsData } from '@/types';
 
 describe('FilterToolbar Component', () => {
   const mockOnFilterChange = jest.fn();
-  const mockExtensionSettings: SettingsData = {
+  const settings: SettingsData = {
     downloadPath: '',
     fileNamePrefix: 'image_',
-    popupWidth: 400,
+    popupWidth: 460,
     popupHeight: 600,
     showImageCount: true,
     minimumImageSize: 0,
     excludeBase64Images: false,
   };
 
-  beforeEach(() => {
-    mockOnFilterChange.mockClear();
+  const renderToolbar = (over: Partial<SettingsData> = {}) =>
+    render(<FilterToolbar onFilterChange={mockOnFilterChange} extensionSettings={{ ...settings, ...over }} />);
+
+  beforeEach(() => mockOnFilterChange.mockClear());
+
+  it('renders the filter section with type pills', () => {
+    renderToolbar();
+    expect(screen.getByText('Filters')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'JPEG' })).toBeInTheDocument();
   });
 
-  const renderFilterToolbar = () => render(
-      <FilterToolbar
-          onFilterChange={mockOnFilterChange}
-          extensionSettings={mockExtensionSettings}
-      />
-  );
-
-  it('renders correctly', () => {
-    renderFilterToolbar();
-    expect(screen.getByText('Filter Images')).toBeInTheDocument();
+  it('applies a type filter when a pill is clicked', () => {
+    renderToolbar();
+    fireEvent.click(screen.getByRole('button', { name: 'JPEG' }));
+    expect(mockOnFilterChange).toHaveBeenCalledWith(expect.objectContaining({ imageType: 'jpeg' }));
   });
 
-  it('opens filter options when button is clicked', () => {
-    renderFilterToolbar();
-    fireEvent.click(screen.getByText('Filter Images'));
-    expect(screen.getByLabelText('Image Type')).toBeInTheDocument();
+  it('updates the minimum size filter', () => {
+    renderToolbar();
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '100' } });
+    expect(mockOnFilterChange).toHaveBeenCalledWith(expect.objectContaining({ minSize: 100 }));
   });
 
-  it('calls onFilterChange when filter is applied', async () => {
-    renderFilterToolbar();
-    fireEvent.click(screen.getByText('Filter Images'));
-    fireEvent.change(screen.getByLabelText('Image Type'), { target: { value: 'jpeg' } });
-    fireEvent.click(screen.getByText('Apply Filters'));
-
-    await waitFor(() => {
-      expect(mockOnFilterChange).toHaveBeenCalledWith(expect.objectContaining({
-        imageType: 'jpeg',
-      }));
-    });
+  it('toggles the base64 switch', () => {
+    renderToolbar();
+    fireEvent.click(screen.getByRole('switch', { name: /base64/i }));
+    expect(mockOnFilterChange).toHaveBeenCalledWith(expect.objectContaining({ includeBase64: false }));
   });
 
-  it('resets filters when reset button is clicked', async () => {
-    renderFilterToolbar();
-    fireEvent.click(screen.getByText('Filter Images'));
-    fireEvent.change(screen.getByLabelText('Image Type'), { target: { value: 'jpeg' } });
+  it('disables the base64 switch when the setting excludes base64', () => {
+    renderToolbar({ excludeBase64Images: true });
+    expect(screen.getByRole('switch', { name: /base64/i })).toBeDisabled();
+  });
+
+  it('shows a reset control only when filters are active, and resets them', () => {
+    renderToolbar();
+    expect(screen.queryByText('Reset')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'PNG' }));
     fireEvent.click(screen.getByText('Reset'));
 
-    await waitFor(() => {
-      expect(mockOnFilterChange).toHaveBeenCalledWith(expect.objectContaining({
-        imageType: 'all',
-        minSize: 0,
-        includeBase64: true,
-      } as FilterOptions));
-    });
-  });
-
-  it('updates minimum size filter', async () => {
-    renderFilterToolbar();
-    fireEvent.click(screen.getByText('Filter Images'));
-    fireEvent.change(screen.getByLabelText('Minimum Size (KB)'), { target: { value: '100' } });
-    fireEvent.click(screen.getByText('Apply Filters'));
-
-    await waitFor(() => {
-      expect(mockOnFilterChange).toHaveBeenCalledWith(expect.objectContaining({
-        minSize: 100,
-      }));
-    });
-  });
-
-  it('toggles include base64 images filter', async () => {
-    renderFilterToolbar();
-    fireEvent.click(screen.getByText('Filter Images'));
-    fireEvent.click(screen.getByLabelText('Include Base64 Images'));
-    fireEvent.click(screen.getByText('Apply Filters'));
-
-    await waitFor(() => {
-      expect(mockOnFilterChange).toHaveBeenCalledWith(expect.objectContaining({
-        includeBase64: false,
-      }));
-    });
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ imageType: 'all', minSize: 0, includeBase64: true }),
+    );
   });
 });

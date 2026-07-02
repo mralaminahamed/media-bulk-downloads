@@ -59,7 +59,7 @@ describe('Settings Component', () => {
     }));
   });
 
-  it('toggles checkbox settings correctly', () => {
+  it('toggles switch settings correctly', () => {
     render(
       <Settings
         onClose={mockOnClose}
@@ -67,8 +67,8 @@ describe('Settings Component', () => {
         settings={initialSettings}
       />
     );
-    const checkbox = screen.getByLabelText('Show Image Count in Popup Icon');
-    fireEvent.click(checkbox);
+    const toggle = screen.getByRole('switch', { name: /show image count/i });
+    fireEvent.click(toggle);
     fireEvent.click(screen.getByText('Save'));
     expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({
       showImageCount: false,

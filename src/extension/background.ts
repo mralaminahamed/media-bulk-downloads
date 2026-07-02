@@ -4,7 +4,7 @@ import { filterImagesBySettings } from './shared/filters';
 export const DEFAULT_SETTINGS: SettingsData = {
   downloadPath: '',
   fileNamePrefix: 'image_',
-  popupWidth: 400,
+  popupWidth: 460,
   popupHeight: 600,
   showImageCount: true,
   minimumImageSize: 0,
