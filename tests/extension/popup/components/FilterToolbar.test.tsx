@@ -16,6 +16,8 @@ describe('FilterToolbar Component', () => {
     excludeBase64Images: false,
     bubbleEnabled: false,
     bubblePosition: { corner: 'bottom-right', x: 20, y: 20 },
+    bubbleWidth: 440,
+    bubbleHeight: 560,
   };
 
   const renderToolbar = (over: Partial<SettingsData> = {}) =>

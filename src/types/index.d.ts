@@ -53,6 +53,8 @@ export interface SettingsData {
   /** Show the on-page floating bubble (in-page app surface). */
   bubbleEnabled: boolean;
   bubblePosition: BubblePosition;
+  bubbleWidth: number;
+  bubbleHeight: number;
 }
 
 export interface FilterOptions {

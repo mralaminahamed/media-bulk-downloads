@@ -11,6 +11,8 @@ export const DEFAULT_SETTINGS: SettingsData = {
   excludeBase64Images: false,
   bubbleEnabled: false,
   bubblePosition: { corner: 'bottom-right', x: 20, y: 20 },
+  bubbleWidth: 440,
+  bubbleHeight: 560,
 };
 
 /** Merge stored settings over defaults, tolerating partial/legacy/unknown shapes. */

@@ -15,6 +15,8 @@ describe('Settings Component', () => {
     excludeBase64Images: false,
     bubbleEnabled: false,
     bubblePosition: { corner: 'bottom-right' as const, x: 20, y: 20 },
+    bubbleWidth: 440,
+    bubbleHeight: 560,
   };
 
   beforeEach(() => {
@@ -102,6 +104,20 @@ describe('Settings Component', () => {
         bubbleEnabled: true,
         bubblePosition: expect.objectContaining({ corner: 'top-left' }),
       }),
+    );
+  });
+
+  it('saves the bubble width and height as numbers', () => {
+    render(
+      <Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />
+    );
+    fireEvent.click(screen.getByRole('switch', { name: /show floating bubble/i }));
+    fireEvent.change(screen.getByLabelText('Bubble Width:'), { target: { value: '520' } });
+    fireEvent.change(screen.getByLabelText('Bubble Height:'), { target: { value: '600' } });
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(mockOnSettingsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ bubbleWidth: 520, bubbleHeight: 600 }),
     );
   });
 });

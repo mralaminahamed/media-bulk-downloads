@@ -10,7 +10,6 @@ interface BubbleProps {
 
 const FAB = 48;
 const EDGE = 8;
-const PANEL_W = 440;
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
@@ -30,6 +29,7 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
   const [open, setOpen] = useState(false);
   const [corner, setCorner] = useState<BubbleCorner>(initialSettings.bubblePosition.corner);
   const [pos, setPos] = useState({ x: initialSettings.bubblePosition.x, y: initialSettings.bubblePosition.y });
+  const [size, setSize] = useState({ w: initialSettings.bubbleWidth, h: initialSettings.bubbleHeight });
   const [grabbing, setGrabbing] = useState(false);
 
   const dragging = useRef(false);
@@ -39,9 +39,10 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
   useEffect(() => {
     const listener = (changes: { [k: string]: chrome.storage.StorageChange }, area: string) => {
       if (area !== 'sync' || !changes.settings) return;
-      const next = withDefaults(changes.settings.newValue as Partial<SettingsData>).bubblePosition;
-      setCorner(next.corner);
-      setPos({ x: next.x, y: next.y });
+      const next = withDefaults(changes.settings.newValue as Partial<SettingsData>);
+      setCorner(next.bubblePosition.corner);
+      setPos({ x: next.bubblePosition.x, y: next.bubblePosition.y });
+      setSize({ w: next.bubbleWidth, h: next.bubbleHeight });
     };
     chrome.storage.onChanged.addListener(listener);
     return () => chrome.storage.onChanged.removeListener(listener);
@@ -101,8 +102,9 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
     }
   };
 
-  // Panel height fits the viewport with margin for the FAB + gaps.
-  const panelHeight = `min(560px, calc(100vh - ${pos.y + FAB + 24}px))`;
+  // Panel size honors the user's settings but never exceeds the viewport.
+  const panelWidth = `min(${size.w}px, calc(100vw - ${EDGE * 2}px))`;
+  const panelHeight = `min(${size.h}px, calc(100vh - ${pos.y + FAB + 24}px))`;
   const flexDir = corner.startsWith('top') ? 'flex-col' : 'flex-col-reverse';
   const alignSide = corner.endsWith('left') ? 'items-start' : 'items-end';
 
@@ -111,7 +113,7 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
       {open && (
         <div
           className="sheet-in overflow-hidden rounded-[14px] border hairline bg-[var(--paper)] shadow-2xl"
-          style={{ width: PANEL_W, height: panelHeight }}
+          style={{ width: panelWidth, height: panelHeight }}
         >
           <div className="h-full">
             <App collect={collectLocal} surface="bubble" onClose={() => setOpen(false)} />

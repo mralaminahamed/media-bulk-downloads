@@ -180,7 +180,7 @@ const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'po
   const filtered = shown !== total;
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="ibd-app flex h-full flex-col overflow-hidden bg-[var(--paper)] text-[var(--ink)]">
       {/* Header */}
       <header className="dotgrid border-b hairline">
         <div className="flex items-center justify-between px-4 pt-3.5">

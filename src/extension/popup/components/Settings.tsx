@@ -147,25 +147,37 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
               onToggle={() => toggle('bubbleEnabled')}
             />
             {settings.bubbleEnabled && (
-              <label className="block">
-                <span className="mb-1 block text-[12px] text-[var(--ink-2)]">Bubble Corner:</span>
-                <select
-                  name="bubbleCorner"
-                  value={settings.bubblePosition.corner}
-                  onChange={(e) =>
-                    setSettings((prev) => ({
-                      ...prev,
-                      bubblePosition: { ...prev.bubblePosition, corner: e.target.value as BubbleCorner },
-                    }))
-                  }
-                  className="field"
-                >
-                  <option value="bottom-right">Bottom right</option>
-                  <option value="bottom-left">Bottom left</option>
-                  <option value="top-right">Top right</option>
-                  <option value="top-left">Top left</option>
-                </select>
-              </label>
+              <>
+                <label className="block">
+                  <span className="mb-1 block text-[12px] text-[var(--ink-2)]">Bubble Corner:</span>
+                  <select
+                    name="bubbleCorner"
+                    value={settings.bubblePosition.corner}
+                    onChange={(e) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        bubblePosition: { ...prev.bubblePosition, corner: e.target.value as BubbleCorner },
+                      }))
+                    }
+                    className="field"
+                  >
+                    <option value="bottom-right">Bottom right</option>
+                    <option value="bottom-left">Bottom left</option>
+                    <option value="top-right">Top right</option>
+                    <option value="top-left">Top left</option>
+                  </select>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] text-[var(--ink-2)]">Bubble Width:</span>
+                    <input type="number" name="bubbleWidth" min="320" max="900" value={settings.bubbleWidth} onChange={handleChange} className="field num" />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] text-[var(--ink-2)]">Bubble Height:</span>
+                    <input type="number" name="bubbleHeight" min="360" max="900" value={settings.bubbleHeight} onChange={handleChange} className="field num" />
+                  </label>
+                </div>
+              </>
             )}
             <p className="text-[11px] leading-relaxed text-[var(--ink-3)]">
               Drag the bubble on any page to fine-tune its position. Works everywhere the

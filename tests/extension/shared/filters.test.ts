@@ -11,6 +11,8 @@ const base: SettingsData = {
   excludeBase64Images: false,
   bubbleEnabled: false,
   bubblePosition: { corner: 'bottom-right', x: 20, y: 20 },
+  bubbleWidth: 440,
+  bubbleHeight: 560,
 };
 
 const img = (over: Partial<ImageInfo>): ImageInfo => ({
