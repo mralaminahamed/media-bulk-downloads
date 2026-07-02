@@ -30,6 +30,15 @@ export interface AppState {
   isLoading: boolean;
 }
 
+export type BubbleCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+
+export interface BubblePosition {
+  corner: BubbleCorner;
+  /** Offset from the chosen corner, in pixels. */
+  x: number;
+  y: number;
+}
+
 export interface SettingsData {
   downloadPath: string;
   fileNamePrefix: string;
@@ -38,6 +47,9 @@ export interface SettingsData {
   showImageCount: boolean;
   minimumImageSize: number;
   excludeBase64Images: boolean;
+  /** Show the on-page floating bubble (in-page app surface). */
+  bubbleEnabled: boolean;
+  bubblePosition: BubblePosition;
 }
 
 export interface FilterOptions {

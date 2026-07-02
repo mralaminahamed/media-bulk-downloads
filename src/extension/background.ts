@@ -1,15 +1,8 @@
 import { ChromeMessage, DownloadMessage, DownloadResponse, ImageInfo, SettingsData } from '@/types';
 import { filterImagesBySettings } from './shared/filters';
+import { DEFAULT_SETTINGS, withDefaults } from './shared/settings';
 
-export const DEFAULT_SETTINGS: SettingsData = {
-  downloadPath: '',
-  fileNamePrefix: 'image_',
-  popupWidth: 460,
-  popupHeight: 600,
-  showImageCount: true,
-  minimumImageSize: 0,
-  excludeBase64Images: false,
-};
+export { DEFAULT_SETTINGS };
 
 let currentSettings: SettingsData = { ...DEFAULT_SETTINGS };
 
@@ -21,7 +14,7 @@ const BADGE_COLOR = '#4F46E5';
 function loadSettings(): void {
   chrome.storage.sync.get(['settings'], (result) => {
     if (result.settings) {
-      currentSettings = { ...DEFAULT_SETTINGS, ...result.settings };
+      currentSettings = withDefaults(result.settings);
       applySettings();
     }
   });
@@ -145,7 +138,7 @@ if (chrome.storage?.sync) {
 
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'sync' && changes.settings) {
-    currentSettings = { ...DEFAULT_SETTINGS, ...(changes.settings.newValue as Partial<SettingsData>) };
+    currentSettings = withDefaults(changes.settings.newValue as Partial<SettingsData>);
     applySettings();
   }
 });

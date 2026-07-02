@@ -120,6 +120,8 @@ describe('Background Script', () => {
         showImageCount: true,
         minimumImageSize: 50,
         excludeBase64Images: true,
+        bubbleEnabled: false,
+        bubblePosition: { corner: 'bottom-right', x: 20, y: 20 },
       };
       mockChrome.storage.sync.get.mockImplementation((_keys: string[], cb: (r: any) => void) =>
         cb({ settings: stored }),

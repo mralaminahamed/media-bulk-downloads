@@ -4,21 +4,22 @@ import Settings from './components/Settings';
 import FilterToolbar from './components/FilterToolbar';
 import { AppState, DownloadMessage, DownloadResponse, FilterOptions, ImageInfo, SettingsData } from '@/types';
 import { filterImagesBySettings } from '../shared/filters';
+import { DEFAULT_SETTINGS, withDefaults } from '../shared/settings';
+import { collectFromActiveTab } from '../shared/collect-active-tab';
 import { getImageFileSize, mapWithConcurrency } from './utils';
-import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
-
-const DEFAULT_SETTINGS: SettingsData = {
-  downloadPath: '',
-  fileNamePrefix: 'image_',
-  popupWidth: 460,
-  popupHeight: 600,
-  showImageCount: true,
-  minimumImageSize: 0,
-  excludeBase64Images: false,
-};
+import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 // Concurrent HEAD requests when enriching remote image sizes.
 const SIZE_FETCH_CONCURRENCY = 6;
+
+export interface AppProps {
+  /** How to collect images. Defaults to messaging the active tab (popup). */
+  collect?: () => Promise<ImageInfo[]>;
+  /** Which surface this app renders in. */
+  surface?: 'popup' | 'bubble';
+  /** When embedded (bubble), a close handler for the header. */
+  onClose?: () => void;
+}
 
 /** Compact brand mark — the Lucide "image-down" glyph. */
 const BrandMark: React.FC = () => (
@@ -31,7 +32,7 @@ const BrandMark: React.FC = () => (
   </svg>
 );
 
-const App: React.FC = () => {
+const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'popup', onClose }) => {
   const [state, setState] = useState<AppState>({
     status: '',
     images: [],
@@ -53,14 +54,16 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    // Only the popup sizes the document body; the bubble is sized by its host.
+    if (surface !== 'popup') return;
     document.body.style.width = `${settings.popupWidth}px`;
     document.body.style.height = `${settings.popupHeight}px`;
-  }, [settings.popupWidth, settings.popupHeight]);
+  }, [surface, settings.popupWidth, settings.popupHeight]);
 
   const loadSettings = () => {
     chrome.storage.sync.get(['settings'], (result) => {
       if (result.settings) {
-        setSettings({ ...DEFAULT_SETTINGS, ...result.settings });
+        setSettings(withDefaults(result.settings));
       }
     });
   };
@@ -93,45 +96,29 @@ const App: React.FC = () => {
     setState((prev) => ({ ...prev, isLoading: true, status: '' }));
 
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const imageList = await collect();
+      const raw = Array.isArray(imageList) ? imageList : [];
+      rawImagesRef.current = raw;
+      const eligible = filterImagesBySettings(raw, settings);
 
-      if (!tab?.id) {
-        setState((prev) => ({ ...prev, status: 'No active tab found.', isLoading: false }));
-        return;
-      }
-
-      chrome.tabs.sendMessage(tab.id, 'GET_IMAGES', (imageList: ImageInfo[]) => {
-        if (chrome.runtime.lastError) {
-          setState((prev) => ({
-            ...prev,
-            status: `Can't read this page: ${chrome.runtime.lastError?.message || 'unknown error'}`,
-            isLoading: false,
-          }));
-          return;
-        }
-
-        const raw = Array.isArray(imageList) ? imageList : [];
-        rawImagesRef.current = raw;
-        const eligible = filterImagesBySettings(raw, settings);
-
-        setState((prev) => ({
-          ...prev,
-          images: eligible,
-          filteredImages: eligible,
-          status: '',
-          isLoading: false,
-        }));
-
-        void enrichImageSizes(eligible);
-      });
-    } catch {
       setState((prev) => ({
         ...prev,
-        status: 'Something went wrong while collecting images.',
+        images: eligible,
+        filteredImages: eligible,
+        status: '',
+        isLoading: false,
+      }));
+
+      void enrichImageSizes(eligible);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error';
+      setState((prev) => ({
+        ...prev,
+        status: `Can't read this page: ${message}`,
         isLoading: false,
       }));
     }
-  }, [settings, enrichImageSizes]);
+  }, [collect, settings, enrichImageSizes]);
 
   // Re-derive the eligible base list when the settings that affect it change.
   useEffect(() => {
@@ -209,9 +196,16 @@ const App: React.FC = () => {
               <p className="eyebrow mt-0.5">Collect · Filter · Save</p>
             </div>
           </div>
-          <button onClick={() => setShowSettings(true)} className="iconbtn" title="Settings" aria-label="Settings">
-            <Cog6ToothIcon className="h-[18px] w-[18px]" />
-          </button>
+          <div className="flex items-center gap-0.5">
+            <button onClick={() => setShowSettings(true)} className="iconbtn" title="Settings" aria-label="Settings">
+              <Cog6ToothIcon className="h-[18px] w-[18px]" />
+            </button>
+            {onClose && (
+              <button onClick={onClose} className="iconbtn" title="Close" aria-label="Close">
+                <XMarkIcon className="h-[18px] w-[18px]" />
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex items-end justify-between px-4 pb-3.5 pt-3">

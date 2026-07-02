@@ -13,6 +13,8 @@ describe('Settings Component', () => {
     showImageCount: true,
     minimumImageSize: 0,
     excludeBase64Images: false,
+    bubbleEnabled: false,
+    bubblePosition: { corner: 'bottom-right' as const, x: 20, y: 20 },
   };
 
   beforeEach(() => {
