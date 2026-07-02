@@ -13,6 +13,8 @@ describe('Settings Component', () => {
     showImageCount: true,
     minimumImageSize: 0,
     excludeBase64Images: false,
+    saveAs: false,
+    namingMode: 'prefixed' as const,
     thumbnailSize: 120,
     previewSize: 360,
     bubbleEnabled: false,

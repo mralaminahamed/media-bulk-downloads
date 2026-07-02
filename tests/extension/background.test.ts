@@ -139,6 +139,8 @@ describe('Background Script', () => {
         showImageCount: true,
         minimumImageSize: 50,
         excludeBase64Images: true,
+        saveAs: false,
+        namingMode: 'prefixed',
         thumbnailSize: 120,
         previewSize: 360,
         bubbleEnabled: false,
