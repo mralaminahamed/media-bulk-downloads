@@ -42,6 +42,21 @@ export interface BubblePosition {
   y: number;
 }
 
+/**
+ * Where the bubble panel opens, independent of the launcher button:
+ * - `anchored` — beside the button, following its corner and position.
+ * - `center`   — centered on the viewport, like a modal.
+ * - a corner   — pinned to that viewport corner regardless of the button.
+ * - `free`     — a custom top-left point set by dragging the panel header.
+ */
+export type BubblePanelPlacement = 'anchored' | 'center' | 'free' | BubbleCorner;
+
+/** Absolute top-left viewport coordinates for the `free` panel placement. */
+export interface BubblePanelPoint {
+  x: number;
+  y: number;
+}
+
 export interface SettingsData {
   downloadPath: string;
   fileNamePrefix: string;
@@ -55,6 +70,10 @@ export interface SettingsData {
   bubblePosition: BubblePosition;
   bubbleWidth: number;
   bubbleHeight: number;
+  /** Where the panel opens relative to the launcher button. */
+  bubblePanelPlacement: BubblePanelPlacement;
+  /** Custom panel top-left, used when the placement is `free`. */
+  bubblePanelPoint: BubblePanelPoint;
 }
 
 export interface FilterOptions {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { BubbleCorner, SettingsData } from '@/types';
+import { BubbleCorner, BubblePanelPlacement, SettingsData } from '@/types';
 
 export interface SettingsProps {
   onClose: () => void;
@@ -167,6 +167,31 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
                     <option value="top-left">Top left</option>
                   </select>
                 </label>
+                <label className="block">
+                  <span className="mb-1 block text-[12px] text-[var(--ink-2)]">Panel Position:</span>
+                  <select
+                    name="bubblePanelPlacement"
+                    value={settings.bubblePanelPlacement}
+                    onChange={(e) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        bubblePanelPlacement: e.target.value as BubblePanelPlacement,
+                      }))
+                    }
+                    className="field"
+                  >
+                    <option value="anchored">Next to button</option>
+                    <option value="center">Center of screen</option>
+                    <option value="free">Custom (drag panel header)</option>
+                    <option value="bottom-right">Corner · bottom right</option>
+                    <option value="bottom-left">Corner · bottom left</option>
+                    <option value="top-right">Corner · top right</option>
+                    <option value="top-left">Corner · top left</option>
+                  </select>
+                </label>
+                <p className="text-[11px] leading-relaxed text-[var(--ink-3)]">
+                  Tip: drag the panel by its header on any page to drop it exactly where you want.
+                </p>
                 <div className="grid grid-cols-2 gap-3">
                   <label className="block">
                     <span className="mb-1 block text-[12px] text-[var(--ink-2)]">Bubble Width:</span>

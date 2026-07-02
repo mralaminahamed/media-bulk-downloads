@@ -19,6 +19,8 @@ export interface AppProps {
   surface?: 'popup' | 'bubble';
   /** When embedded (bubble), a close handler for the header. */
   onClose?: () => void;
+  /** When embedded (bubble), wires the header as a drag handle for the panel. */
+  dragHandleProps?: React.HTMLAttributes<HTMLElement>;
 }
 
 /** Compact brand mark — the Lucide "image-down" glyph. */
@@ -32,7 +34,7 @@ const BrandMark: React.FC = () => (
   </svg>
 );
 
-const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'popup', onClose }) => {
+const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'popup', onClose, dragHandleProps }) => {
   const [state, setState] = useState<AppState>({
     status: '',
     images: [],
@@ -181,8 +183,8 @@ const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'po
 
   return (
     <div className="ibd-app flex h-full flex-col overflow-hidden bg-[var(--paper)] text-[var(--ink)]">
-      {/* Header */}
-      <header className="dotgrid border-b hairline">
+      {/* Header (doubles as the panel drag handle in the bubble surface) */}
+      <header className="dotgrid border-b hairline" {...dragHandleProps}>
         <div className="flex items-center justify-between px-4 pt-3.5">
           <div className="flex items-center gap-2.5">
             <span className="grid h-8 w-8 place-items-center rounded-[8px] border hairline bg-[var(--panel)]">

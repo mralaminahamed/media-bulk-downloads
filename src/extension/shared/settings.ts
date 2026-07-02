@@ -13,6 +13,8 @@ export const DEFAULT_SETTINGS: SettingsData = {
   bubblePosition: { corner: 'bottom-right', x: 20, y: 20 },
   bubbleWidth: 440,
   bubbleHeight: 560,
+  bubblePanelPlacement: 'anchored',
+  bubblePanelPoint: { x: 40, y: 40 },
 };
 
 /** Merge stored settings over defaults, tolerating partial/legacy/unknown shapes. */
@@ -22,5 +24,6 @@ export function withDefaults(stored: unknown): SettingsData {
     ...DEFAULT_SETTINGS,
     ...s,
     bubblePosition: { ...DEFAULT_SETTINGS.bubblePosition, ...(s.bubblePosition ?? {}) },
+    bubblePanelPoint: { ...DEFAULT_SETTINGS.bubblePanelPoint, ...(s.bubblePanelPoint ?? {}) },
   };
 }

@@ -17,6 +17,8 @@ describe('Settings Component', () => {
     bubblePosition: { corner: 'bottom-right' as const, x: 20, y: 20 },
     bubbleWidth: 440,
     bubbleHeight: 560,
+    bubblePanelPlacement: 'anchored' as const,
+    bubblePanelPoint: { x: 40, y: 40 },
   };
 
   beforeEach(() => {
@@ -104,6 +106,19 @@ describe('Settings Component', () => {
         bubbleEnabled: true,
         bubblePosition: expect.objectContaining({ corner: 'top-left' }),
       }),
+    );
+  });
+
+  it('saves the chosen panel placement', () => {
+    render(
+      <Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />
+    );
+    fireEvent.click(screen.getByRole('switch', { name: /show floating bubble/i }));
+    fireEvent.change(screen.getByLabelText('Panel Position:'), { target: { value: 'center' } });
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(mockOnSettingsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ bubblePanelPlacement: 'center' }),
     );
   });
 
