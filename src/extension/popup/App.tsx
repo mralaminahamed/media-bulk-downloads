@@ -132,9 +132,19 @@ const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'po
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.minimumImageSize, settings.excludeBase64Images, enrichImageSizes]);
 
+  const inSizeBucket = (img: ImageInfo, bucket: FilterOptions['sizeBucket']): boolean => {
+    if (bucket === 'all') return true;
+    const edge = Math.max(img.width, img.height);
+    if (edge <= 0) return true; // unknown dimensions are never hidden
+    if (bucket === 'small') return edge < 256;
+    if (bucket === 'medium') return edge >= 256 && edge < 1024;
+    return edge >= 1024; // large
+  };
+
   const applyFilters = (images: ImageInfo[], filters: FilterOptions): ImageInfo[] => {
     const minBytes = (Number.isFinite(filters.minSize) ? filters.minSize : 0) * 1024;
     return images.filter((img) => {
+      if (!inSizeBucket(img, filters.sizeBucket)) return false;
       if (filters.imageType !== 'all' && img.type !== filters.imageType) return false;
       if (minBytes > 0 && img.fileSize > 0 && img.fileSize < minBytes) return false;
       return !(!filters.includeBase64 && img.isBase64);

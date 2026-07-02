@@ -82,8 +82,11 @@ export interface SettingsData {
   bubblePanelPoint: BubblePanelPoint;
 }
 
+export type SizeBucket = 'all' | 'small' | 'medium' | 'large';
+
 export interface FilterOptions {
   imageType: string;
   minSize: number;
   includeBase64: boolean;
+  sizeBucket: SizeBucket;
 }

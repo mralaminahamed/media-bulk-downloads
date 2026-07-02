@@ -70,4 +70,19 @@ describe('FilterToolbar Component', () => {
       expect.objectContaining({ imageType: 'all', minSize: 0, includeBase64: true }),
     );
   });
+
+  it('applies a size bucket when a size pill is clicked', () => {
+    renderToolbar();
+    fireEvent.click(screen.getByRole('button', { name: 'Large' }));
+    expect(mockOnFilterChange).toHaveBeenCalledWith(expect.objectContaining({ sizeBucket: 'large' }));
+  });
+
+  it('includes the size bucket in a reset', () => {
+    renderToolbar();
+    fireEvent.click(screen.getByRole('button', { name: 'Small' }));
+    fireEvent.click(screen.getByText('Reset'));
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sizeBucket: 'all' }),
+    );
+  });
 });
