@@ -4,8 +4,8 @@ import react from '@vitejs/plugin-react'
 import { crx } from '@crxjs/vite-plugin'
 import path from 'path'
 
-// Internal manifest.json file
-import manifest from './src/manifest.json'
+// Typed manifest source (emits dist/manifest.json via crxjs)
+import manifest from './manifest.config'
 
 export default defineConfig({
   plugins: [
