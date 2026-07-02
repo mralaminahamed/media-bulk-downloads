@@ -131,6 +131,37 @@ export function extensionForType(type: string): string {
 
 
 /**
+ * Derives a safe base filename (no extension) from an image URL, or null when the
+ * URL carries no usable name — data/blob URIs, or paths with no basename
+ * (trailing slash / query-only). The caller appends the detected extension.
+ */
+export function originalNameFromUrl(url: string): string | null {
+  if (/^(data|blob):/i.test(url)) return null;
+
+  let pathname: string;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    return null;
+  }
+
+  const last = pathname.split('/').pop() ?? '';
+  let decoded = last;
+  try {
+    decoded = decodeURIComponent(last);
+  } catch {
+    /* keep raw on malformed escapes */
+  }
+
+  // Strip a trailing extension only when the dot isn't the first char.
+  const dot = decoded.lastIndexOf('.');
+  const base = dot > 0 ? decoded.slice(0, dot) : decoded;
+
+  const safe = sanitizePathSegment(base).split('/').pop() ?? '';
+  return safe || null;
+}
+
+/**
  * Builds a safe, relative download path for an image.
  */
 export function buildDownloadFilename(

@@ -5,6 +5,7 @@ import {
   sanitizePathSegment,
   buildDownloadFilename,
   isInjectableUrl,
+  originalNameFromUrl,
   DEFAULT_SETTINGS,
 } from '@/extension/background';
 import { ImageInfo, SettingsData } from '@/types';
@@ -192,6 +193,34 @@ describe('Background Script', () => {
     it('keeps the popup everywhere when the bubble is disabled', () => {
       load({ bubbleEnabled: false }, [{ id: 7, url: 'https://example.com' }]);
       expect(mockChrome.action.setPopup).toHaveBeenCalledWith({ tabId: 7, popup: 'index.html' });
+    });
+  });
+
+  describe('originalNameFromUrl', () => {
+    it('takes the URL basename without its extension', () => {
+      expect(originalNameFromUrl('https://x.com/a/cat.png')).toBe('cat');
+      expect(originalNameFromUrl('https://x.com/a/cat.png?x=1')).toBe('cat');
+    });
+
+    it('keeps an extension-less basename', () => {
+      expect(originalNameFromUrl('https://x.com/a/photo')).toBe('photo');
+    });
+
+    it('parses a query-only dynamic CDN URL by its media id', () => {
+      expect(originalNameFromUrl('https://pbs.twimg.com/media/HK-Jt?format=jpg&name=orig')).toBe('HK-Jt');
+    });
+
+    it('percent-decodes and sanitizes unsafe characters', () => {
+      expect(originalNameFromUrl('https://x.com/a/my%20cat.jpg')).toBe('my cat');
+      expect(originalNameFromUrl('https://x.com/a/a%3Ab.png')).toBe('ab'); // ':' is illegal, stripped
+    });
+
+    it('returns null when there is no usable name', () => {
+      expect(originalNameFromUrl('data:image/png;base64,iVBORw0KGgo=')).toBeNull();
+      expect(originalNameFromUrl('blob:https://x.com/1234')).toBeNull();
+      expect(originalNameFromUrl('https://x.com/')).toBeNull();
+      expect(originalNameFromUrl('https://x.com/?a=1')).toBeNull();
+      expect(originalNameFromUrl('not a url')).toBeNull();
     });
   });
 });
