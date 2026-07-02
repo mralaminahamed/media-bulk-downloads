@@ -153,14 +153,11 @@ const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'po
 
     const message: DownloadMessage = { type: 'DOWNLOAD_IMAGES', images: imagesToDownload };
     chrome.runtime.sendMessage(message, (response: DownloadResponse) => {
-      if (chrome.runtime.lastError) {
-        setState((prev) => ({
-          ...prev,
-          status: `Error: ${chrome.runtime.lastError?.message || 'unknown error'}`,
-        }));
-      } else {
-        setState((prev) => ({ ...prev, status: response.message }));
-      }
+      // chrome.runtime.lastError is only valid during this callback — capture it
+      // now, not later inside the (deferred) setState updater.
+      const error = chrome.runtime.lastError;
+      const status = error ? `Error: ${error.message || 'unknown error'}` : response.message;
+      setState((prev) => ({ ...prev, status }));
     });
   };
 
