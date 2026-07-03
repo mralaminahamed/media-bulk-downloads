@@ -59,7 +59,14 @@ yarn type-check && yarn lint && yarn test && yarn build
 Collection is network-free — no media bytes are fetched while scanning. The only
 network call is lazy image-size enrichment (`HEAD`), popup-only and
 user-initiated; video/audio are never probed. Details in
-[Architecture](./docs/guides/architecture.md#privacy-stance).
+[Architecture](./docs/guides/architecture.md#privacy-stance). Full policy:
+[PRIVACY.md](./PRIVACY.md).
+
+## Publishing
+
+Chrome Web Store listing copy, permission justifications, data disclosures, and
+packaging steps are in
+[docs/CHROME_WEBSTORE.md](./docs/CHROME_WEBSTORE.md).
 
 ## License
 
