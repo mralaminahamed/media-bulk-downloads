@@ -34,6 +34,35 @@ export const formatFileSize = (bytes: number): string => {
 
 const typeLabel = (img: ImageInfo): string => (img.isBase64 ? 'B64' : img.type.toUpperCase());
 
+/**
+ * Image with a shimmer skeleton underneath until it decodes. `onError` also
+ * clears the skeleton so a broken image doesn't shimmer forever. Callers key
+ * this by src so navigating to a new image resets the loading state.
+ */
+const LoadingImage: React.FC<{
+  src: string;
+  alt: string;
+  className: string;
+  style?: React.CSSProperties;
+  lazy?: boolean;
+}> = ({ src, alt, className, style, lazy }) => {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <>
+      {!loaded && <span className="skeleton absolute inset-0" aria-hidden="true" />}
+      <img
+        src={src}
+        alt={alt}
+        loading={lazy ? 'lazy' : undefined}
+        onLoad={() => setLoaded(true)}
+        onError={() => setLoaded(true)}
+        className={`${className} transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        style={style}
+      />
+    </>
+  );
+};
+
 const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnailSize = 120, previewSize = 360 }) => {
   // Index-based selection so the modal can page through images without closing.
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -74,10 +103,11 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
             style={{ animationDelay: `${Math.min(index, 12) * 0.022}s` }}
           >
             <div className="checker relative aspect-square">
-              <img
+              <LoadingImage
+                key={image.thumbnailSrc ?? image.src}
                 src={image.thumbnailSrc ?? image.src}
                 alt={image.alt}
-                loading="lazy"
+                lazy
                 className="h-full w-full object-cover"
               />
 
@@ -154,8 +184,12 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
             </div>
 
             <div className="scroll-thin overflow-y-auto p-4">
-              <div className="checker relative overflow-hidden rounded-[8px] border hairline">
-                <img
+              <div
+                className="checker relative flex items-center justify-center overflow-hidden rounded-[8px] border hairline"
+                style={{ minHeight: Math.min(previewSize, 160) }}
+              >
+                <LoadingImage
+                  key={selectedImage.src}
                   src={selectedImage.src}
                   alt={selectedImage.alt}
                   className="mx-auto w-full object-contain"
