@@ -22,6 +22,7 @@ const settings: SettingsData = {
   bubbleHeight: 560,
   bubblePanelPlacement: 'anchored',
   bubblePanelPoint: { x: 40, y: 40 },
+  resolveOriginals: false,
 };
 
 // jsdom leaves clientX/clientY unset on PointerEvent inits, so build the native

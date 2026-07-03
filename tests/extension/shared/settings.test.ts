@@ -45,3 +45,12 @@ describe('withDefaults', () => {
     expect(JSON.stringify(DEFAULT_SETTINGS)).toBe(before);
   });
 });
+
+describe('resolveOriginals setting', () => {
+  it('defaults to false', () => {
+    expect(DEFAULT_SETTINGS.resolveOriginals).toBe(false);
+  });
+  it('withDefaults backfills it for old stored settings', () => {
+    expect(withDefaults({}).resolveOriginals).toBe(false);
+  });
+});

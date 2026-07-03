@@ -19,6 +19,7 @@ export const DEFAULT_SETTINGS: SettingsData = {
   bubbleHeight: 560,
   bubblePanelPlacement: 'anchored',
   bubblePanelPoint: { x: 40, y: 40 },
+  resolveOriginals: false,
 };
 
 /** Merge stored settings over defaults, tolerating partial/legacy/unknown shapes. */

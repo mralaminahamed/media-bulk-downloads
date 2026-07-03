@@ -23,6 +23,7 @@ describe('Settings Component', () => {
     bubbleHeight: 560,
     bubblePanelPlacement: 'anchored' as const,
     bubblePanelPoint: { x: 40, y: 40 },
+    resolveOriginals: false,
   };
 
   beforeEach(() => {

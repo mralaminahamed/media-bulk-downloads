@@ -1,9 +1,12 @@
+import { ResolveHint } from '@/types';
+
 export interface MediaCandidate {
   url: string;
   kind: 'image' | 'video' | 'gif';
   ext?: string;
   thumbnailSrc?: string;
   poster?: string;
+  resolveHint?: ResolveHint;
 }
 
 export interface ResolveContext {
