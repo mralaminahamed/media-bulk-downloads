@@ -1,6 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ImageInfo } from '@/types';
-import { EyeIcon, ArrowDownTrayIcon, ArrowTopRightOnSquareIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import {
+  EyeIcon,
+  ArrowDownTrayIcon,
+  ArrowTopRightOnSquareIcon,
+  XMarkIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from '@heroicons/react/24/outline';
 
 interface ImageListProps {
   images: ImageInfo[];
@@ -28,8 +35,29 @@ export const formatFileSize = (bytes: number): string => {
 const typeLabel = (img: ImageInfo): string => (img.isBase64 ? 'B64' : img.type.toUpperCase());
 
 const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnailSize = 120, previewSize = 360 }) => {
-  const [selectedImage, setSelectedImage] = useState<ImageInfo | null>(null);
-  const close = () => setSelectedImage(null);
+  // Index-based selection so the modal can page through images without closing.
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const selectedImage = selectedIndex !== null ? images[selectedIndex] ?? null : null;
+
+  const close = () => setSelectedIndex(null);
+  const hasPrev = selectedIndex !== null && selectedIndex > 0;
+  const hasNext = selectedIndex !== null && selectedIndex < images.length - 1;
+  const goPrev = () => setSelectedIndex((i) => (i !== null && i > 0 ? i - 1 : i));
+  const goNext = () => setSelectedIndex((i) => (i !== null && i < images.length - 1 ? i + 1 : i));
+
+  // Arrow keys page the modal; Escape closes it. Bound only while open.
+  // Logic is inlined via functional updates so the effect needs no callback deps.
+  useEffect(() => {
+    if (selectedIndex === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') setSelectedIndex((i) => (i !== null && i > 0 ? i - 1 : i));
+      else if (e.key === 'ArrowRight')
+        setSelectedIndex((i) => (i !== null && i < images.length - 1 ? i + 1 : i));
+      else if (e.key === 'Escape') setSelectedIndex(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedIndex, images.length]);
 
   return (
     <div>
@@ -61,7 +89,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
               {/* Hover actions */}
               <div className="absolute inset-0 flex items-center justify-center gap-2 bg-[var(--ink)]/0 opacity-0 transition-all duration-150 group-hover:bg-[var(--ink)]/45 group-hover:opacity-100">
                 <button
-                  onClick={() => setSelectedImage(image)}
+                  onClick={() => setSelectedIndex(index)}
                   title="View Details"
                   aria-label="View Details"
                   className="grid h-8 w-8 place-items-center rounded-full bg-[var(--panel)] text-[var(--ink)] ring-1 ring-black/5 transition-transform hover:scale-105 active:scale-95"
@@ -100,7 +128,14 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-2 border-b hairline px-4 py-2.5">
-              <h3 className="text-[13px] font-semibold text-[var(--ink)]">Image Preview</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-[13px] font-semibold text-[var(--ink)]">Image Preview</h3>
+                {selectedIndex !== null && (
+                  <span className="num text-[11px] text-[var(--ink-3)]">
+                    {selectedIndex + 1} / {images.length}
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-0.5">
                 <a
                   href={selectedImage.src}
@@ -119,13 +154,35 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
             </div>
 
             <div className="scroll-thin overflow-y-auto p-4">
-              <div className="checker overflow-hidden rounded-[8px] border hairline">
+              <div className="checker relative overflow-hidden rounded-[8px] border hairline">
                 <img
                   src={selectedImage.src}
                   alt={selectedImage.alt}
                   className="mx-auto w-full object-contain"
                   style={{ maxHeight: previewSize }}
                 />
+
+                {/* Prev/next — page through images without leaving the modal */}
+                {hasPrev && (
+                  <button
+                    onClick={goPrev}
+                    title="Previous image"
+                    aria-label="Previous image"
+                    className="absolute left-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-[var(--panel)]/90 text-[var(--ink)] ring-1 ring-black/5 backdrop-blur-sm transition-transform hover:scale-105 active:scale-95"
+                  >
+                    <ChevronLeftIcon className="h-5 w-5" />
+                  </button>
+                )}
+                {hasNext && (
+                  <button
+                    onClick={goNext}
+                    title="Next image"
+                    aria-label="Next image"
+                    className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-[var(--panel)]/90 text-[var(--ink)] ring-1 ring-black/5 backdrop-blur-sm transition-transform hover:scale-105 active:scale-95"
+                  >
+                    <ChevronRightIcon className="h-5 w-5" />
+                  </button>
+                )}
               </div>
 
               <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[12px]">
