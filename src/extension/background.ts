@@ -2,6 +2,7 @@ import { ChromeMessage, DownloadMessage, DownloadResponse, ImageInfo, SettingsDa
 import { filterImagesBySettings } from './shared/filters';
 import { DEFAULT_SETTINGS, withDefaults } from './shared/settings';
 import { sanitizePathSegment } from './shared/paths';
+import { avExtensionForType, extensionFromUrl } from './shared/mediaType';
 
 export { DEFAULT_SETTINGS, sanitizePathSegment };
 
@@ -169,7 +170,12 @@ export function buildDownloadFilename(
   index: number,
   settings: SettingsData,
 ): string {
-  const extension = extensionForType(image.type);
+  const extension =
+    image.kind === 'image'
+      ? extensionForType(image.type)
+      : (avExtensionForType(image.type)
+          ?? extensionFromUrl(image.src)
+          ?? (image.kind === 'video' ? 'mp4' : 'mp3'));
   const prefixed = `${sanitizePathSegment(settings.fileNamePrefix) || 'image_'}${index + 1}.${extension}`;
 
   let fileName: string;
@@ -254,7 +260,7 @@ chrome.runtime.onMessage.addListener(
         });
       });
 
-      sendResponse({ status: 'success', message: `Downloading ${eligible.length} images...` });
+      sendResponse({ status: 'success', message: `Downloading ${eligible.length} files...` });
     }
     return true;
   },

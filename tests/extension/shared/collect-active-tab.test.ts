@@ -3,7 +3,7 @@ import { ImageInfo } from '@/types';
 
 describe('collectFromActiveTab', () => {
   const sample: ImageInfo[] = [
-    { src: 'a.jpg', alt: '', width: 10, height: 10, type: 'jpeg', fileSize: 0, isBase64: false },
+    { src: 'a.jpg', alt: '', width: 10, height: 10, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' },
   ];
 
   beforeEach(() => {

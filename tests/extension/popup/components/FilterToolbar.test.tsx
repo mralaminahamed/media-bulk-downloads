@@ -1,8 +1,10 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import FilterToolbar from '@/extension/popup/components/FilterToolbar';
 import { SettingsData } from '@/types';
+import { DEFAULT_SETTINGS } from '@/extension/shared/settings';
 
 describe('FilterToolbar Component', () => {
   const mockOnFilterChange = jest.fn();
@@ -34,7 +36,9 @@ describe('FilterToolbar Component', () => {
   it('renders the filter section with type pills', () => {
     renderToolbar();
     expect(screen.getByText('Filters')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('group', { name: 'Media format' })).getByRole('button', { name: 'All' }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'JPEG' })).toBeInTheDocument();
   });
 
@@ -85,6 +89,21 @@ describe('FilterToolbar Component', () => {
     fireEvent.click(screen.getByText('Clear all'));
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ sizeBucket: 'all' }),
+    );
+  });
+
+  it('switches format chips when the media kind changes', async () => {
+    const onFilterChange = jest.fn();
+    render(<FilterToolbar onFilterChange={onFilterChange} extensionSettings={DEFAULT_SETTINGS} />);
+    // image formats visible by default
+    expect(screen.getByRole('button', { name: 'JPEG' })).toBeInTheDocument();
+    // switch to Video
+    await userEvent.click(screen.getByRole('button', { name: 'Video' }));
+    expect(screen.getByRole('button', { name: 'MP4' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'JPEG' })).not.toBeInTheDocument();
+    // kind change resets the format chip to 'all'
+    expect(onFilterChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ mediaKind: 'video', imageType: 'all' }),
     );
   });
 });

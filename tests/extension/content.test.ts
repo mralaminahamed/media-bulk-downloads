@@ -6,7 +6,7 @@ import {
   getImageType,
   parseSrcset,
   resolveUrl,
-  collectImages,
+  collectMedia,
 } from '@/extension/content';
 
 // Resolve a relative test path the same way the content script does, so
@@ -110,9 +110,9 @@ describe('Content Script', () => {
     });
   });
 
-  describe('collectImages', () => {
+  describe('collectMedia', () => {
     it('collects all images including srcset and background images', () => {
-      const images = collectImages();
+      const images = collectMedia();
 
       // 5 unique <img>/<picture> sources + 2 srcset + 2 picture source srcset + 1 background
       expect(images).toHaveLength(9);
@@ -125,14 +125,14 @@ describe('Content Script', () => {
     });
 
     it('reports remote file sizes as unknown (0) — no network requests', () => {
-      const images = collectImages();
+      const images = collectMedia();
       const remote = images.filter((i) => !i.isBase64);
       expect(remote.length).toBeGreaterThan(0);
       remote.forEach((img) => expect(img.fileSize).toBe(0));
     });
 
     it('computes base64 image sizes locally', () => {
-      const images = collectImages();
+      const images = collectMedia();
       const base64 = images.find((i) => i.isBase64);
       expect(base64).toBeDefined();
       expect(base64?.fileSize).toBeGreaterThan(0);
@@ -140,14 +140,14 @@ describe('Content Script', () => {
     });
 
     it('resolves relative sources to absolute URLs', () => {
-      const images = collectImages();
+      const images = collectMedia();
       expect(images.find((i) => i.src === abs('test1.jpg'))).toBeDefined();
       expect(images.find((i) => i.src === abs('test2-small.png'))).toBeDefined();
     });
 
     it('does not collect duplicate images', () => {
       document.body.innerHTML += `<img src="test1.jpg" alt="Duplicate Test 1">`;
-      const images = collectImages();
+      const images = collectMedia();
       expect(images.filter((img) => img.src === abs('test1.jpg'))).toHaveLength(1);
     });
   });
@@ -182,7 +182,7 @@ describe('Content Script', () => {
   describe('Edge Cases', () => {
     it('handles invalid base64 data gracefully', () => {
       document.body.innerHTML += `<img src="data:image/png;base64,invalid" alt="Invalid Base64">`;
-      const images = collectImages();
+      const images = collectMedia();
       const invalid = images.find((img) => img.alt === 'Invalid Base64');
       expect(invalid).toBeDefined();
       expect(invalid?.type).toBe('png');
@@ -191,7 +191,7 @@ describe('Content Script', () => {
 
     it('handles images with query parameters in URL', () => {
       document.body.innerHTML += `<img src="image.jpg?width=100&height=100" alt="Image with query params">`;
-      const images = collectImages();
+      const images = collectMedia();
       const withParams = images.find((img) => img.src.includes('image.jpg?width=100'));
       expect(withParams).toBeDefined();
       expect(withParams?.type).toBe('jpeg');
@@ -199,7 +199,7 @@ describe('Content Script', () => {
 
     it('handles data URIs for non-image types', () => {
       document.body.innerHTML += `<img src="data:text/plain;base64,SGVsbG8gV29ybGQ=" alt="Non-image data URI">`;
-      const images = collectImages();
+      const images = collectMedia();
       const nonImage = images.find((img) => img.alt === 'Non-image data URI');
       expect(nonImage).toBeDefined();
       expect(nonImage?.type).toBe('unknown');
@@ -209,7 +209,7 @@ describe('Content Script', () => {
   describe('CSS Background Images', () => {
     it('captures single and multiple background images', () => {
       document.body.innerHTML += `<div style="background-image: url('bg1.png'), url('bg2.png');"></div>`;
-      const images = collectImages();
+      const images = collectMedia();
       expect(images.find((i) => i.src === abs('test4.gif'))).toBeDefined();
       expect(images.find((i) => i.src === abs('bg1.png'))).toBeDefined();
       expect(images.find((i) => i.src === abs('bg2.png'))).toBeDefined();
@@ -219,7 +219,7 @@ describe('Content Script', () => {
   describe('Accessibility', () => {
     it('captures alt text, and defaults to empty string when absent', () => {
       document.body.innerHTML += `<img src="no-alt.jpg">`;
-      const images = collectImages();
+      const images = collectMedia();
       expect(images.find((i) => i.src === abs('test1.jpg'))?.alt).toBe('Test 1');
       expect(images.find((i) => i.src === abs('no-alt.jpg'))?.alt).toBe('');
     });
@@ -284,11 +284,11 @@ describe('Content Script', () => {
     });
   });
 
-  describe('collectImages edge cases', () => {
+  describe('collectMedia edge cases', () => {
     it('parses single, double, and unquoted background-image URLs', () => {
       document.body.innerHTML =
         `<div style="background-image: url(&quot;q.png&quot;), url('r.png'), url(s.png);"></div>`;
-      const srcs = collectImages().map((i) => i.src);
+      const srcs = collectMedia().map((i) => i.src);
       expect(srcs).toEqual(
         expect.arrayContaining([abs('q.png'), abs('r.png'), abs('s.png')]),
       );
@@ -296,18 +296,18 @@ describe('Content Script', () => {
 
     it('ignores background-image: none', () => {
       document.body.innerHTML = '<div style="background-image: none"></div>';
-      expect(collectImages()).toHaveLength(0);
+      expect(collectMedia()).toHaveLength(0);
     });
 
     it('deduplicates the same resolved URL across <img> and background', () => {
       document.body.innerHTML =
         '<img src="shared.png"><div style="background-image: url(shared.png)"></div>';
-      expect(collectImages().filter((i) => i.src === abs('shared.png'))).toHaveLength(1);
+      expect(collectMedia().filter((i) => i.src === abs('shared.png'))).toHaveLength(1);
     });
 
     it('collects blob: URLs with an unknown type', () => {
       document.body.innerHTML = '<img src="blob:https://example.com/abc-123">';
-      const blob = collectImages().find((i) => i.src.startsWith('blob:'));
+      const blob = collectMedia().find((i) => i.src.startsWith('blob:'));
       expect(blob).toBeDefined();
       expect(blob?.type).toBe('unknown');
     });
@@ -319,7 +319,7 @@ describe('Content Script', () => {
         document.body.innerHTML += `<img src="test${i}.jpg" alt="Test ${i}">`;
       }
       const start = performance.now();
-      const images = collectImages();
+      const images = collectMedia();
       const elapsed = performance.now() - start;
       expect(images.length).toBeGreaterThan(1000);
       expect(elapsed).toBeLessThan(5000);

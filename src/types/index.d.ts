@@ -9,7 +9,14 @@ export interface ImageInfo {
   fromSrcset?: boolean;
   /** Small/fast variant to preview in the grid when `src` was upgraded to the original. */
   thumbnailSrc?: string;
+  /** Which media kind this is; set by the collector from the source element. */
+  kind: 'image' | 'video' | 'audio';
+  /** Video poster URL, used as the grid thumbnail when present. */
+  poster?: string;
 }
+
+/** Preferred name for a collected media item (image, video, or audio). */
+export type MediaItem = ImageInfo;
 
 export interface DownloadMessage {
   type: 'DOWNLOAD_IMAGES';
@@ -89,6 +96,8 @@ export interface SettingsData {
 export type SizeBucket = 'all' | 'small' | 'medium' | 'large';
 
 export interface FilterOptions {
+  /** Primary media-kind filter. */
+  mediaKind: 'all' | 'image' | 'video' | 'audio';
   imageType: string;
   minSize: number;
   includeBase64: boolean;

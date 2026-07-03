@@ -1,7 +1,7 @@
 /**
  * collect.ts
  *
- * Pure, in-page image collection — used by the content script (to answer
+ * Pure, in-page media collection — used by the content script (to answer
  * GET_IMAGES) and by the on-page bubble (which collects directly).
  *
  * Collection is intentionally network-free. Earlier versions issued a HEAD
@@ -10,8 +10,9 @@
  * reported as unknown (0); base64 sizes are computed locally.
  */
 
-import { ImageInfo } from '@/types';
+import { ImageInfo, MediaItem } from '@/types';
 import { detectType, parseUrlDimensions, upgradeToOriginal } from '@/extension/shared/imageUrl';
+import { detectAvType, isUndownloadableMedia } from '@/extension/shared/mediaType';
 
 /** Determines if a URL is a base64-encoded image. */
 export function isBase64Image(src: string): boolean {
@@ -94,9 +95,9 @@ export function resolveUrl(src: string): string {
   }
 }
 
-/** Collects information about all images on the page. */
-export function collectImages(): ImageInfo[] {
-  const images: ImageInfo[] = [];
+/** Collects information about all media (images, video, audio) on the page. */
+export function collectMedia(): MediaItem[] {
+  const media: MediaItem[] = [];
   const seenSources = new Set<string>();
 
   const collectImageInfo = (rawSrc: string, alt = '', width = 0, height = 0): void => {
@@ -106,7 +107,7 @@ export function collectImages(): ImageInfo[] {
     if (isBase64Image(resolved)) {
       if (seenSources.has(resolved)) return;
       seenSources.add(resolved);
-      images.push({
+      media.push({
         src: resolved,
         alt,
         width,
@@ -114,6 +115,7 @@ export function collectImages(): ImageInfo[] {
         type: getBase64ImageType(resolved),
         fileSize: getBase64ImageSize(resolved),
         isBase64: true,
+        kind: 'image',
       });
       return;
     }
@@ -145,9 +147,10 @@ export function collectImages(): ImageInfo[] {
       type: detectType(original),
       fileSize: 0, // remote size unknown at collection time
       isBase64: false,
+      kind: 'image',
     };
     if (thumbnail) info.thumbnailSrc = thumbnail;
-    images.push(info);
+    media.push(info);
   };
 
   // <img> tags and their srcset.
@@ -185,5 +188,46 @@ export function collectImages(): ImageInfo[] {
     }
   });
 
-  return images;
+  // <video> and <audio> — direct-file sources only. Streaming manifests and
+  // blob: URLs are skipped (chrome.downloads can't fetch them as one file).
+  const collectAv = (
+    rawSrc: string,
+    kind: 'video' | 'audio',
+    mime: string | undefined,
+    alt: string,
+    posterUrl?: string,
+  ): void => {
+    if (!rawSrc) return;
+    const resolved = resolveUrl(rawSrc);
+    if (isUndownloadableMedia(resolved)) return;
+    if (seenSources.has(resolved)) return;
+    seenSources.add(resolved);
+    const item: MediaItem = {
+      src: resolved, alt, width: 0, height: 0,
+      type: detectAvType(resolved, mime),
+      fileSize: 0, isBase64: false, kind,
+    };
+    if (kind === 'video' && posterUrl && !isUndownloadableMedia(posterUrl)) item.poster = posterUrl;
+    media.push(item);
+  };
+
+  document.querySelectorAll('video').forEach((video) => {
+    const rawPoster = video.getAttribute('poster');
+    const posterUrl = rawPoster ? resolveUrl(rawPoster) : undefined;
+    const alt = video.getAttribute('aria-label') || video.getAttribute('title') || '';
+    collectAv(video.currentSrc || video.getAttribute('src') || '', 'video', undefined, alt, posterUrl);
+    video.querySelectorAll('source').forEach((s) =>
+      collectAv(s.getAttribute('src') || '', 'video', s.getAttribute('type') || undefined, alt, posterUrl),
+    );
+  });
+
+  document.querySelectorAll('audio').forEach((audio) => {
+    const alt = audio.getAttribute('aria-label') || audio.getAttribute('title') || '';
+    collectAv(audio.currentSrc || audio.getAttribute('src') || '', 'audio', undefined, alt);
+    audio.querySelectorAll('source').forEach((s) =>
+      collectAv(s.getAttribute('src') || '', 'audio', s.getAttribute('type') || undefined, alt),
+    );
+  });
+
+  return media;
 }

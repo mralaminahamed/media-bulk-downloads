@@ -3,7 +3,7 @@ import ImageList from './components/ImageList';
 import Settings from './components/Settings';
 import FilterToolbar from './components/FilterToolbar';
 import { AppState, DownloadMessage, DownloadResponse, FilterOptions, ImageInfo, SettingsData } from '@/types';
-import { filterImagesBySettings } from '../shared/filters';
+import { filterImagesBySettings, applyToolbarFilters } from '../shared/filters';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/settings';
 import { collectFromActiveTab } from '../shared/collect-active-tab';
 import { getImageFileSize, mapWithConcurrency } from './utils';
@@ -76,7 +76,7 @@ const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'po
    */
   const enrichImageSizes = useCallback(async (images: ImageInfo[]): Promise<void> => {
     const generation = ++enrichGenRef.current;
-    const targets = images.filter((img) => !img.isBase64 && img.fileSize <= 0);
+    const targets = images.filter((img) => !img.isBase64 && img.fileSize <= 0 && img.kind === 'image');
 
     await mapWithConcurrency(targets, SIZE_FETCH_CONCURRENCY, async (img) => {
       const size = await getImageFileSize(img.src);
@@ -132,27 +132,8 @@ const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'po
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.minimumImageSize, settings.excludeBase64Images, enrichImageSizes]);
 
-  const inSizeBucket = (img: ImageInfo, bucket: FilterOptions['sizeBucket']): boolean => {
-    if (bucket === 'all') return true;
-    const edge = Math.max(img.width, img.height);
-    if (edge <= 0) return true; // unknown dimensions are never hidden
-    if (bucket === 'small') return edge < 256;
-    if (bucket === 'medium') return edge >= 256 && edge < 1024;
-    return edge >= 1024; // large
-  };
-
-  const applyFilters = (images: ImageInfo[], filters: FilterOptions): ImageInfo[] => {
-    const minBytes = (Number.isFinite(filters.minSize) ? filters.minSize : 0) * 1024;
-    return images.filter((img) => {
-      if (!inSizeBucket(img, filters.sizeBucket)) return false;
-      if (filters.imageType !== 'all' && img.type !== filters.imageType) return false;
-      if (minBytes > 0 && img.fileSize > 0 && img.fileSize < minBytes) return false;
-      return !(!filters.includeBase64 && img.isBase64);
-    });
-  };
-
   const handleFilterChange = (filters: FilterOptions) => {
-    const filteredImages = applyFilters(state.images, filters);
+    const filteredImages = applyToolbarFilters(state.images, filters);
     setState((prev) => ({ ...prev, filteredImages, status: '' }));
   };
 
@@ -160,7 +141,7 @@ const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'po
     const imagesToDownload = Array.isArray(images) ? images : [images];
     setState((prev) => ({
       ...prev,
-      status: `Sending ${imagesToDownload.length} image${imagesToDownload.length === 1 ? '' : 's'} to downloads…`,
+      status: `Sending ${imagesToDownload.length} file${imagesToDownload.length === 1 ? '' : 's'} to downloads…`,
     }));
 
     const message: DownloadMessage = { type: 'DOWNLOAD_IMAGES', images: imagesToDownload };
@@ -223,7 +204,7 @@ const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'po
               {state.isLoading ? '—' : total}
             </span>
             <span className="text-[12px] text-[var(--ink-2)]">
-              {state.isLoading ? 'scanning this page' : total === 1 ? 'image on this page' : 'images on this page'}
+              {state.isLoading ? 'scanning this page' : total === 1 ? 'item on this page' : 'items on this page'}
             </span>
           </div>
           <button onClick={fetchImages} className="iconbtn" title="Rescan page" aria-label="Rescan page">
@@ -317,9 +298,9 @@ const EmptyState: React.FC<{ message: string; onRefresh: () => void }> = ({ mess
         </svg>
       </span>
       <div>
-        <p className="text-[13px] font-semibold text-[var(--ink)]">No images here</p>
+        <p className="text-[13px] font-semibold text-[var(--ink)]">No media here</p>
         <p className="mt-1 text-[12px] leading-relaxed text-[var(--ink-2)]">
-          {message || 'This page has no images that match your filters. Try another page or rescan.'}
+          {message || 'This page has no media that matches your filters. Try another page or rescan.'}
         </p>
       </div>
       <button onClick={onRefresh} className="btn btn-ghost h-9">

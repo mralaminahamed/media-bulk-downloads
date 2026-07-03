@@ -1,5 +1,5 @@
-import { passesSettingsFilters, filterImagesBySettings } from '@/extension/shared/filters';
-import { ImageInfo, SettingsData } from '@/types';
+import { passesSettingsFilters, filterImagesBySettings, applyToolbarFilters } from '@/extension/shared/filters';
+import { ImageInfo, SettingsData, FilterOptions } from '@/types';
 
 const base: SettingsData = {
   downloadPath: '',
@@ -22,7 +22,7 @@ const base: SettingsData = {
 };
 
 const img = (over: Partial<ImageInfo>): ImageInfo => ({
-  src: 'x.jpg', alt: '', width: 100, height: 100, type: 'jpeg', fileSize: 0, isBase64: false, ...over,
+  src: 'x.jpg', alt: '', width: 100, height: 100, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image', ...over,
 });
 
 describe('passesSettingsFilters', () => {
@@ -57,5 +57,43 @@ describe('filterImagesBySettings', () => {
     ];
     const result = filterImagesBySettings(images, { ...base, minimumImageSize: 50, excludeBase64Images: true });
     expect(result.map((i) => i.src)).toEqual(['big.jpg']);
+  });
+});
+
+const toolbarBase: Omit<ImageInfo, 'kind' | 'type' | 'src'> = {
+  alt: '', width: 0, height: 0, fileSize: 0, isBase64: false,
+};
+const item = (over: Partial<ImageInfo>): ImageInfo =>
+  ({ ...toolbarBase, src: 'x', type: 'png', kind: 'image', ...over }) as ImageInfo;
+
+const F = (over: Partial<FilterOptions>): FilterOptions =>
+  ({ mediaKind: 'all', imageType: 'all', minSize: 0, includeBase64: true, sizeBucket: 'all', ...over });
+
+describe('applyToolbarFilters — mediaKind', () => {
+  const items = [
+    item({ src: 'a', kind: 'image', type: 'png' }),
+    item({ src: 'b', kind: 'video', type: 'mp4' }),
+    item({ src: 'c', kind: 'audio', type: 'mp3' }),
+  ];
+  it('keeps all kinds when mediaKind is all', () => {
+    expect(applyToolbarFilters(items, F({})).length).toBe(3);
+  });
+  it('filters to a single kind', () => {
+    expect(applyToolbarFilters(items, F({ mediaKind: 'video' })).map((i) => i.src)).toEqual(['b']);
+  });
+  it('never hides av by size bucket (unknown dims)', () => {
+    expect(applyToolbarFilters(items, F({ sizeBucket: 'large' })).some((i) => i.kind === 'video')).toBe(true);
+  });
+});
+
+describe('applyToolbarFilters — format narrowing within a kind', () => {
+  it('narrows video items by format', () => {
+    const videoItems = [
+      item({ src: 'v1', kind: 'video', type: 'mp4' }),
+      item({ src: 'v2', kind: 'video', type: 'webm' }),
+    ];
+    expect(
+      applyToolbarFilters(videoItems, F({ mediaKind: 'video', imageType: 'mp4' })).map((i) => i.src),
+    ).toEqual(['v1']);
   });
 });

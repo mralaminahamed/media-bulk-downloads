@@ -7,7 +7,7 @@ import '@/extension/background';
 import { ImageInfo, SettingsData } from '@/types';
 
 const img = (over: Partial<ImageInfo>): ImageInfo => ({
-  src: 'x.jpg', alt: '', width: 100, height: 100, type: 'jpeg', fileSize: 0, isBase64: false, ...over,
+  src: 'x.jpg', alt: '', width: 100, height: 100, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image', ...over,
 });
 
 const onMessage = (chrome.runtime.onMessage.addListener as jest.Mock).mock.calls[0][0];
@@ -41,7 +41,7 @@ describe('background DOWNLOAD_IMAGES handler', () => {
       saveAs: false,
       conflictAction: 'uniquify',
     });
-    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloading 2 images...' });
+    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloading 2 files...' });
   });
 
   it('applies the download path and prefix from settings', () => {
@@ -73,7 +73,7 @@ describe('background DOWNLOAD_IMAGES handler', () => {
     expect(chrome.downloads.download).toHaveBeenCalledWith(
       expect.objectContaining({ url: 'big.jpg' }),
     );
-    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloading 1 images...' });
+    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloading 1 files...' });
   });
 
   it('ignores unrelated messages', () => {

@@ -4,7 +4,7 @@ import App from '@/extension/popup/App';
 import { ImageInfo } from '@/types';
 
 const image = (over: Partial<ImageInfo>): ImageInfo => ({
-  src: 'test.jpg', alt: 'Test', width: 100, height: 100, type: 'jpeg', fileSize: 1024, isBase64: false, ...over,
+  src: 'test.jpg', alt: 'Test', width: 100, height: 100, type: 'jpeg', fileSize: 1024, isBase64: false, kind: 'image', ...over,
 });
 
 describe('App Component', () => {
@@ -33,7 +33,7 @@ describe('App Component', () => {
 
   it('shows the empty state when no images are found', async () => {
     render(<App collect={async () => []} />);
-    expect(await screen.findByText('No images here')).toBeInTheDocument();
+    expect(await screen.findByText('No media here')).toBeInTheDocument();
   });
 
   it('surfaces a collection error', async () => {
@@ -43,7 +43,7 @@ describe('App Component', () => {
 
   it('sends a bulk download request and reflects the response', async () => {
     (chrome.runtime.sendMessage as jest.Mock).mockImplementation((_m, cb) =>
-      cb({ status: 'success', message: 'Downloading 2 images...' }),
+      cb({ status: 'success', message: 'Downloading 2 files...' }),
     );
     render(<App collect={async () => [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })]} />);
     await screen.findByText('Filters');
@@ -54,7 +54,7 @@ describe('App Component', () => {
       expect.objectContaining({ type: 'DOWNLOAD_IMAGES' }),
       expect.any(Function),
     );
-    expect(await screen.findByText('Downloading 2 images...')).toBeInTheDocument();
+    expect(await screen.findByText('Downloading 2 files...')).toBeInTheDocument();
   });
 
   it('disables download when a type filter matches nothing', async () => {
