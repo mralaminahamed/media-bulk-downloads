@@ -213,7 +213,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
 
   return (
     <div
-      className="overlay-in fixed inset-0 z-50 flex items-stretch justify-end bg-[var(--ink)]/50 backdrop-blur-[2px]"
+      className="overlay-in fixed inset-0 z-50 flex items-stretch justify-end bg-[var(--overlay)] backdrop-blur-[2px]"
       onClick={onClose}
     >
       <div

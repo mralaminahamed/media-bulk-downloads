@@ -66,7 +66,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="overlay-in fixed inset-0 z-50 flex items-stretch justify-end bg-[var(--ink)]/50 backdrop-blur-[2px]" onClick={onClose}>
+    <div className="overlay-in fixed inset-0 z-50 flex items-stretch justify-end bg-[var(--overlay)] backdrop-blur-[2px]" onClick={onClose}>
       <div
         className="sheet-in flex h-full w-full max-w-[380px] flex-col bg-[var(--panel)] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
