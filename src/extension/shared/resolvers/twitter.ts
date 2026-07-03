@@ -3,11 +3,34 @@ import { MediaCandidate, Resolver } from './types';
 const SIZE_SUFFIX = /:(thumb|small|medium|large|orig)$/;
 const AVATAR_SIZE = /_(?:normal|bigger|mini|reasonably_small|\d{2,4}x\d{2,4})(?=\.\w+$)/i;
 
+/** Nearest tweet status id from an element (grid cell / timeline link). */
+function statusIdFrom(el: Element | undefined): string | null {
+  const link =
+    el?.closest?.('a[href*="/status/"]') ||
+    el?.closest?.('article')?.querySelector?.('a[href*="/status/"]');
+  return link?.getAttribute('href')?.match(/\/status\/(\d+)/)?.[1] ?? null;
+}
+
 export const twitterResolver: Resolver = {
   id: 'twitter',
   match: (u) => u.hostname === 'pbs.twimg.com',
-  resolve: (u): MediaCandidate[] => {
+  resolve: (u, ctx): MediaCandidate[] => {
     const input = u.href;
+
+    // Video posters are rendered as <img> on the media grid / timeline (no
+    // <video> element there). Map them to downloadable video candidates.
+    const gif = u.pathname.match(/^\/tweet_video_thumb\/([A-Za-z0-9_-]+)\./);
+    if (gif) {
+      return [{ url: `https://video.twimg.com/tweet_video/${gif[1]}.mp4`, kind: 'gif', ext: 'mp4', poster: input }];
+    }
+    if (u.pathname.startsWith('/ext_tw_video_thumb/') || u.pathname.startsWith('/amplify_video_thumb/')) {
+      const statusId = statusIdFrom(ctx.el);
+      if (statusId) {
+        return [{ url: input, kind: 'video', ext: 'mp4', poster: input, resolveHint: { platform: 'twitter', id: statusId }, unresolvedVideo: true }];
+      }
+      // No status id reachable → fall through so the poster is at least collected.
+      return [];
+    }
 
     if (u.pathname.startsWith('/media/')) {
       // Normalize a legacy ":size" suffix that the URL API leaves on pathname.

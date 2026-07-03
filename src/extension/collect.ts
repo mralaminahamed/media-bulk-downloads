@@ -117,6 +117,8 @@ export function collectMedia(): MediaItem[] {
         type: cand.ext || detectAvType(cand.url), fileSize: 0, isBase64: false, kind: 'video',
       };
       if (cand.poster) item.poster = cand.poster;
+      if (cand.resolveHint) item.resolveHint = cand.resolveHint;
+      if (cand.unresolvedVideo) item.unresolvedVideo = true;
       media.push(item);
       return;
     }
