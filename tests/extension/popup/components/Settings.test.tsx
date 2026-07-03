@@ -214,6 +214,15 @@ describe('Settings Component', () => {
     expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ thumbnailSize: 240 }));
   });
 
+  it('clamps the minimum image size to its cap on blur', () => {
+    render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    const min = screen.getByLabelText('Minimum Image Size (px):');
+    fireEvent.change(min, { target: { value: '999999' } });
+    fireEvent.blur(min);
+    fireEvent.click(screen.getByText('Save'));
+    expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ minimumImageSize: 10000 }));
+  });
+
   it('exposes the sheet as a labelled modal dialog', () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
     expect(screen.getByRole('dialog', { name: 'Settings' })).toHaveAttribute('aria-modal', 'true');

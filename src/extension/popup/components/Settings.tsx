@@ -294,9 +294,10 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
               name="minimumImageSize"
               label="Minimum Image Size (px):"
               min={0}
+              max={10000}
               value={settings.minimumImageSize}
               onChange={handleChange}
-              onBlur={clampOnBlur('minimumImageSize', 0)}
+              onBlur={clampOnBlur('minimumImageSize', 0, 10000)}
             />
             <ToggleRow
               id="set-excludeBase64Images"
