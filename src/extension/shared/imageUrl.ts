@@ -201,6 +201,41 @@ const RULES: CdnRule[] = [
       u.pathname = u.pathname.replace(/\/thumb\//, '/').replace(/\/[^/]*px-[^/]+$/i, '');
     },
   },
+  {
+    // Google usercontent / ggpht: normalize the trailing =size segment to full.
+    match: (u) => /googleusercontent\.com$|(?:^|\.)ggpht\.com$/i.test(u.hostname),
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/=(?:[swh]\d+|[a-z]\d+)(?:-[a-z0-9]+)*$/i, '=s0');
+    },
+  },
+  {
+    // Pinterest: /<NNNx>/ or /<NNNxNNN>/ size folder -> /originals/.
+    match: (u) => u.hostname === 'i.pinimg.com',
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/^\/\d+x(?:\d+)?\//, '/originals/');
+    },
+  },
+  {
+    // YouTube: any /vi/<id>/<name>.jpg -> maxresdefault.jpg.
+    match: (u) => u.hostname === 'i.ytimg.com' || u.hostname === 'img.youtube.com',
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/(\/vi\/[^/]+\/)[^/]+\.jpg$/i, '$1maxresdefault.jpg');
+    },
+  },
+  {
+    // Amazon: strip the ._SX300_SY300_. style encoding segment before the ext.
+    match: (u) => /media-amazon\.com$|ssl-images-amazon\.com$/i.test(u.hostname),
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/\._[^.]*_(?=\.[a-z0-9]+$)/i, '');
+    },
+  },
+  {
+    // Medium: miro.medium.com/.../resize:fit:NNN/<id> -> /<id> (drop transforms).
+    match: (u) => u.hostname === 'miro.medium.com',
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/\/(?:resize|fit|format)[^/]*\//g, '/').replace(/\/v2\//, '/');
+    },
+  },
 ];
 
 /**

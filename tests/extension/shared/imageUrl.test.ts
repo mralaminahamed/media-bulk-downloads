@@ -161,3 +161,24 @@ describe('deproxy', () => {
     expect(upgradeToOriginal(u)).toEqual({ original: 'https://cdn.com/a.jpg', thumbnail: u });
   });
 });
+
+describe('CDN rules — path-based upgrades', () => {
+  const orig = (u: string) => upgradeToOriginal(u).original;
+  it('Google usercontent size segment -> s0', () => {
+    expect(orig('https://lh3.googleusercontent.com/abc=s200-c')).toBe('https://lh3.googleusercontent.com/abc=s0');
+    expect(orig('https://lh3.googleusercontent.com/abc=w200-h200')).toBe('https://lh3.googleusercontent.com/abc=s0');
+  });
+  it('Pinterest size folder -> originals', () => {
+    expect(orig('https://i.pinimg.com/564x/aa/bb/cc.jpg')).toBe('https://i.pinimg.com/originals/aa/bb/cc.jpg');
+  });
+  it('YouTube thumb -> maxresdefault', () => {
+    expect(orig('https://i.ytimg.com/vi/ID123/hqdefault.jpg')).toBe('https://i.ytimg.com/vi/ID123/maxresdefault.jpg');
+  });
+  it('Amazon strips the encoding segment', () => {
+    expect(orig('https://m.media-amazon.com/images/I/abc._SX300_SY300_.jpg')).toBe('https://m.media-amazon.com/images/I/abc.jpg');
+  });
+  it('leaves signed fbcdn/reddit-preview query intact', () => {
+    const fb = 'https://scontent.xx.fbcdn.net/v/t1.0/x.jpg?stp=dst-jpg&_nc_ht=y&oh=SIG';
+    expect(orig(fb)).toBe(fb);
+  });
+});
