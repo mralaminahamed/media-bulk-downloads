@@ -101,6 +101,24 @@ describe('Background Script', () => {
       const s = { ...settings, namingMode: 'original' as const, downloadPath: 'Pics' };
       expect(buildDownloadFilename(img({ src: 'https://x.com/a/dog.webp', type: 'webp' }), 0, s)).toBe('Pics/dog.webp');
     });
+
+    it('names a video download with its av extension', () => {
+      const item = {
+        src: 'https://ex.com/clip.mp4', alt: '', width: 0, height: 0,
+        type: 'mp4', fileSize: 0, isBase64: false, kind: 'video' as const,
+      };
+      const name = buildDownloadFilename(item, 0, { ...DEFAULT_SETTINGS, namingMode: 'original' });
+      expect(name).toBe('clip.mp4');
+    });
+
+    it('falls back to the URL extension for an unknown av type', () => {
+      const item = {
+        src: 'https://ex.com/take.mkv', alt: '', width: 0, height: 0,
+        type: 'unknown', fileSize: 0, isBase64: false, kind: 'video' as const,
+      };
+      const name = buildDownloadFilename(item, 0, { ...DEFAULT_SETTINGS, namingMode: 'original' });
+      expect(name.endsWith('.mkv')).toBe(true);
+    });
   });
 
   describe('isInjectableUrl', () => {
