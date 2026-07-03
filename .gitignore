@@ -12,6 +12,7 @@ node_modules/
 
 # Build output
 dist/
+dist-firefox/
 dist-zip/
 *.tsbuildinfo
 

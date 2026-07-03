@@ -57,6 +57,7 @@ export function isInjectableUrl(url: string | undefined): boolean {
   if (!url || !/^(https?|file):/i.test(url)) return false;
   if (/^https:\/\/chromewebstore\.google\.com/i.test(url)) return false;
   if (/^https:\/\/chrome\.google\.com\/webstore/i.test(url)) return false;
+  if (/^https:\/\/addons\.mozilla\.org/i.test(url)) return false;
   return true;
 }
 

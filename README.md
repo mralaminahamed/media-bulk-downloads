@@ -83,6 +83,24 @@ Production build: `yarn build` (outputs `release/media-bulk-downloads-<version>.
 
 ---
 
+## Install on Firefox
+
+The extension also works on Firefox (Manifest V3, requires Firefox 109+).
+
+```bash
+yarn build:firefox    # builds Chrome dist, then adapts for Firefox → dist-firefox/
+```
+
+To load in Firefox:
+
+1. Open `about:debugging#/runtime/this-firefox`
+2. Click **Load Temporary Add-on…**
+3. Select any file inside `dist-firefox/` (e.g. `manifest.json`)
+
+To lint the Firefox build: `yarn lint:firefox`
+
+---
+
 ## Usage
 
 1. **Click the extension icon** on any page — the popup opens and scans for media
@@ -130,11 +148,12 @@ The collection engine works on **any website**. It includes dedicated upgrade ru
 
 ## Tech Stack
 
-- **Chrome Manifest V3** — modern extension architecture
+- **Chrome & Firefox** — Manifest V3, cross-browser compatible
 - **React 19** + **TypeScript** — type-safe UI
 - **Tailwind CSS v4** — utility-first styling
 - **Vite 8** + **@crxjs/vite-plugin** — fast builds with HMR
 - **Jest** + **Testing Library** — unit and integration tests
+- **web-ext** — Firefox build validation
 
 ---
 

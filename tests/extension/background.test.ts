@@ -147,6 +147,7 @@ describe('Background Script', () => {
       expect(isInjectableUrl('chrome-extension://abc/index.html')).toBe(false);
       expect(isInjectableUrl('https://chromewebstore.google.com/detail/x')).toBe(false);
       expect(isInjectableUrl('https://chrome.google.com/webstore/detail/x')).toBe(false);
+      expect(isInjectableUrl('https://addons.mozilla.org/en-US/firefox/addon/x')).toBe(false);
       expect(isInjectableUrl(undefined)).toBe(false);
     });
   });
