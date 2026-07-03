@@ -23,13 +23,15 @@ Run date: 2026-07-03. Chrome (Manifest V3).
 
 ## Results
 
-| Site | Page | Total | Images | Upgraded | With dims | data: URIs | Notable CDNs |
-|------|------|------:|------:|--------:|---------:|----------:|--------------|
-| Wikipedia | `/wiki/Cat` | 113 | 113 | **92** | 54 | 0 | upload.wikimedia.org |
-| Unsplash | `/s/photos/mountain` | 152 | 152 | 40 | 131 | 20 | images.unsplash.com, plus.unsplash.com |
-| YouTube | home (logged-out) | 47 | 47 | 26 | 26 | 8 | i.ytimg.com, yt3.ggpht.com |
-| Allbirds (Shopify) | `/collections/mens` | 83 | 83 | **0** | 76 | 0 | www.allbirds.com/cdn/shop |
-| Reddit | `old.reddit.com/r/pics` | 50 | 50 | 20 | 26 | 0 | i.redd.it, preview.redd.it |
+| Site               | Page                    | Total | Images | Upgraded | With dims | data: URIs | Notable CDNs                           |
+|--------------------|-------------------------|------:|-------:|---------:|----------:|-----------:|----------------------------------------|
+| Wikipedia          | `/wiki/Cat`             |   113 |    113 |   **92** |        54 |          0 | upload.wikimedia.org                   |
+| Unsplash           | `/s/photos/mountain`    |   152 |    152 |       40 |       131 |         20 | images.unsplash.com, plus.unsplash.com |
+| YouTube            | home (logged-out)       |    47 |     47 |       26 |        26 |          8 | i.ytimg.com, yt3.ggpht.com             |
+| Allbirds (Shopify) | `/collections/mens`     |    83 |     83 |    **0** |        76 |          0 | www.allbirds.com/cdn/shop              |
+| Allbirds (post-fix)| `/collections/mens`     |    79 |     79 |   **75** |        74 |          0 | www.allbirds.com/cdn/shop              |
+| Reddit             | `old.reddit.com/r/pics` |    50 |     50 |       20 |        26 |          0 | i.redd.it, preview.redd.it             |
+| Wallhaven          | `/latest`               |    90 |     90 |    **0** |        89 |          0 | th.wallhaven.cc (thumbnails only)      |
 
 ## What the engine got right (confirmed live)
 
@@ -52,25 +54,27 @@ Run date: 2026-07-03. Chrome (Manifest V3).
 - **data: URIs** — inline SVG/icons collected as base64 items (20 on Unsplash,
   8 on YouTube) without any network access.
 
-## Gaps found (actionable follow-ups)
+## Gaps found → fixed
 
-1. **Modern Shopify on the store's own domain (Allbirds: 0 upgraded).**
-   Newer Shopify stores serve product images from
-   `www.<store>.com/cdn/shop/…?width=N` — the store's own hostname with a
-   `?width=` query — not the `cdn.shopify.com` hostname + `_WxH` path suffix the
-   current rule targets. The images are still collected, just not upgraded to
-   full resolution. **Fix:** add a rule for the `/cdn/shop/` path (any host) that
-   drops `width`/`height`/`crop` query params.
+1. **Modern Shopify on the store's own domain (Allbirds: 0 upgraded).** ✅ Fixed.
+   Newer stores serve from `www.<store>.com/cdn/shop/…?width=N` (own hostname +
+   `?width=` query), not `cdn.shopify.com` + `_WxH`. The Shopify rule now also
+   matches any `/cdn/shop/` path and drops `width`/`height`/`crop`/`pad_color`.
+   **Re-benchmarked Allbirds: 0 → 75 of 79 upgraded.**
 
-2. **`plus.unsplash.com` not upgraded (Unsplash).** Only `images.unsplash.com`
-   is in the rule/host set; `plus.unsplash.com` (Unsplash+ content) uses the same
-   imgix-style params but is left as-is. **Fix:** extend the Unsplash matcher to
-   `*.unsplash.com` imgix hosts.
+2. **`plus.unsplash.com` not upgraded.** ✅ Fixed — the Unsplash matcher now covers
+   `images.` and `plus.unsplash.com`, both added to the media-host set.
 
-3. **Baseline is first-viewport only.** These counts reflect a single scan with
-   no scrolling. On the feed-style pages (YouTube, Reddit) the real yield is much
-   higher once **Deep scan** runs — worth a follow-up benchmark that exercises the
-   deep-scan loop.
+3. **Wallhaven: 0 upgraded (thumbnails only).** ⏳ Needs a specialized resolver.
+   `th.wallhaven.cc/small/<ab>/<id>.jpg` maps to `w.wallhaven.cc/full/<ab>/wallhaven-<id>.<ext>`,
+   but the full-file extension (jpg/png/gif) isn't in the thumbnail URL — it must
+   be read from the DOM (`span.png` badge on grids, or the `<img>` src on the
+   `/w/<id>` page). A blind `.jpg` guess 404s on ~1/4 of wallpapers. Tracked for
+   the **native resolvers** work — see
+   [native resolver analysis](./native-resolvers-analysis.md).
+
+4. **Baseline is first-viewport only.** Still true — feed pages (YouTube, Reddit,
+   X) yield far more once **Deep scan** runs; a deep-scan benchmark is a follow-up.
 
 ## Caveats
 
