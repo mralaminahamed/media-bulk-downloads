@@ -66,9 +66,22 @@ const App: React.FC<AppProps> = ({
   // Generation guard so a newer refresh/rescan cancels stale resolution writes.
   const resolveGenRef = useRef(0);
 
+  // Latest settings, readable from async callbacks (the mount scan) without a
+  // stale closure.
+  const settingsRef = useRef(settings);
   useEffect(() => {
-    loadSettings();
-    void fetchImages();
+    settingsRef.current = settings;
+  }, [settings]);
+
+  useEffect(() => {
+    // Load persisted settings BEFORE the first scan, so a persisted
+    // resolveOriginals is known when the scan gates on it.
+    chrome.storage.sync.get(['settings'], (result) => {
+      const loaded = result.settings ? withDefaults(result.settings) : DEFAULT_SETTINGS;
+      settingsRef.current = loaded;
+      setSettings(loaded);
+      void fetchImages();
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -78,14 +91,6 @@ const App: React.FC<AppProps> = ({
     document.body.style.width = `${settings.popupWidth}px`;
     document.body.style.height = `${settings.popupHeight}px`;
   }, [surface, settings.popupWidth, settings.popupHeight]);
-
-  const loadSettings = () => {
-    chrome.storage.sync.get(['settings'], (result) => {
-      if (result.settings) {
-        setSettings(withDefaults(result.settings));
-      }
-    });
-  };
 
   /**
    * Lazily fills in remote image byte sizes. Runs only from the popup on the
@@ -133,6 +138,27 @@ const App: React.FC<AppProps> = ({
     setState((prev) => ({ ...prev, images: apply(prev.images), filteredImages: apply(prev.filteredImages) }));
   }, []);
 
+  /**
+   * Applies the resolve-originals gate to an eligible list, shared by every scan
+   * path (initial scan, settings change, deep scan). When the setting is on,
+   * resolve originals via the background; when off, drop unresolved (poster-only)
+   * videos from the DISPLAY only — they stay in rawImagesRef so toggling on later
+   * can still resolve them. Image size enrichment runs on the downloadable items.
+   */
+  const applyResolution = useCallback(
+    (eligible: ImageInfo[], s: SettingsData): void => {
+      if (s.resolveOriginals) {
+        setState((prev) => ({ ...prev, images: eligible, filteredImages: eligible }));
+        void enrichOriginals(eligible);
+      } else {
+        const pruned = eligible.filter((i) => !i.unresolvedVideo);
+        setState((prev) => ({ ...prev, images: pruned, filteredImages: pruned }));
+      }
+      void enrichImageSizes(eligible.filter((i) => !i.unresolvedVideo));
+    },
+    [enrichOriginals, enrichImageSizes],
+  );
+
   const fetchImages = useCallback(async (): Promise<void> => {
     enrichGenRef.current++; // cancel any in-flight enrichment
     resolveGenRef.current++; // cancel any in-flight resolution
@@ -142,27 +168,11 @@ const App: React.FC<AppProps> = ({
       const imageList = await collect();
       const raw = Array.isArray(imageList) ? imageList : [];
       rawImagesRef.current = raw;
-      const eligible = filterImagesBySettings(raw, settings);
+      const s = settingsRef.current; // latest settings, not a stale closure
+      const eligible = filterImagesBySettings(raw, s);
 
-      setState((prev) => ({
-        ...prev,
-        images: eligible,
-        filteredImages: eligible,
-        status: '',
-        isLoading: false,
-      }));
-
-      if (settings.resolveOriginals) {
-        void enrichOriginals(eligible);
-      } else {
-        // Strip unresolved (poster-only) videos from the DISPLAY only; keep them
-        // in rawImagesRef so toggling the setting on later can still resolve them.
-        const pruned = eligible.filter((i) => !i.unresolvedVideo);
-        if (pruned.length !== eligible.length) {
-          setState((prev) => ({ ...prev, images: pruned, filteredImages: pruned }));
-        }
-      }
-      void enrichImageSizes(eligible.filter((i) => !i.unresolvedVideo));
+      setState((prev) => ({ ...prev, status: '', isLoading: false }));
+      applyResolution(eligible, s);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'unknown error';
       setState((prev) => ({
@@ -171,7 +181,7 @@ const App: React.FC<AppProps> = ({
         isLoading: false,
       }));
     }
-  }, [collect, settings, enrichImageSizes, enrichOriginals]);
+  }, [collect, applyResolution]);
 
   // Re-derive the eligible base list when the settings that affect it change.
   // Also applies opt-in resolution when it loads/changes (settings load async on
@@ -179,17 +189,10 @@ const App: React.FC<AppProps> = ({
   useEffect(() => {
     if (rawImagesRef.current.length === 0) return;
     const eligible = filterImagesBySettings(rawImagesRef.current, settings);
-    if (settings.resolveOriginals) {
-      setState((prev) => ({ ...prev, images: eligible, filteredImages: eligible }));
-      void enrichOriginals(eligible);
-    } else {
-      const pruned = eligible.filter((i) => !i.unresolvedVideo);
-      setState((prev) => ({ ...prev, images: pruned, filteredImages: pruned }));
-    }
-    void enrichImageSizes(eligible.filter((i) => !i.unresolvedVideo));
+    applyResolution(eligible, settings);
     // Keyed on the settings fields that affect eligibility + resolution.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.minimumImageSize, settings.excludeBase64Images, settings.resolveOriginals, enrichImageSizes, enrichOriginals]);
+  }, [settings.minimumImageSize, settings.excludeBase64Images, settings.resolveOriginals, applyResolution]);
 
   const handleDeepScan = async () => {
     if (deepScanning) {
@@ -207,8 +210,7 @@ const App: React.FC<AppProps> = ({
       const merged = [...bySrc.values()];
       rawImagesRef.current = merged;
       const eligible = filterImagesBySettings(merged, settings);
-      setState((prev) => ({ ...prev, images: eligible, filteredImages: eligible }));
-      void enrichImageSizes(eligible);
+      applyResolution(eligible, settings);
     } catch (e) {
       setState((prev) => ({ ...prev, status: e instanceof Error ? e.message : 'deep scan failed' }));
     } finally {
