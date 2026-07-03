@@ -14,7 +14,6 @@ interface TwitterMediaDetail {
 
 interface TwitterSyndicationResponse {
   mediaDetails?: TwitterMediaDetail[];
-  video?: TwitterMediaDetail;
 }
 
 interface WallhavenResponse {
@@ -39,7 +38,7 @@ async function twitter(id: string, deps: NetDeps): Promise<string | null> {
     );
     if (!r.ok) return null;
     const j = (await r.json()) as TwitterSyndicationResponse;
-    const details = j?.mediaDetails ?? (j?.video ? [j.video] : []);
+    const details = j?.mediaDetails ?? [];
     let best: { bitrate: number; url: string } | null = null;
     for (const d of details) {
       for (const v of d?.video_info?.variants ?? []) {
