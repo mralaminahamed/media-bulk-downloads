@@ -44,4 +44,12 @@ describe('HistoryPanel', () => {
     render(<HistoryPanel onClose={() => {}} />);
     await waitFor(() => expect(screen.getByText(/no downloads yet/i)).toBeInTheDocument());
   });
+
+  it('is a labelled modal dialog that closes on Escape', async () => {
+    const onClose = jest.fn();
+    render(<HistoryPanel onClose={onClose} />);
+    expect(screen.getByRole('dialog', { name: 'Download History' })).toHaveAttribute('aria-modal', 'true');
+    await userEvent.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalled();
+  });
 });
