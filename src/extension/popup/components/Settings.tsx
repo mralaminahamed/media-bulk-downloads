@@ -152,6 +152,15 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
               checked={settings.excludeBase64Images}
               onToggle={() => toggle('excludeBase64Images')}
             />
+            <ToggleRow
+              id="set-resolveOriginals"
+              label="Resolve exact originals (network requests)"
+              checked={settings.resolveOriginals}
+              onToggle={() => toggle('resolveOriginals')}
+            />
+            <span className="block text-[11px] text-[var(--ink-3)]">
+              Fetches Twitter videos and exact Wallhaven/Unsplash originals. Off by default — keeps collection private.
+            </span>
           </section>
 
           {/* Appearance */}
