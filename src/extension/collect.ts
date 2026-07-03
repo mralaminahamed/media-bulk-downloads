@@ -148,6 +148,7 @@ export function collectMedia(): MediaItem[] {
     };
     const thumb = thumbnailOverride ? resolveUrl(thumbnailOverride) : cand.thumbnailSrc;
     if (thumb && thumb !== cand.url) info.thumbnailSrc = thumb;
+    if (cand.resolveHint) info.resolveHint = cand.resolveHint;
     media.push(info);
   };
 

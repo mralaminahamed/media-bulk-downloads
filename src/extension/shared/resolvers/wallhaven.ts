@@ -37,8 +37,12 @@ export const wallhavenResolver: Resolver = {
   match: (u) => u.hostname === 'th.wallhaven.cc',
   resolve: (u, ctx): MediaCandidate[] => {
     const id = idFrom(u, ctx);
+    if (!id) return [];
     const ext = extFrom(ctx);
-    if (!id || !ext) return [];
+    if (!ext) {
+      // No DOM extension evidence: keep the downloadable thumb, tag for opt-in resolve.
+      return [{ url: u.href, kind: 'image', thumbnailSrc: u.href, resolveHint: { platform: 'wallhaven', id } }];
+    }
     const ab = id.slice(0, 2);
     return [{
       url: `https://w.wallhaven.cc/full/${ab}/wallhaven-${id}.${ext}`,
