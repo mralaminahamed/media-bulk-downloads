@@ -31,6 +31,10 @@ global.chrome = {
             get: jest.fn(),
             set: jest.fn(),
         },
+        local: {
+            get: jest.fn().mockResolvedValue({}),
+            set: jest.fn().mockResolvedValue(undefined),
+        },
         onChanged: {
             addListener: jest.fn(),
             removeListener: jest.fn(),

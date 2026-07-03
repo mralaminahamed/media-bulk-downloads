@@ -31,6 +31,18 @@ export type MediaItem = ImageInfo;
 export interface DownloadMessage {
   type: 'DOWNLOAD_IMAGES';
   images: ImageInfo[];
+  sourcePage?: { url: string; title?: string };
+}
+
+export interface HistoryEntry {
+  src: string;
+  filename: string;
+  kind: 'image' | 'video' | 'audio';
+  type: string;
+  thumbnailSrc?: string;
+  sourcePageUrl: string;
+  sourcePageTitle?: string;
+  time: number;
 }
 
 export interface DownloadResponse {
