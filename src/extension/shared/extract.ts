@@ -78,7 +78,18 @@ export function galleryLinkCandidate(a: HTMLAnchorElement): UrlCandidate | null 
 
 /** <img> URLs hidden inside a <noscript> block (common no-JS lazy fallback). */
 export function noscriptImageCandidates(ns: HTMLElement): UrlCandidate[] {
-  const html = ns.textContent || '';
+  let html = ns.textContent || '';
+  // Some parsers (e.g. jsdom with scripting enabled) treat <noscript> content as
+  // raw text and leave entities un-decoded (real browsers decode them). Unescape
+  // as a fallback so `&lt;img ...&gt;` markup is recognized the same as `<img ...>`.
+  if (!html.includes('<img') && html.includes('&lt;')) {
+    html = html
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#0?39;/g, '\'')
+      .replace(/&amp;/g, '&');
+  }
   if (!html.includes('<img')) return [];
   let doc: Document;
   try {
