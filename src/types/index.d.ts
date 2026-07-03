@@ -57,13 +57,23 @@ export interface DeepScanProgress {
   elapsedMs: number;
 }
 
+export interface ResolveOriginalsMessage {
+  type: 'RESOLVE_ORIGINALS';
+  hints: { src: string; hint: ResolveHint }[];
+}
+
+export interface ResolveOriginalsResponse {
+  resolved: Record<string, string>; // src -> resolvedUrl (successes only)
+}
+
 export type ChromeMessage =
   | DownloadMessage
   | GetImagesMessage
   | ToggleBubbleMessage
   | DeepScanMessage
   | DeepScanAbortMessage
-  | DeepScanProgress;
+  | DeepScanProgress
+  | ResolveOriginalsMessage;
 
 export interface AppState {
   status: string;

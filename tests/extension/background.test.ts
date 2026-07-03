@@ -7,6 +7,7 @@ import {
   isInjectableUrl,
   originalNameFromUrl,
   DEFAULT_SETTINGS,
+  resolveOriginalsBatch,
 } from '@/extension/background';
 import { ImageInfo, SettingsData } from '@/types';
 
@@ -257,5 +258,21 @@ describe('Background Script', () => {
       expect(originalNameFromUrl('https://x.com/?a=1')).toBeNull();
       expect(originalNameFromUrl('not a url')).toBeNull();
     });
+  });
+});
+
+describe('resolveOriginalsBatch', () => {
+  it('maps each src to its resolved url, skipping failures', async () => {
+    const deps = {
+      fetch: (async (url: string) =>
+        url.includes('syndication')
+          ? { ok: true, json: async () => ({ mediaDetails: [{ video_info: { variants: [{ content_type: 'video/mp4', bitrate: 5, url: 'https://video.twimg.com/hi.mp4' }] } }] }) }
+          : { ok: false, json: async () => ({}) }) as unknown as typeof fetch,
+    };
+    const out = await resolveOriginalsBatch([
+      { src: 'poster.jpg', hint: { platform: 'twitter', id: '1' } },
+      { src: 'thumb.jpg', hint: { platform: 'wallhaven', id: 'x' } }, // 401 -> skipped
+    ], deps);
+    expect(out).toEqual({ 'poster.jpg': 'https://video.twimg.com/hi.mp4' });
   });
 });
