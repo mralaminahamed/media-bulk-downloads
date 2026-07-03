@@ -84,7 +84,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
             <p className="eyebrow mt-0.5">Recent downloads</p>
           </div>
           <div className="flex items-center gap-0.5">
-            <button onClick={handleClearAll} className="btn btn-ghost h-8 px-2 text-[12px]">
+            <button onClick={handleClearAll} className="btn btn-sm btn-ghost">
               Clear all
             </button>
             <button onClick={onClose} className="iconbtn" title="Close" aria-label="Close">
@@ -99,7 +99,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
           ) : (
             sorted.map((entry) => (
               <div key={entry.src} className="card flex items-center gap-2.5 p-2">
-                <div className="checker relative h-11 w-11 flex-none overflow-hidden rounded-[6px]">
+                <div className="checker relative h-11 w-11 flex-none overflow-hidden rounded-[var(--radius-sm)]">
                   <LoadingImage
                     src={entry.thumbnailSrc ?? entry.src}
                     alt={entry.filename}

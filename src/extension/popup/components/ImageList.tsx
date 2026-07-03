@@ -163,7 +163,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
               )}
 
               {/* Type tag */}
-              <span className="eyebrow absolute left-1.5 top-1.5 rounded-[5px] bg-[var(--panel)]/85 px-1.5 py-0.5 text-[9px] leading-none text-[var(--ink)] backdrop-blur-sm">
+              <span className="eyebrow absolute left-1.5 top-1.5 rounded-[var(--radius-xs)] bg-[var(--panel)]/85 px-1.5 py-0.5 text-[9px] leading-none text-[var(--ink)] backdrop-blur-sm">
                 {typeLabel(image)}
               </span>
 
@@ -192,8 +192,8 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                 </button>
                 <button
                   onClick={() => onImageDownload(image)}
-                  title="Download Image"
-                  aria-label="Download Image"
+                  title="Download"
+                  aria-label="Download"
                   className="grid h-8 w-8 place-items-center rounded-full bg-[var(--brand-ink)] text-white ring-1 ring-[var(--ctl-ring)] transition-transform hover:scale-105 active:scale-95"
                 >
                   <ArrowDownTrayIcon className="h-4 w-4" />
@@ -223,13 +223,13 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
             aria-modal="true"
             aria-labelledby="preview-title"
             tabIndex={-1}
-            className="sheet-in flex max-h-full w-full flex-col overflow-hidden rounded-[12px] border hairline bg-[var(--panel)] shadow-2xl focus:outline-none"
+            className="sheet-in flex max-h-full w-full flex-col overflow-hidden rounded-[var(--radius-lg)] border hairline bg-[var(--panel)] shadow-2xl focus:outline-none"
             style={{ maxWidth: Math.max(320, previewSize) }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-2 border-b hairline px-4 py-2.5">
               <div className="flex items-center gap-2">
-                <h3 id="preview-title" className="text-[13px] font-semibold text-[var(--ink)]">Image Preview</h3>
+                <h3 id="preview-title" className="text-[13px] font-semibold text-[var(--ink)]">Preview</h3>
                 {selectedIndex !== null && (
                   <span className="num text-[11px] text-[var(--ink-3)]">
                     {selectedIndex + 1} / {images.length}
@@ -245,7 +245,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                   title="Open in new tab"
                   aria-label="Open in new tab"
                 >
-                  <ArrowTopRightOnSquareIcon className="h-[17px] w-[17px]" />
+                  <ArrowTopRightOnSquareIcon className="h-[18px] w-[18px]" />
                 </a>
                 <button onClick={close} title="Close" aria-label="Close" className="iconbtn">
                   <XMarkIcon className="h-[18px] w-[18px]" />
@@ -255,7 +255,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
 
             <div className="scroll-thin overflow-y-auto p-4">
               <div
-                className="checker relative flex items-center justify-center overflow-hidden rounded-[8px] border hairline"
+                className="checker relative flex items-center justify-center overflow-hidden rounded-[var(--radius-sm)] border hairline"
                 style={{ minHeight: Math.min(previewSize, 160) }}
               >
                 {selectedImage.kind === 'video' ? (
@@ -331,12 +331,12 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
             <div className="border-t hairline px-4 py-2.5">
               <button
                 onClick={() => onImageDownload(selectedImage)}
-                title="Download Image"
-                aria-label="Download Image"
+                title="Download"
+                aria-label="Download"
                 className="btn btn-primary w-full"
               >
                 <ArrowDownTrayIcon className="h-4 w-4" />
-                <span>Download Image</span>
+                <span>Download</span>
               </button>
             </div>
           </div>
