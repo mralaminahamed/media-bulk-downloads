@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import ImageList, { formatFileSize } from '@/extension/popup/components/ImageList';
 import { ImageInfo } from '@/types';
@@ -52,6 +53,30 @@ describe('ImageList Component', () => {
   it('renders empty grid without crashing', () => {
     render(<ImageList images={[]} onImageDownload={jest.fn()} />);
     expect(screen.queryAllByRole('img')).toHaveLength(0);
+  });
+
+  it('renders a video tile with a poster and a player in the preview', async () => {
+    const media = [{
+      src: 'https://ex.com/v.mp4', alt: 'Clip', width: 0, height: 0,
+      type: 'mp4', fileSize: 0, isBase64: false, kind: 'video' as const,
+      poster: 'https://ex.com/p.jpg',
+    }];
+    render(<ImageList images={media} onImageDownload={() => {}} />);
+    // poster used as the tile image
+    expect(screen.getByRole('img', { name: 'Clip' })).toHaveAttribute('src', 'https://ex.com/p.jpg');
+    // open preview → <video> present
+    await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+    expect(document.querySelector('video')).toBeTruthy();
+  });
+
+  it('renders an audio tile as an icon and an <audio> player in preview', async () => {
+    const media = [{
+      src: 'https://ex.com/s.mp3', alt: '', width: 0, height: 0,
+      type: 'mp3', fileSize: 0, isBase64: false, kind: 'audio' as const,
+    }];
+    render(<ImageList images={media} onImageDownload={() => {}} />);
+    await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+    expect(document.querySelector('audio')).toBeTruthy();
   });
 
   describe('formatFileSize', () => {

@@ -33,7 +33,7 @@ describe('App Component', () => {
 
   it('shows the empty state when no images are found', async () => {
     render(<App collect={async () => []} />);
-    expect(await screen.findByText('No images here')).toBeInTheDocument();
+    expect(await screen.findByText('No media here')).toBeInTheDocument();
   });
 
   it('surfaces a collection error', async () => {

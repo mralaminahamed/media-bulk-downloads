@@ -34,6 +34,31 @@ export const formatFileSize = (bytes: number): string => {
 
 const typeLabel = (img: ImageInfo): string => (img.isBase64 ? 'B64' : img.type.toUpperCase());
 
+/** Centered ▶ badge overlaid on a video thumbnail that has a poster. */
+const PlayBadge: React.FC<{ className?: string }> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M10 8.5v7l6-3.5-6-3.5z" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+/** Placeholder tile icon for videos with no poster. */
+const FilmIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="M7 5v14M17 5v14M3 9h4M3 15h4M17 9h4M17 15h4" />
+  </svg>
+);
+
+/** Placeholder tile icon for audio items. */
+const AudioIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <path d="M9 18V5l12-2v13" />
+    <circle cx="6" cy="18" r="3" />
+    <circle cx="18" cy="16" r="3" />
+  </svg>
+);
+
 /**
  * Image with a shimmer skeleton underneath until it decodes. `onError` also
  * clears the skeleton so a broken image doesn't shimmer forever. Callers key
@@ -103,13 +128,34 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
             style={{ animationDelay: `${Math.min(index, 12) * 0.022}s` }}
           >
             <div className="checker relative aspect-square">
-              <LoadingImage
-                key={image.thumbnailSrc ?? image.src}
-                src={image.thumbnailSrc ?? image.src}
-                alt={image.alt}
-                lazy
-                className="h-full w-full object-cover"
-              />
+              {image.kind === 'image' ? (
+                <LoadingImage
+                  key={image.thumbnailSrc ?? image.src}
+                  src={image.thumbnailSrc ?? image.src}
+                  alt={image.alt}
+                  lazy
+                  className="h-full w-full object-cover"
+                />
+              ) : image.kind === 'video' && image.poster ? (
+                <>
+                  <LoadingImage
+                    key={image.poster}
+                    src={image.poster}
+                    alt={image.alt}
+                    lazy
+                    className="h-full w-full object-cover"
+                  />
+                  <PlayBadge className="pointer-events-none absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-white drop-shadow" />
+                </>
+              ) : image.kind === 'video' ? (
+                <div className="grid h-full w-full place-items-center bg-[var(--panel-2)]">
+                  <FilmIcon className="h-8 w-8 text-[var(--ink-3)]" />
+                </div>
+              ) : (
+                <div className="grid h-full w-full place-items-center bg-[var(--panel-2)]">
+                  <AudioIcon className="h-8 w-8 text-[var(--ink-3)]" />
+                </div>
+              )}
 
               {/* Type tag */}
               <span className="eyebrow absolute left-1.5 top-1.5 rounded-[5px] bg-[var(--panel)]/85 px-1.5 py-0.5 text-[9px] leading-none text-[var(--ink)] backdrop-blur-sm">
@@ -139,7 +185,8 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
 
             <figcaption className="flex items-center justify-between gap-1 px-2 py-1.5">
               <span className="num truncate text-[10px] text-[var(--ink-3)]">
-                {image.width > 0 ? `${image.width}×${image.height}` : '—'}
+                {image.kind !== 'image' ? image.type.toUpperCase()
+                  : image.width > 0 ? `${image.width}×${image.height}` : '—'}
               </span>
               <span className="num text-[10px] text-[var(--ink-2)]">{formatFileSize(image.fileSize)}</span>
             </figcaption>
@@ -188,13 +235,29 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                 className="checker relative flex items-center justify-center overflow-hidden rounded-[8px] border hairline"
                 style={{ minHeight: Math.min(previewSize, 160) }}
               >
-                <LoadingImage
-                  key={selectedImage.src}
-                  src={selectedImage.src}
-                  alt={selectedImage.alt}
-                  className="mx-auto w-full object-contain"
-                  style={{ maxHeight: previewSize }}
-                />
+                {selectedImage.kind === 'video' ? (
+                  <video
+                    key={selectedImage.src}
+                    src={selectedImage.src}
+                    poster={selectedImage.poster}
+                    controls
+                    className="mx-auto w-full"
+                    style={{ maxHeight: previewSize }}
+                  />
+                ) : selectedImage.kind === 'audio' ? (
+                  <div className="flex flex-col items-center gap-3 p-6">
+                    <AudioIcon className="h-12 w-12 text-[var(--ink-3)]" />
+                    <audio key={selectedImage.src} src={selectedImage.src} controls className="w-full" />
+                  </div>
+                ) : (
+                  <LoadingImage
+                    key={selectedImage.src}
+                    src={selectedImage.src}
+                    alt={selectedImage.alt}
+                    className="mx-auto w-full object-contain"
+                    style={{ maxHeight: previewSize }}
+                  />
+                )}
 
                 {/* Prev/next — page through images without leaving the modal */}
                 {hasPrev && (
@@ -228,13 +291,15 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                 )}
                 <dt className="eyebrow self-center">Size</dt>
                 <dd className="num text-[var(--ink)]">
-                  {selectedImage.width > 0 ? `${selectedImage.width} × ${selectedImage.height}` : 'Unknown'} · {formatFileSize(selectedImage.fileSize)}
+                  {selectedImage.kind !== 'image' ? '—' : selectedImage.width > 0 ? `${selectedImage.width} × ${selectedImage.height}` : 'Unknown'} · {formatFileSize(selectedImage.fileSize)}
                 </dd>
                 <dt className="eyebrow self-center">Type</dt>
                 <dd className="text-[var(--ink)]">
                   {selectedImage.type.toUpperCase()}
                   {selectedImage.isBase64 ? ' · Base64' : ''}
                 </dd>
+                <dt className="eyebrow self-center">Kind</dt>
+                <dd className="text-[var(--ink)]">{selectedImage.kind}</dd>
                 <dt className="eyebrow self-start pt-0.5">Source</dt>
                 <dd className="num break-all text-[11px] text-[var(--ink-2)]">{selectedImage.src}</dd>
               </dl>

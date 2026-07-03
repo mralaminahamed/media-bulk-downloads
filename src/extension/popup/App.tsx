@@ -204,7 +204,7 @@ const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'po
               {state.isLoading ? '—' : total}
             </span>
             <span className="text-[12px] text-[var(--ink-2)]">
-              {state.isLoading ? 'scanning this page' : total === 1 ? 'image on this page' : 'images on this page'}
+              {state.isLoading ? 'scanning this page' : total === 1 ? 'item on this page' : 'items on this page'}
             </span>
           </div>
           <button onClick={fetchImages} className="iconbtn" title="Rescan page" aria-label="Rescan page">
@@ -298,9 +298,9 @@ const EmptyState: React.FC<{ message: string; onRefresh: () => void }> = ({ mess
         </svg>
       </span>
       <div>
-        <p className="text-[13px] font-semibold text-[var(--ink)]">No images here</p>
+        <p className="text-[13px] font-semibold text-[var(--ink)]">No media here</p>
         <p className="mt-1 text-[12px] leading-relaxed text-[var(--ink-2)]">
-          {message || 'This page has no images that match your filters. Try another page or rescan.'}
+          {message || 'This page has no media that matches your filters. Try another page or rescan.'}
         </p>
       </div>
       <button onClick={onRefresh} className="btn btn-ghost h-9">
