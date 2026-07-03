@@ -303,6 +303,17 @@ describe('downloadAndRecord', () => {
     expect(written[0]).toMatchObject({ src: 'https://c/a.jpg', kind: 'image', sourcePageUrl: 'https://page', sourcePageTitle: 'T' });
   });
 
+  it('passes the settings-derived filename, saveAs, and conflictAction to chrome.downloads', async () => {
+    // Proves the Downloads settings actually reach the download call (default
+    // settings: prefix "image_", 1-indexed, no subfolder, saveAs off).
+    (chrome.downloads.download as jest.Mock).mockImplementation((_opts, cb) => cb(1));
+    await downloadAndRecord([img('https://c/a.jpg')], undefined);
+    expect(chrome.downloads.download).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://c/a.jpg', filename: 'image_1.jpg', saveAs: false, conflictAction: 'uniquify' }),
+      expect.any(Function),
+    );
+  });
+
   it('does not record a failed download', async () => {
     (chrome.downloads.download as jest.Mock).mockImplementation((_opts, cb) => {
       (chrome.runtime as unknown as { lastError?: unknown }).lastError = { message: 'x' };
