@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { BubbleCorner, BubblePanelPlacement, ImageInfo, SettingsData } from '@/types';
+import { BubbleCorner, BubblePanelPlacement, DeepScanProgress, ImageInfo, SettingsData } from '@/types';
 import { withDefaults } from '../shared/settings';
 import { collectMedia } from '../collect';
+import { startDeepScan } from '../content/deepScanRunner';
 import App from '../popup/App';
 
 interface BubbleProps {
@@ -125,6 +126,21 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
   const dragging = useRef(false);
   const origin = useRef({ x: 0, y: 0 });
   const moved = useRef(0);
+
+  // Deep scan runs in-page here (no messaging); track the in-flight controller so
+  // the Stop button can abort it.
+  const deepScanAbortRef = useRef<AbortController | null>(null);
+  const deepScanLocal = useCallback((onProgress: (p: DeepScanProgress) => void): Promise<ImageInfo[]> => {
+    const ac = new AbortController();
+    deepScanAbortRef.current = ac;
+    return startDeepScan(
+      (found, scrolls, elapsedMs) => onProgress({ type: 'DEEP_SCAN_PROGRESS', found, scrolls, elapsedMs }),
+      ac.signal,
+    );
+  }, []);
+  const abortDeepScanLocal = useCallback(() => {
+    deepScanAbortRef.current?.abort();
+  }, []);
 
   // Free-drag of the panel via its header.
   const panelRef = useRef<HTMLDivElement>(null);
@@ -285,6 +301,8 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
           <div className="h-full">
             <App
               collect={collectLocal}
+              deepScan={deepScanLocal}
+              abortDeepScan={abortDeepScanLocal}
               surface="bubble"
               onClose={() => setOpen(false)}
               dragHandleProps={{

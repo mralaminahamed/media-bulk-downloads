@@ -2,12 +2,13 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ImageList from './components/ImageList';
 import Settings from './components/Settings';
 import FilterToolbar from './components/FilterToolbar';
-import { AppState, DownloadMessage, DownloadResponse, FilterOptions, ImageInfo, SettingsData } from '@/types';
+import { AppState, DeepScanProgress, DownloadMessage, DownloadResponse, FilterOptions, ImageInfo, SettingsData } from '@/types';
 import { filterImagesBySettings, applyToolbarFilters } from '../shared/filters';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/settings';
 import { collectFromActiveTab } from '../shared/collect-active-tab';
+import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/deep-scan-active-tab';
 import { getImageFileSize, mapWithConcurrency } from './utils';
-import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 // Concurrent HEAD requests when enriching remote image sizes.
 const SIZE_FETCH_CONCURRENCY = 6;
@@ -15,6 +16,10 @@ const SIZE_FETCH_CONCURRENCY = 6;
 export interface AppProps {
   /** How to collect images. Defaults to messaging the active tab (popup). */
   collect?: () => Promise<ImageInfo[]>;
+  /** How to run a deep scan. Defaults to messaging the active tab (popup). Hides the Deep-scan button when absent. */
+  deepScan?: (onProgress: (p: DeepScanProgress) => void) => Promise<ImageInfo[]>;
+  /** Aborts an in-flight deep scan. Defaults to messaging the active tab (popup). */
+  abortDeepScan?: () => void;
   /** Which surface this app renders in. */
   surface?: 'popup' | 'bubble';
   /** When embedded (bubble), a close handler for the header. */
@@ -34,7 +39,14 @@ const BrandMark: React.FC = () => (
   </svg>
 );
 
-const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'popup', onClose, dragHandleProps }) => {
+const App: React.FC<AppProps> = ({
+  collect = collectFromActiveTab,
+  deepScan = deepScanActiveTab,
+  abortDeepScan = abortDeepScanActiveTab,
+  surface = 'popup',
+  onClose,
+  dragHandleProps,
+}) => {
   const [state, setState] = useState<AppState>({
     status: '',
     images: [],
@@ -43,6 +55,8 @@ const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'po
   });
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<SettingsData>(DEFAULT_SETTINGS);
+  const [deepScanning, setDeepScanning] = useState(false);
+  const [deepProgress, setDeepProgress] = useState<DeepScanProgress | null>(null);
 
   // All images collected from the page, before any settings/toolbar filtering.
   const rawImagesRef = useRef<ImageInfo[]>([]);
@@ -132,6 +146,31 @@ const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'po
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.minimumImageSize, settings.excludeBase64Images, enrichImageSizes]);
 
+  const handleDeepScan = async () => {
+    if (deepScanning) {
+      abortDeepScan();
+      return;
+    }
+    setDeepScanning(true);
+    setDeepProgress(null);
+    try {
+      const found = await deepScan(setDeepProgress);
+      const bySrc = new Map(state.images.map((m) => [m.src, m]));
+      found.forEach((m) => {
+        if (!bySrc.has(m.src)) bySrc.set(m.src, m);
+      });
+      const merged = [...bySrc.values()];
+      rawImagesRef.current = merged;
+      const eligible = filterImagesBySettings(merged, settings);
+      setState((prev) => ({ ...prev, images: eligible, filteredImages: eligible }));
+      void enrichImageSizes(eligible);
+    } catch (e) {
+      setState((prev) => ({ ...prev, status: e instanceof Error ? e.message : 'deep scan failed' }));
+    } finally {
+      setDeepScanning(false);
+    }
+  };
+
   const handleFilterChange = (filters: FilterOptions) => {
     const filteredImages = applyToolbarFilters(state.images, filters);
     setState((prev) => ({ ...prev, filteredImages, status: '' }));
@@ -207,9 +246,24 @@ const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'po
               {state.isLoading ? 'scanning this page' : total === 1 ? 'item on this page' : 'items on this page'}
             </span>
           </div>
-          <button onClick={fetchImages} className="iconbtn" title="Rescan page" aria-label="Rescan page">
-            <ArrowPathIcon className={`h-[17px] w-[17px] ${state.isLoading ? 'animate-[spin_0.9s_linear_infinite]' : ''}`} />
-          </button>
+          <div className="flex items-center gap-1.5">
+            {deepScanning && (
+              <span className="num text-[11px] text-[var(--ink-2)]">scanning… {deepProgress?.found ?? 0} found</span>
+            )}
+            <button
+              onClick={handleDeepScan}
+              className="iconbtn"
+              title={deepScanning ? 'Stop deep scan' : 'Deep scan (scroll to load more)'}
+              aria-label={deepScanning ? 'Stop deep scan' : 'Deep scan'}
+            >
+              <ChevronDoubleDownIcon
+                className={`h-[17px] w-[17px] ${deepScanning ? 'animate-pulse' : ''}`}
+              />
+            </button>
+            <button onClick={fetchImages} className="iconbtn" title="Rescan page" aria-label="Rescan page">
+              <ArrowPathIcon className={`h-[17px] w-[17px] ${state.isLoading ? 'animate-[spin_0.9s_linear_infinite]' : ''}`} />
+            </button>
+          </div>
         </div>
       </header>
 
