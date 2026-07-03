@@ -24,12 +24,15 @@ export const twitterResolver: Resolver = {
       return [{ url: `https://video.twimg.com/tweet_video/${gif[1]}.mp4`, kind: 'gif', ext: 'mp4', poster: input }];
     }
     if (u.pathname.startsWith('/ext_tw_video_thumb/') || u.pathname.startsWith('/amplify_video_thumb/')) {
+      // Always a VIDEO — never fall through to the image path. Twitter renders the
+      // same poster both as an <img> and as a CSS background-image; if the poster
+      // ever became an image, it would leak in as a duplicate still frame. A
+      // status id (from the cell's /status/ link) enables opt-in mp4 resolution;
+      // without one it's a pending video the app won't display.
       const statusId = statusIdFrom(ctx.el);
-      if (statusId) {
-        return [{ url: input, kind: 'video', ext: 'mp4', poster: input, resolveHint: { platform: 'twitter', id: statusId }, unresolvedVideo: true }];
-      }
-      // No status id reachable → fall through so the poster is at least collected.
-      return [];
+      const candidate: MediaCandidate = { url: input, kind: 'video', ext: 'mp4', poster: input, unresolvedVideo: true };
+      if (statusId) candidate.resolveHint = { platform: 'twitter', id: statusId };
+      return [candidate];
     }
 
     if (u.pathname.startsWith('/media/')) {

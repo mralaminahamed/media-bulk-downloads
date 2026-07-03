@@ -107,6 +107,21 @@ describe('collectMedia — native resolvers', () => {
     expect(vid).toMatchObject({ kind: 'video', unresolvedVideo: true, resolveHint: { id: '1799' } });
   });
 
+  it('does not leak the poster as an image when it is also a background-image', () => {
+    // X renders a video poster as BOTH an <img> and a sibling background-image.
+    document.body.innerHTML =
+      `<a href="/u/status/2067/video/1">` +
+      `<div style="background-image:url('https://pbs.twimg.com/amplify_video_thumb/2067/img/y.jpg?format=jpg&name=360x360')"></div>` +
+      `<img src="https://pbs.twimg.com/amplify_video_thumb/2067/img/y.jpg?format=jpg&name=360x360">` +
+      `</a>`;
+    const media = collectMedia();
+    const videos = media.filter((m) => m.kind === 'video');
+    const posterImages = media.filter((m) => m.kind === 'image' && /amplify_video_thumb/.test(m.src));
+    expect(videos).toHaveLength(1); // one video (deduped across img + background)
+    expect(videos[0]).toMatchObject({ resolveHint: { platform: 'twitter', id: '2067' }, unresolvedVideo: true });
+    expect(posterImages).toHaveLength(0); // NO poster leaked as an image
+  });
+
   it('strips Unsplash resize params', () => {
     document.body.innerHTML = `<img src="https://images.unsplash.com/photo-1?w=200&q=80&fm=webp">`;
     expect(collectMedia().some((m) => m.src === 'https://images.unsplash.com/photo-1')).toBe(true);

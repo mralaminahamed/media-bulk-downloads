@@ -208,7 +208,9 @@ export function collectMedia(): MediaItem[] {
     const bgImage = window.getComputedStyle(el).getPropertyValue('background-image');
     if (!bgImage || bgImage === 'none') return;
     for (const match of bgImage.matchAll(/url\(\s*(['"]?)(.*?)\1\s*\)/g)) {
-      if (match[2]) collectImageInfo(match[2]);
+      // Pass the element so a resolver can read its context (e.g. a Twitter video
+      // poster set as a background-image finds the cell's /status/ link).
+      if (match[2]) collectImageInfo(match[2], '', 0, 0, undefined, el);
     }
   });
 
