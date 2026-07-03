@@ -166,7 +166,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
 
               {downloadedSrcs?.has(image.src) && (
                 <span
-                  className="absolute right-1.5 top-1.5 grid h-4 w-4 place-items-center rounded-full bg-[var(--brand-ink)] text-white ring-1 ring-black/5"
+                  className="absolute right-1.5 top-1.5 grid h-4 w-4 place-items-center rounded-full bg-[var(--brand-ink)] text-white ring-1 ring-[var(--ctl-ring)]"
                   title="Downloaded"
                   aria-label="Downloaded"
                 >
@@ -176,13 +176,14 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                 </span>
               )}
 
-              {/* Hover actions */}
-              <div className="absolute inset-0 flex items-center justify-center gap-2 bg-[var(--ink)]/0 opacity-0 transition-all duration-150 group-hover:bg-[var(--ink)]/45 group-hover:opacity-100">
+              {/* Hover / focus actions — also revealed on keyboard focus-within so
+                  the buttons aren't mouse-only. */}
+              <div className="absolute inset-0 flex items-center justify-center gap-2 bg-transparent opacity-0 transition-all duration-150 group-hover:bg-[var(--scrim)] group-hover:opacity-100 group-focus-within:bg-[var(--scrim)] group-focus-within:opacity-100">
                 <button
                   onClick={() => setSelectedIndex(index)}
                   title="View Details"
                   aria-label="View Details"
-                  className="grid h-8 w-8 place-items-center rounded-full bg-[var(--panel)] text-[var(--ink)] ring-1 ring-black/5 transition-transform hover:scale-105 active:scale-95"
+                  className="grid h-8 w-8 place-items-center rounded-full bg-[var(--panel)] text-[var(--ink)] ring-1 ring-[var(--ctl-ring)] transition-transform hover:scale-105 active:scale-95"
                 >
                   <EyeIcon className="h-4 w-4" />
                 </button>
@@ -190,7 +191,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                   onClick={() => onImageDownload(image)}
                   title="Download Image"
                   aria-label="Download Image"
-                  className="grid h-8 w-8 place-items-center rounded-full bg-[var(--brand-ink)] text-white transition-transform hover:scale-105 active:scale-95"
+                  className="grid h-8 w-8 place-items-center rounded-full bg-[var(--brand-ink)] text-white ring-1 ring-[var(--ctl-ring)] transition-transform hover:scale-105 active:scale-95"
                 >
                   <ArrowDownTrayIcon className="h-4 w-4" />
                 </button>
@@ -198,7 +199,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
             </div>
 
             <figcaption className="flex items-center justify-between gap-1 px-2 py-1.5">
-              <span className="num truncate text-[10px] text-[var(--ink-3)]">
+              <span className="num truncate text-[10px] text-[var(--ink-2)]">
                 {image.kind !== 'image' ? image.type.toUpperCase()
                   : image.width > 0 ? `${image.width}×${image.height}` : '—'}
               </span>
@@ -279,7 +280,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                     onClick={goPrev}
                     title="Previous image"
                     aria-label="Previous image"
-                    className="absolute left-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-[var(--panel)]/90 text-[var(--ink)] ring-1 ring-black/5 backdrop-blur-sm transition-transform hover:scale-105 active:scale-95"
+                    className="absolute left-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-[var(--panel)]/90 text-[var(--ink)] ring-1 ring-[var(--ctl-ring)] backdrop-blur-sm transition-transform hover:scale-105 active:scale-95"
                   >
                     <ChevronLeftIcon className="h-5 w-5" />
                   </button>
@@ -289,7 +290,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                     onClick={goNext}
                     title="Next image"
                     aria-label="Next image"
-                    className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-[var(--panel)]/90 text-[var(--ink)] ring-1 ring-black/5 backdrop-blur-sm transition-transform hover:scale-105 active:scale-95"
+                    className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-[var(--panel)]/90 text-[var(--ink)] ring-1 ring-[var(--ctl-ring)] backdrop-blur-sm transition-transform hover:scale-105 active:scale-95"
                   >
                     <ChevronRightIcon className="h-5 w-5" />
                   </button>
