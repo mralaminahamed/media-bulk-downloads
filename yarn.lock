@@ -1040,9 +1040,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mralaminahamed/image-bulk-downloads@workspace:.":
+"@mralaminahamed/media-bulk-downloads@workspace:.":
   version: 0.0.0-use.local
-  resolution: "@mralaminahamed/image-bulk-downloads@workspace:."
+  resolution: "@mralaminahamed/media-bulk-downloads@workspace:."
   dependencies:
     "@crxjs/vite-plugin": "npm:^2.7.1"
     "@eslint/js": "npm:^10.0.1"

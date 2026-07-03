@@ -50,5 +50,7 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Agentic development
 /docs/superpowers/
 /.superpowers/

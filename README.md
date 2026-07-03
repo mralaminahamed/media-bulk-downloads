@@ -1,18 +1,29 @@
 # Media Bulk Downloads
 
-A Chrome (Manifest V3) extension that collects every image on a web page —
-`<img>`, `srcset`, `<picture>` sources, and CSS `background-image` — then lets you
-preview, filter, and download them individually or in bulk.
+A Chrome (Manifest V3) extension that collects media on a web page — images
+(`<img>`, `srcset`, `<picture>` sources, and CSS `background-image`) plus
+direct-file video and audio (`<video>`/`<audio>` and their `<source>`s, with
+poster frames) — then lets you preview, filter, and download it individually or
+in bulk.
 
 ## Features
 
 - **Complete collection** — walks `<img>`/`srcset`/`<picture>`/`<source>` and
-  computed CSS backgrounds, resolving every source to an absolute URL.
+  computed CSS backgrounds for images, and `<video>`/`<audio>`/`<source>` +
+  video posters for media, resolving every source to an absolute URL. Streaming
+  manifests (`.m3u8`/`.mpd`) and `blob:` sources are skipped — they can't be
+  fetched as a single file.
+- **Media-kind filtering** — a primary All / Images / Video / Audio control with
+  format chips that adapt to the kind (image formats, or MP4/WebM/OGG/MOV, or
+  MP3/WAV/OGG/M4A/FLAC), plus minimum pixel size, minimum file size, and base64
+  inclusion for images.
+- **Per-kind grid & preview** — video tiles show their poster with a play badge
+  (or a film-icon tile); audio shows an icon tile; the preview modal opens a real
+  `<video>`/`<audio>` player, with prev/next and keyboard paging.
 - **Bulk & single download** via the `chrome.downloads` API, with a configurable
-  filename prefix and subfolder.
-- **Filtering** by type (JPEG/PNG/GIF/SVG/WebP), minimum pixel size, minimum file
-  size, and base64 inclusion.
-- **Toolbar badge** showing the eligible image count on each tab (toggleable).
+  filename prefix and subfolder, and the correct file extension picked per media
+  kind.
+- **Toolbar badge** showing the eligible item count on each tab (toggleable).
 - **Settings** for download path, filename prefix, popup size, minimum image
   size, and base64 exclusion — persisted with `chrome.storage.sync`.
 - **On-page bubble (opt-in)** — a draggable floating launcher injected into the
@@ -80,16 +91,17 @@ The extension requests only what it needs:
 
 | Permission        | Why |
 |-------------------|-----|
-| `downloads`       | Save selected images. |
+| `downloads`       | Save selected media. |
 | `storage`         | Persist user settings. |
 | `tabs`            | Query the active tab and update the per-tab badge. |
-| `<all_urls>` host | Read images from any page you run the extension on. |
+| `<all_urls>` host | Read media from any page you run the extension on. |
 
-**Image collection is network-free.** The content script never fetches image
+**Media collection is network-free.** The content script never fetches media
 bytes, so opening the popup or updating the badge does not silently issue
-requests to every image URL on the page. Remote file sizes are filled in lazily,
-only from the popup (a user action, on the active tab) via bounded-concurrency
-`HEAD` requests; base64 sizes are computed locally.
+requests to every media URL on the page. Remote image file sizes are filled in
+lazily, only from the popup (a user action, on the active tab) via
+bounded-concurrency `HEAD` requests; base64 sizes are computed locally. Video
+and audio load only when you press play in the preview.
 
 ## Project structure
 
@@ -98,8 +110,11 @@ src/
   manifest.json                 # MV3 manifest
   extension/
     background.ts               # service worker: badge, downloads, settings
-    content.ts                  # collects images from the page (network-free)
-    shared/filters.ts           # settings-based filtering (badge + popup + download)
+    content.ts                  # collects media from the page (network-free)
+    collect.ts                  # DOM scraping for images, video, audio + posters
+    shared/imageUrl.ts          # image CDN-upgrade + type/dimension parsing
+    shared/mediaType.ts         # video/audio type detection + skip list
+    shared/filters.ts           # settings + toolbar filtering (badge + popup + download)
     popup/
       index.tsx                 # popup entry
       App.tsx                   # popup app + lazy size enrichment
@@ -124,6 +139,7 @@ backgrounds) are never dropped by the size rule.
 yarn test
 ```
 
-Covers image collection and URL resolution, the shared filter logic, background
+Covers image/video/audio collection and URL resolution, media type detection and
+the skip list, the shared filter logic (settings + media-kind), background
 filename/badge behavior, the concurrency-limited size fetcher, and the popup
 components.
