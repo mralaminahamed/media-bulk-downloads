@@ -44,7 +44,7 @@ export function detectType(url: string): string {
 }
 
 /** Known media CDN hostnames (used by looksLikeMediaUrl + the gallery-link rule). */
-const MEDIA_HOSTS = /(?:^|\.)(?:pbs\.twimg\.com|cdn\.shopify\.com|images\.unsplash\.com|i\.pinimg\.com|i\.ytimg\.com|img\.youtube\.com|i\.redd\.it|preview\.redd\.it|miro\.medium\.com|lh\d\.googleusercontent\.com|googleusercontent\.com|ggpht\.com|media-amazon\.com|ssl-images-amazon\.com|wp\.com|imgix\.net)$/i;
+const MEDIA_HOSTS = /(?:^|\.)(?:pbs\.twimg\.com|cdn\.shopify\.com|images\.unsplash\.com|plus\.unsplash\.com|i\.pinimg\.com|i\.ytimg\.com|img\.youtube\.com|i\.redd\.it|preview\.redd\.it|miro\.medium\.com|lh\d\.googleusercontent\.com|googleusercontent\.com|ggpht\.com|media-amazon\.com|ssl-images-amazon\.com|wp\.com|imgix\.net)$/i;
 
 const MEDIA_EXT = /\.(?:jpe?g|jfif|png|gif|webp|avif|bmp|ico|svg|mp4|m4v|webm|ogv|mov|mp3|wav|ogg|oga|m4a|aac|flac|opus)(?:$|[?#])/i;
 
@@ -182,18 +182,22 @@ const RULES: CdnRule[] = [
     },
   },
   {
-    // Shopify: strip a _WxH (or _WxH@2x) size suffix before the extension.
-    match: (u) => u.hostname === 'cdn.shopify.com',
+    // Shopify: classic cdn.shopify.com uses a _WxH path suffix; modern stores
+    // serve from their own domain under /cdn/shop/ with ?width=/&height= query
+    // resizers. Handle both.
+    match: (u) => u.hostname === 'cdn.shopify.com' || u.pathname.includes('/cdn/shop/'),
     rewrite: (u) => {
       u.pathname = u.pathname.replace(
         /_(?:\d{1,5}x\d{1,5}|\d{1,5}x|x\d{1,5})(@\dx)?(?=\.[a-z0-9]+$)/i,
         '',
       );
+      dropParams(u, ['width', 'height', 'crop', 'pad_color']);
     },
   },
   {
-    // Unsplash + Imgix: query-param resizers.
-    match: (u) => u.hostname === 'images.unsplash.com' || /\.imgix\.net$/.test(u.hostname),
+    // Unsplash (images + plus) + Imgix: query-param resizers.
+    match: (u) =>
+      /(?:^|\.)(?:images|plus)\.unsplash\.com$/.test(u.hostname) || /\.imgix\.net$/.test(u.hostname),
     rewrite: (u) => dropParams(u, RESIZE_PARAMS),
   },
   {

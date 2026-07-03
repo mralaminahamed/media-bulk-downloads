@@ -193,4 +193,16 @@ describe('CDN rules — path-based upgrades', () => {
     expect(orig('https://evilgoogleusercontent.com/abc=s200')).toBe('https://evilgoogleusercontent.com/abc=s200');
     expect(orig('https://fakemedia-amazon.com/x._SX300_.jpg')).toBe('https://fakemedia-amazon.com/x._SX300_.jpg');
   });
+  it('modern Shopify /cdn/shop on the store domain drops size query', () => {
+    expect(orig('https://www.allbirds.com/cdn/shop/files/x.jpg?width=800&crop=center')).toBe(
+      'https://www.allbirds.com/cdn/shop/files/x.jpg',
+    );
+    // classic cdn.shopify.com _WxH suffix still handled
+    expect(orig('https://cdn.shopify.com/s/files/1/x_800x600.jpg')).toBe('https://cdn.shopify.com/s/files/1/x.jpg');
+  });
+  it('Unsplash plus subdomain strips resize params', () => {
+    expect(orig('https://plus.unsplash.com/premium_photo-123?w=400&q=80&fit=crop')).toBe(
+      'https://plus.unsplash.com/premium_photo-123',
+    );
+  });
 });
