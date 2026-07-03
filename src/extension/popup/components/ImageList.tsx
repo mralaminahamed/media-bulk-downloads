@@ -66,7 +66,7 @@ const AudioIcon: React.FC<{ className?: string }> = ({ className }) => (
  * clears the skeleton so a broken image doesn't shimmer forever. Callers key
  * this by src so navigating to a new image resets the loading state.
  */
-const LoadingImage: React.FC<{
+export const LoadingImage: React.FC<{
   src: string;
   alt: string;
   className: string;

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ImageList from './components/ImageList';
 import Settings from './components/Settings';
+import HistoryPanel from './components/HistoryPanel';
 import FilterToolbar from './components/FilterToolbar';
 import { AppState, DeepScanProgress, DownloadMessage, DownloadResponse, FilterOptions, ImageInfo, SettingsData } from '@/types';
 import { filterImagesBySettings, applyToolbarFilters } from '../shared/filters';
@@ -10,7 +11,7 @@ import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/deep-scan-a
 import { requestResolveOriginals } from '../shared/resolve-originals-active';
 import { downloadedSrcSet, HISTORY_KEY } from '../shared/history';
 import { getImageFileSize, mapWithConcurrency } from './utils';
-import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 // Concurrent HEAD requests when enriching remote image sizes.
 const SIZE_FETCH_CONCURRENCY = 6;
@@ -56,6 +57,7 @@ const App: React.FC<AppProps> = ({
     isLoading: true,
   });
   const [showSettings, setShowSettings] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [settings, setSettings] = useState<SettingsData>(DEFAULT_SETTINGS);
   const [deepScanning, setDeepScanning] = useState(false);
   const [deepProgress, setDeepProgress] = useState<DeepScanProgress | null>(null);
@@ -294,6 +296,9 @@ const App: React.FC<AppProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-0.5">
+            <button onClick={() => setShowHistory(true)} className="iconbtn" title="Download history" aria-label="Download history">
+              <ClockIcon className="h-[18px] w-[18px]" />
+            </button>
             <button onClick={() => setShowSettings(true)} className="iconbtn" title="Settings" aria-label="Settings">
               <Cog6ToothIcon className="h-[18px] w-[18px]" />
             </button>
@@ -381,6 +386,8 @@ const App: React.FC<AppProps> = ({
       {showSettings && (
         <Settings onClose={() => setShowSettings(false)} onSettingsChange={handleSettingsChange} settings={settings} />
       )}
+
+      {showHistory && <HistoryPanel onClose={() => setShowHistory(false)} />}
     </div>
   );
 };
