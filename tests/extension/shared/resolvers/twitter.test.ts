@@ -95,9 +95,11 @@ describe('twitterResolver — video posters rendered as <img>', () => {
     });
   });
 
-  it('ext_tw_video_thumb <img> with no status link -> [] (poster falls through)', () => {
+  it('ext_tw_video_thumb <img> with no status link -> hint-less pending video (never an image)', () => {
     document.body.innerHTML = `<img src="https://pbs.twimg.com/ext_tw_video_thumb/2040/pu/img/x.jpg">`;
     const img = document.querySelector('img')!;
-    expect(twitterResolver.resolve(new URL(img.getAttribute('src')!), { el: img, allowNetwork: false })).toEqual([]);
+    const [c] = twitterResolver.resolve(new URL(img.getAttribute('src')!), { el: img, allowNetwork: false });
+    expect(c).toMatchObject({ kind: 'video', unresolvedVideo: true });
+    expect(c.resolveHint).toBeUndefined();
   });
 });
