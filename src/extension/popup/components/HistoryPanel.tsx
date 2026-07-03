@@ -9,6 +9,15 @@ export interface HistoryPanelProps {
   onClose: () => void;
 }
 
+/** Host for display, never throwing on a malformed stored URL. */
+const safeHost = (url: string): string => {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+};
+
 const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
 
@@ -103,7 +112,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
                           rel="noopener noreferrer"
                           className="truncate text-[var(--ink-2)] underline"
                         >
-                          {new URL(entry.sourcePageUrl).host}
+                          {safeHost(entry.sourcePageUrl)}
                         </a>
                       </>
                     )}
