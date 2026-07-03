@@ -240,7 +240,7 @@ const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'po
       {/* Body */}
       <main className="scroll-thin flex-1 overflow-y-auto px-4 py-3">
         {state.isLoading ? (
-          <LoadingState />
+          <SkeletonGrid thumbnailSize={settings.thumbnailSize} />
         ) : total === 0 ? (
           <EmptyState message={state.status} onRefresh={fetchImages} />
         ) : (
@@ -281,20 +281,27 @@ const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'po
   );
 };
 
-/** Branded scanning state. */
-const LoadingState: React.FC = () => (
-  <div className="reveal grid h-full place-items-center">
-    <div className="flex flex-col items-center gap-3">
-      <div className="grid grid-cols-3 gap-1.5">
-        {Array.from({ length: 9 }).map((_, i) => (
-          <span
-            key={i}
-            className="h-3 w-3 rounded-[3px] bg-[var(--brand-soft)]"
-            style={{ animation: `reveal 0.9s ease ${(i % 5) * 0.12}s infinite alternate` }}
-          />
-        ))}
-      </div>
-      <p className="eyebrow">Scanning page…</p>
+/**
+ * Scanning state — a skeleton grid that mirrors the real thumbnail layout, so
+ * the switch to loaded images doesn't shift the page. A small "Scanning" hint
+ * keeps the branded scanning language.
+ */
+const SkeletonGrid: React.FC<{ thumbnailSize: number }> = ({ thumbnailSize }) => (
+  <div className="reveal">
+    <p className="eyebrow mb-2.5 text-center">Scanning page…</p>
+    <div
+      className="grid justify-center gap-2.5"
+      style={{ gridTemplateColumns: `repeat(auto-fill, ${thumbnailSize}px)` }}
+    >
+      {Array.from({ length: 12 }).map((_, i) => (
+        <div key={i} className="overflow-hidden rounded-[var(--radius)] border hairline bg-[var(--panel)]">
+          <div className="skeleton aspect-square" />
+          <div className="flex items-center justify-between gap-1 px-2 py-1.5">
+            <span className="skeleton h-2.5 w-10 rounded-[3px]" />
+            <span className="skeleton h-2.5 w-7 rounded-[3px]" />
+          </div>
+        </div>
+      ))}
     </div>
   </div>
 );

@@ -29,6 +29,9 @@
   --radius: 10px;
   --radius-sm: 7px;
 
+  /* Moving highlight for loading skeletons; softened in dark so it doesn't glare. */
+  --skeleton-sheen: rgba(255, 255, 255, 0.65);
+
   --font-sans: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
 
@@ -59,6 +62,7 @@
     --brand-ink: #6366f1;
     --brand-soft: #1c1b39;
     --ring: rgba(129, 140, 248, 0.4);
+    --skeleton-sheen: rgba(255, 255, 255, 0.05);
   }
 }
 
@@ -448,10 +452,35 @@ input.num[type="number"]::-webkit-inner-spin-button {
   }
 }
 
+/* ── Loading skeleton ────────────────────────────────────────────────────────
+   A quiet placeholder surface with a sweeping highlight. Sits under real
+   content (thumbnails, grid tiles) until it loads. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--panel-2);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, var(--skeleton-sheen), transparent);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .reveal,
   .overlay-in,
   .sheet-in {
+    animation: none;
+  }
+  .skeleton::after {
     animation: none;
   }
 }
