@@ -181,4 +181,32 @@ describe('Settings Component', () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={{ ...initialSettings, downloadPath: 'Pics/Cats' }} />);
     expect(screen.getByText('Downloads/Pics/Cats/image.jpg')).toBeInTheDocument();
   });
+
+  it('disables Save until something changes', () => {
+    render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    const save = screen.getByRole('button', { name: 'Save' });
+    expect(save).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/Save to subfolder \(in Downloads\):/), { target: { value: 'x' } });
+    expect(save).toBeEnabled();
+  });
+
+  it('closes on the Escape key', () => {
+    render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  it('clamps an out-of-range number field to its max on blur', () => {
+    render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    const thumb = screen.getByLabelText('Thumbnail Size (px):');
+    fireEvent.change(thumb, { target: { value: '9999' } });
+    fireEvent.blur(thumb);
+    fireEvent.click(screen.getByText('Save'));
+    expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ thumbnailSize: 240 }));
+  });
+
+  it('exposes the sheet as a labelled modal dialog', () => {
+    render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    expect(screen.getByRole('dialog', { name: 'Settings' })).toHaveAttribute('aria-modal', 'true');
+  });
 });
