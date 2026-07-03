@@ -155,7 +155,7 @@ const App: React.FC<AppProps> = ({
     setDeepProgress(null);
     try {
       const found = await deepScan(setDeepProgress);
-      const bySrc = new Map(state.images.map((m) => [m.src, m]));
+      const bySrc = new Map(rawImagesRef.current.map((m) => [m.src, m]));
       found.forEach((m) => {
         if (!bySrc.has(m.src)) bySrc.set(m.src, m);
       });
