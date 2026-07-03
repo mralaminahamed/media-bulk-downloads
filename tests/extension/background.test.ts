@@ -8,11 +8,13 @@ import {
   originalNameFromUrl,
   DEFAULT_SETTINGS,
   resolveOriginalsBatch,
+  downloadAndRecord,
 } from '@/extension/background';
 import { ImageInfo, SettingsData } from '@/types';
 
 describe('Background Script', () => {
   let mockChrome: any;
+  const realChrome = global.chrome;
 
   beforeEach(() => {
     mockChrome = {
@@ -37,6 +39,13 @@ describe('Background Script', () => {
       },
     };
     global.chrome = mockChrome;
+  });
+
+  // This describe swaps in a bare-bones chrome mock (no `downloads`/`storage.local`)
+  // for its own assertions; restore the full mock afterward so later describes in
+  // this file (downloadAndRecord) see chrome.downloads and chrome.storage.local again.
+  afterAll(() => {
+    global.chrome = realChrome;
   });
 
   describe('extensionForType', () => {
@@ -274,5 +283,33 @@ describe('resolveOriginalsBatch', () => {
       { src: 'thumb.jpg', hint: { platform: 'wallhaven', id: 'x' } }, // 401 -> skipped
     ], deps);
     expect(out).toEqual({ 'poster.jpg': 'https://video.twimg.com/hi.mp4' });
+  });
+});
+
+describe('downloadAndRecord', () => {
+  beforeEach(() => {
+    (chrome.downloads.download as jest.Mock).mockReset();
+    (chrome.storage.local.get as jest.Mock).mockReset().mockResolvedValue({ downloadHistory: [] });
+    (chrome.storage.local.set as jest.Mock).mockReset().mockResolvedValue(undefined);
+  });
+  const img = (src: string) =>
+    ({ src, alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' as const });
+
+  it('records one entry per successful download with the source page', async () => {
+    (chrome.downloads.download as jest.Mock).mockImplementation((_opts, cb) => cb(42));
+    await downloadAndRecord([img('https://c/a.jpg')], { url: 'https://page', title: 'T' });
+    const written = (chrome.storage.local.set as jest.Mock).mock.calls[0][0].downloadHistory;
+    expect(written).toHaveLength(1);
+    expect(written[0]).toMatchObject({ src: 'https://c/a.jpg', kind: 'image', sourcePageUrl: 'https://page', sourcePageTitle: 'T' });
+  });
+
+  it('does not record a failed download', async () => {
+    (chrome.downloads.download as jest.Mock).mockImplementation((_opts, cb) => {
+      (chrome.runtime as unknown as { lastError?: unknown }).lastError = { message: 'x' };
+      cb(undefined);
+      (chrome.runtime as unknown as { lastError?: unknown }).lastError = undefined;
+    });
+    await downloadAndRecord([img('https://c/b.jpg')], undefined);
+    expect(chrome.storage.local.set as jest.Mock).not.toHaveBeenCalled();
   });
 });

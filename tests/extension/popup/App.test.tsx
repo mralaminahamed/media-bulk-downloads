@@ -67,9 +67,11 @@ describe('App Component', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /download 2/i }));
 
-    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'DOWNLOAD_IMAGES' }),
-      expect.any(Function),
+    await waitFor(() =>
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'DOWNLOAD_IMAGES' }),
+        expect.any(Function),
+      ),
     );
     expect(await screen.findByText('Downloading 2 files...')).toBeInTheDocument();
   });
@@ -189,6 +191,27 @@ describe('App Component', () => {
     // Only the normal image survives — the unresolved video is dropped.
     await waitFor(() => expect(headerCount()).toBe('1'));
     expect(requestResolveOriginals).not.toHaveBeenCalled();
+  });
+
+  it('includes the source page in the download message', async () => {
+    (chrome.tabs.query as jest.Mock).mockResolvedValue([{ url: 'https://page', title: 'Pg' }]);
+    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((_m, cb) =>
+      cb({ status: 'success', message: 'Downloading 1 file...' }),
+    );
+    render(<App collect={async () => [image({})]} />);
+    await screen.findByText('Filters');
+
+    fireEvent.click(screen.getByRole('button', { name: /download 1/i }));
+
+    await waitFor(() =>
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'DOWNLOAD_IMAGES',
+          sourcePage: expect.objectContaining({ url: 'https://page' }),
+        }),
+        expect.any(Function),
+      ),
+    );
   });
 
   it('resolves and updates src when resolveOriginals is on', async () => {

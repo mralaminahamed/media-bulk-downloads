@@ -29,18 +29,26 @@ describe('background DOWNLOAD_IMAGES handler', () => {
 
     onMessage({ type: 'DOWNLOAD_IMAGES', images }, {}, sendResponse);
 
-    expect(chrome.downloads.download).toHaveBeenNthCalledWith(1, {
-      url: 'a.jpg',
-      filename: 'image_1.jpg',
-      saveAs: false,
-      conflictAction: 'uniquify',
-    });
-    expect(chrome.downloads.download).toHaveBeenNthCalledWith(2, {
-      url: 'b.png',
-      filename: 'image_2.png',
-      saveAs: false,
-      conflictAction: 'uniquify',
-    });
+    expect(chrome.downloads.download).toHaveBeenNthCalledWith(
+      1,
+      {
+        url: 'a.jpg',
+        filename: 'image_1.jpg',
+        saveAs: false,
+        conflictAction: 'uniquify',
+      },
+      expect.any(Function),
+    );
+    expect(chrome.downloads.download).toHaveBeenNthCalledWith(
+      2,
+      {
+        url: 'b.png',
+        filename: 'image_2.png',
+        saveAs: false,
+        conflictAction: 'uniquify',
+      },
+      expect.any(Function),
+    );
     expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloading 2 files...' });
   });
 
@@ -50,12 +58,15 @@ describe('background DOWNLOAD_IMAGES handler', () => {
 
     onMessage({ type: 'DOWNLOAD_IMAGES', images: [img({ src: 'a.jpg' })] }, {}, sendResponse);
 
-    expect(chrome.downloads.download).toHaveBeenCalledWith({
-      url: 'a.jpg',
-      filename: 'Pics/2026/shot-1.jpg',
-      saveAs: false,
-      conflictAction: 'uniquify',
-    });
+    expect(chrome.downloads.download).toHaveBeenCalledWith(
+      {
+        url: 'a.jpg',
+        filename: 'Pics/2026/shot-1.jpg',
+        saveAs: false,
+        conflictAction: 'uniquify',
+      },
+      expect.any(Function),
+    );
   });
 
   it('re-filters by the current settings (min size + base64)', () => {
@@ -72,6 +83,7 @@ describe('background DOWNLOAD_IMAGES handler', () => {
     expect(chrome.downloads.download).toHaveBeenCalledTimes(1);
     expect(chrome.downloads.download).toHaveBeenCalledWith(
       expect.objectContaining({ url: 'big.jpg' }),
+      expect.any(Function),
     );
     expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloading 1 files...' });
   });
