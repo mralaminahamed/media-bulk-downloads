@@ -91,3 +91,30 @@ describe('collectMedia — deep extraction', () => {
     expect(collectMedia().some((m) => m.src === 'https://cdn.com/ns.png')).toBe(true);
   });
 });
+
+describe('collectMedia — native resolvers', () => {
+  beforeEach(() => { document.body.innerHTML = ''; });
+
+  it('upgrades a Twitter media image to name=orig', () => {
+    document.body.innerHTML = `<img src="https://pbs.twimg.com/media/ABC?format=jpg&name=small">`;
+    expect(collectMedia().some((m) => m.src === 'https://pbs.twimg.com/media/ABC?format=jpg&name=orig')).toBe(true);
+  });
+
+  it('strips Unsplash resize params', () => {
+    document.body.innerHTML = `<img src="https://images.unsplash.com/photo-1?w=200&q=80&fm=webp">`;
+    expect(collectMedia().some((m) => m.src === 'https://images.unsplash.com/photo-1')).toBe(true);
+  });
+
+  it('resolves a Wallhaven png thumbnail via its figure badge', () => {
+    document.body.innerHTML =
+      `<figure data-wallpaper-id="abcdef"><img src="https://th.wallhaven.cc/small/ab/abcdef.jpg"><span class="png"></span></figure>`;
+    expect(collectMedia().some((m) => m.src === 'https://w.wallhaven.cc/full/ab/wallhaven-abcdef.png')).toBe(true);
+  });
+
+  it('emits a downloadable mp4 for a Twitter GIF video', () => {
+    document.body.innerHTML =
+      `<video poster="https://pbs.twimg.com/tweet_video_thumb/XYZ.jpg" src="blob:https://x.com/abc"></video>`;
+    const gif = collectMedia().find((m) => m.src === 'https://video.twimg.com/tweet_video/XYZ.mp4');
+    expect(gif).toMatchObject({ kind: 'video', type: 'mp4' });
+  });
+});
