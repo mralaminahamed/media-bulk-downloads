@@ -4,10 +4,13 @@ import {
   DownloadResponse,
   HistoryEntry,
   ImageInfo,
+  OpenDownloadMessage,
+  OpenUrlMessage,
   ResolveHint,
   ResolveOriginalsMessage,
   ResolveOriginalsResponse,
   SettingsData,
+  ShowDownloadMessage,
 } from '@/types';
 import { filterImagesBySettings } from './shared/filters';
 import { DEFAULT_SETTINGS, withDefaults } from './shared/settings';
@@ -233,6 +236,7 @@ export async function downloadAndRecord(
                 sourcePageUrl: sourcePage?.url ?? '',
                 sourcePageTitle: sourcePage?.title,
                 time: Date.now(),
+                downloadId,
               });
             },
           );
@@ -328,6 +332,24 @@ chrome.runtime.onMessage.addListener(
       sendResponse({ status: 'success', message: `Downloading ${eligible.length} files...` });
       void downloadAndRecord(eligible, sourcePage);
       return; // response already sent synchronously
+    }
+
+    if (typeof message === 'object' && message.type === 'OPEN_DOWNLOAD_FILE') {
+      // Content scripts (the bubble) can't call chrome.downloads; the popup
+      // could, but routing both through here keeps one code path. Guard against
+      // a since-removed download so a stale id never throws.
+      chrome.downloads.open((message as OpenDownloadMessage).downloadId);
+      return; // fire-and-forget
+    }
+
+    if (typeof message === 'object' && message.type === 'SHOW_DOWNLOAD') {
+      chrome.downloads.show((message as ShowDownloadMessage).downloadId);
+      return;
+    }
+
+    if (typeof message === 'object' && message.type === 'OPEN_URL') {
+      void chrome.tabs.create({ url: (message as OpenUrlMessage).url });
+      return;
     }
 
     if (typeof message === 'object' && message.type === 'RESOLVE_ORIGINALS') {

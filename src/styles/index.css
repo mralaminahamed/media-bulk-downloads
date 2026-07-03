@@ -293,6 +293,12 @@ input.num[type="number"]::-webkit-inner-spin-button {
   border-color: var(--line);
 }
 
+/* Compact icon button — dense action rows (e.g. history entries). */
+.iconbtn-sm {
+  width: 28px;
+  height: 28px;
+}
+
 /* Buttons. */
 .btn {
   display: inline-flex;
