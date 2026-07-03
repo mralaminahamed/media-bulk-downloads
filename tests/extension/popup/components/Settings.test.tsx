@@ -13,6 +13,8 @@ describe('Settings Component', () => {
     showImageCount: true,
     minimumImageSize: 0,
     excludeBase64Images: false,
+    saveAs: false,
+    namingMode: 'prefixed' as const,
     thumbnailSize: 120,
     previewSize: 360,
     bubbleEnabled: false,
@@ -36,8 +38,8 @@ describe('Settings Component', () => {
         settings={initialSettings}
       />
     );
-    expect(screen.getByLabelText('Download Path:')).toHaveValue('downloads');
-    expect(screen.getByLabelText('File Name Prefix:')).toHaveValue('image_');
+    expect(screen.getByLabelText(/Save to subfolder \(in Downloads\):/)).toHaveValue('downloads');
+    expect(screen.getByLabelText(/File name prefix:/)).toHaveValue('image_');
   });
 
   it('calls onClose when close button is clicked', () => {
@@ -60,7 +62,7 @@ describe('Settings Component', () => {
         settings={initialSettings}
       />
     );
-    fireEvent.change(screen.getByLabelText('Download Path:'), { target: { value: 'new_path' } });
+    fireEvent.change(screen.getByLabelText(/Save to subfolder \(in Downloads\):/), { target: { value: 'new_path' } });
     fireEvent.click(screen.getByText('Save'));
     expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({
       downloadPath: 'new_path',
@@ -148,5 +150,24 @@ describe('Settings Component', () => {
     expect(mockOnSettingsChange).toHaveBeenCalledWith(
       expect.objectContaining({ bubbleWidth: 520, bubbleHeight: 600 }),
     );
+  });
+
+  it('saves the save-as toggle', () => {
+    render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    fireEvent.click(screen.getByRole('switch', { name: /ask where to save/i }));
+    fireEvent.click(screen.getByText('Save'));
+    expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ saveAs: true }));
+  });
+
+  it('saves the chosen naming mode', () => {
+    render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Original' }));
+    fireEvent.click(screen.getByText('Save'));
+    expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ namingMode: 'original' }));
+  });
+
+  it('previews the Downloads subfolder path', () => {
+    render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={{ ...initialSettings, downloadPath: 'Pics/Cats' }} />);
+    expect(screen.getByText('Downloads/Pics/Cats/image.jpg')).toBeInTheDocument();
   });
 });

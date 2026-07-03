@@ -5,6 +5,7 @@ import {
   sanitizePathSegment,
   buildDownloadFilename,
   isInjectableUrl,
+  originalNameFromUrl,
   DEFAULT_SETTINGS,
 } from '@/extension/background';
 import { ImageInfo, SettingsData } from '@/types';
@@ -84,6 +85,22 @@ describe('Background Script', () => {
       const s = { ...settings, fileNamePrefix: '..' };
       expect(buildDownloadFilename(img({ type: 'gif' }), 0, s)).toBe('image_1.gif');
     });
+
+    it('uses the original URL name in original mode, with type-derived extension', () => {
+      const s = { ...settings, namingMode: 'original' as const };
+      // extension comes from image.type, NOT the URL's extension.
+      expect(buildDownloadFilename(img({ src: 'https://x.com/a/cat.png', type: 'jpeg' }), 0, s)).toBe('cat.jpg');
+    });
+
+    it('falls back to the prefix+index when the URL has no usable name', () => {
+      const s = { ...settings, namingMode: 'original' as const };
+      expect(buildDownloadFilename(img({ src: 'data:image/png;base64,AAAA', type: 'png' }), 4, s)).toBe('image_5.png');
+    });
+
+    it('prepends the subfolder in original mode too', () => {
+      const s = { ...settings, namingMode: 'original' as const, downloadPath: 'Pics' };
+      expect(buildDownloadFilename(img({ src: 'https://x.com/a/dog.webp', type: 'webp' }), 0, s)).toBe('Pics/dog.webp');
+    });
   });
 
   describe('isInjectableUrl', () => {
@@ -139,6 +156,8 @@ describe('Background Script', () => {
         showImageCount: true,
         minimumImageSize: 50,
         excludeBase64Images: true,
+        saveAs: false,
+        namingMode: 'prefixed',
         thumbnailSize: 120,
         previewSize: 360,
         bubbleEnabled: false,
@@ -190,6 +209,34 @@ describe('Background Script', () => {
     it('keeps the popup everywhere when the bubble is disabled', () => {
       load({ bubbleEnabled: false }, [{ id: 7, url: 'https://example.com' }]);
       expect(mockChrome.action.setPopup).toHaveBeenCalledWith({ tabId: 7, popup: 'index.html' });
+    });
+  });
+
+  describe('originalNameFromUrl', () => {
+    it('takes the URL basename without its extension', () => {
+      expect(originalNameFromUrl('https://x.com/a/cat.png')).toBe('cat');
+      expect(originalNameFromUrl('https://x.com/a/cat.png?x=1')).toBe('cat');
+    });
+
+    it('keeps an extension-less basename', () => {
+      expect(originalNameFromUrl('https://x.com/a/photo')).toBe('photo');
+    });
+
+    it('parses a query-only dynamic CDN URL by its media id', () => {
+      expect(originalNameFromUrl('https://pbs.twimg.com/media/HK-Jt?format=jpg&name=orig')).toBe('HK-Jt');
+    });
+
+    it('percent-decodes and sanitizes unsafe characters', () => {
+      expect(originalNameFromUrl('https://x.com/a/my%20cat.jpg')).toBe('my cat');
+      expect(originalNameFromUrl('https://x.com/a/a%3Ab.png')).toBe('ab'); // ':' is illegal, stripped
+    });
+
+    it('returns null when there is no usable name', () => {
+      expect(originalNameFromUrl('data:image/png;base64,iVBORw0KGgo=')).toBeNull();
+      expect(originalNameFromUrl('blob:https://x.com/1234')).toBeNull();
+      expect(originalNameFromUrl('https://x.com/')).toBeNull();
+      expect(originalNameFromUrl('https://x.com/?a=1')).toBeNull();
+      expect(originalNameFromUrl('not a url')).toBeNull();
     });
   });
 });

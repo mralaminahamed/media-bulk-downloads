@@ -1,5 +1,12 @@
 import { DEFAULT_SETTINGS, withDefaults } from '@/extension/shared/settings';
 
+describe('DEFAULT_SETTINGS naming/saveAs defaults', () => {
+  it('defaults to prefixed naming and no save-as dialog', () => {
+    expect(DEFAULT_SETTINGS.namingMode).toBe('prefixed');
+    expect(DEFAULT_SETTINGS.saveAs).toBe(false);
+  });
+});
+
 describe('withDefaults', () => {
   it('returns a full copy of defaults for empty/nullish input', () => {
     expect(withDefaults(undefined)).toEqual(DEFAULT_SETTINGS);

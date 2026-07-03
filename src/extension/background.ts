@@ -1,8 +1,9 @@
 import { ChromeMessage, DownloadMessage, DownloadResponse, ImageInfo, SettingsData } from '@/types';
 import { filterImagesBySettings } from './shared/filters';
 import { DEFAULT_SETTINGS, withDefaults } from './shared/settings';
+import { sanitizePathSegment } from './shared/paths';
 
-export { DEFAULT_SETTINGS };
+export { DEFAULT_SETTINGS, sanitizePathSegment };
 
 let currentSettings: SettingsData = { ...DEFAULT_SETTINGS };
 
@@ -128,20 +129,36 @@ export function extensionForType(type: string): string {
   }
 }
 
+
 /**
- * Sanitizes a user-supplied path segment: strips path traversal, leading
- * slashes and characters illegal in download filenames. chrome.downloads
- * already rejects absolute paths and "..", but we normalize defensively.
+ * Derives a safe base filename (no extension) from an image URL, or null when the
+ * URL carries no usable name — data/blob URIs, or paths with no basename
+ * (trailing slash / query-only). The caller appends the detected extension.
  */
-export function sanitizePathSegment(segment: string): string {
-  return segment
-    // Control chars are intentionally part of the illegal-filename set.
-    // eslint-disable-next-line no-control-regex
-    .replace(/[<>:"|?*\x00-\x1f]/g, '')
-    .replace(/\\/g, '/')
-    .split('/')
-    .filter((part) => part && part !== '.' && part !== '..')
-    .join('/');
+export function originalNameFromUrl(url: string): string | null {
+  if (/^(data|blob):/i.test(url)) return null;
+
+  let pathname: string;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    return null;
+  }
+
+  const last = pathname.split('/').pop() ?? '';
+  let decoded = last;
+  try {
+    decoded = decodeURIComponent(last);
+  } catch {
+    /* keep raw on malformed escapes */
+  }
+
+  // Strip a trailing extension only when the dot isn't the first char.
+  const dot = decoded.lastIndexOf('.');
+  const base = dot > 0 ? decoded.slice(0, dot) : decoded;
+
+  const safe = sanitizePathSegment(base).split('/').pop() ?? '';
+  return safe || null;
 }
 
 /**
@@ -152,9 +169,17 @@ export function buildDownloadFilename(
   index: number,
   settings: SettingsData,
 ): string {
-  const prefix = sanitizePathSegment(settings.fileNamePrefix) || 'image_';
   const extension = extensionForType(image.type);
-  const fileName = `${prefix}${index + 1}.${extension}`;
+  const prefixed = `${sanitizePathSegment(settings.fileNamePrefix) || 'image_'}${index + 1}.${extension}`;
+
+  let fileName: string;
+  if (settings.namingMode === 'original') {
+    const name = originalNameFromUrl(image.src);
+    fileName = name ? `${name}.${extension}` : prefixed;
+  } else {
+    fileName = prefixed;
+  }
+
   const dir = sanitizePathSegment(settings.downloadPath);
   return dir ? `${dir}/${fileName}` : fileName;
 }
@@ -224,7 +249,8 @@ chrome.runtime.onMessage.addListener(
         chrome.downloads.download({
           url: image.src,
           filename: buildDownloadFilename(image, index, currentSettings),
-          saveAs: false,
+          saveAs: currentSettings.saveAs,
+          conflictAction: 'uniquify',
         });
       });
 

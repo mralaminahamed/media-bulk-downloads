@@ -33,11 +33,13 @@ describe('background DOWNLOAD_IMAGES handler', () => {
       url: 'a.jpg',
       filename: 'image_1.jpg',
       saveAs: false,
+      conflictAction: 'uniquify',
     });
     expect(chrome.downloads.download).toHaveBeenNthCalledWith(2, {
       url: 'b.png',
       filename: 'image_2.png',
       saveAs: false,
+      conflictAction: 'uniquify',
     });
     expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloading 2 images...' });
   });
@@ -52,6 +54,7 @@ describe('background DOWNLOAD_IMAGES handler', () => {
       url: 'a.jpg',
       filename: 'Pics/2026/shot-1.jpg',
       saveAs: false,
+      conflictAction: 'uniquify',
     });
   });
 
