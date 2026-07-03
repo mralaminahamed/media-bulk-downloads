@@ -334,8 +334,8 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        title={open ? 'Close Image Bulk Downloads' : 'Open Image Bulk Downloads'}
-        aria-label="Image Bulk Downloads"
+        title={open ? 'Close Media Bulk Downloads' : 'Open Media Bulk Downloads'}
+        aria-label="Media Bulk Downloads"
         className="ibd-app grid place-items-center rounded-full text-white shadow-2xl transition-transform hover:scale-105 active:scale-95"
         style={{
           ...anchorStyle(corner, pos.x, pos.y),

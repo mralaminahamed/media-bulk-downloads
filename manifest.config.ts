@@ -6,7 +6,7 @@ import pkg from './package.json';
 // single release bump keeps them in sync.
 export default defineManifest({
   manifest_version: 3,
-  name: 'Image Bulk Downloads',
+  name: 'Media Bulk Downloads',
   version: pkg.version,
   description: 'Collect and download all images from a webpage',
   permissions: ['downloads', 'storage', 'tabs'],
