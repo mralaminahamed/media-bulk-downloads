@@ -2,8 +2,9 @@ import { MediaCandidate, Resolver, ResolveContext } from './types';
 import { genericResolver } from './generic';
 import { twitterResolver } from './twitter';
 import { unsplashResolver } from './unsplash';
+import { wallhavenResolver } from './wallhaven';
 
-export const REGISTRY: Resolver[] = [twitterResolver, unsplashResolver, genericResolver];
+export const REGISTRY: Resolver[] = [twitterResolver, unsplashResolver, wallhavenResolver, genericResolver];
 
 export function resolve(rawUrl: string, ctx: ResolveContext): MediaCandidate[] {
   let u: URL;
