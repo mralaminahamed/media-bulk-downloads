@@ -54,7 +54,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
               />
 
               {/* Type tag */}
-              <span className="eyebrow absolute left-1.5 top-1.5 rounded-[5px] bg-white/85 px-1.5 py-0.5 text-[9px] leading-none text-[var(--ink)] backdrop-blur-sm">
+              <span className="eyebrow absolute left-1.5 top-1.5 rounded-[5px] bg-[var(--panel)]/85 px-1.5 py-0.5 text-[9px] leading-none text-[var(--ink)] backdrop-blur-sm">
                 {typeLabel(image)}
               </span>
 
@@ -64,7 +64,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                   onClick={() => setSelectedImage(image)}
                   title="View Details"
                   aria-label="View Details"
-                  className="grid h-8 w-8 place-items-center rounded-full bg-white/95 text-[var(--ink)] transition-transform hover:scale-105 active:scale-95"
+                  className="grid h-8 w-8 place-items-center rounded-full bg-[var(--panel)] text-[var(--ink)] ring-1 ring-black/5 transition-transform hover:scale-105 active:scale-95"
                 >
                   <EyeIcon className="h-4 w-4" />
                 </button>

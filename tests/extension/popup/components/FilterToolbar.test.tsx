@@ -63,10 +63,10 @@ describe('FilterToolbar Component', () => {
 
   it('shows a reset control only when filters are active, and resets them', () => {
     renderToolbar();
-    expect(screen.queryByText('Reset')).not.toBeInTheDocument();
+    expect(screen.queryByText('Clear all')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'PNG' }));
-    fireEvent.click(screen.getByText('Reset'));
+    fireEvent.click(screen.getByText('Clear all'));
 
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ imageType: 'all', minSize: 0, includeBase64: true }),
@@ -82,7 +82,7 @@ describe('FilterToolbar Component', () => {
   it('includes the size bucket in a reset', () => {
     renderToolbar();
     fireEvent.click(screen.getByRole('button', { name: 'Small' }));
-    fireEvent.click(screen.getByText('Reset'));
+    fireEvent.click(screen.getByText('Clear all'));
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ sizeBucket: 'all' }),
     );

@@ -201,8 +201,8 @@ const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'po
               <BrandMark />
             </span>
             <div className="leading-tight">
-              <h1 className="text-[13px] font-semibold tracking-tight text-[var(--ink)]">Image Bulk Downloads</h1>
-              <p className="eyebrow mt-0.5">Collect · Filter · Save</p>
+              <h1 className="text-[15px] font-semibold tracking-tight text-[var(--ink)]">Image Bulk Downloads</h1>
+              <p className="eyebrow mt-1">Collect · Filter · Save</p>
             </div>
           </div>
           <div className="flex items-center gap-0.5">

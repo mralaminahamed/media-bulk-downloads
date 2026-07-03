@@ -342,6 +342,7 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
           width: FAB,
           height: FAB,
           background: 'var(--brand-ink)',
+          color: '#fff', // white icon on the indigo FAB; inline beats .ibd-app's --ink color
           cursor: grabbing ? 'grabbing' : 'pointer',
           touchAction: 'none',
         }}

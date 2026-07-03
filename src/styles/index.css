@@ -143,6 +143,18 @@ body {
   letter-spacing: -0.01em;
 }
 
+/* Drop the native number spinners — they collide with in-field suffix labels
+   (e.g. the "KB" adornment) and clutter the precision-utility look. */
+input.num[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+input.num[type="number"]::-webkit-outer-spin-button,
+input.num[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 .hairline {
   border-color: var(--line);
 }
@@ -183,6 +195,59 @@ body {
   background: var(--ink);
   border-color: var(--ink);
   color: var(--paper); /* inverts with the theme so text stays legible on --ink */
+}
+
+/* Segmented control (single-choice, e.g. size buckets). A quiet track with a
+   lifted "thumb" on the active segment — reads as one control, not loose pills. */
+.segwrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+}
+.seg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 23px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.seg:hover {
+  color: var(--ink);
+}
+.seg.is-active {
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 0.5px var(--line-strong);
+}
+
+/* Count badge — active-filter feedback. */
+.countpill {
+  display: inline-flex;
+  align-items: center;
+  height: 17px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 /* Square icon button. */
