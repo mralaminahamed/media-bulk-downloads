@@ -203,7 +203,7 @@ const RULES: CdnRule[] = [
   },
   {
     // Google usercontent / ggpht: normalize the trailing =size segment to full.
-    match: (u) => /googleusercontent\.com$|(?:^|\.)ggpht\.com$/i.test(u.hostname),
+    match: (u) => /(?:^|\.)googleusercontent\.com$|(?:^|\.)ggpht\.com$/i.test(u.hostname),
     rewrite: (u) => {
       u.pathname = u.pathname.replace(/=(?:[swh]\d+|[a-z]\d+)(?:-[a-z0-9]+)*$/i, '=s0');
     },
@@ -224,16 +224,16 @@ const RULES: CdnRule[] = [
   },
   {
     // Amazon: strip the ._SX300_SY300_. style encoding segment before the ext.
-    match: (u) => /media-amazon\.com$|ssl-images-amazon\.com$/i.test(u.hostname),
+    match: (u) => /(?:^|\.)(?:media-amazon\.com|ssl-images-amazon\.com)$/i.test(u.hostname),
     rewrite: (u) => {
       u.pathname = u.pathname.replace(/\._[^.]*_(?=\.[a-z0-9]+$)/i, '');
     },
   },
   {
-    // Medium: miro.medium.com/.../resize:fit:NNN/<id> -> /<id> (drop transforms).
+    // Medium: miro.medium.com/v2/resize:fit:NNN/format:webp/<id> -> /<id> (drop chained transforms).
     match: (u) => u.hostname === 'miro.medium.com',
     rewrite: (u) => {
-      u.pathname = u.pathname.replace(/\/(?:resize|fit|format)[^/]*\//g, '/').replace(/\/v2\//, '/');
+      u.pathname = u.pathname.replace(/\/v2\/(?:(?:resize|fit|format|max|frame|crop)[^/]*\/)*/, '/');
     },
   },
 ];

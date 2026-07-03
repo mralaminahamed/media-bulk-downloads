@@ -181,4 +181,11 @@ describe('CDN rules — path-based upgrades', () => {
     const fb = 'https://scontent.xx.fbcdn.net/v/t1.0/x.jpg?stp=dst-jpg&_nc_ht=y&oh=SIG';
     expect(orig(fb)).toBe(fb);
   });
+  it('Medium strips chained transform segments', () => {
+    expect(orig('https://miro.medium.com/v2/resize:fit:720/format:webp/1*xyz.png')).toBe('https://miro.medium.com/1*xyz.png');
+  });
+  it('does not match look-alike hostnames', () => {
+    expect(orig('https://evilgoogleusercontent.com/abc=s200')).toBe('https://evilgoogleusercontent.com/abc=s200');
+    expect(orig('https://fakemedia-amazon.com/x._SX300_.jpg')).toBe('https://fakemedia-amazon.com/x._SX300_.jpg');
+  });
 });
