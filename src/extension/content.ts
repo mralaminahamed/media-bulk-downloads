@@ -37,7 +37,9 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
       chrome.runtime.sendMessage(p).catch(() => {
         /* popup may be closed */
       });
-    }, deepScanAbort.signal).then((media) => sendResponse(media));
+    }, deepScanAbort.signal)
+      .then((media) => sendResponse(media))
+      .catch(() => sendResponse([]));
     return true; // async response
   }
   if (message === 'DEEP_SCAN_ABORT') {
