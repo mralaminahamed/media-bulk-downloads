@@ -16,6 +16,8 @@ interface ImageListProps {
   thumbnailSize?: number;
   /** Fixed size (px) of the preview modal and its image box. */
   previewSize?: number;
+  /** Set of image srcs already downloaded; renders a ✓ badge on matching tiles. */
+  downloadedSrcs?: Set<string>;
 }
 
 const SIZE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
@@ -88,7 +90,7 @@ const LoadingImage: React.FC<{
   );
 };
 
-const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnailSize = 120, previewSize = 360 }) => {
+const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnailSize = 120, previewSize = 360, downloadedSrcs }) => {
   // Index-based selection so the modal can page through images without closing.
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const selectedImage = selectedIndex !== null ? images[selectedIndex] ?? null : null;
@@ -161,6 +163,18 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
               <span className="eyebrow absolute left-1.5 top-1.5 rounded-[5px] bg-[var(--panel)]/85 px-1.5 py-0.5 text-[9px] leading-none text-[var(--ink)] backdrop-blur-sm">
                 {typeLabel(image)}
               </span>
+
+              {downloadedSrcs?.has(image.src) && (
+                <span
+                  className="absolute right-1.5 top-1.5 grid h-4 w-4 place-items-center rounded-full bg-[var(--brand-ink)] text-white ring-1 ring-black/5"
+                  title="Downloaded"
+                  aria-label="Downloaded"
+                >
+                  <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                </span>
+              )}
 
               {/* Hover actions */}
               <div className="absolute inset-0 flex items-center justify-center gap-2 bg-[var(--ink)]/0 opacity-0 transition-all duration-150 group-hover:bg-[var(--ink)]/45 group-hover:opacity-100">

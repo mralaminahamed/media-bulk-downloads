@@ -79,6 +79,15 @@ describe('ImageList Component', () => {
     expect(document.querySelector('audio')).toBeTruthy();
   });
 
+  it('shows a downloaded badge only on tiles whose src is downloaded', () => {
+    const media = [
+      { src: 'https://c/a.jpg', alt: 'A', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' as const },
+      { src: 'https://c/b.jpg', alt: 'B', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' as const },
+    ];
+    render(<ImageList images={media} onImageDownload={() => {}} downloadedSrcs={new Set(['https://c/a.jpg'])} />);
+    expect(screen.getAllByLabelText('Downloaded')).toHaveLength(1);
+  });
+
   describe('formatFileSize', () => {
     it('shows an em dash for unknown/invalid sizes', () => {
       expect(formatFileSize(0)).toBe('—');
