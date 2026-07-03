@@ -1,4 +1,4 @@
-# Image Bulk Downloads
+# Media Bulk Downloads
 
 A Chrome (Manifest V3) extension that collects every image on a web page —
 `<img>`, `srcset`, `<picture>` sources, and CSS `background-image` — then lets you

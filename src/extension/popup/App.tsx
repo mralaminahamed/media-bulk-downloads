@@ -201,7 +201,7 @@ const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'po
               <BrandMark />
             </span>
             <div className="leading-tight">
-              <h1 className="text-[15px] font-semibold tracking-tight text-[var(--ink)]">Image Bulk Downloads</h1>
+              <h1 className="text-[15px] font-semibold tracking-tight text-[var(--ink)]">Media Bulk Downloads</h1>
               <p className="eyebrow mt-1">Collect · Filter · Save</p>
             </div>
           </div>

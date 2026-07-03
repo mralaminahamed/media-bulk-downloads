@@ -17,7 +17,7 @@ describe('App Component', () => {
 
   it('renders the brand header', () => {
     render(<App collect={async () => []} />);
-    expect(screen.getByText('Image Bulk Downloads')).toBeInTheDocument();
+    expect(screen.getByText('Media Bulk Downloads')).toBeInTheDocument();
   });
 
   it('shows the scanning state initially', () => {
