@@ -11,9 +11,11 @@
  */
 
 import { ImageInfo, MediaItem } from '@/types';
-import { detectType, parseUrlDimensions, upgradeToOriginal } from '@/extension/shared/imageUrl';
+import { detectType, parseUrlDimensions } from '@/extension/shared/imageUrl';
 import { detectAvType, isUndownloadableMedia } from '@/extension/shared/mediaType';
 import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates } from '@/extension/shared/extract';
+import { resolve, MediaCandidate } from '@/extension/shared/resolvers';
+import { twitterGifCandidate } from '@/extension/shared/resolvers/twitter';
 
 /** Determines if a URL is a base64-encoded image. */
 export function isBase64Image(src: string): boolean {
@@ -101,8 +103,56 @@ export function collectMedia(): MediaItem[] {
   const media: MediaItem[] = [];
   const seenSources = new Set<string>();
 
+  // Maps a resolved candidate to a MediaItem/ImageInfo, preserving the dimension
+  // fallback and dedup semantics of the pre-registry implementation.
+  const pushCandidate = (
+    cand: MediaCandidate, resolved: string, alt: string, width: number, height: number, thumbnailOverride?: string,
+  ): void => {
+    if (seenSources.has(cand.url)) return;
+    seenSources.add(cand.url);
+
+    if (cand.kind === 'video' || cand.kind === 'gif') {
+      const item: MediaItem = {
+        src: cand.url, alt, width: 0, height: 0,
+        type: cand.ext || detectAvType(cand.url), fileSize: 0, isBase64: false, kind: 'video',
+      };
+      if (cand.poster) item.poster = cand.poster;
+      media.push(item);
+      return;
+    }
+
+    // DOM dimensions win; otherwise fall back to whatever the URL encodes.
+    // The upgraded candidate URL often has its size hint stripped away (that's
+    // the point of the upgrade), so also try the pre-upgrade `resolved` URL,
+    // which still carries the thumbnail's size token (e.g. Shopify `_800x600`,
+    // Twitter `name=360x360`).
+    let w = width;
+    let h = height;
+    if (w === 0 && h === 0) {
+      const dims = parseUrlDimensions(resolved) ?? parseUrlDimensions(cand.url);
+      if (dims) {
+        w = dims.width;
+        h = dims.height;
+      }
+    }
+
+    const info: ImageInfo = {
+      src: cand.url,
+      alt,
+      width: w,
+      height: h,
+      type: detectType(cand.url),
+      fileSize: 0, // remote size unknown at collection time
+      isBase64: false,
+      kind: 'image',
+    };
+    const thumb = thumbnailOverride ? resolveUrl(thumbnailOverride) : cand.thumbnailSrc;
+    if (thumb && thumb !== cand.url) info.thumbnailSrc = thumb;
+    media.push(info);
+  };
+
   const collectImageInfo = (
-    rawSrc: string, alt = '', width = 0, height = 0, thumbnailOverride?: string,
+    rawSrc: string, alt = '', width = 0, height = 0, thumbnailOverride?: string, el?: Element,
   ): void => {
     if (!rawSrc) return;
     const resolved = resolveUrl(rawSrc);
@@ -123,45 +173,17 @@ export function collectMedia(): MediaItem[] {
       return;
     }
 
-    const { original, thumbnail } = upgradeToOriginal(resolved);
-    if (seenSources.has(original)) return;
-    seenSources.add(original);
-
-    // DOM dimensions win; otherwise fall back to whatever the URL encodes.
-    // The upgraded `original` URL often has its size hint stripped away (that's
-    // the point of the upgrade), so also try the pre-upgrade `resolved` URL,
-    // which still carries the thumbnail's size token (e.g. Shopify `_800x600`,
-    // Twitter `name=360x360`).
-    let w = width;
-    let h = height;
-    if (w === 0 && h === 0) {
-      const dims = parseUrlDimensions(resolved) ?? parseUrlDimensions(original);
-      if (dims) {
-        w = dims.width;
-        h = dims.height;
-      }
+    for (const cand of resolve(resolved, { el, allowNetwork: false })) {
+      pushCandidate(cand, resolved, alt, width, height, thumbnailOverride);
     }
-
-    const info: ImageInfo = {
-      src: original,
-      alt,
-      width: w,
-      height: h,
-      type: detectType(original),
-      fileSize: 0, // remote size unknown at collection time
-      isBase64: false,
-      kind: 'image',
-    };
-    const thumb = thumbnailOverride ? resolveUrl(thumbnailOverride) : thumbnail;
-    if (thumb) info.thumbnailSrc = thumb;
-    media.push(info);
   };
 
   // <img> tags and their srcset.
   document.querySelectorAll('img').forEach((img) => {
     const { width, height } = getImageDimensions(img);
     const urls = imageUrlsFromElement(img);
-    urls.forEach((src, i) => collectImageInfo(src, img.alt, i === 0 ? width : 0, i === 0 ? height : 0));
+    urls.forEach((src, i) =>
+      collectImageInfo(src, img.alt, i === 0 ? width : 0, i === 0 ? height : 0, undefined, img));
   });
 
   // <picture> elements: <img> fallback plus every <source srcset>.
@@ -170,10 +192,11 @@ export function collectMedia(): MediaItem[] {
     if (img) {
       const { width, height } = getImageDimensions(img);
       const urls = imageUrlsFromElement(img);
-      urls.forEach((src, i) => collectImageInfo(src, img.alt, i === 0 ? width : 0, i === 0 ? height : 0));
+      urls.forEach((src, i) =>
+        collectImageInfo(src, img.alt, i === 0 ? width : 0, i === 0 ? height : 0, undefined, img));
     }
     picture.querySelectorAll('source').forEach((source) => {
-      imageUrlsFromElement(source).forEach((src) => collectImageInfo(src));
+      imageUrlsFromElement(source).forEach((src) => collectImageInfo(src, '', 0, 0, undefined, source));
     });
   });
 
@@ -210,6 +233,15 @@ export function collectMedia(): MediaItem[] {
   };
 
   document.querySelectorAll('video').forEach((video) => {
+    const gif = twitterGifCandidate(video);
+    if (gif && !seenSources.has(gif.url)) {
+      seenSources.add(gif.url);
+      media.push({
+        src: gif.url, alt: '', width: 0, height: 0,
+        type: 'mp4', fileSize: 0, isBase64: false, kind: 'video', poster: gif.poster,
+      });
+    }
+
     const rawPoster = video.getAttribute('poster');
     const posterUrl = rawPoster ? resolveUrl(rawPoster) : undefined;
     const alt = video.getAttribute('aria-label') || video.getAttribute('title') || '';
@@ -236,7 +268,7 @@ export function collectMedia(): MediaItem[] {
   // Gallery / lightbox links: full-res <a href> over a thumbnail <img>.
   document.querySelectorAll('a').forEach((a) => {
     const c = galleryLinkCandidate(a as HTMLAnchorElement);
-    if (c) collectImageInfo(c.url, '', 0, 0, c.thumbnailSrc);
+    if (c) collectImageInfo(c.url, '', 0, 0, c.thumbnailSrc, a.querySelector('img') ?? a);
   });
 
   // <noscript> fallbacks (real image often lives here for no-JS users).
