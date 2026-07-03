@@ -48,13 +48,25 @@ const MEDIA_HOSTS = /(?:^|\.)(?:pbs\.twimg\.com|cdn\.shopify\.com|images\.unspla
 
 const MEDIA_EXT = /\.(?:jpe?g|jfif|png|gif|webp|avif|bmp|ico|svg|mp4|m4v|webm|ogv|mov|mp3|wav|ogg|oga|m4a|aac|flac|opus)(?:$|[?#])/i;
 
+/** Audio/video format tokens not covered by normalizeFormat (which is image-only). */
+const AV_FORMATS = new Set([
+  'mp4', 'm4v', 'webm', 'ogv', 'ogg', 'mov', 'mp3', 'wav', 'oga', 'm4a', 'aac', 'flac', 'opus',
+]);
+
+/** Does this `format=`/`fm=` value name a known image or av/audio format? */
+function isKnownMediaFormat(raw: string): boolean {
+  if (normalizeFormat(raw) !== 'unknown') return true;
+  return AV_FORMATS.has(raw.toLowerCase());
+}
+
 /** Heuristic: does this URL point at a media file (by extension, host, or format param)? */
 export function looksLikeMediaUrl(url: string): boolean {
   if (MEDIA_EXT.test(url)) return true;
   try {
     const u = new URL(url);
     if (MEDIA_HOSTS.test(u.hostname)) return true;
-    if (u.searchParams.has('format') || u.searchParams.has('fm')) return true;
+    const fmt = u.searchParams.get('format') ?? u.searchParams.get('fm');
+    if (fmt && isKnownMediaFormat(fmt)) return true;
   } catch {
     /* ignore */
   }

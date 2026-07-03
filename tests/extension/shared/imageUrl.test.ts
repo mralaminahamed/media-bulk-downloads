@@ -138,6 +138,11 @@ describe('looksLikeMediaUrl', () => {
     expect(looksLikeMediaUrl('https://pbs.twimg.com/media/AbC?format=jpg&name=small')).toBe(true);
     expect(looksLikeMediaUrl('https://x.com/article/hello')).toBe(false);
   });
+
+  it('rejects a non-media format param', () => {
+    expect(looksLikeMediaUrl('https://site.com/export?format=csv')).toBe(false);
+    expect(looksLikeMediaUrl('https://cdn.example.org/x?format=jpg')).toBe(true);
+  });
 });
 
 describe('deproxy', () => {
