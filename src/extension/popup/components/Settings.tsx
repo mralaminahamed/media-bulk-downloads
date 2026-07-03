@@ -276,14 +276,16 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
               </div>
             </div>
 
-            <TextField
-              id="set-fileNamePrefix"
-              name="fileNamePrefix"
-              label="File name prefix:"
-              value={settings.fileNamePrefix}
-              onChange={handleChange}
-              hint="Used as the fallback name in Original mode."
-            />
+            {settings.namingMode === 'prefixed' && (
+              <TextField
+                id="set-fileNamePrefix"
+                name="fileNamePrefix"
+                label="File name prefix:"
+                value={settings.fileNamePrefix}
+                onChange={handleChange}
+                hint="Numbered per file, e.g. image_1.jpg."
+              />
+            )}
           </Section>
 
           <Section title="Collection">

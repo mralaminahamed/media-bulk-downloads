@@ -182,6 +182,15 @@ describe('Settings Component', () => {
     expect(screen.getByText('Downloads/Pics/Cats/image.jpg')).toBeInTheDocument();
   });
 
+  it('hides the file name prefix field in Original naming mode', () => {
+    render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    expect(screen.getByLabelText(/File name prefix:/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Original' }));
+    expect(screen.queryByLabelText(/File name prefix:/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Prefixed' }));
+    expect(screen.getByLabelText(/File name prefix:/)).toBeInTheDocument();
+  });
+
   it('disables Save until something changes', () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
     const save = screen.getByRole('button', { name: 'Save' });
