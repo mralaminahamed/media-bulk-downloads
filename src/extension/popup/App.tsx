@@ -132,45 +132,61 @@ const App: React.FC<AppProps> = ({
   }, []);
 
   /**
-   * Opt-in resolution: exchanges poster-only Twitter-video items for their
-   * real playable URL via the background. Runs only when the user has
-   * enabled `resolveOriginals`; unresolved items are dropped afterward so
-   * nothing undownloadable lingers in the list.
+   * Opt-in resolution over the full eligible set (which may include poster-only
+   * "pending" videos that were NOT put on display). Resolves each hint via the
+   * background, then reconciles the display: upgrades already-shown hinted items
+   * in place (Wallhaven/Unsplash), and ADDS newly-resolved videos as real,
+   * downloadable mp4s. Items that never resolve are simply never shown — so
+   * nothing flickers in and then disappears.
    */
-  const enrichOriginals = useCallback(async (images: ImageInfo[]): Promise<void> => {
+  const enrichOriginals = useCallback(async (eligible: ImageInfo[]): Promise<void> => {
     const generation = ++resolveGenRef.current;
-    const targets = images.filter((i) => i.resolveHint).map((i) => ({ src: i.src, hint: i.resolveHint! }));
+    const targets = eligible.filter((i) => i.resolveHint).map((i) => ({ src: i.src, hint: i.resolveHint! }));
     if (!targets.length) return;
     const resolved = await requestResolveOriginals(targets);
     if (generation !== resolveGenRef.current) return;
-    const apply = (list: ImageInfo[]) =>
-      list
-        .map((i) =>
-          i.resolveHint && resolved[i.src]
-            ? { ...i, src: resolved[i.src], unresolvedVideo: false, resolveHint: undefined }
-            : i,
-        )
-        .filter((i) => !i.unresolvedVideo); // drop still-unresolved videos
-    setState((prev) => ({ ...prev, images: apply(prev.images), filteredImages: apply(prev.filteredImages) }));
+
+    // oldSrc -> resolved item (hint cleared, src swapped to the real original)
+    const byOldSrc = new Map<string, ImageInfo>();
+    for (const i of eligible) {
+      if (i.resolveHint && resolved[i.src]) {
+        byOldSrc.set(i.src, { ...i, src: resolved[i.src], unresolvedVideo: false, resolveHint: undefined });
+      }
+    }
+    if (!byOldSrc.size) return;
+
+    setState((prev) => {
+      const reconcile = (list: ImageInfo[]) => {
+        // Upgrade in place any displayed item whose old src resolved.
+        const next = list.map((m) => byOldSrc.get(m.src) ?? m);
+        const present = new Set(next.map((m) => m.src));
+        // Append resolved items that weren't on display (pending videos).
+        for (const [oldSrc, item] of byOldSrc) {
+          if (!list.some((m) => m.src === oldSrc) && !present.has(item.src)) {
+            next.push(item);
+            present.add(item.src);
+          }
+        }
+        return next;
+      };
+      return { ...prev, images: reconcile(prev.images), filteredImages: reconcile(prev.filteredImages) };
+    });
   }, []);
 
   /**
    * Applies the resolve-originals gate to an eligible list, shared by every scan
-   * path (initial scan, settings change, deep scan). When the setting is on,
-   * resolve originals via the background; when off, drop unresolved (poster-only)
-   * videos from the DISPLAY only — they stay in rawImagesRef so toggling on later
-   * can still resolve them. Image size enrichment runs on the downloadable items.
+   * path (initial scan, settings change, deep scan). Poster-only pending videos
+   * are NEVER displayed (they aren't downloadable). When the setting is on, they
+   * are resolved in the background and the real mp4 is added; when off, they are
+   * left in rawImagesRef so toggling on later can still resolve them. Image size
+   * enrichment runs on the displayed items.
    */
   const applyResolution = useCallback(
     (eligible: ImageInfo[], s: SettingsData): void => {
-      if (s.resolveOriginals) {
-        setState((prev) => ({ ...prev, images: eligible, filteredImages: eligible }));
-        void enrichOriginals(eligible);
-      } else {
-        const pruned = eligible.filter((i) => !i.unresolvedVideo);
-        setState((prev) => ({ ...prev, images: pruned, filteredImages: pruned }));
-      }
-      void enrichImageSizes(eligible.filter((i) => !i.unresolvedVideo));
+      const display = eligible.filter((i) => !i.unresolvedVideo);
+      setState((prev) => ({ ...prev, images: display, filteredImages: display }));
+      if (s.resolveOriginals) void enrichOriginals(eligible);
+      void enrichImageSizes(display);
     },
     [enrichOriginals, enrichImageSizes],
   );
