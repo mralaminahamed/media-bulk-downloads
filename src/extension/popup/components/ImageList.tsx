@@ -210,7 +210,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
 
       {selectedImage && (
         <div
-          className="overlay-in fixed inset-0 z-50 flex items-center justify-center bg-[var(--ink)]/55 p-4 backdrop-blur-[2px]"
+          className="overlay-in fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay)] p-4 backdrop-blur-[2px]"
           onClick={close}
         >
           <div
