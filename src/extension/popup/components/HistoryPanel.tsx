@@ -4,6 +4,7 @@ import { HistoryEntry } from '@/types';
 import { loadHistory, removeEntry, clearHistory, HISTORY_KEY } from '@/extension/shared/history';
 import { relativeTime } from '../utils';
 import { LoadingImage } from './ImageList';
+import { useDialog } from '../hooks/useDialog';
 
 export interface HistoryPanelProps {
   onClose: () => void;
@@ -20,6 +21,7 @@ const safeHost = (url: string): string => {
 
 const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
+  const panelRef = useDialog(onClose);
 
   useEffect(() => {
     void loadHistory().then(setEntries);
@@ -68,12 +70,17 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
   return (
     <div className="overlay-in fixed inset-0 z-50 flex items-stretch justify-end bg-[var(--overlay)] backdrop-blur-[2px]" onClick={onClose}>
       <div
-        className="sheet-in flex h-full w-full max-w-[380px] flex-col bg-[var(--panel)] shadow-2xl"
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="history-title"
+        tabIndex={-1}
+        className="sheet-in flex h-full w-full max-w-[380px] flex-col bg-[var(--panel)] shadow-2xl focus:outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between border-b hairline px-4 py-3">
           <div>
-            <h2 className="text-[13px] font-semibold text-[var(--ink)]">Download History</h2>
+            <h2 id="history-title" className="text-[13px] font-semibold text-[var(--ink)]">Download History</h2>
             <p className="eyebrow mt-0.5">Recent downloads</p>
           </div>
           <div className="flex items-center gap-0.5">

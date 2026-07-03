@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { BubbleCorner, BubblePanelPlacement, SettingsData } from '@/types';
 import { sanitizePathSegment } from '@/extension/shared/paths';
+import { useDialog } from '../hooks/useDialog';
 
 export interface SettingsProps {
   onClose: () => void;
@@ -132,42 +133,7 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
 
 const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings: initialSettings }) => {
   const [settings, setSettings] = useState<SettingsData>(initialSettings);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  // Modal affordances: focus the sheet on open, trap Tab inside it, close on
-  // Escape, and restore focus to the trigger when it unmounts.
-  useEffect(() => {
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    panelRef.current?.focus();
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-        return;
-      }
-      if (e.key !== 'Tab') return;
-      const focusables = panelRef.current?.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea, [tabindex]:not([tabindex="-1"])',
-      );
-      if (!focusables || focusables.length === 0) return;
-      const list = Array.from(focusables);
-      const first = list[0];
-      const last = list[list.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      previouslyFocused?.focus?.();
-    };
-  }, [onClose]);
+  const panelRef = useDialog(onClose);
 
   const dirty = useMemo(
     () => JSON.stringify(settings) !== JSON.stringify(initialSettings),

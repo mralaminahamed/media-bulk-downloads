@@ -50,6 +50,14 @@ describe('ImageList Component', () => {
     expect(screen.queryByText('Image Preview')).not.toBeInTheDocument();
   });
 
+  it('opens the preview as a labelled modal dialog and closes it on Escape', async () => {
+    render(<ImageList images={mockImages} onImageDownload={jest.fn()} />);
+    await userEvent.click(screen.getAllByTitle('View Details')[0]);
+    expect(screen.getByRole('dialog', { name: /preview/i })).toHaveAttribute('aria-modal', 'true');
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('renders empty grid without crashing', () => {
     render(<ImageList images={[]} onImageDownload={jest.fn()} />);
     expect(screen.queryAllByRole('img')).toHaveLength(0);

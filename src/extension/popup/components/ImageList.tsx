@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ImageInfo } from '@/types';
+import { useDialog } from '../hooks/useDialog';
 import {
   EyeIcon,
   ArrowDownTrayIcon,
@@ -101,15 +102,17 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
   const goPrev = () => setSelectedIndex((i) => (i !== null && i > 0 ? i - 1 : i));
   const goNext = () => setSelectedIndex((i) => (i !== null && i < images.length - 1 ? i + 1 : i));
 
-  // Arrow keys page the modal; Escape closes it. Bound only while open.
-  // Logic is inlined via functional updates so the effect needs no callback deps.
+  // Dialog wiring (focus, Tab trap, Escape-to-close, focus restore) while open.
+  const previewRef = useDialog(close, selectedIndex !== null);
+
+  // Arrow keys page the modal. Bound only while open. Logic is inlined via
+  // functional updates so the effect needs no callback deps.
   useEffect(() => {
     if (selectedIndex === null) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') setSelectedIndex((i) => (i !== null && i > 0 ? i - 1 : i));
       else if (e.key === 'ArrowRight')
         setSelectedIndex((i) => (i !== null && i < images.length - 1 ? i + 1 : i));
-      else if (e.key === 'Escape') setSelectedIndex(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -215,13 +218,18 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
           onClick={close}
         >
           <div
-            className="sheet-in flex max-h-full w-full flex-col overflow-hidden rounded-[12px] border hairline bg-[var(--panel)] shadow-2xl"
+            ref={previewRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="preview-title"
+            tabIndex={-1}
+            className="sheet-in flex max-h-full w-full flex-col overflow-hidden rounded-[12px] border hairline bg-[var(--panel)] shadow-2xl focus:outline-none"
             style={{ maxWidth: Math.max(320, previewSize) }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-2 border-b hairline px-4 py-2.5">
               <div className="flex items-center gap-2">
-                <h3 className="text-[13px] font-semibold text-[var(--ink)]">Image Preview</h3>
+                <h3 id="preview-title" className="text-[13px] font-semibold text-[var(--ink)]">Image Preview</h3>
                 {selectedIndex !== null && (
                   <span className="num text-[11px] text-[var(--ink-3)]">
                     {selectedIndex + 1} / {images.length}
