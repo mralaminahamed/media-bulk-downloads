@@ -2,6 +2,7 @@ import {
   ChromeMessage,
   DownloadMessage,
   DownloadResponse,
+  HistoryEntry,
   ImageInfo,
   ResolveHint,
   ResolveOriginalsMessage,
@@ -13,6 +14,7 @@ import { DEFAULT_SETTINGS, withDefaults } from './shared/settings';
 import { sanitizePathSegment } from './shared/paths';
 import { avExtensionForType, extensionFromUrl } from './shared/mediaType';
 import { resolveOriginal, NetDeps } from './shared/resolvers/network';
+import { recordDownloads } from './shared/history';
 
 export { DEFAULT_SETTINGS, sanitizePathSegment };
 
@@ -201,6 +203,46 @@ export function buildDownloadFilename(
 }
 
 /**
+ * Downloads each eligible image and records the successful ones to history,
+ * tagged with the source page they came from. Failures (a Chrome-reported
+ * `lastError`, or no `downloadId`) are silently skipped — nothing is recorded
+ * for them.
+ */
+export async function downloadAndRecord(
+  eligible: ImageInfo[],
+  sourcePage: { url: string; title?: string } | undefined,
+): Promise<void> {
+  const entries = await Promise.all(
+    eligible.map(
+      (image, index) =>
+        new Promise<HistoryEntry | null>((resolve) => {
+          const filename = buildDownloadFilename(image, index, currentSettings);
+          chrome.downloads.download(
+            { url: image.src, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
+            (downloadId) => {
+              if (chrome.runtime.lastError || downloadId === undefined) {
+                resolve(null);
+                return;
+              }
+              resolve({
+                src: image.src,
+                filename: filename.split('/').pop() ?? filename,
+                kind: image.kind,
+                type: image.type,
+                thumbnailSrc: image.thumbnailSrc ?? image.poster ?? image.src,
+                sourcePageUrl: sourcePage?.url ?? '',
+                sourcePageTitle: sourcePage?.title,
+                time: Date.now(),
+              });
+            },
+          );
+        }),
+    ),
+  );
+  await recordDownloads(entries.filter((e): e is HistoryEntry => e !== null));
+}
+
+/**
  * Resolves each hint to its final URL with bounded concurrency (limit 4).
  * Inline loop — the background service worker can't import the popup's
  * `mapWithConcurrency` helper. Failures are skipped (never throw).
@@ -281,19 +323,11 @@ chrome.runtime.onMessage.addListener(
     sendResponse: (response: DownloadResponse | ResolveOriginalsResponse) => void,
   ) => {
     if (typeof message === 'object' && message.type === 'DOWNLOAD_IMAGES') {
-      const { images } = message as DownloadMessage;
+      const { images, sourcePage } = message as DownloadMessage;
       const eligible = filterImagesBySettings(images, currentSettings);
-
-      eligible.forEach((image, index) => {
-        chrome.downloads.download({
-          url: image.src,
-          filename: buildDownloadFilename(image, index, currentSettings),
-          saveAs: currentSettings.saveAs,
-          conflictAction: 'uniquify',
-        });
-      });
-
       sendResponse({ status: 'success', message: `Downloading ${eligible.length} files...` });
+      void downloadAndRecord(eligible, sourcePage);
+      return; // response already sent synchronously
     }
 
     if (typeof message === 'object' && message.type === 'RESOLVE_ORIGINALS') {
