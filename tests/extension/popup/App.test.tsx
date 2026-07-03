@@ -246,4 +246,33 @@ describe('App Component', () => {
       expect(video?.getAttribute('src')).toBe('https://video.twimg.com/hi.mp4');
     });
   });
+
+  it('a video that fails to resolve never appears and does not wipe the other items', async () => {
+    // Regression: pending videos must not flicker in and then be dropped when
+    // resolution returns nothing — they should simply never show, leaving the
+    // rest of the grid intact.
+    const resolveMock = requestResolveOriginals as jest.Mock;
+    resolveMock.mockResolvedValue({}); // nothing resolves for this test
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: true } }));
+
+    const { container } = render(
+      <App
+        collect={async () => [
+          image({ src: 'https://c/a.jpg', kind: 'image' }),
+          image({ src: 'poster.jpg', kind: 'video', unresolvedVideo: true, resolveHint: { platform: 'twitter', id: '1' } }),
+        ]}
+      />,
+    );
+    await screen.findByText('Filters');
+    const headerCount = () => container.querySelector('header .num')?.textContent;
+
+    await waitFor(() => expect(resolveMock).toHaveBeenCalled());
+    // The image shows and stays shown; the unresolved video never appears.
+    await waitFor(() => expect(headerCount()).toBe('1'));
+    await new Promise((r) => setTimeout(r, 30)); // let any late setState land
+    expect(headerCount()).toBe('1'); // no override to 0
+    expect(container.querySelector('video')).toBeNull();
+
+    resolveMock.mockResolvedValue({ 'poster.jpg': 'https://video.twimg.com/hi.mp4' }); // restore default
+  });
 });
