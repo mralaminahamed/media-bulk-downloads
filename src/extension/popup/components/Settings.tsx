@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { BubbleCorner, BubblePanelPlacement, SettingsData } from '@/types';
+import { sanitizePathSegment } from '@/extension/shared/paths';
 
 export interface SettingsProps {
   onClose: () => void;
@@ -45,6 +46,15 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
     setSettings((prev) => ({ ...prev, [name]: !prev[name] }));
   };
 
+  const setNaming = (mode: SettingsData['namingMode']) => {
+    setSettings((prev) => ({ ...prev, namingMode: mode }));
+  };
+
+  const folderPreview = (() => {
+    const dir = sanitizePathSegment(settings.downloadPath);
+    return dir ? `Downloads/${dir}/image.jpg` : 'Downloads/image.jpg';
+  })();
+
   const handleSave = () => {
     // Persistence is owned by the parent (App.handleSettingsChange).
     onSettingsChange(settings);
@@ -71,8 +81,9 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
           {/* Downloads */}
           <section className="space-y-3">
             <span className="eyebrow">Downloads</span>
+
             <label className="block">
-              <span className="mb-1 block text-[12px] text-[var(--ink-2)]">Download Path:</span>
+              <span className="mb-1 block text-[12px] text-[var(--ink-2)]">Save to subfolder (in Downloads):</span>
               <input
                 type="text"
                 name="downloadPath"
@@ -81,9 +92,35 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
                 placeholder="e.g. Images/Collected"
                 className="field"
               />
+              <span className="num mt-1 block text-[11px] text-[var(--ink-3)]">{folderPreview}</span>
             </label>
+
+            <ToggleRow
+              id="set-saveAs"
+              label="Ask where to save each file"
+              checked={settings.saveAs}
+              onToggle={() => toggle('saveAs')}
+            />
+
+            <div className="block">
+              <span className="mb-1 block text-[12px] text-[var(--ink-2)]">File naming:</span>
+              <div className="flex gap-1.5" role="group" aria-label="File naming">
+                {(['prefixed', 'original'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setNaming(mode)}
+                    className={`chip ${settings.namingMode === mode ? 'is-active' : ''}`}
+                    aria-pressed={settings.namingMode === mode}
+                  >
+                    {mode === 'prefixed' ? 'Prefixed' : 'Original'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <label className="block">
-              <span className="mb-1 block text-[12px] text-[var(--ink-2)]">File Name Prefix:</span>
+              <span className="mb-1 block text-[12px] text-[var(--ink-2)]">File name prefix:</span>
               <input
                 type="text"
                 name="fileNamePrefix"
@@ -91,6 +128,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
                 onChange={handleChange}
                 className="field"
               />
+              <span className="mt-1 block text-[11px] text-[var(--ink-3)]">Used as the fallback name in Original mode.</span>
             </label>
           </section>
 
