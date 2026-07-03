@@ -18,19 +18,33 @@ export async function loadHistory(): Promise<HistoryEntry[]> {
   return Array.isArray(raw) ? (raw as HistoryEntry[]) : [];
 }
 
+// Serialize read-modify-write ops so concurrent mutations can't clobber each other.
+let writeChain: Promise<void> = Promise.resolve();
+function serialize(task: () => Promise<void>): Promise<void> {
+  const run = writeChain.then(task, task);
+  writeChain = run.catch(() => undefined);
+  return run;
+}
+
 export async function recordDownloads(added: HistoryEntry[]): Promise<void> {
   if (!added.length) return;
-  const merged = mergeHistory(await loadHistory(), added);
-  await chrome.storage.local.set({ [HISTORY_KEY]: merged });
+  return serialize(async () => {
+    const merged = mergeHistory(await loadHistory(), added);
+    await chrome.storage.local.set({ [HISTORY_KEY]: merged });
+  });
 }
 
 export async function removeEntry(src: string): Promise<void> {
-  const next = (await loadHistory()).filter((e) => e.src !== src);
-  await chrome.storage.local.set({ [HISTORY_KEY]: next });
+  return serialize(async () => {
+    const next = (await loadHistory()).filter((e) => e.src !== src);
+    await chrome.storage.local.set({ [HISTORY_KEY]: next });
+  });
 }
 
 export async function clearHistory(): Promise<void> {
-  await chrome.storage.local.set({ [HISTORY_KEY]: [] });
+  return serialize(async () => {
+    await chrome.storage.local.set({ [HISTORY_KEY]: [] });
+  });
 }
 
 export async function downloadedSrcSet(): Promise<Set<string>> {

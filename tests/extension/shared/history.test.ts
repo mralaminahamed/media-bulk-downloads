@@ -39,4 +39,15 @@ describe('storage helpers', () => {
   it('downloadedSrcSet returns the unique srcs', async () => {
     expect(await downloadedSrcSet()).toEqual(new Set(['a']));
   });
+  it('serializes concurrent recordDownloads without dropping entries', async () => {
+    let store: HistoryEntry[] = [];
+    (chrome.storage.local.get as jest.Mock).mockReset().mockImplementation(async () => ({ downloadHistory: store }));
+    (chrome.storage.local.set as jest.Mock)
+      .mockReset()
+      .mockImplementation(async (obj: Record<string, HistoryEntry[]>) => {
+        store = obj.downloadHistory;
+      });
+    await Promise.all([recordDownloads([e('a', 1)]), recordDownloads([e('b', 2)])]);
+    expect(store.map((x) => x.src).sort()).toEqual(['a', 'b']);
+  });
 });
