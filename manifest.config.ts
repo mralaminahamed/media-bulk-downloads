@@ -9,7 +9,7 @@ export default defineManifest({
   name: 'Media Bulk Downloads',
   version: pkg.version,
   description: 'Bulk-download images, video & audio from any web page. Smart type filters, instant preview, original quality — fast and private.',
-  permissions: ['downloads', 'storage', 'tabs'],
+  permissions: ['downloads', 'downloads.open', 'storage', 'tabs'],
   host_permissions: ['<all_urls>'],
   background: {
     service_worker: 'src/extension/background.ts',

@@ -12,6 +12,10 @@ import {
 } from '@/extension/background';
 import { ImageInfo, SettingsData } from '@/types';
 
+// The runtime.onMessage handler is registered against the setupTests chrome
+// mock at import time; capture it before any describe swaps global.chrome.
+const messageHandler = (global.chrome.runtime.onMessage.addListener as jest.Mock).mock.calls[0][0];
+
 describe('Background Script', () => {
   let mockChrome: any;
   const realChrome = global.chrome;
@@ -300,7 +304,7 @@ describe('downloadAndRecord', () => {
     await downloadAndRecord([img('https://c/a.jpg')], { url: 'https://page', title: 'T' });
     const written = (chrome.storage.local.set as jest.Mock).mock.calls[0][0].downloadHistory;
     expect(written).toHaveLength(1);
-    expect(written[0]).toMatchObject({ src: 'https://c/a.jpg', kind: 'image', sourcePageUrl: 'https://page', sourcePageTitle: 'T' });
+    expect(written[0]).toMatchObject({ src: 'https://c/a.jpg', kind: 'image', sourcePageUrl: 'https://page', sourcePageTitle: 'T', downloadId: 42 });
   });
 
   it('passes the settings-derived filename, saveAs, and conflictAction to chrome.downloads', async () => {
@@ -322,5 +326,30 @@ describe('downloadAndRecord', () => {
     });
     await downloadAndRecord([img('https://c/b.jpg')], undefined);
     expect(chrome.storage.local.set as jest.Mock).not.toHaveBeenCalled();
+  });
+});
+
+describe('runtime message router — history actions', () => {
+  const dispatch = (msg: unknown) => messageHandler(msg, {}, jest.fn());
+
+  beforeEach(() => {
+    (chrome.downloads.open as jest.Mock).mockReset();
+    (chrome.downloads.show as jest.Mock).mockReset();
+    (chrome.tabs.create as jest.Mock).mockReset();
+  });
+
+  it('opens a downloaded file by id', () => {
+    dispatch({ type: 'OPEN_DOWNLOAD_FILE', downloadId: 7 });
+    expect(chrome.downloads.open).toHaveBeenCalledWith(7);
+  });
+
+  it('reveals a downloaded file in its folder', () => {
+    dispatch({ type: 'SHOW_DOWNLOAD', downloadId: 9 });
+    expect(chrome.downloads.show).toHaveBeenCalledWith(9);
+  });
+
+  it('opens a source URL in a new tab', () => {
+    dispatch({ type: 'OPEN_URL', url: 'https://c/a.jpg' });
+    expect(chrome.tabs.create).toHaveBeenCalledWith({ url: 'https://c/a.jpg' });
   });
 });

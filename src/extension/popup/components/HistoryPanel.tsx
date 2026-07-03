@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { XMarkIcon, TrashIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import {
+  XMarkIcon,
+  TrashIcon,
+  ArrowDownTrayIcon,
+  ArrowTopRightOnSquareIcon,
+  PhotoIcon,
+  FolderOpenIcon,
+} from '@heroicons/react/24/outline';
 import { HistoryEntry } from '@/types';
 import { loadHistory, removeEntry, clearHistory, HISTORY_KEY } from '@/extension/shared/history';
 import { relativeTime } from '../utils';
@@ -45,6 +52,20 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
 
   const handleClearAll = () => {
     void clearHistory().then(() => setEntries([]));
+  };
+
+  const openSource = (entry: HistoryEntry) => {
+    chrome.runtime.sendMessage({ type: 'OPEN_URL', url: entry.src });
+  };
+
+  const openFile = (entry: HistoryEntry) => {
+    if (entry.downloadId === undefined) return;
+    chrome.runtime.sendMessage({ type: 'OPEN_DOWNLOAD_FILE', downloadId: entry.downloadId });
+  };
+
+  const revealFile = (entry: HistoryEntry) => {
+    if (entry.downloadId === undefined) return;
+    chrome.runtime.sendMessage({ type: 'SHOW_DOWNLOAD', downloadId: entry.downloadId });
   };
 
   const handleRedownload = (entry: HistoryEntry) => {
@@ -127,20 +148,48 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
                 </div>
                 <div className="flex flex-none items-center gap-0.5">
                   <button
+                    onClick={() => openSource(entry)}
+                    className="iconbtn iconbtn-sm"
+                    title="Open source in new tab"
+                    aria-label="Open source in new tab"
+                  >
+                    <ArrowTopRightOnSquareIcon className="h-[15px] w-[15px]" />
+                  </button>
+                  {entry.downloadId !== undefined && (
+                    <>
+                      <button
+                        onClick={() => openFile(entry)}
+                        className="iconbtn iconbtn-sm"
+                        title="Open file"
+                        aria-label="Open file"
+                      >
+                        <PhotoIcon className="h-[15px] w-[15px]" />
+                      </button>
+                      <button
+                        onClick={() => revealFile(entry)}
+                        className="iconbtn iconbtn-sm"
+                        title="Show in folder"
+                        aria-label="Show in folder"
+                      >
+                        <FolderOpenIcon className="h-[15px] w-[15px]" />
+                      </button>
+                    </>
+                  )}
+                  <button
                     onClick={() => handleRedownload(entry)}
-                    className="iconbtn"
+                    className="iconbtn iconbtn-sm"
                     title="Re-download"
                     aria-label="Re-download"
                   >
-                    <ArrowDownTrayIcon className="h-[16px] w-[16px]" />
+                    <ArrowDownTrayIcon className="h-[15px] w-[15px]" />
                   </button>
                   <button
                     onClick={() => handleRemove(entry)}
-                    className="iconbtn"
+                    className="iconbtn iconbtn-sm"
                     title="Remove"
                     aria-label="Remove"
                   >
-                    <TrashIcon className="h-[16px] w-[16px]" />
+                    <TrashIcon className="h-[15px] w-[15px]" />
                   </button>
                 </div>
               </div>

@@ -43,6 +43,9 @@ export interface HistoryEntry {
   sourcePageUrl: string;
   sourcePageTitle?: string;
   time: number;
+  /** chrome.downloads id — enables "open file" / "reveal in folder". Absent on
+   *  entries recorded before this was tracked, and on failed downloads. */
+  downloadId?: number;
 }
 
 export interface DownloadResponse {
@@ -78,6 +81,24 @@ export interface ResolveOriginalsResponse {
   resolved: Record<string, string>; // src -> resolvedUrl (successes only)
 }
 
+/** Open a downloaded file in the OS default app (chrome.downloads.open). */
+export interface OpenDownloadMessage {
+  type: 'OPEN_DOWNLOAD_FILE';
+  downloadId: number;
+}
+
+/** Reveal a downloaded file in the OS file manager (chrome.downloads.show). */
+export interface ShowDownloadMessage {
+  type: 'SHOW_DOWNLOAD';
+  downloadId: number;
+}
+
+/** Open a URL in a new browser tab (chrome.tabs.create). */
+export interface OpenUrlMessage {
+  type: 'OPEN_URL';
+  url: string;
+}
+
 export type ChromeMessage =
   | DownloadMessage
   | GetImagesMessage
@@ -85,7 +106,10 @@ export type ChromeMessage =
   | DeepScanMessage
   | DeepScanAbortMessage
   | DeepScanProgress
-  | ResolveOriginalsMessage;
+  | ResolveOriginalsMessage
+  | OpenDownloadMessage
+  | ShowDownloadMessage
+  | OpenUrlMessage;
 
 export interface AppState {
   status: string;

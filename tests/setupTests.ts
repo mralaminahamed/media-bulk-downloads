@@ -18,6 +18,7 @@ global.chrome = {
     tabs: {
         query: jest.fn().mockResolvedValue([]),
         get: jest.fn(),
+        create: jest.fn(),
         sendMessage: jest.fn(),
         onActivated: {
             addListener: jest.fn(),
@@ -42,6 +43,8 @@ global.chrome = {
     },
     downloads: {
         download: jest.fn(),
+        open: jest.fn(),
+        show: jest.fn(),
     },
     action: {
         setBadgeText: jest.fn(),
