@@ -10,6 +10,7 @@ describe('detectAvType', () => {
     expect(detectAvType('https://ex.com/clip.mp4')).toBe('mp4');
     expect(detectAvType('https://ex.com/a.WEBM?x=1')).toBe('webm');
     expect(detectAvType('https://ex.com/song.flac')).toBe('flac');
+    expect(detectAvType('https://ex.com/clip.ogv')).toBe('ogg');
   });
   it('falls back to the MIME subtype', () => {
     expect(detectAvType('https://ex.com/stream', 'video/mp4')).toBe('mp4');

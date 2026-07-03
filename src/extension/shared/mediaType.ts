@@ -4,7 +4,7 @@
  */
 
 const VIDEO_TYPES: Record<string, string> = {
-  mp4: 'mp4', m4v: 'm4v', webm: 'webm', ogv: 'ogv', ogg: 'ogg', mov: 'mov', qt: 'mov',
+  mp4: 'mp4', m4v: 'm4v', webm: 'webm', ogv: 'ogg', ogg: 'ogg', mov: 'mov', qt: 'mov',
 };
 
 const AUDIO_TYPES: Record<string, string> = {
@@ -43,7 +43,7 @@ export function detectAvType(url: string, mime?: string): string {
   if (ext && (VIDEO_TYPES[ext] || AUDIO_TYPES[ext])) return VIDEO_TYPES[ext] ?? AUDIO_TYPES[ext];
   if (mime) {
     const fromM = fromMime(mime);
-    if (fromM && (VIDEO_TYPES[fromM] || AUDIO_TYPES[fromM] || fromM === 'mp3')) return fromM;
+    if (fromM && (VIDEO_TYPES[fromM] || AUDIO_TYPES[fromM])) return fromM;
   }
   return 'unknown';
 }

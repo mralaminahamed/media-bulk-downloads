@@ -76,7 +76,7 @@ const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'po
    */
   const enrichImageSizes = useCallback(async (images: ImageInfo[]): Promise<void> => {
     const generation = ++enrichGenRef.current;
-    const targets = images.filter((img) => !img.isBase64 && img.fileSize <= 0);
+    const targets = images.filter((img) => !img.isBase64 && img.fileSize <= 0 && img.kind === 'image');
 
     await mapWithConcurrency(targets, SIZE_FETCH_CONCURRENCY, async (img) => {
       const size = await getImageFileSize(img.src);
@@ -141,7 +141,7 @@ const App: React.FC<AppProps> = ({ collect = collectFromActiveTab, surface = 'po
     const imagesToDownload = Array.isArray(images) ? images : [images];
     setState((prev) => ({
       ...prev,
-      status: `Sending ${imagesToDownload.length} image${imagesToDownload.length === 1 ? '' : 's'} to downloads…`,
+      status: `Sending ${imagesToDownload.length} file${imagesToDownload.length === 1 ? '' : 's'} to downloads…`,
     }));
 
     const message: DownloadMessage = { type: 'DOWNLOAD_IMAGES', images: imagesToDownload };

@@ -41,7 +41,7 @@ describe('background DOWNLOAD_IMAGES handler', () => {
       saveAs: false,
       conflictAction: 'uniquify',
     });
-    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloading 2 images...' });
+    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloading 2 files...' });
   });
 
   it('applies the download path and prefix from settings', () => {
@@ -73,7 +73,7 @@ describe('background DOWNLOAD_IMAGES handler', () => {
     expect(chrome.downloads.download).toHaveBeenCalledWith(
       expect.objectContaining({ url: 'big.jpg' }),
     );
-    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloading 1 images...' });
+    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloading 1 files...' });
   });
 
   it('ignores unrelated messages', () => {

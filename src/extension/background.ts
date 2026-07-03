@@ -260,7 +260,7 @@ chrome.runtime.onMessage.addListener(
         });
       });
 
-      sendResponse({ status: 'success', message: `Downloading ${eligible.length} images...` });
+      sendResponse({ status: 'success', message: `Downloading ${eligible.length} files...` });
     }
     return true;
   },

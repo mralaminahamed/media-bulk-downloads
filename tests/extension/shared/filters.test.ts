@@ -85,3 +85,15 @@ describe('applyToolbarFilters — mediaKind', () => {
     expect(applyToolbarFilters(items, F({ sizeBucket: 'large' })).some((i) => i.kind === 'video')).toBe(true);
   });
 });
+
+describe('applyToolbarFilters — format narrowing within a kind', () => {
+  it('narrows video items by format', () => {
+    const videoItems = [
+      item({ src: 'v1', kind: 'video', type: 'mp4' }),
+      item({ src: 'v2', kind: 'video', type: 'webm' }),
+    ];
+    expect(
+      applyToolbarFilters(videoItems, F({ mediaKind: 'video', imageType: 'mp4' })).map((i) => i.src),
+    ).toEqual(['v1']);
+  });
+});
