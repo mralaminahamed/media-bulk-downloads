@@ -37,8 +37,12 @@
      Flips polarity by theme so the edge stays visible on either canvas. */
   --ctl-ring: rgba(0, 0, 0, 0.06);
 
+  /* Corner-radius scale. lg = modals/large tiles, md = cards, sm = inputs &
+     buttons, xs = chips/tags. Components use these instead of ad-hoc px. */
+  --radius-lg: 12px;
   --radius: 10px;
   --radius-sm: 7px;
+  --radius-xs: 5px;
 
   /* Moving highlight for loading skeletons; softened in dark so it doesn't glare. */
   --skeleton-sheen: rgba(255, 255, 255, 0.65);
@@ -330,6 +334,13 @@ input.num[type="number"]::-webkit-inner-spin-button {
 .btn-ghost:hover {
   background: var(--panel-2);
   border-color: var(--ink-3);
+}
+
+/* Compact button — headers, toolbars, dense rows. Overrides the .btn box. */
+.btn-sm {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
 }
 
 /* Text field. */

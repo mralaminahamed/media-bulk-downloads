@@ -303,7 +303,7 @@ const App: React.FC<AppProps> = ({
       <header className="dotgrid border-b hairline" {...dragHandleProps}>
         <div className="flex items-center justify-between px-4 pt-3.5">
           <div className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 place-items-center rounded-[8px] border hairline bg-[var(--panel)]">
+            <span className="grid h-8 w-8 place-items-center rounded-[var(--radius-sm)] border hairline bg-[var(--panel)]">
               <BrandMark />
             </span>
             <div className="leading-tight">
@@ -346,11 +346,11 @@ const App: React.FC<AppProps> = ({
               aria-label={deepScanning ? 'Stop deep scan' : 'Deep scan'}
             >
               <ChevronDoubleDownIcon
-                className={`h-[17px] w-[17px] ${deepScanning ? 'animate-pulse' : ''}`}
+                className={`h-[18px] w-[18px] ${deepScanning ? 'animate-pulse' : ''}`}
               />
             </button>
             <button onClick={fetchImages} className="iconbtn" title="Rescan page" aria-label="Rescan page">
-              <ArrowPathIcon className={`h-[17px] w-[17px] ${state.isLoading ? 'animate-[spin_0.9s_linear_infinite]' : ''}`} />
+              <ArrowPathIcon className={`h-[18px] w-[18px] ${state.isLoading ? 'animate-[spin_0.9s_linear_infinite]' : ''}`} />
             </button>
           </div>
         </div>
@@ -436,7 +436,7 @@ const SkeletonGrid: React.FC<{ thumbnailSize: number }> = ({ thumbnailSize }) =>
 const EmptyState: React.FC<{ message: string; onRefresh: () => void }> = ({ message, onRefresh }) => (
   <div className="reveal grid h-full place-items-center text-center">
     <div className="flex max-w-[260px] flex-col items-center gap-3">
-      <span className="grid h-12 w-12 place-items-center rounded-[12px] border hairline bg-[var(--panel)] text-[var(--ink-3)]">
+      <span className="grid h-12 w-12 place-items-center rounded-[var(--radius-lg)] border hairline bg-[var(--panel)] text-[var(--ink-3)]">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <rect x="3" y="3" width="18" height="18" rx="2" />
           <circle cx="9" cy="9" r="2" />
@@ -449,7 +449,7 @@ const EmptyState: React.FC<{ message: string; onRefresh: () => void }> = ({ mess
           {message || 'This page has no media that matches your filters. Try another page or rescan.'}
         </p>
       </div>
-      <button onClick={onRefresh} className="btn btn-ghost h-9">
+      <button onClick={onRefresh} className="btn btn-ghost">
         <ArrowPathIcon className="h-4 w-4" />
         <span>Rescan page</span>
       </button>

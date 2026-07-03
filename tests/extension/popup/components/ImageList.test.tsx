@@ -21,7 +21,7 @@ describe('ImageList Component', () => {
   it('calls onImageDownload when download button is clicked', () => {
     const mockDownload = jest.fn();
     render(<ImageList images={mockImages} onImageDownload={mockDownload} />);
-    const downloadButtons = screen.getAllByTitle('Download Image');
+    const downloadButtons = screen.getAllByTitle('Download');
     fireEvent.click(downloadButtons[0]);
     expect(mockDownload).toHaveBeenCalledWith(mockImages[0]);
   });
@@ -30,7 +30,7 @@ describe('ImageList Component', () => {
     render(<ImageList images={mockImages} onImageDownload={jest.fn()} />);
     const viewButtons = screen.getAllByTitle('View Details');
     fireEvent.click(viewButtons[0]);
-    expect(screen.getByText('Image Preview')).toBeInTheDocument();
+    expect(screen.getByText('Preview')).toBeInTheDocument();
   });
 
   it('downloads from within the preview modal', () => {
@@ -38,16 +38,16 @@ describe('ImageList Component', () => {
     render(<ImageList images={mockImages} onImageDownload={onDownload} />);
     fireEvent.click(screen.getAllByTitle('View Details')[0]);
     // The modal's download button is the only one with visible text.
-    fireEvent.click(screen.getByText('Download Image'));
+    fireEvent.click(screen.getByText('Download'));
     expect(onDownload).toHaveBeenCalledWith(mockImages[0]);
   });
 
   it('closes the preview modal', () => {
     render(<ImageList images={mockImages} onImageDownload={jest.fn()} />);
     fireEvent.click(screen.getAllByTitle('View Details')[0]);
-    expect(screen.getByText('Image Preview')).toBeInTheDocument();
+    expect(screen.getByText('Preview')).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Close'));
-    expect(screen.queryByText('Image Preview')).not.toBeInTheDocument();
+    expect(screen.queryByText('Preview')).not.toBeInTheDocument();
   });
 
   it('opens the preview as a labelled modal dialog and closes it on Escape', async () => {
