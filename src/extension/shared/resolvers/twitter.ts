@@ -19,7 +19,10 @@ export const twitterResolver: Resolver = {
 
     // Video posters are rendered as <img> on the media grid / timeline (no
     // <video> element there). Map them to downloadable video candidates.
-    const gif = u.pathname.match(/^\/tweet_video_thumb\/([A-Za-z0-9_-]+)\./);
+    // GIF thumbs come both as /tweet_video_thumb/<ID>.jpg and, on the media grid,
+    // as /tweet_video_thumb/<ID> with the format in the query — so the extension
+    // is optional. The id class excludes '.' and '/', so it stops on its own.
+    const gif = u.pathname.match(/^\/tweet_video_thumb\/([A-Za-z0-9_-]+)/);
     if (gif) {
       return [{ url: `https://video.twimg.com/tweet_video/${gif[1]}.mp4`, kind: 'gif', ext: 'mp4', poster: input }];
     }
@@ -77,7 +80,7 @@ export const twitterResolver: Resolver = {
  *  downloadable progressive mp4. Returns null for any other video. */
 export function twitterGifCandidate(videoEl: Element): MediaCandidate | null {
   const poster = videoEl.getAttribute('poster') || '';
-  const m = poster.match(/pbs\.twimg\.com\/tweet_video_thumb\/([A-Za-z0-9_-]+)\.jpg/);
+  const m = poster.match(/pbs\.twimg\.com\/tweet_video_thumb\/([A-Za-z0-9_-]+)/);
   if (!m) return null;
   return { url: `https://video.twimg.com/tweet_video/${m[1]}.mp4`, kind: 'gif', ext: 'mp4', poster };
 }

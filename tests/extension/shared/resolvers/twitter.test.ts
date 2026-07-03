@@ -95,6 +95,15 @@ describe('twitterResolver — video posters rendered as <img>', () => {
     });
   });
 
+  it('extensionless tweet_video_thumb <img> (format in query) -> gif mp4, never a still image', () => {
+    // X serves GIF thumbs as /tweet_video_thumb/<ID>?format=jpg with NO path extension.
+    const src = 'https://pbs.twimg.com/tweet_video_thumb/HJ_SQ1hWIAAcv77?format=jpg&name=small';
+    const [c] = twitterResolver.resolve(new URL(src), { allowNetwork: false });
+    expect(c).toEqual({
+      url: 'https://video.twimg.com/tweet_video/HJ_SQ1hWIAAcv77.mp4', kind: 'gif', ext: 'mp4', poster: src,
+    });
+  });
+
   it('ext_tw_video_thumb <img> with no status link -> hint-less pending video (never an image)', () => {
     document.body.innerHTML = `<img src="https://pbs.twimg.com/ext_tw_video_thumb/2040/pu/img/x.jpg">`;
     const img = document.querySelector('img')!;

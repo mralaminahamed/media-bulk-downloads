@@ -122,6 +122,16 @@ describe('collectMedia — native resolvers', () => {
     expect(posterImages).toHaveLength(0); // NO poster leaked as an image
   });
 
+  it('collects an extensionless GIF grid thumb as a video, never leaking it as a still', () => {
+    // On the media grid the GIF thumb is an <img> at /tweet_video_thumb/<ID> with
+    // the format only in the query string (no path extension).
+    document.body.innerHTML =
+      `<a href="/u/status/42"><img src="https://pbs.twimg.com/tweet_video_thumb/HJ_SQ1hWIAAcv77?format=jpg&name=small"></a>`;
+    const media = collectMedia();
+    expect(media.some((m) => m.src === 'https://video.twimg.com/tweet_video/HJ_SQ1hWIAAcv77.mp4' && m.kind === 'video')).toBe(true);
+    expect(media.some((m) => m.kind === 'image' && /tweet_video_thumb/.test(m.src))).toBe(false);
+  });
+
   it('strips Unsplash resize params', () => {
     document.body.innerHTML = `<img src="https://images.unsplash.com/photo-1?w=200&q=80&fm=webp">`;
     expect(collectMedia().some((m) => m.src === 'https://images.unsplash.com/photo-1')).toBe(true);
