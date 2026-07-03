@@ -100,6 +100,13 @@ describe('collectMedia — native resolvers', () => {
     expect(collectMedia().some((m) => m.src === 'https://pbs.twimg.com/media/ABC?format=jpg&name=orig')).toBe(true);
   });
 
+  it('emits a pending video for a Twitter video poster <img> in the media grid', () => {
+    document.body.innerHTML =
+      `<a href="/u/status/1799"><img src="https://pbs.twimg.com/ext_tw_video_thumb/2040/pu/img/x.jpg"></a>`;
+    const vid = collectMedia().find((m) => m.resolveHint?.platform === 'twitter');
+    expect(vid).toMatchObject({ kind: 'video', unresolvedVideo: true, resolveHint: { id: '1799' } });
+  });
+
   it('strips Unsplash resize params', () => {
     document.body.innerHTML = `<img src="https://images.unsplash.com/photo-1?w=200&q=80&fm=webp">`;
     expect(collectMedia().some((m) => m.src === 'https://images.unsplash.com/photo-1')).toBe(true);
