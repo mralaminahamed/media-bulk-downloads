@@ -1,6 +1,8 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import Settings from './../../../../src/extension/popup/components/Settings';
+import { DEFAULT_SETTINGS } from '@/extension/shared/settings';
 
 describe('Settings Component', () => {
   const mockOnClose = jest.fn();
@@ -23,6 +25,7 @@ describe('Settings Component', () => {
     bubbleHeight: 560,
     bubblePanelPlacement: 'anchored' as const,
     bubblePanelPoint: { x: 40, y: 40 },
+    resolveOriginals: false,
   };
 
   beforeEach(() => {
@@ -164,6 +167,14 @@ describe('Settings Component', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Original' }));
     fireEvent.click(screen.getByText('Save'));
     expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ namingMode: 'original' }));
+  });
+
+  it('toggles resolveOriginals', async () => {
+    const onSettingsChange = jest.fn();
+    render(<Settings settings={{ ...DEFAULT_SETTINGS }} onClose={() => {}} onSettingsChange={onSettingsChange} />);
+    await userEvent.click(screen.getByRole('switch', { name: /resolve exact originals/i }));
+    fireEvent.click(screen.getByText('Save'));
+    expect(onSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ resolveOriginals: true }));
   });
 
   it('previews the Downloads subfolder path', () => {

@@ -15,7 +15,7 @@ import { detectType, parseUrlDimensions } from '@/extension/shared/imageUrl';
 import { detectAvType, isUndownloadableMedia } from '@/extension/shared/mediaType';
 import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates } from '@/extension/shared/extract';
 import { resolve, MediaCandidate } from '@/extension/shared/resolvers';
-import { twitterGifCandidate } from '@/extension/shared/resolvers/twitter';
+import { twitterGifCandidate, twitterVideoPending } from '@/extension/shared/resolvers/twitter';
 
 /** Determines if a URL is a base64-encoded image. */
 export function isBase64Image(src: string): boolean {
@@ -148,6 +148,7 @@ export function collectMedia(): MediaItem[] {
     };
     const thumb = thumbnailOverride ? resolveUrl(thumbnailOverride) : cand.thumbnailSrc;
     if (thumb && thumb !== cand.url) info.thumbnailSrc = thumb;
+    if (cand.resolveHint) info.resolveHint = cand.resolveHint;
     media.push(info);
   };
 
@@ -239,6 +240,15 @@ export function collectMedia(): MediaItem[] {
       media.push({
         src: gif.url, alt: '', width: 0, height: 0,
         type: 'mp4', fileSize: 0, isBase64: false, kind: 'video', poster: gif.poster,
+      });
+    }
+
+    const pendingVid = twitterVideoPending(video);
+    if (pendingVid && !seenSources.has(pendingVid.url)) {
+      seenSources.add(pendingVid.url);
+      media.push({
+        src: pendingVid.url, alt: '', width: 0, height: 0, type: 'mp4', fileSize: 0, isBase64: false,
+        kind: 'video', poster: pendingVid.poster, resolveHint: pendingVid.resolveHint, unresolvedVideo: true,
       });
     }
 

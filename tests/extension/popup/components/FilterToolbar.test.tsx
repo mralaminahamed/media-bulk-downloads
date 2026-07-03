@@ -26,6 +26,7 @@ describe('FilterToolbar Component', () => {
     bubbleHeight: 560,
     bubblePanelPlacement: 'anchored',
     bubblePanelPoint: { x: 40, y: 40 },
+    resolveOriginals: false,
   };
 
   const renderToolbar = (over: Partial<SettingsData> = {}) =>

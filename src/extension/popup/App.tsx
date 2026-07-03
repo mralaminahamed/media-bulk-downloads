@@ -7,6 +7,7 @@ import { filterImagesBySettings, applyToolbarFilters } from '../shared/filters';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/settings';
 import { collectFromActiveTab } from '../shared/collect-active-tab';
 import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/deep-scan-active-tab';
+import { requestResolveOriginals } from '../shared/resolve-originals-active';
 import { getImageFileSize, mapWithConcurrency } from './utils';
 import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
@@ -62,10 +63,25 @@ const App: React.FC<AppProps> = ({
   const rawImagesRef = useRef<ImageInfo[]>([]);
   // Generation guard so a newer refresh cancels stale size-enrichment writes.
   const enrichGenRef = useRef(0);
+  // Generation guard so a newer refresh/rescan cancels stale resolution writes.
+  const resolveGenRef = useRef(0);
+
+  // Latest settings, readable from async callbacks (the mount scan) without a
+  // stale closure.
+  const settingsRef = useRef(settings);
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
 
   useEffect(() => {
-    loadSettings();
-    void fetchImages();
+    // Load persisted settings BEFORE the first scan, so a persisted
+    // resolveOriginals is known when the scan gates on it.
+    chrome.storage.sync.get(['settings'], (result) => {
+      const loaded = result.settings ? withDefaults(result.settings) : DEFAULT_SETTINGS;
+      settingsRef.current = loaded;
+      setSettings(loaded);
+      void fetchImages();
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -75,14 +91,6 @@ const App: React.FC<AppProps> = ({
     document.body.style.width = `${settings.popupWidth}px`;
     document.body.style.height = `${settings.popupHeight}px`;
   }, [surface, settings.popupWidth, settings.popupHeight]);
-
-  const loadSettings = () => {
-    chrome.storage.sync.get(['settings'], (result) => {
-      if (result.settings) {
-        setSettings(withDefaults(result.settings));
-      }
-    });
-  };
 
   /**
    * Lazily fills in remote image byte sizes. Runs only from the popup on the
@@ -107,25 +115,64 @@ const App: React.FC<AppProps> = ({
     });
   }, []);
 
+  /**
+   * Opt-in resolution: exchanges poster-only Twitter-video items for their
+   * real playable URL via the background. Runs only when the user has
+   * enabled `resolveOriginals`; unresolved items are dropped afterward so
+   * nothing undownloadable lingers in the list.
+   */
+  const enrichOriginals = useCallback(async (images: ImageInfo[]): Promise<void> => {
+    const generation = ++resolveGenRef.current;
+    const targets = images.filter((i) => i.resolveHint).map((i) => ({ src: i.src, hint: i.resolveHint! }));
+    if (!targets.length) return;
+    const resolved = await requestResolveOriginals(targets);
+    if (generation !== resolveGenRef.current) return;
+    const apply = (list: ImageInfo[]) =>
+      list
+        .map((i) =>
+          i.resolveHint && resolved[i.src]
+            ? { ...i, src: resolved[i.src], unresolvedVideo: false, resolveHint: undefined }
+            : i,
+        )
+        .filter((i) => !i.unresolvedVideo); // drop still-unresolved videos
+    setState((prev) => ({ ...prev, images: apply(prev.images), filteredImages: apply(prev.filteredImages) }));
+  }, []);
+
+  /**
+   * Applies the resolve-originals gate to an eligible list, shared by every scan
+   * path (initial scan, settings change, deep scan). When the setting is on,
+   * resolve originals via the background; when off, drop unresolved (poster-only)
+   * videos from the DISPLAY only — they stay in rawImagesRef so toggling on later
+   * can still resolve them. Image size enrichment runs on the downloadable items.
+   */
+  const applyResolution = useCallback(
+    (eligible: ImageInfo[], s: SettingsData): void => {
+      if (s.resolveOriginals) {
+        setState((prev) => ({ ...prev, images: eligible, filteredImages: eligible }));
+        void enrichOriginals(eligible);
+      } else {
+        const pruned = eligible.filter((i) => !i.unresolvedVideo);
+        setState((prev) => ({ ...prev, images: pruned, filteredImages: pruned }));
+      }
+      void enrichImageSizes(eligible.filter((i) => !i.unresolvedVideo));
+    },
+    [enrichOriginals, enrichImageSizes],
+  );
+
   const fetchImages = useCallback(async (): Promise<void> => {
     enrichGenRef.current++; // cancel any in-flight enrichment
+    resolveGenRef.current++; // cancel any in-flight resolution
     setState((prev) => ({ ...prev, isLoading: true, status: '' }));
 
     try {
       const imageList = await collect();
       const raw = Array.isArray(imageList) ? imageList : [];
       rawImagesRef.current = raw;
-      const eligible = filterImagesBySettings(raw, settings);
+      const s = settingsRef.current; // latest settings, not a stale closure
+      const eligible = filterImagesBySettings(raw, s);
 
-      setState((prev) => ({
-        ...prev,
-        images: eligible,
-        filteredImages: eligible,
-        status: '',
-        isLoading: false,
-      }));
-
-      void enrichImageSizes(eligible);
+      setState((prev) => ({ ...prev, status: '', isLoading: false }));
+      applyResolution(eligible, s);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'unknown error';
       setState((prev) => ({
@@ -134,17 +181,18 @@ const App: React.FC<AppProps> = ({
         isLoading: false,
       }));
     }
-  }, [collect, settings, enrichImageSizes]);
+  }, [collect, applyResolution]);
 
   // Re-derive the eligible base list when the settings that affect it change.
+  // Also applies opt-in resolution when it loads/changes (settings load async on
+  // mount, so the first scan runs before a persisted resolveOriginals is known).
   useEffect(() => {
     if (rawImagesRef.current.length === 0) return;
     const eligible = filterImagesBySettings(rawImagesRef.current, settings);
-    setState((prev) => ({ ...prev, images: eligible, filteredImages: eligible }));
-    void enrichImageSizes(eligible);
-    // Intentionally keyed on the two settings fields that affect eligibility.
+    applyResolution(eligible, settings);
+    // Keyed on the settings fields that affect eligibility + resolution.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.minimumImageSize, settings.excludeBase64Images, enrichImageSizes]);
+  }, [settings.minimumImageSize, settings.excludeBase64Images, settings.resolveOriginals, applyResolution]);
 
   const handleDeepScan = async () => {
     if (deepScanning) {
@@ -162,8 +210,7 @@ const App: React.FC<AppProps> = ({
       const merged = [...bySrc.values()];
       rawImagesRef.current = merged;
       const eligible = filterImagesBySettings(merged, settings);
-      setState((prev) => ({ ...prev, images: eligible, filteredImages: eligible }));
-      void enrichImageSizes(eligible);
+      applyResolution(eligible, settings);
     } catch (e) {
       setState((prev) => ({ ...prev, status: e instanceof Error ? e.message : 'deep scan failed' }));
     } finally {

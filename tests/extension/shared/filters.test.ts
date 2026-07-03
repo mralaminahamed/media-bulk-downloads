@@ -19,6 +19,7 @@ const base: SettingsData = {
   bubbleHeight: 560,
   bubblePanelPlacement: 'anchored',
   bubblePanelPoint: { x: 40, y: 40 },
+  resolveOriginals: false,
 };
 
 const img = (over: Partial<ImageInfo>): ImageInfo => ({

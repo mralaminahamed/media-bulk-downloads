@@ -1,3 +1,9 @@
+export type ResolvePlatform = 'twitter' | 'wallhaven' | 'unsplash';
+export interface ResolveHint {
+  platform: ResolvePlatform;
+  id: string; // statusId | wallpaper id | photo shortid
+}
+
 export interface ImageInfo {
   src: string;
   alt: string;
@@ -13,6 +19,10 @@ export interface ImageInfo {
   kind: 'image' | 'video' | 'audio';
   /** Video poster URL, used as the grid thumbnail when present. */
   poster?: string;
+  /** Present when an opt-in network fetch can upgrade this item to a better original. */
+  resolveHint?: ResolveHint;
+  /** Twitter real video: poster is shown but the item is NOT downloadable until resolved. */
+  unresolvedVideo?: boolean;
 }
 
 /** Preferred name for a collected media item (image, video, or audio). */
@@ -47,13 +57,23 @@ export interface DeepScanProgress {
   elapsedMs: number;
 }
 
+export interface ResolveOriginalsMessage {
+  type: 'RESOLVE_ORIGINALS';
+  hints: { src: string; hint: ResolveHint }[];
+}
+
+export interface ResolveOriginalsResponse {
+  resolved: Record<string, string>; // src -> resolvedUrl (successes only)
+}
+
 export type ChromeMessage =
   | DownloadMessage
   | GetImagesMessage
   | ToggleBubbleMessage
   | DeepScanMessage
   | DeepScanAbortMessage
-  | DeepScanProgress;
+  | DeepScanProgress
+  | ResolveOriginalsMessage;
 
 export interface AppState {
   status: string;
@@ -111,6 +131,7 @@ export interface SettingsData {
   bubblePanelPlacement: BubblePanelPlacement;
   /** Custom panel top-left, used when the placement is `free`. */
   bubblePanelPoint: BubblePanelPoint;
+  resolveOriginals: boolean;
 }
 
 export type SizeBucket = 'all' | 'small' | 'medium' | 'large';

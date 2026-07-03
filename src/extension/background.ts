@@ -1,8 +1,18 @@
-import { ChromeMessage, DownloadMessage, DownloadResponse, ImageInfo, SettingsData } from '@/types';
+import {
+  ChromeMessage,
+  DownloadMessage,
+  DownloadResponse,
+  ImageInfo,
+  ResolveHint,
+  ResolveOriginalsMessage,
+  ResolveOriginalsResponse,
+  SettingsData,
+} from '@/types';
 import { filterImagesBySettings } from './shared/filters';
 import { DEFAULT_SETTINGS, withDefaults } from './shared/settings';
 import { sanitizePathSegment } from './shared/paths';
 import { avExtensionForType, extensionFromUrl } from './shared/mediaType';
+import { resolveOriginal, NetDeps } from './shared/resolvers/network';
 
 export { DEFAULT_SETTINGS, sanitizePathSegment };
 
@@ -190,6 +200,29 @@ export function buildDownloadFilename(
   return dir ? `${dir}/${fileName}` : fileName;
 }
 
+/**
+ * Resolves each hint to its final URL with bounded concurrency (limit 4).
+ * Inline loop — the background service worker can't import the popup's
+ * `mapWithConcurrency` helper. Failures are skipped (never throw).
+ */
+export async function resolveOriginalsBatch(
+  hints: { src: string; hint: ResolveHint }[],
+  deps: NetDeps = { fetch: (...a) => fetch(...a) },
+): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  const limit = 4;
+  let i = 0;
+  async function worker() {
+    while (i < hints.length) {
+      const { src, hint } = hints[i++];
+      const url = await resolveOriginal(hint, deps);
+      if (url) out[src] = url;
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, hints.length) }, worker));
+  return out;
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   loadSettings();
 });
@@ -245,7 +278,7 @@ chrome.runtime.onMessage.addListener(
   (
     message: ChromeMessage,
     _sender: chrome.runtime.MessageSender,
-    sendResponse: (response: DownloadResponse) => void,
+    sendResponse: (response: DownloadResponse | ResolveOriginalsResponse) => void,
   ) => {
     if (typeof message === 'object' && message.type === 'DOWNLOAD_IMAGES') {
       const { images } = message as DownloadMessage;
@@ -262,6 +295,19 @@ chrome.runtime.onMessage.addListener(
 
       sendResponse({ status: 'success', message: `Downloading ${eligible.length} files...` });
     }
+
+    if (typeof message === 'object' && message.type === 'RESOLVE_ORIGINALS') {
+      // Dedup hints by src before resolving.
+      const seen = new Set<string>();
+      const hints = (message as ResolveOriginalsMessage).hints.filter((h) => {
+        if (seen.has(h.src)) return false;
+        seen.add(h.src);
+        return true;
+      });
+      resolveOriginalsBatch(hints).then((resolved) => sendResponse({ resolved }));
+      return true; // async
+    }
+
     return true;
   },
 );

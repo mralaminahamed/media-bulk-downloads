@@ -1,4 +1,4 @@
-import { twitterResolver, twitterGifCandidate } from '@/extension/shared/resolvers/twitter';
+import { twitterResolver, twitterGifCandidate, twitterVideoPending } from '@/extension/shared/resolvers/twitter';
 
 const ctx = { allowNetwork: false };
 const u = (s: string) => new URL(s);
@@ -49,5 +49,27 @@ describe('twitterGifCandidate', () => {
     const v = document.createElement('video');
     v.setAttribute('poster', 'https://pbs.twimg.com/ext_tw_video_thumb/1/pu/img/x.jpg');
     expect(twitterGifCandidate(v)).toBeNull();
+  });
+});
+
+describe('twitterVideoPending', () => {
+  it('emits a pending video with statusId hint from an ext_tw_video_thumb poster', () => {
+    document.body.innerHTML =
+      `<article><a href="/user/status/1799999999999999999"></a>
+       <video poster="https://pbs.twimg.com/ext_tw_video_thumb/1/pu/img/x.jpg" src="blob:https://x.com/a"></video></article>`;
+    const v = document.querySelector('video')!;
+    expect(twitterVideoPending(v)).toEqual({
+      url: 'https://pbs.twimg.com/ext_tw_video_thumb/1/pu/img/x.jpg',
+      kind: 'video', ext: 'mp4',
+      poster: 'https://pbs.twimg.com/ext_tw_video_thumb/1/pu/img/x.jpg',
+      resolveHint: { platform: 'twitter', id: '1799999999999999999' },
+      unresolvedVideo: true,
+    });
+  });
+  it('returns null for a GIF poster (handled by twitterGifCandidate) or when no statusId is found', () => {
+    document.body.innerHTML = `<video poster="https://pbs.twimg.com/tweet_video_thumb/XYZ.jpg"></video>`;
+    expect(twitterVideoPending(document.querySelector('video')!)).toBeNull();
+    document.body.innerHTML = `<video poster="https://pbs.twimg.com/ext_tw_video_thumb/1/pu/img/x.jpg"></video>`;
+    expect(twitterVideoPending(document.querySelector('video')!)).toBeNull(); // no /status/ link
   });
 });

@@ -40,7 +40,9 @@ describe('wallhavenResolver', () => {
     expect(wallhavenResolver.resolve(u(THUMB), { el: img, allowNetwork: false })[0].url)
       .toBe('https://w.wallhaven.cc/full/ab/wallhaven-abcdef.png');
   });
-  it('bare thumb with no figure/full img -> [] (no blind jpg)', () => {
-    expect(wallhavenResolver.resolve(u(THUMB), { allowNetwork: false })).toEqual([]);
+  it('bare thumb (no DOM ext) keeps the thumb + wallhaven hint (no blind jpg)', () => {
+    const r = wallhavenResolver.resolve(u(THUMB), { allowNetwork: false })[0];
+    expect(r.url).toBe(THUMB);
+    expect(r.resolveHint).toEqual({ platform: 'wallhaven', id: 'abcdef' });
   });
 });
