@@ -67,6 +67,10 @@ export interface SettingsData {
   showImageCount: boolean;
   minimumImageSize: number;
   excludeBase64Images: boolean;
+  /** Show Chrome's native "Save As" dialog per download (user picks a location). */
+  saveAs: boolean;
+  /** How downloaded files are named: from the URL's original name, or a sequential prefix. */
+  namingMode: 'original' | 'prefixed';
   /** Fixed thumbnail edge (px) in the image grid; the grid reflows columns. */
   thumbnailSize: number;
   /** Fixed size (px) of the image preview modal / its image box. */
