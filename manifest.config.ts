@@ -8,7 +8,7 @@ export default defineManifest({
   manifest_version: 3,
   name: 'Media Bulk Downloads',
   version: pkg.version,
-  description: 'Collect and bulk-download media — images, video, and audio — from any web page.',
+  description: 'Bulk-download images, video & audio from any web page. Smart type filters, instant preview, original quality — fast and private.',
   permissions: ['downloads', 'storage', 'tabs'],
   host_permissions: ['<all_urls>'],
   background: {

@@ -2,7 +2,7 @@
   "name": "@mralaminahamed/media-bulk-downloads",
   "private": true,
   "version": "1.0.0",
-  "description": "Chrome (Manifest V3) extension to collect and bulk-download media from any web page — images (including srcset, <picture>, and CSS backgrounds) plus direct-file video and audio.",
+  "description": "Chrome (Manifest V3) extension to bulk-download media from any web page — images (srcset, <picture>, CSS backgrounds) plus direct-file video and audio — with smart type filters, instant preview, and original-quality saves. Network-free collection.",
   "type": "module",
   "license": "MIT",
   "author": "Al Amin Ahamed <mrabir.ahamed@gmail.com>",
