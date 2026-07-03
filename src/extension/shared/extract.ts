@@ -79,9 +79,12 @@ export function galleryLinkCandidate(a: HTMLAnchorElement): UrlCandidate | null 
 /** <img> URLs hidden inside a <noscript> block (common no-JS lazy fallback). */
 export function noscriptImageCandidates(ns: HTMLElement): UrlCandidate[] {
   let html = ns.textContent || '';
-  // Some parsers (e.g. jsdom with scripting enabled) treat <noscript> content as
-  // raw text and leave entities un-decoded (real browsers decode them). Unescape
-  // as a fallback so `&lt;img ...&gt;` markup is recognized the same as `<img ...>`.
+  // When scripting is enabled — every real browser tab a content script runs in,
+  // and jsdom's `runScripts: 'dangerously'` — <noscript> is parsed as RAWTEXT, so
+  // `textContent` returns the source with entities left un-decoded. Some templating
+  // also double-escapes the markup. Unescape as a fallback so `&lt;img ...&gt;`
+  // is recognized the same as `<img ...>`. (Only a scripting-disabled parse would
+  // auto-decode, in which case this branch never fires.)
   if (!html.includes('<img') && html.includes('&lt;')) {
     html = html
       .replace(/&lt;/g, '<')
