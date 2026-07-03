@@ -13,6 +13,7 @@
 import { ImageInfo, MediaItem } from '@/types';
 import { detectType, parseUrlDimensions, upgradeToOriginal } from '@/extension/shared/imageUrl';
 import { detectAvType, isUndownloadableMedia } from '@/extension/shared/mediaType';
+import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates } from '@/extension/shared/extract';
 
 /** Determines if a URL is a base64-encoded image. */
 export function isBase64Image(src: string): boolean {
@@ -100,7 +101,9 @@ export function collectMedia(): MediaItem[] {
   const media: MediaItem[] = [];
   const seenSources = new Set<string>();
 
-  const collectImageInfo = (rawSrc: string, alt = '', width = 0, height = 0): void => {
+  const collectImageInfo = (
+    rawSrc: string, alt = '', width = 0, height = 0, thumbnailOverride?: string,
+  ): void => {
     if (!rawSrc) return;
     const resolved = resolveUrl(rawSrc);
 
@@ -149,17 +152,16 @@ export function collectMedia(): MediaItem[] {
       isBase64: false,
       kind: 'image',
     };
-    if (thumbnail) info.thumbnailSrc = thumbnail;
+    const thumb = thumbnailOverride ? resolveUrl(thumbnailOverride) : thumbnail;
+    if (thumb) info.thumbnailSrc = thumb;
     media.push(info);
   };
 
   // <img> tags and their srcset.
   document.querySelectorAll('img').forEach((img) => {
     const { width, height } = getImageDimensions(img);
-    collectImageInfo(img.currentSrc || img.src, img.alt, width, height);
-    if (img.srcset) {
-      parseSrcset(img.srcset).forEach((src) => collectImageInfo(src, img.alt));
-    }
+    const urls = imageUrlsFromElement(img);
+    urls.forEach((src, i) => collectImageInfo(src, img.alt, i === 0 ? width : 0, i === 0 ? height : 0));
   });
 
   // <picture> elements: <img> fallback plus every <source srcset>.
@@ -167,15 +169,11 @@ export function collectMedia(): MediaItem[] {
     const img = picture.querySelector('img');
     if (img) {
       const { width, height } = getImageDimensions(img);
-      collectImageInfo(img.currentSrc || img.src, img.alt, width, height);
-      if (img.srcset) {
-        parseSrcset(img.srcset).forEach((src) => collectImageInfo(src, img.alt));
-      }
+      const urls = imageUrlsFromElement(img);
+      urls.forEach((src, i) => collectImageInfo(src, img.alt, i === 0 ? width : 0, i === 0 ? height : 0));
     }
     picture.querySelectorAll('source').forEach((source) => {
-      if (source.srcset) {
-        parseSrcset(source.srcset).forEach((src) => collectImageInfo(src));
-      }
+      imageUrlsFromElement(source).forEach((src) => collectImageInfo(src));
     });
   });
 
@@ -215,7 +213,10 @@ export function collectMedia(): MediaItem[] {
     const rawPoster = video.getAttribute('poster');
     const posterUrl = rawPoster ? resolveUrl(rawPoster) : undefined;
     const alt = video.getAttribute('aria-label') || video.getAttribute('title') || '';
-    collectAv(video.currentSrc || video.getAttribute('src') || '', 'video', undefined, alt, posterUrl);
+    collectAv(
+      video.currentSrc || video.getAttribute('src') || video.getAttribute('data-src') || '',
+      'video', undefined, alt, posterUrl,
+    );
     video.querySelectorAll('source').forEach((s) =>
       collectAv(s.getAttribute('src') || '', 'video', s.getAttribute('type') || undefined, alt, posterUrl),
     );
@@ -223,10 +224,24 @@ export function collectMedia(): MediaItem[] {
 
   document.querySelectorAll('audio').forEach((audio) => {
     const alt = audio.getAttribute('aria-label') || audio.getAttribute('title') || '';
-    collectAv(audio.currentSrc || audio.getAttribute('src') || '', 'audio', undefined, alt);
+    collectAv(
+      audio.currentSrc || audio.getAttribute('src') || audio.getAttribute('data-src') || '',
+      'audio', undefined, alt,
+    );
     audio.querySelectorAll('source').forEach((s) =>
       collectAv(s.getAttribute('src') || '', 'audio', s.getAttribute('type') || undefined, alt),
     );
+  });
+
+  // Gallery / lightbox links: full-res <a href> over a thumbnail <img>.
+  document.querySelectorAll('a').forEach((a) => {
+    const c = galleryLinkCandidate(a as HTMLAnchorElement);
+    if (c) collectImageInfo(c.url, '', 0, 0, c.thumbnailSrc);
+  });
+
+  // <noscript> fallbacks (real image often lives here for no-JS users).
+  document.querySelectorAll('noscript').forEach((ns) => {
+    noscriptImageCandidates(ns as HTMLElement).forEach((c) => collectImageInfo(c.url, '', 0, 0, c.thumbnailSrc));
   });
 
   return media;

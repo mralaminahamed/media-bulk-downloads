@@ -43,6 +43,89 @@ export function detectType(url: string): string {
   return 'unknown';
 }
 
+/** Known media CDN hostnames (used by looksLikeMediaUrl + the gallery-link rule). */
+const MEDIA_HOSTS = /(?:^|\.)(?:pbs\.twimg\.com|cdn\.shopify\.com|images\.unsplash\.com|i\.pinimg\.com|i\.ytimg\.com|img\.youtube\.com|i\.redd\.it|preview\.redd\.it|miro\.medium\.com|lh\d\.googleusercontent\.com|googleusercontent\.com|ggpht\.com|media-amazon\.com|ssl-images-amazon\.com|wp\.com|imgix\.net)$/i;
+
+const MEDIA_EXT = /\.(?:jpe?g|jfif|png|gif|webp|avif|bmp|ico|svg|mp4|m4v|webm|ogv|mov|mp3|wav|ogg|oga|m4a|aac|flac|opus)(?:$|[?#])/i;
+
+/** Audio/video format tokens not covered by normalizeFormat (which is image-only). */
+const AV_FORMATS = new Set([
+  'mp4', 'm4v', 'webm', 'ogv', 'ogg', 'mov', 'mp3', 'wav', 'oga', 'm4a', 'aac', 'flac', 'opus',
+]);
+
+/** Does this `format=`/`fm=` value name a known image or av/audio format? */
+function isKnownMediaFormat(raw: string): boolean {
+  if (normalizeFormat(raw) !== 'unknown') return true;
+  return AV_FORMATS.has(raw.toLowerCase());
+}
+
+/** Heuristic: does this URL point at a media file (by extension, host, or format param)? */
+export function looksLikeMediaUrl(url: string): boolean {
+  if (MEDIA_EXT.test(url)) return true;
+  try {
+    const u = new URL(url);
+    if (MEDIA_HOSTS.test(u.hostname)) return true;
+    const fmt = u.searchParams.get('format') ?? u.searchParams.get('fm');
+    if (fmt && isKnownMediaFormat(fmt)) return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+const PROXY_PARAMS = ['url', 'u', 'src', 'image', 'imgurl'];
+
+/**
+ * Unwraps an image hidden behind a proxy, at most once. Returns the absolute
+ * inner URL when it clearly points at media, else null (caller keeps the input).
+ */
+export function deproxy(url: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+
+  // Cloudinary fetch: /image/fetch/<transforms?>/<inner-url>
+  if (/\/image\/fetch\//.test(u.pathname)) {
+    const after = u.pathname.split('/image/fetch/')[1] ?? '';
+    const inner = after.replace(/^(?:[^/]*_[^/]*\/)+/, ''); // drop leading transform segments
+    const decoded = safeDecode(inner) + (u.search || '');
+    const abs = decoded.startsWith('http') ? decoded : null;
+    if (abs && looksLikeMediaUrl(abs)) return abs;
+  }
+
+  // weserv: host serves ?url=<host/path> (often without scheme)
+  if (/(?:^|\.)(?:images\.weserv\.nl|wsrv\.nl)$/i.test(u.hostname)) {
+    const raw = u.searchParams.get('url');
+    if (raw) {
+      const decoded = safeDecode(raw);
+      const abs = decoded.startsWith('http') ? decoded : `https://${decoded}`;
+      if (looksLikeMediaUrl(abs)) return abs;
+    }
+  }
+
+  // Next.js /_next/image and any generic ?url=/?src=/... param.
+  for (const key of PROXY_PARAMS) {
+    const raw = u.searchParams.get(key);
+    if (!raw) continue;
+    const decoded = safeDecode(raw);
+    const abs = decoded.startsWith('http') ? decoded : null;
+    if (abs && looksLikeMediaUrl(abs)) return abs;
+  }
+
+  return null;
+}
+
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
 /** A standalone `WxH` token, e.g. 360x480 — not part of a longer number run. */
 const WxH = /(?<![\d])(\d{2,5})x(\d{2,5})(?![\d])/i;
 
@@ -130,6 +213,41 @@ const RULES: CdnRule[] = [
       u.pathname = u.pathname.replace(/\/thumb\//, '/').replace(/\/[^/]*px-[^/]+$/i, '');
     },
   },
+  {
+    // Google usercontent / ggpht: normalize the trailing =size segment to full.
+    match: (u) => /(?:^|\.)googleusercontent\.com$|(?:^|\.)ggpht\.com$/i.test(u.hostname),
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/=(?:[swh]\d+|[a-z]\d+)(?:-[a-z0-9]+)*$/i, '=s0');
+    },
+  },
+  {
+    // Pinterest: /<NNNx>/ or /<NNNxNNN>/ size folder -> /originals/.
+    match: (u) => u.hostname === 'i.pinimg.com',
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/^\/\d+x(?:\d+)?\//, '/originals/');
+    },
+  },
+  {
+    // YouTube: any /vi/<id>/<name>.jpg -> maxresdefault.jpg.
+    match: (u) => u.hostname === 'i.ytimg.com' || u.hostname === 'img.youtube.com',
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/(\/vi\/[^/]+\/)[^/]+\.jpg$/i, '$1maxresdefault.jpg');
+    },
+  },
+  {
+    // Amazon: strip the ._SX300_SY300_. style encoding segment before the ext.
+    match: (u) => /(?:^|\.)(?:media-amazon\.com|ssl-images-amazon\.com)$/i.test(u.hostname),
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/\._[^.]*_(?=\.[a-z0-9]+$)/i, '');
+    },
+  },
+  {
+    // Medium: miro.medium.com/v2/resize:fit:NNN/format:webp/<id> -> /<id> (drop chained transforms).
+    match: (u) => u.hostname === 'miro.medium.com',
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/\/v2\/(?:(?:resize|fit|format|max|frame|crop)[^/]*\/)*/, '/');
+    },
+  },
 ];
 
 /**
@@ -139,17 +257,19 @@ const RULES: CdnRule[] = [
  * the filename is discarded. Never throws.
  */
 export function upgradeToOriginal(url: string): { original: string; thumbnail?: string } {
+  const unwrapped = deproxy(url);
+  const start = unwrapped ?? url;
+
   let parsed: URL;
   try {
-    parsed = new URL(url);
+    parsed = new URL(start);
   } catch {
     return { original: url };
   }
   const rule = RULES.find((r) => r.match(parsed));
-  if (!rule) return { original: url };
 
   const before = parsed.pathname;
-  rule.rewrite(parsed);
+  if (rule) rule.rewrite(parsed);
 
   // Guard: a rewrite must not destroy the filename or empty the path.
   const filename = parsed.pathname.split('/').pop() ?? '';

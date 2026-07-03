@@ -7,9 +7,10 @@
  * enabled stay lightweight.
  */
 
-import { SettingsData } from '@/types';
+import { SettingsData, DeepScanProgress } from '@/types';
 import { collectMedia } from './collect';
 import { withDefaults } from './shared/settings';
+import { startDeepScan } from './content/deepScanRunner';
 
 // Re-export the pure collection API (kept for tests and other importers).
 export * from './collect';
@@ -23,6 +24,30 @@ chrome.runtime.onMessage.addListener(
     // Synchronous response — no need to keep the channel open.
   },
 );
+
+// ── Deep scan lifecycle ─────────────────────────────────────────────────────
+let deepScanAbort: AbortController | null = null;
+
+chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
+  if (message === 'DEEP_SCAN') {
+    deepScanAbort?.abort();
+    deepScanAbort = new AbortController();
+    startDeepScan((found, scrolls, elapsedMs) => {
+      const p: DeepScanProgress = { type: 'DEEP_SCAN_PROGRESS', found, scrolls, elapsedMs };
+      chrome.runtime.sendMessage(p).catch(() => {
+        /* popup may be closed */
+      });
+    }, deepScanAbort.signal)
+      .then((media) => sendResponse(media))
+      .catch(() => sendResponse([]));
+    return true; // async response
+  }
+  if (message === 'DEEP_SCAN_ABORT') {
+    deepScanAbort?.abort();
+    sendResponse(true);
+    return; // sync
+  }
+});
 
 // ── On-page bubble lifecycle ────────────────────────────────────────────────
 let bubbleController: { unmount: () => void } | null = null;

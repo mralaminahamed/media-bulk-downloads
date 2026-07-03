@@ -33,7 +33,27 @@ export type GetImagesMessage = 'GET_IMAGES';
 /** Sent to the content script to toggle the on-page bubble open/closed. */
 export type ToggleBubbleMessage = 'TOGGLE_BUBBLE';
 
-export type ChromeMessage = DownloadMessage | GetImagesMessage | ToggleBubbleMessage;
+/** Sent to the content script to start a deep scan of the page. */
+export type DeepScanMessage = 'DEEP_SCAN';
+
+/** Sent to the content script to abort an in-progress deep scan. */
+export type DeepScanAbortMessage = 'DEEP_SCAN_ABORT';
+
+/** Broadcast by the content script while a deep scan is running. */
+export interface DeepScanProgress {
+  type: 'DEEP_SCAN_PROGRESS';
+  found: number;
+  scrolls: number;
+  elapsedMs: number;
+}
+
+export type ChromeMessage =
+  | DownloadMessage
+  | GetImagesMessage
+  | ToggleBubbleMessage
+  | DeepScanMessage
+  | DeepScanAbortMessage
+  | DeepScanProgress;
 
 export interface AppState {
   status: string;

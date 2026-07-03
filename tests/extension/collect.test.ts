@@ -71,3 +71,23 @@ describe('collectMedia — video & audio', () => {
     expect(collectMedia().some((m) => m.kind === 'video')).toBe(false);
   });
 });
+
+describe('collectMedia — deep extraction', () => {
+  beforeEach(() => { document.body.innerHTML = ''; });
+
+  it('collects a lazy data-src image', () => {
+    document.body.innerHTML = `<img src="placeholder.gif" data-src="https://cdn.com/real.jpg">`;
+    expect(collectMedia().some((m) => m.src === 'https://cdn.com/real.jpg')).toBe(true);
+  });
+
+  it('collects a gallery full-res link with the thumbnail attached', () => {
+    document.body.innerHTML = `<a href="https://cdn.com/full.jpg"><img src="https://cdn.com/thumb.jpg"></a>`;
+    const item = collectMedia().find((m) => m.src === 'https://cdn.com/full.jpg');
+    expect(item?.thumbnailSrc).toBe('https://cdn.com/thumb.jpg');
+  });
+
+  it('collects an image hidden in <noscript>', () => {
+    document.body.innerHTML = `<noscript>&lt;img src="https://cdn.com/ns.png"&gt;</noscript>`;
+    expect(collectMedia().some((m) => m.src === 'https://cdn.com/ns.png')).toBe(true);
+  });
+});

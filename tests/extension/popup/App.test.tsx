@@ -2,6 +2,18 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import App from '@/extension/popup/App';
 import { ImageInfo } from '@/types';
+import { deepScanActiveTab } from '@/extension/shared/deep-scan-active-tab';
+
+jest.mock('@/extension/shared/deep-scan-active-tab', () => ({
+  deepScanActiveTab: jest.fn(async (onProgress) => {
+    onProgress({ type: 'DEEP_SCAN_PROGRESS', found: 2, scrolls: 1, elapsedMs: 100 });
+    return [
+      { src: 'https://cdn.com/a.jpg', alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' },
+      { src: 'https://cdn.com/deep.jpg', alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' },
+    ];
+  }),
+  abortDeepScanActiveTab: jest.fn(),
+}));
 
 const image = (over: Partial<ImageInfo>): ImageInfo => ({
   src: 'test.jpg', alt: 'Test', width: 100, height: 100, type: 'jpeg', fileSize: 1024, isBase64: false, kind: 'image', ...over,
@@ -104,5 +116,54 @@ describe('App Component', () => {
     expect(chrome.storage.sync.set).toHaveBeenCalledWith({
       settings: expect.objectContaining({ showImageCount: false }),
     });
+  });
+
+  it('runs deep scan and merges new media into the list', async () => {
+    const { container } = render(<App collect={async () => [image({ src: 'https://cdn.com/a.jpg' })]} />);
+    await screen.findByText('Filters');
+    const headerCount = () => container.querySelector('header .num')?.textContent;
+    expect(headerCount()).toBe('1');
+
+    fireEvent.click(screen.getByRole('button', { name: /deep scan/i }));
+
+    await waitFor(() => expect(headerCount()).toBe('2'));
+    expect(deepScanActiveTab).toHaveBeenCalled();
+  });
+
+  it('does not lose settings-filtered images from the raw set during a deep scan', async () => {
+    const { container } = render(
+      <App
+        collect={async () => [
+          image({ src: 'small.jpg', width: 50, height: 50 }),
+          image({ src: 'big.jpg', width: 300, height: 300 }),
+        ]}
+      />,
+    );
+    await screen.findByText('Filters');
+    const headerCount = () => container.querySelector('header .num')?.textContent;
+
+    // Both images are eligible under the default (0) minimum size.
+    await waitFor(() => expect(headerCount()).toBe('2'));
+
+    // Raise the minimum size via Settings so the small image is excluded from
+    // the visible/eligible list, even though it's still collected.
+    fireEvent.click(screen.getByTitle('Settings'));
+    fireEvent.change(screen.getByLabelText(/minimum image size/i), { target: { value: '200' } });
+    fireEvent.click(screen.getByText('Save'));
+    await waitFor(() => expect(headerCount()).toBe('1'));
+
+    fireEvent.click(screen.getByRole('button', { name: /deep scan/i }));
+    // Deep scan mock adds two new items, both with unknown (0x0) dimensions,
+    // which always pass the size filter regardless of minimumImageSize.
+    await waitFor(() => expect(headerCount()).toBe('3'));
+
+    // Relax the settings again so the previously-filtered small image should
+    // reappear — this only happens if it survived in rawImagesRef.current
+    // through the deep-scan merge instead of being silently dropped.
+    fireEvent.click(screen.getByTitle('Settings'));
+    fireEvent.change(screen.getByLabelText(/minimum image size/i), { target: { value: '0' } });
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() => expect(headerCount()).toBe('4'));
   });
 });
