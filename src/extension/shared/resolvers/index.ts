@@ -1,7 +1,8 @@
 import { MediaCandidate, Resolver, ResolveContext } from './types';
 import { genericResolver } from './generic';
+import { twitterResolver } from './twitter';
 
-export const REGISTRY: Resolver[] = [genericResolver];
+export const REGISTRY: Resolver[] = [twitterResolver, genericResolver];
 
 export function resolve(rawUrl: string, ctx: ResolveContext): MediaCandidate[] {
   let u: URL;
