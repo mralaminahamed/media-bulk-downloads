@@ -155,10 +155,10 @@ const App: React.FC<AppProps> = ({
       if (settings.resolveOriginals) {
         void enrichOriginals(eligible);
       } else {
-        // Strip unresolved (poster-only) videos so nothing undownloadable shows.
+        // Strip unresolved (poster-only) videos from the DISPLAY only; keep them
+        // in rawImagesRef so toggling the setting on later can still resolve them.
         const pruned = eligible.filter((i) => !i.unresolvedVideo);
         if (pruned.length !== eligible.length) {
-          rawImagesRef.current = pruned;
           setState((prev) => ({ ...prev, images: pruned, filteredImages: pruned }));
         }
       }
@@ -174,14 +174,22 @@ const App: React.FC<AppProps> = ({
   }, [collect, settings, enrichImageSizes, enrichOriginals]);
 
   // Re-derive the eligible base list when the settings that affect it change.
+  // Also applies opt-in resolution when it loads/changes (settings load async on
+  // mount, so the first scan runs before a persisted resolveOriginals is known).
   useEffect(() => {
     if (rawImagesRef.current.length === 0) return;
     const eligible = filterImagesBySettings(rawImagesRef.current, settings);
-    setState((prev) => ({ ...prev, images: eligible, filteredImages: eligible }));
-    void enrichImageSizes(eligible);
-    // Intentionally keyed on the two settings fields that affect eligibility.
+    if (settings.resolveOriginals) {
+      setState((prev) => ({ ...prev, images: eligible, filteredImages: eligible }));
+      void enrichOriginals(eligible);
+    } else {
+      const pruned = eligible.filter((i) => !i.unresolvedVideo);
+      setState((prev) => ({ ...prev, images: pruned, filteredImages: pruned }));
+    }
+    void enrichImageSizes(eligible.filter((i) => !i.unresolvedVideo));
+    // Keyed on the settings fields that affect eligibility + resolution.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.minimumImageSize, settings.excludeBase64Images, enrichImageSizes]);
+  }, [settings.minimumImageSize, settings.excludeBase64Images, settings.resolveOriginals, enrichImageSizes, enrichOriginals]);
 
   const handleDeepScan = async () => {
     if (deepScanning) {
