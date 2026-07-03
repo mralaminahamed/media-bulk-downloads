@@ -1,24 +1,27 @@
 {
-  "name": "@mralaminahamed/image-bulk-downloads",
+  "name": "@mralaminahamed/media-bulk-downloads",
   "private": true,
   "version": "1.0.0",
-  "description": "Chrome (Manifest V3) extension to collect and bulk-download every image on a web page — including srcset, <picture>, and CSS background images.",
+  "description": "Chrome (Manifest V3) extension to collect and bulk-download media from any web page — images (including srcset, <picture>, and CSS backgrounds) plus direct-file video and audio.",
   "type": "module",
   "license": "MIT",
   "author": "Al Amin Ahamed <mrabir.ahamed@gmail.com>",
-  "homepage": "https://github.com/mralaminahamed/image-bulk-downloads#readme",
+  "homepage": "https://github.com/mralaminahamed/media-bulk-downloads#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mralaminahamed/image-bulk-downloads.git"
+    "url": "git+https://github.com/mralaminahamed/media-bulk-downloads.git"
   },
   "bugs": {
-    "url": "https://github.com/mralaminahamed/image-bulk-downloads/issues"
+    "url": "https://github.com/mralaminahamed/media-bulk-downloads/issues"
   },
   "keywords": [
     "chrome-extension",
     "browser-extension",
     "manifest-v3",
+    "media-downloader",
     "image-downloader",
+    "video-downloader",
+    "audio-downloader",
     "bulk-download",
     "react",
     "vite"
