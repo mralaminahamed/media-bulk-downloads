@@ -4,7 +4,7 @@ import App from '@/extension/popup/App';
 import { ImageInfo } from '@/types';
 
 const image = (over: Partial<ImageInfo>): ImageInfo => ({
-  src: 'test.jpg', alt: 'Test', width: 100, height: 100, type: 'jpeg', fileSize: 1024, isBase64: false, ...over,
+  src: 'test.jpg', alt: 'Test', width: 100, height: 100, type: 'jpeg', fileSize: 1024, isBase64: false, kind: 'image', ...over,
 });
 
 describe('App Component', () => {

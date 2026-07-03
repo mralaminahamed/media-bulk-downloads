@@ -7,7 +7,7 @@ import '@/extension/background';
 import { ImageInfo, SettingsData } from '@/types';
 
 const img = (over: Partial<ImageInfo>): ImageInfo => ({
-  src: 'x.jpg', alt: '', width: 100, height: 100, type: 'jpeg', fileSize: 0, isBase64: false, ...over,
+  src: 'x.jpg', alt: '', width: 100, height: 100, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image', ...over,
 });
 
 const onMessage = (chrome.runtime.onMessage.addListener as jest.Mock).mock.calls[0][0];

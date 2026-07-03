@@ -5,8 +5,8 @@ import ImageList, { formatFileSize } from '@/extension/popup/components/ImageLis
 import { ImageInfo } from '@/types';
 
 const mockImages: ImageInfo[] = [
-  { src: 'test1.jpg', alt: 'Test Image 1', width: 100, height: 100, type: 'jpeg', fileSize: 1024, isBase64: false },
-  { src: 'test2.png', alt: 'Test Image 2', width: 200, height: 200, type: 'png', fileSize: 2048, isBase64: false },
+  { src: 'test1.jpg', alt: 'Test Image 1', width: 100, height: 100, type: 'jpeg', fileSize: 1024, isBase64: false, kind: 'image' },
+  { src: 'test2.png', alt: 'Test Image 2', width: 200, height: 200, type: 'png', fileSize: 2048, isBase64: false, kind: 'image' },
 ];
 
 describe('ImageList Component', () => {

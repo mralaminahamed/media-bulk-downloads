@@ -7,6 +7,7 @@ interface FilterToolbarProps {
 }
 
 const DEFAULT_FILTERS: FilterOptions = {
+  mediaKind: 'all',
   imageType: 'all',
   minSize: 0,
   includeBase64: true,

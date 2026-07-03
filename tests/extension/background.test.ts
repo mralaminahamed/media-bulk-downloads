@@ -68,7 +68,7 @@ describe('Background Script', () => {
   describe('buildDownloadFilename', () => {
     const settings: SettingsData = { ...DEFAULT_SETTINGS };
     const img = (over: Partial<ImageInfo>): ImageInfo => ({
-      src: 'x.jpg', alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, ...over,
+      src: 'x.jpg', alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image', ...over,
     });
 
     it('builds a prefixed, 1-indexed filename', () => {
@@ -123,8 +123,8 @@ describe('Background Script', () => {
     it('updates badge with the eligible image count', () => {
       const tabId = 1;
       const images: ImageInfo[] = [
-        { src: 'a.jpg', width: 100, height: 100, alt: 'a', type: 'jpeg', fileSize: 0, isBase64: false },
-        { src: 'b.jpg', width: 100, height: 100, alt: 'b', type: 'jpeg', fileSize: 0, isBase64: false },
+        { src: 'a.jpg', width: 100, height: 100, alt: 'a', type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' },
+        { src: 'b.jpg', width: 100, height: 100, alt: 'b', type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' },
       ];
       mockChrome.tabs.sendMessage.mockImplementation((_id: number, _msg: string, cb: any) => cb(images));
 

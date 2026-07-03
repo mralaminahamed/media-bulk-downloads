@@ -36,3 +36,11 @@ describe('collectImages — original upgrade', () => {
     expect(shop!.height).toBe(600);
   });
 });
+
+describe('collectImages — kind', () => {
+  it('tags <img> items as image kind', () => {
+    document.body.innerHTML = `<img src="https://ex.com/a.png">`;
+    const [item] = collectImages();
+    expect(item.kind).toBe('image');
+  });
+});

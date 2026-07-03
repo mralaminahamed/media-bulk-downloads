@@ -114,6 +114,7 @@ export function collectImages(): ImageInfo[] {
         type: getBase64ImageType(resolved),
         fileSize: getBase64ImageSize(resolved),
         isBase64: true,
+        kind: 'image',
       });
       return;
     }
@@ -145,6 +146,7 @@ export function collectImages(): ImageInfo[] {
       type: detectType(original),
       fileSize: 0, // remote size unknown at collection time
       isBase64: false,
+      kind: 'image',
     };
     if (thumbnail) info.thumbnailSrc = thumbnail;
     images.push(info);
