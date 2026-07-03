@@ -141,7 +141,12 @@ UI supports both.
 
 ## 6. Privacy & data disclosures (Privacy tab)
 
-**Privacy policy URL:** publish `PRIVACY.md` and paste its public URL here.
+**Privacy policy URL:**
+```
+https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md
+```
+(The repository is public, so this resolves for reviewers. Keep it current by
+editing `PRIVACY.md` on `main`.)
 
 **Single purpose:** as in §3.
 
