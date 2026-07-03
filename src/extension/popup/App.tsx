@@ -7,6 +7,7 @@ import { filterImagesBySettings, applyToolbarFilters } from '../shared/filters';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/settings';
 import { collectFromActiveTab } from '../shared/collect-active-tab';
 import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/deep-scan-active-tab';
+import { requestResolveOriginals } from '../shared/resolve-originals-active';
 import { getImageFileSize, mapWithConcurrency } from './utils';
 import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
@@ -62,6 +63,8 @@ const App: React.FC<AppProps> = ({
   const rawImagesRef = useRef<ImageInfo[]>([]);
   // Generation guard so a newer refresh cancels stale size-enrichment writes.
   const enrichGenRef = useRef(0);
+  // Generation guard so a newer refresh/rescan cancels stale resolution writes.
+  const resolveGenRef = useRef(0);
 
   useEffect(() => {
     loadSettings();
@@ -107,8 +110,32 @@ const App: React.FC<AppProps> = ({
     });
   }, []);
 
+  /**
+   * Opt-in resolution: exchanges poster-only Twitter-video items for their
+   * real playable URL via the background. Runs only when the user has
+   * enabled `resolveOriginals`; unresolved items are dropped afterward so
+   * nothing undownloadable lingers in the list.
+   */
+  const enrichOriginals = useCallback(async (images: ImageInfo[]): Promise<void> => {
+    const generation = ++resolveGenRef.current;
+    const targets = images.filter((i) => i.resolveHint).map((i) => ({ src: i.src, hint: i.resolveHint! }));
+    if (!targets.length) return;
+    const resolved = await requestResolveOriginals(targets);
+    if (generation !== resolveGenRef.current) return;
+    const apply = (list: ImageInfo[]) =>
+      list
+        .map((i) =>
+          i.resolveHint && resolved[i.src]
+            ? { ...i, src: resolved[i.src], unresolvedVideo: false, resolveHint: undefined }
+            : i,
+        )
+        .filter((i) => !i.unresolvedVideo); // drop still-unresolved videos
+    setState((prev) => ({ ...prev, images: apply(prev.images), filteredImages: apply(prev.filteredImages) }));
+  }, []);
+
   const fetchImages = useCallback(async (): Promise<void> => {
     enrichGenRef.current++; // cancel any in-flight enrichment
+    resolveGenRef.current++; // cancel any in-flight resolution
     setState((prev) => ({ ...prev, isLoading: true, status: '' }));
 
     try {
@@ -125,7 +152,17 @@ const App: React.FC<AppProps> = ({
         isLoading: false,
       }));
 
-      void enrichImageSizes(eligible);
+      if (settings.resolveOriginals) {
+        void enrichOriginals(eligible);
+      } else {
+        // Strip unresolved (poster-only) videos so nothing undownloadable shows.
+        const pruned = eligible.filter((i) => !i.unresolvedVideo);
+        if (pruned.length !== eligible.length) {
+          rawImagesRef.current = pruned;
+          setState((prev) => ({ ...prev, images: pruned, filteredImages: pruned }));
+        }
+      }
+      void enrichImageSizes(eligible.filter((i) => !i.unresolvedVideo));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'unknown error';
       setState((prev) => ({
@@ -134,7 +171,7 @@ const App: React.FC<AppProps> = ({
         isLoading: false,
       }));
     }
-  }, [collect, settings, enrichImageSizes]);
+  }, [collect, settings, enrichImageSizes, enrichOriginals]);
 
   // Re-derive the eligible base list when the settings that affect it change.
   useEffect(() => {

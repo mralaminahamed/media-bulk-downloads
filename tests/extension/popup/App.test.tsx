@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import App from '@/extension/popup/App';
 import { ImageInfo } from '@/types';
 import { deepScanActiveTab } from '@/extension/shared/deep-scan-active-tab';
+import { requestResolveOriginals } from '@/extension/shared/resolve-originals-active';
 
 jest.mock('@/extension/shared/deep-scan-active-tab', () => ({
   deepScanActiveTab: jest.fn(async (onProgress) => {
@@ -13,6 +14,10 @@ jest.mock('@/extension/shared/deep-scan-active-tab', () => ({
     ];
   }),
   abortDeepScanActiveTab: jest.fn(),
+}));
+
+jest.mock('@/extension/shared/resolve-originals-active', () => ({
+  requestResolveOriginals: jest.fn(async () => ({ 'poster.jpg': 'https://video.twimg.com/hi.mp4' })),
 }));
 
 const image = (over: Partial<ImageInfo>): ImageInfo => ({
@@ -165,5 +170,57 @@ describe('App Component', () => {
     fireEvent.click(screen.getByText('Save'));
 
     await waitFor(() => expect(headerCount()).toBe('4'));
+  });
+
+  it('drops unresolved Twitter videos when resolveOriginals is off', async () => {
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: false } }));
+
+    const { container } = render(
+      <App
+        collect={async () => [
+          image({ src: 'poster.jpg', kind: 'video', unresolvedVideo: true, resolveHint: { platform: 'twitter', id: '1' } }),
+          image({ src: 'normal.jpg' }),
+        ]}
+      />,
+    );
+    await screen.findByText('Filters');
+    const headerCount = () => container.querySelector('header .num')?.textContent;
+
+    // Only the normal image survives — the unresolved video is dropped.
+    await waitFor(() => expect(headerCount()).toBe('1'));
+    expect(requestResolveOriginals).not.toHaveBeenCalled();
+  });
+
+  it('resolves and updates src when resolveOriginals is on', async () => {
+    // Settings load from chrome.storage asynchronously relative to the very
+    // first scan (which always fires with the component's initial settings),
+    // so the setting only takes effect starting with the next scan — trigger
+    // a rescan (as a real user would after changing this option) to exercise
+    // the gate with the loaded `resolveOriginals: true`.
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: true } }));
+
+    const { container } = render(
+      <App
+        collect={async () => [
+          image({ src: 'poster.jpg', kind: 'video', unresolvedVideo: true, resolveHint: { platform: 'twitter', id: '1' } }),
+        ]}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTitle('Rescan page')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTitle('Rescan page'));
+
+    await screen.findByText('Filters');
+    const headerCount = () => container.querySelector('header .num')?.textContent;
+
+    await waitFor(() => expect(requestResolveOriginals).toHaveBeenCalled());
+    // The item survives (still 1) once resolved, rather than being dropped.
+    await waitFor(() => expect(headerCount()).toBe('1'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'View Details' }));
+    await waitFor(() => {
+      const video = container.querySelector('video');
+      expect(video?.getAttribute('src')).toBe('https://video.twimg.com/hi.mp4');
+    });
   });
 });
