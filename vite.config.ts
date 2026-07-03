@@ -1,16 +1,19 @@
 // External dependencies
+import path from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { crx } from '@crxjs/vite-plugin'
-import path from 'path'
+import zip from 'vite-plugin-zip-pack'
 
 // Typed manifest source (emits dist/manifest.json via crxjs)
 import manifest from './manifest.config'
+import { version } from './package.json'
 
 export default defineConfig({
   plugins: [
     react(),
     crx({ manifest }),
+    zip({ inDir: 'dist', outDir: 'release', outFileName: `media-bulk-downloads-${version}.zip` }),
   ],
   resolve: {
     alias: {
