@@ -8,6 +8,7 @@ import { DEFAULT_SETTINGS, withDefaults } from '../shared/settings';
 import { collectFromActiveTab } from '../shared/collect-active-tab';
 import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/deep-scan-active-tab';
 import { requestResolveOriginals } from '../shared/resolve-originals-active';
+import { downloadedSrcSet, HISTORY_KEY } from '../shared/history';
 import { getImageFileSize, mapWithConcurrency } from './utils';
 import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
@@ -58,6 +59,7 @@ const App: React.FC<AppProps> = ({
   const [settings, setSettings] = useState<SettingsData>(DEFAULT_SETTINGS);
   const [deepScanning, setDeepScanning] = useState(false);
   const [deepProgress, setDeepProgress] = useState<DeepScanProgress | null>(null);
+  const [downloadedSrcs, setDownloadedSrcs] = useState<Set<string>>(new Set());
 
   // All images collected from the page, before any settings/toolbar filtering.
   const rawImagesRef = useRef<ImageInfo[]>([]);
@@ -83,6 +85,18 @@ const App: React.FC<AppProps> = ({
       void fetchImages();
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    void downloadedSrcSet().then(setDownloadedSrcs);
+    const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+      if (area === 'local' && changes[HISTORY_KEY]) {
+        const next = (changes[HISTORY_KEY].newValue as { src: string }[] | undefined) ?? [];
+        setDownloadedSrcs(new Set(next.map((e) => e.src)));
+      }
+    };
+    chrome.storage.onChanged.addListener(onChanged);
+    return () => chrome.storage.onChanged.removeListener(onChanged);
   }, []);
 
   useEffect(() => {
@@ -223,14 +237,21 @@ const App: React.FC<AppProps> = ({
     setState((prev) => ({ ...prev, filteredImages, status: '' }));
   };
 
-  const handleDownload = (images: ImageInfo | ImageInfo[]): void => {
+  const currentSourcePage = async (): Promise<{ url: string; title?: string }> => {
+    if (surface === 'bubble') return { url: location.href, title: document.title };
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    return { url: tab?.url ?? '', title: tab?.title };
+  };
+
+  const handleDownload = async (images: ImageInfo | ImageInfo[]): Promise<void> => {
     const imagesToDownload = Array.isArray(images) ? images : [images];
     setState((prev) => ({
       ...prev,
       status: `Sending ${imagesToDownload.length} file${imagesToDownload.length === 1 ? '' : 's'} to downloads…`,
     }));
 
-    const message: DownloadMessage = { type: 'DOWNLOAD_IMAGES', images: imagesToDownload };
+    const sourcePage = await currentSourcePage();
+    const message: DownloadMessage = { type: 'DOWNLOAD_IMAGES', images: imagesToDownload, sourcePage };
     chrome.runtime.sendMessage(message, (response: DownloadResponse) => {
       // chrome.runtime.lastError is only valid during this callback — capture it
       // now, not later inside the (deferred) setState updater.
@@ -242,10 +263,10 @@ const App: React.FC<AppProps> = ({
 
   const handleBulkDownload = (): void => {
     const imagesToDownload = state.filteredImages.length > 0 ? state.filteredImages : state.images;
-    handleDownload(imagesToDownload);
+    void handleDownload(imagesToDownload);
   };
 
-  const handleSingleImageDownload = (image: ImageInfo): void => handleDownload(image);
+  const handleSingleImageDownload = (image: ImageInfo): void => void handleDownload(image);
 
   // Single source of truth for persistence: the popup owns writing settings.
   const handleSettingsChange = (newSettings: SettingsData) => {
@@ -331,6 +352,7 @@ const App: React.FC<AppProps> = ({
             onImageDownload={handleSingleImageDownload}
             thumbnailSize={settings.thumbnailSize}
             previewSize={settings.previewSize}
+            downloadedSrcs={downloadedSrcs}
           />
         )}
       </main>
