@@ -36,14 +36,13 @@ Each row was produced by injecting the real collector into the live page.
 | Allbirds (Shopify) | `/collections/mens` | 79 | 79 | 0 | **75** | 74 | 0 | www.allbirds.com/cdn/shop |
 | Reddit | `old.reddit.com/r/pics` | 50 | 50 | 0 | 20 | 26 | 0 | i.redd.it, preview.redd.it |
 | Wallhaven | `/latest` | 90 | 90 | 0 | *DOM-badge* | 89 | * | th.wallhaven.cc |
-| X / Twitter | `@g0kguma/media` | 19 | 19 | 0 | 14 | 14 | 0 | pbs.twimg.com/media |
-| X / Twitter | `@Rampage0690/media` | 65 | 60 | **5** | 46 | — | 5 | pbs.twimg.com + video posters |
-| X / Twitter | `@MiaBestxx/media` | — | — | ✓ | — | — | ✓ | video flicker (fixed) |
+| X / Twitter | `@NASA/media` | 42 | 40 | **2** | 38 | 36 | 2 | pbs.twimg.com + video posters |
+| X / Twitter | `@NatGeo/media` | 38 | 35 | **3** | 33 | 30 | 3 | pbs.twimg.com + video posters |
 
 Notes: **X `/media` grid** — each photo is a separate `<img>`, all upgraded to
-`name=orig`; on `@g0kguma` collection matched the DOM **14/14 with 0 duplicates**.
+`name=orig`; on `@NASA` collection matched the DOM **38/40 with 0 duplicates**.
 Videos on the grid render as poster `<img>`s (no `<video>`), now recognized and
-tagged for opt-in mp4 resolution (`@Rampage0690`: **0 → 5** video items). Wallhaven
+tagged for opt-in mp4 resolution (`@NatGeo`: **0 → 3** video items). Wallhaven
 upgrades depend on a DOM extension badge/`<img>` (see §C-3).
 
 ## B. What the engine got right (confirmed live)
@@ -58,7 +57,7 @@ upgrades depend on a DOM extension badge/`<img>` (see §C-3).
   (Allbirds 0 → 75).
 - **Gallery `<a href>`** — Reddit post links surfaced the direct `i.redd.it`
   original with the preview kept as the thumbnail.
-- **Twitter** — multi-image tweets upgrade every photo to `name=orig` (14/14, no
+- **Twitter** — multi-image tweets upgrade every photo to `name=orig` (38/40, no
   dupes); grid video posters map to `statusId`-hinted pending videos.
 - **Signed-host posture** — `preview.redd.it` collected **byte-identical** (never
   query-stripped; stripping would 403).
@@ -142,7 +141,7 @@ Resolved (this benchmark drove the fixes):
 - ✅ **Wallhaven** — DOM-badge/`<img>` resolver shipped (full-file ext, never a
   blind `.jpg`); bare thumbs are Phase-2 (API/probe).
 - ✅ **Twitter video** — grid poster `<img>`s (no `<video>`) now recognized →
-  statusId-hinted pending videos (`@Rampage0690` 0 → 5); pending videos no longer
+  statusId-hinted pending videos (`@NatGeo` 0 → 3); pending videos no longer
   flicker in and vanish.
 
 Open (candidates for new rules — all “collected but not upgraded”):
