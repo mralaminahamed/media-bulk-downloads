@@ -1,4 +1,10 @@
-import { detectType, parseUrlDimensions, upgradeToOriginal } from '@/extension/shared/imageUrl';
+import {
+  deproxy,
+  detectType,
+  looksLikeMediaUrl,
+  parseUrlDimensions,
+  upgradeToOriginal,
+} from '@/extension/shared/imageUrl';
 
 describe('detectType', () => {
   it('reads a plain extension', () => {
@@ -122,5 +128,36 @@ describe('upgradeToOriginal', () => {
     const r = upgradeToOriginal(input);
     expect(r.original).toBe(input);
     expect(r.thumbnail).toBeUndefined();
+  });
+});
+
+describe('looksLikeMediaUrl', () => {
+  it('accepts media extensions, CDN hosts, and format params', () => {
+    expect(looksLikeMediaUrl('https://x.com/a.jpg')).toBe(true);
+    expect(looksLikeMediaUrl('https://x.com/a.mp4?t=1')).toBe(true);
+    expect(looksLikeMediaUrl('https://pbs.twimg.com/media/AbC?format=jpg&name=small')).toBe(true);
+    expect(looksLikeMediaUrl('https://x.com/article/hello')).toBe(false);
+  });
+});
+
+describe('deproxy', () => {
+  it('unwraps a Next.js image URL', () => {
+    const u = 'https://site.com/_next/image?url=' + encodeURIComponent('https://cdn.com/a.jpg') + '&w=640&q=75';
+    expect(deproxy(u)).toBe('https://cdn.com/a.jpg');
+  });
+  it('unwraps weserv and generic ?url=', () => {
+    expect(deproxy('https://images.weserv.nl/?url=cdn.com%2Fb.png')).toBe('https://cdn.com/b.png');
+    expect(deproxy('https://p.com/proxy?src=' + encodeURIComponent('https://cdn.com/c.webp'))).toBe('https://cdn.com/c.webp');
+  });
+  it('unwraps a Cloudinary fetch URL', () => {
+    expect(deproxy('https://res.cloudinary.com/demo/image/fetch/w_200/https://cdn.com/d.jpg')).toBe('https://cdn.com/d.jpg');
+  });
+  it('returns null when the wrapped value is not media', () => {
+    expect(deproxy('https://site.com/page?url=' + encodeURIComponent('https://cdn.com/article'))).toBeNull();
+    expect(deproxy('https://cdn.com/plain.jpg')).toBeNull();
+  });
+  it('upgradeToOriginal de-proxies then keeps the wrapper as thumbnail', () => {
+    const u = 'https://site.com/_next/image?url=' + encodeURIComponent('https://cdn.com/a.jpg') + '&w=64';
+    expect(upgradeToOriginal(u)).toEqual({ original: 'https://cdn.com/a.jpg', thumbnail: u });
   });
 });
