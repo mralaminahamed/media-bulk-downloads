@@ -8,7 +8,7 @@
  */
 
 import { SettingsData } from '@/types';
-import { collectImages } from './collect';
+import { collectMedia } from './collect';
 import { withDefaults } from './shared/settings';
 
 // Re-export the pure collection API (kept for tests and other importers).
@@ -16,9 +16,9 @@ export * from './collect';
 
 // Answer image-collection requests from the popup and background worker.
 chrome.runtime.onMessage.addListener(
-  (message: unknown, _sender, sendResponse: (response: ReturnType<typeof collectImages>) => void) => {
+  (message: unknown, _sender, sendResponse: (response: ReturnType<typeof collectMedia>) => void) => {
     if (message === 'GET_IMAGES') {
-      sendResponse(collectImages());
+      sendResponse(collectMedia());
     }
     // Synchronous response — no need to keep the channel open.
   },

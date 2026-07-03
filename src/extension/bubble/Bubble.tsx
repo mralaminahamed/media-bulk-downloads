@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BubbleCorner, BubblePanelPlacement, ImageInfo, SettingsData } from '@/types';
 import { withDefaults } from '../shared/settings';
-import { collectImages } from '../collect';
+import { collectMedia } from '../collect';
 import App from '../popup/App';
 
 interface BubbleProps {
@@ -111,7 +111,7 @@ function panelPlacementStyle(
   return { ...anchorStyle(placement, PANEL_MARGIN, PANEL_MARGIN), width, height };
 }
 
-const collectLocal = (): Promise<ImageInfo[]> => Promise.resolve(collectImages());
+const collectLocal = (): Promise<ImageInfo[]> => Promise.resolve(collectMedia());
 
 const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
   const [open, setOpen] = useState(false);
