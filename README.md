@@ -41,7 +41,9 @@ Full walkthrough → [Getting Started](./docs/guides/getting-started.md).
 | [In-page Bubble](./docs/guides/bubble.md) | The Shadow-DOM launcher lifecycle |
 
 All guides use Mermaid diagrams that render inline on GitHub. Index:
-[docs/guides](./docs/guides/README.md).
+[docs/guides](./docs/guides/README.md). A live functional benchmark of the
+collection engine against top sites is in
+[docs/BENCHMARK.md](./docs/BENCHMARK.md).
 
 ## Stack
 
