@@ -7,6 +7,7 @@ export interface MediaCandidate {
   thumbnailSrc?: string;
   poster?: string;
   resolveHint?: ResolveHint;
+  unresolvedVideo?: boolean;
 }
 
 export interface ResolveContext {

@@ -55,3 +55,19 @@ export function twitterGifCandidate(videoEl: Element): MediaCandidate | null {
   if (!m) return null;
   return { url: `https://video.twimg.com/tweet_video/${m[1]}.mp4`, kind: 'gif', ext: 'mp4', poster };
 }
+
+/** A Twitter REAL video (<video> with an ext_tw_video_thumb/amplify_video_thumb
+ *  poster) → a pending item carrying the tweet statusId for opt-in network resolve.
+ *  Returns null for GIFs (handled by twitterGifCandidate) or when no statusId is found. */
+export function twitterVideoPending(videoEl: Element): MediaCandidate | null {
+  const poster = videoEl.getAttribute('poster') || '';
+  if (!/pbs\.twimg\.com\/(?:ext_tw_video_thumb|amplify_video_thumb)\//.test(poster)) return null;
+  const link = videoEl.closest?.('article')?.querySelector?.('a[href*="/status/"]')
+    || videoEl.closest?.('a[href*="/status/"]');
+  const id = link?.getAttribute('href')?.match(/\/status\/(\d+)/)?.[1];
+  if (!id) return null;
+  return {
+    url: poster, kind: 'video', ext: 'mp4', poster,
+    resolveHint: { platform: 'twitter', id }, unresolvedVideo: true,
+  };
+}

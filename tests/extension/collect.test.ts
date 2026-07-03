@@ -117,4 +117,12 @@ describe('collectMedia — native resolvers', () => {
     const gif = collectMedia().find((m) => m.src === 'https://video.twimg.com/tweet_video/XYZ.mp4');
     expect(gif).toMatchObject({ kind: 'video', type: 'mp4' });
   });
+
+  it('emits an unresolved pending video for a Twitter real video', () => {
+    document.body.innerHTML =
+      `<article><a href="/u/status/123"></a>
+       <video poster="https://pbs.twimg.com/amplify_video_thumb/9/img/y.jpg" src="blob:https://x.com/b"></video></article>`;
+    const v = collectMedia().find((m) => m.resolveHint?.platform === 'twitter');
+    expect(v).toMatchObject({ kind: 'video', unresolvedVideo: true, resolveHint: { platform: 'twitter', id: '123' } });
+  });
 });
