@@ -2,7 +2,13 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import Bubble from '@/extension/bubble/Bubble';
+import { startDeepScan } from '@/extension/content/deepScanRunner';
 import { SettingsData } from '@/types';
+
+// Never-resolving deep scan so we can observe its abort signal on panel close.
+jest.mock('@/extension/content/deepScanRunner', () => ({
+  startDeepScan: jest.fn(() => new Promise(() => {})),
+}));
 
 const settings: SettingsData = {
   downloadPath: '',
@@ -214,5 +220,34 @@ describe('Bubble', () => {
     await waitFor(() =>
       expect(screen.queryByRole('heading', { name: 'Media Bulk Downloads' })).not.toBeInTheDocument(),
     );
+  });
+
+  it('Escape closes an open sub-dialog, keeping the panel open', async () => {
+    render(<Bubble initialSettings={settings} />);
+    dispatchToggle();
+    await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    await screen.findByRole('dialog', { name: 'Settings' });
+
+    // Dispatch on document so both the panel's window-capture handler and the
+    // sub-dialog's document handler see it (as in a real bubbling keydown).
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Settings' })).not.toBeInTheDocument());
+    expect(screen.getByRole('heading', { name: 'Media Bulk Downloads' })).toBeInTheDocument();
+  });
+
+  it('aborts a running deep scan when the panel closes', async () => {
+    render(<Bubble initialSettings={settings} />);
+    dispatchToggle();
+    await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Deep scan' }));
+    const signal = (startDeepScan as jest.Mock).mock.calls[0][1] as AbortSignal;
+    expect(signal.aborted).toBe(false);
+
+    dispatchToggle(); // close the panel
+    await waitFor(() => expect(signal.aborted).toBe(true));
   });
 });
