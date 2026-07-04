@@ -305,6 +305,16 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
   return (
     <>
       {open && (
+        // Dim the page behind the panel so it reads on light pages (e.g. X)
+        // instead of blending in. Visual only — pointer-events: none keeps the
+        // page fully interactive; the panel (higher z-index) sits above the dim.
+        <div
+          className="ibd-app ibd-bubble-scrim overlay-in"
+          aria-hidden="true"
+          style={{ position: 'fixed', inset: 0, zIndex: 2147483646, background: 'var(--overlay)', pointerEvents: 'none' }}
+        />
+      )}
+      {open && (
         <div
           ref={panelRef}
           className="ibd-app sheet-in overflow-hidden rounded-[14px] border hairline bg-[var(--paper)] shadow-2xl"

@@ -250,4 +250,18 @@ describe('Bubble', () => {
     dispatchToggle(); // close the panel
     await waitFor(() => expect(signal.aborted).toBe(true));
   });
+
+  it('dims the page behind the panel without blocking it (visual-only)', async () => {
+    render(<Bubble initialSettings={settings} />);
+    dispatchToggle();
+    await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
+
+    const scrim = document.querySelector('.ibd-bubble-scrim') as HTMLElement;
+    expect(scrim).toBeInTheDocument();
+    expect(scrim.style.pointerEvents).toBe('none'); // page stays interactive
+
+    // Non-blocking: interacting where the scrim is does not close the panel.
+    fireEvent.click(scrim);
+    expect(screen.getByRole('heading', { name: 'Media Bulk Downloads' })).toBeInTheDocument();
+  });
 });
