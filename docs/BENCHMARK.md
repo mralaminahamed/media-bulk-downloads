@@ -48,9 +48,9 @@ source) are recognized and tagged for opt-in mp4 resolution — **@NASA 14** and
 new page-URL `statusId` fallback. **Wikipedia `/wiki/Cat`** also surfaces **11
 video + 8 audio** clips (pronunciation + animal-sound media on that article)
 alongside its 107 images. Wallhaven upgrades depend on a DOM extension
-badge/`<img>` (see §C-3). **Pexels** shows **0** upgraded in this capture — the
-query-strip rule (§C #6) shipped after this run; it isn't re-verified against the
-live page here, only against the real sampled URL shown above.
+badge/`<img>` (see §C-3). **Pexels** shows **0** upgraded in this capture — rule
+added, not re-injected against the live page here; verified only against the real
+sampled URL shown above.
 
 ### Collection vs upgrade per site (2026-07-05)
 
@@ -106,7 +106,7 @@ opt-in network (Phase 2), **[A]** auth/bot-gated (not automatable logged-out),
 | 3  | Unsplash                           | images.unsplash.com (imgix)   | param strip                                                                                | **L**   |
 | 4  | Unsplash+                          | plus.unsplash.com             | conservative strip                                                                         | C       |
 | 5  | Any Imgix-backed site              | *.imgix.net                   | param strip                                                                                | C       |
-| 6  | Pexels                             | images.pexels.com             | query strip (`w`/`h`/`fit`/`auto`/`cs`/`dpr`) → bare path is the original                  | **L**   |
+| 6  | Pexels                             | images.pexels.com             | strips the resize query string                                                             | C       |
 | 7  | Pixabay                            | cdn.pixabay.com               | `_<size>` → `_1280` (capped — largest hotlinkable; true original is login-gated)           | C       |
 | 8  | YouTube (thumbnails)               | i.ytimg.com                   | →maxresdefault                                                                             | **L**   |
 | 9  | YouTube (avatars/banners)          | yt3.ggpht.com                 | =s0                                                                                        | **L**   |
@@ -205,7 +205,8 @@ Open (candidates for new rules — all “collected but not upgraded”):
 
 - Numbers vary run-to-run (feeds, A/B layouts, virtualization, consent state).
   Treat them as representative, not exact.
-- **[C]** rows are covered by the *same CDN rule* verified on a live site — high
+- **[C]** rows are covered by the *same CDN rule* verified on a live site, or
+  unit-tested against a real sampled URL (not live-injected post-rule) — high
   confidence but not independently run here.
 - **[A]** rows are login/bot-gated; logged-out they return little. The extension
   still works there when the user is logged in.
