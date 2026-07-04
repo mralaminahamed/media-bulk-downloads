@@ -12,5 +12,5 @@
     // Pin it: chrome for the extension APIs, the rest for the Jest suite.
     "types": ["chrome", "node", "jest", "@testing-library/jest-dom"]
   },
-  "include": ["src", "tests", "wxt.config.ts", ".wxt/wxt.d.ts"]
+  "include": ["src", "tests", "wxt.config.ts", "web-ext.config.ts", ".wxt/wxt.d.ts"]
 }
