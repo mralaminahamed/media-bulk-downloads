@@ -18,7 +18,7 @@ sequenceDiagram
   P->>SW: sendMessage({ type:"DOWNLOAD_IMAGES", images })
   SW->>F: filter by current settings (eligibility)
   loop each eligible item
-    SW->>BN: buildDownloadFilename(item, index, settings)
+    SW->>BN: buildDownloadFilename(item, index, settings, sourcePage.url)
     BN-->>SW: relative path + filename
     SW->>D: download({ url, filename, saveAs, conflictAction:"uniquify" })
   end
@@ -40,18 +40,18 @@ flowchart TB
   NAME -->|prefixed| PN["&lt;prefix&gt;&lt;index+1&gt;.ext"]
   ON --> DIR
   PN --> DIR
-  DIR["prepend sanitized subfolder<br/>(settings.downloadPath)"] --> OUT["Downloads/&lt;folder&gt;/&lt;file&gt;"]
+  DIR["expandPathTemplate(settings.downloadPath, tokens)<br/>{host} {domain} {date} {kind}"] --> OUT["Downloads/&lt;expanded folders&gt;/&lt;file&gt;"]
 ```
 
 ### Options (Settings)
 
-| Setting | Effect |
-|---------|--------|
-| `namingMode: 'original'` | Keep the source file's name; falls back to the prefix form when the URL has no usable name (data/blob URIs, path with no basename) |
-| `namingMode: 'prefixed'` | `fileNamePrefix` + sequential index |
-| `downloadPath` | Sanitized relative subfolder inside `Downloads/` (MV3 has no native folder picker) |
-| `saveAs: true` | Chrome's native "Save As" dialog per file |
-| `conflictAction: 'uniquify'` | Chrome auto-dedups clashing names (always on) |
+| Setting                      | Effect                                                                                                                                                                               |
+|------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `namingMode: 'original'`     | Keep the source file's name; falls back to the prefix form when the URL has no usable name (data/blob URIs, path with no basename)                                                   |
+| `namingMode: 'prefixed'`     | `fileNamePrefix` + sequential index                                                                                                                                                  |
+| `downloadPath`               | Relative subfolder **template** inside `Downloads/`, with `{host}` `{domain}` `{date}` `{kind}` tokens — see [Download paths](./download-paths.md) (MV3 has no native folder picker) |
+| `saveAs: true`               | Chrome's native "Save As" dialog per file                                                                                                                                            |
+| `conflictAction: 'uniquify'` | Chrome auto-dedups clashing names (always on)                                                                                                                                        |
 
 ### Extension by kind
 

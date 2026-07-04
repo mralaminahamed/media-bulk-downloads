@@ -46,31 +46,31 @@ flowchart TB
 
 ## Module responsibilities
 
-| Module | Responsibility |
-|--------|----------------|
-| `background.ts` | Per-tab badge, download requests, icon-click routing, popup-vs-bubble mode |
-| `content.ts` | Answers `GET_IMAGES`/`DEEP_SCAN`, mounts the bubble, relays `TOGGLE_BUBBLE` |
-| `collect.ts` | `collectMedia()` — walks the DOM into `MediaItem[]` |
-| `shared/extract.ts` | Deep DOM extraction: lazy `data-*`, best-srcset, `<noscript>`, gallery `<a href>` |
-| `shared/imageUrl.ts` | `deproxy` + `upgradeToOriginal` (CDN rules), type/dimension parsing |
-| `shared/mediaType.ts` | Video/audio type detection + undownloadable-media skip list |
-| `shared/deepScan.ts` | Pure, bounded, abortable deep-scan loop |
-| `content/deepScanRunner.ts` | Binds the loop to the real DOM (scroll, MutationObserver) |
-| `shared/deep-scan-active-tab.ts` | Popup client that drives deep scan over messaging |
-| `shared/filters.ts` | `filterImagesBySettings` (badge/eligibility) + `applyToolbarFilters` |
-| `popup/` | Popup React app |
-| `bubble/` | In-page bubble React app (isolated Shadow DOM) |
+| Module                           | Responsibility                                                                    |
+|----------------------------------|-----------------------------------------------------------------------------------|
+| `background.ts`                  | Per-tab badge, download requests, icon-click routing, popup-vs-bubble mode        |
+| `content.ts`                     | Answers `GET_IMAGES`/`DEEP_SCAN`, mounts the bubble, relays `TOGGLE_BUBBLE`       |
+| `collect.ts`                     | `collectMedia()` — walks the DOM into `MediaItem[]`                               |
+| `shared/extract.ts`              | Deep DOM extraction: lazy `data-*`, best-srcset, `<noscript>`, gallery `<a href>` |
+| `shared/imageUrl.ts`             | `deproxy` + `upgradeToOriginal` (CDN rules), type/dimension parsing               |
+| `shared/mediaType.ts`            | Video/audio type detection + undownloadable-media skip list                       |
+| `shared/deepScan.ts`             | Pure, bounded, abortable deep-scan loop                                           |
+| `content/deepScanRunner.ts`      | Binds the loop to the real DOM (scroll, MutationObserver)                         |
+| `shared/deep-scan-active-tab.ts` | Popup client that drives deep scan over messaging                                 |
+| `shared/filters.ts`              | `filterImagesBySettings` (badge/eligibility) + `applyToolbarFilters`              |
+| `popup/`                         | Popup React app                                                                   |
+| `bubble/`                        | In-page bubble React app (isolated Shadow DOM)                                    |
 
 ## Message catalog
 
-| Message | From → To | Shape | Response |
-|---------|-----------|-------|----------|
-| `GET_IMAGES` | popup / background → content | string | `MediaItem[]` |
-| `DOWNLOAD_IMAGES` | popup → background | `{ type, images }` | `{ status, message }` |
-| `DEEP_SCAN` | popup → content | string | `MediaItem[]` (async, channel held open) |
-| `DEEP_SCAN_ABORT` | popup → content | string | `true` |
-| `DEEP_SCAN_PROGRESS` | content → runtime (popup listens) | `{ type, found, scrolls, elapsedMs }` | — |
-| `TOGGLE_BUBBLE` | background (icon click) → content | string | — |
+| Message              | From → To                         | Shape                                 | Response                                 |
+|----------------------|-----------------------------------|---------------------------------------|------------------------------------------|
+| `GET_IMAGES`         | popup / background → content      | string                                | `MediaItem[]`                            |
+| `DOWNLOAD_IMAGES`    | popup → background                | `{ type, images }`                    | `{ status, message }`                    |
+| `DEEP_SCAN`          | popup → content                   | string                                | `MediaItem[]` (async, channel held open) |
+| `DEEP_SCAN_ABORT`    | popup → content                   | string                                | `true`                                   |
+| `DEEP_SCAN_PROGRESS` | content → runtime (popup listens) | `{ type, found, scrolls, elapsedMs }` | —                                        |
+| `TOGGLE_BUBBLE`      | background (icon click) → content | string                                | —                                        |
 
 Message string/type unions live in `src/types/index.d.ts` (`ChromeMessage`).
 

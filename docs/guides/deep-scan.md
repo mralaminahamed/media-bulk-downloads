@@ -95,12 +95,12 @@ flowchart TB
 
 ### Bounds (fixed defaults, `DEEP_SCAN_DEFAULTS`)
 
-| Cap | Default | Meaning |
-|-----|---------|---------|
-| `maxScrolls` | 40 | Hard scroll-step ceiling |
-| `maxMs` | 20000 | Wall-clock ceiling (~20s) |
-| `maxItems` | 1000 | Stop once this many unique items are found |
-| `idleRounds` | 3 | Stop after N consecutive steps that add nothing new |
+| Cap          | Default | Meaning                                             |
+|--------------|---------|-----------------------------------------------------|
+| `maxScrolls` | 40      | Hard scroll-step ceiling                            |
+| `maxMs`      | 20000   | Wall-clock ceiling (~20s)                           |
+| `maxItems`   | 1000    | Stop once this many unique items are found          |
+| `idleRounds` | 3       | Stop after N consecutive steps that add nothing new |
 
 ## Guarantees
 

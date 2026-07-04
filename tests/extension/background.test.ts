@@ -123,6 +123,25 @@ describe('Background Script', () => {
       expect(buildDownloadFilename(img({ src: 'https://x.com/a/dog.webp', type: 'webp' }), 0, s)).toBe('Pics/dog.webp');
     });
 
+    it('expands {domain} from the source page URL', () => {
+      const s = { ...settings, downloadPath: 'Media/{domain}' };
+      expect(
+        buildDownloadFilename(img({ type: 'png' }), 0, s, 'https://www.twitter.com/x/status/1'),
+      ).toBe('Media/twitter.com/image_1.png');
+    });
+
+    it('expands {host} and {kind} tokens', () => {
+      const s = { ...settings, downloadPath: '{kind}/{host}' };
+      expect(
+        buildDownloadFilename(img({ type: 'jpeg' }), 0, s, 'https://cdn.example.org/a'),
+      ).toBe('image/cdn.example.org/image_1.jpg');
+    });
+
+    it('collapses site tokens when the source host is unknown', () => {
+      const s = { ...settings, downloadPath: 'Media/{domain}' };
+      expect(buildDownloadFilename(img({ type: 'png' }), 0, s)).toBe('Media/image_1.png');
+    });
+
     it('names a video download with its av extension', () => {
       const item = {
         src: 'https://ex.com/clip.mp4', alt: '', width: 0, height: 0,
