@@ -19,6 +19,9 @@ export async function loadFavourites(): Promise<FavouriteEntry[]> {
   const result = await chrome.storage.local.get(FAVOURITES_KEY);
   const raw = (result as Record<string, unknown>)[FAVOURITES_KEY];
   if (!Array.isArray(raw)) return [];
+  // Tolerate corrupt storage: an entry with no string `src` would collapse to a
+  // single undefined key in mergeFavourites, and a non-numeric `time` would make
+  // the sort unstable. Drop the former and coerce the latter.
   return raw
     .filter((e): e is FavouriteEntry =>
       !!e && typeof e === 'object' && typeof (e as FavouriteEntry).src === 'string')

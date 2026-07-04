@@ -27,7 +27,10 @@ const safeHost = (url: string): string => {
 /** A readable label for a favourite: the URL's basename, else its host, else the raw src. */
 const displayName = (src: string): string => {
   try {
-    const { pathname, host } = new URL(src);
+    const { protocol, pathname, host } = new URL(src);
+    // A data: URL has no basename — its "path" is the whole base64 payload, which
+    // would render as a giant unreadable label. Show a short kind instead.
+    if (protocol === 'data:') return 'Embedded image';
     const base = decodeURIComponent(pathname.split('/').filter(Boolean).pop() ?? '');
     return base || host || src;
   } catch {

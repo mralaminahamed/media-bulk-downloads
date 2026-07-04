@@ -38,4 +38,12 @@ describe('FavouritesPanel', () => {
       sourcePage: { url: 'https://page.example', title: undefined },
     }));
   });
+
+  it('labels a base64 (data:) favourite readably, not with the raw payload', async () => {
+    jest.spyOn(favourites, 'loadFavourites').mockResolvedValue([
+      { ...entry, src: 'data:image/png;base64,AAAABBBBCCCCDDDD' },
+    ]);
+    render(<FavouritesPanel onClose={() => {}} />);
+    expect(await screen.findByText('Embedded image')).toBeInTheDocument();
+  });
 });
