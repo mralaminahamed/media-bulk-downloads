@@ -50,7 +50,7 @@ const formatsForKind = (kind: FilterOptions['mediaKind']) =>
   kind === 'video' ? VIDEO_FORMATS : kind === 'audio' ? AUDIO_FORMATS : IMAGE_FORMATS;
 
 const SIZE_OPTIONS: { value: 'all' | 'small' | 'medium' | 'large'; label: string }[] = [
-  { value: 'all', label: 'Any size' },
+  { value: 'all', label: 'Any' },
   { value: 'small', label: 'Small' },
   { value: 'medium', label: 'Medium' },
   { value: 'large', label: 'Large' },
@@ -84,12 +84,14 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
 
   return (
     <section className="border-b hairline bg-[var(--panel)] px-4 py-2.5">
-      {/* Primary line: Kind (segmented, one-tap) · Type (dropdown) · More (advanced). */}
-      <div className="flex items-center gap-2">
+      {/* Primary line: Kind (segmented, one-tap) · Type (dropdown) · More (advanced).
+          Wraps only if a narrow popup can't fit it all on one row. */}
+      <div className="flex flex-wrap items-center gap-2">
         <span className="eyebrow shrink-0">Filters</span>
 
-        {/* Kind — single-choice segmented control, the primary filter */}
-        <div className="segwrap h-[28px] shrink-0" role="group" aria-label="Media kind">
+        {/* Kind — single-choice segmented control, the primary filter. Even
+            segments so the four options read as one uniform control. */}
+        <div className="segwrap segwrap-even h-[28px] w-[204px] shrink-0" role="group" aria-label="Media kind">
           {KIND_OPTIONS.map((opt) => (
             <button
               key={opt.value}

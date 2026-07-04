@@ -257,6 +257,15 @@ input.num[type="number"]::-webkit-inner-spin-button {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 0.5px var(--line-strong);
 }
 
+/* Even segments — every segment shares the track width equally, so the control
+   reads as one uniform unit (needs a defined width on the .segwrap). The tighter
+   padding keeps the equal columns compact. */
+.segwrap-even .seg {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 4px;
+}
+
 /* Count badge — active-filter feedback. */
 .countpill {
   display: inline-flex;
