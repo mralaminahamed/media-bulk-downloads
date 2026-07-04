@@ -12,7 +12,7 @@ download API (`chrome.downloads.download({ filename })`) only accepts a path
 relative to that folder and rejects absolute paths and `..`. So:
 
 ```
-~/Downloads / <your template expands here> / file.jpg
+~/Downloads / <your template expands here> / file.jpeg
 └ fixed root ┘ └──────── you control this ───────┘
   (browser)          (the template)
 ```
@@ -31,14 +31,14 @@ settings — the extension can't set it.
 
 ## Examples
 
-| Template          | Saved as (file from `www.twitter.com`)         |
-|-------------------|------------------------------------------------|
-| *(empty)*         | `Downloads/image_1.jpg`                        |
-| `Media`           | `Downloads/Media/image_1.jpg`                  |
-| `{domain}`        | `Downloads/twitter.com/image_1.jpg`            |
-| `Media/{domain}`  | `Downloads/Media/twitter.com/image_1.jpg`      |
-| `{domain}/{date}` | `Downloads/twitter.com/2026-07-04/image_1.jpg` |
-| `{kind}/{domain}` | `Downloads/image/twitter.com/image_1.jpg`      |
+| Template          | Saved as (file from `www.twitter.com`)          |
+|-------------------|-------------------------------------------------|
+| *(empty)*         | `Downloads/image_1.jpeg`                        |
+| `Media`           | `Downloads/Media/image_1.jpeg`                  |
+| `{domain}`        | `Downloads/twitter.com/image_1.jpeg`            |
+| `Media/{domain}`  | `Downloads/Media/twitter.com/image_1.jpeg`      |
+| `{domain}/{date}` | `Downloads/twitter.com/2026-07-04/image_1.jpeg` |
+| `{kind}/{domain}` | `Downloads/image/twitter.com/image_1.jpeg`      |
 
 The Settings panel shows a live preview against a sample site as you type.
 
@@ -51,7 +51,7 @@ flowchart TD
   V --> U["Strip any remaining unknown {...}<br/>(typos are dropped, not written literally)"]
   U --> P["sanitizePathSegment(whole path)<br/>strips traversal (..), illegal chars,<br/>reserved device names (CON, NUL, …)"]
   P --> J["Join with the filename"]
-  J --> D[("Downloads/&lt;expanded path&gt;/file.jpg")]
+  J --> D[("Downloads/&lt;expanded path&gt;/file.jpeg")]
 
   classDef guard fill:#fdeeee,stroke:#c0392b,color:#17181c;
   class V,U,P guard;
