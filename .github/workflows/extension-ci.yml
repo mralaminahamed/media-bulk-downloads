@@ -6,8 +6,8 @@ on:
   pull_request:
     branches: [ main ]
 
-# Lint / type-check / tests run in test.yml. This workflow produces the built,
-# unpacked extension as a downloadable artifact.
+# Lint / type-check / tests run in test.yml. This workflow packages the
+# Chrome, Firefox, and Edge zips (via WXT) as downloadable artifacts.
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,11 +27,11 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
-      - name: Build extension
-        run: yarn build
+      - name: Package all browser zips
+        run: yarn zip:all
 
-      - name: Upload artifacts
+      - name: Upload zips
         uses: actions/upload-artifact@v4
         with:
-          name: dist
-          path: dist
+          name: extension-zips
+          path: .output/*.zip
