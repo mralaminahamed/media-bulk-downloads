@@ -55,6 +55,9 @@ const SIZE_OPTIONS: { value: 'all' | 'small' | 'medium' | 'large'; label: string
   { value: 'large', label: 'Large' },
 ];
 
+/** Thin vertical rule separating filter groups on the single toolbar line. */
+const Divider: React.FC = () => <span aria-hidden className="h-5 w-px shrink-0 bg-[var(--line-strong)]" />;
+
 const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extensionSettings }) => {
   const [filters, setFilters] = useState<FilterOptions>(DEFAULT_FILTERS);
 
@@ -77,27 +80,17 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
     (filters.minSize > 0 ? 1 : 0) +
     (!filters.includeBase64 && !base64Disabled ? 1 : 0);
 
-  return (
-    <section className="border-b hairline bg-[var(--panel)] px-4 py-3">
-      {/* Section header — label, live active-filter count, reset */}
-      <div className="mb-2.5 flex items-center gap-2">
-        <span className="eyebrow">Filters</span>
-        {activeCount > 0 && <span className="countpill">{activeCount} active</span>}
-        {activeCount > 0 && (
-          <button
-            onClick={reset}
-            className="ml-auto text-[11px] font-semibold text-[var(--ink-2)] transition-colors hover:text-[var(--ink)]"
-          >
-            Clear all
-          </button>
-        )}
-      </div>
+  const showSize = filters.mediaKind === 'all' || filters.mediaKind === 'image';
 
-      <div className="flex flex-col gap-2.5">
-        {/* Kind — single-choice segmented control */}
-        <div className="flex items-center gap-2.5">
-          <span className="eyebrow w-9 shrink-0">Kind</span>
-          <div className="segwrap" role="group" aria-label="Media kind">
+  return (
+    <section className="border-b hairline bg-[var(--panel)] px-4 py-2.5">
+      {/* All filters on one horizontally-scrollable line. */}
+      <div className="flex items-center gap-2">
+        <span className="eyebrow shrink-0">Filters</span>
+
+        <div className="scroll-thin -my-1 flex flex-1 items-center gap-2 overflow-x-auto py-1">
+          {/* Kind — single-choice segmented control */}
+          <div className="segwrap shrink-0" role="group" aria-label="Media kind">
             {KIND_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
@@ -109,16 +102,11 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
               </button>
             ))}
           </div>
-        </div>
 
-        {/* Type — scrollable quick chips, adapt to the selected kind */}
-        <div className="flex items-center gap-2.5">
-          <span className="eyebrow w-9 shrink-0">Type</span>
-          <div
-            className="scroll-thin -my-1 flex flex-1 gap-1.5 overflow-x-auto py-1"
-            role="group"
-            aria-label="Media format"
-          >
+          <Divider />
+
+          {/* Type — quick chips, adapt to the selected kind */}
+          <div className="flex shrink-0 items-center gap-1.5" role="group" aria-label="Media format">
             {formatsForKind(filters.mediaKind).map((opt) => (
               <button
                 key={opt.value}
@@ -130,33 +118,31 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
               </button>
             ))}
           </div>
-        </div>
 
-        {/* Size — single-choice segmented control (images only) */}
-        {(filters.mediaKind === 'all' || filters.mediaKind === 'image') && (
-          <div className="flex items-center gap-2.5">
-            <span className="eyebrow w-9 shrink-0">Size</span>
-            <div className="segwrap" role="group" aria-label="Image size">
-              {SIZE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => update({ sizeBucket: opt.value })}
-                  className={`seg ${filters.sizeBucket === opt.value ? 'is-active' : ''}`}
-                  aria-pressed={filters.sizeBucket === opt.value}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+          {/* Size — single-choice segmented control (images only) */}
+          {showSize && (
+            <>
+              <Divider />
+              <div className="segwrap shrink-0" role="group" aria-label="Image size">
+                {SIZE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => update({ sizeBucket: opt.value })}
+                    className={`seg ${filters.sizeBucket === opt.value ? 'is-active' : ''}`}
+                    aria-pressed={filters.sizeBucket === opt.value}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
-      {/* Advanced controls — min size + base64, set apart by a hairline */}
-      <div className="mt-3 flex items-center gap-3 border-t hairline pt-3">
-        <label htmlFor="filter-min-size" className="flex items-center gap-2 text-[12px] text-[var(--ink-2)]">
-          <span className="whitespace-nowrap">Min size</span>
-          <span className="flex items-center gap-1.5">
+          <Divider />
+
+          {/* Min size */}
+          <label htmlFor="filter-min-size" className="flex shrink-0 items-center gap-1.5 text-[12px] text-[var(--ink-2)]">
+            <span className="whitespace-nowrap">Min</span>
             <input
               id="filter-min-size"
               type="number"
@@ -164,27 +150,41 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
               value={filters.minSize || ''}
               placeholder="0"
               onChange={(e) => update({ minSize: parseInt(e.target.value, 10) || 0 })}
-              className="field num h-[30px] w-[60px] text-right"
+              className="field num h-[28px] w-[52px] text-right"
             />
             <span className="eyebrow">KB</span>
-          </span>
-        </label>
-
-        <div className="ml-auto flex items-center gap-2">
-          <label htmlFor="filter-base64" className="text-[12px] text-[var(--ink-2)]">
-            Base64
           </label>
-          <button
-            id="filter-base64"
-            type="button"
-            role="switch"
-            aria-checked={!base64Disabled && filters.includeBase64}
-            aria-label="Include Base64 images"
-            disabled={base64Disabled}
-            onClick={() => update({ includeBase64: !filters.includeBase64 })}
-            className="switch"
-          />
+
+          <Divider />
+
+          {/* Base64 */}
+          <div className="flex shrink-0 items-center gap-1.5">
+            <label htmlFor="filter-base64" className="text-[12px] text-[var(--ink-2)]">
+              Base64
+            </label>
+            <button
+              id="filter-base64"
+              type="button"
+              role="switch"
+              aria-checked={!base64Disabled && filters.includeBase64}
+              aria-label="Include Base64 images"
+              disabled={base64Disabled}
+              onClick={() => update({ includeBase64: !filters.includeBase64 })}
+              className="switch"
+            />
+          </div>
         </div>
+
+        {/* Active-filter count + reset, pinned at the end (never scrolls away). */}
+        {activeCount > 0 && <span className="countpill shrink-0">{activeCount}</span>}
+        {activeCount > 0 && (
+          <button
+            onClick={reset}
+            className="shrink-0 text-[11px] font-semibold text-[var(--ink-2)] transition-colors hover:text-[var(--ink)]"
+          >
+            Clear all
+          </button>
+        )}
       </div>
     </section>
   );
