@@ -426,7 +426,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                     <span>{resolveFailedSrcs?.has(selectedImage.src) ? "Couldn't fetch — retry" : 'Get video'}</span>
                   </button>
                 ) : (
-                  <p className="text-center text-[12px] text-(--ink-2)">This video's file can't be fetched.</p>
+                  <p className="text-center text-[12px] text-(--ink-2)">{"This video's file can't be fetched."}</p>
                 )
               ) : (
                 <button onClick={() => onImageDownload(selectedImage)} title="Download" aria-label="Download" className="btn btn-primary w-full">
