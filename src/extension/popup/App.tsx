@@ -11,7 +11,7 @@ import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/deep-scan-a
 import { requestResolveOriginals } from '../shared/resolve-originals-active';
 import { downloadedSrcSet, HISTORY_KEY } from '../shared/history';
 import { getImageFileSize, mapWithConcurrency } from './utils';
-import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 // Concurrent HEAD requests when enriching remote image sizes.
 const SIZE_FETCH_CONCURRENCY = 6;
@@ -346,7 +346,9 @@ const App: React.FC<AppProps> = ({
           </div>
           <div className="flex items-center gap-1.5">
             {deepScanning && (
-              <span className="num text-[11px] text-[var(--ink-2)]">scanning… {deepProgress?.found ?? 0} found</span>
+              <span className="num inline-flex items-center rounded-full bg-[var(--brand-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--brand-ink)]">
+                {deepProgress?.found ?? 0} found
+              </span>
             )}
             <button
               onClick={handleDeepScan}
@@ -375,7 +377,13 @@ const App: React.FC<AppProps> = ({
         {state.isLoading ? (
           <SkeletonGrid thumbnailSize={settings.thumbnailSize} />
         ) : total === 0 ? (
-          <EmptyState message={state.status} onRefresh={fetchImages} />
+          // A page-read failure and a page with simply no media are different
+          // situations and should read differently.
+          state.status ? (
+            <ErrorState message={state.status} onRetry={fetchImages} />
+          ) : (
+            <EmptyState onRefresh={fetchImages} />
+          )
         ) : (
           <ImageList
             images={state.filteredImages}
@@ -442,28 +450,65 @@ const SkeletonGrid: React.FC<{ thumbnailSize: number }> = ({ thumbnailSize }) =>
   </div>
 );
 
-const EmptyState: React.FC<{ message: string; onRefresh: () => void }> = ({ message, onRefresh }) => (
+/** Shared centered layout for the empty / error states. */
+const CenteredState: React.FC<{
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+  action: React.ReactNode;
+  tone?: 'neutral' | 'warning';
+}> = ({ icon, title, body, action, tone = 'neutral' }) => (
   <div className="reveal grid h-full place-items-center text-center">
     <div className="flex max-w-[260px] flex-col items-center gap-3">
-      <span className="grid h-12 w-12 place-items-center rounded-[var(--radius-lg)] border hairline bg-[var(--panel)] text-[var(--ink-3)]">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <rect x="3" y="3" width="18" height="18" rx="2" />
-          <circle cx="9" cy="9" r="2" />
-          <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-        </svg>
+      <span
+        className={`grid h-12 w-12 place-items-center rounded-[var(--radius-lg)] border hairline bg-[var(--panel)] ${
+          tone === 'warning' ? 'text-[var(--warn)]' : 'text-[var(--ink-3)]'
+        }`}
+      >
+        {icon}
       </span>
       <div>
-        <p className="text-[13px] font-semibold text-[var(--ink)]">No media here</p>
-        <p className="mt-1 text-[12px] leading-relaxed text-[var(--ink-2)]">
-          {message || 'This page has no media that matches your filters. Try another page or rescan.'}
-        </p>
+        <p className="text-[13px] font-semibold text-[var(--ink)]">{title}</p>
+        <p className="mt-1 text-[12px] leading-relaxed text-[var(--ink-2)]">{body}</p>
       </div>
+      {action}
+    </div>
+  </div>
+);
+
+const EmptyState: React.FC<{ onRefresh: () => void }> = ({ onRefresh }) => (
+  <CenteredState
+    icon={
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <circle cx="9" cy="9" r="2" />
+        <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+      </svg>
+    }
+    title="No media here"
+    body="This page has no media that matches your filters. Try another page or rescan."
+    action={
       <button onClick={onRefresh} className="btn btn-ghost">
         <ArrowPathIcon className="h-4 w-4" />
         <span>Rescan page</span>
       </button>
-    </div>
-  </div>
+    }
+  />
+);
+
+const ErrorState: React.FC<{ message: string; onRetry: () => void }> = ({ message, onRetry }) => (
+  <CenteredState
+    tone="warning"
+    icon={<ExclamationTriangleIcon className="h-[22px] w-[22px]" />}
+    title="Can't read this page"
+    body={message.replace(/^Can't read this page:\s*/i, '') || 'Some pages (chrome://, the Web Store, PDFs) are restricted and can\'t be scanned.'}
+    action={
+      <button onClick={onRetry} className="btn btn-ghost">
+        <ArrowPathIcon className="h-4 w-4" />
+        <span>Try again</span>
+      </button>
+    }
+  />
 );
 
 export default App;

@@ -53,9 +53,11 @@ describe('App Component', () => {
     expect(await screen.findByText('No media here')).toBeInTheDocument();
   });
 
-  it('surfaces a collection error', async () => {
+  it('surfaces a collection error as a distinct error state', async () => {
     render(<App collect={async () => { throw new Error('content script missing'); }} />);
-    expect(await screen.findByText(/can't read this page: content script missing/i)).toBeInTheDocument();
+    expect(await screen.findByText(/can't read this page/i)).toBeInTheDocument();
+    expect(screen.getByText('content script missing')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
   });
 
   it('keeps the active toolbar filter when a deep scan repopulates the grid', async () => {
