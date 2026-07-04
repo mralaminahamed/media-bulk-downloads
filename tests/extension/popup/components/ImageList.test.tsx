@@ -96,6 +96,32 @@ describe('ImageList Component', () => {
     expect(screen.getAllByLabelText('Downloaded')).toHaveLength(1);
   });
 
+  describe('ImageList — favourites', () => {
+    const favImg: ImageInfo = {
+      src: 'https://c/a.jpg', alt: 'a', width: 10, height: 10,
+      type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image',
+    };
+
+    it('renders a favourite toggle and calls onToggleFavourite', async () => {
+      const onToggleFavourite = jest.fn();
+      render(
+        <ImageList images={[favImg]} onImageDownload={() => {}}
+          onToggleFavourite={onToggleFavourite} favouriteSrcs={new Set()} />,
+      );
+      await userEvent.click(screen.getByRole('button', { name: /add favourite/i }));
+      expect(onToggleFavourite).toHaveBeenCalledWith(favImg);
+    });
+
+    it('shows the favourited badge and a filled toggle when saved', () => {
+      render(
+        <ImageList images={[favImg]} onImageDownload={() => {}}
+          onToggleFavourite={() => {}} favouriteSrcs={new Set([favImg.src])} />,
+      );
+      expect(screen.getByLabelText('Favourited')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /remove favourite/i })).toBeInTheDocument();
+    });
+  });
+
   describe('formatFileSize', () => {
     it('shows an em dash for unknown/invalid sizes', () => {
       expect(formatFileSize(0)).toBe('—');

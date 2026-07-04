@@ -13,6 +13,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `Media/{domain}` saves each site to its own folder. A template with no tokens
   behaves exactly as the old static subfolder did. See
   [docs/guides/download-paths.md](docs/guides/download-paths.md).
+- Favourites: star any image, video, or audio item to a personal **Favourites**
+  list that persists across pages and sessions. Star from the grid tile or the
+  preview; a filled-star badge marks saved items. A new Favourites panel lists
+  them with **Download**, **Open source**, and **Remove** (plus **Clear all**),
+  and re-downloads through the normal flow (so download-path tokens still apply).
+  Stored locally, capped at 500. See [docs/guides/favourites.md](docs/guides/favourites.md).
 
 ### Changed
 - Unified the in-app brand mark with the installed toolbar icon. The popup

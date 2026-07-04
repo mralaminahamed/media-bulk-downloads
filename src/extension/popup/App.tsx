@@ -2,17 +2,19 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ImageList from './components/ImageList';
 import Settings from './components/Settings';
 import HistoryPanel from './components/HistoryPanel';
+import FavouritesPanel from './components/FavouritesPanel';
 import FilterToolbar, { DEFAULT_FILTERS } from './components/FilterToolbar';
 import { BrandMark } from '../components/BrandMark';
-import { AppState, DeepScanProgress, DownloadMessage, DownloadResponse, FilterOptions, ImageInfo, SettingsData } from '@/types';
+import { AppState, DeepScanProgress, DownloadMessage, DownloadResponse, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
 import { filterImagesBySettings, applyToolbarFilters } from '../shared/filters';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/settings';
 import { collectFromActiveTab } from '../shared/collect-active-tab';
 import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/deep-scan-active-tab';
 import { requestResolveOriginals } from '../shared/resolve-originals-active';
 import { downloadedSrcSet, HISTORY_KEY } from '../shared/history';
+import { favouriteSrcSet, FAVOURITES_KEY } from '../shared/favourites';
 import { getImageFileSize, mapWithConcurrency } from './utils';
-import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, ExclamationTriangleIcon, StarIcon } from '@heroicons/react/24/outline';
 
 // Concurrent HEAD requests when enriching remote image sizes.
 const SIZE_FETCH_CONCURRENCY = 6;
@@ -52,6 +54,8 @@ const App: React.FC<AppProps> = ({
   const [deepScanning, setDeepScanning] = useState(false);
   const [deepProgress, setDeepProgress] = useState<DeepScanProgress | null>(null);
   const [downloadedSrcs, setDownloadedSrcs] = useState<Set<string>>(new Set());
+  const [showFavourites, setShowFavourites] = useState(false);
+  const [favouriteSrcs, setFavouriteSrcs] = useState<Set<string>>(new Set());
 
   // All images collected from the page, before any settings/toolbar filtering.
   const rawImagesRef = useRef<ImageInfo[]>([]);
@@ -89,6 +93,18 @@ const App: React.FC<AppProps> = ({
       if (area === 'local' && changes[HISTORY_KEY]) {
         const next = (changes[HISTORY_KEY].newValue as { src: string }[] | undefined) ?? [];
         setDownloadedSrcs(new Set(next.map((e) => e.src)));
+      }
+    };
+    chrome.storage.onChanged.addListener(onChanged);
+    return () => chrome.storage.onChanged.removeListener(onChanged);
+  }, []);
+
+  useEffect(() => {
+    void favouriteSrcSet().then(setFavouriteSrcs);
+    const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+      if (area === 'local' && changes[FAVOURITES_KEY]) {
+        const next = (changes[FAVOURITES_KEY].newValue as { src: string }[] | undefined) ?? [];
+        setFavouriteSrcs(new Set(next.map((e) => e.src)));
       }
     };
     chrome.storage.onChanged.addListener(onChanged);
@@ -285,6 +301,30 @@ const App: React.FC<AppProps> = ({
 
   const handleSingleImageDownload = (image: ImageInfo): void => void handleDownload(image);
 
+  const handleToggleFavourite = async (image: ImageInfo): Promise<void> => {
+    if (favouriteSrcs.has(image.src)) {
+      chrome.runtime.sendMessage({ type: 'REMOVE_FAVOURITE', src: image.src });
+      setFavouriteSrcs((prev) => {
+        const next = new Set(prev);
+        next.delete(image.src);
+        return next;
+      });
+      return;
+    }
+    const sourcePage = await currentSourcePage();
+    const entry: FavouriteEntry = {
+      src: image.src,
+      kind: image.kind,
+      type: image.type,
+      sourcePageUrl: sourcePage.url,
+      time: Date.now(),
+      ...(image.thumbnailSrc ?? image.poster ? { thumbnailSrc: image.thumbnailSrc ?? image.poster } : {}),
+      ...(sourcePage.title ? { sourcePageTitle: sourcePage.title } : {}),
+    };
+    chrome.runtime.sendMessage({ type: 'ADD_FAVOURITE', entry });
+    setFavouriteSrcs((prev) => new Set(prev).add(image.src));
+  };
+
   // Single source of truth for persistence: the popup owns writing settings.
   const handleSettingsChange = (newSettings: SettingsData) => {
     setSettings(newSettings);
@@ -309,6 +349,9 @@ const App: React.FC<AppProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-0.5">
+            <button onClick={() => setShowFavourites(true)} className="iconbtn" title="Favourites" aria-label="Favourites">
+              <StarIcon className="h-4.5 w-4.5" />
+            </button>
             <button onClick={() => setShowHistory(true)} className="iconbtn" title="Download history" aria-label="Download history">
               <ClockIcon className="h-4.5 w-4.5" />
             </button>
@@ -379,6 +422,8 @@ const App: React.FC<AppProps> = ({
             thumbnailSize={settings.thumbnailSize}
             previewSize={settings.previewSize}
             downloadedSrcs={downloadedSrcs}
+            favouriteSrcs={favouriteSrcs}
+            onToggleFavourite={handleToggleFavourite}
           />
         )}
       </main>
@@ -409,6 +454,8 @@ const App: React.FC<AppProps> = ({
       )}
 
       {showHistory && <HistoryPanel onClose={() => setShowHistory(false)} />}
+
+      {showFavourites && <FavouritesPanel onClose={() => setShowFavourites(false)} />}
     </div>
   );
 };

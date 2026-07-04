@@ -8,7 +8,9 @@ import {
   XMarkIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  StarIcon,
 } from '@heroicons/react/24/outline';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
 interface ImageListProps {
   images: ImageInfo[];
@@ -19,6 +21,10 @@ interface ImageListProps {
   previewSize?: number;
   /** Set of image srcs already downloaded; renders a ✓ badge on matching tiles. */
   downloadedSrcs?: Set<string>;
+  /** Set of srcs already favourited; renders a ★ badge + fills the star toggle. */
+  favouriteSrcs?: Set<string>;
+  /** Toggle an item's favourite state (add if absent, remove if present). */
+  onToggleFavourite?: (image: ImageInfo) => void;
 }
 
 const SIZE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
@@ -91,7 +97,7 @@ export const LoadingImage: React.FC<{
   );
 };
 
-const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnailSize = 120, previewSize = 360, downloadedSrcs }) => {
+const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnailSize = 120, previewSize = 360, downloadedSrcs, favouriteSrcs, onToggleFavourite }) => {
   // Index-based selection so the modal can page through images without closing.
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const selectedImage = selectedIndex !== null ? images[selectedIndex] ?? null : null;
@@ -179,6 +185,16 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                 </span>
               )}
 
+              {favouriteSrcs?.has(image.src) && (
+                <span
+                  className="absolute bottom-1.5 right-1.5 grid h-4 w-4 place-items-center rounded-full bg-(--panel)/85 text-(--brand-ink) ring-1 ring-(--ctl-ring) backdrop-blur-sm"
+                  title="Favourited"
+                  aria-label="Favourited"
+                >
+                  <StarIconSolid className="h-3 w-3" aria-hidden="true" />
+                </span>
+              )}
+
               {/* Hover / focus actions — also revealed on keyboard focus-within so
                   the buttons aren't mouse-only. */}
               <div className="absolute inset-0 flex items-center justify-center gap-2 bg-transparent opacity-0 transition-all duration-150 group-hover:bg-(--scrim) group-hover:opacity-100 group-focus-within:bg-(--scrim) group-focus-within:opacity-100">
@@ -190,6 +206,19 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                 >
                   <EyeIcon className="h-4 w-4" />
                 </button>
+                {onToggleFavourite && (
+                  <button
+                    onClick={() => onToggleFavourite(image)}
+                    title={favouriteSrcs?.has(image.src) ? 'Remove favourite' : 'Add favourite'}
+                    aria-label={favouriteSrcs?.has(image.src) ? 'Remove favourite' : 'Add favourite'}
+                    aria-pressed={favouriteSrcs?.has(image.src) ?? false}
+                    className="grid h-8 w-8 place-items-center rounded-full bg-(--panel) text-(--ink) ring-1 ring-(--ctl-ring) transition-transform hover:scale-105 active:scale-95"
+                  >
+                    {favouriteSrcs?.has(image.src)
+                      ? <StarIconSolid className="h-4 w-4 text-(--brand-ink)" />
+                      : <StarIcon className="h-4 w-4" />}
+                  </button>
+                )}
                 <button
                   onClick={() => onImageDownload(image)}
                   title="Download"
@@ -237,6 +266,19 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                 )}
               </div>
               <div className="flex items-center gap-0.5">
+                {onToggleFavourite && (
+                  <button
+                    onClick={() => onToggleFavourite(selectedImage)}
+                    title={favouriteSrcs?.has(selectedImage.src) ? 'Remove favourite' : 'Add favourite'}
+                    aria-label={favouriteSrcs?.has(selectedImage.src) ? 'Remove favourite' : 'Add favourite'}
+                    aria-pressed={favouriteSrcs?.has(selectedImage.src) ?? false}
+                    className="iconbtn"
+                  >
+                    {favouriteSrcs?.has(selectedImage.src)
+                      ? <StarIconSolid className="h-4.5 w-4.5 text-(--brand-ink)" />
+                      : <StarIcon className="h-4.5 w-4.5" />}
+                  </button>
+                )}
                 <a
                   href={selectedImage.src}
                   target="_blank"

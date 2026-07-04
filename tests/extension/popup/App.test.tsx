@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import App from '@/extension/popup/App';
 import { ImageInfo } from '@/types';
 import { deepScanActiveTab } from '@/extension/shared/deep-scan-active-tab';
@@ -295,5 +296,11 @@ describe('App Component', () => {
     expect(container.querySelector('video')).toBeNull();
 
     resolveMock.mockResolvedValue({ 'poster.jpg': 'https://video.twimg.com/hi.mp4' }); // restore default
+  });
+
+  it('opens the Favourites panel from the header', async () => {
+    render(<App collect={async () => []} />);
+    await userEvent.click(await screen.findByRole('button', { name: /favourites/i }));
+    expect(await screen.findByText('Saved media')).toBeInTheDocument();
   });
 });
