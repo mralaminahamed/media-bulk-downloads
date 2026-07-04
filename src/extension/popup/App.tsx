@@ -59,6 +59,8 @@ const App: React.FC<AppProps> = ({
   const [downloadedSrcs, setDownloadedSrcs] = useState<Set<string>>(new Set());
   const [showFavourites, setShowFavourites] = useState(false);
   const [favouriteSrcs, setFavouriteSrcs] = useState<Set<string>>(new Set());
+  const [resolveFailedSrcs, setResolveFailedSrcs] = useState<Set<string>>(new Set());
+  const [fetchingSrcs, setFetchingSrcs] = useState<Set<string>>(new Set());
 
   // All images collected from the page, before any settings/toolbar filtering.
   const rawImagesRef = useRef<ImageInfo[]>([]);
@@ -303,6 +305,29 @@ const App: React.FC<AppProps> = ({
 
   const handleSingleImageDownload = (image: ImageInfo): void => void handleDownload(image);
 
+  /**
+   * Resolve ONE pending video's real file on demand, regardless of the global
+   * resolveOriginals setting (this is an explicit, user-initiated request).
+   * On success, swap the item's src to the mp4 (now downloadable); on failure
+   * (tombstone / null), mark it failed so the tile can say so.
+   */
+  const handleFetchVideo = async (image: ImageInfo): Promise<void> => {
+    if (!image.resolveHint) return;
+    const src = image.src;
+    setFetchingSrcs((p) => new Set(p).add(src));
+    setResolveFailedSrcs((p) => { const n = new Set(p); n.delete(src); return n; });
+    const resolved = await requestResolveOriginals([{ src, hint: image.resolveHint }]);
+    setFetchingSrcs((p) => { const n = new Set(p); n.delete(src); return n; });
+    const url = resolved[src];
+    if (!url) {
+      setResolveFailedSrcs((p) => new Set(p).add(src));
+      return;
+    }
+    const swap = (list: ImageInfo[]) =>
+      list.map((i) => (i.src === src ? { ...i, src: url, unresolvedVideo: false, resolveHint: undefined } : i));
+    setState((prev) => ({ ...prev, images: swap(prev.images), filteredImages: swap(prev.filteredImages) }));
+  };
+
   const handleToggleFavourite = async (image: ImageInfo): Promise<void> => {
     if (favouriteSrcs.has(image.src)) {
       chrome.runtime.sendMessage({ type: 'REMOVE_FAVOURITE', src: image.src });
@@ -427,6 +452,9 @@ const App: React.FC<AppProps> = ({
             downloadedSrcs={downloadedSrcs}
             favouriteSrcs={favouriteSrcs}
             onToggleFavourite={handleToggleFavourite}
+            onFetchVideo={handleFetchVideo}
+            resolveFailedSrcs={resolveFailedSrcs}
+            fetchingSrcs={fetchingSrcs}
           />
         )}
       </main>

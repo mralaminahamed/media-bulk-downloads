@@ -320,4 +320,22 @@ describe('App Component', () => {
     await userEvent.click(await screen.findByRole('button', { name: /favourites/i }));
     expect(await screen.findByText('Saved media')).toBeInTheDocument();
   });
+
+  it('fetches a single video on demand even when resolveOriginals is off', async () => {
+    (requestResolveOriginals as jest.Mock).mockResolvedValueOnce({ 'poster.jpg': 'https://video.twimg.com/hi.mp4' });
+    render(<App collect={async () => [pendingVideo]} />);
+    fireEvent.click(await screen.findByTitle('Get video'));
+    await waitFor(() =>
+      expect(requestResolveOriginals).toHaveBeenCalledWith([{ src: 'poster.jpg', hint: { platform: 'twitter', id: '123' } }]),
+    );
+    // once resolved it becomes downloadable
+    expect(await screen.findByRole('button', { name: /download 1/i })).toBeInTheDocument();
+  });
+
+  it('marks a video failed when resolution returns nothing', async () => {
+    (requestResolveOriginals as jest.Mock).mockResolvedValueOnce({});
+    render(<App collect={async () => [pendingVideo]} />);
+    fireEvent.click(await screen.findByTitle('Get video'));
+    expect(await screen.findByText(/couldn't fetch/i)).toBeInTheDocument();
+  });
 });
