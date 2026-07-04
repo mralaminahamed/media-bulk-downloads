@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import { FilterOptions, SettingsData } from '@/types';
 
 interface FilterToolbarProps {
@@ -55,11 +56,9 @@ const SIZE_OPTIONS: { value: 'all' | 'small' | 'medium' | 'large'; label: string
   { value: 'large', label: 'Large' },
 ];
 
-/** Thin vertical rule separating filter groups on the single toolbar line. */
-const Divider: React.FC = () => <span aria-hidden className="h-5 w-px shrink-0 bg-[var(--line-strong)]" />;
-
 const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extensionSettings }) => {
   const [filters, setFilters] = useState<FilterOptions>(DEFAULT_FILTERS);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const update = (patch: Partial<FilterOptions>) => {
     const next = { ...filters, ...patch };
@@ -73,57 +72,80 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
   };
 
   const base64Disabled = extensionSettings.excludeBase64Images;
-  const activeCount =
-    (filters.mediaKind !== 'all' ? 1 : 0) +
-    (filters.imageType !== 'all' ? 1 : 0) +
+  // Filters tucked inside the "More" popover — its badge counts only these.
+  const advancedCount =
     (filters.sizeBucket !== 'all' ? 1 : 0) +
     (filters.minSize > 0 ? 1 : 0) +
     (!filters.includeBase64 && !base64Disabled ? 1 : 0);
+  const activeCount =
+    (filters.mediaKind !== 'all' ? 1 : 0) + (filters.imageType !== 'all' ? 1 : 0) + advancedCount;
 
   const showSize = filters.mediaKind === 'all' || filters.mediaKind === 'image';
 
   return (
     <section className="border-b hairline bg-[var(--panel)] px-4 py-2.5">
-      {/* All filters on one horizontally-scrollable line. */}
+      {/* Primary line: Kind (segmented, one-tap) · Type (dropdown) · More (advanced). */}
       <div className="flex items-center gap-2">
         <span className="eyebrow shrink-0">Filters</span>
 
-        <div className="scroll-thin -my-1 flex flex-1 items-center gap-2 overflow-x-auto py-1">
-          {/* Kind — single-choice segmented control */}
-          <div className="segwrap shrink-0" role="group" aria-label="Media kind">
-            {KIND_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => update({ mediaKind: opt.value, imageType: 'all' })}
-                className={`seg ${filters.mediaKind === opt.value ? 'is-active' : ''}`}
-                aria-pressed={filters.mediaKind === opt.value}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+        {/* Kind — single-choice segmented control, the primary filter */}
+        <div className="segwrap shrink-0" role="group" aria-label="Media kind">
+          {KIND_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => update({ mediaKind: opt.value, imageType: 'all' })}
+              className={`seg ${filters.mediaKind === opt.value ? 'is-active' : ''}`}
+              aria-pressed={filters.mediaKind === opt.value}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
 
-          <Divider />
+        {/* Type — dropdown; options adapt to the selected kind */}
+        <select
+          aria-label="Media format"
+          value={filters.imageType}
+          onChange={(e) => update({ imageType: e.target.value })}
+          className="field h-[30px] w-auto shrink-0 py-0 text-[12px]"
+        >
+          {formatsForKind(filters.mediaKind).map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.value === 'all' ? 'All formats' : opt.label}
+            </option>
+          ))}
+        </select>
 
-          {/* Type — quick chips, adapt to the selected kind */}
-          <div className="flex shrink-0 items-center gap-1.5" role="group" aria-label="Media format">
-            {formatsForKind(filters.mediaKind).map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => update({ imageType: opt.value })}
-                className={`chip ${filters.imageType === opt.value ? 'is-active' : ''}`}
-                aria-pressed={filters.imageType === opt.value}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+        {/* More — discloses the advanced (size / min-size / base64) filters */}
+        <button
+          type="button"
+          onClick={() => setMoreOpen((o) => !o)}
+          aria-expanded={moreOpen}
+          aria-controls="filter-more"
+          className={`chip shrink-0 ${moreOpen ? 'is-active' : ''}`}
+        >
+          More
+          {advancedCount > 0 && <span className="countpill">{advancedCount}</span>}
+          <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
+        </button>
 
-          {/* Size — single-choice segmented control (images only) */}
+        {activeCount > 0 && (
+          <button
+            onClick={reset}
+            className="ml-auto shrink-0 text-[11px] font-semibold text-[var(--ink-2)] transition-colors hover:text-[var(--ink)]"
+          >
+            Clear all
+          </button>
+        )}
+      </div>
+
+      {/* Advanced filters — shown when "More" is open. */}
+      {moreOpen && (
+        <div id="filter-more" className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t hairline pt-3">
           {showSize && (
-            <>
-              <Divider />
-              <div className="segwrap shrink-0" role="group" aria-label="Image size">
+            <div className="flex items-center gap-2">
+              <span className="eyebrow">Size</span>
+              <div className="segwrap" role="group" aria-label="Image size">
                 {SIZE_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
@@ -135,13 +157,10 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
                   </button>
                 ))}
               </div>
-            </>
+            </div>
           )}
 
-          <Divider />
-
-          {/* Min size */}
-          <label htmlFor="filter-min-size" className="flex shrink-0 items-center gap-1.5 text-[12px] text-[var(--ink-2)]">
+          <label htmlFor="filter-min-size" className="flex items-center gap-1.5 text-[12px] text-[var(--ink-2)]">
             <span className="whitespace-nowrap">Min</span>
             <input
               id="filter-min-size"
@@ -150,15 +169,12 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
               value={filters.minSize || ''}
               placeholder="0"
               onChange={(e) => update({ minSize: parseInt(e.target.value, 10) || 0 })}
-              className="field num h-[28px] w-[52px] text-right"
+              className="field num h-[28px] w-[56px] text-right"
             />
             <span className="eyebrow">KB</span>
           </label>
 
-          <Divider />
-
-          {/* Base64 */}
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <label htmlFor="filter-base64" className="text-[12px] text-[var(--ink-2)]">
               Base64
             </label>
@@ -174,18 +190,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
             />
           </div>
         </div>
-
-        {/* Active-filter count + reset, pinned at the end (never scrolls away). */}
-        {activeCount > 0 && <span className="countpill shrink-0">{activeCount}</span>}
-        {activeCount > 0 && (
-          <button
-            onClick={reset}
-            className="shrink-0 text-[11px] font-semibold text-[var(--ink-2)] transition-colors hover:text-[var(--ink)]"
-          >
-            Clear all
-          </button>
-        )}
-      </div>
+      )}
     </section>
   );
 };

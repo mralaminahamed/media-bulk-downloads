@@ -32,37 +32,51 @@ describe('FilterToolbar Component', () => {
   const renderToolbar = (over: Partial<SettingsData> = {}) =>
     render(<FilterToolbar onFilterChange={mockOnFilterChange} extensionSettings={{ ...settings, ...over }} />);
 
+  const openMore = () => fireEvent.click(screen.getByRole('button', { name: /More/i }));
+
   beforeEach(() => mockOnFilterChange.mockClear());
 
-  it('renders the filter section with type pills', () => {
+  it('renders filters with a Type dropdown', () => {
     renderToolbar();
     expect(screen.getByText('Filters')).toBeInTheDocument();
-    expect(
-      within(screen.getByRole('group', { name: 'Media format' })).getByRole('button', { name: 'All' }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'JPEG' })).toBeInTheDocument();
+    const typeSelect = screen.getByLabelText('Media format');
+    expect(typeSelect).toBeInTheDocument();
+    expect(within(typeSelect).getByRole('option', { name: 'All formats' })).toBeInTheDocument();
+    expect(within(typeSelect).getByRole('option', { name: 'JPEG' })).toBeInTheDocument();
   });
 
-  it('applies a type filter when a pill is clicked', () => {
+  it('applies a type filter when the dropdown changes', () => {
     renderToolbar();
-    fireEvent.click(screen.getByRole('button', { name: 'JPEG' }));
+    fireEvent.change(screen.getByLabelText('Media format'), { target: { value: 'jpeg' } });
     expect(mockOnFilterChange).toHaveBeenCalledWith(expect.objectContaining({ imageType: 'jpeg' }));
   });
 
-  it('updates the minimum size filter', () => {
+  it('keeps advanced filters behind "More"', () => {
     renderToolbar();
+    expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: /base64/i })).not.toBeInTheDocument();
+    openMore();
+    expect(screen.getByRole('spinbutton')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /base64/i })).toBeInTheDocument();
+  });
+
+  it('updates the minimum size filter (in More)', () => {
+    renderToolbar();
+    openMore();
     fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '100' } });
     expect(mockOnFilterChange).toHaveBeenCalledWith(expect.objectContaining({ minSize: 100 }));
   });
 
-  it('toggles the base64 switch', () => {
+  it('toggles the base64 switch (in More)', () => {
     renderToolbar();
+    openMore();
     fireEvent.click(screen.getByRole('switch', { name: /base64/i }));
     expect(mockOnFilterChange).toHaveBeenCalledWith(expect.objectContaining({ includeBase64: false }));
   });
 
   it('disables the base64 switch when the setting excludes base64', () => {
     renderToolbar({ excludeBase64Images: true });
+    openMore();
     expect(screen.getByRole('switch', { name: /base64/i })).toBeDisabled();
   });
 
@@ -70,7 +84,7 @@ describe('FilterToolbar Component', () => {
     renderToolbar();
     expect(screen.queryByText('Clear all')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'PNG' }));
+    fireEvent.change(screen.getByLabelText('Media format'), { target: { value: 'png' } });
     fireEvent.click(screen.getByText('Clear all'));
 
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(
@@ -78,14 +92,16 @@ describe('FilterToolbar Component', () => {
     );
   });
 
-  it('applies a size bucket when a size pill is clicked', () => {
+  it('applies a size bucket when a size control is clicked (in More)', () => {
     renderToolbar();
+    openMore();
     fireEvent.click(screen.getByRole('button', { name: 'Large' }));
     expect(mockOnFilterChange).toHaveBeenCalledWith(expect.objectContaining({ sizeBucket: 'large' }));
   });
 
   it('includes the size bucket in a reset', () => {
     renderToolbar();
+    openMore();
     fireEvent.click(screen.getByRole('button', { name: 'Small' }));
     fireEvent.click(screen.getByText('Clear all'));
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(
@@ -93,16 +109,17 @@ describe('FilterToolbar Component', () => {
     );
   });
 
-  it('switches format chips when the media kind changes', async () => {
+  it('switches format options when the media kind changes', async () => {
     const onFilterChange = jest.fn();
     render(<FilterToolbar onFilterChange={onFilterChange} extensionSettings={DEFAULT_SETTINGS} />);
-    // image formats visible by default
-    expect(screen.getByRole('button', { name: 'JPEG' })).toBeInTheDocument();
-    // switch to Video
+    const typeSelect = screen.getByLabelText('Media format');
+    // image formats by default
+    expect(within(typeSelect).getByRole('option', { name: 'JPEG' })).toBeInTheDocument();
+    // switch to Video (kind stays a segmented button)
     await userEvent.click(screen.getByRole('button', { name: 'Video' }));
-    expect(screen.getByRole('button', { name: 'MP4' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'JPEG' })).not.toBeInTheDocument();
-    // kind change resets the format chip to 'all'
+    expect(within(screen.getByLabelText('Media format')).getByRole('option', { name: 'MP4' })).toBeInTheDocument();
+    expect(within(screen.getByLabelText('Media format')).queryByRole('option', { name: 'JPEG' })).not.toBeInTheDocument();
+    // kind change resets the format to 'all'
     expect(onFilterChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ mediaKind: 'video', imageType: 'all' }),
     );
