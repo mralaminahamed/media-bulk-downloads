@@ -14,11 +14,6 @@ node_modules/
 *.zip
 web-ext-artifacts/
 
-# Vite / bundler cache
-.vite/
-vite.config.ts.timestamp-*
-vite.config.js.timestamp-*
-
 # Test coverage
 coverage/
 
@@ -52,4 +47,3 @@ Thumbs.db
 # WXT
 .output/
 .wxt/
-web-ext-artifacts/
