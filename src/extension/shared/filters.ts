@@ -13,10 +13,13 @@ import { ImageInfo, SettingsData, FilterOptions, SizeBucket } from '@/types';
  * since their size can't be known at collection time.
  */
 export function passesSettingsFilters(img: ImageInfo, settings: SettingsData): boolean {
-  const hasKnownDimensions = img.width > 0 || img.height > 0;
+  // Enforce the minimum only on dimensions that are actually known. A 0 is
+  // "unknown" (srcset candidates, CSS backgrounds, video/audio) and must never
+  // exclude the item — including the half-known case (e.g. 500×0), where the old
+  // AND-of-both check wrongly dropped the item on the unknown side.
   const meetsSize =
-    !hasKnownDimensions ||
-    (img.width >= settings.minimumImageSize && img.height >= settings.minimumImageSize);
+    (img.width === 0 || img.width >= settings.minimumImageSize) &&
+    (img.height === 0 || img.height >= settings.minimumImageSize);
 
   const meetsBase64 = !settings.excludeBase64Images || !img.isBase64;
 

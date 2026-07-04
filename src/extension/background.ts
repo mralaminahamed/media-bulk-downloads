@@ -25,6 +25,15 @@ let currentSettings: SettingsData = { ...DEFAULT_SETTINGS };
 
 const BADGE_COLOR = '#4F46E5';
 
+// The service worker is ephemeral: a message can wake it and be handled before
+// the async settings read completes. `settingsReady` resolves once settings have
+// been read at least once, so a download that wakes the worker never runs against
+// DEFAULT_SETTINGS (wrong subfolder/prefix/naming/filters).
+let markSettingsLoaded: (() => void) | undefined;
+const settingsReady: Promise<void> = new Promise((resolve) => {
+  markSettingsLoaded = resolve;
+});
+
 /**
  * Load the current settings from storage.
  */
@@ -34,6 +43,10 @@ function loadSettings(): void {
       currentSettings = withDefaults(result.settings);
       applySettings();
     }
+    // Resolve on the first read whether or not anything was stored — a first-run
+    // user with no saved settings correctly keeps DEFAULT_SETTINGS.
+    markSettingsLoaded?.();
+    markSettingsLoaded = undefined;
   });
 }
 
@@ -283,6 +296,10 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'sync' && changes.settings) {
     currentSettings = withDefaults(changes.settings.newValue as Partial<SettingsData>);
     applySettings();
+    // A change event also means settings are now known — resolve the gate so a
+    // download isn't left waiting on the initial read.
+    markSettingsLoaded?.();
+    markSettingsLoaded = undefined;
   }
 });
 
@@ -329,10 +346,14 @@ chrome.runtime.onMessage.addListener(
   ) => {
     if (typeof message === 'object' && message.type === 'DOWNLOAD_IMAGES') {
       const { images, sourcePage } = message as DownloadMessage;
-      const eligible = filterImagesBySettings(images, currentSettings);
-      sendResponse({ status: 'success', message: `Downloading ${eligible.length} files...` });
-      void downloadAndRecord(eligible, sourcePage);
-      return; // response already sent synchronously
+      // Wait for settings so the filter and the built filenames use the user's
+      // real settings, not defaults, when this message woke the worker.
+      void settingsReady.then(() => {
+        const eligible = filterImagesBySettings(images, currentSettings);
+        sendResponse({ status: 'success', message: `Downloading ${eligible.length} files...` });
+        return downloadAndRecord(eligible, sourcePage);
+      });
+      return true; // response is sent asynchronously after settings load
     }
 
     if (typeof message === 'object' && message.type === 'OPEN_DOWNLOAD_FILE') {

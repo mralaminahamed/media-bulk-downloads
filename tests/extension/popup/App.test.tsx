@@ -58,6 +58,25 @@ describe('App Component', () => {
     expect(await screen.findByText(/can't read this page: content script missing/i)).toBeInTheDocument();
   });
 
+  it('keeps the active toolbar filter when a deep scan repopulates the grid', async () => {
+    const initial = [
+      image({ src: 'https://c/photo.jpg', kind: 'image', type: 'jpeg' }),
+      image({ src: 'https://c/clip.mp4', kind: 'video', type: 'mp4' }),
+    ];
+    render(<App collect={async () => initial} />);
+    await screen.findByText('Filters');
+
+    // Filter to Video only → just the clip shows.
+    fireEvent.click(screen.getByRole('button', { name: 'Video' }));
+    expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
+
+    // Deep scan adds image-kind items; the filter must still hold (not repopulate).
+    fireEvent.click(screen.getByRole('button', { name: /deep scan/i }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument(),
+    );
+  });
+
   it('sends a bulk download request and reflects the response', async () => {
     (chrome.runtime.sendMessage as jest.Mock).mockImplementation((_m, cb) =>
       cb({ status: 'success', message: 'Downloading 2 files...' }),
