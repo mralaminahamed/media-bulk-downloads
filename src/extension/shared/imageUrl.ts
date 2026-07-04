@@ -252,6 +252,47 @@ const RULES: CdnRule[] = [
       u.pathname = u.pathname.replace(/\/v2\/(?:(?:resize|fit|format|max|frame|crop)[^/]*\/)*/, '/');
     },
   },
+  {
+    // Pexels: query-param resizer; the bare path is the original.
+    match: (u) => u.hostname === 'images.pexels.com',
+    rewrite: (u) => { u.search = ''; },
+  },
+  {
+    // Pixabay: filename _<size> -> _1280 (largest hotlinkable; true original is login-gated).
+    match: (u) => u.hostname === 'cdn.pixabay.com',
+    rewrite: (u) => { u.pathname = u.pathname.replace(/_\d{2,4}(?=\.[a-z0-9]+$)/i, '_1280'); },
+  },
+  {
+    // Flickr: trailing _<size> code -> _b (1024, reliably present). The 10-char
+    // secret is never matched (regex requires a short 1-3 char code before the ext).
+    match: (u) => /(?:^|\.)staticflickr\.com$/i.test(u.hostname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/_[a-z0-9]{1,3}(?=\.[a-z0-9]+$)/i, '_b'); },
+  },
+  {
+    // Tumblr: /s<W>x<H>/ size segment -> /s1280x1920/.
+    match: (u) => /\.media\.tumblr\.com$/i.test(u.hostname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/\/s\d+x\d+\//, '/s1280x1920/'); },
+  },
+  {
+    // BBC: the width segment (/news/640/, /ace/standard/240/) -> 1920.
+    match: (u) => u.hostname === 'ichef.bbci.co.uk',
+    rewrite: (u) => { u.pathname = u.pathname.replace(/\/(news|standard)\/\d{2,4}\//, '/$1/1920/'); },
+  },
+  {
+    // Etsy: il_<W>x<H> render token -> il_fullxfull.
+    match: (u) => u.hostname === 'i.etsystatic.com',
+    rewrite: (u) => { u.pathname = u.pathname.replace(/il_\d+x(?:\d+|N)/i, 'il_fullxfull'); },
+  },
+  {
+    // eBay: s-l<NNN> size token -> s-l1600.
+    match: (u) => u.hostname === 'i.ebayimg.com',
+    rewrite: (u) => { u.pathname = u.pathname.replace(/s-l\d+(?=\.[a-z0-9]+$)/i, 's-l1600'); },
+  },
+  {
+    // The Verge: WordPress uploads path with resize query -> strip the resizer query.
+    match: (u) => u.hostname === 'platform.theverge.com' && u.pathname.includes('/wp-content/uploads/'),
+    rewrite: (u) => dropParams(u, [...RESIZE_PARAMS, 'quality', 'strip', 'ssl']),
+  },
 ];
 
 /**
