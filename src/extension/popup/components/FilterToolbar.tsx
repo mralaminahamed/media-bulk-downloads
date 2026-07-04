@@ -89,7 +89,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
         <span className="eyebrow shrink-0">Filters</span>
 
         {/* Kind — single-choice segmented control, the primary filter */}
-        <div className="segwrap shrink-0" role="group" aria-label="Media kind">
+        <div className="segwrap h-[28px] shrink-0" role="group" aria-label="Media kind">
           {KIND_OPTIONS.map((opt) => (
             <button
               key={opt.value}
@@ -107,7 +107,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
           aria-label="Media format"
           value={filters.imageType}
           onChange={(e) => update({ imageType: e.target.value })}
-          className="field h-[30px] w-auto shrink-0 py-0 text-[12px]"
+          className="field h-[28px] w-[120px] shrink-0 py-0 text-[12px]"
         >
           {formatsForKind(filters.mediaKind).map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -122,7 +122,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
           onClick={() => setMoreOpen((o) => !o)}
           aria-expanded={moreOpen}
           aria-controls="filter-more"
-          className={`chip shrink-0 ${moreOpen ? 'is-active' : ''}`}
+          className={`chip h-[28px] shrink-0 ${moreOpen ? 'is-active' : ''}`}
         >
           More
           {advancedCount > 0 && <span className="countpill">{advancedCount}</span>}
@@ -145,7 +145,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
           {showSize && (
             <div className="flex items-center gap-2">
               <span className="eyebrow">Size</span>
-              <div className="segwrap" role="group" aria-label="Image size">
+              <div className="segwrap h-[28px]" role="group" aria-label="Image size">
                 {SIZE_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
