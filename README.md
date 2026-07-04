@@ -8,6 +8,7 @@
 Fast, network-free by default, and built for Chrome, Firefox, and Edge from one codebase.
 
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/mfbfanlkinmkpfhpmbpjcnhdfdgjognnn?label=Chrome%20Web%20Store&color=4f46e5)](https://chromewebstore.google.com/detail/media-bulk-downloads/mfbfanlkinmkpfhpmbpjcnhdfdgjognnn)
+[![Edge Add-ons](https://img.shields.io/badge/dynamic/json?label=Edge%20Add-ons&prefix=v&query=%24.version&url=https%3A%2F%2Fmicrosoftedge.microsoft.com%2Faddons%2Fgetproductdetailsbycrxid%2Fihhhecmabfocelgmjafijchhhlpdlnll&color=0078D7&logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/0RDCKGS01KRC)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-yellow.svg)](https://developer.chrome.com/docs/extensions/develop/migrate)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
@@ -191,9 +192,11 @@ media-bulk-downloads/
 | [Getting Started](./docs/guides/getting-started.md)         | Install, build, load unpacked, first use       |
 | [Architecture](./docs/guides/architecture.md)               | Surfaces, modules, message catalog, data model |
 | [Collection Pipeline](./docs/guides/collection-pipeline.md) | Discovery → de-proxy → CDN-upgrade → dedup     |
+| [Resolve Originals](./docs/guides/resolve-originals.md)     | Opt-in per-host fetch for the exact original   |
 | [Deep Scan](./docs/guides/deep-scan.md)                     | The opt-in auto-scroll workflow and its bounds |
 | [Download](./docs/guides/download.md)                       | Filename construction and the save flow        |
 | [Download paths](./docs/guides/download-paths.md)           | Per-site folder templates ({host}/{domain}/…)  |
+| [Download History](./docs/guides/history.md)                | The download log and its open/reveal actions   |
 | [Favourites](./docs/guides/favourites.md)                   | Star media to a saved, persistent list         |
 | [Badge](./docs/guides/badge.md)                             | The per-tab media count on the toolbar icon    |
 | [In-page Bubble](./docs/guides/bubble.md)                   | The Shadow-DOM launcher lifecycle              |

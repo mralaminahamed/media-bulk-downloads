@@ -114,5 +114,11 @@ flowchart TB
 - **No data loss on merge**: results merge into the raw collected set
   (`rawImagesRef`), so images previously hidden by a size/base64 filter aren't
   discarded and reappear if the filter is relaxed.
+- **Resolution still applies**: each scan round calls the same `collectMedia()`
+  as the initial scan, so newly-found items can carry `resolveHint`/
+  `unresolvedVideo` just like any other item; after the merge, `applyResolution`
+  runs again and resolves them too when `resolveOriginals` is on — see
+  [Resolve Originals](./resolve-originals.md).
 
-Pipeline that each scan round feeds into: [Collection Pipeline](./collection-pipeline.md).
+Pipeline that each scan round feeds into: [Collection Pipeline](./collection-pipeline.md) ·
+[Resolve Originals](./resolve-originals.md).

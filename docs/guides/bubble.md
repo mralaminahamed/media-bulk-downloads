@@ -65,6 +65,13 @@ Persisted in settings (`chrome.storage.sync`):
 | `bubblePanelPoint`             | Top-left coordinates for the `free` placement                                    |
 | `bubbleWidth` / `bubbleHeight` | Panel size (corner-grip resizable)                                               |
 
+Settings isn't the only writer: `Bubble.tsx`'s own in-page handlers persist these
+directly to `chrome.storage.sync` as the user interacts with the bubble —
+dragging the launcher writes `bubblePosition`, dragging the panel header sets
+`bubblePanelPlacement` to `free` and writes `bubblePanelPoint`, and dragging the
+resize grip writes `bubbleWidth`/`bubbleHeight`. Settings is just the other
+place these same fields can be edited (via the dropdowns/number fields).
+
 ## Why Shadow DOM
 
 - Page CSS can't leak in and restyle the panel; the panel's Tailwind/tokens can't

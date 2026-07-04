@@ -42,6 +42,25 @@ settings — the extension can't set it.
 
 The Settings panel shows a live preview against a sample site as you type.
 
+## How a template expands
+
+```mermaid
+flowchart TD
+  T["Template string<br/>e.g. Media/{domain}/{date}"] --> S["Substitute known tokens<br/>{host} {domain} {date} {kind}"]
+  S --> V["Each token value → sanitizePathSegment<br/>(a value can never inject extra / segments)"]
+  V --> U["Strip any remaining unknown {...}<br/>(typos are dropped, not written literally)"]
+  U --> P["sanitizePathSegment(whole path)<br/>strips traversal (..), illegal chars,<br/>reserved device names (CON, NUL, …)"]
+  P --> J["Join with the filename"]
+  J --> D[("Downloads/&lt;expanded path&gt;/file.jpg")]
+
+  classDef guard fill:#fdeeee,stroke:#c0392b,color:#17181c;
+  class V,U,P guard;
+```
+
+The two sanitizing steps (guarded in red) are what make the constraint above a
+guarantee, not a convention: however the template is written, the expanded path
+can never point outside `Downloads/`.
+
 ## Rules & edge cases
 
 - **`{host}` vs `{domain}`** — `www.twitter.com`, `m.twitter.com`, and

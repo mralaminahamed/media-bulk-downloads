@@ -15,9 +15,11 @@ Developer and user documentation for the extension. Diagrams use
 | Guide                                           | Flow                                                       |
 |-------------------------------------------------|------------------------------------------------------------|
 | [Collection Pipeline](./collection-pipeline.md) | How a page's media is discovered and upgraded to originals |
+| [Resolve Originals](./resolve-originals.md)     | Opt-in, per-host fetch for the exact original file         |
 | [Deep Scan](./deep-scan.md)                     | Opt-in auto-scroll that surfaces virtualized / lazy media  |
 | [Download](./download.md)                       | How selected media is named and saved                      |
 | [Download paths](./download-paths.md)           | Per-site folder templates ({host}/{domain}/{date}/{kind})  |
+| [Download History](./history.md)                | The download log and its open/reveal/re-download actions   |
 | [Favourites](./favourites.md)                   | The saved-media list and how it persists                   |
 | [Badge](./badge.md)                             | The per-tab count on the toolbar icon                      |
 | [In-page Bubble](./bubble.md)                   | The injected floating launcher and its lifecycle           |
@@ -48,9 +50,14 @@ flowchart LR
 
 ## Design constraints (read before changing collection)
 
-- **Passive collection is network-free.** Metadata is derived from the DOM and
-  URL strings only — no `fetch`/HEAD/preload while scanning. The only network
-  call is lazy image size enrichment (`HEAD`), popup-only and user-initiated.
+- **Passive collection is network-free by default.** Metadata is derived from
+  the DOM and URL strings only — no `fetch`/HEAD/preload while scanning.
+- **Two opt-in exceptions contact the network, both off unless the user turns
+  them on:** popup-only, user-initiated `HEAD` size enrichment, and the
+  **Resolve Originals** setting (`resolveOriginals`, off by default), which lets
+  the background `fetch` a handful of supported host APIs (Twitter/X,
+  Wallhaven, Unsplash) for the exact original file. See
+  [Resolve Originals](./resolve-originals.md).
 - **Deep scan issues no requests of its own** — it scrolls and re-reads the DOM;
   the page loads its own media.
 - **Conservative URL upgrading.** Only safe path-based CDN rewrites; signed hosts
