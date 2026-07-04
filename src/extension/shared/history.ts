@@ -15,7 +15,13 @@ export function mergeHistory(existing: HistoryEntry[], added: HistoryEntry[]): H
 export async function loadHistory(): Promise<HistoryEntry[]> {
   const result = await chrome.storage.local.get(HISTORY_KEY);
   const raw = (result as Record<string, unknown>)[HISTORY_KEY];
-  return Array.isArray(raw) ? (raw as HistoryEntry[]) : [];
+  if (!Array.isArray(raw)) return [];
+  // Tolerate corrupt storage: an entry with no string `src` would collapse to a
+  // single undefined key in mergeHistory, and a non-numeric `time` would make the
+  // sort unstable. Drop the former and coerce the latter.
+  return raw
+    .filter((e): e is HistoryEntry => !!e && typeof e === 'object' && typeof (e as HistoryEntry).src === 'string')
+    .map((e) => ({ ...e, time: Number((e as HistoryEntry).time) || 0 }));
 }
 
 // Serialize read-modify-write ops so concurrent mutations can't clobber each other.

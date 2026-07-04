@@ -99,6 +99,18 @@ export interface OpenUrlMessage {
   url: string;
 }
 
+/** Clear the whole download history. Routed through the background so all
+ *  history writes happen in one realm (no cross-context clobber). */
+export interface ClearHistoryMessage {
+  type: 'CLEAR_HISTORY';
+}
+
+/** Remove one history entry by src. Routed through the background (see above). */
+export interface RemoveHistoryMessage {
+  type: 'REMOVE_HISTORY_ENTRY';
+  src: string;
+}
+
 export type ChromeMessage =
   | DownloadMessage
   | GetImagesMessage
@@ -109,7 +121,9 @@ export type ChromeMessage =
   | ResolveOriginalsMessage
   | OpenDownloadMessage
   | ShowDownloadMessage
-  | OpenUrlMessage;
+  | OpenUrlMessage
+  | ClearHistoryMessage
+  | RemoveHistoryMessage;
 
 export interface AppState {
   status: string;

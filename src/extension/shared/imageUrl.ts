@@ -92,7 +92,7 @@ export function deproxy(url: string): string | null {
     const after = u.pathname.split('/image/fetch/')[1] ?? '';
     const inner = after.replace(/^(?:[^/]*_[^/]*\/)+/, ''); // drop leading transform segments
     const decoded = safeDecode(inner) + (u.search || '');
-    const abs = decoded.startsWith('http') ? decoded : null;
+    const abs = /^https?:\/\//i.test(decoded) ? decoded : null;
     if (abs && looksLikeMediaUrl(abs)) return abs;
   }
 
@@ -101,7 +101,7 @@ export function deproxy(url: string): string | null {
     const raw = u.searchParams.get('url');
     if (raw) {
       const decoded = safeDecode(raw);
-      const abs = decoded.startsWith('http') ? decoded : `https://${decoded}`;
+      const abs = /^https?:\/\//i.test(decoded) ? decoded : `https://${decoded}`;
       if (looksLikeMediaUrl(abs)) return abs;
     }
   }
@@ -111,7 +111,7 @@ export function deproxy(url: string): string | null {
     const raw = u.searchParams.get(key);
     if (!raw) continue;
     const decoded = safeDecode(raw);
-    const abs = decoded.startsWith('http') ? decoded : null;
+    const abs = /^https?:\/\//i.test(decoded) ? decoded : null;
     if (abs && looksLikeMediaUrl(abs)) return abs;
   }
 
