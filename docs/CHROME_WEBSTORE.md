@@ -125,7 +125,7 @@ crop to the exact sizes. PNG or JPEG, no alpha needed.
 
 | Asset | Size | Required | Suggested shot |
 |---|---|---|---|
-| Store icon | 128×128 | ✅ (have it) | `assets/icon128.png` |
+| Store icon | 128×128 | ✅ (have it) | `src/public/icon/128.png` |
 | Screenshot 1 | 1280×800 or 640×400 | ✅ (≥1) | Popup with a full media grid + type badges |
 | Screenshot 2 | 1280×800 or 640×400 | optional | Filter toolbar in use (kind/format/size) |
 | Screenshot 3 | 1280×800 or 640×400 | optional | Preview modal (with prev/next) |
