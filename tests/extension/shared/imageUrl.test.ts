@@ -226,6 +226,11 @@ describe('image-CDN rule batch (2026-07-05)', () => {
     // a URL with no size code (just id_secret) must be untouched
     expect(orig('https://live.staticflickr.com/4556/24708106728_ce5296f1f9.jpg'))
       .toBe('https://live.staticflickr.com/4556/24708106728_ce5296f1f9.jpg');
+    // already >= _b (1024) must NOT be downgraded
+    expect(orig('https://live.staticflickr.com/4556/24708106728_ce5296f1f9_o.jpg'))
+      .toBe('https://live.staticflickr.com/4556/24708106728_ce5296f1f9_o.jpg');
+    expect(orig('https://live.staticflickr.com/4556/24708106728_ce5296f1f9_k.jpg'))
+      .toBe('https://live.staticflickr.com/4556/24708106728_ce5296f1f9_k.jpg');
   });
   it('Tumblr: /sWxH/ -> /s1280x1920/', () => {
     expect(orig('https://64.media.tumblr.com/s540x810/f7494899f3c89b950936982cf1b05747f2d82ea2.jpg'))

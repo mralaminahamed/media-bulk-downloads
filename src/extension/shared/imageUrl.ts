@@ -263,10 +263,10 @@ const RULES: CdnRule[] = [
     rewrite: (u) => { u.pathname = u.pathname.replace(/_\d{2,4}(?=\.[a-z0-9]+$)/i, '_1280'); },
   },
   {
-    // Flickr: trailing _<size> code -> _b (1024, reliably present). The 10-char
-    // secret is never matched (regex requires a short 1-3 char code before the ext).
+    // Flickr: trailing _<size> code -> _b (1024) only for sizes smaller than _b.
+    // The 10-char secret is never matched (regex requires a short 1-3 char code before the ext).
     match: (u) => /(?:^|\.)staticflickr\.com$/i.test(u.hostname),
-    rewrite: (u) => { u.pathname = u.pathname.replace(/_[a-z0-9]{1,3}(?=\.[a-z0-9]+$)/i, '_b'); },
+    rewrite: (u) => { u.pathname = u.pathname.replace(/_[sqtmnwzc](?=\.[a-z0-9]+$)/i, '_b'); },
   },
   {
     // Tumblr: /s<W>x<H>/ size segment -> /s1280x1920/.
@@ -291,7 +291,7 @@ const RULES: CdnRule[] = [
   {
     // The Verge: WordPress uploads path with resize query -> strip the resizer query.
     match: (u) => u.hostname === 'platform.theverge.com' && u.pathname.includes('/wp-content/uploads/'),
-    rewrite: (u) => dropParams(u, [...RESIZE_PARAMS, 'quality', 'strip', 'ssl']),
+    rewrite: (u) => dropParams(u, [...RESIZE_PARAMS, 'strip', 'ssl']),
   },
 ];
 
