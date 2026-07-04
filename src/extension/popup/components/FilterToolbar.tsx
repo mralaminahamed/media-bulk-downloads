@@ -83,7 +83,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
   const showSize = filters.mediaKind === 'all' || filters.mediaKind === 'image';
 
   return (
-    <section className="border-b hairline bg-[var(--panel)] px-4 py-2.5">
+    <section className="border-b hairline bg-(--panel) px-4 py-2.5">
       {/* Primary line: Kind (segmented, one-tap) · Type (dropdown) · More (advanced).
           Wraps only if a narrow popup can't fit it all on one row. */}
       <div className="flex flex-wrap items-center gap-2">
@@ -138,7 +138,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
         {activeCount > 0 && (
           <button
             onClick={reset}
-            className="ml-auto shrink-0 text-[11px] font-semibold text-[var(--ink-2)] transition-colors hover:text-[var(--ink)]"
+            className="ml-auto shrink-0 text-[11px] font-semibold text-(--ink-2) transition-colors hover:text-(--ink)"
           >
             Clear all
           </button>
@@ -166,7 +166,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
             </div>
           )}
 
-          <label htmlFor="filter-min-size" className="flex items-center gap-1.5 text-[12px] text-[var(--ink-2)]">
+          <label htmlFor="filter-min-size" className="flex items-center gap-1.5 text-[12px] text-(--ink-2)">
             <span className="whitespace-nowrap">Min</span>
             <input
               id="filter-min-size"
@@ -182,7 +182,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
           </label>
 
           <div className="flex items-center gap-2">
-            <label htmlFor="filter-base64" className="text-[12px] text-[var(--ink-2)]">
+            <label htmlFor="filter-base64" className="text-[12px] text-(--ink-2)">
               Base64
             </label>
             <button

@@ -317,7 +317,7 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
       {open && (
         <div
           ref={panelRef}
-          className="ibd-app sheet-in overflow-hidden rounded-[14px] border hairline bg-[var(--paper)] shadow-2xl"
+          className="ibd-app sheet-in overflow-hidden rounded-[14px] border hairline bg-(--paper) shadow-2xl"
           style={panelStyle}
         >
           <div className="h-full">

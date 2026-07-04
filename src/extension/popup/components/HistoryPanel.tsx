@@ -91,19 +91,19 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="overlay-in fixed inset-0 z-50 flex items-stretch justify-end bg-[var(--overlay)] backdrop-blur-[2px]" onClick={onClose}>
+    <div className="overlay-in fixed inset-0 z-50 flex items-stretch justify-end bg-(--overlay) backdrop-blur-[2px]" onClick={onClose}>
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="history-title"
         tabIndex={-1}
-        className="sheet-in flex h-full w-full max-w-[380px] flex-col bg-[var(--panel)] shadow-2xl focus:outline-none"
+        className="sheet-in flex h-full w-full max-w-[380px] flex-col bg-(--panel) shadow-2xl focus:outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between border-b hairline px-4 py-3">
           <div>
-            <h2 id="history-title" className="text-[13px] font-semibold text-[var(--ink)]">Download History</h2>
+            <h2 id="history-title" className="text-[13px] font-semibold text-(--ink)">Download History</h2>
             <p className="eyebrow mt-0.5">Recent downloads</p>
           </div>
           <div className="flex items-center gap-0.5">
@@ -111,18 +111,18 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
               Clear all
             </button>
             <button onClick={onClose} className="iconbtn" title="Close" aria-label="Close">
-              <XMarkIcon className="h-[18px] w-[18px]" />
+              <XMarkIcon className="h-4.5 w-4.5" />
             </button>
           </div>
         </header>
 
         <div className="scroll-thin flex-1 space-y-2 overflow-y-auto px-4 py-4">
           {sorted.length === 0 ? (
-            <p className="py-8 text-center text-[12px] text-[var(--ink-2)]">No downloads yet</p>
+            <p className="py-8 text-center text-[12px] text-(--ink-2)">No downloads yet</p>
           ) : (
             sorted.map((entry) => (
               <div key={entry.src} className="card flex items-center gap-2.5 p-2">
-                <div className="checker relative h-11 w-11 flex-none overflow-hidden rounded-[var(--radius-sm)]">
+                <div className="checker relative h-11 w-11 flex-none overflow-hidden rounded-sm">
                   <LoadingImage
                     src={entry.thumbnailSrc ?? entry.src}
                     alt={entry.filename}
@@ -130,8 +130,8 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
                   />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[12px] font-medium text-[var(--ink)]">{entry.filename}</p>
-                  <p className="num flex items-center gap-1 text-[11px] text-[var(--ink-2)]">
+                  <p className="truncate text-[12px] font-medium text-(--ink)">{entry.filename}</p>
+                  <p className="num flex items-center gap-1 text-[11px] text-(--ink-2)">
                     <span>{relativeTime(entry.time)}</span>
                     {entry.sourcePageUrl && (
                       <>
@@ -140,7 +140,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
                           href={entry.sourcePageUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="truncate text-[var(--ink-2)] underline"
+                          className="truncate text-(--ink-2) underline"
                         >
                           {safeHost(entry.sourcePageUrl)}
                         </a>
