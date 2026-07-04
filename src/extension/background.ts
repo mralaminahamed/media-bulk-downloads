@@ -157,7 +157,7 @@ function updateTabBadge(tabId: number): void {
 export function extensionForType(type: string): string {
   switch (type) {
     case 'jpeg':
-      return 'jpg';
+      return 'jpeg';
     case 'png':
     case 'gif':
     case 'webp':
