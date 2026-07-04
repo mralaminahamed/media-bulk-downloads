@@ -1,4 +1,4 @@
-import { resolve } from '@/extension/shared/resolvers';
+import { resolve, REGISTRY } from '@/extension/shared/resolvers';
 
 const ctx = { allowNetwork: false };
 
@@ -21,5 +21,11 @@ describe('resolve — generic fallback', () => {
     expect(resolve('javascript:alert(1)', ctx)).toEqual([]);
     expect(resolve('data:text/html,<script>1</script>', ctx)).toEqual([]);
     expect(resolve('file:///etc/passwd', ctx)).toEqual([]);
+  });
+
+  it('includes behanceResolver before genericResolver', () => {
+    const ids = REGISTRY.map((r) => r.id);
+    expect(ids).toContain('behance');
+    expect(ids.indexOf('behance')).toBeLessThan(ids.indexOf('generic'));
   });
 });

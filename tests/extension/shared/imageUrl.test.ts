@@ -206,3 +206,56 @@ describe('CDN rules — path-based upgrades', () => {
     );
   });
 });
+
+describe('image-CDN rule batch (2026-07-05)', () => {
+  const orig = (u: string) => upgradeToOriginal(u).original;
+
+  it('Pexels: strips the resize query', () => {
+    expect(orig('https://images.pexels.com/photos/12762122/pexels-photo-12762122.jpeg?auto=compress&dpr=1&w=252&h=408&fit=crop'))
+      .toBe('https://images.pexels.com/photos/12762122/pexels-photo-12762122.jpeg');
+  });
+  it('Pixabay: _<size> -> _1280', () => {
+    expect(orig('https://cdn.pixabay.com/photo/2024/02/12/16/05/siguniang-mountain-8568913_640.jpg'))
+      .toBe('https://cdn.pixabay.com/photo/2024/02/12/16/05/siguniang-mountain-8568913_1280.jpg');
+    expect(orig('https://cdn.pixabay.com/photo/2024/02/12/16/05/x_1280.jpg'))
+      .toBe('https://cdn.pixabay.com/photo/2024/02/12/16/05/x_1280.jpg');
+  });
+  it('Flickr: _<size> -> _b, leaves the secret alone', () => {
+    expect(orig('https://live.staticflickr.com/4556/24708106728_ce5296f1f9_z.jpg'))
+      .toBe('https://live.staticflickr.com/4556/24708106728_ce5296f1f9_b.jpg');
+    // a URL with no size code (just id_secret) must be untouched
+    expect(orig('https://live.staticflickr.com/4556/24708106728_ce5296f1f9.jpg'))
+      .toBe('https://live.staticflickr.com/4556/24708106728_ce5296f1f9.jpg');
+    // already >= _b (1024) must NOT be downgraded
+    expect(orig('https://live.staticflickr.com/4556/24708106728_ce5296f1f9_o.jpg'))
+      .toBe('https://live.staticflickr.com/4556/24708106728_ce5296f1f9_o.jpg');
+    expect(orig('https://live.staticflickr.com/4556/24708106728_ce5296f1f9_k.jpg'))
+      .toBe('https://live.staticflickr.com/4556/24708106728_ce5296f1f9_k.jpg');
+  });
+  it('Tumblr: /sWxH/ -> /s1280x1920/', () => {
+    expect(orig('https://64.media.tumblr.com/s540x810/f7494899f3c89b950936982cf1b05747f2d82ea2.jpg'))
+      .toBe('https://64.media.tumblr.com/s1280x1920/f7494899f3c89b950936982cf1b05747f2d82ea2.jpg');
+  });
+  it('BBC: width segment -> 1920 (news + ace/standard)', () => {
+    expect(orig('https://ichef.bbci.co.uk/news/640/cpsprodpb/9c6f/live/aa7b3860.jpg'))
+      .toBe('https://ichef.bbci.co.uk/news/1920/cpsprodpb/9c6f/live/aa7b3860.jpg');
+    expect(orig('https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/abc/live/def.jpg'))
+      .toBe('https://ichef.bbci.co.uk/ace/standard/1920/cpsprodpb/abc/live/def.jpg');
+  });
+  it('Etsy: il_WxH -> il_fullxfull', () => {
+    expect(orig('https://i.etsystatic.com/38572517/r/il/a2a0a2/8011468755/il_765x956.8011468755_foh5.jpg'))
+      .toBe('https://i.etsystatic.com/38572517/r/il/a2a0a2/8011468755/il_fullxfull.8011468755_foh5.jpg');
+  });
+  it('eBay: s-l<NNN> -> s-l1600', () => {
+    expect(orig('https://i.ebayimg.com/images/g/-wEAAOSwVoJlqbkV/s-l500.webp'))
+      .toBe('https://i.ebayimg.com/images/g/-wEAAOSwVoJlqbkV/s-l1600.webp');
+  });
+  it('The Verge: strips the WP resize query', () => {
+    expect(orig('https://platform.theverge.com/wp-content/uploads/sites/2/2026/07/IMG2026.jpeg?quality=90&crop=0,0&w=2400'))
+      .toBe('https://platform.theverge.com/wp-content/uploads/sites/2/2026/07/IMG2026.jpeg');
+  });
+  it('Substack: deproxy decodes the embedded S3 URL', () => {
+    expect(deproxy('https://substackcdn.com/image/fetch/$s_!abc!,w_160,h_280,c_crop,f_auto,q_auto:good/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fabc.jpeg'))
+      .toBe('https://substack-post-media.s3.amazonaws.com/public/images/abc.jpeg');
+  });
+});
