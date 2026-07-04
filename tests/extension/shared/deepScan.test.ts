@@ -48,3 +48,10 @@ it('stops at maxScrolls', async () => {
   const out = await runDeepScan(deps, { ...DEEP_SCAN_DEFAULTS, maxScrolls: 3, idleRounds: 99, signal: new AbortController().signal });
   expect(out.length).toBeLessThanOrEqual(4); // seed + up to 3 scrolls
 });
+
+it('caps at maxItems even when a single collect returns more', async () => {
+  const many = Array.from({ length: 50 }, (_, n) => item(`s${n}`));
+  const { deps } = makeDeps([many]);
+  const out = await runDeepScan(deps, { ...DEEP_SCAN_DEFAULTS, maxItems: 10, signal: new AbortController().signal });
+  expect(out.length).toBe(10);
+});

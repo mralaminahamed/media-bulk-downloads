@@ -77,6 +77,13 @@ describe('Background Script', () => {
       expect(sanitizePathSegment('bad:name?.txt')).toBe('badname.txt');
       expect(sanitizePathSegment('back\\slash')).toBe('back/slash');
     });
+
+    it('neutralizes Windows trailing dots/spaces and reserved device names', () => {
+      expect(sanitizePathSegment('.. /x')).toBe('x'); // ".. " trims to ".." then drops
+      expect(sanitizePathSegment('name.')).toBe('name'); // trailing dot stripped
+      expect(sanitizePathSegment('CON.jpg')).toBe('_CON.jpg');
+      expect(sanitizePathSegment('a/lpt1/b')).toBe('a/_lpt1/b');
+    });
   });
 
   describe('buildDownloadFilename', () => {
@@ -358,6 +365,23 @@ describe('runtime message router — history actions', () => {
     dispatch({ type: 'OPEN_URL', url: 'javascript:alert(1)' });
     dispatch({ type: 'OPEN_URL', url: 'data:text/html,<script>1</script>' });
     expect(chrome.tabs.create).not.toHaveBeenCalled();
+  });
+
+  it('clears history in the background on CLEAR_HISTORY', async () => {
+    (chrome.storage.local.set as jest.Mock).mockClear().mockResolvedValue(undefined);
+    dispatch({ type: 'CLEAR_HISTORY' });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({ downloadHistory: [] });
+  });
+
+  it('removes one entry in the background on REMOVE_HISTORY_ENTRY', async () => {
+    (chrome.storage.local.get as jest.Mock).mockResolvedValue({
+      downloadHistory: [{ src: 'a', time: 1 }, { src: 'b', time: 2 }],
+    });
+    (chrome.storage.local.set as jest.Mock).mockClear().mockResolvedValue(undefined);
+    dispatch({ type: 'REMOVE_HISTORY_ENTRY', src: 'a' });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({ downloadHistory: [{ src: 'b', time: 2 }] });
   });
 });
 

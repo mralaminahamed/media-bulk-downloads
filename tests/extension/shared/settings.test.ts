@@ -54,3 +54,11 @@ describe('resolveOriginals setting', () => {
     expect(withDefaults({}).resolveOriginals).toBe(false);
   });
 });
+
+describe('withDefaults — corrupt shapes', () => {
+  it('ignores a non-object nested value instead of injecting junk index keys', () => {
+    const s = withDefaults({ bubblePosition: 'oops', bubblePanelPoint: [1, 2] } as unknown);
+    expect(s.bubblePosition).toEqual(DEFAULT_SETTINGS.bubblePosition);
+    expect(s.bubblePanelPoint).toEqual(DEFAULT_SETTINGS.bubblePanelPoint);
+  });
+});

@@ -11,23 +11,22 @@ const entry = {
 describe('HistoryPanel', () => {
   beforeEach(() => {
     jest.spyOn(history, 'loadHistory').mockResolvedValue([entry]);
-    jest.spyOn(history, 'removeEntry').mockResolvedValue();
-    jest.spyOn(history, 'clearHistory').mockResolvedValue();
+    (chrome.runtime.sendMessage as jest.Mock).mockClear();
   });
   afterEach(() => jest.restoreAllMocks());
 
-  it('lists entries and clears all', async () => {
+  it('lists entries and clears all via the background', async () => {
     render(<HistoryPanel onClose={() => {}} />);
     expect(await screen.findByText('a.jpg')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /clear all/i }));
-    expect(history.clearHistory).toHaveBeenCalled();
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'CLEAR_HISTORY' });
   });
 
-  it('removes an entry', async () => {
+  it('removes an entry via the background', async () => {
     render(<HistoryPanel onClose={() => {}} />);
     await screen.findByText('a.jpg');
     await userEvent.click(screen.getByRole('button', { name: /remove/i }));
-    expect(history.removeEntry).toHaveBeenCalledWith('https://c/a.jpg');
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'REMOVE_HISTORY_ENTRY', src: 'https://c/a.jpg' });
   });
 
   it('re-downloads an entry', async () => {

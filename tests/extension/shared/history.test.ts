@@ -1,5 +1,16 @@
-import { mergeHistory, recordDownloads, removeEntry, clearHistory, downloadedSrcSet, HISTORY_CAP } from '@/extension/shared/history';
+import { mergeHistory, recordDownloads, removeEntry, clearHistory, downloadedSrcSet, loadHistory, HISTORY_CAP } from '@/extension/shared/history';
 import { HistoryEntry } from '@/types';
+
+describe('loadHistory — corrupt storage', () => {
+  it('drops entries without a string src and coerces a bad time to 0', async () => {
+    (chrome.storage.local.get as jest.Mock).mockResolvedValue({
+      downloadHistory: [{ src: 'a', time: 5 }, { filename: 'no-src' }, { src: 'b' }, 'garbage', null],
+    });
+    const out = await loadHistory();
+    expect(out.map((x) => x.src)).toEqual(['a', 'b']);
+    expect(out.find((x) => x.src === 'b')!.time).toBe(0);
+  });
+});
 
 const e = (src: string, time: number): HistoryEntry =>
   ({ src, filename: `${src}.jpg`, kind: 'image', type: 'jpeg', sourcePageUrl: 'https://p', time });

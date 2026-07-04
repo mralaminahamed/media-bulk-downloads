@@ -22,13 +22,18 @@ export const DEFAULT_SETTINGS: SettingsData = {
   resolveOriginals: false,
 };
 
+/** A plain object, or {} — so spreading a corrupt string/array/number legacy
+ *  value can't inject junk index keys into a nested settings object. */
+const asObject = (v: unknown): Record<string, unknown> =>
+  v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+
 /** Merge stored settings over defaults, tolerating partial/legacy/unknown shapes. */
 export function withDefaults(stored: unknown): SettingsData {
-  const s = (stored && typeof stored === 'object' ? stored : {}) as Partial<SettingsData>;
+  const s = asObject(stored) as Partial<SettingsData>;
   return {
     ...DEFAULT_SETTINGS,
     ...s,
-    bubblePosition: { ...DEFAULT_SETTINGS.bubblePosition, ...(s.bubblePosition ?? {}) },
-    bubblePanelPoint: { ...DEFAULT_SETTINGS.bubblePanelPoint, ...(s.bubblePanelPoint ?? {}) },
+    bubblePosition: { ...DEFAULT_SETTINGS.bubblePosition, ...asObject(s.bubblePosition) },
+    bubblePanelPoint: { ...DEFAULT_SETTINGS.bubblePanelPoint, ...asObject(s.bubblePanelPoint) },
   };
 }

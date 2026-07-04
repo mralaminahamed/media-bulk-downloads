@@ -128,7 +128,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
       >
         {images.map((image, index) => (
           <figure
-            key={`${image.src}-${index}`}
+            key={image.src}
             className="card reveal group m-0"
             style={{ animationDelay: `${Math.min(index, 12) * 0.022}s` }}
           >

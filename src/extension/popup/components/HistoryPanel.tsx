@@ -8,7 +8,7 @@ import {
   FolderOpenIcon,
 } from '@heroicons/react/24/outline';
 import { HistoryEntry } from '@/types';
-import { loadHistory, removeEntry, clearHistory, HISTORY_KEY } from '@/extension/shared/history';
+import { loadHistory, HISTORY_KEY } from '@/extension/shared/history';
 import { relativeTime } from '../utils';
 import { LoadingImage } from './ImageList';
 import { useDialog } from '../hooks/useDialog';
@@ -44,14 +44,16 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
 
   const sorted = [...entries].sort((a, b) => b.time - a.time);
 
+  // Mutations go through the background (single writer); update local state
+  // optimistically for responsiveness — the storage.onChanged listener reconciles.
   const handleRemove = (entry: HistoryEntry) => {
-    void removeEntry(entry.src).then(() => {
-      setEntries((prev) => prev.filter((e) => e.src !== entry.src));
-    });
+    chrome.runtime.sendMessage({ type: 'REMOVE_HISTORY_ENTRY', src: entry.src });
+    setEntries((prev) => prev.filter((e) => e.src !== entry.src));
   };
 
   const handleClearAll = () => {
-    void clearHistory().then(() => setEntries([]));
+    chrome.runtime.sendMessage({ type: 'CLEAR_HISTORY' });
+    setEntries([]);
   };
 
   const openSource = (entry: HistoryEntry) => {

@@ -37,7 +37,10 @@ function waitForQuiet(signal: AbortSignal): Promise<void> {
       resolve();
     }
     signal.addEventListener('abort', done, { once: true });
-    obs.observe(document.body, { childList: true, subtree: true });
+    // document.body can be null very early or on non-HTML documents; fall back to
+    // the root element, and if neither exists the 2s hard cap still resolves.
+    const target = document.body ?? document.documentElement;
+    if (target) obs.observe(target, { childList: true, subtree: true });
   });
 }
 

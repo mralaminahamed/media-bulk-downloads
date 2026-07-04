@@ -6,6 +6,7 @@ import {
   ImageInfo,
   OpenDownloadMessage,
   OpenUrlMessage,
+  RemoveHistoryMessage,
   ResolveHint,
   ResolveOriginalsMessage,
   ResolveOriginalsResponse,
@@ -17,7 +18,7 @@ import { DEFAULT_SETTINGS, withDefaults } from './shared/settings';
 import { sanitizePathSegment } from './shared/paths';
 import { avExtensionForType, extensionFromUrl } from './shared/mediaType';
 import { resolveOriginal, NetDeps } from './shared/resolvers/network';
-import { recordDownloads } from './shared/history';
+import { recordDownloads, removeEntry, clearHistory } from './shared/history';
 
 export { DEFAULT_SETTINGS, sanitizePathSegment };
 
@@ -375,6 +376,18 @@ chrome.runtime.onMessage.addListener(
       // real web pages, never javascript:/data:/file: schemes.
       const { url } = message as OpenUrlMessage;
       if (/^https?:\/\//i.test(url)) void chrome.tabs.create({ url });
+      return;
+    }
+
+    // History mutations are routed here so every write (downloads + user edits)
+    // happens in the background realm and serializes through one write chain.
+    if (typeof message === 'object' && message.type === 'CLEAR_HISTORY') {
+      void clearHistory();
+      return;
+    }
+
+    if (typeof message === 'object' && message.type === 'REMOVE_HISTORY_ENTRY') {
+      void removeEntry((message as RemoveHistoryMessage).src);
       return;
     }
 

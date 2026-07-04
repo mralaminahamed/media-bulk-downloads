@@ -38,6 +38,10 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
   const merge = (): number => {
     let added = 0;
     for (const m of deps.collect()) {
+      // Enforce the ceiling inside the merge — a single round (or the seed) can
+      // return far more than maxItems, and the between-rounds guard alone would
+      // let `found` blow past the documented cap.
+      if (found.size >= opts.maxItems) break;
       if (!found.has(m.src)) {
         found.set(m.src, m);
         added++;
