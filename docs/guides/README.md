@@ -18,6 +18,7 @@ Developer and user documentation for the extension. Diagrams use
 | [Deep Scan](./deep-scan.md)                     | Opt-in auto-scroll that surfaces virtualized / lazy media  |
 | [Download](./download.md)                       | How selected media is named and saved                      |
 | [Download paths](./download-paths.md)           | Per-site folder templates ({host}/{domain}/{date}/{kind})  |
+| [Favourites](./favourites.md)                   | The saved-media list and how it persists                   |
 | [Badge](./badge.md)                             | The per-tab count on the toolbar icon                      |
 | [In-page Bubble](./bubble.md)                   | The injected floating launcher and its lifecycle           |
 

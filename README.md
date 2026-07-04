@@ -56,6 +56,8 @@ It reads only what the page already loaded, so nothing leaves your device.
 - Configurable naming scheme and a **download-path template** — `{host}`,
   `{domain}`, `{date}`, `{kind}` tokens save each site to its own folder
 - **Download history** with open-file, reveal-in-folder, and re-download actions
+- **Favourites** — star media to a saved list that persists across sessions,
+  re-downloadable anytime
 
 **Private by design**
 - **Network-free by default** — collection reads only what the page already loaded
@@ -192,6 +194,7 @@ media-bulk-downloads/
 | [Deep Scan](./docs/guides/deep-scan.md)                     | The opt-in auto-scroll workflow and its bounds |
 | [Download](./docs/guides/download.md)                       | Filename construction and the save flow        |
 | [Download paths](./docs/guides/download-paths.md)           | Per-site folder templates ({host}/{domain}/…)  |
+| [Favourites](./docs/guides/favourites.md)                   | Star media to a saved, persistent list         |
 | [Badge](./docs/guides/badge.md)                             | The per-tab media count on the toolbar icon    |
 | [In-page Bubble](./docs/guides/bubble.md)                   | The Shadow-DOM launcher lifecycle              |
 
