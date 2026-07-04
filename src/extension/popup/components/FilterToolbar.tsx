@@ -104,12 +104,15 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
           ))}
         </div>
 
-        {/* Type — dropdown; options adapt to the selected kind */}
+        {/* Type — dropdown; options adapt to the selected kind. Height/width via
+            inline style because .field (width:100%, height:34px) is defined after
+            Tailwind and would otherwise win over h-/w- utilities. */}
         <select
           aria-label="Media format"
           value={filters.imageType}
           onChange={(e) => update({ imageType: e.target.value })}
-          className="field h-[28px] w-[120px] shrink-0 py-0 text-[12px]"
+          className="field shrink-0 py-0 text-[12px]"
+          style={{ height: 28, width: 120 }}
         >
           {formatsForKind(filters.mediaKind).map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -124,7 +127,8 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
           onClick={() => setMoreOpen((o) => !o)}
           aria-expanded={moreOpen}
           aria-controls="filter-more"
-          className={`chip h-[28px] shrink-0 ${moreOpen ? 'is-active' : ''}`}
+          className={`chip shrink-0 ${moreOpen ? 'is-active' : ''}`}
+          style={{ height: 28 }}
         >
           More
           {advancedCount > 0 && <span className="countpill">{advancedCount}</span>}
@@ -171,7 +175,8 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
               value={filters.minSize || ''}
               placeholder="0"
               onChange={(e) => update({ minSize: parseInt(e.target.value, 10) || 0 })}
-              className="field num h-[28px] w-[56px] text-right"
+              className="field num text-right"
+              style={{ height: 28, width: 56 }}
             />
             <span className="eyebrow">KB</span>
           </label>
