@@ -170,14 +170,26 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
     return () => chrome.runtime.onMessage.removeListener(listener);
   }, []);
 
-  // Close on Escape.
+  // Close the panel on Escape — but only when no modal sub-dialog (Settings,
+  // History, preview) is open inside it. This listener is on window/capture and
+  // would otherwise fire before the sub-dialog's own Escape handler and collapse
+  // the whole panel instead of just the sheet.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key !== 'Escape') return;
+      if (panelRef.current?.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      setOpen(false);
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
+  }, [open]);
+
+  // Abort an in-flight deep scan when the panel closes (or the bubble unmounts).
+  // Otherwise startDeepScan keeps auto-scrolling the live page after the user
+  // dismissed the UI, with no way to stop it.
+  useEffect(() => {
+    if (!open) deepScanAbortRef.current?.abort();
   }, [open]);
 
   const persist = useCallback((patch: Partial<SettingsData>) => {
