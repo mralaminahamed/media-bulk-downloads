@@ -99,7 +99,7 @@ describe('App Component', () => {
     render(<App collect={async () => [image({ type: 'png' })]} />);
     await screen.findByText('Filters');
 
-    fireEvent.click(screen.getByRole('button', { name: 'JPEG' }));
+    fireEvent.change(screen.getByLabelText('Media format'), { target: { value: 'jpeg' } });
 
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /^download$/i })).toBeDisabled(),
