@@ -1,4 +1,5 @@
 import {
+  AddFavouriteMessage,
   ChromeMessage,
   DownloadMessage,
   DownloadResponse,
@@ -6,6 +7,7 @@ import {
   ImageInfo,
   OpenDownloadMessage,
   OpenUrlMessage,
+  RemoveFavouriteMessage,
   RemoveHistoryMessage,
   ResolveHint,
   ResolveOriginalsMessage,
@@ -25,6 +27,7 @@ import {
 import { avExtensionForType, extensionFromUrl } from './shared/mediaType';
 import { resolveOriginal, NetDeps } from './shared/resolvers/network';
 import { recordDownloads, removeEntry, clearHistory } from './shared/history';
+import { addFavourite, removeFavourite, clearFavourites } from './shared/favourites';
 
 export { DEFAULT_SETTINGS, sanitizePathSegment };
 
@@ -405,6 +408,22 @@ chrome.runtime.onMessage.addListener(
 
     if (typeof message === 'object' && message.type === 'REMOVE_HISTORY_ENTRY') {
       void removeEntry((message as RemoveHistoryMessage).src);
+      return;
+    }
+
+    // Favourite mutations are routed here too — same single-writer rationale.
+    if (typeof message === 'object' && message.type === 'ADD_FAVOURITE') {
+      void addFavourite((message as AddFavouriteMessage).entry);
+      return;
+    }
+
+    if (typeof message === 'object' && message.type === 'REMOVE_FAVOURITE') {
+      void removeFavourite((message as RemoveFavouriteMessage).src);
+      return;
+    }
+
+    if (typeof message === 'object' && message.type === 'CLEAR_FAVOURITES') {
+      void clearFavourites();
       return;
     }
 

@@ -117,3 +117,33 @@ describe('background toolbar click', () => {
     expect(chrome.tabs.sendMessage).not.toHaveBeenCalled();
   });
 });
+
+describe('background favourite handlers', () => {
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+  const fav = { src: 'https://c/a.jpg', kind: 'image', type: 'jpeg', sourcePageUrl: 'https://p', time: 1 };
+
+  beforeEach(() => {
+    (chrome.storage.local.get as jest.Mock).mockReset().mockResolvedValue({ favourites: [] });
+    (chrome.storage.local.set as jest.Mock).mockReset().mockResolvedValue(undefined);
+  });
+
+  it('ADD_FAVOURITE writes the entry to storage', async () => {
+    onMessage({ type: 'ADD_FAVOURITE', entry: fav }, {}, jest.fn());
+    await flush();
+    const written = (chrome.storage.local.set as jest.Mock).mock.calls.at(-1)![0].favourites;
+    expect(written.map((x: { src: string }) => x.src)).toEqual(['https://c/a.jpg']);
+  });
+
+  it('REMOVE_FAVOURITE drops the src', async () => {
+    (chrome.storage.local.get as jest.Mock).mockResolvedValue({ favourites: [fav] });
+    onMessage({ type: 'REMOVE_FAVOURITE', src: 'https://c/a.jpg' }, {}, jest.fn());
+    await flush();
+    expect((chrome.storage.local.set as jest.Mock).mock.calls.at(-1)![0].favourites).toEqual([]);
+  });
+
+  it('CLEAR_FAVOURITES empties storage', async () => {
+    onMessage({ type: 'CLEAR_FAVOURITES' }, {}, jest.fn());
+    await flush();
+    expect((chrome.storage.local.set as jest.Mock).mock.calls.at(-1)![0].favourites).toEqual([]);
+  });
+});

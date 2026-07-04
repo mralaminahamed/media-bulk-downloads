@@ -121,6 +121,23 @@ export interface RemoveHistoryMessage {
   src: string;
 }
 
+/** Add one item to Favourites. Routed through the background (single writer). */
+export interface AddFavouriteMessage {
+  type: 'ADD_FAVOURITE';
+  entry: FavouriteEntry;
+}
+
+/** Remove one favourite by src. Routed through the background. */
+export interface RemoveFavouriteMessage {
+  type: 'REMOVE_FAVOURITE';
+  src: string;
+}
+
+/** Clear all favourites. Routed through the background. */
+export interface ClearFavouritesMessage {
+  type: 'CLEAR_FAVOURITES';
+}
+
 export type ChromeMessage =
   | DownloadMessage
   | GetImagesMessage
@@ -133,7 +150,10 @@ export type ChromeMessage =
   | ShowDownloadMessage
   | OpenUrlMessage
   | ClearHistoryMessage
-  | RemoveHistoryMessage;
+  | RemoveHistoryMessage
+  | AddFavouriteMessage
+  | RemoveFavouriteMessage
+  | ClearFavouritesMessage;
 
 export interface AppState {
   status: string;
