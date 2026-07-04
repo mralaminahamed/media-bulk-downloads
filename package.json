@@ -31,7 +31,7 @@
   },
   "packageManager": "yarn@4.17.0",
   "scripts": {
-    "dev": "vite",
+    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=8192 vite",
     "build": "tsc --noEmit && vite build",
     "build:firefox": "yarn build && node scripts/build-firefox.ts",
     "preview": "vite preview",
@@ -64,6 +64,7 @@
     "@typescript-eslint/eslint-plugin": "^8.62.1",
     "@typescript-eslint/parser": "^8.62.1",
     "@vitejs/plugin-react": "^6.0.3",
+    "cross-env": "^10.1.0",
     "eslint": "^10.6.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",

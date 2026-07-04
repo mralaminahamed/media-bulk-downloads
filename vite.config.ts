@@ -9,11 +9,17 @@ import zip from 'vite-plugin-zip-pack'
 import manifest from './manifest.config'
 import { version } from './package.json'
 
-export default defineConfig({
+// `command` is 'serve' for `vite` (dev) and 'build' for `vite build`.
+export default defineConfig(({ command }) => ({
   plugins: [
     react(),
     crx({ manifest }),
-    zip({ inDir: 'dist', outDir: 'release', outFileName: `media-bulk-downloads-${version}.zip` }),
+    // Packaging the release zip only makes sense for a production build. Running
+    // it during `vite dev` re-zips dist on rebuilds — wasted work that adds to the
+    // dev server's memory churn.
+    ...(command === 'build'
+      ? [zip({ inDir: 'dist', outDir: 'release', outFileName: `media-bulk-downloads-${version}.zip` })]
+      : []),
   ],
   resolve: {
     alias: {
@@ -36,8 +42,7 @@ export default defineConfig({
   server: {
     port: 3000,
     strictPort: true,
-    hmr: {
-      port: 3000,
-    },
+    // HMR is served over the dev server port by default; an explicit `hmr` block
+    // is redundant and the port/host sub-options are deprecated in Vite 8.
   },
-});
+}));
