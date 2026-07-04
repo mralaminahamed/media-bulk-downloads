@@ -13,18 +13,32 @@ sequenceDiagram
   participant F as filterImagesBySettings
   participant BN as buildDownloadFilename
   participant D as chrome.downloads
+  participant H as recordDownloads (history.ts)
+  participant ST as chrome.storage.local
 
   U->>P: click ⬇ (single) or Download N (bulk)
   P->>SW: sendMessage({ type:"DOWNLOAD_IMAGES", images })
+  Note over SW: await settingsReady — see below
   SW->>F: filter by current settings (eligibility)
+  SW-->>P: { status, message } (eligible count)
   loop each eligible item
     SW->>BN: buildDownloadFilename(item, index, settings, sourcePage.url)
     BN-->>SW: relative path + filename
     SW->>D: download({ url, filename, saveAs, conflictAction:"uniquify" })
+    D-->>SW: downloadId (on success, skipped on failure)
   end
-  SW-->>P: { status, message }
+  SW->>H: recordDownloads(successful entries)
+  H->>ST: storage.local.set({ downloadHistory: merged })
+  Note over ST: storage.onChanged fires for every open surface —<br/>see Download History
   P->>P: show status text
 ```
+
+`downloadAndRecord` is the function that drives the loop above: it fires every
+eligible download, then hands the successes (each already carrying its
+`chrome.downloads` `downloadId`) to `recordDownloads`, which writes them into
+`chrome.storage.local['downloadHistory']`. Failed downloads (a Chrome
+`lastError`, or no `downloadId`) are silently skipped — nothing is recorded for
+them. See [Download History](./history.md) for what happens after the write.
 
 ## Filename construction (`buildDownloadFilename`)
 
@@ -60,6 +74,17 @@ flowchart TB
 - **Video/Audio:** `avExtensionForType(type)` (mp4/webm/mov/…/mp3/wav/flac/…),
   then the URL's real extension, then `mp4`/`mp3` as a last resort.
 
+## The `settingsReady` gate
+
+The service worker is ephemeral (MV3): the `DOWNLOAD_IMAGES` message itself can
+wake it up, and that wake-up races the async `chrome.storage.sync` read of
+settings. If filtering/naming ran against `DEFAULT_SETTINGS` in that window, a
+download could land in the wrong subfolder, use the wrong prefix, or skip the
+user's real size/base64 filters. The handler instead `await`s a `settingsReady`
+promise — resolved the first time settings finish loading (or change) — before
+it filters or builds a single filename, so a download that wakes the worker
+always runs against the user's actual settings.
+
 ## Notes
 
 - Eligibility is re-checked in the worker via `filterImagesBySettings`, so the
@@ -68,3 +93,8 @@ flowchart TB
   message is surfaced in the panel's status line.
 - Streaming (`.m3u8`/`.mpd`) and `blob:` media never reach here — they're dropped
   at collection (see [Collection Pipeline](./collection-pipeline.md)).
+- **Re-download reuses this flow.** [Download History](./history.md) and
+  [Favourites](./favourites.md) both re-download by sending this exact
+  `DOWNLOAD_IMAGES` message — a synthesized `ImageInfo` plus the entry's stored
+  `sourcePage` — so the same eligibility check, naming, and
+  [download-path](./download-paths.md) tokens apply as any other download.

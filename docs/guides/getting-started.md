@@ -36,7 +36,7 @@ yarn build:all      # chrome + firefox + edge
 yarn zip:all        # store-ready zips in .output/
 ```
 
-See the per-store upload matrix in the [README](../../README.md#build--package-chrome--firefox--edge).
+See the per-store upload matrix in the [README](../../README.md#build--package).
 
 ## Quality gates
 
@@ -65,6 +65,8 @@ Once open:
    lazy-loaded media — useful on infinite feeds and galleries. See
    [Deep Scan](./deep-scan.md).
 4. **Download** a single item (hover → ⬇) or everything shown (footer button).
+5. **Download History** and **Favourites** are one click away from the popup
+   header — see [Download History](./history.md) and [Favourites](./favourites.md).
 
 ## Settings
 
@@ -72,7 +74,10 @@ Persisted with `chrome.storage.sync`:
 
 - **Downloads** — subfolder inside `Downloads/`, filename mode
   (original name vs. sequential prefix), "Ask where to save each file".
-- **Filtering** — minimum image size, exclude base64.
+- **Collection** — minimum image size, exclude base64, and **"Resolve exact
+  originals"** (off by default) — an opt-in toggle that lets the background
+  fetch a few supported hosts (Twitter/X, Wallhaven, Unsplash) for the exact
+  original file. See [Resolve Originals](./resolve-originals.md).
 - **Panel** — popup size; on-page bubble enable, position, panel placement, size.
 
 ## Where things live
@@ -82,20 +87,38 @@ wxt.config.ts                   # WXT build config (manifest fn, targets, zip)
 src/
   entrypoints/                  # WXT entrypoints (background, content, popup) → wrap extension/
   public/icon/                  # extension icons
+  types/                        # shared TypeScript types
   extension/
     background.ts               # service worker: badge, downloads, settings, icon click
     content.ts                  # content-script logic: GET_IMAGES, DEEP_SCAN, bubble mount
     collect.ts                  # collectMedia(): DOM -> MediaItem[]
     content/deepScanRunner.ts   # real-DOM deep-scan bindings
+    components/BrandMark.tsx    # shared icon mark (popup header + bubble launcher)
     shared/
       imageUrl.ts               # de-proxy + CDN upgrade rules + type/dim parsing
       extract.ts                # lazy attrs, srcset, noscript, gallery links
       mediaType.ts              # video/audio type detection + skip list
       deepScan.ts               # pure bounded deep-scan loop
       filters.ts                # settings + toolbar filtering
+      settings.ts               # DEFAULT_SETTINGS + withDefaults()
+      paths.ts                  # expandPathTemplate, sanitizePathSegment, domain/date helpers
+      history.ts                # download-history storage (record / remove / clear)
+      favourites.ts             # favourites storage (add / remove / clear)
+      collect-active-tab.ts     # popup collect() client
       deep-scan-active-tab.ts   # popup deep-scan client
-    popup/                      # popup React app (App, ImageList, FilterToolbar, Settings)
-    bubble/                     # in-page bubble (React in Shadow DOM)
+      resolve-originals-active.ts # popup RESOLVE_ORIGINALS client
+      resolvers/                # opt-in "resolve exact originals" host resolvers:
+                                 #   twitter.ts, unsplash.ts, wallhaven.ts, generic.ts,
+                                 #   network.ts (dispatch + fetch), types.ts, index.ts
+    popup/
+      App.tsx                   # popup shell: grid, filters, header actions
+      components/               # ImageList, FilterToolbar, Settings, HistoryPanel,
+                                 #   FavouritesPanel
+      hooks/useDialog.ts        # shared modal focus-trap/Escape hook
+      utils.ts
+    bubble/
+      Bubble.tsx                # launcher + drag/resize + panel placement
+      mount.tsx                 # Shadow DOM host + React root mount/unmount
   styles/index.css              # Tailwind v4 + design tokens
 tests/                          # Jest specs mirroring src/
 docs/guides/                    # you are here

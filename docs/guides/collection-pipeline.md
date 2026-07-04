@@ -1,6 +1,7 @@
 # Collection Pipeline
 
-How a page's media is discovered, upgraded to originals, de-duplicated, and shown.
+How a page's media is discovered, resolved to originals through a per-host
+resolver registry, de-duplicated, and shown.
 
 ## End-to-end (popup scan)
 
@@ -29,40 +30,65 @@ sequenceDiagram
 
 ## Inside `collectMedia()`
 
-The collector runs several DOM passes, then routes every raw URL through one
-shared upgrade + dedup path.
+The collector runs several DOM passes, then routes every raw, non-base64 URL
+through `resolve()` — the resolver **registry** (`shared/resolvers/index.ts`) —
+before dedup. `<video>`/`<audio>` elements mostly bypass the registry (direct
+file sources only), except for a Twitter-specific poster check that can turn a
+`<video>` into an image-shaped candidate of `kind: 'video' | 'gif'`.
 
 ```mermaid
 flowchart TB
   START["collectMedia()"] --> IMG["&lt;img&gt; / &lt;picture&gt;<br/>imageUrlsFromElement()"]
   START --> BG["CSS background-image<br/>(computed + data-bg)"]
-  START --> AV["&lt;video&gt; / &lt;audio&gt; / &lt;source&gt;<br/>+ poster"]
   START --> GAL["gallery &lt;a href&gt;<br/>galleryLinkCandidate()"]
   START --> NS["&lt;noscript&gt;<br/>noscriptImageCandidates()"]
+  START --> AV["&lt;video&gt; / &lt;audio&gt; / &lt;source&gt;<br/>+ poster"]
 
-  IMG --> PIPE
-  BG --> PIPE
-  GAL --> PIPE
-  NS --> PIPE
-  AV --> AVPIPE
+  IMG --> B64
+  BG --> B64
+  GAL --> B64
+  NS --> B64
 
-  subgraph PIPE["Image URL pipeline"]
-    R1["resolveUrl()"] --> DP["deproxy()"] --> UP["upgradeToOriginal() → RULES"] --> DD1{"seen original?"}
-    DD1 -- no --> MK1["MediaItem kind=image<br/>+ thumbnailSrc fallback"]
-    DD1 -- yes --> SKIP1["skip"]
+  B64{"data:image/ URL?"}
+  B64 -->|"yes"| MKB["MediaItem kind=image, isBase64:true<br/>size computed locally"]
+  B64 -->|"no"| RES["resolve(url, ctx)<br/>ctx.allowNetwork = false"]
+
+  subgraph REG["shared/resolvers — REGISTRY, tried in order"]
+    direction TB
+    TW["twitterResolver<br/>pbs.twimg.com"] -->|"no candidate"| UNS
+    UNS["unsplashResolver<br/>images / plus.unsplash.com"] -->|"no candidate"| WH
+    WH["wallhavenResolver<br/>th.wallhaven.cc"] -->|"no candidate"| GEN
+    GEN["genericResolver (catch-all)<br/>deproxy() then upgradeToOriginal() / RULES"]
   end
 
-  subgraph AVPIPE["A/V pipeline"]
-    R2["resolveUrl()"] --> SK{"isUndownloadableMedia?<br/>(blob: / .m3u8 / .mpd)"}
-    SK -- yes --> DROP["skip"]
-    SK -- no --> DD2{"seen?"}
-    DD2 -- no --> MK2["MediaItem kind=video/audio<br/>type=detectAvType()"]
-    DD2 -- yes --> SKIP2["skip"]
-  end
+  RES --> REG
+  REG --> CAND["MediaCandidate[]<br/>kind: image, video, or gif"]
+  CAND --> DD1{"seen cand.url?"}
+  DD1 -->|"yes"| SKIP1["skip"]
+  DD1 -->|"no"| KIND{"cand.kind"}
+  KIND -->|"image"| MK1["ImageInfo<br/>+ thumbnailSrc / resolveHint"]
+  KIND -->|"video or gif"| MK2["MediaItem kind=video<br/>+ poster, resolveHint, unresolvedVideo"]
 
-  MK1 --> OUT["MediaItem[]"]
+  AV --> TWCHK{"video poster matches<br/>tweet_video_thumb /<br/>ext_tw_video_thumb / amplify_video_thumb?"}
+  TWCHK -->|"yes"| MK2
+  TWCHK -->|"no"| AVR["resolveUrl()"]
+  AVR --> SK{"isUndownloadableMedia?<br/>(blob: / .m3u8 / .mpd)"}
+  SK -->|"yes"| DROP["skip"]
+  SK -->|"no"| DD2{"seen?"}
+  DD2 -->|"no"| MK3["MediaItem kind=video/audio<br/>type=detectAvType()"]
+  DD2 -->|"yes"| SKIP2["skip"]
+
+  MKB --> OUT["MediaItem[]"]
+  MK1 --> OUT
   MK2 --> OUT
+  MK3 --> OUT
 ```
+
+Only the **generic** resolver runs the pre-registry `deproxy()` →
+`upgradeToOriginal()` → `RULES` chain; it's the catch-all (`match: () => true`),
+so it always fires — either as the real handler for an unrecognized host, or as
+the fallback when a dedicated resolver upstream matched the host but returned no
+candidate for that particular path.
 
 ### Extraction sources (`shared/extract.ts`)
 
@@ -74,7 +100,34 @@ flowchart TB
 | `<noscript>`       | Parsed with `DOMParser`; the real image often lives here for no-JS users                                    |
 | Gallery `<a href>` | Anchor whose href `looksLikeMediaUrl` → href is the original, inner `<img>` is the `thumbnailSrc`           |
 
-## URL intelligence (`shared/imageUrl.ts`)
+## Resolver registry (`shared/resolvers/`)
+
+`resolve(rawUrl, ctx)` scheme-guards to http(s), then tries each `Resolver` in
+`REGISTRY` order — `twitterResolver → unsplashResolver → wallhavenResolver →
+genericResolver` — and returns the first non-empty `MediaCandidate[]`.
+
+| Resolver            | Matches                                          | Behavior                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+|---------------------|--------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `twitterResolver`   | `pbs.twimg.com`                                  | `/media/<id>` → `name=orig` + real format (`webp`→`jpg`); `/profile_images/` and `/profile_banners/` → strip the size suffix; `/card_img/` → `name=orig`. GIF thumbs (`/tweet_video_thumb/<id>`) → `video.twimg.com/tweet_video/<id>.mp4`, `kind:'gif'`. Real-video posters (`/ext_tw_video_thumb/`, `/amplify_video_thumb/`) → `kind:'video'`, `unresolvedVideo:true`, plus `resolveHint:{platform:'twitter', id: statusId}` when a nearby `/status/<id>` link is found |
+| `unsplashResolver`  | `images.unsplash.com`, `plus.unsplash.com`       | Strips resize query params (`w`, `h`, `fit`, `resize`, `q`, `quality`, `dpr`, `crop`, `ar`, `cs`, `fm`, `auto`, `bg`, `blend*`, `ixlib` — a smaller subset on `plus.`); attaches `resolveHint:{platform:'unsplash', id}` when the element sits inside an `<a href="/photos/<id>">`                                                                                                                                                                                       |
+| `wallhavenResolver` | `th.wallhaven.cc`                                | Reads the wallpaper id from the thumb path or a `figure[data-wallpaper-id]`; if the real extension is readable from the DOM (a full `<img>` on the page, or a png/gif badge on the figure), rewrites straight to `w.wallhaven.cc/full/<ab>/wallhaven-<id>.<ext>`; otherwise keeps the thumb URL and attaches `resolveHint:{platform:'wallhaven', id}`                                                                                                                    |
+| `genericResolver`   | everything else (catch-all, `match: () => true`) | Today's `deproxy()` → `upgradeToOriginal()` → `RULES` chain — see below                                                                                                                                                                                                                                                                                                                                                                                                  |
+
+Twitter, Unsplash, and Wallhaven each get a **dedicated** resolver; every other
+host — including the 40+ CDN families in the coverage benchmark — falls through
+to the generic resolver.
+
+## Generic resolver: URL intelligence (`shared/imageUrl.ts`)
+
+Reached for any host no dedicated resolver above claims, **plus** the rare
+fallthrough case: `twitterResolver.resolve()` returns `[]` for a
+`pbs.twimg.com` path it doesn't recognize, and the loop continues to
+`genericResolver`, whose `RULES` still carry a legacy `pbs.twimg.com` rewrite as
+a safety net for that case. (`unsplashResolver` and `wallhavenResolver`-with-a-known-id
+never return `[]` for their matched hosts, so the `RULES` entry below that also
+matches `images.unsplash.com`/`plus.unsplash.com` is effectively unreachable for
+those two hosts today — it's still live for the `*.imgix.net` hosts it shares a
+rule with, which no dedicated resolver claims.)
 
 Order: `deproxy()` first, then the first matching CDN rule.
 
@@ -93,15 +146,20 @@ is rejected).
 
 ### Safe path-based CDN upgrades
 
-| Host                                                              | Rewrite                                             |
-|-------------------------------------------------------------------|-----------------------------------------------------|
-| `pbs.twimg.com` (Twitter/X)                                       | `name=<size>` → `name=orig`                         |
-| `*.googleusercontent.com` / `*.ggpht.com`                         | trailing `=s200` / `=w200-h200` → `=s0`             |
-| `i.pinimg.com`                                                    | `/236x/` … `/736x/` → `/originals/`                 |
-| `i.ytimg.com` / `img.youtube.com`                                 | `/vi/<id>/<name>.jpg` → `maxresdefault.jpg`         |
-| `*.media-amazon.com` / `ssl-images-amazon.com`                    | strip `._SX300_SY300_.` encoding segment            |
-| `miro.medium.com`                                                 | drop chained `resize/fit/format` transform segments |
-| WordPress/Jetpack, Shopify, Unsplash/Imgix, Cloudinary, Wikimedia | (existing rules — see source)                       |
+| Host                                                                             | Rewrite                                             |
+|----------------------------------------------------------------------------------|-----------------------------------------------------|
+| `pbs.twimg.com` (Twitter/X) — **fallback only**, see above                       | `name=<size>` → `name=orig`                         |
+| `*.googleusercontent.com` / `*.ggpht.com`                                        | trailing `=s200` / `=w200-h200` → `=s0`             |
+| `i.pinimg.com`                                                                   | `/236x/` … `/736x/` → `/originals/`                 |
+| `i.ytimg.com` / `img.youtube.com`                                                | `/vi/<id>/<name>.jpg` → `maxresdefault.jpg`         |
+| `*.media-amazon.com` / `ssl-images-amazon.com`                                   | strip `._SX300_SY300_.` encoding segment            |
+| `miro.medium.com`                                                                | drop chained `resize/fit/format` transform segments |
+| `images`/`plus.unsplash.com` — **unreachable**, see above · `*.imgix.net` — live | strip resize query params                           |
+| WordPress/Jetpack, Shopify, Cloudinary, Wikimedia                                | (existing rules — see source)                       |
+
+Wallhaven has **no** entry here — its upgrade lives entirely in
+`wallhavenResolver` above; a thumb `wallhavenResolver` can't identify (no id
+found) is collected unmodified by the generic resolver, not upgraded.
 
 **Signed hosts** (`*.fbcdn.net`, `preview.redd.it`) get **no rule and no query
 strip** — their signature lives in the query, so stripping it would 403. They are
@@ -111,8 +169,36 @@ Every upgrade returns `{ original, thumbnail: <input> }`, so the pre-upgrade URL
 is kept as `thumbnailSrc` and the grid preview renders even if the upgraded
 original later fails to download.
 
+## `resolveHint` and `unresolvedVideo`
+
+Some candidates can't be fully resolved without a network request — a Twitter
+real-video poster, an Unsplash photo whose exact master needs its own download
+endpoint, a Wallhaven thumb with no extension evidence in the DOM. Rather than
+fetch during collection — collection runs with `ctx.allowNetwork: false` and
+never issues a request of its own — the resolver attaches:
+
+- **`resolveHint: { platform, id }`** — enough (a Twitter status id, Wallhaven
+  wallpaper id, or Unsplash photo id) to look the real original up later, over
+  the network, if the user opts in.
+- **`unresolvedVideo: true`** — this item's only known `src` is a still-frame
+  poster, not a downloadable video file.
+
+Collection itself never contacts these hosts. Whether a hinted item ever gets
+upgraded, and whether an `unresolvedVideo` item ever becomes downloadable,
+depends entirely on the `resolveOriginals` setting (off by default) — see
+[Resolve Originals](./resolve-originals.md) for the opt-in network step, the
+exact endpoints it calls, and how the popup swaps the resolved URL into the
+displayed item.
+
 ## Dedup
 
-Both pipelines share one `seenSources` Set, keyed on the **upgraded original**.
-Two different thumbnails/proxies that resolve to the same original collapse to a
-single `MediaItem`.
+Both pipelines share one `seenSources` Set, keyed on the **resolved candidate
+URL** (`cand.url`) — whichever resolver in the registry produced it. Two
+different thumbnails/proxies that resolve to the same URL collapse to a single
+`MediaItem`.
+
+---
+
+Related: [Resolve Originals](./resolve-originals.md) (the opt-in network step
+for `resolveHint`/`unresolvedVideo` items) · [Deep Scan](./deep-scan.md) (each
+scan round re-runs this pipeline) · [Download](./download.md).
