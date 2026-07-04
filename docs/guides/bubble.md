@@ -58,12 +58,12 @@ The user can also open/close the panel from the bubble's own launcher button.
 
 Persisted in settings (`chrome.storage.sync`):
 
-| Setting | Meaning |
-|---------|---------|
-| `bubblePosition` | Launcher corner + offset |
-| `bubblePanelPlacement` | `anchored` (beside the button), `center`, a viewport corner, or `free` (dragged) |
-| `bubblePanelPoint` | Top-left coordinates for the `free` placement |
-| `bubbleWidth` / `bubbleHeight` | Panel size (corner-grip resizable) |
+| Setting                        | Meaning                                                                          |
+|--------------------------------|----------------------------------------------------------------------------------|
+| `bubblePosition`               | Launcher corner + offset                                                         |
+| `bubblePanelPlacement`         | `anchored` (beside the button), `center`, a viewport corner, or `free` (dragged) |
+| `bubblePanelPoint`             | Top-left coordinates for the `free` placement                                    |
+| `bubbleWidth` / `bubbleHeight` | Panel size (corner-grip resizable)                                               |
 
 ## Why Shadow DOM
 

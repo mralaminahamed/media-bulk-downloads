@@ -15,7 +15,13 @@ import {
 } from '@/types';
 import { filterImagesBySettings } from './shared/filters';
 import { DEFAULT_SETTINGS, withDefaults } from './shared/settings';
-import { sanitizePathSegment } from './shared/paths';
+import {
+  sanitizePathSegment,
+  expandPathTemplate,
+  hostFromUrl,
+  registrableDomain,
+  todayISO,
+} from './shared/paths';
 import { avExtensionForType, extensionFromUrl } from './shared/mediaType';
 import { resolveOriginal, NetDeps } from './shared/resolvers/network';
 import { recordDownloads, removeEntry, clearHistory } from './shared/history';
@@ -195,12 +201,15 @@ export function originalNameFromUrl(url: string): string | null {
 }
 
 /**
- * Builds a safe, relative download path for an image.
+ * Builds a safe, relative download path for an image. `settings.downloadPath`
+ * is a template that may reference `{host}`, `{domain}`, `{date}`, and `{kind}`
+ * tokens; `sourcePageUrl` supplies the site those tokens resolve against.
  */
 export function buildDownloadFilename(
   image: ImageInfo,
   index: number,
   settings: SettingsData,
+  sourcePageUrl?: string,
 ): string {
   const extension =
     image.kind === 'image'
@@ -218,7 +227,13 @@ export function buildDownloadFilename(
     fileName = prefixed;
   }
 
-  const dir = sanitizePathSegment(settings.downloadPath);
+  const host = hostFromUrl(sourcePageUrl);
+  const dir = expandPathTemplate(settings.downloadPath, {
+    host,
+    domain: registrableDomain(host),
+    date: todayISO(),
+    kind: image.kind,
+  });
   return dir ? `${dir}/${fileName}` : fileName;
 }
 
@@ -236,7 +251,7 @@ export async function downloadAndRecord(
     eligible.map(
       (image, index) =>
         new Promise<HistoryEntry | null>((resolve) => {
-          const filename = buildDownloadFilename(image, index, currentSettings);
+          const filename = buildDownloadFilename(image, index, currentSettings, sourcePage?.url);
           chrome.downloads.download(
             { url: image.src, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
             (downloadId) => {

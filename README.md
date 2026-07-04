@@ -53,7 +53,8 @@ It reads only what the page already loaded, so nothing leaves your device.
   webm, mp3…), and **size**
 - Download one item or the entire filtered set
 - Correct file extensions (never a `.jpg` on a real `.png`)
-- Configurable download subfolder and naming scheme
+- Configurable naming scheme and a **download-path template** — `{host}`,
+  `{domain}`, `{date}`, `{kind}` tokens save each site to its own folder
 - **Download history** with open-file, reveal-in-folder, and re-download actions
 
 **Private by design**
@@ -93,11 +94,11 @@ yarn build:all      # chrome · firefox · edge  → .output/<browser>-mv3
 yarn zip:all        # store zips for all three  → .output/*.zip
 ```
 
-| Store | Upload |
-|---|---|
-| Chrome Web Store | `media-bulk-downloads-<version>-chrome.zip` |
-| Microsoft Edge Add-ons | `media-bulk-downloads-<version>-edge.zip` |
-| Firefox Add-ons (AMO) | `media-bulk-downloads-<version>-firefox.zip` + the `-sources.zip` |
+| Store                  | Upload                                                            |
+|------------------------|-------------------------------------------------------------------|
+| Chrome Web Store       | `media-bulk-downloads-<version>-chrome.zip`                       |
+| Microsoft Edge Add-ons | `media-bulk-downloads-<version>-edge.zip`                         |
+| Firefox Add-ons (AMO)  | `media-bulk-downloads-<version>-firefox.zip` + the `-sources.zip` |
 
 Per-browser scripts (`build:firefox`, `zip:edge`, …) exist too. Validate the Firefox
 package with `yarn lint:firefox`. To load it by hand:
@@ -118,31 +119,31 @@ a draggable panel without opening the toolbar popup.
 
 ## Permissions
 
-| Permission | Why it's needed |
-|---|---|
-| `downloads` | Save selected media via the browser's download manager |
-| `downloads.open` | Open a downloaded file from the in-app history |
-| `storage` | Keep your settings and download history locally on your device |
-| `tabs` | Read the active tab's URL/title to label downloads and open a source page |
-| `<all_urls>` | Read media on whatever page you run the extension on |
+| Permission       | Why it's needed                                                           |
+|------------------|---------------------------------------------------------------------------|
+| `downloads`      | Save selected media via the browser's download manager                    |
+| `downloads.open` | Open a downloaded file from the in-app history                            |
+| `storage`        | Keep your settings and download history locally on your device            |
+| `tabs`           | Read the active tab's URL/title to label downloads and open a source page |
+| `<all_urls>`     | Read media on whatever page you run the extension on                      |
 
 ## Supported sites
 
 The engine works on **any website**. On top of the generic pipeline, it ships dedicated
 upgrade rules for:
 
-| Site | Upgrade |
-|---|---|
-| Wikipedia / Wikimedia | `/thumb/` path → original file |
-| YouTube | Thumbnails → `maxresdefault`; avatars → full size |
-| Twitter / X | `name=orig` for photos; video-poster recognition |
-| Reddit | Gallery `<a href>` → direct `i.redd.it` original |
-| Unsplash | Strip resize params → native-format master |
-| Pinterest | `/NNNx/` → `/originals/` |
-| Shopify stores | Drop `?width=` size queries |
-| Google (Photos, Blogger) | `=s88-…` → `=s0` |
-| Next.js / Vercel | De-proxy `/_next/image?url=` |
-| Wallhaven | PNG/GIF detection → correct extension |
+| Site                     | Upgrade                                           |
+|--------------------------|---------------------------------------------------|
+| Wikipedia / Wikimedia    | `/thumb/` path → original file                    |
+| YouTube                  | Thumbnails → `maxresdefault`; avatars → full size |
+| Twitter / X              | `name=orig` for photos; video-poster recognition  |
+| Reddit                   | Gallery `<a href>` → direct `i.redd.it` original  |
+| Unsplash                 | Strip resize params → native-format master        |
+| Pinterest                | `/NNNx/` → `/originals/`                          |
+| Shopify stores           | Drop `?width=` size queries                       |
+| Google (Photos, Blogger) | `=s88-…` → `=s0`                                  |
+| Next.js / Vercel         | De-proxy `/_next/image?url=`                      |
+| Wallhaven                | PNG/GIF detection → correct extension             |
 
 …and 40+ more CDN families — see the live [coverage benchmark](./docs/BENCHMARK.md).
 
@@ -183,15 +184,16 @@ media-bulk-downloads/
 
 ## Documentation
 
-| Guide | |
-|---|---|
-| [Getting Started](./docs/guides/getting-started.md) | Install, build, load unpacked, first use |
-| [Architecture](./docs/guides/architecture.md) | Surfaces, modules, message catalog, data model |
-| [Collection Pipeline](./docs/guides/collection-pipeline.md) | Discovery → de-proxy → CDN-upgrade → dedup |
-| [Deep Scan](./docs/guides/deep-scan.md) | The opt-in auto-scroll workflow and its bounds |
-| [Download](./docs/guides/download.md) | Filename construction and the save flow |
-| [Badge](./docs/guides/badge.md) | The per-tab media count on the toolbar icon |
-| [In-page Bubble](./docs/guides/bubble.md) | The Shadow-DOM launcher lifecycle |
+| Guide                                                       |                                                |
+|-------------------------------------------------------------|------------------------------------------------|
+| [Getting Started](./docs/guides/getting-started.md)         | Install, build, load unpacked, first use       |
+| [Architecture](./docs/guides/architecture.md)               | Surfaces, modules, message catalog, data model |
+| [Collection Pipeline](./docs/guides/collection-pipeline.md) | Discovery → de-proxy → CDN-upgrade → dedup     |
+| [Deep Scan](./docs/guides/deep-scan.md)                     | The opt-in auto-scroll workflow and its bounds |
+| [Download](./docs/guides/download.md)                       | Filename construction and the save flow        |
+| [Download paths](./docs/guides/download-paths.md)           | Per-site folder templates ({host}/{domain}/…)  |
+| [Badge](./docs/guides/badge.md)                             | The per-tab media count on the toolbar icon    |
+| [In-page Bubble](./docs/guides/bubble.md)                   | The Shadow-DOM launcher lifecycle              |
 
 ## Contributing
 

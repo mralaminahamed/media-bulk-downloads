@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { BubbleCorner, BubblePanelPlacement, SettingsData } from '@/types';
-import { sanitizePathSegment } from '@/extension/shared/paths';
+import { expandPathTemplate, todayISO } from '@/extension/shared/paths';
 import { useDialog } from '../hooks/useDialog';
 
 export interface SettingsProps {
@@ -167,7 +167,13 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
   };
 
   const folderPreview = (() => {
-    const dir = sanitizePathSegment(settings.downloadPath);
+    // Resolve the template against a sample site so tokens render in the preview.
+    const dir = expandPathTemplate(settings.downloadPath, {
+      host: 'www.example.com',
+      domain: 'example.com',
+      date: todayISO(),
+      kind: 'image',
+    });
     return dir ? `Downloads/${dir}/image.jpg` : 'Downloads/image.jpg';
   })();
 
@@ -211,10 +217,19 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
               label="Save to subfolder (in Downloads):"
               value={settings.downloadPath}
               onChange={handleChange}
-              placeholder="e.g. Images/Collected"
+              placeholder="e.g. Media/{domain}"
               hint={folderPreview}
               hintClassName="num mt-1 block text-[11px] text-(--ink-3)"
             />
+            <p className="mt-1 text-[11px] leading-relaxed text-(--ink-3)">
+              Tokens:{' '}
+              <code className="num text-(--ink-2)">{'{host}'}</code>{' '}
+              <code className="num text-(--ink-2)">{'{domain}'}</code>{' '}
+              <code className="num text-(--ink-2)">{'{date}'}</code>{' '}
+              <code className="num text-(--ink-2)">{'{kind}'}</code>{' '}
+              — e.g. <code className="num text-(--ink-2)">Media/{'{domain}'}</code> saves each site to
+              its own folder.
+            </p>
 
             <ToggleRow
               id="set-saveAs"

@@ -5,20 +5,21 @@ Developer and user documentation for the extension. Diagrams use
 
 ## Start here
 
-| Guide | What it covers |
-|-------|----------------|
-| [Getting Started](./getting-started.md) | Install, build, load unpacked, first use |
-| [Architecture](./architecture.md) | MV3 surfaces, modules, and the message catalog |
+| Guide                                   | What it covers                                 |
+|-----------------------------------------|------------------------------------------------|
+| [Getting Started](./getting-started.md) | Install, build, load unpacked, first use       |
+| [Architecture](./architecture.md)       | MV3 surfaces, modules, and the message catalog |
 
 ## Workflows (sequence diagrams)
 
-| Guide | Flow |
-|-------|------|
+| Guide                                           | Flow                                                       |
+|-------------------------------------------------|------------------------------------------------------------|
 | [Collection Pipeline](./collection-pipeline.md) | How a page's media is discovered and upgraded to originals |
-| [Deep Scan](./deep-scan.md) | Opt-in auto-scroll that surfaces virtualized / lazy media |
-| [Download](./download.md) | How selected media is named and saved |
-| [Badge](./badge.md) | The per-tab count on the toolbar icon |
-| [In-page Bubble](./bubble.md) | The injected floating launcher and its lifecycle |
+| [Deep Scan](./deep-scan.md)                     | Opt-in auto-scroll that surfaces virtualized / lazy media  |
+| [Download](./download.md)                       | How selected media is named and saved                      |
+| [Download paths](./download-paths.md)           | Per-site folder templates ({host}/{domain}/{date}/{kind})  |
+| [Badge](./badge.md)                             | The per-tab count on the toolbar icon                      |
+| [In-page Bubble](./bubble.md)                   | The injected floating launcher and its lifecycle           |
 
 ## The three surfaces at a glance
 
