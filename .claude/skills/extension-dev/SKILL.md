@@ -60,5 +60,32 @@ Permissions (keep in sync with `wxt.config.ts`): `downloads`, `downloads.open`,
   script (~300 KB); it still only *mounts* when enabled. Lazy-chunking it back out
   is a known follow-up.
 
-See `docs/guides/` (architecture, collection-pipeline, download, badge, bubble)
-for deeper walkthroughs, and `docs/CHROME_WEBSTORE.md` for store submission.
+## In-repo docs
+
+`docs/guides/` (architecture, collection-pipeline, download, badge, bubble) for
+deeper walkthroughs; `docs/CHROME_WEBSTORE.md` for store submission.
+
+## References
+
+WXT:
+- Installation — https://wxt.dev/guide/installation
+- Project structure — https://wxt.dev/guide/essentials/project-structure
+- Entrypoints — https://wxt.dev/guide/essentials/entrypoints
+- Config / manifest — https://wxt.dev/guide/essentials/config/manifest
+- Content scripts — https://wxt.dev/guide/essentials/content-scripts
+- Extension APIs — https://wxt.dev/guide/essentials/extension-apis
+- Target different browsers — https://wxt.dev/guide/essentials/target-different-browsers
+- Publishing / zip — https://wxt.dev/guide/essentials/publishing
+
+Chrome:
+- Get started tutorial — https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world
+- Manifest reference — https://developer.chrome.com/docs/extensions/reference/manifest
+- Service workers (background) — https://developer.chrome.com/docs/extensions/develop/concepts/service-workers
+- Content scripts — https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts
+- Permissions list — https://developer.chrome.com/docs/extensions/reference/permissions-list
+- action / popup — https://developer.chrome.com/docs/extensions/reference/api/action
+- chrome.downloads — https://developer.chrome.com/docs/extensions/reference/api/downloads
+- Message passing — https://developer.chrome.com/docs/extensions/develop/concepts/messaging
+
+Firefox: `browser_specific_settings` — https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/browser_specific_settings
+

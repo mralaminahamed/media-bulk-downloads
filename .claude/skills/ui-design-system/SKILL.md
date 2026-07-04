@@ -51,3 +51,12 @@ Mixing these on one row looks uneven — normalize with inline height (see trap 
   (`popup/hooks/useDialog.ts`) for focus trap, Escape, focus restore. Scrim uses
   `bg-[var(--overlay)]`.
 - Respect both themes; the tokens do the work if you use them.
+
+## References
+
+- Design tokens + component classes (this repo) — `src/styles/index.css`
+- Tailwind CSS v4 — https://tailwindcss.com/docs
+- CSS cascade & specificity (why component classes win) — https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_cascade/Specificity
+- `prefers-color-scheme` (dark mode) — https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme
+- ARIA dialog pattern — https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/
+- Shadow DOM (the on-page bubble) — https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_shadow_DOM

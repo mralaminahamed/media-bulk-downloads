@@ -51,8 +51,9 @@ harness measured via the DOM:
    via the javascript tool — precise for sizing/color, and works even when the
    screenshot idle-wait fails. Clean up the server + scratch dir after.
 
-This is how the filter-control sizing bug was found (Type dropdown measured
-428×34 instead of 120×28 — see the `ui-design-system` cascade trap).
+This is how the filter-control sizing bug was found (the Type dropdown measured
+428×34 instead of 120×28 — a component class defined after Tailwind was
+overriding its `h-`/`w-` utilities, fixable only with an inline `style`).
 
 ## Live collection benchmark
 
@@ -60,3 +61,16 @@ For `collectMedia()` against real sites, bundle the real collector into an IIFE
 exposing `window.__bench`, inject with the javascript tool, run once. Strip query
 strings from any sample output (the safety filter blocks raw tokens). Record in
 `docs/BENCHMARK.md`.
+
+## References
+
+- Test config (this repo) — `jest.config.cjs`, `tests/setupTests.ts` (the chrome mock)
+- WXT unit testing — https://wxt.dev/guide/essentials/unit-testing
+- WXT e2e testing — https://wxt.dev/guide/essentials/e2e-testing
+- Jest — https://jestjs.io/docs/getting-started · mock functions — https://jestjs.io/docs/mock-functions
+- Testing Library (queries by role/label) — https://testing-library.com/docs/queries/about
+- esbuild (the preview bundler) — https://esbuild.github.io/api/
+- Chrome extension debugging — https://developer.chrome.com/docs/extensions/get-started/tutorial/debug
+
+Related skill: `ui-design-system` (the cascade trap behind the sizing bug) —
+optional; this skill stands on its own.

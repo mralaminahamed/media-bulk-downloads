@@ -54,5 +54,20 @@ interface MediaCandidate {
   in a URL path (`/^[a-z0-9]+$/i`).
 - Add tests in `tests/extension/shared/resolvers/<site>.test.ts` (call the
   resolver directly) and, for collection wiring, `tests/extension/collect.test.ts`.
-- Verify live with the bundle-injection method (see the `testing-and-verifying`
-  skill) and record coverage in `docs/BENCHMARK.md`.
+- Verify live: bundle the real `collectMedia()` into an IIFE exposing
+  `window.__bench` via a Vite/esbuild lib build, inject it into the target page
+  with the browser javascript tool, and run it once. Strip query strings from any
+  sample output (the safety filter blocks raw tokens). Record coverage in
+  `docs/BENCHMARK.md`.
+
+## References
+
+- Collection pipeline (this repo) — `docs/guides/collection-pipeline.md`,
+  `docs/BENCHMARK.md`
+- Resolver source — `src/extension/shared/resolvers/` and `imageUrl.ts`
+- URL API — https://developer.mozilla.org/en-US/docs/Web/API/URL
+- fetch() (network tier runs in the background worker) — https://developer.mozilla.org/en-US/docs/Web/API/fetch
+- Content scripts read the page DOM — https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts
+
+Related skill: `testing-and-verifying` (Jest patterns + the browser preview
+harness) — optional; this skill stands on its own.
