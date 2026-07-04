@@ -3,12 +3,16 @@ import { MediaCandidate, Resolver } from './types';
 const SIZE_SUFFIX = /:(thumb|small|medium|large|orig)$/;
 const AVATAR_SIZE = /_(?:normal|bigger|mini|reasonably_small|\d{2,4}x\d{2,4})(?=\.\w+$)/i;
 
-/** Nearest tweet status id from an element (grid cell / timeline link). */
-function statusIdFrom(el: Element | undefined): string | null {
+function idFromStatusUrl(url: string | null | undefined): string | null {
+  return url?.match(/\/status\/(\d+)/)?.[1] ?? null;
+}
+
+/** Nearest tweet status id from an element, else the page URL's status id. */
+function statusIdFrom(el: Element | undefined, pageUrl?: string): string | null {
   const link =
     el?.closest?.('a[href*="/status/"]') ||
     el?.closest?.('article')?.querySelector?.('a[href*="/status/"]');
-  return link?.getAttribute('href')?.match(/\/status\/(\d+)/)?.[1] ?? null;
+  return idFromStatusUrl(link?.getAttribute('href')) ?? idFromStatusUrl(pageUrl);
 }
 
 export const twitterResolver: Resolver = {
@@ -32,7 +36,7 @@ export const twitterResolver: Resolver = {
       // ever became an image, it would leak in as a duplicate still frame. A
       // status id (from the cell's /status/ link) enables opt-in mp4 resolution;
       // without one it's a pending video the app won't display.
-      const statusId = statusIdFrom(ctx.el);
+      const statusId = statusIdFrom(ctx.el, ctx.pageUrl);
       const candidate: MediaCandidate = { url: input, kind: 'video', ext: 'mp4', poster: input, unresolvedVideo: true };
       if (statusId) candidate.resolveHint = { platform: 'twitter', id: statusId };
       return [candidate];
@@ -86,17 +90,17 @@ export function twitterGifCandidate(videoEl: Element): MediaCandidate | null {
 }
 
 /** A Twitter REAL video (<video> with an ext_tw_video_thumb/amplify_video_thumb
- *  poster) → a pending item carrying the tweet statusId for opt-in network resolve.
- *  Returns null for GIFs (handled by twitterGifCandidate) or when no statusId is found. */
-export function twitterVideoPending(videoEl: Element): MediaCandidate | null {
+ *  poster) → a pending video item. The tweet statusId (from a nearby /status/
+ *  link, else the page URL) enables opt-in mp4 resolution; without one it stays
+ *  a poster-only pending video the user can see but not yet download.
+ *  Returns null only for a non-video/GIF poster (the GIF path handles those). */
+export function twitterVideoPending(videoEl: Element, pageUrl?: string): MediaCandidate | null {
   const poster = videoEl.getAttribute('poster') || '';
   if (!/pbs\.twimg\.com\/(?:ext_tw_video_thumb|amplify_video_thumb)\//.test(poster)) return null;
   const link = videoEl.closest?.('article')?.querySelector?.('a[href*="/status/"]')
     || videoEl.closest?.('a[href*="/status/"]');
-  const id = link?.getAttribute('href')?.match(/\/status\/(\d+)/)?.[1];
-  if (!id) return null;
-  return {
-    url: poster, kind: 'video', ext: 'mp4', poster,
-    resolveHint: { platform: 'twitter', id }, unresolvedVideo: true,
-  };
+  const id = idFromStatusUrl(link?.getAttribute('href')) ?? idFromStatusUrl(pageUrl);
+  const candidate: MediaCandidate = { url: poster, kind: 'video', ext: 'mp4', poster, unresolvedVideo: true };
+  if (id) candidate.resolveHint = { platform: 'twitter', id };
+  return candidate;
 }

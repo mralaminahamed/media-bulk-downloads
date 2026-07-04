@@ -13,6 +13,9 @@ export interface MediaCandidate {
 export interface ResolveContext {
   el?: Element;
   allowNetwork: boolean;
+  /** The page's own URL. Lets a resolver recover a status id when no nearby
+   *  /status/ link exists (e.g. a single-tweet detail page). */
+  pageUrl?: string;
 }
 
 export interface Resolver {

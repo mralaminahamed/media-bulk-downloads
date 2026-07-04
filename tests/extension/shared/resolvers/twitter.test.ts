@@ -66,11 +66,13 @@ describe('twitterVideoPending', () => {
       unresolvedVideo: true,
     });
   });
-  it('returns null for a GIF poster (handled by twitterGifCandidate) or when no statusId is found', () => {
+  it('returns null for a GIF poster (handled by twitterGifCandidate), or a hint-less pending video when no statusId is found', () => {
     document.body.innerHTML = `<video poster="https://pbs.twimg.com/tweet_video_thumb/XYZ.jpg"></video>`;
     expect(twitterVideoPending(document.querySelector('video')!)).toBeNull();
     document.body.innerHTML = `<video poster="https://pbs.twimg.com/ext_tw_video_thumb/1/pu/img/x.jpg"></video>`;
-    expect(twitterVideoPending(document.querySelector('video')!)).toBeNull(); // no /status/ link
+    const cand = twitterVideoPending(document.querySelector('video')!); // no /status/ link
+    expect(cand).toMatchObject({ kind: 'video', unresolvedVideo: true });
+    expect(cand?.resolveHint).toBeUndefined();
   });
 });
 
@@ -110,5 +112,47 @@ describe('twitterResolver — video posters rendered as <img>', () => {
     const [c] = twitterResolver.resolve(new URL(img.getAttribute('src')!), { el: img, allowNetwork: false });
     expect(c).toMatchObject({ kind: 'video', unresolvedVideo: true });
     expect(c.resolveHint).toBeUndefined();
+  });
+});
+
+describe('twitter status-id page-URL fallback', () => {
+  it('resolve(): uses the page URL status id when no nearby /status/ link exists', () => {
+    const img = document.createElement('img');
+    const [cand] = twitterResolver.resolve(
+      new URL('https://pbs.twimg.com/ext_tw_video_thumb/999/pu/img/x.jpg'),
+      { el: img, allowNetwork: false, pageUrl: 'https://x.com/u/status/12345' },
+    );
+    expect(cand).toMatchObject({
+      kind: 'video', unresolvedVideo: true, resolveHint: { platform: 'twitter', id: '12345' },
+    });
+  });
+
+  it('twitterVideoPending(): falls back to the page URL id', () => {
+    const v = document.createElement('video');
+    v.setAttribute('poster', 'https://pbs.twimg.com/amplify_video_thumb/777/img/y.jpg');
+    expect(twitterVideoPending(v, 'https://x.com/u/status/555')).toMatchObject({
+      kind: 'video', unresolvedVideo: true, resolveHint: { platform: 'twitter', id: '555' },
+    });
+  });
+
+  it('twitterVideoPending(): returns a pending video WITHOUT a hint (not null) when no id is found', () => {
+    const v = document.createElement('video');
+    v.setAttribute('poster', 'https://pbs.twimg.com/ext_tw_video_thumb/1/pu/img/z.jpg');
+    const cand = twitterVideoPending(v);
+    expect(cand).toMatchObject({ kind: 'video', unresolvedVideo: true, poster: expect.stringContaining('ext_tw_video_thumb') });
+    expect(cand?.resolveHint).toBeUndefined();
+  });
+
+  it('twitterVideoPending(): a nearby article /status/ link wins over the page URL', () => {
+    const art = document.createElement('article');
+    art.innerHTML = '<a href="/u/status/111"></a><video poster="https://pbs.twimg.com/ext_tw_video_thumb/1/pu/img/z.jpg"></video>';
+    const v = art.querySelector('video') as HTMLVideoElement;
+    expect(twitterVideoPending(v, 'https://x.com/u/status/999')?.resolveHint?.id).toBe('111');
+  });
+
+  it('twitterVideoPending(): returns null for a GIF poster (handled elsewhere)', () => {
+    const v = document.createElement('video');
+    v.setAttribute('poster', 'https://pbs.twimg.com/tweet_video_thumb/ABC.jpg');
+    expect(twitterVideoPending(v)).toBeNull();
   });
 });

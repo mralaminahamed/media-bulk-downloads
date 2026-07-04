@@ -102,6 +102,7 @@ export function resolveUrl(src: string): string {
 export function collectMedia(): MediaItem[] {
   const media: MediaItem[] = [];
   const seenSources = new Set<string>();
+  const pageUrl = location.href;
 
   // Maps a resolved candidate to a MediaItem/ImageInfo, preserving the dimension
   // fallback and dedup semantics of the pre-registry implementation.
@@ -176,7 +177,7 @@ export function collectMedia(): MediaItem[] {
       return;
     }
 
-    for (const cand of resolve(resolved, { el, allowNetwork: false })) {
+    for (const cand of resolve(resolved, { el, allowNetwork: false, pageUrl })) {
       pushCandidate(cand, resolved, alt, width, height, thumbnailOverride);
     }
   };
@@ -250,7 +251,7 @@ export function collectMedia(): MediaItem[] {
       });
     }
 
-    const pendingVid = twitterVideoPending(video);
+    const pendingVid = twitterVideoPending(video, pageUrl);
     if (pendingVid && !seenSources.has(pendingVid.url)) {
       seenSources.add(pendingVid.url);
       media.push({

@@ -25,6 +25,11 @@ const image = (over: Partial<ImageInfo>): ImageInfo => ({
   src: 'test.jpg', alt: 'Test', width: 100, height: 100, type: 'jpeg', fileSize: 1024, isBase64: false, kind: 'image', ...over,
 });
 
+const pendingVideo = image({
+  src: 'poster.jpg', kind: 'video', type: 'mp4', poster: 'poster.jpg',
+  unresolvedVideo: true, resolveHint: { platform: 'twitter', id: '123' },
+});
+
 describe('App Component', () => {
   beforeEach(() => {
     (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({}));
@@ -196,7 +201,7 @@ describe('App Component', () => {
     await waitFor(() => expect(headerCount()).toBe('4'));
   });
 
-  it('drops unresolved Twitter videos when resolveOriginals is off', async () => {
+  it('shows a pending Twitter video (but never resolves it) when resolveOriginals is off', async () => {
     (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: false } }));
 
     const { container } = render(
@@ -210,9 +215,11 @@ describe('App Component', () => {
     await screen.findByText('Filters');
     const headerCount = () => container.querySelector('header .num')?.textContent;
 
-    // Only the normal image survives — the unresolved video is dropped.
-    await waitFor(() => expect(headerCount()).toBe('1'));
+    // Both items are on the page — the pending video is shown, just not resolved.
+    await waitFor(() => expect(headerCount()).toBe('2'));
     expect(requestResolveOriginals).not.toHaveBeenCalled();
+    // Only the normal image counts toward the downloadable total.
+    expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
   });
 
   it('includes the source page in the download message', async () => {
@@ -269,10 +276,10 @@ describe('App Component', () => {
     });
   });
 
-  it('a video that fails to resolve never appears and does not wipe the other items', async () => {
-    // Regression: pending videos must not flicker in and then be dropped when
-    // resolution returns nothing — they should simply never show, leaving the
-    // rest of the grid intact.
+  it('a video that fails to resolve stays visible as a pending poster and does not wipe the other items', async () => {
+    // Regression: a pending video must not flicker in and then be dropped when
+    // resolution returns nothing — it stays shown (as a pending poster, still
+    // excluded from downloads), leaving the rest of the grid intact.
     const resolveMock = requestResolveOriginals as jest.Mock;
     resolveMock.mockResolvedValue({}); // nothing resolves for this test
     (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: true } }));
@@ -289,18 +296,74 @@ describe('App Component', () => {
     const headerCount = () => container.querySelector('header .num')?.textContent;
 
     await waitFor(() => expect(resolveMock).toHaveBeenCalled());
-    // The image shows and stays shown; the unresolved video never appears.
-    await waitFor(() => expect(headerCount()).toBe('1'));
+    // Both items show — the pending video is never dropped, just not downloadable.
+    await waitFor(() => expect(headerCount()).toBe('2'));
     await new Promise((r) => setTimeout(r, 30)); // let any late setState land
-    expect(headerCount()).toBe('1'); // no override to 0
-    expect(container.querySelector('video')).toBeNull();
+    expect(headerCount()).toBe('2'); // no override / drop
+    expect(container.querySelector('video')).toBeNull(); // no preview modal opened
+    expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
 
     resolveMock.mockResolvedValue({ 'poster.jpg': 'https://video.twimg.com/hi.mp4' }); // restore default
+  });
+
+  it('shows a pending video but excludes it from the download count', async () => {
+    render(<App collect={async () => [image({ src: 'a.jpg' }), pendingVideo]} />);
+    await screen.findByText('Filters');
+    // both items are on the page (image + pending video) → plural header…
+    expect(screen.getByText('items on this page')).toBeInTheDocument();
+    // …but only the real image is downloadable
+    expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
   });
 
   it('opens the Favourites panel from the header', async () => {
     render(<App collect={async () => []} />);
     await userEvent.click(await screen.findByRole('button', { name: /favourites/i }));
     expect(await screen.findByText('Saved media')).toBeInTheDocument();
+  });
+
+  it('fetches a single video on demand even when resolveOriginals is off', async () => {
+    (requestResolveOriginals as jest.Mock).mockResolvedValueOnce({ 'poster.jpg': 'https://video.twimg.com/hi.mp4' });
+    render(<App collect={async () => [pendingVideo]} />);
+    fireEvent.click(await screen.findByTitle('Get video'));
+    await waitFor(() =>
+      expect(requestResolveOriginals).toHaveBeenCalledWith([{ src: 'poster.jpg', hint: { platform: 'twitter', id: '123' } }]),
+    );
+    // once resolved it becomes downloadable
+    expect(await screen.findByRole('button', { name: /download 1/i })).toBeInTheDocument();
+  });
+
+  it('marks a video failed when resolution returns nothing', async () => {
+    (requestResolveOriginals as jest.Mock).mockResolvedValueOnce({});
+    render(<App collect={async () => [pendingVideo]} />);
+    fireEvent.click(await screen.findByTitle('Get video'));
+    expect(await screen.findByText(/couldn't fetch/i)).toBeInTheDocument();
+  });
+
+  it('keeps a per-item-fetched video downloadable after a settings change re-filters the grid', async () => {
+    // Regression: handleFetchVideo used to swap the resolved item into
+    // state.images/filteredImages only, leaving rawImagesRef.current still
+    // holding the old pending (unresolvedVideo) entry. The settings-change
+    // effect re-derives the grid from rawImagesRef, so changing a setting
+    // (e.g. minimumImageSize) would revert the just-resolved video back to a
+    // pending tile. handleFetchVideo now mirrors the swap into rawImagesRef
+    // too, so the upgrade survives the re-filter below.
+    (requestResolveOriginals as jest.Mock).mockResolvedValueOnce({ 'poster.jpg': 'https://video.twimg.com/hi.mp4' });
+    render(<App collect={async () => [pendingVideo]} />);
+
+    fireEvent.click(await screen.findByTitle('Get video'));
+    await waitFor(() =>
+      expect(requestResolveOriginals).toHaveBeenCalledWith([{ src: 'poster.jpg', hint: { platform: 'twitter', id: '123' } }]),
+    );
+    // Resolved → downloadable.
+    expect(await screen.findByRole('button', { name: /download 1/i })).toBeInTheDocument();
+
+    // Trigger the settings-change effect, which re-derives the grid from
+    // rawImagesRef.current (keyed on minimumImageSize/excludeBase64Images/resolveOriginals).
+    fireEvent.click(screen.getByTitle('Settings'));
+    fireEvent.change(screen.getByLabelText(/minimum image size/i), { target: { value: '10' } });
+    fireEvent.click(screen.getByText('Save'));
+
+    // Still downloadable — the resolved video was not reverted to pending.
+    expect(await screen.findByRole('button', { name: /download 1/i })).toBeInTheDocument();
   });
 });

@@ -42,7 +42,15 @@ it's trusted: it must be `https:` and its hostname must equal (or be a
 subdomain of) the expected host (`twimg.com` / `wallhaven.cc`). Anything else —
 a malformed URL, an unexpected redirect target — resolves to `null` instead of
 being handed back as a downloadable URL. `resolveOriginal()` never throws; a
-failed lookup for one item just means that item stays as collected.
+failed lookup for one item just means that item stays as collected — or, for a
+per-item "Get video" request, is surfaced as failed rather than silently
+dropped (see [On-demand](#on-demand-the-get-video-button) below).
+
+A tweet can also fail to resolve for a reason that has nothing to do with
+`pinnedUrl()`: the syndication endpoint itself returns a tombstone-shaped
+response — no usable `mediaDetails` — for tweets it won't serve up, commonly
+ones marked **age-restricted or sensitive**. `twitter()` finds no `video/mp4`
+variant in that response and returns `null`, the same as any other miss.
 
 ## End-to-end flow
 
@@ -58,7 +66,7 @@ sequenceDiagram
   Note over CM: Phase 1 — always network-free
   CM->>CM: resolve(url, { allowNetwork:false })
   CM-->>P: MediaItem[] (some carry resolveHint / unresolvedVideo:true)
-  P->>P: applyResolution() — hide unresolvedVideo items from the grid
+  P->>P: applyResolution() — show every eligible item, pending videos included<br/>excluded from the downloadable set until resolved
 
   alt settings.resolveOriginals is ON
     P->>P: enrichOriginals(eligible) — collect items with a resolveHint
@@ -71,28 +79,63 @@ sequenceDiagram
       NET-->>BG: resolved URL, or null on failure
     end
     BG-->>P: { resolved: { src -> url } }
-    P->>P: enrichOriginals() swaps src, clears resolveHint/unresolvedVideo<br/>newly-resolved pending videos are appended and now shown
+    P->>P: enrichOriginals() swaps src, clears resolveHint/unresolvedVideo<br/>pending videos already on screen become downloadable in place
   else OFF
-    P->>P: hinted items keep their collected src<br/>unresolvedVideo items stay hidden
+    P->>P: hinted items keep their collected src<br/>pending videos stay visible, still not downloadable
   end
 ```
 
-- The gate lives in `applyResolution()` (`popup/App.tsx`): it filters
-  `unresolvedVideo` items out of what's displayed, then calls `enrichOriginals`
+- `applyResolution()` (`popup/App.tsx`) displays every eligible item straight
+  away — poster-only pending videos included — then calls `enrichOriginals`
   only `if (s.resolveOriginals)`. This runs on every path that can populate the
   grid — the initial scan, a manual rescan, a deep-scan merge, and a settings
   change — so **toggling the setting on later retroactively resolves
   already-collected items** without a fresh scan.
 - `enrichOriginals()` never mutates an item in place: a resolved hit becomes a
   new object with `src` swapped to the resolved URL and `resolveHint`/
-  `unresolvedVideo` cleared. If that `src` was already displayed, it's replaced
-  in place (Wallhaven/Unsplash upgrades); if it wasn't (a `unresolvedVideo`
-  pending video), the resolved item is appended, so it appears for the first
-  time exactly when it becomes downloadable. An item that never resolves is
-  simply never shown — nothing flickers in and back out.
+  `unresolvedVideo` cleared, then replaces the old entry wherever its old `src`
+  is found. A pending video that was already on screen just swaps its poster
+  for the real mp4 in place — moving from "shown, not downloadable" to
+  downloadable without ever disappearing or re-appearing. An item whose hint
+  never resolves simply stays as it was: visible, still excluded from the
+  downloadable set.
 - A generation counter (`resolveGenRef`) discards a resolution that finishes
   after a newer scan/rescan has already started, so a slow request can't
   clobber fresher results.
+
+## On-demand: the "Get video" button
+
+Phase two now has two triggers, not one — the diagram above is the first:
+
+| Trigger                  | Where it lives                                                                                                | Gated by `resolveOriginals`?                   |
+|--------------------------|---------------------------------------------------------------------------------------------------------------|------------------------------------------------|
+| **Global auto-resolve**  | `enrichOriginals()`, run from `applyResolution()` on every scan, rescan, deep-scan merge, and settings change | Yes — only fires `if (s.resolveOriginals)`     |
+| **Per-item "Get video"** | The action button on a pending video's grid tile / preview modal, `handleFetchVideo()` (`popup/App.tsx`)      | No — fires unconditionally, one hint at a time |
+
+Both triggers end up calling the exact same `RESOLVE_ORIGINALS` message and
+the same `resolveOriginal(hint, deps)` in the background; the only
+differences are how many hints go in the request (the whole eligible batch vs.
+a single one) and whether the setting gates the call at all. The button is a
+deliberate, one-item request the user just made by clicking it, so it doesn't
+wait for the passive-collection setting to be on. A pending video that never
+picked up a `resolveHint` in the first place — no `/status/` link nearby and
+no status id recoverable from the page URL either — has no button to press;
+its tile just reads "can't fetch".
+
+While a per-item fetch is in flight the tile shows a spinner and the button is
+disabled. On success the item's `src` is swapped to the resolved mp4 in
+place, `unresolvedVideo` is cleared, and it joins the downloadable set — same
+end state as the automatic path, just for one item on request.
+
+### Graceful failure
+
+A `null` result — a tombstoned tweet, a rejected redirect, a network error —
+is never silently dropped for a per-item request the way it can be for the
+background auto-resolve. `handleFetchVideo()` records the failed `src`, and
+the tile's label switches to "couldn't fetch" (the preview modal shows
+"Couldn't fetch — retry"), with the button itself turning into "Retry video"
+so the user can try again — for example once an age-restricted tweet is no
+longer tombstoned, or after a transient network blip.
 
 ## Privacy
 
@@ -105,7 +148,11 @@ sequenceDiagram
   builds a URL). No cookies or auth are attached — the fetch runs from the
   background service worker, not the page.
 - Toggling **Resolve exact originals (network requests)** in Settings is the
-  single switch; see [Getting Started](./getting-started.md#settings).
+  single switch for *automatic* resolution; see
+  [Getting Started](./getting-started.md#settings).
+- The per-item **"Get video"** button contacts the same host even with that
+  setting off — it's an explicit, one-item request the user just triggered by
+  clicking it, not passive background collection.
 
 ## Adding a new resolver
 

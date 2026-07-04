@@ -122,6 +122,38 @@ describe('ImageList Component', () => {
     });
   });
 
+  describe('ImageList pending videos', () => {
+    const pendingVideo: ImageInfo = {
+      src: 'poster.jpg', alt: '', width: 0, height: 0, type: 'mp4', fileSize: 0, isBase64: false,
+      kind: 'video', poster: 'poster.jpg', unresolvedVideo: true, resolveHint: { platform: 'twitter', id: '1' },
+    };
+
+    it('renders a Get video action and calls onFetchVideo; no plain Download button', () => {
+      const onFetchVideo = jest.fn();
+      render(<ImageList images={[pendingVideo]} onImageDownload={jest.fn()} onFetchVideo={onFetchVideo} />);
+      fireEvent.click(screen.getByTitle('Get video'));
+      expect(onFetchVideo).toHaveBeenCalledWith(pendingVideo);
+      expect(screen.queryByTitle('Download')).toBeNull();
+    });
+
+    it('shows a failed state for a src in resolveFailedSrcs', () => {
+      render(<ImageList images={[pendingVideo]} onImageDownload={jest.fn()} onFetchVideo={jest.fn()} resolveFailedSrcs={new Set(['poster.jpg'])} />);
+      expect(screen.getByText(/couldn't fetch/i)).toBeInTheDocument();
+    });
+
+    it('shows a can\'t-fetch state (no button) for a pending video with no resolveHint', () => {
+      render(<ImageList images={[{ ...pendingVideo, resolveHint: undefined }]} onImageDownload={jest.fn()} onFetchVideo={jest.fn()} />);
+      expect(screen.queryByTitle('Get video')).toBeNull();
+      expect(screen.getByText(/can't fetch/i)).toBeInTheDocument();
+    });
+
+    it('a resolved video (not pending) still shows a normal Download button', () => {
+      const resolved: ImageInfo = { ...pendingVideo, src: 'https://video.twimg.com/hi.mp4', unresolvedVideo: false, resolveHint: undefined };
+      render(<ImageList images={[resolved]} onImageDownload={jest.fn()} onFetchVideo={jest.fn()} />);
+      expect(screen.getByTitle('Download')).toBeInTheDocument();
+    });
+  });
+
   describe('formatFileSize', () => {
     it('shows an em dash for unknown/invalid sizes', () => {
       expect(formatFileSize(0)).toBe('—');

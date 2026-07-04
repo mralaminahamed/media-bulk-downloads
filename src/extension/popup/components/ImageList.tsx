@@ -9,6 +9,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   StarIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
@@ -25,6 +26,12 @@ interface ImageListProps {
   favouriteSrcs?: Set<string>;
   /** Toggle an item's favourite state (add if absent, remove if present). */
   onToggleFavourite?: (image: ImageInfo) => void;
+  /** Resolve one pending video's real file on demand (per-item "Get video"). */
+  onFetchVideo?: (image: ImageInfo) => void;
+  /** Srcs whose on-demand resolve returned nothing (tombstone / failure). */
+  resolveFailedSrcs?: Set<string>;
+  /** Srcs currently being resolved (shows a spinner, disables the button). */
+  fetchingSrcs?: Set<string>;
 }
 
 const SIZE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
@@ -42,6 +49,9 @@ export const formatFileSize = (bytes: number): string => {
 };
 
 const typeLabel = (img: ImageInfo): string => (img.isBase64 ? 'B64' : img.type.toUpperCase());
+
+/** A Twitter video whose real file hasn't been fetched yet: shown, not downloadable. */
+const isPendingVideo = (img: ImageInfo): boolean => img.kind === 'video' && !!img.unresolvedVideo;
 
 /** Centered ▶ badge overlaid on a video thumbnail that has a poster. */
 const PlayBadge: React.FC<{ className?: string }> = ({ className }) => (
@@ -97,7 +107,7 @@ export const LoadingImage: React.FC<{
   );
 };
 
-const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnailSize = 120, previewSize = 360, downloadedSrcs, favouriteSrcs, onToggleFavourite }) => {
+const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnailSize = 120, previewSize = 360, downloadedSrcs, favouriteSrcs, onToggleFavourite, onFetchVideo, resolveFailedSrcs, fetchingSrcs }) => {
   // Index-based selection so the modal can page through images without closing.
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const selectedImage = selectedIndex !== null ? images[selectedIndex] ?? null : null;
@@ -173,6 +183,14 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                 {typeLabel(image)}
               </span>
 
+              {isPendingVideo(image) && (
+                <span className="eyebrow absolute bottom-1.5 left-1.5 rounded-xs bg-(--panel)/85 px-1.5 py-0.5 text-[9px] leading-none text-(--ink) backdrop-blur-sm">
+                  {resolveFailedSrcs?.has(image.src) ? "couldn't fetch"
+                    : image.resolveHint ? 'not fetched'
+                    : "can't fetch"}
+                </span>
+              )}
+
               {downloadedSrcs?.has(image.src) && (
                 <span
                   className="absolute right-1.5 top-1.5 grid h-4 w-4 place-items-center rounded-full bg-(--brand-ink) text-white ring-1 ring-(--ctl-ring)"
@@ -219,14 +237,32 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                       : <StarIcon className="h-4 w-4" />}
                   </button>
                 )}
-                <button
-                  onClick={() => onImageDownload(image)}
-                  title="Download"
-                  aria-label="Download"
-                  className="grid h-8 w-8 place-items-center rounded-full bg-(--brand-ink) text-white ring-1 ring-(--ctl-ring) transition-transform hover:scale-105 active:scale-95"
-                >
-                  <ArrowDownTrayIcon className="h-4 w-4" />
-                </button>
+                {isPendingVideo(image) ? (
+                  image.resolveHint ? (
+                    <button
+                      onClick={() => onFetchVideo?.(image)}
+                      disabled={fetchingSrcs?.has(image.src)}
+                      title={resolveFailedSrcs?.has(image.src) ? 'Retry video' : 'Get video'}
+                      aria-label={resolveFailedSrcs?.has(image.src) ? 'Retry video' : 'Get video'}
+                      className="grid h-8 w-8 place-items-center rounded-full bg-(--brand-ink) text-white ring-1 ring-(--ctl-ring) transition-transform hover:scale-105 active:scale-95 disabled:opacity-60"
+                    >
+                      {fetchingSrcs?.has(image.src)
+                        ? <ArrowPathIcon className="h-4 w-4 animate-[spin_0.9s_linear_infinite]" />
+                        : resolveFailedSrcs?.has(image.src)
+                          ? <ArrowPathIcon className="h-4 w-4" />
+                          : <ArrowDownTrayIcon className="h-4 w-4" />}
+                    </button>
+                  ) : null
+                ) : (
+                  <button
+                    onClick={() => onImageDownload(image)}
+                    title="Download"
+                    aria-label="Download"
+                    className="grid h-8 w-8 place-items-center rounded-full bg-(--brand-ink) text-white ring-1 ring-(--ctl-ring) transition-transform hover:scale-105 active:scale-95"
+                  >
+                    <ArrowDownTrayIcon className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -300,7 +336,15 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                 className="checker relative flex items-center justify-center overflow-hidden rounded-sm border hairline"
                 style={{ minHeight: Math.min(previewSize, 160) }}
               >
-                {selectedImage.kind === 'video' ? (
+                {isPendingVideo(selectedImage) ? (
+                  <LoadingImage
+                    key={selectedImage.poster ?? selectedImage.src}
+                    src={selectedImage.poster ?? selectedImage.src}
+                    alt={selectedImage.alt}
+                    className="mx-auto w-full object-contain"
+                    style={{ maxHeight: previewSize }}
+                  />
+                ) : selectedImage.kind === 'video' ? (
                   <video
                     key={selectedImage.src}
                     src={selectedImage.src}
@@ -371,15 +415,25 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
             </div>
 
             <div className="border-t hairline px-4 py-2.5">
-              <button
-                onClick={() => onImageDownload(selectedImage)}
-                title="Download"
-                aria-label="Download"
-                className="btn btn-primary w-full"
-              >
-                <ArrowDownTrayIcon className="h-4 w-4" />
-                <span>Download</span>
-              </button>
+              {isPendingVideo(selectedImage) ? (
+                selectedImage.resolveHint ? (
+                  <button
+                    onClick={() => onFetchVideo?.(selectedImage)}
+                    disabled={fetchingSrcs?.has(selectedImage.src)}
+                    className="btn btn-primary w-full disabled:opacity-60"
+                  >
+                    <ArrowDownTrayIcon className="h-4 w-4" />
+                    <span>{resolveFailedSrcs?.has(selectedImage.src) ? "Couldn't fetch — retry" : 'Get video'}</span>
+                  </button>
+                ) : (
+                  <p className="text-center text-[12px] text-(--ink-2)">{"This video's file can't be fetched."}</p>
+                )
+              ) : (
+                <button onClick={() => onImageDownload(selectedImage)} title="Download" aria-label="Download" className="btn btn-primary w-full">
+                  <ArrowDownTrayIcon className="h-4 w-4" />
+                  <span>Download</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

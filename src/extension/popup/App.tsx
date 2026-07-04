@@ -19,6 +19,9 @@ import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon,
 // Concurrent HEAD requests when enriching remote image sizes.
 const SIZE_FETCH_CONCURRENCY = 6;
 
+/** Items the user can actually download now — pending videos are excluded until resolved. */
+const downloadable = (list: ImageInfo[]): ImageInfo[] => list.filter((i) => !i.unresolvedVideo);
+
 export interface AppProps {
   /** How to collect images. Defaults to messaging the active tab (popup). */
   collect?: () => Promise<ImageInfo[]>;
@@ -56,6 +59,8 @@ const App: React.FC<AppProps> = ({
   const [downloadedSrcs, setDownloadedSrcs] = useState<Set<string>>(new Set());
   const [showFavourites, setShowFavourites] = useState(false);
   const [favouriteSrcs, setFavouriteSrcs] = useState<Set<string>>(new Set());
+  const [resolveFailedSrcs, setResolveFailedSrcs] = useState<Set<string>>(new Set());
+  const [fetchingSrcs, setFetchingSrcs] = useState<Set<string>>(new Set());
 
   // All images collected from the page, before any settings/toolbar filtering.
   const rawImagesRef = useRef<ImageInfo[]>([]);
@@ -142,12 +147,13 @@ const App: React.FC<AppProps> = ({
   }, []);
 
   /**
-   * Opt-in resolution over the full eligible set (which may include poster-only
-   * "pending" videos that were NOT put on display). Resolves each hint via the
-   * background, then reconciles the display: upgrades already-shown hinted items
-   * in place (Wallhaven/Unsplash), and ADDS newly-resolved videos as real,
-   * downloadable mp4s. Items that never resolve are simply never shown — so
-   * nothing flickers in and then disappears.
+   * Opt-in resolution over the full eligible set. Pending videos are already
+   * displayed (as a poster, via `applyResolution`) — this resolves each item's
+   * `resolveHint` via the background and swaps it in place: src becomes the
+   * real original and `unresolvedVideo`/`resolveHint` are cleared, upgrading it
+   * to a downloadable mp4. Also mirrors the swap into `rawImagesRef` so the
+   * upgrade survives a later re-filter (settings change, deep scan). Items that
+   * never resolve simply stay pending — nothing flickers in and then disappears.
    */
   const enrichOriginals = useCallback(async (eligible: ImageInfo[]): Promise<void> => {
     const generation = ++resolveGenRef.current;
@@ -164,6 +170,7 @@ const App: React.FC<AppProps> = ({
       }
     }
     if (!byOldSrc.size) return;
+    rawImagesRef.current = rawImagesRef.current.map((m) => byOldSrc.get(m.src) ?? m);
 
     setState((prev) => {
       // Upgrade in place any item whose old src resolved, then append resolved
@@ -189,19 +196,18 @@ const App: React.FC<AppProps> = ({
   /**
    * Applies the resolve-originals gate to an eligible list, shared by every scan
    * path (initial scan, settings change, deep scan). Poster-only pending videos
-   * are NEVER displayed (they aren't downloadable). When the setting is on, they
-   * are resolved in the background and the real mp4 is added; when off, they are
-   * left in rawImagesRef so toggling on later can still resolve them. Image size
+   * ARE displayed (poster + a "Get video" action) but are excluded from the
+   * downloadable set until resolved. When `resolveOriginals` is on, they are also
+   * auto-resolved in the background and swapped to real mp4s. Image size
    * enrichment runs on the displayed items.
    */
   const applyResolution = useCallback(
     (eligible: ImageInfo[], s: SettingsData): void => {
-      const display = eligible.filter((i) => !i.unresolvedVideo);
       // Preserve the active toolbar filter when repopulating the grid.
-      const filtered = applyToolbarFilters(display, filtersRef.current);
-      setState((prev) => ({ ...prev, images: display, filteredImages: filtered }));
+      const filtered = applyToolbarFilters(eligible, filtersRef.current);
+      setState((prev) => ({ ...prev, images: eligible, filteredImages: filtered }));
       if (s.resolveOriginals) void enrichOriginals(eligible);
-      void enrichImageSizes(display);
+      void enrichImageSizes(eligible);
     },
     [enrichOriginals, enrichImageSizes],
   );
@@ -295,11 +301,37 @@ const App: React.FC<AppProps> = ({
   };
 
   const handleBulkDownload = (): void => {
-    const imagesToDownload = state.filteredImages.length > 0 ? state.filteredImages : state.images;
-    void handleDownload(imagesToDownload);
+    const base = state.filteredImages.length > 0 ? state.filteredImages : state.images;
+    void handleDownload(downloadable(base));
   };
 
   const handleSingleImageDownload = (image: ImageInfo): void => void handleDownload(image);
+
+  /**
+   * Resolve ONE pending video's real file on demand, regardless of the global
+   * resolveOriginals setting (this is an explicit, user-initiated request).
+   * On success, swap the item's src to the mp4 (now downloadable); on failure
+   * (tombstone / null), mark it failed so the tile can say so.
+   */
+  const handleFetchVideo = async (image: ImageInfo): Promise<void> => {
+    if (!image.resolveHint) return;
+    const src = image.src;
+    setFetchingSrcs((p) => new Set(p).add(src));
+    setResolveFailedSrcs((p) => { const n = new Set(p); n.delete(src); return n; });
+    const resolved = await requestResolveOriginals([{ src, hint: image.resolveHint }]);
+    setFetchingSrcs((p) => { const n = new Set(p); n.delete(src); return n; });
+    const url = resolved[src];
+    if (!url) {
+      setResolveFailedSrcs((p) => new Set(p).add(src));
+      return;
+    }
+    const swap = (list: ImageInfo[]) =>
+      list.map((i) => (i.src === src ? { ...i, src: url, unresolvedVideo: false, resolveHint: undefined } : i));
+    setState((prev) => ({ ...prev, images: swap(prev.images), filteredImages: swap(prev.filteredImages) }));
+    // Mirror into the raw set too, so a later settings-change re-filter doesn't
+    // revert this item back to a pending tile.
+    rawImagesRef.current = swap(rawImagesRef.current);
+  };
 
   const handleToggleFavourite = async (image: ImageInfo): Promise<void> => {
     if (favouriteSrcs.has(image.src)) {
@@ -333,6 +365,7 @@ const App: React.FC<AppProps> = ({
 
   const total = state.images.length;
   const shown = state.filteredImages.length;
+  const downloadableShown = downloadable(state.filteredImages).length;
   const hasImages = total > 0;
   const filtered = shown !== total;
 
@@ -424,6 +457,9 @@ const App: React.FC<AppProps> = ({
             downloadedSrcs={downloadedSrcs}
             favouriteSrcs={favouriteSrcs}
             onToggleFavourite={handleToggleFavourite}
+            onFetchVideo={handleFetchVideo}
+            resolveFailedSrcs={resolveFailedSrcs}
+            fetchingSrcs={fetchingSrcs}
           />
         )}
       </main>
@@ -442,9 +478,9 @@ const App: React.FC<AppProps> = ({
               </>
             )}
           </p>
-          <button onClick={handleBulkDownload} disabled={shown === 0} className="btn btn-primary flex-none">
+          <button onClick={handleBulkDownload} disabled={downloadableShown === 0} className="btn btn-primary flex-none">
             <ArrowDownTrayIcon className="h-4 w-4" />
-            <span>Download{shown > 0 ? ` ${shown}` : ''}</span>
+            <span>Download{downloadableShown > 0 ? ` ${downloadableShown}` : ''}</span>
           </button>
         </footer>
       )}

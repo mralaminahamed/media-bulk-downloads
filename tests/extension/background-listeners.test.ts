@@ -38,7 +38,7 @@ describe('background DOWNLOAD_IMAGES handler', () => {
       1,
       {
         url: 'a.jpg',
-        filename: 'image_1.jpg',
+        filename: 'image_1.jpeg',
         saveAs: false,
         conflictAction: 'uniquify',
       },
@@ -67,7 +67,7 @@ describe('background DOWNLOAD_IMAGES handler', () => {
     expect(chrome.downloads.download).toHaveBeenCalledWith(
       {
         url: 'a.jpg',
-        filename: 'Pics/2026/shot-1.jpg',
+        filename: 'Pics/2026/shot-1.jpeg',
         saveAs: false,
         conflictAction: 'uniquify',
       },

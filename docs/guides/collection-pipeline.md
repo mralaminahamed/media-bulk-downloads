@@ -106,12 +106,12 @@ candidate for that particular path.
 `REGISTRY` order — `twitterResolver → unsplashResolver → wallhavenResolver →
 genericResolver` — and returns the first non-empty `MediaCandidate[]`.
 
-| Resolver            | Matches                                          | Behavior                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-|---------------------|--------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `twitterResolver`   | `pbs.twimg.com`                                  | `/media/<id>` → `name=orig` + real format (`webp`→`jpg`); `/profile_images/` and `/profile_banners/` → strip the size suffix; `/card_img/` → `name=orig`. GIF thumbs (`/tweet_video_thumb/<id>`) → `video.twimg.com/tweet_video/<id>.mp4`, `kind:'gif'`. Real-video posters (`/ext_tw_video_thumb/`, `/amplify_video_thumb/`) → `kind:'video'`, `unresolvedVideo:true`, plus `resolveHint:{platform:'twitter', id: statusId}` when a nearby `/status/<id>` link is found |
-| `unsplashResolver`  | `images.unsplash.com`, `plus.unsplash.com`       | Strips resize query params (`w`, `h`, `fit`, `resize`, `q`, `quality`, `dpr`, `crop`, `ar`, `cs`, `fm`, `auto`, `bg`, `blend*`, `ixlib` — a smaller subset on `plus.`); attaches `resolveHint:{platform:'unsplash', id}` when the element sits inside an `<a href="/photos/<id>">`                                                                                                                                                                                       |
-| `wallhavenResolver` | `th.wallhaven.cc`                                | Reads the wallpaper id from the thumb path or a `figure[data-wallpaper-id]`; if the real extension is readable from the DOM (a full `<img>` on the page, or a png/gif badge on the figure), rewrites straight to `w.wallhaven.cc/full/<ab>/wallhaven-<id>.<ext>`; otherwise keeps the thumb URL and attaches `resolveHint:{platform:'wallhaven', id}`                                                                                                                    |
-| `genericResolver`   | everything else (catch-all, `match: () => true`) | Today's `deproxy()` → `upgradeToOriginal()` → `RULES` chain — see below                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Resolver            | Matches                                          | Behavior                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+|---------------------|--------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `twitterResolver`   | `pbs.twimg.com`                                  | `/media/<id>` → `name=orig` + real format (`webp`→`jpg`); `/profile_images/` and `/profile_banners/` → strip the size suffix; `/card_img/` → `name=orig`. GIF thumbs (`/tweet_video_thumb/<id>`) → `video.twimg.com/tweet_video/<id>.mp4`, `kind:'gif'`. Real-video posters (`/ext_tw_video_thumb/`, `/amplify_video_thumb/`) → `kind:'video'`, `unresolvedVideo:true`, plus `resolveHint:{platform:'twitter', id: statusId}` — the status id comes from a nearby `/status/<id>` link, falling back to the id in the page's own URL (e.g. a single-tweet detail page) when no such link is found |
+| `unsplashResolver`  | `images.unsplash.com`, `plus.unsplash.com`       | Strips resize query params (`w`, `h`, `fit`, `resize`, `q`, `quality`, `dpr`, `crop`, `ar`, `cs`, `fm`, `auto`, `bg`, `blend*`, `ixlib` — a smaller subset on `plus.`); attaches `resolveHint:{platform:'unsplash', id}` when the element sits inside an `<a href="/photos/<id>">`                                                                                                                                                                                                                                                                                                               |
+| `wallhavenResolver` | `th.wallhaven.cc`                                | Reads the wallpaper id from the thumb path or a `figure[data-wallpaper-id]`; if the real extension is readable from the DOM (a full `<img>` on the page, or a png/gif badge on the figure), rewrites straight to `w.wallhaven.cc/full/<ab>/wallhaven-<id>.<ext>`; otherwise keeps the thumb URL and attaches `resolveHint:{platform:'wallhaven', id}`                                                                                                                                                                                                                                            |
+| `genericResolver`   | everything else (catch-all, `match: () => true`) | Today's `deproxy()` → `upgradeToOriginal()` → `RULES` chain — see below                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
 Twitter, Unsplash, and Wallhaven each get a **dedicated** resolver; every other
 host — including the 40+ CDN families in the coverage benchmark — falls through
@@ -183,12 +183,20 @@ never issues a request of its own — the resolver attaches:
 - **`unresolvedVideo: true`** — this item's only known `src` is a still-frame
   poster, not a downloadable video file.
 
-Collection itself never contacts these hosts. Whether a hinted item ever gets
-upgraded, and whether an `unresolvedVideo` item ever becomes downloadable,
-depends entirely on the `resolveOriginals` setting (off by default) — see
-[Resolve Originals](./resolve-originals.md) for the opt-in network step, the
-exact endpoints it calls, and how the popup swaps the resolved URL into the
-displayed item.
+Collection itself never contacts these hosts. An `unresolvedVideo` item is
+still **shown** in the popup grid — poster image, ▶ badge, and (when it also
+carries a `resolveHint`) a "Get video" action — but it's excluded from the
+downloadable set until it resolves to a real file; a pending video with no
+`resolveHint` at all (no `/status/` link nearby and no status id in the page
+URL either) is shown with no action to take on it.
+
+Getting from "hinted/pending" to "downloadable" happens over the network, and
+now two ways: automatically, if `resolveOriginals` is on, or on demand — one
+item at a time — via that "Get video" button, regardless of the setting. See
+[Resolve Originals](./resolve-originals.md) for both paths, the exact
+endpoints called, how the popup swaps the resolved URL into the displayed
+item, and how a resolve that comes back empty (e.g. a tombstoned,
+age-restricted tweet) is surfaced rather than silently dropped.
 
 ## Dedup
 

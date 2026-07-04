@@ -69,7 +69,7 @@ flowchart TB
 
 ### Extension by kind
 
-- **Image:** `extensionForType(type)` — `jpeg→jpg`, `png/gif/webp/svg/avif/bmp/ico`
+- **Image:** `extensionForType(type)` — `jpeg→jpeg`, `png/gif/webp/svg/avif/bmp/ico`
   pass through, default `jpg`.
 - **Video/Audio:** `avExtensionForType(type)` (mp4/webm/mov/…/mp3/wav/flac/…),
   then the URL's real extension, then `mp4`/`mp3` as a last resort.
