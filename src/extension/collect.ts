@@ -124,13 +124,14 @@ export function collectMedia(): MediaItem[] {
       return;
     }
 
-    // DOM dimensions win; otherwise fall back to whatever the URL encodes.
-    // The upgraded candidate URL often has its size hint stripped away (that's
-    // the point of the upgrade), so also try the pre-upgrade `resolved` URL,
-    // which still carries the thumbnail's size token (e.g. Shopify `_800x600`,
-    // Twitter `name=360x360`).
-    let w = width;
-    let h = height;
+    // A resolver-supplied true size (e.g. Wallhaven's grid resolution) wins;
+    // otherwise DOM dimensions win; otherwise fall back to whatever the URL
+    // encodes. The upgraded candidate URL often has its size hint stripped away
+    // (that's the point of the upgrade), so also try the pre-upgrade `resolved`
+    // URL, which still carries the thumbnail's size token (e.g. Shopify
+    // `_800x600`, Twitter `name=360x360`).
+    let w = cand.width ?? width;
+    let h = cand.height ?? height;
     if (w === 0 && h === 0) {
       const dims = parseUrlDimensions(resolved) ?? parseUrlDimensions(cand.url);
       if (dims) {

@@ -159,6 +159,29 @@ describe('collectMedia — native resolvers', () => {
   });
 });
 
+describe('wallhaven true dimensions in collection', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('uses the grid resolution, not the thumbnail size, for a wallhaven wallpaper', () => {
+    document.body.innerHTML = `
+      <figure class="thumb" data-wallpaper-id="po7y9j">
+        <img src="https://th.wallhaven.cc/small/po/po7y9j.jpg">
+        <div class="thumb-info"><span class="wall-res">3840 x 2160</span><span class="png"></span></div>
+      </figure>`;
+    const media = collectMedia();
+    const item = media.find((m) => m.src.includes('w.wallhaven.cc/full/'));
+    expect(item).toBeDefined();
+    expect(item).toMatchObject({ width: 3840, height: 2160 });
+  });
+
+  it('still uses URL-encoded dimensions for a non-wallhaven image (regression)', () => {
+    document.body.innerHTML = `<img src="https://cdn.example.com/photo_800x600.jpg">`;
+    const media = collectMedia();
+    const item = media.find((m) => m.src.includes('cdn.example.com'));
+    expect(item).toMatchObject({ width: 800, height: 600 });
+  });
+});
+
 describe('twitter pending video collection', () => {
   afterEach(() => { document.body.innerHTML = ''; window.history.replaceState({}, '', '/'); });
 

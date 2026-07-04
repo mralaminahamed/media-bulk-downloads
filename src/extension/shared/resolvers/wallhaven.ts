@@ -36,21 +36,34 @@ function extFrom(ctx: ResolveContext): 'jpg' | 'png' | 'gif' | null {
   return null; // bare thumb, no context -> Phase 2 probe
 }
 
+/** Real wallpaper dimensions from the grid figure's resolution label
+ *  (`span.wall-res` = "1920 x 1200"). Null off-grid / when absent or implausible. */
+function dimsFrom(ctx: ResolveContext): { width: number; height: number } | null {
+  const txt = ctx.el?.closest?.('figure')?.querySelector?.('.wall-res')?.textContent ?? '';
+  const m = txt.match(/(\d{2,5})\s*[x×]\s*(\d{2,5})/i);
+  if (!m) return null;
+  const width = Number(m[1]);
+  const height = Number(m[2]);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
+  return { width, height };
+}
+
 export const wallhavenResolver: Resolver = {
   id: 'wallhaven',
   match: (u) => u.hostname === 'th.wallhaven.cc',
   resolve: (u, ctx): MediaCandidate[] => {
     const id = idFrom(u, ctx);
     if (!id) return [];
+    const dims = dimsFrom(ctx);
     const ext = extFrom(ctx);
     if (!ext) {
       // No DOM extension evidence: keep the downloadable thumb, tag for opt-in resolve.
-      return [{ url: u.href, kind: 'image', thumbnailSrc: u.href, resolveHint: { platform: 'wallhaven', id } }];
+      return [{ url: u.href, kind: 'image', thumbnailSrc: u.href, resolveHint: { platform: 'wallhaven', id }, ...(dims ?? {}) }];
     }
     const ab = id.slice(0, 2);
     return [{
       url: `https://w.wallhaven.cc/full/${ab}/wallhaven-${id}.${ext}`,
-      kind: 'image', ext, thumbnailSrc: u.href,
+      kind: 'image', ext, thumbnailSrc: u.href, ...(dims ?? {}),
     }];
   },
 };
