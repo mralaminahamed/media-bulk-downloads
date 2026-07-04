@@ -244,12 +244,12 @@ describe('Background Script', () => {
 
     it('keeps the popup on restricted tabs even when the bubble is enabled', () => {
       load({ bubbleEnabled: true }, [{ id: 6, url: 'chrome://extensions' }]);
-      expect(mockChrome.action.setPopup).toHaveBeenCalledWith({ tabId: 6, popup: 'index.html' });
+      expect(mockChrome.action.setPopup).toHaveBeenCalledWith({ tabId: 6, popup: 'popup.html' });
     });
 
     it('keeps the popup everywhere when the bubble is disabled', () => {
       load({ bubbleEnabled: false }, [{ id: 7, url: 'https://example.com' }]);
-      expect(mockChrome.action.setPopup).toHaveBeenCalledWith({ tabId: 7, popup: 'index.html' });
+      expect(mockChrome.action.setPopup).toHaveBeenCalledWith({ tabId: 7, popup: 'popup.html' });
     });
   });
 

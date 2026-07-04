@@ -5,7 +5,7 @@ the checks your change must pass, and how work is proposed.
 
 ## Prerequisites
 
-- **Node 22** (see `.nvmrc`)
+- **Node 20.19+** (`.nvmrc` pins 22 for development)
 - **Corepack-enabled Yarn** — this repo pins Yarn via Corepack. Do not use npm.
 
 ```bash
@@ -13,24 +13,29 @@ corepack enable
 yarn install
 ```
 
+The build is powered by [WXT](https://wxt.dev), which targets Chrome, Firefox,
+and Edge from one codebase.
+
 ## Develop
 
 ```bash
-yarn dev      # Vite build to dist/, watching for changes
+yarn dev            # Chrome: builds .output/chrome-mv3 and watches (auto-reloads)
+# yarn dev:firefox  # Firefox dev profile
 ```
 
-Load it in Chrome: `chrome://extensions` → enable **Developer mode** → **Load
-unpacked** → select `dist/`. Reload the extension after a rebuild.
+`yarn dev` opens a browser with the extension loaded. To load a build manually:
+`chrome://extensions` → **Developer mode** → **Load unpacked** → select
+`.output/chrome-mv3`.
 
 ## Checks (must pass before a PR)
 
 Run the same gate CI runs:
 
 ```bash
-yarn type-check   # tsc --noEmit
+yarn type-check   # wxt prepare + tsc --noEmit
 yarn lint         # eslint
 yarn test         # jest + coverage
-yarn build        # tsc + vite build, zips to release/
+yarn build        # wxt build → .output/chrome-mv3
 ```
 
 ## Tests

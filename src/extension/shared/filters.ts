@@ -34,7 +34,7 @@ export function filterImagesBySettings(images: ImageInfo[], settings: SettingsDa
 }
 
 /** Whether an item falls in a dimension-based size bucket. Unknown dims pass. */
-export function inSizeBucket(item: ImageInfo, bucket: SizeBucket): boolean {
+function inSizeBucket(item: ImageInfo, bucket: SizeBucket): boolean {
   if (bucket === 'all') return true;
   const edge = Math.max(item.width, item.height);
   if (edge <= 0) return true; // unknown dimensions are never hidden

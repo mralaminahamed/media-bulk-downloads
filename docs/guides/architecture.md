@@ -1,7 +1,8 @@
 # Architecture
 
-The extension is a Chrome Manifest V3 app with four runtime surfaces that
-communicate over `chrome.runtime` / `chrome.tabs` messages.
+The extension is a cross-browser (Chrome, Firefox 109+, Edge) Manifest V3 app
+with four runtime surfaces that communicate over `chrome.runtime` / `chrome.tabs`
+messages.
 
 ## Surfaces
 

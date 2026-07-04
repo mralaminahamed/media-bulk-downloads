@@ -1,10 +1,9 @@
 /**
- * content.ts — content-script entry.
+ * content.ts — content-script logic, loaded by the WXT content entrypoint
+ * (src/entrypoints/content.ts).
  *
- * Answers GET_IMAGES for the popup and background badge, and lazily mounts the
- * on-page bubble surface when the user has enabled it. The heavy bubble UI
- * (React) is code-split behind a dynamic import so pages without the bubble
- * enabled stay lightweight.
+ * Answers GET_IMAGES for the popup and background badge, and mounts the on-page
+ * bubble surface (dynamically imported) when the user has enabled it.
  */
 
 import { SettingsData, DeepScanProgress } from '@/types';
