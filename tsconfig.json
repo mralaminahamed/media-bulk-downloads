@@ -1,24 +1,16 @@
 {
+  // Extend WXT's generated config (run `wxt prepare` to (re)create it). It
+  // supplies target/module/moduleResolution, `strict`, `noEmit`, and the path
+  // aliases `@` `~` `@@` `~~`. We add only the options WXT's base omits.
+  "extends": "./.wxt/tsconfig.json",
   "compilerOptions": {
-    "target": "ESNext",
-    "useDefineForClassFields": true,
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
-    "allowJs": false,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
     "jsx": "react-jsx",
-    "paths": {
-      "@/*": ["./src/*"]
-    },
+    "useDefineForClassFields": true,
+    "isolatedModules": true,
+    // WXT's base leaves `types` unset (which pulls in every @types package).
+    // Pin it: chrome for the extension APIs, the rest for the Jest suite.
     "types": ["chrome", "node", "jest", "@testing-library/jest-dom"]
   },
-  "include": ["src", "tests", "entrypoints", "wxt.config.ts"]
+  "include": ["src", "tests", "wxt.config.ts", ".wxt/wxt.d.ts"]
 }
