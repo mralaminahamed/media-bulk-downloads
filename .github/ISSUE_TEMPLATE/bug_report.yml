@@ -5,16 +5,71 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the report. Please do **not** include security issues here —
-        see SECURITY.md.
-  - type: textarea
-    id: what-happened
+        Thanks for taking the time to file a bug. A clear repro gets it fixed
+        fastest. **Do not report security issues here** — see
+        [SECURITY.md](../blob/main/SECURITY.md).
+
+  - type: checkboxes
+    id: preflight
     attributes:
-      label: What happened
-      description: What went wrong, and what you expected instead.
-      placeholder: On <site>, I clicked Download and…
+      label: Before you file
+      options:
+        - label: I searched existing issues and this isn't a duplicate.
+          required: true
+        - label: I'm on the latest version of the extension.
+          required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where did it happen?
+      options:
+        - Toolbar popup
+        - On-page bubble
+        - Both
+        - Not sure
     validations:
       required: true
+
+  - type: dropdown
+    id: action
+    attributes:
+      label: Which action?
+      description: What were you doing when it broke?
+      options:
+        - Collecting / scanning media
+        - Filtering
+        - Downloading
+        - Deep scan
+        - Resolve originals (network)
+        - Download history (open / reveal / re-download)
+        - Settings
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Media kind involved
+      options:
+        - Image
+        - Video
+        - Audio
+        - Mixed / N/A
+    validations:
+      required: false
+
+  - type: textarea
+    id: expected-actual
+    attributes:
+      label: What happened vs. what you expected
+      placeholder: |
+        Expected: all 20 photos download.
+        Actual: only 14 download; the 6 GIFs are skipped.
+    validations:
+      required: true
+
   - type: textarea
     id: steps
     attributes:
@@ -22,24 +77,44 @@ body:
       placeholder: |
         1. Open <page URL>
         2. Open the extension
-        3. …
+        3. Click Download all
+        4. …
     validations:
       required: true
+
   - type: input
     id: page
     attributes:
-      label: Page URL (if shareable)
-      description: The site where it happened, if it's public.
+      label: Page URL (if public)
+      description: The site where it happened, if it's shareable.
+
   - type: input
-    id: versions
+    id: ext-version
     attributes:
-      label: Extension & Chrome version
-      placeholder: "Extension 1.0.0 · Chrome 126"
+      label: Extension version
+      placeholder: "1.0.0"
     validations:
       required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser & OS
+      placeholder: "Chrome 126 · macOS 14"
+    validations:
+      required: true
+
   - type: textarea
     id: console
     attributes:
-      label: Console errors
-      description: Any errors from the extension's service worker or the page console.
+      label: Console / service-worker errors
+      description: |
+        Any errors from the page console or the extension's service worker
+        (chrome://extensions → the extension → "Inspect views: service worker").
       render: text
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Drag images here if they help. A screen recording is even better.
