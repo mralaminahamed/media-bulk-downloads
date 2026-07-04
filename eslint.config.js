@@ -8,7 +8,7 @@ import globals from 'globals';
 // Flat config (ESLint v9+). Replaces the legacy .eslintrc.json.
 export default [
   {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**', '.yarn/**'],
+    ignores: ['dist/**', 'dist-firefox/**', 'dist-zip/**', 'release/**', 'node_modules/**', 'coverage/**', '.yarn/**'],
   },
   js.configs.recommended,
   {

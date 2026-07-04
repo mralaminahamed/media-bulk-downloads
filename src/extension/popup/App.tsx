@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ImageList from './components/ImageList';
 import Settings from './components/Settings';
 import HistoryPanel from './components/HistoryPanel';
-import FilterToolbar from './components/FilterToolbar';
+import FilterToolbar, { DEFAULT_FILTERS } from './components/FilterToolbar';
 import { AppState, DeepScanProgress, DownloadMessage, DownloadResponse, FilterOptions, ImageInfo, SettingsData } from '@/types';
 import { filterImagesBySettings, applyToolbarFilters } from '../shared/filters';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/settings';
@@ -69,6 +69,10 @@ const App: React.FC<AppProps> = ({
   const enrichGenRef = useRef(0);
   // Generation guard so a newer refresh/rescan cancels stale resolution writes.
   const resolveGenRef = useRef(0);
+  // Latest toolbar filters. FilterToolbar owns its own state and only notifies on
+  // user interaction, so async paths (resolution, deep scan, rescan) must re-apply
+  // these when they repopulate the grid — otherwise the active filter is dropped.
+  const filtersRef = useRef<FilterOptions>(DEFAULT_FILTERS);
 
   // Latest settings, readable from async callbacks (the mount scan) without a
   // stale closure.
@@ -156,20 +160,23 @@ const App: React.FC<AppProps> = ({
     if (!byOldSrc.size) return;
 
     setState((prev) => {
-      const reconcile = (list: ImageInfo[]) => {
-        // Upgrade in place any displayed item whose old src resolved.
-        const next = list.map((m) => byOldSrc.get(m.src) ?? m);
-        const present = new Set(next.map((m) => m.src));
-        // Append resolved items that weren't on display (pending videos).
-        for (const [oldSrc, item] of byOldSrc) {
-          if (!list.some((m) => m.src === oldSrc) && !present.has(item.src)) {
-            next.push(item);
-            present.add(item.src);
-          }
+      // Upgrade in place any item whose old src resolved, then append resolved
+      // items that weren't already present (pending videos becoming real mp4s).
+      const nextImages = prev.images.map((m) => byOldSrc.get(m.src) ?? m);
+      const present = new Set(nextImages.map((m) => m.src));
+      for (const [oldSrc, item] of byOldSrc) {
+        if (!prev.images.some((m) => m.src === oldSrc) && !present.has(item.src)) {
+          nextImages.push(item);
+          present.add(item.src);
         }
-        return next;
+      }
+      // Derive the filtered view from the new image set so the active toolbar
+      // filter still applies to upgraded and newly-appended items.
+      return {
+        ...prev,
+        images: nextImages,
+        filteredImages: applyToolbarFilters(nextImages, filtersRef.current),
       };
-      return { ...prev, images: reconcile(prev.images), filteredImages: reconcile(prev.filteredImages) };
     });
   }, []);
 
@@ -184,7 +191,9 @@ const App: React.FC<AppProps> = ({
   const applyResolution = useCallback(
     (eligible: ImageInfo[], s: SettingsData): void => {
       const display = eligible.filter((i) => !i.unresolvedVideo);
-      setState((prev) => ({ ...prev, images: display, filteredImages: display }));
+      // Preserve the active toolbar filter when repopulating the grid.
+      const filtered = applyToolbarFilters(display, filtersRef.current);
+      setState((prev) => ({ ...prev, images: display, filteredImages: filtered }));
       if (s.resolveOriginals) void enrichOriginals(eligible);
       void enrichImageSizes(display);
     },
@@ -251,8 +260,8 @@ const App: React.FC<AppProps> = ({
   };
 
   const handleFilterChange = (filters: FilterOptions) => {
-    const filteredImages = applyToolbarFilters(state.images, filters);
-    setState((prev) => ({ ...prev, filteredImages, status: '' }));
+    filtersRef.current = filters;
+    setState((prev) => ({ ...prev, filteredImages: applyToolbarFilters(prev.images, filters), status: '' }));
   };
 
   const currentSourcePage = async (): Promise<{ url: string; title?: string }> => {

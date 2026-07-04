@@ -42,6 +42,15 @@ describe('passesSettingsFilters', () => {
     expect(passesSettingsFilters(img({ width: 0, height: 0 }), settings)).toBe(true);
   });
 
+  it('keeps a half-known item — enforces the floor only on the known dimension', () => {
+    const settings = { ...base, minimumImageSize: 200 };
+    // width known and above the floor, height unknown (0): kept.
+    expect(passesSettingsFilters(img({ width: 500, height: 0 }), settings)).toBe(true);
+    expect(passesSettingsFilters(img({ width: 0, height: 500 }), settings)).toBe(true);
+    // width known and below the floor: still dropped (that dimension is real).
+    expect(passesSettingsFilters(img({ width: 50, height: 0 }), settings)).toBe(false);
+  });
+
   it('excludes base64 images when the setting is on', () => {
     const settings = { ...base, excludeBase64Images: true };
     expect(passesSettingsFilters(img({ isBase64: true }), settings)).toBe(false);

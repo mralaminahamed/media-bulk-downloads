@@ -23,11 +23,16 @@ describe('background DOWNLOAD_IMAGES handler', () => {
     setSettings({}); // reset to defaults
   });
 
-  it('downloads every eligible image with a prefixed, 1-indexed name', () => {
+  // The handler waits for the settings gate (resolved by setSettings above) then
+  // downloads, so assertions run after a microtask flush.
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+
+  it('downloads every eligible image with a prefixed, 1-indexed name', async () => {
     const sendResponse = jest.fn();
     const images = [img({ src: 'a.jpg', type: 'jpeg' }), img({ src: 'b.png', type: 'png' })];
 
     onMessage({ type: 'DOWNLOAD_IMAGES', images }, {}, sendResponse);
+    await flush();
 
     expect(chrome.downloads.download).toHaveBeenNthCalledWith(
       1,
@@ -52,11 +57,12 @@ describe('background DOWNLOAD_IMAGES handler', () => {
     expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloading 2 files...' });
   });
 
-  it('applies the download path and prefix from settings', () => {
+  it('applies the download path and prefix from settings', async () => {
     setSettings({ downloadPath: 'Pics/2026', fileNamePrefix: 'shot-' });
     const sendResponse = jest.fn();
 
     onMessage({ type: 'DOWNLOAD_IMAGES', images: [img({ src: 'a.jpg' })] }, {}, sendResponse);
+    await flush();
 
     expect(chrome.downloads.download).toHaveBeenCalledWith(
       {
@@ -69,7 +75,7 @@ describe('background DOWNLOAD_IMAGES handler', () => {
     );
   });
 
-  it('re-filters by the current settings (min size + base64)', () => {
+  it('re-filters by the current settings (min size + base64)', async () => {
     setSettings({ minimumImageSize: 50, excludeBase64Images: true });
     const sendResponse = jest.fn();
     const images = [
@@ -79,6 +85,7 @@ describe('background DOWNLOAD_IMAGES handler', () => {
     ];
 
     onMessage({ type: 'DOWNLOAD_IMAGES', images }, {}, sendResponse);
+    await flush();
 
     expect(chrome.downloads.download).toHaveBeenCalledTimes(1);
     expect(chrome.downloads.download).toHaveBeenCalledWith(

@@ -15,6 +15,16 @@ const FOCUSABLE =
 export function useDialog(onClose: () => void, active = true) {
   const ref = useRef<HTMLDivElement>(null);
 
+  // Read the latest onClose without making it an effect dependency. Consumers
+  // pass a fresh inline onClose every render; if the effect keyed on it, the
+  // parent re-rendering (e.g. while size-enrichment trickles in) would tear down
+  // and re-run the effect, re-focusing the panel and stealing focus from — and
+  // blurring — whatever the user is typing in.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   useEffect(() => {
     if (!active) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
@@ -22,7 +32,7 @@ export function useDialog(onClose: () => void, active = true) {
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== 'Tab') return;
@@ -45,7 +55,8 @@ export function useDialog(onClose: () => void, active = true) {
       document.removeEventListener('keydown', onKeyDown);
       previouslyFocused?.focus?.();
     };
-  }, [onClose, active]);
+    // Keyed on `active` only — see onCloseRef above.
+  }, [active]);
 
   return ref;
 }

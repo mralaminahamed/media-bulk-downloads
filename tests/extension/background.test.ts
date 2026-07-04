@@ -354,3 +354,29 @@ describe('runtime message router — history actions', () => {
     expect(chrome.tabs.create).toHaveBeenCalledWith({ url: 'https://c/a.jpg' });
   });
 });
+
+describe('DOWNLOAD_IMAGES — settings gate (no ephemeral-worker default-settings race)', () => {
+  const img = (src: string): ImageInfo =>
+    ({ src, alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' });
+
+  it('waits for settings to load, then downloads into the user subfolder', async () => {
+    // Load real settings (a subfolder), which resolves the settingsReady gate.
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_keys, cb) => cb({ settings: { downloadPath: 'Pics' } }));
+    loadSettings();
+    (chrome.downloads.download as jest.Mock).mockReset().mockImplementation((_o, cb) => cb(1));
+    (chrome.storage.local.get as jest.Mock).mockResolvedValue({ downloadHistory: [] });
+    (chrome.storage.local.set as jest.Mock).mockResolvedValue(undefined);
+
+    messageHandler(
+      { type: 'DOWNLOAD_IMAGES', images: [img('https://c/a.jpg')], sourcePage: undefined },
+      {},
+      jest.fn(),
+    );
+    await new Promise((r) => setTimeout(r, 0)); // flush settingsReady.then → downloadAndRecord
+
+    expect(chrome.downloads.download).toHaveBeenCalledWith(
+      expect.objectContaining({ filename: 'Pics/image_1.jpg' }),
+      expect.any(Function),
+    );
+  });
+});

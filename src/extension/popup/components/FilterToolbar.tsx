@@ -6,7 +6,7 @@ interface FilterToolbarProps {
   extensionSettings: SettingsData;
 }
 
-const DEFAULT_FILTERS: FilterOptions = {
+export const DEFAULT_FILTERS: FilterOptions = {
   mediaKind: 'all',
   imageType: 'all',
   minSize: 0,
