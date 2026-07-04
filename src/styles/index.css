@@ -26,6 +26,9 @@
   --brand-soft: #eef0fe;
   --ring: rgba(99, 102, 241, 0.35);
 
+  /* Semantic warning tone (errors), kept separate from the indigo accent. */
+  --warn: #b45309;
+
   /* Modal scrim. A theme-independent dark wash with a faint indigo-cool cast
      (never derived from --ink, which inverts light↔dark and would whiten the
      overlay in dark mode). Alpha baked in — apply as bg-[var(--overlay)]. */
@@ -78,6 +81,7 @@
     --brand-soft: #1c1b39;
     --ring: rgba(129, 140, 248, 0.4);
     --skeleton-sheen: rgba(255, 255, 255, 0.05);
+    --warn: #fbbf24;
     /* Deeper on the near-black canvas so lifted panels read against it. */
     --overlay: rgba(3, 4, 9, 0.66);
     /* On dark surfaces a black ring vanishes — use a faint light edge instead. */
