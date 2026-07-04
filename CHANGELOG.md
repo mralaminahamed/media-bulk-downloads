@@ -6,6 +6,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Download-path templates: the **Save to subfolder** setting now accepts
+  `{host}`, `{domain}`, `{date}`, and `{kind}` tokens, so downloads can be
+  organized into per-site (and per-day / per-kind) folders automatically — e.g.
+  `Media/{domain}` saves each site to its own folder. A template with no tokens
+  behaves exactly as the old static subfolder did. See
+  [docs/guides/download-paths.md](docs/guides/download-paths.md).
+
 ## [1.0.0] - 2026-07-04
 
 Initial public release.

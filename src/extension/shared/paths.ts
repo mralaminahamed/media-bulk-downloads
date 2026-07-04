@@ -21,3 +21,71 @@ export function sanitizePathSegment(segment: string): string {
     .map((part) => (RESERVED_NAME.test(part) ? `_${part}` : part))
     .join('/');
 }
+
+/** The tokens a download-path template may reference. */
+export interface PathTokens {
+  host: string;
+  domain: string;
+  date: string;
+  kind: string;
+}
+
+/** Tokens the template DSL understands; anything else in `{...}` is dropped. */
+const KNOWN_TOKENS = /\{(host|domain|date|kind)\}/g;
+
+/** A single token value must never introduce extra path segments. */
+const toSegment = (value: string): string => sanitizePathSegment(value).replace(/\//g, '');
+
+/**
+ * Expands a download-path template (e.g. `Media/{domain}/{date}`) against the
+ * given token values. Supported tokens: `{host}`, `{domain}`, `{date}`, `{kind}`.
+ * A token whose value is empty (e.g. an unknown source host) collapses its
+ * segment away; unknown `{...}` tokens are stripped entirely. The final path is
+ * run through `sanitizePathSegment`, so it can never escape the download root.
+ */
+export function expandPathTemplate(template: string, tokens: PathTokens): string {
+  const filled = template
+    .replace(KNOWN_TOKENS, (_match, key: keyof PathTokens) => toSegment(tokens[key] ?? ''))
+    .replace(/\{[^}]*\}/g, ''); // drop unknown tokens rather than leaving braces
+  return sanitizePathSegment(filled);
+}
+
+/** Extracts the hostname from a URL, or `''` when absent/unparseable. */
+export function hostFromUrl(url?: string): string {
+  if (!url) return '';
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return '';
+  }
+}
+
+/** Two-part public suffixes where the registrable domain needs three labels. */
+const TWO_PART_SUFFIX = new Set([
+  'co.uk', 'org.uk', 'ac.uk', 'gov.uk',
+  'co.jp', 'or.jp', 'ne.jp',
+  'com.au', 'net.au', 'org.au',
+  'co.nz', 'com.br', 'com.cn', 'co.in', 'co.kr', 'co.za',
+]);
+
+/**
+ * Reduces a hostname to its registrable domain (drops `www.` and subdomains):
+ * `www.twitter.com` → `twitter.com`. A small known set of two-part suffixes
+ * (e.g. `co.uk`) keeps the extra label. Heuristic, not a full public-suffix
+ * list — good enough for grouping downloads by site.
+ */
+export function registrableDomain(host: string): string {
+  if (!host) return '';
+  const labels = host.replace(/^www\./i, '').split('.').filter(Boolean);
+  if (labels.length <= 2) return labels.join('.');
+  const lastTwo = labels.slice(-2).join('.');
+  if (TWO_PART_SUFFIX.has(lastTwo)) return labels.slice(-3).join('.');
+  return lastTwo;
+}
+
+/** Today's date as `YYYY-MM-DD`, in the user's local timezone. */
+export function todayISO(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
