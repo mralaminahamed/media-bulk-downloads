@@ -19,6 +19,9 @@ import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon,
 // Concurrent HEAD requests when enriching remote image sizes.
 const SIZE_FETCH_CONCURRENCY = 6;
 
+/** Items the user can actually download now — pending videos are excluded until resolved. */
+const downloadable = (list: ImageInfo[]): ImageInfo[] => list.filter((i) => !i.unresolvedVideo);
+
 export interface AppProps {
   /** How to collect images. Defaults to messaging the active tab (popup). */
   collect?: () => Promise<ImageInfo[]>;
@@ -189,19 +192,18 @@ const App: React.FC<AppProps> = ({
   /**
    * Applies the resolve-originals gate to an eligible list, shared by every scan
    * path (initial scan, settings change, deep scan). Poster-only pending videos
-   * are NEVER displayed (they aren't downloadable). When the setting is on, they
-   * are resolved in the background and the real mp4 is added; when off, they are
-   * left in rawImagesRef so toggling on later can still resolve them. Image size
+   * ARE displayed (poster + a "Get video" action) but are excluded from the
+   * downloadable set until resolved. When `resolveOriginals` is on, they are also
+   * auto-resolved in the background and swapped to real mp4s. Image size
    * enrichment runs on the displayed items.
    */
   const applyResolution = useCallback(
     (eligible: ImageInfo[], s: SettingsData): void => {
-      const display = eligible.filter((i) => !i.unresolvedVideo);
       // Preserve the active toolbar filter when repopulating the grid.
-      const filtered = applyToolbarFilters(display, filtersRef.current);
-      setState((prev) => ({ ...prev, images: display, filteredImages: filtered }));
+      const filtered = applyToolbarFilters(eligible, filtersRef.current);
+      setState((prev) => ({ ...prev, images: eligible, filteredImages: filtered }));
       if (s.resolveOriginals) void enrichOriginals(eligible);
-      void enrichImageSizes(display);
+      void enrichImageSizes(eligible);
     },
     [enrichOriginals, enrichImageSizes],
   );
@@ -295,8 +297,8 @@ const App: React.FC<AppProps> = ({
   };
 
   const handleBulkDownload = (): void => {
-    const imagesToDownload = state.filteredImages.length > 0 ? state.filteredImages : state.images;
-    void handleDownload(imagesToDownload);
+    const base = state.filteredImages.length > 0 ? state.filteredImages : state.images;
+    void handleDownload(downloadable(base));
   };
 
   const handleSingleImageDownload = (image: ImageInfo): void => void handleDownload(image);
@@ -333,6 +335,7 @@ const App: React.FC<AppProps> = ({
 
   const total = state.images.length;
   const shown = state.filteredImages.length;
+  const downloadableShown = downloadable(state.filteredImages).length;
   const hasImages = total > 0;
   const filtered = shown !== total;
 
@@ -442,9 +445,9 @@ const App: React.FC<AppProps> = ({
               </>
             )}
           </p>
-          <button onClick={handleBulkDownload} disabled={shown === 0} className="btn btn-primary flex-none">
+          <button onClick={handleBulkDownload} disabled={downloadableShown === 0} className="btn btn-primary flex-none">
             <ArrowDownTrayIcon className="h-4 w-4" />
-            <span>Download{shown > 0 ? ` ${shown}` : ''}</span>
+            <span>Download{downloadableShown > 0 ? ` ${downloadableShown}` : ''}</span>
           </button>
         </footer>
       )}
