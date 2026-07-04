@@ -1,7 +1,35 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6366F1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M10.3 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10.3"/>
-  <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
-  <circle cx="9" cy="9" r="2"/>
-  <path d="M19 16v6"/>
-  <path d="m22 19-3 3-3-3"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="tile" x1="12" y1="6" x2="116" y2="122" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#818CF8"/>
+      <stop offset="1" stop-color="#4F46E5"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="6" x2="0" y2="70" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="photo">
+      <rect x="35" y="23" width="58" height="41" rx="9"/>
+    </clipPath>
+  </defs>
+
+  <!-- Brand tile -->
+  <rect x="6" y="6" width="116" height="116" rx="28" fill="url(#tile)"/>
+  <rect x="6" y="6" width="116" height="116" rx="28" fill="url(#sheen)"/>
+
+  <!-- Faint back card = "bulk" (fades out cleanly at small sizes) -->
+  <rect x="30" y="17" width="58" height="41" rx="9" fill="#ffffff" opacity="0.28"/>
+
+  <!-- Front photo card with sun + mountain -->
+  <rect x="35" y="23" width="58" height="41" rx="9" fill="#ffffff"/>
+  <g clip-path="url(#photo)">
+    <circle cx="51" cy="38" r="6" fill="#4F46E5"/>
+    <path d="M39 64 L56 44 L68 56 L82 40 L98 64 Z" fill="#6366F1"/>
+  </g>
+
+  <!-- Download arrow -->
+  <g stroke="#ffffff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M64 74 V101"/>
+    <path d="M48 86 L64 103 L80 86"/>
+  </g>
 </svg>

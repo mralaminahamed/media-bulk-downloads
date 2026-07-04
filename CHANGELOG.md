@@ -20,6 +20,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   changelog, issue/PR templates.
 
 ### Changed
+- Redesigned the extension icon: a solid indigo brand tile with a photo glyph and
+  download arrow, legible down to 16px (the old thin-line outline washed out at
+  toolbar size).
 - Build tooling: replaced Vite + `@crxjs/vite-plugin` (and the custom Firefox
   adapter script) with WXT; output moved from `dist/`/`release/` to `.output/`.
 - Popup UX pass: theme-correct modal/thumbnail scrims and control rings for dark
