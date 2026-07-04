@@ -4,7 +4,7 @@ import { twitterResolver } from './twitter';
 import { unsplashResolver } from './unsplash';
 import { wallhavenResolver } from './wallhaven';
 
-export const REGISTRY: Resolver[] = [twitterResolver, unsplashResolver, wallhavenResolver, genericResolver];
+const REGISTRY: Resolver[] = [twitterResolver, unsplashResolver, wallhavenResolver, genericResolver];
 
 export function resolve(rawUrl: string, ctx: ResolveContext): MediaCandidate[] {
   let u: URL;

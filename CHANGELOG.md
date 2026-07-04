@@ -7,6 +7,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Cross-browser builds** — migrated the build to [WXT](https://wxt.dev), which
+  produces Chrome, Firefox (MV3, 109+), and Edge packages and store-ready zips
+  from one codebase (`yarn zip:all`).
+- On-page bubble: a theme-aware page dim behind the open panel (visual only) so
+  it reads clearly on light pages.
 - Download history: per-entry **Open source**, **Open file**, and **Show in
   folder** actions (`downloads.open` permission).
 - Chrome Web Store submission package (`docs/CHROME_WEBSTORE.md`) and privacy
@@ -15,6 +20,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   changelog, issue/PR templates.
 
 ### Changed
+- Build tooling: replaced Vite + `@crxjs/vite-plugin` (and the custom Firefox
+  adapter script) with WXT; output moved from `dist/`/`release/` to `.output/`.
 - Popup UX pass: theme-correct modal/thumbnail scrims and control rings for dark
   mode, WCAG-AA data contrast, unified modal accessibility (focus trap, Escape,
   dialog roles) via a shared `useDialog` hook, tokenized radii/icon/button

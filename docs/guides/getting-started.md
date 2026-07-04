@@ -2,43 +2,46 @@
 
 ## Prerequisites
 
-- **Node 20.19+**
-- **Corepack-enabled Yarn** (the repo pins `yarn@4.17.0` via `packageManager`)
-- Google Chrome (Manifest V3)
+- **Node 20.19+** (`.nvmrc` pins 22)
+- **Corepack-enabled Yarn** (the repo pins Yarn via `packageManager`)
+- A Chromium browser (Chrome/Edge) and/or Firefox 109+
 
 ```bash
 corepack enable
 yarn install
 ```
 
-> All scripts use Corepack Yarn. Do not use npm.
+> All scripts use Corepack Yarn. Do not use npm. The build is powered by
+> [WXT](https://wxt.dev), which targets Chrome, Firefox, and Edge from one codebase.
 
 ## Develop
 
 ```bash
-yarn dev
+yarn dev            # Chrome
+# yarn dev:firefox  # Firefox
 ```
 
-Vite builds an unpacked extension to `dist/` and rebuilds on change. Load it once:
+`yarn dev` builds `.output/chrome-mv3`, opens a browser with the extension loaded,
+and auto-reloads on change. To load a build manually:
 
 1. Open `chrome://extensions`.
 2. Enable **Developer mode** (top-right).
-3. Click **Load unpacked** and select the project's `dist/` folder.
-4. After editing, Vite rewrites `dist/`; click the reload ↻ on the extension card
-   to pick up service-worker / manifest changes (popup/content HMR is automatic).
+3. Click **Load unpacked** and select `.output/chrome-mv3`.
 
-## Build
+## Build & package
 
 ```bash
-yarn build      # tsc --noEmit, then a production build to dist/
+yarn build          # wxt build → .output/chrome-mv3
+yarn build:all      # chrome + firefox + edge
+yarn zip:all        # store-ready zips in .output/
 ```
 
-`dist/` is the folder you load into Chrome or zip for the Web Store.
+See the per-store upload matrix in the [README](../../README.md#build--package-chrome--firefox--edge).
 
 ## Quality gates
 
 ```bash
-yarn type-check   # tsc --noEmit
+yarn type-check   # wxt prepare + tsc --noEmit
 yarn lint         # eslint (flat config)
 yarn test         # jest + Testing Library (jsdom), with coverage
 yarn build        # production build
@@ -75,11 +78,13 @@ Persisted with `chrome.storage.sync`:
 ## Where things live
 
 ```
+wxt.config.ts                   # WXT build config (manifest fn, targets, zip)
 src/
-  manifest.config.ts            # typed MV3 manifest (crxjs emits dist/manifest.json)
+  entrypoints/                  # WXT entrypoints (background, content, popup) → wrap extension/
+  public/icon/                  # extension icons
   extension/
     background.ts               # service worker: badge, downloads, settings, icon click
-    content.ts                  # content-script entry: GET_IMAGES, DEEP_SCAN, bubble mount
+    content.ts                  # content-script logic: GET_IMAGES, DEEP_SCAN, bubble mount
     collect.ts                  # collectMedia(): DOM -> MediaItem[]
     content/deepScanRunner.ts   # real-DOM deep-scan bindings
     shared/

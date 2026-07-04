@@ -82,7 +82,9 @@ export function isInjectableUrl(url: string | undefined): boolean {
  */
 function updateTabActionMode(tabId: number, url: string | undefined): void {
   const useBubble = currentSettings.bubbleEnabled && isInjectableUrl(url);
-  chrome.action.setPopup({ tabId, popup: useBubble ? '' : 'index.html' });
+  // WXT emits the popup as popup.html; restoring the toolbar popup must point at
+  // that file (the old crxjs build used index.html).
+  chrome.action.setPopup({ tabId, popup: useBubble ? '' : 'popup.html' });
 }
 
 function updateAllTabsActionMode(): void {

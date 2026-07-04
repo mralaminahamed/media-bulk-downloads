@@ -64,8 +64,8 @@ Browser "Save image as" only grabs one file at a time. **Media Bulk Downloads** 
 
 ## Install from Source (Development)
 
-Requires **Node 20+** and Yarn. The build is powered by [WXT](https://wxt.dev),
-which targets every browser from one codebase.
+Requires **Node 20.19+** and Yarn (`.nvmrc` pins 22). The build is powered by
+[WXT](https://wxt.dev), which targets every browser from one codebase.
 
 ```bash
 git clone https://github.com/mralaminahamed/media-bulk-downloads.git

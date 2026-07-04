@@ -36,7 +36,7 @@ function pinnedUrl(url: string | null | undefined, hostSuffix: string): string |
 }
 
 /**
- * Verbatim from react-tweet's getToken (copied in Task 2 Step 1).
+ * Verbatim from react-tweet's getToken.
  * Source: https://raw.githubusercontent.com/vercel/react-tweet/main/packages/react-tweet/src/api/fetch-tweet.ts
  */
 function getToken(id: string): string {

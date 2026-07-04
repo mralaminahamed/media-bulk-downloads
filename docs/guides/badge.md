@@ -42,7 +42,7 @@ The worker also decides what clicking the icon does, via `action.setPopup`:
 
 ```mermaid
 flowchart LR
-  S{"settings.bubbleEnabled?"} -->|no| POP["setPopup('index.html')<br/>→ click opens the popup"]
+  S{"settings.bubbleEnabled?"} -->|no| POP["setPopup('popup.html')<br/>→ click opens the popup"]
   S -->|yes| BUB["setPopup('')<br/>→ click fires action.onClicked<br/>→ TOGGLE_BUBBLE to content"]
 ```
 
