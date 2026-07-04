@@ -147,12 +147,13 @@ const App: React.FC<AppProps> = ({
   }, []);
 
   /**
-   * Opt-in resolution over the full eligible set (which may include poster-only
-   * "pending" videos that were NOT put on display). Resolves each hint via the
-   * background, then reconciles the display: upgrades already-shown hinted items
-   * in place (Wallhaven/Unsplash), and ADDS newly-resolved videos as real,
-   * downloadable mp4s. Items that never resolve are simply never shown — so
-   * nothing flickers in and then disappears.
+   * Opt-in resolution over the full eligible set. Pending videos are already
+   * displayed (as a poster, via `applyResolution`) — this resolves each item's
+   * `resolveHint` via the background and swaps it in place: src becomes the
+   * real original and `unresolvedVideo`/`resolveHint` are cleared, upgrading it
+   * to a downloadable mp4. Also mirrors the swap into `rawImagesRef` so the
+   * upgrade survives a later re-filter (settings change, deep scan). Items that
+   * never resolve simply stay pending — nothing flickers in and then disappears.
    */
   const enrichOriginals = useCallback(async (eligible: ImageInfo[]): Promise<void> => {
     const generation = ++resolveGenRef.current;
@@ -169,6 +170,7 @@ const App: React.FC<AppProps> = ({
       }
     }
     if (!byOldSrc.size) return;
+    rawImagesRef.current = rawImagesRef.current.map((m) => byOldSrc.get(m.src) ?? m);
 
     setState((prev) => {
       // Upgrade in place any item whose old src resolved, then append resolved
@@ -326,6 +328,9 @@ const App: React.FC<AppProps> = ({
     const swap = (list: ImageInfo[]) =>
       list.map((i) => (i.src === src ? { ...i, src: url, unresolvedVideo: false, resolveHint: undefined } : i));
     setState((prev) => ({ ...prev, images: swap(prev.images), filteredImages: swap(prev.filteredImages) }));
+    // Mirror into the raw set too, so a later settings-change re-filter doesn't
+    // revert this item back to a pending tile.
+    rawImagesRef.current = swap(rawImagesRef.current);
   };
 
   const handleToggleFavourite = async (image: ImageInfo): Promise<void> => {

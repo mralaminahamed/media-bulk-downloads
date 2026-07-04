@@ -338,4 +338,32 @@ describe('App Component', () => {
     fireEvent.click(await screen.findByTitle('Get video'));
     expect(await screen.findByText(/couldn't fetch/i)).toBeInTheDocument();
   });
+
+  it('keeps a per-item-fetched video downloadable after a settings change re-filters the grid', async () => {
+    // Regression: handleFetchVideo used to swap the resolved item into
+    // state.images/filteredImages only, leaving rawImagesRef.current still
+    // holding the old pending (unresolvedVideo) entry. The settings-change
+    // effect re-derives the grid from rawImagesRef, so changing a setting
+    // (e.g. minimumImageSize) would revert the just-resolved video back to a
+    // pending tile. handleFetchVideo now mirrors the swap into rawImagesRef
+    // too, so the upgrade survives the re-filter below.
+    (requestResolveOriginals as jest.Mock).mockResolvedValueOnce({ 'poster.jpg': 'https://video.twimg.com/hi.mp4' });
+    render(<App collect={async () => [pendingVideo]} />);
+
+    fireEvent.click(await screen.findByTitle('Get video'));
+    await waitFor(() =>
+      expect(requestResolveOriginals).toHaveBeenCalledWith([{ src: 'poster.jpg', hint: { platform: 'twitter', id: '123' } }]),
+    );
+    // Resolved → downloadable.
+    expect(await screen.findByRole('button', { name: /download 1/i })).toBeInTheDocument();
+
+    // Trigger the settings-change effect, which re-derives the grid from
+    // rawImagesRef.current (keyed on minimumImageSize/excludeBase64Images/resolveOriginals).
+    fireEvent.click(screen.getByTitle('Settings'));
+    fireEvent.change(screen.getByLabelText(/minimum image size/i), { target: { value: '10' } });
+    fireEvent.click(screen.getByText('Save'));
+
+    // Still downloadable — the resolved video was not reverted to pending.
+    expect(await screen.findByRole('button', { name: /download 1/i })).toBeInTheDocument();
+  });
 });
