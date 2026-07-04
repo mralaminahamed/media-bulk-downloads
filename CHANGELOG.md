@@ -6,6 +6,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- Unified the in-app brand mark with the installed toolbar icon. The popup
+  header and the on-page bubble launcher now render the actual icon artwork
+  from a single shared `BrandMark` component (per-instance gradient IDs), so
+  they can no longer drift from the icon users see in the browser — replacing
+  the old, mismatched line glyph.
+
 ## [1.0.0] - 2026-07-04
 
 Initial public release.
