@@ -226,6 +226,9 @@ export function collectMedia(): MediaItem[] {
     if (!rawSrc) return;
     const resolved = resolveUrl(rawSrc);
     if (isUndownloadableMedia(resolved)) return;
+    // Only real http(s) files are downloadable; drop javascript:/data:/other
+    // schemes that isUndownloadableMedia (blob/streams only) doesn't cover.
+    if (!/^https?:\/\//i.test(resolved)) return;
     if (seenSources.has(resolved)) return;
     seenSources.add(resolved);
     const item: MediaItem = {
@@ -233,7 +236,7 @@ export function collectMedia(): MediaItem[] {
       type: detectAvType(resolved, mime),
       fileSize: 0, isBase64: false, kind,
     };
-    if (kind === 'video' && posterUrl && !isUndownloadableMedia(posterUrl)) item.poster = posterUrl;
+    if (kind === 'video' && posterUrl && /^(https?:|data:image\/)/i.test(posterUrl)) item.poster = posterUrl;
     media.push(item);
   };
 

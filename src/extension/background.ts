@@ -357,9 +357,10 @@ chrome.runtime.onMessage.addListener(
     }
 
     if (typeof message === 'object' && message.type === 'OPEN_DOWNLOAD_FILE') {
-      // Content scripts (the bubble) can't call chrome.downloads; the popup
-      // could, but routing both through here keeps one code path. Guard against
-      // a since-removed download so a stale id never throws.
+      // Content scripts (the bubble) can't call chrome.downloads; routing both
+      // popup and bubble through here keeps one code path. open() takes no
+      // callback, so a stale/removed id surfaces only as an async
+      // runtime.lastError (harmless console noise), not a throw.
       chrome.downloads.open((message as OpenDownloadMessage).downloadId);
       return; // fire-and-forget
     }
@@ -370,7 +371,10 @@ chrome.runtime.onMessage.addListener(
     }
 
     if (typeof message === 'object' && message.type === 'OPEN_URL') {
-      void chrome.tabs.create({ url: (message as OpenUrlMessage).url });
+      // The URL is page-derived (a media/source URL from history); only ever open
+      // real web pages, never javascript:/data:/file: schemes.
+      const { url } = message as OpenUrlMessage;
+      if (/^https?:\/\//i.test(url)) void chrome.tabs.create({ url });
       return;
     }
 
@@ -386,7 +390,10 @@ chrome.runtime.onMessage.addListener(
       return true; // async
     }
 
-    return true;
+    // Unmatched messages (e.g. the content script's DEEP_SCAN_PROGRESS broadcast)
+    // get no response — return false so the message channel closes immediately
+    // instead of leaking an open port.
+    return false;
   },
 );
 

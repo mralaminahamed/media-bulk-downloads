@@ -353,6 +353,12 @@ describe('runtime message router — history actions', () => {
     dispatch({ type: 'OPEN_URL', url: 'https://c/a.jpg' });
     expect(chrome.tabs.create).toHaveBeenCalledWith({ url: 'https://c/a.jpg' });
   });
+
+  it('refuses to open a non-http OPEN_URL (javascript:/data:)', () => {
+    dispatch({ type: 'OPEN_URL', url: 'javascript:alert(1)' });
+    dispatch({ type: 'OPEN_URL', url: 'data:text/html,<script>1</script>' });
+    expect(chrome.tabs.create).not.toHaveBeenCalled();
+  });
 });
 
 describe('DOWNLOAD_IMAGES — settings gate (no ephemeral-worker default-settings race)', () => {

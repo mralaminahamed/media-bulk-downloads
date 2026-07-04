@@ -11,12 +11,15 @@ describe('resolve — generic fallback', () => {
   it('returns identity image candidate for a plain URL', () => {
     expect(resolve('https://ex.com/a.jpg', ctx)).toEqual([{ url: 'https://ex.com/a.jpg', kind: 'image' }]);
   });
-  it('returns identity for a malformed URL', () => {
-    // Note: '::::' from the task brief does NOT throw here — jsdom's
-    // document.baseURI defaults to 'http://localhost/', and `new URL('::::', base)`
-    // resolves as a valid path-relative reference (http://localhost/::::) rather
-    // than throwing. 'http://' is used instead: it is genuinely unparseable even
-    // with a base present, so it correctly exercises the catch/identity-fallback path.
-    expect(resolve('http://', ctx)).toEqual([{ url: 'http://', kind: 'image' }]);
+  it('returns no candidates for a malformed URL', () => {
+    // 'http://' is genuinely unparseable even with jsdom's baseURI present, so it
+    // exercises the catch path. An unparseable URL is not media — no candidate.
+    expect(resolve('http://', ctx)).toEqual([]);
+  });
+
+  it('returns no candidates for non-http schemes (javascript:/data:text/file:)', () => {
+    expect(resolve('javascript:alert(1)', ctx)).toEqual([]);
+    expect(resolve('data:text/html,<script>1</script>', ctx)).toEqual([]);
+    expect(resolve('file:///etc/passwd', ctx)).toEqual([]);
   });
 });

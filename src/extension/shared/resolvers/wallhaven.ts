@@ -5,8 +5,12 @@ const FULL_SRC = /w\.wallhaven\.cc\/full\/[a-z0-9]{2}\/wallhaven-[a-z0-9]+\.(jpg
 function idFrom(u: URL, ctx: ResolveContext): string | null {
   const m = u.pathname.match(/^\/(?:small|lg|orig)\/[a-z0-9]{2}\/([a-z0-9]+)\.jpg$/i);
   if (m) return m[1];
+  // The fallback id is a page-controlled attribute; it's interpolated into a URL
+  // path, so require the real id shape (alphanumeric) — otherwise a value with
+  // '/', '?', or '..' could bend the constructed wallhaven URL.
   const fig = ctx.el?.closest?.('figure[data-wallpaper-id]') as HTMLElement | null;
-  return fig?.dataset.wallpaperId ?? null;
+  const id = fig?.dataset.wallpaperId;
+  return id && /^[a-z0-9]+$/i.test(id) ? id : null;
 }
 
 /** Reads the real full-file extension from the DOM only (never guesses jpg). */
