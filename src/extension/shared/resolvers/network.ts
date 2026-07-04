@@ -21,6 +21,21 @@ interface WallhavenResponse {
 }
 
 /**
+ * A URL taken from an API JSON response is untrusted: constrain it to https and
+ * the expected host family before handing it back as a downloadable media URL.
+ */
+function pinnedUrl(url: string | null | undefined, hostSuffix: string): string | null {
+  if (typeof url !== 'string') return null;
+  try {
+    const u = new URL(url);
+    const ok = u.protocol === 'https:' && (u.hostname === hostSuffix || u.hostname.endsWith(`.${hostSuffix}`));
+    return ok ? u.href : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Verbatim from react-tweet's getToken (copied in Task 2 Step 1).
  * Source: https://raw.githubusercontent.com/vercel/react-tweet/main/packages/react-tweet/src/api/fetch-tweet.ts
  */
@@ -48,7 +63,7 @@ async function twitter(id: string, deps: NetDeps): Promise<string | null> {
         }
       }
     }
-    return best?.url ?? null;
+    return pinnedUrl(best?.url, 'twimg.com');
   } catch {
     return null;
   }
@@ -59,7 +74,7 @@ async function wallhaven(id: string, deps: NetDeps): Promise<string | null> {
     const r = await deps.fetch(`https://wallhaven.cc/api/v1/w/${encodeURIComponent(id)}`);
     if (!r.ok) return null;
     const j = (await r.json()) as WallhavenResponse;
-    return typeof j?.data?.path === 'string' ? j.data.path : null;
+    return pinnedUrl(j?.data?.path, 'wallhaven.cc');
   } catch {
     return null;
   }

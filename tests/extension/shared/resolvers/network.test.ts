@@ -28,6 +28,12 @@ describe('resolveOriginal — twitter', () => {
     const throwing = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
     expect(await resolveOriginal({ platform: 'twitter', id: '1' }, { fetch: throwing })).toBeNull();
   });
+  it('rejects an mp4 variant that is not https twimg.com (untrusted JSON URL)', async () => {
+    const evil = { mediaDetails: [{ video_info: { variants: [
+      { content_type: 'video/mp4', bitrate: 1, url: 'https://evil.example/x.mp4' },
+    ] } }] };
+    expect(await resolveOriginal({ platform: 'twitter', id: '1' }, { fetch: mockFetch(evil) })).toBeNull();
+  });
 });
 
 describe('resolveOriginal — wallhaven', () => {
@@ -38,6 +44,10 @@ describe('resolveOriginal — wallhaven', () => {
   });
   it('returns null on 401 (nsfw/unlisted)', async () => {
     expect(await resolveOriginal({ platform: 'wallhaven', id: 'x' }, { fetch: mockFetch({}, false) })).toBeNull();
+  });
+  it('rejects a data.path pointing off-host (untrusted JSON URL)', async () => {
+    const evil = { data: { path: 'https://evil.example/x.png' } };
+    expect(await resolveOriginal({ platform: 'wallhaven', id: 'x' }, { fetch: mockFetch(evil) })).toBeNull();
   });
 });
 

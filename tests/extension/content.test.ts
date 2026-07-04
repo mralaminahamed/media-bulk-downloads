@@ -197,12 +197,10 @@ describe('Content Script', () => {
       expect(withParams?.type).toBe('jpeg');
     });
 
-    it('handles data URIs for non-image types', () => {
+    it('drops non-image data URIs (not media, and a data:text/* is a scheme risk)', () => {
       document.body.innerHTML += `<img src="data:text/plain;base64,SGVsbG8gV29ybGQ=" alt="Non-image data URI">`;
       const images = collectMedia();
-      const nonImage = images.find((img) => img.alt === 'Non-image data URI');
-      expect(nonImage).toBeDefined();
-      expect(nonImage?.type).toBe('unknown');
+      expect(images.find((img) => img.alt === 'Non-image data URI')).toBeUndefined();
     });
   });
 
@@ -305,11 +303,9 @@ describe('Content Script', () => {
       expect(collectMedia().filter((i) => i.src === abs('shared.png'))).toHaveLength(1);
     });
 
-    it('collects blob: URLs with an unknown type', () => {
+    it('drops blob: image URLs (not fetchable by chrome.downloads from the extension)', () => {
       document.body.innerHTML = '<img src="blob:https://example.com/abc-123">';
-      const blob = collectMedia().find((i) => i.src.startsWith('blob:'));
-      expect(blob).toBeDefined();
-      expect(blob?.type).toBe('unknown');
+      expect(collectMedia().some((i) => i.src.startsWith('blob:'))).toBe(false);
     });
   });
 
