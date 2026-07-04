@@ -3,6 +3,7 @@ import ImageList from './components/ImageList';
 import Settings from './components/Settings';
 import HistoryPanel from './components/HistoryPanel';
 import FilterToolbar, { DEFAULT_FILTERS } from './components/FilterToolbar';
+import { BrandMark } from '../components/BrandMark';
 import { AppState, DeepScanProgress, DownloadMessage, DownloadResponse, FilterOptions, ImageInfo, SettingsData } from '@/types';
 import { filterImagesBySettings, applyToolbarFilters } from '../shared/filters';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/settings';
@@ -30,17 +31,6 @@ export interface AppProps {
   /** When embedded (bubble), wires the header as a drag handle for the panel. */
   dragHandleProps?: React.HTMLAttributes<HTMLElement>;
 }
-
-/** Compact brand mark — the Lucide "image-down" glyph. */
-const BrandMark: React.FC = () => (
-  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--brand-ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M10.3 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10.3" />
-    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-    <circle cx="9" cy="9" r="2" />
-    <path d="M19 16v6" />
-    <path d="m22 19-3 3-3-3" />
-  </svg>
-);
 
 const App: React.FC<AppProps> = ({
   collect = collectFromActiveTab,
@@ -312,9 +302,7 @@ const App: React.FC<AppProps> = ({
       <header className="dotgrid border-b hairline" {...dragHandleProps}>
         <div className="flex items-center justify-between px-4 pt-3.5">
           <div className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 place-items-center rounded-sm border hairline bg-(--panel)">
-              <BrandMark />
-            </span>
+            <BrandMark size={32} className="shrink-0 rounded-sm" />
             <div className="leading-tight">
               <h1 className="text-[15px] font-semibold tracking-tight text-(--ink)">Media Bulk Downloads</h1>
               <p className="eyebrow mt-1">Collect · Filter · Save</p>

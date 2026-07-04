@@ -4,6 +4,7 @@ import { withDefaults } from '../shared/settings';
 import { collectMedia } from '../collect';
 import { startDeepScan } from '../content/deepScanRunner';
 import App from '../popup/App';
+import { BrandMark } from '../components/BrandMark';
 
 interface BubbleProps {
   initialSettings: SettingsData;
@@ -387,13 +388,7 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
           touchAction: 'none',
         }}
       >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M10.3 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10.3" />
-          <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-          <circle cx="9" cy="9" r="2" />
-          <path d="M19 16v6" />
-          <path d="m22 19-3 3-3-3" />
-        </svg>
+        <BrandMark size={32} />
       </button>
     </>
   );
