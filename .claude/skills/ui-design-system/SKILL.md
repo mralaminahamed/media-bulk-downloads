@@ -42,6 +42,28 @@ has no width/height, so `w-[204px] h-[28px]` work there).
 `.btn` 38 · `.btn-sm` 30 · `.field` 34 · `.chip` 27 · `.seg` 23 (in a `.segwrap`).
 Mixing these on one row looks uneven — normalize with inline height (see trap above).
 
+## Tailwind v4 shorthand (write token utilities this way)
+
+Use the v4 CSS-variable **parens** shorthand, not the old bracket form:
+
+- Colors/surfaces: `bg-(--panel)`, `text-(--ink-2)`, `ring-(--ctl-ring)` —
+  **not** `bg-[var(--panel)]`. Both compile to `background-color: var(--panel)`;
+  the parens form is the current idiom.
+- Opacity: `bg-(--panel)/85` (v4 emits a `color-mix`, faithful).
+- Radius — prefer the **named** utilities `rounded-lg` / `rounded-sm` /
+  `rounded-xs`. They emit `var(--radius-lg|sm|xs)`, and this repo overrides those
+  on `:root`, so they render **12 / 7 / 5 px** (this repo's scale), not Tailwind's
+  defaults.
+- ⚠️ **Radius trap:** the "md" tier token is bare **`--radius`** (10px) and there
+  is **no `--radius-md`**. Write `rounded-(--radius)` — **never `rounded-md`**,
+  which maps to Tailwind's default `--radius-md` (6px): a silent size change.
+- Spacing: prefer the scale over arbitrary px where it maps cleanly
+  (`h-[18px]` → `h-4.5`, `h-[28px]` → `h-7`). Keep genuinely bespoke layout widths
+  (e.g. `w-[380px]`) as arbitrary — px is the clearer intent there.
+- This shorthand is for Tailwind **class strings only**. CSS-in-JS
+  (`style={{ background: 'var(--panel)' }}`) and SVG attributes keep real
+  `var(--…)` — see `src/extension/bubble/Bubble.tsx`.
+
 ## Patterns
 
 - Signature bits: `.eyebrow` (mono micro-label), `.num` (tabular mono numerals),
@@ -49,13 +71,15 @@ Mixing these on one row looks uneven — normalize with inline height (see trap 
   control (add `.segwrap-even` + a fixed width for equal columns).
 - Modals: `role="dialog"` + `aria-modal` + the shared `useDialog` hook
   (`popup/hooks/useDialog.ts`) for focus trap, Escape, focus restore. Scrim uses
-  `bg-[var(--overlay)]`.
+  `bg-(--overlay)`.
 - Respect both themes; the tokens do the work if you use them.
 
 ## References
 
 - Design tokens + component classes (this repo) — `src/styles/index.css`
 - Tailwind CSS v4 — https://tailwindcss.com/docs
+- Tailwind v4 CSS-variable shorthand & arbitrary values — https://tailwindcss.com/docs/adding-custom-styles#using-arbitrary-values
+- Tailwind v4 theme variables (how `rounded-*` maps to `--radius-*`) — https://tailwindcss.com/docs/theme
 - CSS cascade & specificity (why component classes win) — https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_cascade/Specificity
 - `prefers-color-scheme` (dark mode) — https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme
 - ARIA dialog pattern — https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/

@@ -24,7 +24,7 @@ const TextField: React.FC<{
   hintClassName?: string;
 }> = ({ id, name, label, value, onChange, placeholder, hint, hintClassName }) => (
   <div>
-    <label htmlFor={id} className="mb-1 block text-[12px] text-[var(--ink-2)]">
+    <label htmlFor={id} className="mb-1 block text-[12px] text-(--ink-2)">
       {label}
     </label>
     <input
@@ -38,7 +38,7 @@ const TextField: React.FC<{
       aria-describedby={hint ? hintId(id) : undefined}
     />
     {hint && (
-      <span id={hintId(id)} className={hintClassName ?? 'mt-1 block text-[11px] text-[var(--ink-3)]'}>
+      <span id={hintId(id)} className={hintClassName ?? 'mt-1 block text-[11px] text-(--ink-3)'}>
         {hint}
       </span>
     )}
@@ -57,7 +57,7 @@ const NumberField: React.FC<{
   onBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
 }> = ({ id, name, label, value, min, max, onChange, onBlur }) => (
   <div>
-    <label htmlFor={id} className="mb-1 block text-[12px] text-[var(--ink-2)]">
+    <label htmlFor={id} className="mb-1 block text-[12px] text-(--ink-2)">
       {label}
     </label>
     <input
@@ -84,7 +84,7 @@ const SelectField: React.FC<{
   children: React.ReactNode;
 }> = ({ id, name, label, value, onChange, children }) => (
   <div>
-    <label htmlFor={id} className="mb-1 block text-[12px] text-[var(--ink-2)]">
+    <label htmlFor={id} className="mb-1 block text-[12px] text-(--ink-2)">
       {label}
     </label>
     <select id={id} name={name} value={value} onChange={onChange} className="field">
@@ -102,7 +102,7 @@ const ToggleRow: React.FC<{
 }> = ({ id, label, description, checked, onToggle }) => (
   <div className="py-1.5">
     <div className="flex items-center justify-between gap-3">
-      <label htmlFor={id} className="text-[13px] text-[var(--ink)]">
+      <label htmlFor={id} className="text-[13px] text-(--ink)">
         {label}
       </label>
       <button
@@ -117,7 +117,7 @@ const ToggleRow: React.FC<{
       />
     </div>
     {description && (
-      <p id={`${id}-desc`} className="mt-1 pr-12 text-[11px] leading-relaxed text-[var(--ink-3)]">
+      <p id={`${id}-desc`} className="mt-1 pr-12 text-[11px] leading-relaxed text-(--ink-3)">
         {description}
       </p>
     )}
@@ -179,7 +179,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
 
   return (
     <div
-      className="overlay-in fixed inset-0 z-50 flex items-stretch justify-end bg-[var(--overlay)] backdrop-blur-[2px]"
+      className="overlay-in fixed inset-0 z-50 flex items-stretch justify-end bg-(--overlay) backdrop-blur-[2px]"
       onClick={onClose}
     >
       <div
@@ -188,18 +188,18 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
         aria-modal="true"
         aria-labelledby="settings-title"
         tabIndex={-1}
-        className="sheet-in flex h-full w-full max-w-[380px] flex-col bg-[var(--panel)] shadow-2xl focus:outline-none"
+        className="sheet-in flex h-full w-full max-w-[380px] flex-col bg-(--panel) shadow-2xl focus:outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="dotgrid flex items-center justify-between border-b hairline px-4 py-3">
           <div>
-            <h2 id="settings-title" className="text-[13px] font-semibold text-[var(--ink)]">
+            <h2 id="settings-title" className="text-[13px] font-semibold text-(--ink)">
               Settings
             </h2>
             <p className="eyebrow mt-0.5">Preferences</p>
           </div>
           <button onClick={onClose} className="iconbtn" title="Close" aria-label="Close">
-            <XMarkIcon className="h-[18px] w-[18px]" />
+            <XMarkIcon className="h-4.5 w-4.5" />
           </button>
         </header>
 
@@ -213,7 +213,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
               onChange={handleChange}
               placeholder="e.g. Images/Collected"
               hint={folderPreview}
-              hintClassName="num mt-1 block text-[11px] text-[var(--ink-3)]"
+              hintClassName="num mt-1 block text-[11px] text-(--ink-3)"
             />
 
             <ToggleRow
@@ -224,7 +224,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
             />
 
             <div>
-              <span id="naming-label" className="mb-1 block text-[12px] text-[var(--ink-2)]">
+              <span id="naming-label" className="mb-1 block text-[12px] text-(--ink-2)">
                 File naming:
               </span>
               <div className="segwrap" role="group" aria-labelledby="naming-label">
@@ -379,7 +379,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
                   <option value="top-right">Corner · top right</option>
                   <option value="top-left">Corner · top left</option>
                 </SelectField>
-                <p className="text-[11px] leading-relaxed text-[var(--ink-3)]">
+                <p className="text-[11px] leading-relaxed text-(--ink-3)">
                   Tip: drag the panel by its header on any page to drop it exactly where you want.
                 </p>
                 <div className="grid grid-cols-2 gap-3">
@@ -406,7 +406,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
                 </div>
               </>
             )}
-            <p className="text-[11px] leading-relaxed text-[var(--ink-3)]">
+            <p className="text-[11px] leading-relaxed text-(--ink-3)">
               Drag the bubble on any page to fine-tune its position. Works everywhere the
               popup can run except restricted pages (chrome://, the Web Store, PDFs).
             </p>
@@ -414,7 +414,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
         </div>
 
         <footer className="flex items-center justify-between gap-2 border-t hairline px-4 py-3">
-          <span aria-live="polite" className="text-[11px] text-[var(--ink-3)]">
+          <span aria-live="polite" className="text-[11px] text-(--ink-3)">
             {dirty ? 'Unsaved changes' : ''}
           </span>
           <div className="flex gap-2">

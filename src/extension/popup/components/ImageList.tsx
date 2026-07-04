@@ -153,23 +153,23 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                   <PlayBadge className="pointer-events-none absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-white drop-shadow" />
                 </>
               ) : image.kind === 'video' ? (
-                <div className="grid h-full w-full place-items-center bg-[var(--panel-2)]">
-                  <FilmIcon className="h-8 w-8 text-[var(--ink-3)]" />
+                <div className="grid h-full w-full place-items-center bg-(--panel-2)">
+                  <FilmIcon className="h-8 w-8 text-(--ink-3)" />
                 </div>
               ) : (
-                <div className="grid h-full w-full place-items-center bg-[var(--panel-2)]">
-                  <AudioIcon className="h-8 w-8 text-[var(--ink-3)]" />
+                <div className="grid h-full w-full place-items-center bg-(--panel-2)">
+                  <AudioIcon className="h-8 w-8 text-(--ink-3)" />
                 </div>
               )}
 
               {/* Type tag */}
-              <span className="eyebrow absolute left-1.5 top-1.5 rounded-[var(--radius-xs)] bg-[var(--panel)]/85 px-1.5 py-0.5 text-[9px] leading-none text-[var(--ink)] backdrop-blur-sm">
+              <span className="eyebrow absolute left-1.5 top-1.5 rounded-xs bg-(--panel)/85 px-1.5 py-0.5 text-[9px] leading-none text-(--ink) backdrop-blur-sm">
                 {typeLabel(image)}
               </span>
 
               {downloadedSrcs?.has(image.src) && (
                 <span
-                  className="absolute right-1.5 top-1.5 grid h-4 w-4 place-items-center rounded-full bg-[var(--brand-ink)] text-white ring-1 ring-[var(--ctl-ring)]"
+                  className="absolute right-1.5 top-1.5 grid h-4 w-4 place-items-center rounded-full bg-(--brand-ink) text-white ring-1 ring-(--ctl-ring)"
                   title="Downloaded"
                   aria-label="Downloaded"
                 >
@@ -181,12 +181,12 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
 
               {/* Hover / focus actions — also revealed on keyboard focus-within so
                   the buttons aren't mouse-only. */}
-              <div className="absolute inset-0 flex items-center justify-center gap-2 bg-transparent opacity-0 transition-all duration-150 group-hover:bg-[var(--scrim)] group-hover:opacity-100 group-focus-within:bg-[var(--scrim)] group-focus-within:opacity-100">
+              <div className="absolute inset-0 flex items-center justify-center gap-2 bg-transparent opacity-0 transition-all duration-150 group-hover:bg-(--scrim) group-hover:opacity-100 group-focus-within:bg-(--scrim) group-focus-within:opacity-100">
                 <button
                   onClick={() => setSelectedIndex(index)}
                   title="View Details"
                   aria-label="View Details"
-                  className="grid h-8 w-8 place-items-center rounded-full bg-[var(--panel)] text-[var(--ink)] ring-1 ring-[var(--ctl-ring)] transition-transform hover:scale-105 active:scale-95"
+                  className="grid h-8 w-8 place-items-center rounded-full bg-(--panel) text-(--ink) ring-1 ring-(--ctl-ring) transition-transform hover:scale-105 active:scale-95"
                 >
                   <EyeIcon className="h-4 w-4" />
                 </button>
@@ -194,7 +194,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                   onClick={() => onImageDownload(image)}
                   title="Download"
                   aria-label="Download"
-                  className="grid h-8 w-8 place-items-center rounded-full bg-[var(--brand-ink)] text-white ring-1 ring-[var(--ctl-ring)] transition-transform hover:scale-105 active:scale-95"
+                  className="grid h-8 w-8 place-items-center rounded-full bg-(--brand-ink) text-white ring-1 ring-(--ctl-ring) transition-transform hover:scale-105 active:scale-95"
                 >
                   <ArrowDownTrayIcon className="h-4 w-4" />
                 </button>
@@ -202,11 +202,11 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
             </div>
 
             <figcaption className="flex items-center justify-between gap-1 px-2 py-1.5">
-              <span className="num truncate text-[10px] text-[var(--ink-2)]">
+              <span className="num truncate text-[10px] text-(--ink-2)">
                 {image.kind !== 'image' ? image.type.toUpperCase()
                   : image.width > 0 ? `${image.width}×${image.height}` : '—'}
               </span>
-              <span className="num text-[10px] text-[var(--ink-2)]">{formatFileSize(image.fileSize)}</span>
+              <span className="num text-[10px] text-(--ink-2)">{formatFileSize(image.fileSize)}</span>
             </figcaption>
           </figure>
         ))}
@@ -214,7 +214,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
 
       {selectedImage && (
         <div
-          className="overlay-in fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay)] p-4 backdrop-blur-[2px]"
+          className="overlay-in fixed inset-0 z-50 flex items-center justify-center bg-(--overlay) p-4 backdrop-blur-[2px]"
           onClick={close}
         >
           <div
@@ -223,15 +223,15 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
             aria-modal="true"
             aria-labelledby="preview-title"
             tabIndex={-1}
-            className="sheet-in flex max-h-full w-full flex-col overflow-hidden rounded-[var(--radius-lg)] border hairline bg-[var(--panel)] shadow-2xl focus:outline-none"
+            className="sheet-in flex max-h-full w-full flex-col overflow-hidden rounded-lg border hairline bg-(--panel) shadow-2xl focus:outline-none"
             style={{ maxWidth: Math.max(320, previewSize) }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-2 border-b hairline px-4 py-2.5">
               <div className="flex items-center gap-2">
-                <h3 id="preview-title" className="text-[13px] font-semibold text-[var(--ink)]">Preview</h3>
+                <h3 id="preview-title" className="text-[13px] font-semibold text-(--ink)">Preview</h3>
                 {selectedIndex !== null && (
-                  <span className="num text-[11px] text-[var(--ink-3)]">
+                  <span className="num text-[11px] text-(--ink-3)">
                     {selectedIndex + 1} / {images.length}
                   </span>
                 )}
@@ -245,17 +245,17 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                   title="Open in new tab"
                   aria-label="Open in new tab"
                 >
-                  <ArrowTopRightOnSquareIcon className="h-[18px] w-[18px]" />
+                  <ArrowTopRightOnSquareIcon className="h-4.5 w-4.5" />
                 </a>
                 <button onClick={close} title="Close" aria-label="Close" className="iconbtn">
-                  <XMarkIcon className="h-[18px] w-[18px]" />
+                  <XMarkIcon className="h-4.5 w-4.5" />
                 </button>
               </div>
             </div>
 
             <div className="scroll-thin overflow-y-auto p-4">
               <div
-                className="checker relative flex items-center justify-center overflow-hidden rounded-[var(--radius-sm)] border hairline"
+                className="checker relative flex items-center justify-center overflow-hidden rounded-sm border hairline"
                 style={{ minHeight: Math.min(previewSize, 160) }}
               >
                 {selectedImage.kind === 'video' ? (
@@ -269,7 +269,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                   />
                 ) : selectedImage.kind === 'audio' ? (
                   <div className="flex flex-col items-center gap-3 p-6">
-                    <AudioIcon className="h-12 w-12 text-[var(--ink-3)]" />
+                    <AudioIcon className="h-12 w-12 text-(--ink-3)" />
                     <audio key={selectedImage.src} src={selectedImage.src} controls className="w-full" />
                   </div>
                 ) : (
@@ -288,7 +288,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                     onClick={goPrev}
                     title="Previous image"
                     aria-label="Previous image"
-                    className="absolute left-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-[var(--panel)]/90 text-[var(--ink)] ring-1 ring-[var(--ctl-ring)] backdrop-blur-sm transition-transform hover:scale-105 active:scale-95"
+                    className="absolute left-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-(--panel)/90 text-(--ink) ring-1 ring-(--ctl-ring) backdrop-blur-sm transition-transform hover:scale-105 active:scale-95"
                   >
                     <ChevronLeftIcon className="h-5 w-5" />
                   </button>
@@ -298,7 +298,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                     onClick={goNext}
                     title="Next image"
                     aria-label="Next image"
-                    className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-[var(--panel)]/90 text-[var(--ink)] ring-1 ring-[var(--ctl-ring)] backdrop-blur-sm transition-transform hover:scale-105 active:scale-95"
+                    className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-(--panel)/90 text-(--ink) ring-1 ring-(--ctl-ring) backdrop-blur-sm transition-transform hover:scale-105 active:scale-95"
                   >
                     <ChevronRightIcon className="h-5 w-5" />
                   </button>
@@ -309,22 +309,22 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                 {selectedImage.alt && (
                   <>
                     <dt className="eyebrow self-center">Alt</dt>
-                    <dd className="truncate text-[var(--ink)]">{selectedImage.alt}</dd>
+                    <dd className="truncate text-(--ink)">{selectedImage.alt}</dd>
                   </>
                 )}
                 <dt className="eyebrow self-center">Size</dt>
-                <dd className="num text-[var(--ink)]">
+                <dd className="num text-(--ink)">
                   {selectedImage.kind !== 'image' ? '—' : selectedImage.width > 0 ? `${selectedImage.width} × ${selectedImage.height}` : 'Unknown'} · {formatFileSize(selectedImage.fileSize)}
                 </dd>
                 <dt className="eyebrow self-center">Type</dt>
-                <dd className="text-[var(--ink)]">
+                <dd className="text-(--ink)">
                   {selectedImage.type.toUpperCase()}
                   {selectedImage.isBase64 ? ' · Base64' : ''}
                 </dd>
                 <dt className="eyebrow self-center">Kind</dt>
-                <dd className="text-[var(--ink)]">{selectedImage.kind}</dd>
+                <dd className="text-(--ink)">{selectedImage.kind}</dd>
                 <dt className="eyebrow self-start pt-0.5">Source</dt>
-                <dd className="num break-all text-[11px] text-[var(--ink-2)]">{selectedImage.src}</dd>
+                <dd className="num break-all text-[11px] text-(--ink-2)">{selectedImage.src}</dd>
               </dl>
             </div>
 

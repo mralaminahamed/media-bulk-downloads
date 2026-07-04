@@ -307,29 +307,29 @@ const App: React.FC<AppProps> = ({
   const filtered = shown !== total;
 
   return (
-    <div className="ibd-app flex h-full flex-col overflow-hidden bg-[var(--paper)] text-[var(--ink)]">
+    <div className="ibd-app flex h-full flex-col overflow-hidden bg-(--paper) text-(--ink)">
       {/* Header (doubles as the panel drag handle in the bubble surface) */}
       <header className="dotgrid border-b hairline" {...dragHandleProps}>
         <div className="flex items-center justify-between px-4 pt-3.5">
           <div className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 place-items-center rounded-[var(--radius-sm)] border hairline bg-[var(--panel)]">
+            <span className="grid h-8 w-8 place-items-center rounded-sm border hairline bg-(--panel)">
               <BrandMark />
             </span>
             <div className="leading-tight">
-              <h1 className="text-[15px] font-semibold tracking-tight text-[var(--ink)]">Media Bulk Downloads</h1>
+              <h1 className="text-[15px] font-semibold tracking-tight text-(--ink)">Media Bulk Downloads</h1>
               <p className="eyebrow mt-1">Collect · Filter · Save</p>
             </div>
           </div>
           <div className="flex items-center gap-0.5">
             <button onClick={() => setShowHistory(true)} className="iconbtn" title="Download history" aria-label="Download history">
-              <ClockIcon className="h-[18px] w-[18px]" />
+              <ClockIcon className="h-4.5 w-4.5" />
             </button>
             <button onClick={() => setShowSettings(true)} className="iconbtn" title="Settings" aria-label="Settings">
-              <Cog6ToothIcon className="h-[18px] w-[18px]" />
+              <Cog6ToothIcon className="h-4.5 w-4.5" />
             </button>
             {onClose && (
               <button onClick={onClose} className="iconbtn" title="Close" aria-label="Close">
-                <XMarkIcon className="h-[18px] w-[18px]" />
+                <XMarkIcon className="h-4.5 w-4.5" />
               </button>
             )}
           </div>
@@ -337,16 +337,16 @@ const App: React.FC<AppProps> = ({
 
         <div className="flex items-end justify-between px-4 pb-3.5 pt-3">
           <div className="flex items-baseline gap-2">
-            <span className="num text-[30px] font-semibold leading-none text-[var(--ink)]">
+            <span className="num text-[30px] font-semibold leading-none text-(--ink)">
               {state.isLoading ? '—' : total}
             </span>
-            <span className="text-[12px] text-[var(--ink-2)]">
+            <span className="text-[12px] text-(--ink-2)">
               {state.isLoading ? 'scanning this page' : total === 1 ? 'item on this page' : 'items on this page'}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
             {deepScanning && (
-              <span className="num inline-flex items-center rounded-full bg-[var(--brand-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--brand-ink)]">
+              <span className="num inline-flex items-center rounded-full bg-(--brand-soft) px-2 py-0.5 text-[10px] font-semibold text-(--brand-ink)">
                 {deepProgress?.found ?? 0} found
               </span>
             )}
@@ -357,11 +357,11 @@ const App: React.FC<AppProps> = ({
               aria-label={deepScanning ? 'Stop deep scan' : 'Deep scan'}
             >
               <ChevronDoubleDownIcon
-                className={`h-[18px] w-[18px] ${deepScanning ? 'animate-pulse' : ''}`}
+                className={`h-4.5 w-4.5 ${deepScanning ? 'animate-pulse' : ''}`}
               />
             </button>
             <button onClick={fetchImages} className="iconbtn" title="Rescan page" aria-label="Rescan page">
-              <ArrowPathIcon className={`h-[18px] w-[18px] ${state.isLoading ? 'animate-[spin_0.9s_linear_infinite]' : ''}`} />
+              <ArrowPathIcon className={`h-4.5 w-4.5 ${state.isLoading ? 'animate-[spin_0.9s_linear_infinite]' : ''}`} />
             </button>
           </div>
         </div>
@@ -397,15 +397,15 @@ const App: React.FC<AppProps> = ({
 
       {/* Action bar */}
       {hasImages && !state.isLoading && (
-        <footer className="flex items-center justify-between gap-3 border-t hairline bg-[var(--panel)] px-4 py-2.5">
-          <p className="num min-w-0 flex-1 truncate text-[11px] text-[var(--ink-2)]">
+        <footer className="flex items-center justify-between gap-3 border-t hairline bg-(--panel) px-4 py-2.5">
+          <p className="num min-w-0 flex-1 truncate text-[11px] text-(--ink-2)">
             {state.status ? (
               state.status
             ) : (
               <>
-                <span className="text-[var(--ink)]">{shown}</span>
-                <span className="text-[var(--ink-3)]"> / {total}</span>
-                {filtered && <span className="text-[var(--ink-3)]"> shown</span>}
+                <span className="text-(--ink)">{shown}</span>
+                <span className="text-(--ink-3)"> / {total}</span>
+                {filtered && <span className="text-(--ink-3)"> shown</span>}
               </>
             )}
           </p>
@@ -438,7 +438,7 @@ const SkeletonGrid: React.FC<{ thumbnailSize: number }> = ({ thumbnailSize }) =>
       style={{ gridTemplateColumns: `repeat(auto-fill, ${thumbnailSize}px)` }}
     >
       {Array.from({ length: 12 }).map((_, i) => (
-        <div key={i} className="overflow-hidden rounded-[var(--radius)] border hairline bg-[var(--panel)]">
+        <div key={i} className="overflow-hidden rounded-(--radius) border hairline bg-(--panel)">
           <div className="skeleton aspect-square" />
           <div className="flex items-center justify-between gap-1 px-2 py-1.5">
             <span className="skeleton h-2.5 w-10 rounded-[3px]" />
@@ -461,15 +461,15 @@ const CenteredState: React.FC<{
   <div className="reveal grid h-full place-items-center text-center">
     <div className="flex max-w-[260px] flex-col items-center gap-3">
       <span
-        className={`grid h-12 w-12 place-items-center rounded-[var(--radius-lg)] border hairline bg-[var(--panel)] ${
-          tone === 'warning' ? 'text-[var(--warn)]' : 'text-[var(--ink-3)]'
+        className={`grid h-12 w-12 place-items-center rounded-lg border hairline bg-(--panel) ${
+          tone === 'warning' ? 'text-(--warn)' : 'text-(--ink-3)'
         }`}
       >
         {icon}
       </span>
       <div>
-        <p className="text-[13px] font-semibold text-[var(--ink)]">{title}</p>
-        <p className="mt-1 text-[12px] leading-relaxed text-[var(--ink-2)]">{body}</p>
+        <p className="text-[13px] font-semibold text-(--ink)">{title}</p>
+        <p className="mt-1 text-[12px] leading-relaxed text-(--ink-2)">{body}</p>
       </div>
       {action}
     </div>
