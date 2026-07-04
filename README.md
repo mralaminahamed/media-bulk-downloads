@@ -64,42 +64,52 @@ Browser "Save image as" only grabs one file at a time. **Media Bulk Downloads** 
 
 ## Install from Source (Development)
 
-Requires **Node 20+** and Yarn.
+Requires **Node 20+** and Yarn. The build is powered by [WXT](https://wxt.dev),
+which targets every browser from one codebase.
 
 ```bash
 git clone https://github.com/mralaminahamed/media-bulk-downloads.git
 cd media-bulk-downloads
 corepack enable
 yarn install
-yarn dev        # builds to dist/ and watches for changes
+yarn dev            # Chrome: builds .output/chrome-mv3 and watches (auto-reloads)
+# yarn dev:firefox  # Firefox: builds .output/firefox-mv3 and opens a dev profile
 ```
 
-Then load the extension:
+`yarn dev` opens a browser with the extension loaded. To load a build manually:
 
 1. Open `chrome://extensions`
 2. Enable **Developer mode**
 3. Click **Load unpacked**
-4. Select the `dist/` folder
+4. Select `.output/chrome-mv3`
 
-Production build: `yarn build` (outputs `release/media-bulk-downloads-<version>.zip`).
+## Build & package (Chrome · Firefox · Edge)
 
----
-
-## Install on Firefox
-
-The extension also works on Firefox (Manifest V3, requires Firefox 109+).
+WXT produces an MV3 build and a store-ready zip per browser:
 
 ```bash
-yarn build:firefox    # builds Chrome dist, then adapts for Firefox → dist-firefox/
+yarn build          # chrome     → .output/chrome-mv3
+yarn build:firefox  # firefox    → .output/firefox-mv3
+yarn build:edge     # edge       → .output/edge-mv3
+yarn build:all      # all three
+
+yarn zip            # chrome zip → .output/media-bulk-downloads-<version>-chrome.zip
+yarn zip:firefox    # firefox zip (+ a sources zip for AMO review)
+yarn zip:edge       # edge zip
+yarn zip:all        # all zips
 ```
 
-To load in Firefox:
+| Store | Upload |
+|---|---|
+| Chrome Web Store | `media-bulk-downloads-<version>-chrome.zip` |
+| Microsoft Edge Add-ons | `media-bulk-downloads-<version>-edge.zip` |
+| Firefox Add-ons (AMO) | `media-bulk-downloads-<version>-firefox.zip` + the `-sources.zip` |
 
-1. Open `about:debugging#/runtime/this-firefox`
-2. Click **Load Temporary Add-on…**
-3. Select any file inside `dist-firefox/` (e.g. `manifest.json`)
+Other Chromium browsers (Brave, Opera, Vivaldi) load the Chrome build.
 
-To lint the Firefox build: `yarn lint:firefox`
+To load the Firefox build manually: `about:debugging#/runtime/this-firefox` →
+**Load Temporary Add-on…** → pick `.output/firefox-mv3/manifest.json`. Validate
+it with `yarn lint:firefox`.
 
 ---
 
@@ -150,10 +160,10 @@ The collection engine works on **any website**. It includes dedicated upgrade ru
 
 ## Tech Stack
 
-- **Chrome & Firefox** — Manifest V3, cross-browser compatible
+- **WXT** — multi-browser MV3 build (Chrome · Firefox · Edge) from one codebase, with HMR and per-browser zips
 - **React 19** + **TypeScript** — type-safe UI
 - **Tailwind CSS v4** — utility-first styling
-- **Vite 8** + **@crxjs/vite-plugin** — fast builds with HMR
+- **Vite** (via WXT) — fast builds
 - **Jest** + **Testing Library** — unit and integration tests
 - **web-ext** — Firefox build validation
 
@@ -163,19 +173,22 @@ The collection engine works on **any website**. It includes dedicated upgrade ru
 
 ```
 media-bulk-downloads/
+├── wxt.config.ts             # WXT build config (manifest, targets, zip)
 ├── src/
-│   ├── extension/        # Service worker, content script, background
-│   │   ├── collect.ts    # Media collection pipeline
-│   │   ├── extract.ts    # DOM extraction (srcset, picture, noscript…)
-│   │   ├── imageUrl.ts   # URL rewriting & CDN upgrades
-│   │   └── resolvers/    # Per-platform native resolvers
-│   ├── images/           # React UI components (popup, bubble, settings)
-│   ├── styles/           # Tailwind entry + global styles
-│   └── types/            # Shared TypeScript types
-├── assets/               # Icons and screenshots
-├── docs/                 # Guides, benchmarks, Chrome Web Store package
-├── tests/                # Jest test suites
-└── dist/                 # Build output (load unpacked)
+│   ├── entrypoints/          # WXT entrypoints (background, content, popup)
+│   ├── extension/            # Service worker, content script, popup/bubble UI
+│   │   ├── collect.ts        # Media collection pipeline
+│   │   ├── extract.ts        # DOM extraction (srcset, picture, noscript…)
+│   │   ├── imageUrl.ts       # URL rewriting & CDN upgrades
+│   │   ├── resolvers/        # Per-platform native resolvers
+│   │   └── popup/, bubble/   # React UI (popup + on-page bubble)
+│   ├── styles/               # Tailwind entry + global styles
+│   ├── public/icon/          # Extension icons (build assets)
+│   └── types/                # Shared TypeScript types
+├── assets/                   # Store icons and screenshots
+├── docs/                     # Guides, benchmarks, Chrome Web Store package
+├── tests/                    # Jest test suites
+└── .output/                  # Build output + zips (per browser)
 ```
 
 ---

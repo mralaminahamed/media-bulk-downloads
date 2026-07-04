@@ -11,12 +11,12 @@ Version at time of writing: **1.0.0** · Manifest **V3**.
 ## 1. Pre-submission checklist
 
 - [ ] One-time **$5 developer registration** paid on the [Developer Dashboard](https://chrome.google.com/webstore/devconsole).
-- [ ] `manifest.config.ts` name/description/version correct; `yarn build` emits `dist/manifest.json`.
-- [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, host `<all_urls>` (the `downloads.open` entry lands with PR #36 — confirm it's in the built manifest before zipping).
-- [ ] Icons 16/32/48/128 present (`assets/`) — ✅ already in the build.
-- [ ] Privacy policy hosted at a public URL (see §6). `PRIVACY.md` is in the repo; publish it (GitHub Pages or the raw file URL) and paste the link into the listing.
+- [ ] `wxt.config.ts` name/description correct; version comes from `package.json`. `yarn build` emits `.output/chrome-mv3/manifest.json`.
+- [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, host `<all_urls>`.
+- [ ] Icons 16/32/48/128 present (`src/public/icon/`) — ✅ already in the build.
+- [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
 - [ ] At least **1 screenshot** at 1280×800 or 640×400 (see §5).
-- [ ] `release/media-bulk-downloads-<version>.zip` produced by `yarn build`.
+- [ ] `.output/media-bulk-downloads-<version>-chrome.zip` produced by `yarn zip`.
 - [ ] Single-purpose description, permission justifications, and data disclosures filled in (below).
 
 ---
@@ -120,7 +120,7 @@ media's own CDN. It does not read or transmit page content for any other purpose
 
 ## 5. Required visual assets
 
-Capture from the running extension (`yarn build`, load `dist/` unpacked), then
+Capture from the running extension (`yarn build`, load `.output/chrome-mv3` unpacked), then
 crop to the exact sizes. PNG or JPEG, no alpha needed.
 
 | Asset | Size | Required | Suggested shot |
@@ -167,18 +167,31 @@ executed at runtime.
 
 ## 7. Build & upload
 
+WXT packages a store-ready zip per browser:
+
 ```bash
-corepack yarn build        # tsc + vite build, then zips to release/
+corepack yarn zip          # chrome  → .output/media-bulk-downloads-<version>-chrome.zip
+corepack yarn zip:edge     # edge    → …-edge.zip
+corepack yarn zip:firefox  # firefox → …-firefox.zip (+ a -sources.zip for AMO)
+corepack yarn zip:all      # all of the above
 ```
 
-Produces `release/media-bulk-downloads-<version>.zip` (version from `package.json`).
+Version comes from `package.json` (WXT writes it into every manifest).
 
+**Chrome Web Store:**
 1. [Developer Dashboard](https://chrome.google.com/webstore/devconsole) → **Add new item**.
-2. Upload the zip.
+2. Upload `…-chrome.zip`.
 3. Fill the listing (§2), privacy (§6), and permission justifications (§4).
 4. Add screenshots (§5) and the 128×128 icon.
 5. Submit for review.
 
-**To ship an update:** bump `version` in `package.json`, `yarn build`, upload the
-new zip. The manifest version is derived from `package.json`, so that single bump
-keeps them in sync.
+**Microsoft Edge Add-ons:** upload `…-edge.zip` to
+[Partner Center](https://partner.microsoft.com/dashboard/microsoftedge). Same
+package family (Chromium MV3); the listing copy and justifications above apply.
+
+**Firefox Add-ons (AMO):** upload `…-firefox.zip` at
+[addons.mozilla.org/developers](https://addons.mozilla.org/developers/), plus the
+`…-sources.zip` when prompted (AMO requires source for bundled add-ons).
+
+**To ship an update:** bump `version` in `package.json`, re-run `yarn zip:all`,
+upload the new zips. One version bump keeps every manifest in sync.
