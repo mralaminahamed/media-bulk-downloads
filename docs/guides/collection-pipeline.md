@@ -57,7 +57,8 @@ flowchart TB
     direction TB
     TW["twitterResolver<br/>pbs.twimg.com"] -->|"no candidate"| UNS
     UNS["unsplashResolver<br/>images / plus.unsplash.com"] -->|"no candidate"| WH
-    WH["wallhavenResolver<br/>th.wallhaven.cc"] -->|"no candidate"| GEN
+    WH["wallhavenResolver<br/>th.wallhaven.cc"] -->|"no candidate"| BEH
+    BEH["behanceResolver<br/>mir-s3-cdn-cf.behance.net"] -->|"no candidate"| GEN
     GEN["genericResolver (catch-all)<br/>deproxy() then upgradeToOriginal() / RULES"]
   end
 
@@ -104,18 +105,20 @@ candidate for that particular path.
 
 `resolve(rawUrl, ctx)` scheme-guards to http(s), then tries each `Resolver` in
 `REGISTRY` order — `twitterResolver → unsplashResolver → wallhavenResolver →
-genericResolver` — and returns the first non-empty `MediaCandidate[]`.
+behanceResolver → genericResolver` — and returns the first non-empty
+`MediaCandidate[]`.
 
 | Resolver            | Matches                                          | Behavior                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 |---------------------|--------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `twitterResolver`   | `pbs.twimg.com`                                  | `/media/<id>` → `name=orig` + real format (`webp`→`jpg`); `/profile_images/` and `/profile_banners/` → strip the size suffix; `/card_img/` → `name=orig`. GIF thumbs (`/tweet_video_thumb/<id>`) → `video.twimg.com/tweet_video/<id>.mp4`, `kind:'gif'`. Real-video posters (`/ext_tw_video_thumb/`, `/amplify_video_thumb/`) → `kind:'video'`, `unresolvedVideo:true`, plus `resolveHint:{platform:'twitter', id: statusId}` — the status id comes from a nearby `/status/<id>` link, falling back to the id in the page's own URL (e.g. a single-tweet detail page) when no such link is found |
 | `unsplashResolver`  | `images.unsplash.com`, `plus.unsplash.com`       | Strips resize query params (`w`, `h`, `fit`, `resize`, `q`, `quality`, `dpr`, `crop`, `ar`, `cs`, `fm`, `auto`, `bg`, `blend*`, `ixlib` — a smaller subset on `plus.`); attaches `resolveHint:{platform:'unsplash', id}` when the element sits inside an `<a href="/photos/<id>">`                                                                                                                                                                                                                                                                                                               |
 | `wallhavenResolver` | `th.wallhaven.cc`                                | Reads the wallpaper id from the thumb path or a `figure[data-wallpaper-id]`; if the real extension is readable from the DOM (a full `<img>` on the page, or a png/gif badge on the figure), rewrites straight to `w.wallhaven.cc/full/<ab>/wallhaven-<id>.<ext>`; otherwise keeps the thumb URL and attaches `resolveHint:{platform:'wallhaven', id}`. On the grid it also reads the figure's `span.wall-res` to record the wallpaper's **true** full resolution (not the small thumbnail's)                                                                                                     |
+| `behanceResolver`   | `mir-s3-cdn-cf.behance.net`                      | Rewrites `/project_modules/<size>/` (`disp`/`max_1200`/`1400`/`fs`) → `/project_modules/source/`, and strips the search-grid's base64 crop token (`<hash>.<crop>.<ext>` → `<hash>.<ext>`); if the element (or its `srcset`/`data-src`, or a sibling `<source>`) already exposes a `source`/`fs` URL on the same host, that DOM value wins over the rewrite. Returns `[]` (falls through to `genericResolver`) when the input is already at `source`/`fs` with no crop token — the rewrite isn't necessarily max-res if the DOM doesn't expose one                                                |
 | `genericResolver`   | everything else (catch-all, `match: () => true`) | Today's `deproxy()` → `upgradeToOriginal()` → `RULES` chain — see below                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
-Twitter, Unsplash, and Wallhaven each get a **dedicated** resolver; every other
-host — including the 40+ CDN families in the coverage benchmark — falls through
-to the generic resolver.
+Twitter, Unsplash, Wallhaven, and Behance each get a **dedicated** resolver;
+every other host — including the 40+ CDN families in the coverage benchmark —
+falls through to the generic resolver.
 
 ## Generic resolver: URL intelligence (`shared/imageUrl.ts`)
 
@@ -144,22 +147,36 @@ Order: `deproxy()` first, then the first matching CDN rule.
 `format=`/`fm=` param **whose value is a real media format** (so `?format=csv`
 is rejected).
 
+Substack's `substackcdn.com/image/fetch/$s_!sig!,w_160,…/https%3A%2F%2F…` fits
+the Cloudinary-fetch shape above unchanged — no Substack-specific branch was
+needed, just a regression test.
+
 ### Safe path-based CDN upgrades
 
-| Host                                                                             | Rewrite                                             |
-|----------------------------------------------------------------------------------|-----------------------------------------------------|
-| `pbs.twimg.com` (Twitter/X) — **fallback only**, see above                       | `name=<size>` → `name=orig`                         |
-| `*.googleusercontent.com` / `*.ggpht.com`                                        | trailing `=s200` / `=w200-h200` → `=s0`             |
-| `i.pinimg.com`                                                                   | `/236x/` … `/736x/` → `/originals/`                 |
-| `i.ytimg.com` / `img.youtube.com`                                                | `/vi/<id>/<name>.jpg` → `maxresdefault.jpg`         |
-| `*.media-amazon.com` / `ssl-images-amazon.com`                                   | strip `._SX300_SY300_.` encoding segment            |
-| `miro.medium.com`                                                                | drop chained `resize/fit/format` transform segments |
-| `images`/`plus.unsplash.com` — **unreachable**, see above · `*.imgix.net` — live | strip resize query params                           |
-| WordPress/Jetpack, Shopify, Cloudinary, Wikimedia                                | (existing rules — see source)                       |
+| Host                                                                             | Rewrite                                                                                                 |
+|----------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
+| `pbs.twimg.com` (Twitter/X) — **fallback only**, see above                       | `name=<size>` → `name=orig`                                                                             |
+| `*.googleusercontent.com` / `*.ggpht.com`                                        | trailing `=s200` / `=w200-h200` → `=s0`                                                                 |
+| `i.pinimg.com`                                                                   | `/236x/` … `/736x/` → `/originals/`                                                                     |
+| `i.ytimg.com` / `img.youtube.com`                                                | `/vi/<id>/<name>.jpg` → `maxresdefault.jpg`                                                             |
+| `*.media-amazon.com` / `ssl-images-amazon.com`                                   | strip `._SX300_SY300_.` encoding segment                                                                |
+| `miro.medium.com`                                                                | drop chained `resize/fit/format` transform segments                                                     |
+| `images`/`plus.unsplash.com` — **unreachable**, see above · `*.imgix.net` — live | strip resize query params                                                                               |
+| WordPress/Jetpack, Shopify, Cloudinary, Wikimedia                                | (existing rules — see source)                                                                           |
+| `images.pexels.com`                                                              | strip the resize query (`w`/`h`/`fit`/`auto`/`cs`/`dpr`) — bare path is the original                    |
+| `cdn.pixabay.com`                                                                | `_<size>` → `_1280` (capped — largest hotlinkable; true original is login-gated)                        |
+| `*.staticflickr.com`                                                             | small size code (`s`/`q`/`t`/`m`/`n`/`w`/`z`/`c`) → `_b` (1024, capped); already-large sizes left alone |
+| `*.media.tumblr.com`                                                             | `/sWxH/` → `/s1280x1920/`                                                                               |
+| `ichef.bbci.co.uk`                                                               | width segment (`/news/<N>/`, `/ace/standard/<N>/`) → `1920`                                             |
+| `i.etsystatic.com`                                                               | `il_WxH` → `il_fullxfull`                                                                               |
+| `i.ebayimg.com`                                                                  | `s-l<NNN>` → `s-l1600`                                                                                  |
+| `platform.theverge.com` (WP uploads)                                             | strip the resize query                                                                                  |
 
-Wallhaven has **no** entry here — its upgrade lives entirely in
-`wallhavenResolver` above; a thumb `wallhavenResolver` can't identify (no id
-found) is collected unmodified by the generic resolver, not upgraded.
+Wallhaven and Behance have **no** entry here — their upgrades live entirely in
+`wallhavenResolver` / `behanceResolver` above; a URL either resolver's `match`
+claims but can't upgrade (a Wallhaven thumb with no readable id, or a Behance
+URL already at `source`/`fs`) falls through and is collected unmodified by the
+generic resolver, since neither host has a `RULES` entry here.
 
 **Signed hosts** (`*.fbcdn.net`, `preview.redd.it`) get **no rule and no query
 strip** — their signature lives in the query, so stripping it would 403. They are
