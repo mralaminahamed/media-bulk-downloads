@@ -8,6 +8,10 @@ export interface MediaCandidate {
   poster?: string;
   resolveHint?: ResolveHint;
   unresolvedVideo?: boolean;
+  /** True intrinsic dimensions when a resolver reads them from the DOM
+   *  (e.g. Wallhaven's grid resolution label). Preferred over thumbnail dims. */
+  width?: number;
+  height?: number;
 }
 
 export interface ResolveContext {

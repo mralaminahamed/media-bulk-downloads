@@ -46,3 +46,79 @@ describe('wallhavenResolver', () => {
     expect(r.resolveHint).toEqual({ platform: 'wallhaven', id: 'abcdef' });
   });
 });
+
+function gridImg(id: string, res: string | null, badge?: 'png' | 'gif'): HTMLImageElement {
+  document.body.innerHTML = '';
+  const fig = document.createElement('figure');
+  fig.className = 'thumb';
+  fig.setAttribute('data-wallpaper-id', id);
+  const img = document.createElement('img');
+  img.setAttribute('src', `https://th.wallhaven.cc/small/${id.slice(0, 2)}/${id}.jpg`);
+  fig.appendChild(img);
+  const info = document.createElement('div');
+  info.className = 'thumb-info';
+  if (res !== null) {
+    const wr = document.createElement('span');
+    wr.className = 'wall-res';
+    wr.textContent = res;
+    info.appendChild(wr);
+  }
+  if (badge) {
+    const b = document.createElement('span');
+    b.className = badge;
+    info.appendChild(b);
+  }
+  fig.appendChild(info);
+  document.body.appendChild(fig);
+  return img;
+}
+const runFor = (img: HTMLImageElement) =>
+  wallhavenResolver.resolve(new URL(img.getAttribute('src')!), { el: img, allowNetwork: false });
+
+describe('wallhaven true resolution', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('reads the grid resolution onto the upgraded candidate (png badge)', () => {
+    const [c] = runFor(gridImg('po7y9j', '1920 x 1200', 'png'));
+    expect(c).toMatchObject({
+      url: 'https://w.wallhaven.cc/full/po/wallhaven-po7y9j.png',
+      ext: 'png', width: 1920, height: 1200,
+    });
+  });
+
+  it('reads resolution even with no badge (ext defaults to jpg)', () => {
+    const [c] = runFor(gridImg('ab12cd', '3840 x 2160'));
+    expect(c).toMatchObject({
+      url: 'https://w.wallhaven.cc/full/ab/wallhaven-ab12cd.jpg',
+      ext: 'jpg', width: 3840, height: 2160,
+    });
+  });
+
+  it('accepts the unicode × separator', () => {
+    const [c] = runFor(gridImg('uni123', '2560 × 1440', 'png'));
+    expect(c).toMatchObject({ width: 2560, height: 1440 });
+  });
+
+  it('omits dims when the figure has no .wall-res', () => {
+    const [c] = runFor(gridImg('nores1', null, 'png'));
+    expect(c.width).toBeUndefined();
+    expect(c.height).toBeUndefined();
+  });
+
+  it('omits dims for an implausible resolution label', () => {
+    const [c] = runFor(gridImg('bad123', 'not a size', 'png'));
+    expect(c.width).toBeUndefined();
+    expect(c.height).toBeUndefined();
+  });
+
+  it('a bare thumb with no figure yields the hint candidate and no dims', () => {
+    document.body.innerHTML = '';
+    const img = document.createElement('img');
+    img.setAttribute('src', 'https://th.wallhaven.cc/small/zz/zz9999.jpg');
+    // not appended to any <figure>
+    const [c] = wallhavenResolver.resolve(new URL(img.getAttribute('src')!), { el: img, allowNetwork: false });
+    expect(c).toMatchObject({ resolveHint: { platform: 'wallhaven', id: 'zz9999' } });
+    expect(c.width).toBeUndefined();
+    expect(c.height).toBeUndefined();
+  });
+});
