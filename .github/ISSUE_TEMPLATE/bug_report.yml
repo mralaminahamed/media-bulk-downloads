@@ -1,0 +1,45 @@
+name: Bug report
+description: Something in the extension doesn't work as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please do **not** include security issues here —
+        see SECURITY.md.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What went wrong, and what you expected instead.
+      placeholder: On <site>, I clicked Download and…
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open <page URL>
+        2. Open the extension
+        3. …
+    validations:
+      required: true
+  - type: input
+    id: page
+    attributes:
+      label: Page URL (if shareable)
+      description: The site where it happened, if it's public.
+  - type: input
+    id: versions
+    attributes:
+      label: Extension & Chrome version
+      placeholder: "Extension 1.0.0 · Chrome 126"
+    validations:
+      required: true
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors
+      description: Any errors from the extension's service worker or the page console.
+      render: text

@@ -1,0 +1,17 @@
+# Normalize line endings to LF on checkin.
+* text=auto eol=lf
+
+# Binary assets — never diff or normalize.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg text
+
+# Keep the lockfile intact and out of diffs.
+yarn.lock -diff linguist-generated
+
+# Collapse generated/vendored paths in language stats.
+dist/** linguist-generated
+coverage/** linguist-generated
