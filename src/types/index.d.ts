@@ -48,6 +48,16 @@ export interface HistoryEntry {
   downloadId?: number;
 }
 
+export interface FavouriteEntry {
+  src: string;
+  kind: 'image' | 'video' | 'audio';
+  type: string;
+  thumbnailSrc?: string;
+  sourcePageUrl: string;
+  sourcePageTitle?: string;
+  time: number;
+}
+
 export interface DownloadResponse {
   status: 'success' | 'error';
   message: string;
