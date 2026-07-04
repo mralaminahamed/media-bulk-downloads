@@ -158,3 +158,25 @@ describe('collectMedia — native resolvers', () => {
     expect(v).toMatchObject({ kind: 'video', unresolvedVideo: true, resolveHint: { platform: 'twitter', id: '123' } });
   });
 });
+
+describe('twitter pending video collection', () => {
+  afterEach(() => { document.body.innerHTML = ''; window.history.replaceState({}, '', '/'); });
+
+  it('collects a <video> with an ext_tw_video_thumb poster as one pending video, drops the blob, and takes the status id from the page URL', () => {
+    window.history.replaceState({}, '', '/JJuan/status/2006397496638206090');
+    document.body.innerHTML = `
+      <div data-testid="videoComponent">
+        <video poster="https://pbs.twimg.com/ext_tw_video_thumb/2006397459065675776/pu/img/mfCoGhez3VQqQqV8.jpg">
+          <source type="video/mp4" src="blob:https://x.com/5b0c9faf">
+        </video>
+        <img src="https://pbs.twimg.com/ext_tw_video_thumb/2006397459065675776/pu/img/mfCoGhez3VQqQqV8.jpg">
+      </div>`;
+    const media = collectMedia();
+    const videos = media.filter((m) => m.kind === 'video');
+    expect(videos).toHaveLength(1);
+    expect(videos[0]).toMatchObject({ unresolvedVideo: true, resolveHint: { platform: 'twitter', id: '2006397496638206090' } });
+    // the poster never leaks in as a downloadable image, and the blob is dropped
+    expect(media.some((m) => m.kind === 'image')).toBe(false);
+    expect(media.some((m) => m.src.startsWith('blob:'))).toBe(false);
+  });
+});
