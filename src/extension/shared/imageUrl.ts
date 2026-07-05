@@ -300,6 +300,20 @@ const RULES: CdnRule[] = [
     match: (u) => u.hostname === 'platform.theverge.com' && u.pathname.includes('/wp-content/uploads/'),
     rewrite: (u) => dropParams(u, [...RESIZE_PARAMS, 'strip', 'ssl']),
   },
+  {
+    // Self-hosted WordPress: any host serving /wp-content/uploads/ with a resize
+    // query (?w=&h=&resize=) and/or a stored -WxH / -scaled thumbnail suffix.
+    // WordPress keeps the untouched original beside its generated sizes, so drop
+    // the resize query and strip the size suffix to reach it. Host-specific WP
+    // CDNs above (wp.com Photon, The Verge) match first. See #75.
+    match: (u) => u.pathname.includes('/wp-content/uploads/'),
+    rewrite: (u) => {
+      dropParams(u, [...RESIZE_PARAMS, 'strip', 'ssl']);
+      u.pathname = u.pathname
+        .replace(/-\d{1,5}x\d{1,5}(?=\.[a-z0-9]+$)/i, '')
+        .replace(/-scaled(?=\.[a-z0-9]+$)/i, '');
+    },
+  },
 ];
 
 /**

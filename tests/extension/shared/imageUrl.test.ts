@@ -263,6 +263,17 @@ describe('image-CDN rule batch (2026-07-05)', () => {
     expect(orig('https://platform.theverge.com/wp-content/uploads/sites/2/2026/07/IMG2026.jpeg?quality=90&crop=0,0&w=2400'))
       .toBe('https://platform.theverge.com/wp-content/uploads/sites/2/2026/07/IMG2026.jpeg');
   });
+  it('Self-hosted WordPress: drops resize query and -WxH/-scaled suffix', () => {
+    // stored -WxH thumbnail on an arbitrary WP host -> untouched original
+    expect(orig('https://wptavern.com/wp-content/uploads/2020/06/generate-blocks-example-500x262.png'))
+      .toBe('https://wptavern.com/wp-content/uploads/2020/06/generate-blocks-example.png');
+    // ?w= resizer -> bare original
+    expect(orig('https://techcrunch.com/wp-content/uploads/2026/07/google.jpg?w=150'))
+      .toBe('https://techcrunch.com/wp-content/uploads/2026/07/google.jpg');
+    // -scaled (WP big-image) suffix stripped
+    expect(orig('https://example.org/wp-content/uploads/2026/01/photo-scaled.jpg'))
+      .toBe('https://example.org/wp-content/uploads/2026/01/photo.jpg');
+  });
   it('Substack: deproxy decodes the embedded S3 URL', () => {
     expect(deproxy('https://substackcdn.com/image/fetch/$s_!abc!,w_160,h_280,c_crop,f_auto,q_auto:good/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fabc.jpeg'))
       .toBe('https://substack-post-media.s3.amazonaws.com/public/images/abc.jpeg');
