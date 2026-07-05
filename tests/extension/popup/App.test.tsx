@@ -87,7 +87,7 @@ describe('App Component', () => {
 
   it('sends a bulk download request and reflects the response', async () => {
     (chrome.runtime.sendMessage as jest.Mock).mockImplementation((_m, cb) =>
-      cb({ status: 'success', message: 'Downloading 2 files...' }),
+      cb({ status: 'success', message: 'Downloaded 2 files.' }),
     );
     render(<App collect={async () => [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })]} />);
     await screen.findByText('Filters');
@@ -100,7 +100,7 @@ describe('App Component', () => {
         expect.any(Function),
       ),
     );
-    expect(await screen.findByText('Downloading 2 files...')).toBeInTheDocument();
+    expect(await screen.findByText('Downloaded 2 files.')).toBeInTheDocument();
   });
 
   it('disables download when a type filter matches nothing', async () => {
@@ -225,7 +225,7 @@ describe('App Component', () => {
   it('includes the source page in the download message', async () => {
     (chrome.tabs.query as jest.Mock).mockResolvedValue([{ url: 'https://page', title: 'Pg' }]);
     (chrome.runtime.sendMessage as jest.Mock).mockImplementation((_m, cb) =>
-      cb({ status: 'success', message: 'Downloading 1 file...' }),
+      cb({ status: 'success', message: 'Downloaded 1 file.' }),
     );
     render(<App collect={async () => [image({})]} />);
     await screen.findByText('Filters');

@@ -19,12 +19,15 @@ const setSettings = (patch: Partial<SettingsData>) =>
 
 describe('background DOWNLOAD_IMAGES handler', () => {
   beforeEach(() => {
-    (chrome.downloads.download as jest.Mock).mockClear();
+    // Each download succeeds (chrome hands back a numeric downloadId). The handler
+    // awaits every download before it reports the final status, so the mock must
+    // invoke the callback — a bare jest.fn() would leave the response pending.
+    (chrome.downloads.download as jest.Mock).mockReset().mockImplementation((_o, cb) => cb(1));
     setSettings({}); // reset to defaults
   });
 
-  // The handler waits for the settings gate (resolved by setSettings above) then
-  // downloads, so assertions run after a microtask flush.
+  // The handler waits for the settings gate (resolved by setSettings above), then
+  // dispatches and awaits the downloads, so assertions run after a microtask flush.
   const flush = () => new Promise((r) => setTimeout(r, 0));
 
   it('downloads every eligible image with a prefixed, 1-indexed name', async () => {
@@ -54,7 +57,7 @@ describe('background DOWNLOAD_IMAGES handler', () => {
       },
       expect.any(Function),
     );
-    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloading 2 files...' });
+    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloaded 2 files.' });
   });
 
   it('applies the download path and prefix from settings', async () => {
@@ -92,7 +95,41 @@ describe('background DOWNLOAD_IMAGES handler', () => {
       expect.objectContaining({ url: 'big.jpg' }),
       expect.any(Function),
     );
-    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloading 1 files...' });
+    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloaded 1 file.' });
+  });
+
+  it('reports the real outcome when some downloads fail to start', async () => {
+    // Second download fails (no id + lastError); the status must reflect it,
+    // not a blanket "success".
+    let n = 0;
+    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => {
+      n += 1;
+      if (n === 2) {
+        (chrome.runtime as unknown as { lastError?: unknown }).lastError = { message: 'x' };
+        cb(undefined);
+        (chrome.runtime as unknown as { lastError?: unknown }).lastError = undefined;
+      } else {
+        cb(1);
+      }
+    });
+    const sendResponse = jest.fn();
+    onMessage({ type: 'DOWNLOAD_IMAGES', images: [img({ src: 'a.jpg' }), img({ src: 'b.jpg' })] }, {}, sendResponse);
+    await flush();
+
+    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloaded 1 of 2 files — 1 failed.' });
+  });
+
+  it('reports a failure when no download starts', async () => {
+    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => {
+      (chrome.runtime as unknown as { lastError?: unknown }).lastError = { message: 'x' };
+      cb(undefined);
+      (chrome.runtime as unknown as { lastError?: unknown }).lastError = undefined;
+    });
+    const sendResponse = jest.fn();
+    onMessage({ type: 'DOWNLOAD_IMAGES', images: [img({ src: 'a.jpg' })] }, {}, sendResponse);
+    await flush();
+
+    expect(sendResponse).toHaveBeenCalledWith({ status: 'error', message: "Couldn't download 1 file." });
   });
 
   it('ignores unrelated messages', () => {

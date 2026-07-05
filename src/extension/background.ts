@@ -246,10 +246,20 @@ export function buildDownloadFilename(
  * `lastError`, or no `downloadId`) are silently skipped — nothing is recorded
  * for them.
  */
+/** Outcome of a download batch, used to report the real status to the popup. */
+export interface DownloadResult {
+  /** How many items were eligible after filtering. */
+  total: number;
+  /** How many downloads chrome actually started (returned a downloadId). */
+  succeeded: number;
+  /** How many failed to start (no id / runtime.lastError). */
+  failed: number;
+}
+
 export async function downloadAndRecord(
   eligible: ImageInfo[],
   sourcePage: { url: string; title?: string } | undefined,
-): Promise<void> {
+): Promise<DownloadResult> {
   const entries = await Promise.all(
     eligible.map(
       (image, index) =>
@@ -278,7 +288,22 @@ export async function downloadAndRecord(
         }),
     ),
   );
-  await recordDownloads(entries.filter((e): e is HistoryEntry => e !== null));
+  const recorded = entries.filter((e): e is HistoryEntry => e !== null);
+  await recordDownloads(recorded);
+  return { total: eligible.length, succeeded: recorded.length, failed: eligible.length - recorded.length };
+}
+
+/** `1 file` / `N files` — correct singular/plural for a count. */
+function fileCount(n: number): string {
+  return `${n} file${n === 1 ? '' : 's'}`;
+}
+
+/** Human-readable final status for a finished download batch. */
+export function downloadStatusMessage(r: DownloadResult): string {
+  if (r.total === 0) return 'No files to download.';
+  if (r.succeeded === 0) return `Couldn't download ${fileCount(r.total)}.`;
+  if (r.failed === 0) return `Downloaded ${fileCount(r.succeeded)}.`;
+  return `Downloaded ${r.succeeded} of ${fileCount(r.total)} — ${r.failed} failed.`;
 }
 
 /**
@@ -368,13 +393,19 @@ chrome.runtime.onMessage.addListener(
     if (typeof message === 'object' && message.type === 'DOWNLOAD_IMAGES') {
       const { images, sourcePage } = message as DownloadMessage;
       // Wait for settings so the filter and the built filenames use the user's
-      // real settings, not defaults, when this message woke the worker.
-      void settingsReady.then(() => {
+      // real settings, not defaults, when this message woke the worker. Report
+      // the status only after the downloads are dispatched, so the popup shows
+      // the real outcome (how many started / failed) rather than a premature,
+      // never-updated "Downloading…".
+      void settingsReady.then(async () => {
         const eligible = filterImagesBySettings(images, currentSettings);
-        sendResponse({ status: 'success', message: `Downloading ${eligible.length} files...` });
-        return downloadAndRecord(eligible, sourcePage);
+        const result = await downloadAndRecord(eligible, sourcePage);
+        sendResponse({
+          status: result.failed > 0 && result.succeeded === 0 ? 'error' : 'success',
+          message: downloadStatusMessage(result),
+        });
       });
-      return true; // response is sent asynchronously after settings load
+      return true; // response is sent asynchronously after the downloads dispatch
     }
 
     if (typeof message === 'object' && message.type === 'OPEN_DOWNLOAD_FILE') {
