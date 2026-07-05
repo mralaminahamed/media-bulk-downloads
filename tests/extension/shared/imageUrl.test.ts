@@ -295,6 +295,10 @@ describe('image-CDN rule batch (2026-07-05)', () => {
     expect(orig('https://cdna.artstation.com/p/assets/images/images/1/2/3/large/y.jpg'))
       .toBe('https://cdna.artstation.com/p/assets/images/images/1/2/3/large/y.jpg');
   });
+  it('Walmart: drops the odn resize query', () => {
+    expect(orig('https://i5.walmartimages.com/seo/x_ad4f.15c743a1.jpeg?odnHeight=180&odnWidth=180&odnBg=FFFFFF'))
+      .toBe('https://i5.walmartimages.com/seo/x_ad4f.15c743a1.jpeg');
+  });
   it('Substack: deproxy decodes the embedded S3 URL', () => {
     expect(deproxy('https://substackcdn.com/image/fetch/$s_!abc!,w_160,h_280,c_crop,f_auto,q_auto:good/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fabc.jpeg'))
       .toBe('https://substack-post-media.s3.amazonaws.com/public/images/abc.jpeg');
