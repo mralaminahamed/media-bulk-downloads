@@ -206,7 +206,16 @@ export function collectMedia(): MediaItem[] {
   });
 
   // CSS background-image declarations (handles multiple comma-separated layers).
+  // Resolving computed style for every element is the deep-scan hot path — this
+  // pass runs on each scroll round. Skip elements that aren't rendered so we don't
+  // resolve styles for display:none / 0×0 subtrees (which can't show a background
+  // anyway). jsdom has no layout engine — every element reports 0×0 — so only apply
+  // the guard when the document actually has layout, otherwise it would skip every
+  // element under test.
+  const hasLayout =
+    (document.documentElement?.offsetHeight ?? 0) > 0 || (document.body?.offsetHeight ?? 0) > 0;
   document.querySelectorAll<HTMLElement>('*').forEach((el) => {
+    if (hasLayout && el.offsetWidth === 0 && el.offsetHeight === 0) return;
     const bgImage = window.getComputedStyle(el).getPropertyValue('background-image');
     if (!bgImage || bgImage === 'none') return;
     for (const match of bgImage.matchAll(/url\(\s*(['"]?)(.*?)\1\s*\)/g)) {
