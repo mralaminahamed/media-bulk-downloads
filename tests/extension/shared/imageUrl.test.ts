@@ -161,6 +161,12 @@ describe('deproxy', () => {
     expect(deproxy('https://site.com/page?url=' + encodeURIComponent('https://cdn.com/article'))).toBeNull();
     expect(deproxy('https://cdn.com/plain.jpg')).toBeNull();
   });
+  it('resolves a relative Next.js _next/image url against the proxy origin', () => {
+    expect(deproxy('https://nextjs.org/_next/image?url=' + encodeURIComponent('/static/team/imm.jpeg') + '&w=48&q=75'))
+      .toBe('https://nextjs.org/static/team/imm.jpeg');
+    // a relative non-media inner path is still ignored
+    expect(deproxy('https://nextjs.org/_next/image?url=' + encodeURIComponent('/about') + '&w=48')).toBeNull();
+  });
   it('upgradeToOriginal de-proxies then keeps the wrapper as thumbnail', () => {
     const u = 'https://site.com/_next/image?url=' + encodeURIComponent('https://cdn.com/a.jpg') + '&w=64';
     expect(upgradeToOriginal(u)).toEqual({ original: 'https://cdn.com/a.jpg', thumbnail: u });
