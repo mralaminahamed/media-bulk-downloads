@@ -442,6 +442,15 @@ const RULES: CdnRule[] = [
     },
   },
   {
+    // StockSnap (cdn.stocksnap.io): pre-generated sizes under /img-thumbs/<token>/.
+    // Swap the token to 960w, the largest available. The tokens are a hard
+    // whitelist (every other size 404s), so 960w is targeted specifically. See #105.
+    match: (u) => u.hostname === 'cdn.stocksnap.io' && u.pathname.includes('/img-thumbs/'),
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/\/img-thumbs\/[^/]+\//, '/img-thumbs/960w/');
+    },
+  },
+  {
     // IKEA (www.ikea.com/images/...): serves resized images via ?f=<size> or
     // ?imwidth=<N>. imwidth reaches a larger master than the f ladder (f caps
     // ~58 KB, imwidth=2000 ~102 KB), so strip the query and request imwidth=2000.
