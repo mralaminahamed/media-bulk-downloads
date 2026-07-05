@@ -56,13 +56,35 @@ function waitForQuiet(signal: AbortSignal): Promise<void> {
   });
 }
 
+/**
+ * Nested scroll containers (overflow:auto/scroll) that still have room to scroll.
+ * Some galleries lazy-load inside their own scroll pane rather than the page, so
+ * the page scroller alone never advances them. The cheap layout check (scrollHeight
+ * vs clientHeight) runs first; computed style is resolved only for elements that
+ * actually overflow, keeping this off the expensive path for ordinary elements.
+ */
+export function nestedScrollables(root: Document | ShadowRoot = document): HTMLElement[] {
+  const out: HTMLElement[] = [];
+  root.querySelectorAll<HTMLElement>('*').forEach((el) => {
+    if (el.scrollHeight - el.clientHeight <= 200) return; // not meaningfully scrollable
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 4) return; // already at bottom
+    const oy = window.getComputedStyle(el).overflowY;
+    if (oy === 'auto' || oy === 'scroll') out.push(el);
+  });
+  return out;
+}
+
 export function buildDeepScanDeps(onProgress: DeepScanDeps['onProgress']): { deps: DeepScanDeps } {
   const scroller = primaryScroller();
   const startY = scroller.top();
   return {
     deps: {
       collect: () => collectMedia(),
-      scrollStep: () => scroller.by(window.innerHeight),
+      scrollStep: () => {
+        scroller.by(window.innerHeight);
+        // Also advance any nested scroll pane that lazy-loads its own content.
+        for (const el of nestedScrollables()) el.scrollTop += el.clientHeight;
+      },
       atBottom: () => scroller.atBottom(),
       waitForQuiet,
       onProgress,
