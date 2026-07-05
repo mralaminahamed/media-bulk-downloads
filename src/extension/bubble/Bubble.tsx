@@ -135,10 +135,21 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
     const ac = new AbortController();
     deepScanAbortRef.current = ac;
     return startDeepScan(
-      (found, scrolls, elapsedMs) => onProgress({ type: 'DEEP_SCAN_PROGRESS', found, scrolls, elapsedMs }),
+      (found, scrolls, elapsedMs, reason) => {
+        const p: DeepScanProgress = { type: 'DEEP_SCAN_PROGRESS', found, scrolls, elapsedMs };
+        if (reason) p.reason = reason;
+        onProgress(p);
+      },
       ac.signal,
+      // Honour the user's configured caps + Load-more toggle, same as the popup path.
+      {
+        maxItems: initialSettings.deepScanMaxItems,
+        maxMs: initialSettings.deepScanMaxSeconds * 1000,
+        maxScrolls: initialSettings.deepScanMaxScrolls,
+        clickLoadMore: initialSettings.deepScanClickLoadMore,
+      },
     );
-  }, []);
+  }, [initialSettings]);
   const abortDeepScanLocal = useCallback(() => {
     deepScanAbortRef.current?.abort();
   }, []);
