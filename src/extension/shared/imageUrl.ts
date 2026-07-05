@@ -329,6 +329,16 @@ const RULES: CdnRule[] = [
     },
   },
   {
+    // AliExpress (*.alicdn.com, *.aliexpress-media.com): a transform suffix
+    // follows the real extension, e.g. .jpg_640x640.jpg_.webp, .jpg_.webp,
+    // .jpg_220x220xz.jpg. Cut everything after the first real image extension to
+    // reach the source. See #82.
+    match: (u) => /(?:^|\.)alicdn\.com$/i.test(u.hostname) || /(?:^|\.)aliexpress-media\.com$/i.test(u.hostname),
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/(\.(?:jpe?g|png|webp|gif))_.*$/i, '$1');
+    },
+  },
+  {
     // Dribbble (cdn.dribbble.com): /userupload/.../file.png?resize=WxH&vertical=
     // resizers. The bare path is the original, so drop the query. Unsigned. See #81.
     match: (u) => u.hostname === 'cdn.dribbble.com',
