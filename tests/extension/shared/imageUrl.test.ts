@@ -354,6 +354,13 @@ describe('image-CDN rule batch (2026-07-05)', () => {
     expect(orig('https://www.ikea.com/images/woman-sitting-sofa.jpg?f=xl'))
       .toBe('https://www.ikea.com/images/woman-sitting-sofa.jpg?imwidth=2000');
   });
+  it('Zillow: swaps the size token to the max uncropped preset', () => {
+    expect(orig('https://photos.zillowstatic.com/fp/324ac120ce544038519c4c932e45a6dd-p_e.webp'))
+      .toBe('https://photos.zillowstatic.com/fp/324ac120ce544038519c4c932e45a6dd-uncropped_scaled_within_1536_1152.webp');
+    // a .jpg thumb normalizes to the confirmed webp preset; query dropped
+    expect(orig('https://photos.zillowstatic.com/fp/abc123-cc_ft_384.jpg?t=1'))
+      .toBe('https://photos.zillowstatic.com/fp/abc123-uncropped_scaled_within_1536_1152.webp');
+  });
   it('StockSnap: swaps the size token to 960w', () => {
     expect(orig('https://cdn.stocksnap.io/img-thumbs/280h/leaf-sunlight_7XDI39XPXY.jpg'))
       .toBe('https://cdn.stocksnap.io/img-thumbs/960w/leaf-sunlight_7XDI39XPXY.jpg');

@@ -442,6 +442,20 @@ const RULES: CdnRule[] = [
     },
   },
   {
+    // Zillow (photos.zillowstatic.com): the last -<token> before the extension is
+    // the size (p_e, cc_ft_960, o_a, ...). Swap it to the largest aspect-
+    // preserving preset, uncropped_scaled_within_1536_1152 (served as webp; larger
+    // uncropped presets 404, cc_ft_* is crop-to-width). See #106.
+    match: (u) => u.hostname === 'photos.zillowstatic.com',
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(
+        /-[a-z0-9_]+\.(?:webp|jpe?g|png)$/i,
+        '-uncropped_scaled_within_1536_1152.webp',
+      );
+      u.search = '';
+    },
+  },
+  {
     // StockSnap (cdn.stocksnap.io): pre-generated sizes under /img-thumbs/<token>/.
     // Swap the token to 960w, the largest available. The tokens are a hard
     // whitelist (every other size 404s), so 960w is targeted specifically. See #105.
