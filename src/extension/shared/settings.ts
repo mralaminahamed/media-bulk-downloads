@@ -23,6 +23,7 @@ export const DEFAULT_SETTINGS: SettingsData = {
   deepScanMaxItems: 1000,
   deepScanMaxSeconds: 20,
   deepScanMaxScrolls: 40,
+  deepScanClickLoadMore: false,
 };
 
 /** A plain object, or {} — so spreading a corrupt string/array/number legacy

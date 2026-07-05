@@ -328,6 +328,13 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
               onChange={handleChange}
               onBlur={clampOnBlur('deepScanMaxScrolls', 5, 200)}
             />
+            <ToggleRow
+              id="set-deepScanClickLoadMore"
+              label="Click “Load more” buttons"
+              description="Lets deep scan click Load more / Show more buttons to reveal more media. Off by default — clicking page controls can have side effects."
+              checked={settings.deepScanClickLoadMore}
+              onToggle={() => toggle('deepScanClickLoadMore')}
+            />
           </Section>
 
           <Section title="Appearance">

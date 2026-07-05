@@ -241,6 +241,7 @@ describe('Background Script', () => {
         deepScanMaxItems: 1000,
         deepScanMaxSeconds: 20,
         deepScanMaxScrolls: 40,
+        deepScanClickLoadMore: false,
       };
       mockChrome.storage.sync.get.mockImplementation((_keys: string[], cb: (r: any) => void) =>
         cb({ settings: stored }),

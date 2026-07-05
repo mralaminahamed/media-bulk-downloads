@@ -46,6 +46,7 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
         maxItems: s.deepScanMaxItems,
         maxMs: s.deepScanMaxSeconds * 1000,
         maxScrolls: s.deepScanMaxScrolls,
+        clickLoadMore: s.deepScanClickLoadMore,
       })
         .then((media) => sendResponse(media))
         .catch(() => sendResponse([]));

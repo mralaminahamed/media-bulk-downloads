@@ -32,6 +32,7 @@ const settings: SettingsData = {
   deepScanMaxItems: 1000,
   deepScanMaxSeconds: 20,
   deepScanMaxScrolls: 40,
+  deepScanClickLoadMore: false,
 };
 
 // jsdom leaves clientX/clientY unset on PointerEvent inits, so build the native
