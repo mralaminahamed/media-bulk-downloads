@@ -329,6 +329,13 @@ const RULES: CdnRule[] = [
     },
   },
   {
+    // Walmart (i5.walmartimages.com): ?odnHeight=&odnWidth=&odnBg= resizers on
+    // the /seo/ and /asr/ paths. The bare path is the full source, so drop the
+    // whole query. Unsigned. See #80.
+    match: (u) => /(?:^|\.)walmartimages\.com$/i.test(u.hostname),
+    rewrite: (u) => { u.search = ''; },
+  },
+  {
     // Self-hosted WordPress: any host serving /wp-content/uploads/ with a resize
     // query (?w=&h=&resize=) and/or a stored -WxH / -scaled thumbnail suffix.
     // WordPress keeps the untouched original beside its generated sizes, so drop
