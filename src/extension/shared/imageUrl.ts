@@ -329,6 +329,18 @@ const RULES: CdnRule[] = [
     },
   },
   {
+    // imgur (i.imgur.com): a single suffix letter (s,b,t,m,l,h,r,g) turns a
+    // 7-char id into an 8-char thumbnail (<id><suffix>.ext); the bare <id>.ext is
+    // the original. Strip the suffix ONLY when the basename is exactly 8 chars and
+    // ends in a known thumb letter. A real 7-char id carries no suffix, and
+    // blindly stripping one would resolve to a DIFFERENT image (not a 404), so the
+    // length gate is essential. Suffix letters are lowercase (no /i flag). See #83.
+    match: (u) => u.hostname === 'i.imgur.com',
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/^\/([A-Za-z0-9]{7})[sbtmlhrg](\.[a-z0-9]+)$/, '/$1$2');
+    },
+  },
+  {
     // AliExpress (*.alicdn.com, *.aliexpress-media.com): a transform suffix
     // follows the real extension, e.g. .jpg_640x640.jpg_.webp, .jpg_.webp,
     // .jpg_220x220xz.jpg. Cut everything after the first real image extension to
