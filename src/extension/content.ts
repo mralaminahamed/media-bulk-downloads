@@ -31,15 +31,25 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
   if (message === 'DEEP_SCAN') {
     deepScanAbort?.abort();
     deepScanAbort = new AbortController();
-    startDeepScan((found, scrolls, elapsedMs, reason) => {
+    const signal = deepScanAbort.signal;
+    const onProgress: Parameters<typeof startDeepScan>[0] = (found, scrolls, elapsedMs, reason) => {
       const p: DeepScanProgress = { type: 'DEEP_SCAN_PROGRESS', found, scrolls, elapsedMs };
       if (reason) p.reason = reason;
       chrome.runtime.sendMessage(p).catch(() => {
         /* popup may be closed */
       });
-    }, deepScanAbort.signal)
-      .then((media) => sendResponse(media))
-      .catch(() => sendResponse([]));
+    };
+    // Read the user's configurable caps before starting; fall back to defaults.
+    chrome.storage.sync.get(['settings'], (result) => {
+      const s = withDefaults(result.settings);
+      startDeepScan(onProgress, signal, {
+        maxItems: s.deepScanMaxItems,
+        maxMs: s.deepScanMaxSeconds * 1000,
+        maxScrolls: s.deepScanMaxScrolls,
+      })
+        .then((media) => sendResponse(media))
+        .catch(() => sendResponse([]));
+    });
     return true; // async response
   }
   if (message === 'DEEP_SCAN_ABORT') {

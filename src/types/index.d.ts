@@ -221,6 +221,10 @@ export interface SettingsData {
   /** Custom panel top-left, used when the placement is `free`. */
   bubblePanelPoint: BubblePanelPoint;
   resolveOriginals: boolean;
+  /** Deep-scan caps — the scan stops at whichever is reached first. */
+  deepScanMaxItems: number;
+  deepScanMaxSeconds: number;
+  deepScanMaxScrolls: number;
 }
 
 export type SizeBucket = 'all' | 'small' | 'medium' | 'large';

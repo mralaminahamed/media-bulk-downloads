@@ -94,10 +94,25 @@ export function buildDeepScanDeps(onProgress: DeepScanDeps['onProgress']): { dep
   };
 }
 
+/** Optional per-scan cap overrides (from user Settings); unset caps use the defaults. */
+export interface StartDeepScanConfig {
+  maxItems?: number;
+  maxMs?: number;
+  maxScrolls?: number;
+}
+
 export function startDeepScan(
   onProgress: DeepScanDeps['onProgress'],
   signal: AbortSignal,
+  config: StartDeepScanConfig = {},
 ): Promise<MediaItem[]> {
   const { deps } = buildDeepScanDeps(onProgress);
-  return runDeepScan(deps, { ...DEEP_SCAN_DEFAULTS, signal });
+  return runDeepScan(deps, {
+    ...DEEP_SCAN_DEFAULTS,
+    // Apply only the caps the user actually set (ignore 0/NaN/undefined).
+    ...(config.maxItems ? { maxItems: config.maxItems } : {}),
+    ...(config.maxMs ? { maxMs: config.maxMs } : {}),
+    ...(config.maxScrolls ? { maxScrolls: config.maxScrolls } : {}),
+    signal,
+  });
 }

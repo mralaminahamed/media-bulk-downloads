@@ -20,6 +20,9 @@ export const DEFAULT_SETTINGS: SettingsData = {
   bubblePanelPlacement: 'anchored',
   bubblePanelPoint: { x: 40, y: 40 },
   resolveOriginals: false,
+  deepScanMaxItems: 1000,
+  deepScanMaxSeconds: 20,
+  deepScanMaxScrolls: 40,
 };
 
 /** A plain object, or {} — so spreading a corrupt string/array/number legacy

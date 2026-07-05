@@ -238,6 +238,9 @@ describe('Background Script', () => {
         bubblePanelPlacement: 'anchored',
         bubblePanelPoint: { x: 40, y: 40 },
         resolveOriginals: false,
+        deepScanMaxItems: 1000,
+        deepScanMaxSeconds: 20,
+        deepScanMaxScrolls: 40,
       };
       mockChrome.storage.sync.get.mockImplementation((_keys: string[], cb: (r: any) => void) =>
         cb({ settings: stored }),
