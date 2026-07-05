@@ -5,7 +5,7 @@ import HistoryPanel from './components/HistoryPanel';
 import FavouritesPanel from './components/FavouritesPanel';
 import FilterToolbar, { DEFAULT_FILTERS } from './components/FilterToolbar';
 import { BrandMark } from '../components/BrandMark';
-import { AppState, DeepScanProgress, DownloadMessage, DownloadResponse, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
+import { AppState, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
 import { filterImagesBySettings, applyToolbarFilters } from '../shared/filters';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/settings';
 import { collectFromActiveTab } from '../shared/collect-active-tab';
@@ -18,6 +18,20 @@ import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon,
 
 // Concurrent HEAD requests when enriching remote image sizes.
 const SIZE_FETCH_CONCURRENCY = 6;
+
+/**
+ * A user-facing note when a deep scan stopped at one of its caps rather than
+ * running dry — so the user knows more media may exist below. Natural completion
+ * and user-aborted scans return null (no note).
+ */
+function deepScanCapMessage(reason: DeepScanStopReason | undefined, count: number): string | null {
+  switch (reason) {
+    case 'max-items': return `Stopped at the ${count}-item limit — some media may remain.`;
+    case 'max-time': return 'Stopped at the time limit — some media may remain.';
+    case 'max-scrolls': return 'Stopped at the scroll limit — some media may remain.';
+    default: return null;
+  }
+}
 
 /** Items the user can actually download now — pending videos are excluded until resolved. */
 const downloadable = (list: ImageInfo[]): ImageInfo[] => list.filter((i) => !i.unresolvedVideo);
@@ -254,8 +268,13 @@ const App: React.FC<AppProps> = ({
     }
     setDeepScanning(true);
     setDeepProgress(null);
+    // The final progress event carries why the scan stopped; capture it as it streams.
+    let stopReason: DeepScanStopReason | undefined;
     try {
-      const found = await deepScan(setDeepProgress);
+      const found = await deepScan((p) => {
+        if (p.reason) stopReason = p.reason;
+        setDeepProgress(p);
+      });
       const bySrc = new Map(rawImagesRef.current.map((m) => [m.src, m]));
       found.forEach((m) => {
         if (!bySrc.has(m.src)) bySrc.set(m.src, m);
@@ -264,6 +283,9 @@ const App: React.FC<AppProps> = ({
       rawImagesRef.current = merged;
       const eligible = filterImagesBySettings(merged, settings);
       applyResolution(eligible, settings);
+      // If a cap (not a natural finish) ended the scan, tell the user media may remain.
+      const capMsg = deepScanCapMessage(stopReason, merged.length);
+      if (capMsg) setState((prev) => ({ ...prev, status: capMsg }));
     } catch (e) {
       setState((prev) => ({ ...prev, status: e instanceof Error ? e.message : 'deep scan failed' }));
     } finally {

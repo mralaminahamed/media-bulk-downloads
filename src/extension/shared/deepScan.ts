@@ -4,14 +4,15 @@
  * is unit-testable. The extension issues NO network requests here — it only
  * asks the page to scroll and re-reads the DOM.
  */
-import { MediaItem } from '@/types';
+import { MediaItem, DeepScanStopReason } from '@/types';
 
 export interface DeepScanDeps {
   collect: () => MediaItem[];
   scrollStep: () => void;
   atBottom: () => boolean;
   waitForQuiet: (signal: AbortSignal) => Promise<void>;
-  onProgress: (found: number, scrolls: number, elapsedMs: number) => void;
+  // `reason` is passed only on the final call, when the loop has stopped.
+  onProgress: (found: number, scrolls: number, elapsedMs: number, reason?: DeepScanStopReason) => void;
   now: () => number;
   restoreScroll: () => void;
 }
@@ -50,34 +51,43 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
     return added;
   };
 
+  // Why the loop ends. Defaults to a natural finish; each early-exit path sets its
+  // own cap reason so the UI can tell "ran dry" apart from "hit a limit".
+  let reason: DeepScanStopReason = 'complete';
+  let scrolls: number;
+
   try {
     merge(); // seed from the current DOM
     deps.onProgress(found.size, 0, 0);
 
     let idle = 0;
-    for (let scrolls = 1; scrolls <= opts.maxScrolls; scrolls++) {
-      if (opts.signal.aborted) break;
-      if (found.size >= opts.maxItems) break;
-      if (deps.now() - start >= opts.maxMs) break;
+    for (scrolls = 1; scrolls <= opts.maxScrolls; scrolls++) {
+      if (opts.signal.aborted) { reason = 'aborted'; break; }
+      if (found.size >= opts.maxItems) { reason = 'max-items'; break; }
+      if (deps.now() - start >= opts.maxMs) { reason = 'max-time'; break; }
 
       deps.scrollStep();
       await deps.waitForQuiet(opts.signal);
-      if (opts.signal.aborted) break;
+      if (opts.signal.aborted) { reason = 'aborted'; break; }
 
       const added = merge();
       deps.onProgress(found.size, scrolls, deps.now() - start);
 
+      if (found.size >= opts.maxItems) { reason = 'max-items'; break; }
       if (added === 0) {
         idle++;
-        if (idle >= opts.idleRounds) break;
-        if (deps.atBottom()) break;
+        if (idle >= opts.idleRounds) { reason = 'complete'; break; }
+        if (deps.atBottom()) { reason = 'complete'; break; }
       } else {
         idle = 0;
       }
     }
+    // Loop ran to the last iteration without breaking → the scroll cap stopped it.
+    if (scrolls > opts.maxScrolls) reason = 'max-scrolls';
   } finally {
     deps.restoreScroll();
   }
 
+  deps.onProgress(found.size, Math.min(scrolls, opts.maxScrolls), deps.now() - start, reason);
   return [...found.values()];
 }

@@ -75,11 +75,20 @@ export type DeepScanMessage = 'DEEP_SCAN';
 export type DeepScanAbortMessage = 'DEEP_SCAN_ABORT';
 
 /** Broadcast by the content script while a deep scan is running. */
+/**
+ * Why a deep scan ended. `complete` = ran dry naturally (idle rounds or bottom
+ * reached); the `max-*` values mean a documented cap stopped it early, so media
+ * may remain; `aborted` = the user stopped it.
+ */
+export type DeepScanStopReason = 'complete' | 'max-items' | 'max-time' | 'max-scrolls' | 'aborted';
+
 export interface DeepScanProgress {
   type: 'DEEP_SCAN_PROGRESS';
   found: number;
   scrolls: number;
   elapsedMs: number;
+  /** Present only on the final progress event — why the scan ended. */
+  reason?: DeepScanStopReason;
 }
 
 export interface ResolveOriginalsMessage {

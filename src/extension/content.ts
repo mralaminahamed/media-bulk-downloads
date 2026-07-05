@@ -31,8 +31,9 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
   if (message === 'DEEP_SCAN') {
     deepScanAbort?.abort();
     deepScanAbort = new AbortController();
-    startDeepScan((found, scrolls, elapsedMs) => {
+    startDeepScan((found, scrolls, elapsedMs, reason) => {
       const p: DeepScanProgress = { type: 'DEEP_SCAN_PROGRESS', found, scrolls, elapsedMs };
+      if (reason) p.reason = reason;
       chrome.runtime.sendMessage(p).catch(() => {
         /* popup may be closed */
       });
