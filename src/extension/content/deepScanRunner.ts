@@ -40,7 +40,19 @@ function waitForQuiet(signal: AbortSignal): Promise<void> {
     // document.body can be null very early or on non-HTML documents; fall back to
     // the root element, and if neither exists the 2s hard cap still resolves.
     const target = document.body ?? document.documentElement;
-    if (target) obs.observe(target, { childList: true, subtree: true });
+    // Watch attribute mutations too, not just added/removed nodes: most lazy
+    // loaders hydrate by swapping data-src → src (or mutating srcset/style) on the
+    // SAME node, which is an attribute change with no child added. Without this the
+    // quiet timer never resets for those pages and the 2s hard cap can fire before
+    // images finish committing their real URLs.
+    if (target) {
+      obs.observe(target, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['src', 'srcset', 'style', 'data-src'],
+      });
+    }
   });
 }
 
