@@ -246,6 +246,37 @@ describe('collectMedia — meta / preload hero sources', () => {
   });
 });
 
+describe('collectMedia — same-origin iframes', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('collects media from a same-origin iframe document', () => {
+    const iframe = document.createElement('iframe');
+    document.body.appendChild(iframe);
+    const idoc = iframe.contentDocument!;
+    idoc.body.innerHTML = '<img src="https://cdn.com/inframe.jpg">';
+    expect(collectMedia().map((i) => i.src)).toContain('https://cdn.com/inframe.jpg');
+  });
+
+  it('skips a cross-origin iframe (contentDocument null) and still reads the top document', () => {
+    setBody('<img src="https://cdn.com/top.jpg">');
+    const iframe = document.createElement('iframe');
+    // Cross-origin frames expose contentDocument as null.
+    Object.defineProperty(iframe, 'contentDocument', { configurable: true, get() { return null; } });
+    document.body.appendChild(iframe);
+    let srcs: string[] = [];
+    expect(() => { srcs = collectMedia().map((i) => i.src); }).not.toThrow();
+    expect(srcs).toContain('https://cdn.com/top.jpg');
+  });
+
+  it('dedupes a frame image that also appears in the top document', () => {
+    setBody('<img src="https://cdn.com/dup.jpg">');
+    const iframe = document.createElement('iframe');
+    document.body.appendChild(iframe);
+    iframe.contentDocument!.body.innerHTML = '<img src="https://cdn.com/dup.jpg">';
+    expect(collectMedia().filter((i) => i.src === 'https://cdn.com/dup.jpg')).toHaveLength(1);
+  });
+});
+
 describe('collectMedia — shadow DOM', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
