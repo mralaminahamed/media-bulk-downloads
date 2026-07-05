@@ -1,4 +1,4 @@
-import { collectMedia } from '@/extension/collect';
+import { collectMedia, backgroundImageUrls } from '@/extension/collect';
 
 const setBody = (html: string) => {
   document.body.innerHTML = html;
@@ -213,6 +213,32 @@ describe('collectMedia — background-image render guard', () => {
   it('collects backgrounds normally when the document reports no layout (jsdom default)', () => {
     setBody(`<div style="background-image:url('https://cdn.com/bg.jpg')"></div>`);
     expect(collectMedia().map((i) => i.src)).toContain('https://cdn.com/bg.jpg');
+  });
+});
+
+describe('backgroundImageUrls', () => {
+  it('returns a plain url() unchanged', () => {
+    expect(backgroundImageUrls('url("https://cdn.com/a.jpg")')).toEqual(['https://cdn.com/a.jpg']);
+  });
+
+  it('picks the highest-resolution image-set candidate', () => {
+    const v = 'image-set(url("https://cdn.com/1x.jpg") 1x, url("https://cdn.com/2x.jpg") 2x)';
+    expect(backgroundImageUrls(v)).toEqual(['https://cdn.com/2x.jpg']);
+  });
+
+  it('handles -webkit-image-set and bare-string candidates with dppx', () => {
+    const v = '-webkit-image-set("https://cdn.com/lo.jpg" 1x, "https://cdn.com/hi.jpg" 3x)';
+    expect(backgroundImageUrls(v)).toEqual(['https://cdn.com/hi.jpg']);
+  });
+
+  it('handles a value mixing an image-set layer and a plain url() layer', () => {
+    const v = 'image-set(url("https://cdn.com/a-1x.jpg") 1x, url("https://cdn.com/a-2x.jpg") 2x), url("https://cdn.com/b.png")';
+    expect(backgroundImageUrls(v)).toEqual(['https://cdn.com/a-2x.jpg', 'https://cdn.com/b.png']);
+  });
+
+  it('ignores none / empty', () => {
+    expect(backgroundImageUrls('none')).toEqual([]);
+    expect(backgroundImageUrls('')).toEqual([]);
   });
 });
 
