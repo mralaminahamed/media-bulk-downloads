@@ -232,9 +232,13 @@ describe('image-CDN rule batch (2026-07-05)', () => {
     expect(orig('https://live.staticflickr.com/4556/24708106728_ce5296f1f9_k.jpg'))
       .toBe('https://live.staticflickr.com/4556/24708106728_ce5296f1f9_k.jpg');
   });
-  it('Tumblr: /sWxH/ -> /s1280x1920/', () => {
-    expect(orig('https://64.media.tumblr.com/s540x810/f7494899f3c89b950936982cf1b05747f2d82ea2.jpg'))
-      .toBe('https://64.media.tumblr.com/s1280x1920/f7494899f3c89b950936982cf1b05747f2d82ea2.jpg');
+  it('Tumblr: size folders are left unchanged (only the served size exists)', () => {
+    // 64.media.tumblr.com renders exactly one size per image; every other /sWxH/
+    // 404s, so a blind rewrite replaced a working image with a dead link. See #72.
+    const large = 'https://64.media.tumblr.com/abc123/def456-d6/s2048x3072/hash.png';
+    expect(orig(large)).toBe(large);
+    const small = 'https://64.media.tumblr.com/s540x810/f7494899f3c89b950936982cf1b05747f2d82ea2.jpg';
+    expect(orig(small)).toBe(small);
   });
   it('BBC: width segment -> 1920 (news + ace/standard)', () => {
     expect(orig('https://ichef.bbci.co.uk/news/640/cpsprodpb/9c6f/live/aa7b3860.jpg'))

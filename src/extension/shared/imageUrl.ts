@@ -268,11 +268,11 @@ const RULES: CdnRule[] = [
     match: (u) => /(?:^|\.)staticflickr\.com$/i.test(u.hostname),
     rewrite: (u) => { u.pathname = u.pathname.replace(/_[sqtmnwzc](?=\.[a-z0-9]+$)/i, '_b'); },
   },
-  {
-    // Tumblr: /s<W>x<H>/ size segment -> /s1280x1920/.
-    match: (u) => /\.media\.tumblr\.com$/i.test(u.hostname),
-    rewrite: (u) => { u.pathname = u.pathname.replace(/\/s\d+x\d+\//, '/s1280x1920/'); },
-  },
+  // Tumblr (*.media.tumblr.com): the CDN pre-renders exactly one size folder per
+  // image; every other /s<W>x<H>/ variant 404s, and the served size is often
+  // already the maximum (e.g. /s2048x3072/). Size folders are not swappable
+  // offline, so there is deliberately no rule — a blind rewrite only replaced a
+  // working image with a dead link (and downgraded the max). See #72.
   {
     // BBC: the width segment (/news/640/, /ace/standard/240/) -> 1920.
     match: (u) => u.hostname === 'ichef.bbci.co.uk',
