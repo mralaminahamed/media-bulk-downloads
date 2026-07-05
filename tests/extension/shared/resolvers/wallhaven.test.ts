@@ -40,10 +40,45 @@ describe('wallhavenResolver', () => {
     expect(wallhavenResolver.resolve(u(THUMB), { el: img, allowNetwork: false })[0].url)
       .toBe('https://w.wallhaven.cc/full/ab/wallhaven-abcdef.png');
   });
-  it('bare thumb (no DOM ext) keeps the thumb + wallhaven hint (no blind jpg)', () => {
+  it('bare thumb (no DOM ext) upgrades to the /orig jpg + wallhaven hint (no blind full-file url)', () => {
     const r = wallhavenResolver.resolve(u(THUMB), { allowNetwork: false })[0];
-    expect(r.url).toBe(THUMB);
+    // largest guaranteed-existing jpg, not a w.wallhaven.cc full URL that could 404 for a png
+    expect(r.url).toBe('https://th.wallhaven.cc/orig/ab/abcdef.jpg');
     expect(r.resolveHint).toEqual({ platform: 'wallhaven', id: 'abcdef' });
+  });
+
+  it('upgrades a /small grid thumbnail to /lg for a sharper preview', () => {
+    const el = imgInFigure('png');
+    const [c] = wallhavenResolver.resolve(u(THUMB), { el, allowNetwork: false });
+    expect(c.url).toBe('https://w.wallhaven.cc/full/ab/wallhaven-abcdef.png');
+    expect(c.thumbnailSrc).toBe('https://th.wallhaven.cc/lg/ab/abcdef.jpg');
+  });
+
+  it('never downgrades a thumbnail the page already served at /orig', () => {
+    const ORIG = 'https://th.wallhaven.cc/orig/ab/abcdef.jpg';
+    const fig = document.createElement('figure');
+    fig.setAttribute('data-wallpaper-id', 'abcdef');
+    const img = document.createElement('img');
+    img.setAttribute('data-src', ORIG);
+    fig.appendChild(img);
+    document.body.appendChild(fig);
+    const [c] = wallhavenResolver.resolve(u(ORIG), { el: img, allowNetwork: false });
+    expect(c.url).toBe('https://w.wallhaven.cc/full/ab/wallhaven-abcdef.jpg');
+    expect(c.thumbnailSrc).toBe(ORIG); // kept, not downgraded to /lg
+  });
+
+  it('reads the id from the figure preview link when data-wallpaper-id is absent', () => {
+    const fig = document.createElement('figure');
+    fig.className = 'thumb';
+    const img = document.createElement('img');
+    img.setAttribute('data-src', THUMB);
+    const a = document.createElement('a');
+    a.className = 'preview';
+    a.setAttribute('href', '/w/abcdef');
+    fig.append(img, a);
+    document.body.appendChild(fig);
+    const [c] = wallhavenResolver.resolve(u(THUMB), { el: img, allowNetwork: false });
+    expect(c.url).toBe('https://w.wallhaven.cc/full/ab/wallhaven-abcdef.jpg');
   });
 });
 
