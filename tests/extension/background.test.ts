@@ -349,6 +349,53 @@ describe('resolveOriginalsBatch', () => {
     ], deps);
     expect(out).toEqual({ 'poster.jpg': 'https://video.twimg.com/hi.mp4' });
   });
+
+  it('prefers a sniffed mp4 over the network for a twitter video poster', async () => {
+    const fetchMock = jest.fn();
+    const sniffed = new Map([['999', 'https://video.twimg.com/orig.mp4']]);
+    const src = 'https://pbs.twimg.com/amplify_video_thumb/999/img/x.jpg';
+    const out = await resolveOriginalsBatch(
+      [{ src, hint: { platform: 'twitter', id: '1' } }],
+      { fetch: fetchMock as unknown as typeof fetch },
+      sniffed,
+    );
+    expect(out).toEqual({ [src]: 'https://video.twimg.com/orig.mp4' });
+    expect(fetchMock).not.toHaveBeenCalled(); // no forged request when the page already exposed it
+  });
+
+  it('falls back to syndication when the poster media id was not sniffed', async () => {
+    const deps = {
+      fetch: (async () => ({ ok: true, json: async () => ({ mediaDetails: [{ video_info: { variants: [{ content_type: 'video/mp4', bitrate: 5, url: 'https://video.twimg.com/net.mp4' }] } }] }) })) as unknown as typeof fetch,
+    };
+    const src = 'https://pbs.twimg.com/amplify_video_thumb/424242/img/x.jpg';
+    const out = await resolveOriginalsBatch(
+      [{ src, hint: { platform: 'twitter', id: '1' } }],
+      deps,
+      new Map(), // empty sniffer map
+    );
+    expect(out).toEqual({ [src]: 'https://video.twimg.com/net.mp4' });
+  });
+});
+
+describe('X_MEDIA_SEEN sniffer store + resolve wiring', () => {
+  it('stores host-pinned sniffed mp4s per tab and resolves twitter videos from that tab without the network', async () => {
+    // Sniffer feed for tab 7: a valid twimg mp4 (kept) and an off-host one (dropped by the host-pin).
+    messageHandler(
+      { type: 'X_MEDIA_SEEN', pairs: [['777', 'https://video.twimg.com/good.mp4'], ['888', 'https://evil.com/bad.mp4']] },
+      { tab: { id: 7 } },
+      jest.fn(),
+    );
+
+    const src = 'https://pbs.twimg.com/amplify_video_thumb/777/img/a.jpg';
+    const sendResponse = jest.fn();
+    messageHandler(
+      { type: 'RESOLVE_ORIGINALS', hints: [{ src, hint: { platform: 'twitter', id: '1' } }] },
+      { tab: { id: 7 } }, // same tab → uses its sniffed map
+      sendResponse,
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sendResponse).toHaveBeenCalledWith({ resolved: { [src]: 'https://video.twimg.com/good.mp4' } });
+  });
 });
 
 describe('downloadAndRecord', () => {
