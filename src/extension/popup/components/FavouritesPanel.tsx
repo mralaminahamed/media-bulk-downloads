@@ -8,7 +8,7 @@ import {
 import { FavouriteEntry } from '@/types';
 import { loadFavourites, FAVOURITES_KEY } from '@/extension/shared/favourites';
 import { relativeTime } from '../utils';
-import { LoadingImage } from './ImageList';
+import { LoadingImage } from './LoadingImage';
 import { useDialog } from '../hooks/useDialog';
 
 export interface FavouritesPanelProps {

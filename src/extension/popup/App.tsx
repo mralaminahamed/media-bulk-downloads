@@ -5,7 +5,10 @@ import HistoryPanel from './components/HistoryPanel';
 import FavouritesPanel from './components/FavouritesPanel';
 import FilterToolbar, { DEFAULT_FILTERS } from './components/FilterToolbar';
 import { BrandMark } from '../components/BrandMark';
-import { AppState, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
+import { SkeletonGrid } from './components/states/SkeletonGrid';
+import { EmptyState } from './components/states/EmptyState';
+import { ErrorState } from './components/states/ErrorState';
+import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
 import { filterImagesBySettings, applyToolbarFilters } from '../shared/filters';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/settings';
 import { collectFromActiveTab } from '../shared/collect-active-tab';
@@ -14,7 +17,7 @@ import { requestResolveOriginals } from '../shared/resolve-originals-active';
 import { downloadedSrcSet, HISTORY_KEY } from '../shared/history';
 import { favouriteSrcSet, FAVOURITES_KEY } from '../shared/favourites';
 import { getImageFileSize, mapWithConcurrency } from './utils';
-import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, ExclamationTriangleIcon, StarIcon } from '@heroicons/react/24/outline';
+import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon } from '@heroicons/react/24/outline';
 
 // Concurrent HEAD requests when enriching remote image sizes.
 const SIZE_FETCH_CONCURRENCY = 6;
@@ -35,21 +38,6 @@ function deepScanCapMessage(reason: DeepScanStopReason | undefined, count: numbe
 
 /** Items the user can actually download now — pending videos are excluded until resolved. */
 const downloadable = (list: ImageInfo[]): ImageInfo[] => list.filter((i) => !i.unresolvedVideo);
-
-export interface AppProps {
-  /** How to collect images. Defaults to messaging the active tab (popup). */
-  collect?: () => Promise<ImageInfo[]>;
-  /** How to run a deep scan. Defaults to messaging the active tab (popup). Hides the Deep-scan button when absent. */
-  deepScan?: (onProgress: (p: DeepScanProgress) => void) => Promise<ImageInfo[]>;
-  /** Aborts an in-flight deep scan. Defaults to messaging the active tab (popup). */
-  abortDeepScan?: () => void;
-  /** Which surface this app renders in. */
-  surface?: 'popup' | 'bubble';
-  /** When embedded (bubble), a close handler for the header. */
-  onClose?: () => void;
-  /** When embedded (bubble), wires the header as a drag handle for the panel. */
-  dragHandleProps?: React.HTMLAttributes<HTMLElement>;
-}
 
 const App: React.FC<AppProps> = ({
   collect = collectFromActiveTab,
@@ -517,91 +505,5 @@ const App: React.FC<AppProps> = ({
     </div>
   );
 };
-
-/**
- * Scanning state — a skeleton grid that mirrors the real thumbnail layout, so
- * the switch to loaded images doesn't shift the page. A small "Scanning" hint
- * keeps the branded scanning language.
- */
-const SkeletonGrid: React.FC<{ thumbnailSize: number }> = ({ thumbnailSize }) => (
-  <div className="reveal">
-    <p className="eyebrow mb-2.5 text-center">Scanning page…</p>
-    <div
-      className="grid justify-center gap-2.5"
-      style={{ gridTemplateColumns: `repeat(auto-fill, ${thumbnailSize}px)` }}
-    >
-      {Array.from({ length: 12 }).map((_, i) => (
-        <div key={i} className="overflow-hidden rounded-(--radius) border hairline bg-(--panel)">
-          <div className="skeleton aspect-square" />
-          <div className="flex items-center justify-between gap-1 px-2 py-1.5">
-            <span className="skeleton h-2.5 w-10 rounded-[3px]" />
-            <span className="skeleton h-2.5 w-7 rounded-[3px]" />
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
-/** Shared centered layout for the empty / error states. */
-const CenteredState: React.FC<{
-  icon: React.ReactNode;
-  title: string;
-  body: string;
-  action: React.ReactNode;
-  tone?: 'neutral' | 'warning';
-}> = ({ icon, title, body, action, tone = 'neutral' }) => (
-  <div className="reveal grid h-full place-items-center text-center">
-    <div className="flex max-w-[260px] flex-col items-center gap-3">
-      <span
-        className={`grid h-12 w-12 place-items-center rounded-lg border hairline bg-(--panel) ${
-          tone === 'warning' ? 'text-(--warn)' : 'text-(--ink-3)'
-        }`}
-      >
-        {icon}
-      </span>
-      <div>
-        <p className="text-[13px] font-semibold text-(--ink)">{title}</p>
-        <p className="mt-1 text-[12px] leading-relaxed text-(--ink-2)">{body}</p>
-      </div>
-      {action}
-    </div>
-  </div>
-);
-
-const EmptyState: React.FC<{ onRefresh: () => void }> = ({ onRefresh }) => (
-  <CenteredState
-    icon={
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <rect x="3" y="3" width="18" height="18" rx="2" />
-        <circle cx="9" cy="9" r="2" />
-        <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-      </svg>
-    }
-    title="No media here"
-    body="This page has no media that matches your filters. Try another page or rescan."
-    action={
-      <button onClick={onRefresh} className="btn btn-ghost">
-        <ArrowPathIcon className="h-4 w-4" />
-        <span>Rescan page</span>
-      </button>
-    }
-  />
-);
-
-const ErrorState: React.FC<{ message: string; onRetry: () => void }> = ({ message, onRetry }) => (
-  <CenteredState
-    tone="warning"
-    icon={<ExclamationTriangleIcon className="h-[22px] w-[22px]" />}
-    title="Can't read this page"
-    body={message.replace(/^Can't read this page:\s*/i, '') || 'Some pages (chrome://, the Web Store, PDFs) are restricted and can\'t be scanned.'}
-    action={
-      <button onClick={onRetry} className="btn btn-ghost">
-        <ArrowPathIcon className="h-4 w-4" />
-        <span>Try again</span>
-      </button>
-    }
-  />
-);
 
 export default App;

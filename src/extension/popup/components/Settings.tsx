@@ -1,135 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { BubbleCorner, BubblePanelPlacement, SettingsData } from '@/types';
+import { BubbleCorner, BubblePanelPlacement, SettingsData, SettingsProps } from '@/types';
 import { expandPathTemplate, todayISO } from '@/extension/shared/paths';
 import { useDialog } from '../hooks/useDialog';
-
-export interface SettingsProps {
-  onClose: () => void;
-  onSettingsChange: (newSettings: SettingsData) => void;
-  settings: SettingsData;
-}
-
-const hintId = (id: string) => `${id}-hint`;
-
-/** Label + text input, with an optional described hint. */
-const TextField: React.FC<{
-  id: string;
-  name: string;
-  label: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  placeholder?: string;
-  hint?: React.ReactNode;
-  hintClassName?: string;
-}> = ({ id, name, label, value, onChange, placeholder, hint, hintClassName }) => (
-  <div>
-    <label htmlFor={id} className="mb-1 block text-[12px] text-(--ink-2)">
-      {label}
-    </label>
-    <input
-      id={id}
-      type="text"
-      name={name}
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      className="field"
-      aria-describedby={hint ? hintId(id) : undefined}
-    />
-    {hint && (
-      <span id={hintId(id)} className={hintClassName ?? 'mt-1 block text-[11px] text-(--ink-3)'}>
-        {hint}
-      </span>
-    )}
-  </div>
-);
-
-/** Label + number input that clamps to [min, max] on blur. */
-const NumberField: React.FC<{
-  id: string;
-  name: string;
-  label: string;
-  value: number;
-  min: number;
-  max?: number;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
-}> = ({ id, name, label, value, min, max, onChange, onBlur }) => (
-  <div>
-    <label htmlFor={id} className="mb-1 block text-[12px] text-(--ink-2)">
-      {label}
-    </label>
-    <input
-      id={id}
-      type="number"
-      name={name}
-      min={min}
-      max={max}
-      value={value}
-      onChange={onChange}
-      onBlur={onBlur}
-      className="field num"
-    />
-  </div>
-);
-
-/** Label + native select. */
-const SelectField: React.FC<{
-  id: string;
-  name: string;
-  label: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
-  children: React.ReactNode;
-}> = ({ id, name, label, value, onChange, children }) => (
-  <div>
-    <label htmlFor={id} className="mb-1 block text-[12px] text-(--ink-2)">
-      {label}
-    </label>
-    <select id={id} name={name} value={value} onChange={onChange} className="field">
-      {children}
-    </select>
-  </div>
-);
-
-const ToggleRow: React.FC<{
-  id: string;
-  label: string;
-  description?: React.ReactNode;
-  checked: boolean;
-  onToggle: () => void;
-}> = ({ id, label, description, checked, onToggle }) => (
-  <div className="py-1.5">
-    <div className="flex items-center justify-between gap-3">
-      <label htmlFor={id} className="text-[13px] text-(--ink)">
-        {label}
-      </label>
-      <button
-        id={id}
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-label={label}
-        aria-describedby={description ? `${id}-desc` : undefined}
-        onClick={onToggle}
-        className="switch"
-      />
-    </div>
-    {description && (
-      <p id={`${id}-desc`} className="mt-1 pr-12 text-[11px] leading-relaxed text-(--ink-3)">
-        {description}
-      </p>
-    )}
-  </div>
-);
-
-const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <section className="space-y-3">
-    <span className="eyebrow block border-b hairline pb-2">{title}</span>
-    {children}
-  </section>
-);
+import { TextField } from './fields/TextField';
+import { NumberField } from './fields/NumberField';
+import { SelectField } from './fields/SelectField';
+import { ToggleRow } from './fields/ToggleRow';
+import { Section } from './fields/Section';
 
 const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings: initialSettings }) => {
   const [settings, setSettings] = useState<SettingsData>(initialSettings);
@@ -194,7 +72,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
         aria-modal="true"
         aria-labelledby="settings-title"
         tabIndex={-1}
-        className="sheet-in flex h-full w-full max-w-[380px] flex-col bg-(--panel) shadow-2xl focus:outline-none"
+        className="sheet-in flex h-full w-full max-w-95 flex-col bg-(--panel) shadow-2xl focus:outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="dotgrid flex items-center justify-between border-b hairline px-4 py-3">
