@@ -106,6 +106,13 @@ export interface ResolveOriginalsResponse {
   resolved: Record<string, string>; // src -> resolvedUrl (successes only)
 }
 
+/** Content → background: mp4 URLs the page's own API responses exposed, per tab.
+ *  Each pair is `[mediaId, mp4Url]`; the background host-pins + stores them. */
+export interface XMediaSeenMessage {
+  type: 'X_MEDIA_SEEN';
+  pairs: [string, string][];
+}
+
 /** Open a downloaded file in the OS default app (chrome.downloads.open). */
 export interface OpenDownloadMessage {
   type: 'OPEN_DOWNLOAD_FILE';
@@ -161,6 +168,7 @@ export type ChromeMessage =
   | DeepScanAbortMessage
   | DeepScanProgress
   | ResolveOriginalsMessage
+  | XMediaSeenMessage
   | OpenDownloadMessage
   | ShowDownloadMessage
   | OpenUrlMessage

@@ -26,6 +26,9 @@ global.chrome = {
         onUpdated: {
             addListener: jest.fn(),
         },
+        onRemoved: {
+            addListener: jest.fn(),
+        },
     },
     storage: {
         sync: {

@@ -14,6 +14,7 @@ import {
   ResolveOriginalsResponse,
   SettingsData,
   ShowDownloadMessage,
+  XMediaSeenMessage,
 } from '@/types';
 import { filterImagesBySettings } from './shared/filters';
 import { DEFAULT_SETTINGS, withDefaults } from './shared/settings';
@@ -26,6 +27,7 @@ import {
 } from './shared/paths';
 import { avExtensionForType, extensionFromUrl } from './shared/mediaType';
 import { resolveOriginal, NetDeps } from './shared/resolvers/network';
+import { mediaIdFromPoster, pinTwimgUrl } from './shared/x-media-sniff';
 import { recordDownloads, removeEntry, clearHistory } from './shared/history';
 import { addFavourite, removeFavourite, clearFavourites } from './shared/favourites';
 
@@ -307,13 +309,44 @@ export function downloadStatusMessage(r: DownloadResult): string {
 }
 
 /**
+ * Real mp4 URLs the page's own GraphQL responses exposed, per tab
+ * (`mediaId -> mp4`). Filled passively by the MAIN-world sniffer (see
+ * `x-media-sniffer.content.ts`), consumed sniffer-first when resolving Twitter
+ * videos so age-restricted clips the user can see resolve without any forged
+ * request. In-memory, bounded, dropped when the tab closes.
+ */
+const snifferByTab = new Map<number, Map<string, string>>();
+const SNIFF_CAP_PER_TAB = 800;
+
+/** Merge sniffed `[mediaId, mp4]` pairs for a tab; host-pin and cap defensively. */
+export function storeSniffedMedia(tabId: number, pairs: unknown): void {
+  if (!Array.isArray(pairs)) return;
+  let map = snifferByTab.get(tabId);
+  if (!map) {
+    map = new Map();
+    snifferByTab.set(tabId, map);
+  }
+  for (const pair of pairs) {
+    if (!Array.isArray(pair)) continue;
+    const [mid, url] = pair;
+    const pinned = pinTwimgUrl(url);
+    if (typeof mid === 'string' && pinned && map.size < SNIFF_CAP_PER_TAB) map.set(mid, pinned);
+  }
+}
+
+/**
  * Resolves each hint to its final URL with bounded concurrency (limit 4).
  * Inline loop — the background service worker can't import the popup's
  * `mapWithConcurrency` helper. Failures are skipped (never throw).
+ *
+ * For Twitter videos, a real mp4 the page already exposed (`sniffed`, keyed by
+ * the poster's media id) wins over a network fetch — it covers age-restricted
+ * clips syndication tombstones and avoids a request entirely.
  */
 export async function resolveOriginalsBatch(
   hints: { src: string; hint: ResolveHint }[],
   deps: NetDeps = { fetch: (...a) => fetch(...a) },
+  sniffed?: Map<string, string>,
 ): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
   const limit = 4;
@@ -321,7 +354,12 @@ export async function resolveOriginalsBatch(
   async function worker() {
     while (i < hints.length) {
       const { src, hint } = hints[i++];
-      const url = await resolveOriginal(hint, deps);
+      let url: string | null = null;
+      if (hint.platform === 'twitter' && sniffed) {
+        const mid = mediaIdFromPoster(src);
+        if (mid) url = sniffed.get(mid) ?? null;
+      }
+      if (!url) url = await resolveOriginal(hint, deps);
       if (url) out[src] = url;
     }
   }
@@ -347,6 +385,11 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     markSettingsLoaded?.();
     markSettingsLoaded = undefined;
   }
+});
+
+// Drop a tab's sniffed-media map when it closes (no persistence, no leak).
+chrome.tabs.onRemoved.addListener((tabId) => {
+  snifferByTab.delete(tabId);
 });
 
 chrome.tabs.onActivated.addListener((activeInfo) => {
@@ -387,9 +430,15 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 chrome.runtime.onMessage.addListener(
   (
     message: ChromeMessage,
-    _sender: chrome.runtime.MessageSender,
+    sender: chrome.runtime.MessageSender,
     sendResponse: (response: DownloadResponse | ResolveOriginalsResponse) => void,
   ) => {
+    if (typeof message === 'object' && message.type === 'X_MEDIA_SEEN') {
+      // Passive sniffer feed from the x.com content script (per tab). Fire-and-forget.
+      if (sender.tab?.id != null) storeSniffedMedia(sender.tab.id, (message as XMediaSeenMessage).pairs);
+      return; // no response
+    }
+
     if (typeof message === 'object' && message.type === 'DOWNLOAD_IMAGES') {
       const { images, sourcePage } = message as DownloadMessage;
       // Wait for settings so the filter and the built filenames use the user's
@@ -466,7 +515,15 @@ chrome.runtime.onMessage.addListener(
         seen.add(h.src);
         return true;
       });
-      resolveOriginalsBatch(hints).then((resolved) => sendResponse({ resolved }));
+      // Resolve against the source tab's sniffed mp4 map first. The tab is the
+      // message sender (bubble/content); for a popup request there is no sender
+      // tab, so fall back to the active tab.
+      const run = (tabId?: number) => {
+        const sniffed = tabId != null ? snifferByTab.get(tabId) : undefined;
+        resolveOriginalsBatch(hints, undefined, sniffed).then((resolved) => sendResponse({ resolved }));
+      };
+      if (sender.tab?.id != null) run(sender.tab.id);
+      else chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => run(tabs[0]?.id));
       return true; // async
     }
 
