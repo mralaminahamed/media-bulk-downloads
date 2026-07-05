@@ -65,6 +65,10 @@ describe('deep-scan cap settings', () => {
     expect(withDefaults({}).deepScanMaxItems).toBe(1000);
     expect(withDefaults({ deepScanMaxScrolls: 100 }).deepScanMaxScrolls).toBe(100);
   });
+  it('deepScanClickLoadMore defaults to false', () => {
+    expect(DEFAULT_SETTINGS.deepScanClickLoadMore).toBe(false);
+    expect(withDefaults({}).deepScanClickLoadMore).toBe(false);
+  });
 });
 
 describe('withDefaults — corrupt shapes', () => {

@@ -225,6 +225,8 @@ export interface SettingsData {
   deepScanMaxItems: number;
   deepScanMaxSeconds: number;
   deepScanMaxScrolls: number;
+  /** Opt-in: click "Load more"-style buttons between scroll rounds during a deep scan. */
+  deepScanClickLoadMore: boolean;
 }
 
 export type SizeBucket = 'all' | 'small' | 'medium' | 'large';

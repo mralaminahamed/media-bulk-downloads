@@ -3,7 +3,7 @@ jest.mock('@/extension/shared/deepScan', () => {
   return { __esModule: true, ...actual, runDeepScan: jest.fn(() => Promise.resolve([])) };
 });
 
-import { buildDeepScanDeps, nestedScrollables, startDeepScan } from '@/extension/content/deepScanRunner';
+import { buildDeepScanDeps, nestedScrollables, startDeepScan, findLoadMoreButtons } from '@/extension/content/deepScanRunner';
 import { runDeepScan, DEEP_SCAN_DEFAULTS } from '@/extension/shared/deepScan';
 
 const mockMetrics = (el: HTMLElement, scrollHeight: number, clientHeight: number, scrollTop: number) => {
@@ -77,6 +77,52 @@ describe('startDeepScan config', () => {
     const opts = mockRun.mock.calls[0][1];
     expect(opts.maxItems).toBe(DEEP_SCAN_DEFAULTS.maxItems);
     expect(opts.maxScrolls).toBe(DEEP_SCAN_DEFAULTS.maxScrolls);
+  });
+});
+
+describe('findLoadMoreButtons', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('matches load/show/view/see-more buttons and role=button, ignores unrelated + anchors', () => {
+    document.body.innerHTML =
+      '<button id="a">Load more</button>' +
+      '<button id="b">Show More Posts</button>' +
+      '<div id="c" role="button">See more</div>' +
+      '<button id="d">Buy now</button>' +
+      '<a id="e" href="/next">Load more</a>'; // anchor would navigate → excluded
+    expect(findLoadMoreButtons(document).map((e) => e.id).sort()).toEqual(['a', 'b', 'c']);
+  });
+
+  it('skips disabled and aria-disabled buttons', () => {
+    document.body.innerHTML =
+      '<button id="a" disabled>Load more</button>' +
+      '<button id="b" aria-disabled="true">Load more</button>';
+    expect(findLoadMoreButtons(document)).toHaveLength(0);
+  });
+
+  it('matches via aria-label when there is no text', () => {
+    document.body.innerHTML = '<button id="a" aria-label="Load more results"><svg></svg></button>';
+    expect(findLoadMoreButtons(document).map((e) => e.id)).toEqual(['a']);
+  });
+});
+
+describe('scrollStep load-more clicking', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('clicks load-more buttons only when opted in', () => {
+    document.body.innerHTML = '<button id="lm">Load more</button>';
+    const clicks = jest.fn();
+    document.getElementById('lm')!.addEventListener('click', clicks);
+    buildDeepScanDeps(() => {}, { clickLoadMore: true }).deps.scrollStep();
+    expect(clicks).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not click when the option is off (default)', () => {
+    document.body.innerHTML = '<button id="lm">Load more</button>';
+    const clicks = jest.fn();
+    document.getElementById('lm')!.addEventListener('click', clicks);
+    buildDeepScanDeps(() => {}).deps.scrollStep();
+    expect(clicks).not.toHaveBeenCalled();
   });
 });
 

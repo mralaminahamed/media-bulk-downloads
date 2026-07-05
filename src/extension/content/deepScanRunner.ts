@@ -74,7 +74,40 @@ export function nestedScrollables(root: Document | ShadowRoot = document): HTMLE
   return out;
 }
 
-export function buildDeepScanDeps(onProgress: DeepScanDeps['onProgress']): { deps: DeepScanDeps } {
+// Conservative "load more" matcher: only the common expand phrasings, so we don't
+// click unrelated controls. Anchored on \bmore\b / "additional" to avoid "learn
+// more", "read more…" etc. being over-matched is intentional — those ARE expanders.
+const LOAD_MORE_RE = /\b(load|show|view|see|read)\s+more\b|\bload\s+additional\b|\bmore\s+(results|items|photos|images|posts)\b/i;
+
+/**
+ * "Load more"-style buttons on the page. Restricted to real buttons / role=button
+ * (never <a href>, which would navigate) that are enabled and whose visible text or
+ * aria-label reads as an expander. Used only when the user opts in — clicking page
+ * controls can have side effects.
+ */
+export function findLoadMoreButtons(root: Document | ShadowRoot = document): HTMLElement[] {
+  const out: HTMLElement[] = [];
+  root.querySelectorAll<HTMLElement>('button, [role="button"]').forEach((el) => {
+    if ((el as HTMLButtonElement).disabled || el.getAttribute('aria-disabled') === 'true') return;
+    const label = `${el.getAttribute('aria-label') || ''} ${el.textContent || ''}`.trim();
+    if (LOAD_MORE_RE.test(label)) out.push(el);
+  });
+  return out;
+}
+
+export interface BuildDeepScanOpts {
+  /** Opt-in: click a few "load more" buttons after each scroll step. */
+  clickLoadMore?: boolean;
+}
+
+// At most this many load-more buttons are clicked per scroll round, so an opt-in
+// scan can't fire dozens of clicks at once.
+const MAX_LOAD_MORE_CLICKS = 3;
+
+export function buildDeepScanDeps(
+  onProgress: DeepScanDeps['onProgress'],
+  opts: BuildDeepScanOpts = {},
+): { deps: DeepScanDeps } {
   const scroller = primaryScroller();
   const startY = scroller.top();
   return {
@@ -84,6 +117,10 @@ export function buildDeepScanDeps(onProgress: DeepScanDeps['onProgress']): { dep
         scroller.by(window.innerHeight);
         // Also advance any nested scroll pane that lazy-loads its own content.
         for (const el of nestedScrollables()) el.scrollTop += el.clientHeight;
+        // Opt-in: click a bounded number of "load more" buttons.
+        if (opts.clickLoadMore) {
+          for (const btn of findLoadMoreButtons().slice(0, MAX_LOAD_MORE_CLICKS)) btn.click();
+        }
       },
       atBottom: () => scroller.atBottom(),
       waitForQuiet,
@@ -94,11 +131,12 @@ export function buildDeepScanDeps(onProgress: DeepScanDeps['onProgress']): { dep
   };
 }
 
-/** Optional per-scan cap overrides (from user Settings); unset caps use the defaults. */
+/** Optional per-scan overrides (from user Settings); unset caps use the defaults. */
 export interface StartDeepScanConfig {
   maxItems?: number;
   maxMs?: number;
   maxScrolls?: number;
+  clickLoadMore?: boolean;
 }
 
 export function startDeepScan(
@@ -106,7 +144,7 @@ export function startDeepScan(
   signal: AbortSignal,
   config: StartDeepScanConfig = {},
 ): Promise<MediaItem[]> {
-  const { deps } = buildDeepScanDeps(onProgress);
+  const { deps } = buildDeepScanDeps(onProgress, { clickLoadMore: config.clickLoadMore });
   return runDeepScan(deps, {
     ...DEEP_SCAN_DEFAULTS,
     // Apply only the caps the user actually set (ignore 0/NaN/undefined).
