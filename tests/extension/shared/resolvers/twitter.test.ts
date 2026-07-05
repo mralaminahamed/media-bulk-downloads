@@ -150,6 +150,28 @@ describe('twitter status-id page-URL fallback', () => {
     expect(twitterVideoPending(v, 'https://x.com/u/status/999')?.resolveHint?.id).toBe('111');
   });
 
+  it('twitterVideoPending(): prefers the tweet\'s own timestamp permalink over a quoted tweet link', () => {
+    // A quoted tweet's link appears in the same article; the main tweet's id is the
+    // one wrapping the <time> timestamp. Must resolve the MAIN tweet, not the quote.
+    const art = document.createElement('article');
+    art.innerHTML =
+      '<a href="/quoted/status/222">quoted</a>' +
+      '<a href="/main/status/111"><time>now</time></a>' +
+      '<video poster="https://pbs.twimg.com/amplify_video_thumb/1/pu/img/z.jpg"></video>';
+    const v = art.querySelector('video') as HTMLVideoElement;
+    expect(twitterVideoPending(v)?.resolveHint?.id).toBe('111');
+  });
+
+  it('twitterVideoPending(): falls back to a /photo|/video media permalink when there is no <time>', () => {
+    const art = document.createElement('article');
+    art.innerHTML =
+      '<a href="/quoted/status/222">quoted</a>' +
+      '<a href="/main/status/111/video/1">media</a>' +
+      '<video poster="https://pbs.twimg.com/amplify_video_thumb/1/pu/img/z.jpg"></video>';
+    const v = art.querySelector('video') as HTMLVideoElement;
+    expect(twitterVideoPending(v)?.resolveHint?.id).toBe('111');
+  });
+
   it('twitterVideoPending(): returns null for a GIF poster (handled elsewhere)', () => {
     const v = document.createElement('video');
     v.setAttribute('poster', 'https://pbs.twimg.com/tweet_video_thumb/ABC.jpg');

@@ -42,6 +42,27 @@ describe('ImageList Component', () => {
     expect(onDownload).toHaveBeenCalledWith(mockImages[0]);
   });
 
+  it('drives a pending video from the preview modal — Get video, then a Fetching… spinner', () => {
+    const pending: ImageInfo = {
+      src: 'poster.jpg', alt: 'v', width: 0, height: 0, type: 'mp4', fileSize: 0, isBase64: false,
+      kind: 'video', unresolvedVideo: true, poster: 'poster.jpg', resolveHint: { platform: 'twitter', id: '9' },
+    };
+    const onFetchVideo = jest.fn();
+    const { rerender } = render(<ImageList images={[pending]} onImageDownload={jest.fn()} onFetchVideo={onFetchVideo} />);
+    fireEvent.click(screen.getByTitle('View Details'));
+
+    // Idle: the modal offers "Get video" and wires the per-item fetch.
+    fireEvent.click(screen.getByText('Get video'));
+    expect(onFetchVideo).toHaveBeenCalledWith(pending);
+
+    // In flight (e.g. during a bulk "Get all videos"): the modal shows Fetching….
+    rerender(
+      <ImageList images={[pending]} onImageDownload={jest.fn()} onFetchVideo={onFetchVideo} fetchingSrcs={new Set(['poster.jpg'])} />,
+    );
+    expect(screen.getByText('Fetching…')).toBeInTheDocument();
+    expect(screen.queryByText('Get video')).not.toBeInTheDocument();
+  });
+
   it('closes the preview modal', () => {
     render(<ImageList images={mockImages} onImageDownload={jest.fn()} />);
     fireEvent.click(screen.getAllByTitle('View Details')[0]);

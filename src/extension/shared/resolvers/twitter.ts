@@ -7,12 +7,32 @@ function idFromStatusUrl(url: string | null | undefined): string | null {
   return url?.match(/\/status\/(\d+)/)?.[1] ?? null;
 }
 
-/** Nearest tweet status id from an element, else the page URL's status id. */
-function statusIdFrom(el: Element | undefined, pageUrl?: string): string | null {
-  const link =
-    el?.closest?.('a[href*="/status/"]') ||
-    el?.closest?.('article')?.querySelector?.('a[href*="/status/"]');
-  return idFromStatusUrl(link?.getAttribute('href')) ?? idFromStatusUrl(pageUrl);
+/**
+ * A tweet's OWN status id within a scope (its `<article>` / media cell). When a
+ * tweet quotes or embeds another, the article holds several `/status/` links;
+ * prefer the permalink that carries the timestamp (`<time>`) or a `/photo|/video`
+ * media segment — those point to THIS tweet, not the quoted one — before falling
+ * back to the first link.
+ */
+function ownStatusId(scope: Element | null | undefined): string | null {
+  const links = scope?.querySelectorAll ? [...scope.querySelectorAll('a[href*="/status/"]')] : [];
+  if (!links.length) return null;
+  const pick =
+    links.find((a) => a.querySelector('time')) ||
+    links.find((a) => /\/status\/\d+\/(?:photo|video|analytics)\b/.test(a.getAttribute('href') || '')) ||
+    links[0];
+  return idFromStatusUrl(pick?.getAttribute('href'));
+}
+
+/**
+ * Nearest tweet status id for an element: a `/status/` link it sits inside (the
+ * media-grid cell wraps the poster in one), else the enclosing tweet article's
+ * own permalink, else the page URL's status id.
+ */
+function nearestStatusId(el: Element | undefined, pageUrl?: string): string | null {
+  const direct = idFromStatusUrl(el?.closest?.('a[href*="/status/"]')?.getAttribute('href'));
+  if (direct) return direct;
+  return ownStatusId(el?.closest?.('article')) ?? idFromStatusUrl(pageUrl);
 }
 
 export const twitterResolver: Resolver = {
@@ -36,7 +56,7 @@ export const twitterResolver: Resolver = {
       // ever became an image, it would leak in as a duplicate still frame. A
       // status id (from the cell's /status/ link) enables opt-in mp4 resolution;
       // without one it's a pending video the app won't display.
-      const statusId = statusIdFrom(ctx.el, ctx.pageUrl);
+      const statusId = nearestStatusId(ctx.el, ctx.pageUrl);
       const candidate: MediaCandidate = { url: input, kind: 'video', ext: 'mp4', poster: input, unresolvedVideo: true };
       if (statusId) candidate.resolveHint = { platform: 'twitter', id: statusId };
       return [candidate];
@@ -97,9 +117,7 @@ export function twitterGifCandidate(videoEl: Element): MediaCandidate | null {
 export function twitterVideoPending(videoEl: Element, pageUrl?: string): MediaCandidate | null {
   const poster = videoEl.getAttribute('poster') || '';
   if (!/pbs\.twimg\.com\/(?:ext_tw_video_thumb|amplify_video_thumb)\//.test(poster)) return null;
-  const link = videoEl.closest?.('article')?.querySelector?.('a[href*="/status/"]')
-    || videoEl.closest?.('a[href*="/status/"]');
-  const id = idFromStatusUrl(link?.getAttribute('href')) ?? idFromStatusUrl(pageUrl);
+  const id = nearestStatusId(videoEl, pageUrl);
   const candidate: MediaCandidate = { url: poster, kind: 'video', ext: 'mp4', poster, unresolvedVideo: true };
   if (id) candidate.resolveHint = { platform: 'twitter', id };
   return candidate;

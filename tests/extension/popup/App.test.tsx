@@ -222,6 +222,44 @@ describe('App Component', () => {
     expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
   });
 
+  it('"Get all videos" resolves every pending video in one batch and makes them downloadable', async () => {
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: false } }));
+    const resolveMock = requestResolveOriginals as jest.Mock;
+    resolveMock.mockClear(); // shared across tests; reset call count without touching the default impl
+    resolveMock.mockResolvedValueOnce({
+      'poster1.jpg': 'https://video.twimg.com/a.mp4',
+      'poster2.jpg': 'https://video.twimg.com/b.mp4',
+    });
+
+    render(
+      <App
+        collect={async () => [
+          image({ src: 'poster1.jpg', kind: 'video', unresolvedVideo: true, resolveHint: { platform: 'twitter', id: '1' } }),
+          image({ src: 'poster2.jpg', kind: 'video', unresolvedVideo: true, resolveHint: { platform: 'twitter', id: '2' } }),
+        ]}
+      />,
+    );
+    await screen.findByText('Filters');
+
+    // Setting is off, so nothing auto-resolves; the bulk button shows the count.
+    const btn = await screen.findByRole('button', { name: /get all videos \(2\)/i });
+    expect(requestResolveOriginals).not.toHaveBeenCalled();
+
+    fireEvent.click(btn);
+
+    // One batched request carrying both targets.
+    await waitFor(() => expect(resolveMock).toHaveBeenCalledTimes(1));
+    expect(resolveMock).toHaveBeenCalledWith([
+      { src: 'poster1.jpg', hint: { platform: 'twitter', id: '1' } },
+      { src: 'poster2.jpg', hint: { platform: 'twitter', id: '2' } },
+    ]);
+
+    // Both resolve to real mp4s → downloadable → "Download 2".
+    await waitFor(() => expect(screen.getByRole('button', { name: /download 2/i })).toBeInTheDocument());
+    // And the bulk button is gone (no pending videos left).
+    expect(screen.queryByRole('button', { name: /get all videos/i })).not.toBeInTheDocument();
+  });
+
   it('includes the source page in the download message', async () => {
     (chrome.tabs.query as jest.Mock).mockResolvedValue([{ url: 'https://page', title: 'Pg' }]);
     (chrome.runtime.sendMessage as jest.Mock).mockImplementation((_m, cb) =>
