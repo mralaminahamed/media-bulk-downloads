@@ -281,6 +281,13 @@ describe('image-CDN rule batch (2026-07-05)', () => {
     expect(orig('https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Cat.jpg/320px-Cat.jpg'))
       .toBe('https://upload.wikimedia.org/wikipedia/commons/a/ab/Cat.jpg');
   });
+  it('Adobe Scene7: forces wid=2000 and drops hei/qlt/fmt', () => {
+    expect(orig('https://target.scene7.com/is/image/Target/GUEST_abc?wid=100&hei=100&qlt=80&fmt=pjpeg'))
+      .toBe('https://target.scene7.com/is/image/Target/GUEST_abc?wid=2000');
+    // a bare ref (no query) gets an explicit large wid rather than the tiny default
+    expect(orig('https://s7d1.scene7.com/is/image/brand/sku'))
+      .toBe('https://s7d1.scene7.com/is/image/brand/sku?wid=2000');
+  });
   it('Substack: deproxy decodes the embedded S3 URL', () => {
     expect(deproxy('https://substackcdn.com/image/fetch/$s_!abc!,w_160,h_280,c_crop,f_auto,q_auto:good/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fabc.jpeg'))
       .toBe('https://substack-post-media.s3.amazonaws.com/public/images/abc.jpeg');

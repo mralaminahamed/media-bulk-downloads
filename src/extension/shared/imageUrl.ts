@@ -304,6 +304,17 @@ const RULES: CdnRule[] = [
     rewrite: (u) => dropParams(u, [...RESIZE_PARAMS, 'strip', 'ssl']),
   },
   {
+    // Adobe Scene7 (*.scene7.com, e.g. target.scene7.com): ?wid=&hei=&qlt=&fmt=
+    // renders. Force a large wid and drop the other size/format params. Dropping
+    // the query entirely returns the tiny default rendition, so wid is set
+    // explicitly; oversizing just returns the source. See #78.
+    match: (u) => /(?:^|\.)scene7\.com$/i.test(u.hostname),
+    rewrite: (u) => {
+      dropParams(u, ['hei', 'qlt', 'fmt', 'resMode', 'op_usm', 'fit']);
+      u.searchParams.set('wid', '2000');
+    },
+  },
+  {
     // Self-hosted WordPress: any host serving /wp-content/uploads/ with a resize
     // query (?w=&h=&resize=) and/or a stored -WxH / -scaled thumbnail suffix.
     // WordPress keeps the untouched original beside its generated sizes, so drop
