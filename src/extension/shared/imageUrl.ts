@@ -486,6 +486,15 @@ const RULES: CdnRule[] = [
     },
   },
   {
+    // Temu (img.kwcdn.com): product images carry a Qiniu `imageView2` transform in
+    // the query (?imageView2/2/w/800/q/70/format/webp) that downsizes + reformats.
+    // Dropping it returns the stored original. Scoped to `imageView2` so a
+    // signed/plain kwcdn URL is left untouched. Sample-based — temu.com is
+    // captcha-gated, so this was not live-injected. See #141.
+    match: (u) => u.hostname === 'img.kwcdn.com' && /imageView2/i.test(u.search),
+    rewrite: (u) => { u.search = ''; },
+  },
+  {
     // Self-hosted WordPress: any host serving /wp-content/uploads/ with a resize
     // query (?w=&h=&resize=) and/or a stored -WxH / -scaled thumbnail suffix.
     // WordPress keeps the untouched original beside its generated sizes, so drop

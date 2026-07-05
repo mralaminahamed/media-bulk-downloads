@@ -309,6 +309,14 @@ describe('image-CDN rule batch (2026-07-05)', () => {
     expect(orig('https://cdn.dribbble.com/userupload/48258936/file/7fc10d28ca5c.png?resize=400x300&vertical=center'))
       .toBe('https://cdn.dribbble.com/userupload/48258936/file/7fc10d28ca5c.png');
   });
+  it('Temu: drops the imageView2 transform query, leaving other kwcdn URLs alone', () => {
+    // Real documented sample (temu.com). The bare object is the original.
+    expect(orig('https://img.kwcdn.com/product/open/f43f2d8284a345788144669b6e550238-goods.jpeg?imageView2/2/w/800/q/70/format/webp'))
+      .toBe('https://img.kwcdn.com/product/open/f43f2d8284a345788144669b6e550238-goods.jpeg');
+    // No imageView2 transform → not our rule → left unchanged.
+    expect(orig('https://img.kwcdn.com/product/open/abc-goods.jpeg?sign=xyz')).toBe('https://img.kwcdn.com/product/open/abc-goods.jpeg?sign=xyz');
+    expect(orig('https://img.kwcdn.com/product/open/abc-goods.jpeg')).toBe('https://img.kwcdn.com/product/open/abc-goods.jpeg');
+  });
   it('AliExpress: strips the transform suffix after the real extension', () => {
     expect(orig('https://ae01.alicdn.com/kf/Se3b534ec8e074799b42a78eabde9534ad.jpg_640x640.jpg_.webp'))
       .toBe('https://ae01.alicdn.com/kf/Se3b534ec8e074799b42a78eabde9534ad.jpg');
