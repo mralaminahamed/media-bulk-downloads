@@ -41,9 +41,10 @@ It reads only what the page already loaded, so nothing leaves your device.
 - Direct-file `<video>` and `<audio>` sources
 
 **Upgrades to original quality**
-- **De-proxies** wrapped URLs (Next.js `_next/image`, weserv, Cloudinary fetch)
+- **De-proxies** wrapped URLs (Next.js `_next/image` — absolute and relative —
+  weserv, Cloudinary fetch)
 - **CDN upgrades** thumbnails to full size (Twitter/X `name=orig`, YouTube
-  `maxresdefault`, Pinterest `/originals/`, Google `=s0`, and 40+ more families)
+  `hqdefault`, Pinterest `/originals/`, Google `=s0`, and 50+ more families)
 - **Deep scan** — an opt-in, bounded auto-scroll that surfaces virtualized and
   infinite-scroll media (it only scrolls; the page loads its own media)
 - **Resolve originals** — an optional setting that fetches the exact
@@ -135,20 +136,28 @@ a draggable panel without opening the toolbar popup.
 The engine works on **any website**. On top of the generic pipeline, it ships dedicated
 upgrade rules for:
 
-| Site                     | Upgrade                                           |
-|--------------------------|---------------------------------------------------|
-| Wikipedia / Wikimedia    | `/thumb/` path → original file                    |
-| YouTube                  | Thumbnails → `maxresdefault`; avatars → full size |
-| Twitter / X              | `name=orig` for photos; video-poster recognition  |
-| Reddit                   | Gallery `<a href>` → direct `i.redd.it` original  |
-| Unsplash                 | Strip resize params → native-format master        |
-| Pinterest                | `/NNNx/` → `/originals/`                          |
-| Shopify stores           | Drop `?width=` size queries                       |
-| Google (Photos, Blogger) | `=s88-…` → `=s0`                                  |
-| Next.js / Vercel         | De-proxy `/_next/image?url=`                      |
-| Wallhaven                | PNG/GIF detection → correct extension             |
+| Site                                | Upgrade                                             |
+|-------------------------------------|-----------------------------------------------------|
+| Wikipedia / Wikimedia / MediaWiki   | `/thumb/` path → original (incl. self-hosted wikis) |
+| YouTube                             | Small thumbnails → `hqdefault` (always-present max) |
+| Twitter / X                         | `name=orig` for photos; video-poster recognition    |
+| Reddit                             | Gallery `<a href>` → direct `i.redd.it` original    |
+| Unsplash                           | Strip resize params → native-format master          |
+| Pinterest                          | `/NNNx/` → `/originals/`                            |
+| Shopify stores                     | Drop `?width=` size queries                         |
+| WordPress (self-hosted)            | `/wp-content/uploads/` resize + `-WxH` → original   |
+| Google (Photos, Blogger)           | `=s88-…` → `=s0`                                    |
+| Adobe Scene7 (Target, REI, …)      | `?wid=` → large rendition                           |
+| ArtStation                         | Size bucket (`medium`, …) → `/large/`               |
+| Amazon / eBay / Etsy / Walmart / Newegg | Strip size tokens → full product image         |
+| DeviantArt (wixmp)                 | Decode token cap → largest within-cap render        |
+| imgur / Dribbble / AliExpress      | Strip thumbnail suffix → original                   |
+| BBC / NYT                          | Size token → largest editorial crop                 |
+| IKEA / StockSnap / Zillow          | Size query/token → largest preset                   |
+| Next.js / Vercel                   | De-proxy `/_next/image?url=` (absolute + relative)  |
+| Wallhaven                          | PNG/GIF detection → correct extension               |
 
-…and 40+ more CDN families — see the live [coverage benchmark](./docs/BENCHMARK.md).
+…and 50+ more CDN families — see the live [coverage benchmark](./docs/BENCHMARK.md).
 
 ## Tech stack
 
