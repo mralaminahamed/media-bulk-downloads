@@ -209,6 +209,7 @@ needed, just a regression test.
 | `cdn.stocksnap.io` (`/img-thumbs/`)                                              | `/img-thumbs/<token>/` → `/img-thumbs/960w/` (max whitelisted size)                                     |
 | `www.ikea.com` (`/images/`)                                                      | clear query, set `?imwidth=2000` (beats the `f=` ladder)                                                |
 | `c1.neweggimages.com`                                                            | `…compressall<N>` → `…compressall1280` (max)                                                            |
+| `img.kwcdn.com` (Temu, query has `imageView2`)                                   | drop the Qiniu `imageView2/…w/q/format` transform query → stored original                                |
 
 Wallhaven and Behance have **no** entry here — their upgrades live entirely in
 `wallhavenResolver` / `behanceResolver` above; a URL either resolver's `match`
@@ -216,9 +217,11 @@ claims but can't upgrade (a Wallhaven thumb with no readable id, or a Behance
 URL already at `source`/`fs`) falls through and is collected unmodified by the
 generic resolver, since neither host has a `RULES` entry here.
 
-**Signed hosts** (`*.fbcdn.net`, `preview.redd.it`) get **no rule and no query
-strip** — their signature lives in the query, so stripping it would 403. They are
-still collected, just not "upgraded."
+**Signed hosts** (`*.fbcdn.net`, `preview.redd.it`, `*.cdninstagram.com`,
+`*.tiktokcdn.com`, `media.licdn.com`) get **no rule and no query strip** — their
+signature (an HMAC token bound to the URL, incl. the size on LinkedIn's
+`dms/image/v2` renditions) lives in the URL, so rewriting it would 401/403. They
+are still collected, just not "upgraded."
 
 Every upgrade returns `{ original, thumbnail: <input> }`, so the pre-upgrade URL
 is kept as `thumbnailSrc` and the grid preview renders even if the upgraded

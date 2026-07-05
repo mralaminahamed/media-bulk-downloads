@@ -23,7 +23,7 @@ discovers on real pages.
 - Sample URLs are shown as `origin + path` (query stripped) for privacy.
 
 Run dates: 2026-07-03 / 2026-07-04 / **2026-07-05** (§A re-run 2026-07-05 against
-the current rule set — 31 CDN rules + 5 resolvers). Chrome (Manifest V3).
+the current rule set — 32 CDN rules + 5 resolvers). Chrome (Manifest V3).
 
 ## A. Live-verified results
 
@@ -118,7 +118,7 @@ via `curl` or in-browser `Image()`), 2026-07-05:
 ## C. Coverage matrix (CDN family → sites)
 
 Beyond the live rows above, the engine's behavior on a site is determined by the
-**CDN family** it serves from. This matrix maps 56 popular sites/services to the
+**CDN family** it serves from. This matrix maps 58 popular sites/services to the
 rule they exercise and how coverage was established: **[L]** live-injected in this
 run, **[C]** covered by the same CDN rule verified on a live site (or built and
 verified against a real sampled URL — HTTP/`Image()` — pulled from that site),
@@ -183,10 +183,17 @@ logged-out), **[G]** a known gap.
 | 54 | Instagram                          | *.cdninstagram.com (signed)   | left intact                                                                                | A       |
 | 55 | Facebook                           | *.fbcdn.net (signed)          | left intact                                                                                | A       |
 | 56 | TikTok                             | *.tiktokcdn.com (signed)      | —                                                                                          | A       |
+| 57 | Temu                               | img.kwcdn.com                 | drop the Qiniu `imageView2/…` transform query → stored original (sample-based)             | C²      |
+| 58 | LinkedIn                           | media.licdn.com (signed)      | *(none — `dms/image/v2` renditions carry an HMAC `t=` token bound to the size; any rewrite 401s)* | G       |
 
 ¹ Tumblr previously had a `/sWxH/` → `/s1280x1920/` rule; it was **removed** — modern
 `64.media.tumblr.com` pre-renders one size folder per image and every other size 404s,
 so the rewrite replaced a working image with a dead link (see §D).
+
+² Temu is built from a **documented** real `img.kwcdn.com` sample (temu.com is
+captcha-gated, so it was not live-injected). The rule fires only when the query
+carries the `imageView2` transform, so a signed/plain kwcdn URL is left untouched
+(worst case: a no-op, never a broken link).
 
 ## D. Gaps found
 
