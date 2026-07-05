@@ -98,6 +98,59 @@ export function resolveUrl(src: string): string {
   }
 }
 
+/**
+ * Highest-resolution candidate inside one image-set()/-webkit-image-set() group.
+ * Candidates are `url("x") 2x` or bare `"x" 2x`; the resolution suffix (x/dppx)
+ * defaults to 1 when absent. Returns null when the group holds no usable URL.
+ */
+function bestImageSetCandidate(inner: string): string | null {
+  let best: { url: string; res: number } | null = null;
+  const candRe = /(?:url\(\s*(['"]?)(.*?)\1\s*\)|(['"])(.*?)\3)\s*([\d.]+)\s*(?:x|dppx)?/gi;
+  let c: RegExpExecArray | null;
+  while ((c = candRe.exec(inner)) !== null) {
+    const url = c[2] || c[4];
+    if (!url) continue;
+    const res = parseFloat(c[5] || '1') || 1;
+    if (!best || res >= best.res) best = { url, res };
+  }
+  return best?.url ?? null;
+}
+
+/**
+ * URLs to collect from a computed `background-image` value. Plain `url()` layers
+ * are returned as-is; for an `image-set()` / `-webkit-image-set()` layer only the
+ * highest-resolution candidate is returned (avoids surfacing every DPR variant of
+ * the same image). Handles a value that mixes image-set and plain url() layers.
+ */
+export function backgroundImageUrls(bgImage: string): string[] {
+  const urls: string[] = [];
+  const setRe = /(?:-webkit-)?image-set\(/gi;
+  const plain: string[] = [];
+  let lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = setRe.exec(bgImage)) !== null) {
+    plain.push(bgImage.slice(lastIndex, m.index));
+    // Walk to the matching close paren (url() candidates contain their own parens).
+    let depth = 1;
+    let i = setRe.lastIndex;
+    for (; i < bgImage.length && depth > 0; i++) {
+      if (bgImage[i] === '(') depth++;
+      else if (bgImage[i] === ')') depth--;
+    }
+    const best = bestImageSetCandidate(bgImage.slice(setRe.lastIndex, i - 1));
+    if (best) urls.push(best);
+    lastIndex = i;
+    setRe.lastIndex = i;
+  }
+  plain.push(bgImage.slice(lastIndex));
+  for (const seg of plain) {
+    for (const um of seg.matchAll(/url\(\s*(['"]?)(.*?)\1\s*\)/g)) {
+      if (um[2]) urls.push(um[2]);
+    }
+  }
+  return urls;
+}
+
 /** Collects information about all media (images, video, audio) on the page. */
 export function collectMedia(): MediaItem[] {
   const media: MediaItem[] = [];
@@ -271,10 +324,11 @@ export function collectMedia(): MediaItem[] {
       if (hasLayout && el.offsetWidth === 0 && el.offsetHeight === 0) return;
       const bgImage = view.getComputedStyle(el).getPropertyValue('background-image');
       if (!bgImage || bgImage === 'none') return;
-      for (const match of bgImage.matchAll(/url\(\s*(['"]?)(.*?)\1\s*\)/g)) {
-        // Pass the element so a resolver can read its context (e.g. a Twitter video
-        // poster set as a background-image finds the cell's /status/ link).
-        if (match[2]) collectImageInfo(match[2], '', 0, 0, undefined, el);
+      // Pass the element so a resolver can read its context (e.g. a Twitter video
+      // poster set as a background-image finds the cell's /status/ link). image-set
+      // layers contribute only their highest-resolution candidate.
+      for (const url of backgroundImageUrls(bgImage)) {
+        collectImageInfo(url, '', 0, 0, undefined, el);
       }
     });
 
