@@ -8,8 +8,8 @@ describe('resolve — generic fallback', () => {
     expect(c).toMatchObject({ kind: 'image', url: 'https://i.ytimg.com/vi/ID/hqdefault.jpg' });
     expect(c.thumbnailSrc).toBe('https://i.ytimg.com/vi/ID/default.jpg');
   });
-  it('returns identity image candidate for a plain URL', () => {
-    expect(resolve('https://ex.com/a.jpg', ctx)).toEqual([{ url: 'https://ex.com/a.jpg', kind: 'image' }]);
+  it('returns identity image candidate for a plain URL, keeping the real extension', () => {
+    expect(resolve('https://ex.com/a.jpg', ctx)).toEqual([{ url: 'https://ex.com/a.jpg', kind: 'image', ext: 'jpg' }]);
   });
   it('returns no candidates for a malformed URL', () => {
     // 'http://' is genuinely unparseable even with jsdom's baseURI present, so it

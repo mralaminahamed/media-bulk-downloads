@@ -30,4 +30,7 @@ describe('behanceResolver', () => {
     const [c] = run('https://mir-s3-cdn-cf.behance.net/project_modules/disp/abc123.jpg');
     expect(c.thumbnailSrc).toBe('https://mir-s3-cdn-cf.behance.net/project_modules/disp/abc123.jpg');
   });
+  it('reports the real file extension from the upgraded URL', () => {
+    expect(run('https://mir-s3-cdn-cf.behance.net/project_modules/disp/abc123.png')[0].ext).toBe('png');
+  });
 });

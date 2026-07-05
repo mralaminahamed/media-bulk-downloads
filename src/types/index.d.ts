@@ -9,7 +9,11 @@ export interface ImageInfo {
   alt: string;
   width: number;
   height: number;
-  type: string; // 'jpeg', 'png', 'gif', 'svg', 'webp', 'unknown', etc.
+  type: string; // 'jpeg', 'png', 'gif', 'svg', 'webp', 'unknown', etc. — canonical, for filtering
+  /** True file extension for the download name, supplied by the resolver that
+   *  built `src` (e.g. Wallhaven 'jpg'/'png', Twitter format). Preferred over the
+   *  type-derived extension; falls back to it when absent. */
+  ext?: string;
   fileSize: number; // in bytes
   isBase64: boolean;
   fromSrcset?: boolean;

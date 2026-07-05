@@ -216,7 +216,7 @@ export function buildDownloadFilename(
 ): string {
   const extension =
     image.kind === 'image'
-      ? extensionForType(image.type)
+      ? (image.ext || extensionForType(image.type))
       : (avExtensionForType(image.type)
           ?? extensionFromUrl(image.src)
           ?? (image.kind === 'video' ? 'mp4' : 'mp3'));

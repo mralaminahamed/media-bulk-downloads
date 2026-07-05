@@ -3,7 +3,21 @@ import {
   isUndownloadableMedia,
   avExtensionForType,
   extensionFromUrl,
+  imageExtFromUrl,
 } from '@/extension/shared/mediaType';
+
+describe('imageExtFromUrl', () => {
+  it('returns the literal image extension, preserving jpg vs jpeg', () => {
+    expect(imageExtFromUrl('https://w.wallhaven.cc/full/po/wallhaven-po7y9j.jpg')).toBe('jpg');
+    expect(imageExtFromUrl('https://ex.com/a.jpeg?x=1')).toBe('jpeg');
+    expect(imageExtFromUrl('https://ex.com/a.PNG')).toBe('png');
+  });
+  it('ignores query strings and non-image or absent extensions', () => {
+    expect(imageExtFromUrl('https://ex.com/render.php?id=1')).toBeNull();
+    expect(imageExtFromUrl('https://images.unsplash.com/photo-123')).toBeNull();
+    expect(imageExtFromUrl('data:image/png;base64,AAAA')).toBeNull();
+  });
+});
 
 describe('detectAvType', () => {
   it('reads the URL extension', () => {

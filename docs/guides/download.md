@@ -45,7 +45,7 @@ them. See [Download History](./history.md) for what happens after the write.
 ```mermaid
 flowchart TB
   START["item, index, settings"] --> EXT{"item.kind"}
-  EXT -->|image| IE["extensionForType(type)<br/>(default jpg)"]
+  EXT -->|image| IE["item.ext ?? extensionForType(type)<br/>(resolver ext preferred, default jpg)"]
   EXT -->|video/audio| AE["avExtensionForType(type)<br/>?? extensionFromUrl(src)<br/>?? mp4 / mp3"]
   IE --> NAME
   AE --> NAME
@@ -69,7 +69,11 @@ flowchart TB
 
 ### Extension by kind
 
-- **Image:** `extensionForType(type)` — `jpeg→jpeg`, `png/gif/webp/svg/avif/bmp/ico`
+- **Image:** `item.ext ?? extensionForType(type)`. The resolver that built the
+  item reports the true file extension (`item.ext`) — Wallhaven `.jpg`, Twitter's
+  `format`, the generic resolver's real URL extension — so the download keeps the
+  **source's** extension (`.jpg` stays `.jpg`). When no resolver supplies one it
+  falls back to `extensionForType(type)` — `jpeg→jpeg`, `png/gif/webp/svg/avif/bmp/ico`
   pass through, default `jpg`.
 - **Video/Audio:** `avExtensionForType(type)` (mp4/webm/mov/…/mp3/wav/flac/…),
   then the URL's real extension, then `mp4`/`mp3` as a last resort.

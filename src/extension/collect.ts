@@ -206,6 +206,9 @@ export function collectMedia(): MediaItem[] {
     const thumb = thumbnailOverride ? resolveUrl(thumbnailOverride) : cand.thumbnailSrc;
     if (thumb && thumb !== cand.url) info.thumbnailSrc = thumb;
     if (cand.resolveHint) info.resolveHint = cand.resolveHint;
+    // The resolver knows the true file extension (e.g. Wallhaven .jpg vs the
+    // canonical 'jpeg' type); carry it so the download keeps the real extension.
+    if (cand.ext) info.ext = cand.ext;
     media.push(info);
   };
 

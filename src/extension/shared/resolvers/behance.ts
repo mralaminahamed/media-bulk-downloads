@@ -1,3 +1,4 @@
+import { imageExtFromUrl } from '@/extension/shared/mediaType';
 import { MediaCandidate, Resolver, ResolveContext } from './types';
 
 const HOST = 'mir-s3-cdn-cf.behance.net';
@@ -30,6 +31,9 @@ export const behanceResolver: Resolver = {
       .replace(/(\/projects\/\d+\/[0-9a-f]+)\.[A-Za-z0-9_-]{16,}(?=\.[a-z0-9]+$)/i, '$1');
     const url = domSourceFrom(ctx.el) ?? out.href;
     if (url === u.href) return []; // nothing to upgrade -> let genericResolver handle it
-    return [{ url, kind: 'image', thumbnailSrc: u.href }];
+    const c: MediaCandidate = { url, kind: 'image', thumbnailSrc: u.href };
+    const ext = imageExtFromUrl(url);
+    if (ext) c.ext = ext;
+    return [c];
   },
 };

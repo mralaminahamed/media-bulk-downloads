@@ -109,6 +109,24 @@ describe('Background Script', () => {
       expect(buildDownloadFilename(img({ type: 'png' }), 4, settings)).toBe('image_5.png');
     });
 
+    it('prefers the resolver-supplied ext over the type-derived extension', () => {
+      // Wallhaven serves .jpg; the resolver reports ext:'jpg' even though the
+      // canonical type is 'jpeg'. The download must keep .jpg.
+      expect(buildDownloadFilename(img({ type: 'jpeg', ext: 'jpg' }), 0, settings)).toBe('image_1.jpg');
+      expect(buildDownloadFilename(img({ type: 'jpeg', ext: 'png' }), 0, settings)).toBe('image_1.png');
+    });
+
+    it('falls back to the type-derived extension when the resolver gave no ext', () => {
+      expect(buildDownloadFilename(img({ type: 'jpeg' }), 0, settings)).toBe('image_1.jpeg');
+    });
+
+    it('uses the resolver ext in original-name mode too', () => {
+      const s = { ...settings, namingMode: 'original' as const };
+      expect(
+        buildDownloadFilename(img({ src: 'https://w.wallhaven.cc/full/po/wallhaven-po7y9j.jpg', type: 'jpeg', ext: 'jpg' }), 0, s),
+      ).toBe('wallhaven-po7y9j.jpg');
+    });
+
     it('prepends a sanitized download path', () => {
       const s = { ...settings, downloadPath: '../my/pics' };
       expect(buildDownloadFilename(img({ type: 'png' }), 0, s)).toBe('my/pics/image_1.png');
