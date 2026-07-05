@@ -274,9 +274,11 @@ const RULES: CdnRule[] = [
   // offline, so there is deliberately no rule — a blind rewrite only replaced a
   // working image with a dead link (and downgraded the max). See #72.
   {
-    // BBC: the width segment (/news/640/, /ace/standard/240/) -> 1920.
+    // BBC: the width segment (/news/640/, /ace/standard/240/) -> 2048. 1920 does
+    // NOT exist on the /news/ path (404); 2048 is served on both news and
+    // standard, so it is the safe largest common target. See #73.
     match: (u) => u.hostname === 'ichef.bbci.co.uk',
-    rewrite: (u) => { u.pathname = u.pathname.replace(/\/(news|standard)\/\d{2,4}\//, '/$1/1920/'); },
+    rewrite: (u) => { u.pathname = u.pathname.replace(/\/(news|standard)\/\d{2,4}\//, '/$1/2048/'); },
   },
   {
     // Etsy: il_<W>x<H> render token -> il_fullxfull.
