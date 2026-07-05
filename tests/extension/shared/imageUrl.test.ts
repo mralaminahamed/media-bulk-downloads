@@ -312,6 +312,14 @@ describe('image-CDN rule batch (2026-07-05)', () => {
     expect(orig('https://ae01.alicdn.com/kf/Sabc.jpg'))
       .toBe('https://ae01.alicdn.com/kf/Sabc.jpg');
   });
+  it('imgur: strips an 8-char thumbnail suffix, never a 7-char id', () => {
+    // 8-char basename ending in a thumb letter -> original
+    expect(orig('https://i.imgur.com/K3UCTivb.jpg')).toBe('https://i.imgur.com/K3UCTiv.jpg');
+    // real 7-char id must be left alone (blind strip -> a different image, not 404)
+    expect(orig('https://i.imgur.com/K3UCTiv.jpg')).toBe('https://i.imgur.com/K3UCTiv.jpg');
+    // 8-char basename NOT ending in a thumb letter -> unchanged
+    expect(orig('https://i.imgur.com/K3UCTivx.jpg')).toBe('https://i.imgur.com/K3UCTivx.jpg');
+  });
   it('Substack: deproxy decodes the embedded S3 URL', () => {
     expect(deproxy('https://substackcdn.com/image/fetch/$s_!abc!,w_160,h_280,c_crop,f_auto,q_auto:good/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fabc.jpeg'))
       .toBe('https://substack-post-media.s3.amazonaws.com/public/images/abc.jpeg');
