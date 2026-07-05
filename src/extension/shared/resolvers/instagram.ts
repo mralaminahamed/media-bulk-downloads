@@ -24,9 +24,14 @@ const IG_CDN = /(?:^|\.)(?:cdninstagram\.com|fbcdn\.net)$/;
 const SNIFF_CAP = 4000;
 let sniffed: IgMediaEntry[] = [];
 
-// Parse of the embedded JSON + sniffed entries, grouped by shortcode. Rebuilt
-// when the page's script blocks, the sniffed count, or the URL change.
-let cache: { token: string; byCode: Map<string, IgMediaEntry[]> } | null = null;
+// Media parsed from embedded `<script>` JSON, accumulated across calls. Each
+// script node is parsed exactly once (tracked in `parsedScripts`) so a deep scan
+// re-running collectMedia every scroll round never re-parses the same blocks.
+let parsed: IgMediaEntry[] = [];
+let parsedScripts = new WeakSet<Element>();
+
+// `parsed` + `sniffed` grouped by shortcode. Regrouped only when either grows.
+let cache: { key: string; byCode: Map<string, IgMediaEntry[]> } | null = null;
 
 const SHORTCODE = /^[A-Za-z0-9_-]{1,64}$/;
 
@@ -60,41 +65,44 @@ export function ingestSniffedIgMedia(entries: unknown): void {
   cache = null;
 }
 
-/** Test-only: drop sniffed state + cache so cases start clean. */
+/** Test-only: drop all parsed/sniffed state + cache so cases start clean. */
 export function __resetIgResolver(): void {
   sniffed = [];
+  parsed = [];
+  parsedScripts = new WeakSet<Element>();
   cache = null;
 }
 
 function buildByCode(): Map<string, IgMediaEntry[]> {
-  const scripts = document.querySelectorAll('script[type="application/json"]');
-  const token = `${scripts.length}|${sniffed.length}|${location.href}`;
-  if (cache && cache.token === token) return cache.byCode;
-
-  const all: IgMediaEntry[] = [];
-  scripts.forEach((s) => {
+  // Parse only script nodes not seen before — embedded blocks are stable, so a
+  // deep scan's repeated collectMedia calls parse each block once.
+  document.querySelectorAll('script[type="application/json"]').forEach((s) => {
+    if (parsedScripts.has(s)) return;
+    parsedScripts.add(s);
     const text = s.textContent || '';
     // Cheap guard: only parse blocks that could carry media.
     if (text.indexOf('image_versions2') === -1 && text.indexOf('video_versions') === -1) return;
     try {
-      all.push(...extractIgMedia(JSON.parse(text)));
+      parsed.push(...extractIgMedia(JSON.parse(text)));
     } catch {
       /* not JSON / not ours — ignore */
     }
   });
-  all.push(...sniffed);
+
+  const key = `${parsed.length}|${sniffed.length}`;
+  if (cache && cache.key === key) return cache.byCode;
 
   const byCode = new Map<string, IgMediaEntry[]>();
   const seen = new Set<string>();
-  for (const e of all) {
-    const key = `${e.code}\n${e.url}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
+  for (const e of parsed.length ? [...parsed, ...sniffed] : sniffed) {
+    const dedup = `${e.code}\n${e.url}`;
+    if (seen.has(dedup)) continue;
+    seen.add(dedup);
     const list = byCode.get(e.code);
     if (list) list.push(e);
     else byCode.set(e.code, [e]);
   }
-  cache = { token, byCode };
+  cache = { key, byCode };
   return byCode;
 }
 
