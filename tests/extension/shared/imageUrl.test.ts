@@ -288,6 +288,13 @@ describe('image-CDN rule batch (2026-07-05)', () => {
     expect(orig('https://s7d1.scene7.com/is/image/brand/sku'))
       .toBe('https://s7d1.scene7.com/is/image/brand/sku?wid=2000');
   });
+  it('ArtStation: upgrades the size bucket to /large/', () => {
+    expect(orig('https://cdnb.artstation.com/p/assets/images/images/079/963/039/smaller_square/x.jpg?1726263061'))
+      .toBe('https://cdnb.artstation.com/p/assets/images/images/079/963/039/large/x.jpg?1726263061');
+    // already /large/ -> unchanged
+    expect(orig('https://cdna.artstation.com/p/assets/images/images/1/2/3/large/y.jpg'))
+      .toBe('https://cdna.artstation.com/p/assets/images/images/1/2/3/large/y.jpg');
+  });
   it('Substack: deproxy decodes the embedded S3 URL', () => {
     expect(deproxy('https://substackcdn.com/image/fetch/$s_!abc!,w_160,h_280,c_crop,f_auto,q_auto:good/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fabc.jpeg'))
       .toBe('https://substack-post-media.s3.amazonaws.com/public/images/abc.jpeg');

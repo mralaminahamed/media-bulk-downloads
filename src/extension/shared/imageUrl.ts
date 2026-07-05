@@ -315,6 +315,20 @@ const RULES: CdnRule[] = [
     },
   },
   {
+    // ArtStation (cdn[ab].artstation.com): the path carries a size bucket
+    // (smaller_square, small, medium, large, 4k). Upgrade the small crops to
+    // /large/, which is always generated. /original/ is 403-disabled and /4k/ is
+    // not present for every asset, so /large/ is the safe target. The
+    // ?<timestamp> is a cache-buster, not a signature. See #79.
+    match: (u) => /^cdn[a-z]\.artstation\.com$/i.test(u.hostname),
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(
+        /\/(?:micro_square|smaller_square|small_square|small|medium)\//,
+        '/large/',
+      );
+    },
+  },
+  {
     // Self-hosted WordPress: any host serving /wp-content/uploads/ with a resize
     // query (?w=&h=&resize=) and/or a stored -WxH / -scaled thumbnail suffix.
     // WordPress keeps the untouched original beside its generated sizes, so drop
