@@ -4,9 +4,9 @@ const ctx = { allowNetwork: false };
 
 describe('resolve — generic fallback', () => {
   it('upgrades a known CDN URL via the generic resolver', () => {
-    const [c] = resolve('https://i.ytimg.com/vi/ID/hqdefault.jpg', ctx);
-    expect(c).toMatchObject({ kind: 'image', url: 'https://i.ytimg.com/vi/ID/maxresdefault.jpg' });
-    expect(c.thumbnailSrc).toBe('https://i.ytimg.com/vi/ID/hqdefault.jpg');
+    const [c] = resolve('https://i.ytimg.com/vi/ID/default.jpg', ctx);
+    expect(c).toMatchObject({ kind: 'image', url: 'https://i.ytimg.com/vi/ID/hqdefault.jpg' });
+    expect(c.thumbnailSrc).toBe('https://i.ytimg.com/vi/ID/default.jpg');
   });
   it('returns identity image candidate for a plain URL', () => {
     expect(resolve('https://ex.com/a.jpg', ctx)).toEqual([{ url: 'https://ex.com/a.jpg', kind: 'image' }]);

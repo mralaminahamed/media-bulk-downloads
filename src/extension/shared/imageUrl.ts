@@ -232,10 +232,15 @@ const RULES: CdnRule[] = [
     },
   },
   {
-    // YouTube: any /vi/<id>/<name>.jpg -> maxresdefault.jpg.
+    // YouTube: upgrade a small thumb to hqdefault (the largest variant that is
+    // ALWAYS present for a valid id). maxresdefault/sddefault are NOT guaranteed
+    // — they 404 for many videos — and collection is network-free, so we can't
+    // probe them; synthesizing maxresdefault replaced a working thumb with a dead
+    // link. Only the small defaults are rewritten; hqdefault/sddefault/
+    // maxresdefault already on the page are left as-is. See #74.
     match: (u) => u.hostname === 'i.ytimg.com' || u.hostname === 'img.youtube.com',
     rewrite: (u) => {
-      u.pathname = u.pathname.replace(/(\/vi\/[^/]+\/)[^/]+\.jpg$/i, '$1maxresdefault.jpg');
+      u.pathname = u.pathname.replace(/(\/vi\/[^/]+\/)(?:default|mqdefault|[0-3])\.jpg$/i, '$1hqdefault.jpg');
     },
   },
   {

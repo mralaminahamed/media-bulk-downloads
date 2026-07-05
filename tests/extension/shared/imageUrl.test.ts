@@ -176,8 +176,13 @@ describe('CDN rules — path-based upgrades', () => {
   it('Pinterest size folder -> originals', () => {
     expect(orig('https://i.pinimg.com/564x/aa/bb/cc.jpg')).toBe('https://i.pinimg.com/originals/aa/bb/cc.jpg');
   });
-  it('YouTube thumb -> maxresdefault', () => {
-    expect(orig('https://i.ytimg.com/vi/ID123/hqdefault.jpg')).toBe('https://i.ytimg.com/vi/ID123/maxresdefault.jpg');
+  it('YouTube small thumb -> hqdefault; larger variants left untouched', () => {
+    // hqdefault is the largest variant guaranteed to exist; maxres/sd often 404
+    // and can't be probed network-free, so we never synthesize them. See #74.
+    expect(orig('https://i.ytimg.com/vi/ID123/default.jpg')).toBe('https://i.ytimg.com/vi/ID123/hqdefault.jpg');
+    expect(orig('https://i.ytimg.com/vi/ID123/mqdefault.jpg')).toBe('https://i.ytimg.com/vi/ID123/hqdefault.jpg');
+    expect(orig('https://i.ytimg.com/vi/ID123/hqdefault.jpg')).toBe('https://i.ytimg.com/vi/ID123/hqdefault.jpg');
+    expect(orig('https://i.ytimg.com/vi/ID123/maxresdefault.jpg')).toBe('https://i.ytimg.com/vi/ID123/maxresdefault.jpg');
   });
   it('Amazon strips the encoding segment', () => {
     expect(orig('https://m.media-amazon.com/images/I/abc._SX300_SY300_.jpg')).toBe('https://m.media-amazon.com/images/I/abc.jpg');
