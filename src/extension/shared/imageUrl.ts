@@ -388,6 +388,19 @@ const RULES: CdnRule[] = [
     rewrite: (u) => { u.search = ''; },
   },
   {
+    // Newegg (c1.neweggimages.com): a size-token folder (nobgproductcompressall
+    // <N>, productimagecompressall<N>) sets the rendition width. Bump it to 1280,
+    // the max valid token (1800/2000 -> 404; /productimageoriginal/ is smaller and
+    // non-bg-removed, so not preferred). See #99.
+    match: (u) => u.hostname === 'c1.neweggimages.com',
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(
+        /\/((?:nobgproduct|productimage)compressall)\d+\//,
+        (_m, token) => `/${token}1280/`,
+      );
+    },
+  },
+  {
     // Self-hosted WordPress: any host serving /wp-content/uploads/ with a resize
     // query (?w=&h=&resize=) and/or a stored -WxH / -scaled thumbnail suffix.
     // WordPress keeps the untouched original beside its generated sizes, so drop

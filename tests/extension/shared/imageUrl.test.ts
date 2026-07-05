@@ -335,6 +335,12 @@ describe('image-CDN rule batch (2026-07-05)', () => {
     expect(orig('https://static01.nyt.com/images/x-superJumbo.jpg?quality=75&auto=webp'))
       .toBe('https://static01.nyt.com/images/x-superJumbo.jpg');
   });
+  it('Newegg: bumps the size-token folder to 1280', () => {
+    expect(orig('https://c1.neweggimages.com/nobgproductcompressall300/19-113-737-V03.jpg'))
+      .toBe('https://c1.neweggimages.com/nobgproductcompressall1280/19-113-737-V03.jpg');
+    expect(orig('https://c1.neweggimages.com/productimagecompressall640/13-144-331-V01.jpg'))
+      .toBe('https://c1.neweggimages.com/productimagecompressall1280/13-144-331-V01.jpg');
+  });
   it('Substack: deproxy decodes the embedded S3 URL', () => {
     expect(deproxy('https://substackcdn.com/image/fetch/$s_!abc!,w_160,h_280,c_crop,f_auto,q_auto:good/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fabc.jpeg'))
       .toBe('https://substack-post-media.s3.amazonaws.com/public/images/abc.jpeg');
