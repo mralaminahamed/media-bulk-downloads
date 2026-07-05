@@ -158,7 +158,7 @@ needed, just a regression test.
 | `pbs.twimg.com` (Twitter/X) — **fallback only**, see above                       | `name=<size>` → `name=orig`                                                                             |
 | `*.googleusercontent.com` / `*.ggpht.com`                                        | trailing `=s200` / `=w200-h200` → `=s0`                                                                 |
 | `i.pinimg.com`                                                                   | `/236x/` … `/736x/` → `/originals/`                                                                     |
-| `i.ytimg.com` / `img.youtube.com`                                                | `/vi/<id>/<name>.jpg` → `maxresdefault.jpg`                                                             |
+| `i.ytimg.com` / `img.youtube.com`                                                | small thumbs (`default`/`mqdefault`/`0`–`3`) → `hqdefault.jpg` (always-present max; maxres/sd 404 for many videos) |
 | `*.media-amazon.com` / `ssl-images-amazon.com`                                   | strip `._SX300_SY300_.` encoding segment                                                                |
 | `miro.medium.com`                                                                | drop chained `resize/fit/format` transform segments                                                     |
 | `images`/`plus.unsplash.com` — **unreachable**, see above · `*.imgix.net` — live | strip resize query params                                                                               |
@@ -166,8 +166,7 @@ needed, just a regression test.
 | `images.pexels.com`                                                              | strips the resize query string                                                                          |
 | `cdn.pixabay.com`                                                                | `_<size>` → `_1280` (capped — largest hotlinkable; true original is login-gated)                        |
 | `*.staticflickr.com`                                                             | small size code (`s`/`q`/`t`/`m`/`n`/`w`/`z`/`c`) → `_b` (1024, capped); already-large sizes left alone |
-| `*.media.tumblr.com`                                                             | `/sWxH/` → `/s1280x1920/`                                                                               |
-| `ichef.bbci.co.uk`                                                               | width segment (`/news/<N>/`, `/ace/standard/<N>/`) → `1920`                                             |
+| `ichef.bbci.co.uk`                                                               | width segment (`/news/<N>/`, `/ace/standard/<N>/`) → `2048` (1920 404s on the `/news/` path)            |
 | `i.etsystatic.com`                                                               | `il_WxH` → `il_fullxfull`                                                                               |
 | `i.ebayimg.com`                                                                  | `s-l<NNN>` → `s-l1600`                                                                                  |
 | `platform.theverge.com` (WP uploads)                                             | strip the resize query                                                                                  |
