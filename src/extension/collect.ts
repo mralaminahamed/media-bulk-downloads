@@ -216,15 +216,28 @@ export function collectMedia(): MediaItem[] {
     media.push(item);
   };
 
-  // Media inside open shadow DOM (web components) is invisible to a document-only
-  // querySelectorAll, so scan the top document plus every open shadow root. Each
-  // root is walked for all media shapes; open shadow roots are discovered during
-  // the background-image '*' pass and appended here, so a single pass per root
-  // also reaches nested custom elements. Closed roots are inaccessible by design
-  // (el.shadowRoot is null) and skipped.
+  // Media inside open shadow DOM (web components) and same-origin <iframe>s is
+  // invisible to a document-only querySelectorAll, so scan the top document plus
+  // every open shadow root and reachable same-origin frame document. Extra roots
+  // are discovered while walking (shadow roots during the '*' pass, frames via a
+  // dedicated pass) and appended through addRoot, which dedups so a self- or
+  // cross-referencing frame can't loop. Closed shadow roots and cross-origin
+  // frames are inaccessible by design (contentDocument null/throws) and skipped.
   const roots: (Document | ShadowRoot)[] = [document];
+  const seenRoots = new Set<Document | ShadowRoot>([document]);
+  const addRoot = (r: Document | ShadowRoot | null | undefined): void => {
+    if (r && !seenRoots.has(r)) {
+      seenRoots.add(r);
+      roots.push(r);
+    }
+  };
 
   const scanRoot = (root: Document | ShadowRoot): void => {
+    // Resolve computed style against the element's own window so background-image
+    // reads work for elements in a same-origin frame document, not just the top one.
+    const ownerDoc = root.nodeType === 9 ? (root as Document) : (root as ShadowRoot).ownerDocument;
+    const view = ownerDoc.defaultView ?? window;
+
     // <img> tags and their srcset.
     root.querySelectorAll('img').forEach((img) => {
       const { width, height } = getImageDimensions(img);
@@ -254,9 +267,9 @@ export function collectMedia(): MediaItem[] {
     // discovers open shadow roots to scan next.
     root.querySelectorAll<HTMLElement>('*').forEach((el) => {
       const shadow = el.shadowRoot;
-      if (shadow) roots.push(shadow);
+      if (shadow) addRoot(shadow);
       if (hasLayout && el.offsetWidth === 0 && el.offsetHeight === 0) return;
-      const bgImage = window.getComputedStyle(el).getPropertyValue('background-image');
+      const bgImage = view.getComputedStyle(el).getPropertyValue('background-image');
       if (!bgImage || bgImage === 'none') return;
       for (const match of bgImage.matchAll(/url\(\s*(['"]?)(.*?)\1\s*\)/g)) {
         // Pass the element so a resolver can read its context (e.g. a Twitter video
@@ -316,6 +329,20 @@ export function collectMedia(): MediaItem[] {
     // <noscript> fallbacks (real image often lives here for no-JS users).
     root.querySelectorAll('noscript').forEach((ns) => {
       noscriptImageCandidates(ns as HTMLElement).forEach((c) => collectImageInfo(c.url, '', 0, 0, c.thumbnailSrc));
+    });
+
+    // Same-origin <iframe> documents — descend into reachable frames. Accessing
+    // contentDocument throws or returns null for cross-origin frames; guard and
+    // skip those. Nested same-origin frames are reached because their document is
+    // scanned in turn.
+    root.querySelectorAll('iframe').forEach((frame) => {
+      let doc: Document | null;
+      try {
+        doc = frame.contentDocument;
+      } catch {
+        doc = null;
+      }
+      addRoot(doc);
     });
   };
 
