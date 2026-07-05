@@ -388,6 +388,14 @@ const RULES: CdnRule[] = [
     rewrite: (u) => { u.search = ''; },
   },
   {
+    // IKEA (www.ikea.com/images/...): serves resized images via ?f=<size> or
+    // ?imwidth=<N>. imwidth reaches a larger master than the f ladder (f caps
+    // ~58 KB, imwidth=2000 ~102 KB), so strip the query and request imwidth=2000.
+    // Native-capped: oversizing clamps to the master. See #100.
+    match: (u) => u.hostname === 'www.ikea.com' && u.pathname.startsWith('/images/'),
+    rewrite: (u) => { u.search = ''; u.searchParams.set('imwidth', '2000'); },
+  },
+  {
     // Newegg (c1.neweggimages.com): a size-token folder (nobgproductcompressall
     // <N>, productimagecompressall<N>) sets the rendition width. Bump it to 1280,
     // the max valid token (1800/2000 -> 404; /productimageoriginal/ is smaller and

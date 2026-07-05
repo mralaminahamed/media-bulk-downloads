@@ -335,6 +335,12 @@ describe('image-CDN rule batch (2026-07-05)', () => {
     expect(orig('https://static01.nyt.com/images/x-superJumbo.jpg?quality=75&auto=webp'))
       .toBe('https://static01.nyt.com/images/x-superJumbo.jpg');
   });
+  it('IKEA: forces imwidth=2000, dropping the f resizer', () => {
+    expect(orig('https://www.ikea.com/images/95/9e/959e6d9416a7a3c8.png?f=xxs'))
+      .toBe('https://www.ikea.com/images/95/9e/959e6d9416a7a3c8.png?imwidth=2000');
+    expect(orig('https://www.ikea.com/images/woman-sitting-sofa.jpg?f=xl'))
+      .toBe('https://www.ikea.com/images/woman-sitting-sofa.jpg?imwidth=2000');
+  });
   it('Newegg: bumps the size-token folder to 1280', () => {
     expect(orig('https://c1.neweggimages.com/nobgproductcompressall300/19-113-737-V03.jpg'))
       .toBe('https://c1.neweggimages.com/nobgproductcompressall1280/19-113-737-V03.jpg');
