@@ -354,6 +354,10 @@ describe('image-CDN rule batch (2026-07-05)', () => {
     expect(orig('https://www.ikea.com/images/woman-sitting-sofa.jpg?f=xl'))
       .toBe('https://www.ikea.com/images/woman-sitting-sofa.jpg?imwidth=2000');
   });
+  it('StockSnap: swaps the size token to 960w', () => {
+    expect(orig('https://cdn.stocksnap.io/img-thumbs/280h/leaf-sunlight_7XDI39XPXY.jpg'))
+      .toBe('https://cdn.stocksnap.io/img-thumbs/960w/leaf-sunlight_7XDI39XPXY.jpg');
+  });
   it('Newegg: bumps the size-token folder to 1280', () => {
     expect(orig('https://c1.neweggimages.com/nobgproductcompressall300/19-113-737-V03.jpg'))
       .toBe('https://c1.neweggimages.com/nobgproductcompressall1280/19-113-737-V03.jpg');
