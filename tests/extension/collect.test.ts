@@ -216,6 +216,36 @@ describe('collectMedia — background-image render guard', () => {
   });
 });
 
+describe('collectMedia — meta / preload hero sources', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+    document.head.querySelectorAll('meta, link').forEach((n) => n.remove());
+  });
+
+  it('collects og:image and twitter:image content', () => {
+    document.head.innerHTML =
+      '<meta property="og:image" content="https://cdn.com/og.jpg">' +
+      '<meta name="twitter:image" content="https://cdn.com/tw.jpg">';
+    const srcs = collectMedia().map((i) => i.src);
+    expect(srcs).toEqual(expect.arrayContaining(['https://cdn.com/og.jpg', 'https://cdn.com/tw.jpg']));
+  });
+
+  it('collects a preloaded image href and picks the best imagesrcset candidate', () => {
+    document.head.innerHTML =
+      '<link rel="preload" as="image" href="https://cdn.com/pre.jpg">' +
+      '<link rel="preload" as="image" imagesrcset="https://cdn.com/s-320.jpg 320w, https://cdn.com/s-1600.jpg 1600w">';
+    const srcs = collectMedia().map((i) => i.src);
+    expect(srcs).toContain('https://cdn.com/pre.jpg');
+    expect(srcs).toContain('https://cdn.com/s-1600.jpg');
+  });
+
+  it('dedupes a hero already present as an <img>', () => {
+    document.head.innerHTML = '<meta property="og:image" content="https://cdn.com/hero.jpg">';
+    setBody('<img src="https://cdn.com/hero.jpg">');
+    expect(collectMedia().filter((i) => i.src === 'https://cdn.com/hero.jpg')).toHaveLength(1);
+  });
+});
+
 describe('collectMedia — shadow DOM', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
