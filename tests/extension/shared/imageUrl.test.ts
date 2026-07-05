@@ -320,6 +320,15 @@ describe('image-CDN rule batch (2026-07-05)', () => {
     // 8-char basename NOT ending in a thumb letter -> unchanged
     expect(orig('https://i.imgur.com/K3UCTivx.jpg')).toBe('https://i.imgur.com/K3UCTivx.jpg');
   });
+  it('NYT: swaps editorial crop to superJumbo and drops the query', () => {
+    expect(orig('https://static01.nyt.com/images/2026/07/04/x/x-articleLarge.jpg?quality=75&auto=webp'))
+      .toBe('https://static01.nyt.com/images/2026/07/04/x/x-superJumbo.jpg');
+    expect(orig('https://static01.nyt.com/images/2026/07/04/x/x-mediumThreeByTwo440.jpg'))
+      .toBe('https://static01.nyt.com/images/2026/07/04/x/x-superJumbo.jpg');
+    // already superJumbo: only the quality query is dropped (higher-quality same crop)
+    expect(orig('https://static01.nyt.com/images/x-superJumbo.jpg?quality=75&auto=webp'))
+      .toBe('https://static01.nyt.com/images/x-superJumbo.jpg');
+  });
   it('Substack: deproxy decodes the embedded S3 URL', () => {
     expect(deproxy('https://substackcdn.com/image/fetch/$s_!abc!,w_160,h_280,c_crop,f_auto,q_auto:good/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fabc.jpeg'))
       .toBe('https://substack-post-media.s3.amazonaws.com/public/images/abc.jpeg');

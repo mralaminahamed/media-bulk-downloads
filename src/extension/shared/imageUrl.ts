@@ -329,6 +329,23 @@ const RULES: CdnRule[] = [
     },
   },
   {
+    // NYT (static01.nyt.com): the filename size token before the extension maps
+    // to a crop. Swap the standard editorial photo crops (articleLarge,
+    // articleInline, mediumThreeByTwoNNN) — which always have a -superJumbo
+    // sibling — up to -superJumbo, and always drop the ?quality/&auto query
+    // (that alone raises quality on any crop). Non-editorial tokens (logos,
+    // podcast art) may lack superJumbo, so they are left as-is bar the query
+    // drop. See #84.
+    match: (u) => u.hostname === 'static01.nyt.com',
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(
+        /-(?:articleLarge|articleInline|mediumThreeByTwo\d+)(\.[a-z0-9]+)$/i,
+        '-superJumbo$1',
+      );
+      u.search = '';
+    },
+  },
+  {
     // imgur (i.imgur.com): a single suffix letter (s,b,t,m,l,h,r,g) turns a
     // 7-char id into an 8-char thumbnail (<id><suffix>.ext); the bare <id>.ext is
     // the original. Strip the suffix ONLY when the basename is exactly 8 chars and
