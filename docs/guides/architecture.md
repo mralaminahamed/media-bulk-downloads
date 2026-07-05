@@ -63,12 +63,12 @@ readability.
 |----------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
 | `background.ts`                                    | Message router (15 types), per-tab badge, download + history recording, resolve-originals batching, icon-click routing, popup-vs-bubble mode |
 | `content.ts`                                       | Answers `GET_IMAGES`/`DEEP_SCAN`, mounts the bubble, relays `TOGGLE_BUBBLE`                                                                  |
-| `collect.ts`                                       | `collectMedia()` — walks the DOM into `MediaItem[]`                                                                                          |
+| `collect.ts`                                       | `collectMedia()` — walks the DOM (top doc + open shadow roots + same-origin iframes, plus `<meta>`/`<link preload>` head sources) into `MediaItem[]` |
 | `shared/extract.ts`                                | Deep DOM extraction: lazy `data-*`, best-srcset, `<noscript>`, gallery `<a href>`                                                            |
 | `shared/imageUrl.ts`                               | `deproxy` + `upgradeToOriginal` (CDN rules), type/dimension parsing                                                                          |
 | `shared/mediaType.ts`                              | Video/audio type detection + undownloadable-media skip list                                                                                  |
 | `shared/deepScan.ts`                               | Pure, bounded, abortable deep-scan loop                                                                                                      |
-| `content/deepScanRunner.ts`                        | Binds the loop to the real DOM (scroll, MutationObserver)                                                                                    |
+| `content/deepScanRunner.ts`                        | Binds the loop to the real DOM (page + nested-scroller scrolling, opt-in load-more clicking, MutationObserver); reads Settings caps          |
 | `shared/deep-scan-active-tab.ts`                   | Popup client that drives deep scan over messaging                                                                                            |
 | `shared/collect-active-tab.ts`                     | Popup client that fetches `GET_IMAGES` from the active tab's content script                                                                  |
 | `shared/resolve-originals-active.ts`               | Popup client that sends `RESOLVE_ORIGINALS` and unwraps the resolved-URL map                                                                 |
@@ -77,8 +77,8 @@ readability.
 | `shared/paths.ts`                                  | Download-path token expansion (`{host}`/`{domain}`/`{date}`/`{kind}`) + path sanitizing                                                      |
 | `shared/history.ts`                                | `HistoryEntry[]` persistence in `chrome.storage.local` — merge/dedup/cap, serialized writes                                                  |
 | `shared/favourites.ts`                             | `FavouriteEntry[]` persistence in `chrome.storage.local` — same merge/dedup/cap shape                                                        |
-| `shared/resolvers/index.ts`                        | Resolver `REGISTRY` (`twitterResolver, unsplashResolver, wallhavenResolver, genericResolver`) + `resolve()` dispatch                         |
-| `shared/resolvers/{twitter,unsplash,wallhaven}.ts` | Per-host, synchronous, network-free URL upgrades; attach `resolveHint`/`unresolvedVideo` when a better original needs a network fetch        |
+| `shared/resolvers/index.ts`                        | Resolver `REGISTRY` (`twitterResolver, unsplashResolver, wallhavenResolver, behanceResolver, genericResolver`) + `resolve()` dispatch        |
+| `shared/resolvers/{twitter,unsplash,wallhaven,behance}.ts` | Per-host, synchronous, network-free URL upgrades; attach `resolveHint`/`unresolvedVideo` when a better original needs a network fetch |
 | `shared/resolvers/generic.ts`                      | Fallback resolver: today's de-proxy + CDN-rule engine, image-only                                                                            |
 | `shared/resolvers/network.ts`                      | The opt-in resolver: actual `fetch()` calls (Twitter syndication API, Wallhaven API, Unsplash download endpoint)                             |
 | `shared/resolvers/types.ts`                        | `Resolver` / `MediaCandidate` / `ResolveContext` contracts shared by the registry                                                            |
@@ -96,7 +96,7 @@ readability.
 | `DOWNLOAD_IMAGES`      | popup / bubble → background                   | `{ type, images, sourcePage? }`                 | `{ status, message }`                                                       |
 | `DEEP_SCAN`            | popup → content                               | string                                          | `MediaItem[]` (async, channel held open)                                    |
 | `DEEP_SCAN_ABORT`      | popup → content                               | string                                          | `true`                                                                      |
-| `DEEP_SCAN_PROGRESS`   | content → runtime (popup listens)             | `{ type, found, scrolls, elapsedMs }`           | —                                                                           |
+| `DEEP_SCAN_PROGRESS`   | content → runtime (popup listens)             | `{ type, found, scrolls, elapsedMs, reason? }`  | — (`reason: DeepScanStopReason` set on the final event)                     |
 | `TOGGLE_BUBBLE`        | background (icon click) → content             | string                                          | —                                                                           |
 | `RESOLVE_ORIGINALS`    | popup / bubble → background                   | `{ type, hints: { src, hint: ResolveHint }[] }` | `{ resolved: Record<string, string> }` (src → resolved URL, successes only) |
 | `OPEN_DOWNLOAD_FILE`   | popup / bubble (HistoryPanel) → background    | `{ type, downloadId }`                          | — (fire-and-forget; `chrome.downloads.open`)                                |

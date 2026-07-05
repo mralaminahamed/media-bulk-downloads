@@ -59,8 +59,8 @@ Once open:
 
 1. The panel **scans the active tab** and shows every image, video, and audio
    file it found. The toolbar badge shows the eligible count per tab.
-2. **Filter** by kind (All / Images / Video / Audio), format, size bucket, or
-   minimum size.
+2. **Filter** by kind (All / Images / Video / Audio), format, size bucket,
+   minimum size, or whether to include Base64 (inline `data:`) images.
 3. **Deep scan** (the ⇊ button) scrolls the page to surface virtualized or
    lazy-loaded media — useful on infinite feeds and galleries. See
    [Deep Scan](./deep-scan.md).
@@ -78,6 +78,11 @@ Persisted with `chrome.storage.sync`:
   originals"** (off by default) — an opt-in toggle that lets the background
   fetch a few supported hosts (Twitter/X, Wallhaven, Unsplash) for the exact
   original file. See [Resolve Originals](./resolve-originals.md).
+- **Deep scan** — max items (50–5000), max time (5–120 s), max scroll steps
+  (5–200), and **"Click 'Load more' buttons"** (off by default). These override
+  the built-in defaults per scan. See [Deep Scan](./deep-scan.md).
+- **Appearance** — thumbnail size, preview size, and **"Show image count on
+  icon"** (toolbar badge toggle).
 - **Panel** — popup size; on-page bubble enable, position, panel placement, size.
 
 ## Where things live

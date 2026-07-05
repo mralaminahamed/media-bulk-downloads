@@ -30,24 +30,36 @@ sequenceDiagram
 
 ## Inside `collectMedia()`
 
-The collector runs several DOM passes, then routes every raw, non-base64 URL
-through `resolve()` — the resolver **registry** (`shared/resolvers/index.ts`) —
-before dedup. `<video>`/`<audio>` elements mostly bypass the registry (direct
-file sources only), except for a Twitter-specific poster check that can turn a
-`<video>` into an image-shaped candidate of `kind: 'video' | 'gif'`.
+The collector runs several DOM passes over **multiple roots** — the top document
+plus every open shadow root and every reachable same-origin `<iframe>` document
+discovered during the walk (cross-origin frames are skipped) — then two
+top-document-only head passes (`<meta>` hero images and `<link rel=preload>`).
+Every raw, non-base64 URL is routed through `resolve()` — the resolver
+**registry** (`shared/resolvers/index.ts`) — before dedup.
+`<video>`/`<audio>` elements mostly bypass the registry (direct file sources
+only), except for a Twitter-specific poster check that can turn a `<video>` into
+an image-shaped candidate of `kind: 'video' | 'gif'`.
+
+Element passes (IMG/BG/GAL/NS/AV) run **per root** — the top document plus every
+open shadow root and same-origin `<iframe>` document. The META and PRELOAD passes
+run on the top document only.
 
 ```mermaid
 flowchart TB
-  START["collectMedia()"] --> IMG["&lt;img&gt; / &lt;picture&gt;<br/>imageUrlsFromElement()"]
-  START --> BG["CSS background-image<br/>(computed + data-bg)"]
+  START["collectMedia()<br/>(per root: doc + shadow roots + same-origin frames)"] --> IMG["&lt;img&gt; / &lt;picture&gt;<br/>imageUrlsFromElement()"]
+  START --> BG["CSS background-image<br/>(computed + data-bg,<br/>image-set() → highest-res)"]
   START --> GAL["gallery &lt;a href&gt;<br/>galleryLinkCandidate()"]
   START --> NS["&lt;noscript&gt;<br/>noscriptImageCandidates()"]
   START --> AV["&lt;video&gt; / &lt;audio&gt; / &lt;source&gt;<br/>+ poster"]
+  START --> META["&lt;meta&gt; hero (top doc)<br/>og:image* / twitter:image*"]
+  START --> PRE["&lt;link rel=preload as=image&gt; (top doc)<br/>href + imagesrcset"]
 
   IMG --> B64
   BG --> B64
   GAL --> B64
   NS --> B64
+  META --> B64
+  PRE --> B64
 
   B64{"data:image/ URL?"}
   B64 -->|"yes"| MKB["MediaItem kind=image, isBase64:true<br/>size computed locally"]
@@ -95,11 +107,25 @@ candidate for that particular path.
 
 | Source             | Attributes / pattern                                                                                        |
 |--------------------|-------------------------------------------------------------------------------------------------------------|
-| Lazy `src`         | `data-src`, `data-original`, `data-lazy-src`, `data-lazy`, `data-hi-res-src`, `data-full-src`, `data-image` |
-| Srcset             | `srcset`, `data-srcset`, `data-lazy-srcset` — **highest-width candidate** kept as primary, others as extras |
-| Background         | `data-bg`, `data-background`, `data-background-image` + computed `background-image`                         |
+| Lazy `src`         | In preference order: `data-orig-file`, `data-large-file` (WordPress/Jetpack **true original** — surfaced first so it wins without a CDN rule), then `data-src`, `data-original`, `data-original-src`, `data-actualsrc`, `data-lazy-src`, `data-lazy`, `data-lazyload`, `data-hi-res-src`, `data-src-large`, `data-full-src`, `data-image`, `data-echo`, `data-flickity-lazyload` |
+| Srcset             | `srcset`, `data-srcset`, `data-lazy-srcset` — **highest-width srcset candidate** kept ahead of its narrower siblings; a lazy-`src` attr above, when present, still takes primary (index 0, paired with DOM dimensions) |
+| Background         | `data-bg`, `data-background`, `data-background-image` + computed `background-image` (incl. `image-set()`/`-webkit-image-set()` — only the highest-resolution candidate of each layer is kept) |
 | `<noscript>`       | Parsed with `DOMParser`; the real image often lives here for no-JS users                                    |
 | Gallery `<a href>` | Anchor whose href `looksLikeMediaUrl` → href is the original, inner `<img>` is the `thumbnailSrc`           |
+
+### Root & head sources (`shared/collect.ts`)
+
+Beyond the per-element attrs above, `collectMedia()` widens where it looks:
+
+| Source                        | What it does                                                                                                   |
+|-------------------------------|----------------------------------------------------------------------------------------------------------------|
+| Open shadow roots             | Any element's `el.shadowRoot` is added as an extra root; all element passes re-run inside it                    |
+| Same-origin `<iframe>`        | Reachable `iframe.contentDocument`s are added as extra roots; cross-origin frames are skipped                   |
+| `<meta>` hero (top doc only)  | `og:image`, `og:image:url`, `og:image:secure_url`, `twitter:image`, `twitter:image:src`                        |
+| `<link rel=preload>` (top doc)| `rel=preload as=image` → `href` + `imagesrcset` (highest-width)                                                 |
+
+A perf guard skips the computed-`background-image` pass for elements with no
+layout box (`offsetWidth === 0 && offsetHeight === 0`, e.g. `display:none`).
 
 ## Resolver registry (`shared/resolvers/`)
 
@@ -170,6 +196,19 @@ needed, just a regression test.
 | `i.etsystatic.com`                                                               | `il_WxH` → `il_fullxfull`                                                                               |
 | `i.ebayimg.com`                                                                  | `s-l<NNN>` → `s-l1600`                                                                                  |
 | `platform.theverge.com` (WP uploads)                                             | strip the resize query                                                                                  |
+| self-hosted WordPress (any host, `/wp-content/uploads/`)                          | drop resize query + strip `-WxH` / `-scaled` → original                                                 |
+| `*.scene7.com` (Adobe Scene7 — Target, REI, …)                                   | set `wid=2000`, drop `hei`/`qlt`/`fmt`/`resMode`/`op_usm`/`fit`                                         |
+| `cdn*.artstation.com`                                                             | size bucket (`smaller_square`/`medium`/…) → `/large/`                                                   |
+| `static01.nyt.com`                                                               | editorial crop (`articleLarge`, `mediumThreeByTwo…`) → `-superJumbo`, clear query                       |
+| `i.imgur.com`                                                                    | 8-char thumb suffix (`s`/`b`/`t`/`m`/`l`/`h`/`r`/`g`) → 7-char original id                              |
+| `*.alicdn.com` / `*.aliexpress-media.com`                                        | strip transform suffix after the real ext (`.jpg_640x640.jpg_.webp` → `.jpg`)                           |
+| `cdn.dribbble.com`                                                               | drop the `?resize=` query → original                                                                    |
+| `*.walmartimages.com`                                                            | drop `odnHeight`/`odnWidth`/`odnBg` query → full source                                                 |
+| `*.wixmp.com` (DeviantArt), `/v1/(fit\|fill)/`                                    | decode signed-token cap → `/v1/fill/w,h,q_100/` within cap (fail-safe: unchanged)                       |
+| `photos.zillowstatic.com`                                                        | trailing `-<token>.<ext>` → `-uncropped_scaled_within_1536_1152.webp`                                   |
+| `cdn.stocksnap.io` (`/img-thumbs/`)                                              | `/img-thumbs/<token>/` → `/img-thumbs/960w/` (max whitelisted size)                                     |
+| `www.ikea.com` (`/images/`)                                                      | clear query, set `?imwidth=2000` (beats the `f=` ladder)                                                |
+| `c1.neweggimages.com`                                                            | `…compressall<N>` → `…compressall1280` (max)                                                            |
 
 Wallhaven and Behance have **no** entry here — their upgrades live entirely in
 `wallhavenResolver` / `behanceResolver` above; a URL either resolver's `match`

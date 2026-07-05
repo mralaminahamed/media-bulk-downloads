@@ -23,7 +23,7 @@ discovers on real pages.
 - Sample URLs are shown as `origin + path` (query stripped) for privacy.
 
 Run dates: 2026-07-03 / 2026-07-04 / **2026-07-05** (§A re-run 2026-07-05 against
-the current rule set — 32 CDN rules + 5 resolvers). Chrome (Manifest V3).
+the current rule set — 31 CDN rules + 5 resolvers). Chrome (Manifest V3).
 
 ## A. Live-verified results
 
@@ -118,7 +118,7 @@ via `curl` or in-browser `Image()`), 2026-07-05:
 ## C. Coverage matrix (CDN family → sites)
 
 Beyond the live rows above, the engine's behavior on a site is determined by the
-**CDN family** it serves from. This matrix maps 60+ popular sites/services to the
+**CDN family** it serves from. This matrix maps 56 popular sites/services to the
 rule they exercise and how coverage was established: **[L]** live-injected in this
 run, **[C]** covered by the same CDN rule verified on a live site (or built and
 verified against a real sampled URL — HTTP/`Image()` — pulled from that site),
@@ -176,7 +176,7 @@ logged-out), **[G]** a known gap.
 | 47 | IKEA                               | www.ikea.com/images           | drop query, set `?imwidth=2000` (beats the `f=` ladder)                                    | C       |
 | 48 | StockSnap                          | cdn.stocksnap.io              | `/img-thumbs/<token>/` → `/img-thumbs/960w/` (max whitelist size)                          | C       |
 | 49 | Zillow                             | photos.zillowstatic.com       | trailing `-<token>.<ext>` → `-uncropped_scaled_within_1536_1152.webp`                      | C       |
-| 50 | GitHub avatars/assets              | avatars.githubusercontent.com | =s / direct                                                                                | C       |
+| 50 | GitHub avatars/assets              | avatars.githubusercontent.com | *(none — `=s0` covers googleusercontent/ggpht only; GitHub served as-is)*                   | C       |
 | 51 | Guardian                           | i.guim.co.uk (signed)         | *(none — HMAC `s=` token; any width change → 401)*                                          | G       |
 | 52 | 500px                              | drscdn.500px.org (signed)     | *(none — signed URLs)*                                                                      | G       |
 | 53 | Giphy / Tenor                      | media*.giphy.com / tenor.com  | direct (already served at original size)                                                    | C       |
