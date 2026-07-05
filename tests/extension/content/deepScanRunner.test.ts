@@ -1,4 +1,10 @@
-import { buildDeepScanDeps, nestedScrollables } from '@/extension/content/deepScanRunner';
+jest.mock('@/extension/shared/deepScan', () => {
+  const actual = jest.requireActual('@/extension/shared/deepScan');
+  return { __esModule: true, ...actual, runDeepScan: jest.fn(() => Promise.resolve([])) };
+});
+
+import { buildDeepScanDeps, nestedScrollables, startDeepScan } from '@/extension/content/deepScanRunner';
+import { runDeepScan, DEEP_SCAN_DEFAULTS } from '@/extension/shared/deepScan';
 
 const mockMetrics = (el: HTMLElement, scrollHeight: number, clientHeight: number, scrollTop: number) => {
   Object.defineProperty(el, 'scrollHeight', { configurable: true, value: scrollHeight });
@@ -50,6 +56,27 @@ describe('buildDeepScanDeps', () => {
     } finally {
       global.MutationObserver = OrigMO;
     }
+  });
+});
+
+describe('startDeepScan config', () => {
+  const mockRun = runDeepScan as jest.Mock;
+  beforeEach(() => mockRun.mockClear());
+
+  it('forwards only the caps that are set, keeping defaults for the rest', async () => {
+    await startDeepScan(() => {}, new AbortController().signal, { maxScrolls: 7 });
+    expect(mockRun).toHaveBeenCalledTimes(1);
+    const opts = mockRun.mock.calls[0][1];
+    expect(opts.maxScrolls).toBe(7); // overridden
+    expect(opts.maxItems).toBe(DEEP_SCAN_DEFAULTS.maxItems); // default
+    expect(opts.maxMs).toBe(DEEP_SCAN_DEFAULTS.maxMs); // default
+  });
+
+  it('ignores falsy cap overrides and uses all defaults', async () => {
+    await startDeepScan(() => {}, new AbortController().signal, { maxItems: 0, maxScrolls: undefined });
+    const opts = mockRun.mock.calls[0][1];
+    expect(opts.maxItems).toBe(DEEP_SCAN_DEFAULTS.maxItems);
+    expect(opts.maxScrolls).toBe(DEEP_SCAN_DEFAULTS.maxScrolls);
   });
 });
 

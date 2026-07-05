@@ -295,6 +295,41 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
             />
           </Section>
 
+          <Section title="Deep scan">
+            <div className="grid grid-cols-2 gap-3">
+              <NumberField
+                id="set-deepScanMaxItems"
+                name="deepScanMaxItems"
+                label="Max items:"
+                min={50}
+                max={5000}
+                value={settings.deepScanMaxItems}
+                onChange={handleChange}
+                onBlur={clampOnBlur('deepScanMaxItems', 50, 5000)}
+              />
+              <NumberField
+                id="set-deepScanMaxSeconds"
+                name="deepScanMaxSeconds"
+                label="Max time (seconds):"
+                min={5}
+                max={120}
+                value={settings.deepScanMaxSeconds}
+                onChange={handleChange}
+                onBlur={clampOnBlur('deepScanMaxSeconds', 5, 120)}
+              />
+            </div>
+            <NumberField
+              id="set-deepScanMaxScrolls"
+              name="deepScanMaxScrolls"
+              label="Max scroll steps:"
+              min={5}
+              max={200}
+              value={settings.deepScanMaxScrolls}
+              onChange={handleChange}
+              onBlur={clampOnBlur('deepScanMaxScrolls', 5, 200)}
+            />
+          </Section>
+
           <Section title="Appearance">
             <div className="grid grid-cols-2 gap-3">
               <NumberField

@@ -29,6 +29,9 @@ const settings: SettingsData = {
   bubblePanelPlacement: 'anchored',
   bubblePanelPoint: { x: 40, y: 40 },
   resolveOriginals: false,
+  deepScanMaxItems: 1000,
+  deepScanMaxSeconds: 20,
+  deepScanMaxScrolls: 40,
 };
 
 // jsdom leaves clientX/clientY unset on PointerEvent inits, so build the native

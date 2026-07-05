@@ -55,6 +55,18 @@ describe('resolveOriginals setting', () => {
   });
 });
 
+describe('deep-scan cap settings', () => {
+  it('default to the documented caps', () => {
+    expect(DEFAULT_SETTINGS.deepScanMaxItems).toBe(1000);
+    expect(DEFAULT_SETTINGS.deepScanMaxSeconds).toBe(20);
+    expect(DEFAULT_SETTINGS.deepScanMaxScrolls).toBe(40);
+  });
+  it('withDefaults backfills them for old stored settings and overlays overrides', () => {
+    expect(withDefaults({}).deepScanMaxItems).toBe(1000);
+    expect(withDefaults({ deepScanMaxScrolls: 100 }).deepScanMaxScrolls).toBe(100);
+  });
+});
+
 describe('withDefaults — corrupt shapes', () => {
   it('ignores a non-object nested value instead of injecting junk index keys', () => {
     const s = withDefaults({ bubblePosition: 'oops', bubblePanelPoint: [1, 2] } as unknown);
