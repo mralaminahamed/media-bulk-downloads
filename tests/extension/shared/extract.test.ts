@@ -20,6 +20,27 @@ describe('imageUrlsFromElement', () => {
     expect(urls).toContain('real.jpg');
     expect(urls).toContain('t-1200.jpg');
   });
+
+  it('prefers WP data-orig-file over the resized src as the primary candidate', () => {
+    const img = document.createElement('img');
+    img.setAttribute('src', 'https://cdn.com/img-300x200.jpg');
+    img.setAttribute('data-orig-file', 'https://cdn.com/img.jpg');
+    const urls = imageUrlsFromElement(img);
+    // index 0 is the primary (carries the element's DOM dims in collect.ts).
+    expect(urls[0]).toBe('https://cdn.com/img.jpg');
+    expect(urls).toContain('https://cdn.com/img-300x200.jpg');
+  });
+
+  it('reads data-large-file and the extended lazy-attr set', () => {
+    const img = document.createElement('img');
+    img.setAttribute('data-large-file', 'https://cdn.com/large.jpg');
+    img.setAttribute('data-actualsrc', 'https://cdn.com/actual.jpg');
+    img.setAttribute('data-echo', 'https://cdn.com/echo.jpg');
+    const urls = imageUrlsFromElement(img);
+    expect(urls).toEqual(
+      expect.arrayContaining(['https://cdn.com/large.jpg', 'https://cdn.com/actual.jpg', 'https://cdn.com/echo.jpg']),
+    );
+  });
 });
 
 describe('galleryLinkCandidate', () => {

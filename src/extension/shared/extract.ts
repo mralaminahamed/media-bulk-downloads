@@ -11,7 +11,20 @@ export interface UrlCandidate {
   thumbnailSrc?: string;
 }
 
-const LAZY_SRC_ATTRS = ['data-src', 'data-original', 'data-lazy-src', 'data-lazy', 'data-hi-res-src', 'data-full-src', 'data-image'];
+// Ordered by preference: whatever comes first becomes the element's primary
+// candidate (index 0), which collect.ts pairs with the element's DOM dimensions.
+// WordPress/Jetpack/Gutenberg expose the TRUE original in data-orig-file /
+// data-large-file while `src` is a resized thumbnail — surface those first so the
+// original wins without needing a CDN rule. The rest are real (not placeholder)
+// lazy-load source attributes from common libraries; data-thumb/LQIP-style
+// placeholder attributes are intentionally excluded.
+const LAZY_SRC_ATTRS = [
+  'data-orig-file', 'data-large-file',
+  'data-src', 'data-original', 'data-original-src', 'data-actualsrc',
+  'data-lazy-src', 'data-lazy', 'data-lazyload',
+  'data-hi-res-src', 'data-src-large', 'data-full-src',
+  'data-image', 'data-echo', 'data-flickity-lazyload',
+];
 const LAZY_SRCSET_ATTRS = ['srcset', 'data-srcset', 'data-lazy-srcset'];
 const LAZY_BG_ATTRS = ['data-bg', 'data-background', 'data-background-image'];
 
