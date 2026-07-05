@@ -153,7 +153,7 @@ logged-out), **[G]** a known gap.
 | 24 | Next.js image sites (Vercel, many) | */_next/image?url=            | de-proxy (absolute **and** same-origin relative)                                          | C       |
 | 25 | wsrv / weserv proxies              | images.weserv.nl              | de-proxy                                                                                   | C       |
 | 26 | Generic `?url=` image proxies      | any                           | de-proxy (media-checked)                                                                   | C       |
-| 27 | Wallhaven (grid + `/w/` page)      | th.wallhaven.cc → w.wallhaven | badge/`<img>` ext → full file; bare thumb → Phase-2                                        | **L/N** |
+| 27 | Wallhaven (grid + `/w/` page)      | th.wallhaven.cc → w.wallhaven | id from path/`data-wallpaper-id`/`a.preview`; `span.png`/`span.gif` badge → full file, unbadged = jpg; no ext → `/orig` jpg + Phase-2; `.wall-res` true dims; thumb `/small`→`/lg` | **L/N** |
 | 28 | X/Twitter (photos, multi-image)    | pbs.twimg.com/media           | each → `name=orig`                                                                         | C/A     |
 | 29 | X/Twitter (avatars/banners)        | pbs.twimg.com/profile_*       | size strip                                                                                 | C       |
 | 30 | X/Twitter (GIF / video)            | tweet_video / ext_tw_video    | → mp4 / statusId-hinted                                                                    | C/N     |
@@ -191,9 +191,19 @@ so the rewrite replaced a working image with a dead link (see §D).
 ## D. Gaps found
 
 Resolved (this benchmark drove the fixes):
-- ✅ **Shopify modern**, **plus.unsplash.com**, **Wallhaven**, **Twitter video**,
+- ✅ **Shopify modern**, **plus.unsplash.com**, **Twitter video**,
   **Pexels**, **Pixabay**, **Flickr**, **Etsy**, **eBay**, **The Verge**, **Substack**,
   **Behance** — as in prior runs.
+- ✅ **Wallhaven** — re-verified against the live grid (2026-07-05): id also reads
+  `a.preview` `/w/<id>`; the `span.png`/`span.gif` badge is real (~34% of a SFW page
+  are png) so an unbadged figure is genuinely jpg; `.wall-res` gives true dims; the
+  no-ext bare-thumb case now upgrades to the `/orig/` jpg (guaranteed to exist) + a
+  Phase-2 hint rather than a blind full-file URL, and the grid `thumbnailSrc` bumps
+  `/small`→`/lg`. Note: the `/api/v1/w/<id>` endpoint returns **401 for NSFW/sketchy
+  wallpapers without an apikey**, so Phase-2 can only resolve those with a key
+  (the network resolver already fails safe to the thumb). Purity/category codes:
+  `purity` `100`=SFW / `010`=sketchy / `001`=NSFW; `categories` `100`=General /
+  `010`=Anime / `001`=People.
 - ✅ **Self-hosted WordPress** `*/wp-content/uploads/` — drop resize query + strip
   `-WxH`/`-scaled` (the `wp-photon` rule only covered `wp.com`/`files.wordpress.com`).
   Live: TechCrunch 32/42.
