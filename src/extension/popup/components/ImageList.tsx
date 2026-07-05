@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ImageInfo } from '@/types';
+import { ImageInfo, ImageListProps } from '@/types';
 import { useDialog } from '../hooks/useDialog';
 import {
   EyeIcon,
@@ -12,27 +12,10 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
-
-interface ImageListProps {
-  images: ImageInfo[];
-  onImageDownload: (image: ImageInfo) => void;
-  /** Fixed thumbnail edge in px; the grid reflows columns to fit the width. */
-  thumbnailSize?: number;
-  /** Fixed size (px) of the preview modal and its image box. */
-  previewSize?: number;
-  /** Set of image srcs already downloaded; renders a ✓ badge on matching tiles. */
-  downloadedSrcs?: Set<string>;
-  /** Set of srcs already favourited; renders a ★ badge + fills the star toggle. */
-  favouriteSrcs?: Set<string>;
-  /** Toggle an item's favourite state (add if absent, remove if present). */
-  onToggleFavourite?: (image: ImageInfo) => void;
-  /** Resolve one pending video's real file on demand (per-item "Get video"). */
-  onFetchVideo?: (image: ImageInfo) => void;
-  /** Srcs whose on-demand resolve returned nothing (tombstone / failure). */
-  resolveFailedSrcs?: Set<string>;
-  /** Srcs currently being resolved (shows a spinner, disables the button). */
-  fetchingSrcs?: Set<string>;
-}
+import { PlayBadge } from './icons/PlayBadge';
+import { FilmIcon } from './icons/FilmIcon';
+import { AudioIcon } from './icons/AudioIcon';
+import { LoadingImage } from './LoadingImage';
 
 const SIZE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
 
@@ -52,60 +35,6 @@ const typeLabel = (img: ImageInfo): string => (img.isBase64 ? 'B64' : img.type.t
 
 /** A Twitter video whose real file hasn't been fetched yet: shown, not downloadable. */
 const isPendingVideo = (img: ImageInfo): boolean => img.kind === 'video' && !!img.unresolvedVideo;
-
-/** Centered ▶ badge overlaid on a video thumbnail that has a poster. */
-const PlayBadge: React.FC<{ className?: string }> = ({ className }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-    <circle cx="12" cy="12" r="10" />
-    <path d="M10 8.5v7l6-3.5-6-3.5z" fill="currentColor" stroke="none" />
-  </svg>
-);
-
-/** Placeholder tile icon for videos with no poster. */
-const FilmIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-    <rect x="3" y="5" width="18" height="14" rx="2" />
-    <path d="M7 5v14M17 5v14M3 9h4M3 15h4M17 9h4M17 15h4" />
-  </svg>
-);
-
-/** Placeholder tile icon for audio items. */
-const AudioIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-    <path d="M9 18V5l12-2v13" />
-    <circle cx="6" cy="18" r="3" />
-    <circle cx="18" cy="16" r="3" />
-  </svg>
-);
-
-/**
- * Image with a shimmer skeleton underneath until it decodes. `onError` also
- * clears the skeleton so a broken image doesn't shimmer forever. Callers key
- * this by src so navigating to a new image resets the loading state.
- */
-export const LoadingImage: React.FC<{
-  src: string;
-  alt: string;
-  className: string;
-  style?: React.CSSProperties;
-  lazy?: boolean;
-}> = ({ src, alt, className, style, lazy }) => {
-  const [loaded, setLoaded] = useState(false);
-  return (
-    <>
-      {!loaded && <span className="skeleton absolute inset-0" aria-hidden="true" />}
-      <img
-        src={src}
-        alt={alt}
-        loading={lazy ? 'lazy' : undefined}
-        onLoad={() => setLoaded(true)}
-        onError={() => setLoaded(true)}
-        className={`${className} transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`}
-        style={style}
-      />
-    </>
-  );
-};
 
 const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnailSize = 120, previewSize = 360, downloadedSrcs, favouriteSrcs, onToggleFavourite, onFetchVideo, resolveFailedSrcs, fetchingSrcs }) => {
   // Index-based selection so the modal can page through images without closing.

@@ -1,3 +1,5 @@
+import type { ReactNode, ChangeEvent, FocusEvent, CSSProperties, HTMLAttributes } from 'react';
+
 export type ResolvePlatform = 'twitter' | 'wallhaven' | 'unsplash';
 export interface ResolveHint {
   platform: ResolvePlatform;
@@ -242,4 +244,128 @@ export interface FilterOptions {
   minSize: number;
   includeBase64: boolean;
   sizeBucket: SizeBucket;
+}
+
+// ── Component props ──────────────────────────────────────────────────────────
+// Central home for the popup React components' props, so each component is one
+// file that imports its props from here.
+
+export interface AppProps {
+  /** How to collect images. Defaults to messaging the active tab (popup). */
+  collect?: () => Promise<ImageInfo[]>;
+  /** How to run a deep scan. Defaults to messaging the active tab (popup). Hides the Deep-scan button when absent. */
+  deepScan?: (onProgress: (p: DeepScanProgress) => void) => Promise<ImageInfo[]>;
+  /** Aborts an in-flight deep scan. Defaults to messaging the active tab (popup). */
+  abortDeepScan?: () => void;
+  /** Which surface this app renders in. */
+  surface?: 'popup' | 'bubble';
+  /** When embedded (bubble), a close handler for the header. */
+  onClose?: () => void;
+  /** When embedded (bubble), wires the header as a drag handle for the panel. */
+  dragHandleProps?: HTMLAttributes<HTMLElement>;
+}
+
+export interface ImageListProps {
+  images: ImageInfo[];
+  onImageDownload: (image: ImageInfo) => void;
+  /** Fixed thumbnail edge in px; the grid reflows columns to fit the width. */
+  thumbnailSize?: number;
+  /** Fixed size (px) of the preview modal and its image box. */
+  previewSize?: number;
+  /** Set of image srcs already downloaded; renders a ✓ badge on matching tiles. */
+  downloadedSrcs?: Set<string>;
+  /** Set of srcs already favourited; renders a ★ badge + fills the star toggle. */
+  favouriteSrcs?: Set<string>;
+  /** Toggle an item's favourite state (add if absent, remove if present). */
+  onToggleFavourite?: (image: ImageInfo) => void;
+  /** Resolve one pending video's real file on demand (per-item "Get video"). */
+  onFetchVideo?: (image: ImageInfo) => void;
+  /** Srcs whose on-demand resolve returned nothing (tombstone / failure). */
+  resolveFailedSrcs?: Set<string>;
+  /** Srcs currently being resolved (shows a spinner, disables the button). */
+  fetchingSrcs?: Set<string>;
+}
+
+export interface SettingsProps {
+  onClose: () => void;
+  onSettingsChange: (newSettings: SettingsData) => void;
+  settings: SettingsData;
+}
+
+/** Shared props for the small SVG tile icons (play/film/audio). */
+export interface IconProps {
+  className?: string;
+}
+
+export interface LoadingImageProps {
+  src: string;
+  alt: string;
+  className: string;
+  style?: CSSProperties;
+  lazy?: boolean;
+}
+
+export interface SkeletonGridProps {
+  thumbnailSize: number;
+}
+
+export interface CenteredStateProps {
+  icon: ReactNode;
+  title: string;
+  body: string;
+  action: ReactNode;
+  tone?: 'neutral' | 'warning';
+}
+
+export interface EmptyStateProps {
+  onRefresh: () => void;
+}
+
+export interface ErrorStateProps {
+  message: string;
+  onRetry: () => void;
+}
+
+export interface TextFieldProps {
+  id: string;
+  name: string;
+  label: string;
+  value: string;
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+  hint?: ReactNode;
+  hintClassName?: string;
+}
+
+export interface NumberFieldProps {
+  id: string;
+  name: string;
+  label: string;
+  value: number;
+  min: number;
+  max?: number;
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onBlur: (e: FocusEvent<HTMLInputElement>) => void;
+}
+
+export interface SelectFieldProps {
+  id: string;
+  name: string;
+  label: string;
+  value: string;
+  onChange: (e: ChangeEvent<HTMLSelectElement>) => void;
+  children: ReactNode;
+}
+
+export interface ToggleRowProps {
+  id: string;
+  label: string;
+  description?: ReactNode;
+  checked: boolean;
+  onToggle: () => void;
+}
+
+export interface SectionProps {
+  title: string;
+  children: ReactNode;
 }

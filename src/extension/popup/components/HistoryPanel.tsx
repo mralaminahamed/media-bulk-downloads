@@ -10,7 +10,7 @@ import {
 import { HistoryEntry } from '@/types';
 import { loadHistory, HISTORY_KEY } from '@/extension/shared/history';
 import { relativeTime } from '../utils';
-import { LoadingImage } from './ImageList';
+import { LoadingImage } from './LoadingImage';
 import { useDialog } from '../hooks/useDialog';
 
 export interface HistoryPanelProps {
