@@ -216,6 +216,50 @@ describe('collectMedia — background-image render guard', () => {
   });
 });
 
+describe('collectMedia — shadow DOM', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('collects <img> inside an open shadow root', () => {
+    setBody('<div id="host"></div>');
+    const sr = document.getElementById('host')!.attachShadow({ mode: 'open' });
+    sr.innerHTML = '<img src="https://cdn.com/shadow.jpg">';
+    expect(collectMedia().map((i) => i.src)).toContain('https://cdn.com/shadow.jpg');
+  });
+
+  it('collects <video> sources inside an open shadow root', () => {
+    setBody('<div id="host"></div>');
+    const sr = document.getElementById('host')!.attachShadow({ mode: 'open' });
+    sr.innerHTML = '<video src="https://cdn.com/clip.mp4"></video>';
+    const vids = collectMedia().filter((m) => m.kind === 'video');
+    expect(vids.map((v) => v.src)).toContain('https://cdn.com/clip.mp4');
+  });
+
+  it('descends into nested open shadow roots', () => {
+    setBody('<div id="host"></div>');
+    const outer = document.getElementById('host')!.attachShadow({ mode: 'open' });
+    outer.innerHTML = '<div id="inner"></div><img src="https://cdn.com/outer.jpg">';
+    const innerRoot = outer.getElementById('inner')!.attachShadow({ mode: 'open' });
+    innerRoot.innerHTML = '<img src="https://cdn.com/inner.jpg">';
+    const srcs = collectMedia().map((i) => i.src);
+    expect(srcs).toEqual(expect.arrayContaining(['https://cdn.com/outer.jpg', 'https://cdn.com/inner.jpg']));
+  });
+
+  it('does not reach media inside a closed shadow root (inaccessible by design)', () => {
+    setBody('<div id="host"></div>');
+    const sr = document.getElementById('host')!.attachShadow({ mode: 'closed' });
+    sr.innerHTML = '<img src="https://cdn.com/closed.jpg">';
+    expect(collectMedia().map((i) => i.src)).not.toContain('https://cdn.com/closed.jpg');
+  });
+
+  it('does not double-count a light-DOM image that is also slotted', () => {
+    setBody('<div id="host"><img src="https://cdn.com/slotted.jpg"></div>');
+    const sr = document.getElementById('host')!.attachShadow({ mode: 'open' });
+    sr.innerHTML = '<slot></slot>';
+    const slotted = collectMedia().filter((i) => i.src === 'https://cdn.com/slotted.jpg');
+    expect(slotted).toHaveLength(1);
+  });
+});
+
 describe('twitter pending video collection', () => {
   afterEach(() => { document.body.innerHTML = ''; window.history.replaceState({}, '', '/'); });
 
