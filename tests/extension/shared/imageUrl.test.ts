@@ -303,6 +303,15 @@ describe('image-CDN rule batch (2026-07-05)', () => {
     expect(orig('https://cdn.dribbble.com/userupload/48258936/file/7fc10d28ca5c.png?resize=400x300&vertical=center'))
       .toBe('https://cdn.dribbble.com/userupload/48258936/file/7fc10d28ca5c.png');
   });
+  it('AliExpress: strips the transform suffix after the real extension', () => {
+    expect(orig('https://ae01.alicdn.com/kf/Se3b534ec8e074799b42a78eabde9534ad.jpg_640x640.jpg_.webp'))
+      .toBe('https://ae01.alicdn.com/kf/Se3b534ec8e074799b42a78eabde9534ad.jpg');
+    expect(orig('https://img.alicdn.com/imgextra/x.png_.webp'))
+      .toBe('https://img.alicdn.com/imgextra/x.png');
+    // no transform suffix -> unchanged
+    expect(orig('https://ae01.alicdn.com/kf/Sabc.jpg'))
+      .toBe('https://ae01.alicdn.com/kf/Sabc.jpg');
+  });
   it('Substack: deproxy decodes the embedded S3 URL', () => {
     expect(deproxy('https://substackcdn.com/image/fetch/$s_!abc!,w_160,h_280,c_crop,f_auto,q_auto:good/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fabc.jpeg'))
       .toBe('https://substack-post-media.s3.amazonaws.com/public/images/abc.jpeg');
