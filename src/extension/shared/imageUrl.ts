@@ -329,6 +329,12 @@ const RULES: CdnRule[] = [
     },
   },
   {
+    // Dribbble (cdn.dribbble.com): /userupload/.../file.png?resize=WxH&vertical=
+    // resizers. The bare path is the original, so drop the query. Unsigned. See #81.
+    match: (u) => u.hostname === 'cdn.dribbble.com',
+    rewrite: (u) => { u.search = ''; },
+  },
+  {
     // Walmart (i5.walmartimages.com): ?odnHeight=&odnWidth=&odnBg= resizers on
     // the /seo/ and /asr/ paths. The bare path is the full source, so drop the
     // whole query. Unsigned. See #80.
