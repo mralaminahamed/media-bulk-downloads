@@ -11,7 +11,9 @@ export const unsplashResolver: Resolver = {
     const out = new URL(u.href);
     const keys = out.hostname === 'plus.unsplash.com' ? PLUS_STRIP : STRIP;
     keys.forEach((k) => out.searchParams.delete(k));
-    const c: MediaCandidate = { url: out.href, kind: 'image' };
+    // Unsplash originals are JPEG and the stripped URL carries no path extension,
+    // so name the resolver's format explicitly.
+    const c: MediaCandidate = { url: out.href, kind: 'image', ext: 'jpg' };
     if (out.href !== input) c.thumbnailSrc = input;
     const link = ctx.el?.closest?.('a[href*="/photos/"]') as HTMLAnchorElement | null;
     const sid = link?.getAttribute('href')?.match(/\/photos\/([A-Za-z0-9_-]+)/)?.[1];

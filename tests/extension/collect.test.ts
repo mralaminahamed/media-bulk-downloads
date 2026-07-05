@@ -17,6 +17,18 @@ describe('collectMedia — original upgrade', () => {
     expect(img.type).toBe('jpeg');
   });
 
+  it('carries the resolver-supplied file extension onto the collected item', () => {
+    setBody('<img src="https://ex.com/photo.jpg">');
+    const [img] = collectMedia();
+    expect(img.ext).toBe('jpg'); // generic resolver keeps the real .jpg, not the canonical 'jpeg' type
+  });
+
+  it('leaves ext undefined when no resolver reports one', () => {
+    setBody('<img src="https://ex.com/render?id=1">');
+    const [img] = collectMedia();
+    expect(img.ext).toBeUndefined();
+  });
+
   it('collapses two size variants of the same media to one original entry', () => {
     setBody(
       '<img src="https://pbs.twimg.com/media/ABC?format=jpg&name=360x360">' +

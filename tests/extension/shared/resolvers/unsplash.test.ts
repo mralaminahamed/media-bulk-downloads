@@ -12,6 +12,9 @@ describe('unsplashResolver', () => {
     const r = one('https://plus.unsplash.com/premium_photo-9?w=400&dpr=2&q=80&s=SIGNATURE');
     expect(r.url).toBe('https://plus.unsplash.com/premium_photo-9?q=80&s=SIGNATURE');
   });
+  it('reports ext:jpg (Unsplash originals are JPEG, URL has no path extension)', () => {
+    expect(one('https://images.unsplash.com/photo-123?w=400&fm=webp').ext).toBe('jpg');
+  });
   it('tags a shortid hint when a /photos/<shortid> link is near the element', () => {
     document.body.innerHTML = `<a href="/photos/xyz789"><img src="https://images.unsplash.com/photo-1?w=200"></a>`;
     const img = document.querySelector('img')!;

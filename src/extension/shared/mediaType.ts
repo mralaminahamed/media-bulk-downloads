@@ -22,6 +22,19 @@ export function extensionFromUrl(url: string): string | null {
   return /^[a-z0-9]{1,5}$/.test(ext) ? ext : null;
 }
 
+const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'jfif', 'png', 'gif', 'webp', 'svg', 'avif', 'bmp', 'ico']);
+
+/**
+ * The URL's path extension when it names a known image format, preserving the
+ * literal spelling (`.jpg` stays `jpg`, not the canonical `jpeg`). Null for
+ * data/blob URLs, extension-less paths, or non-image extensions — so a catch-all
+ * resolver never derives a bogus extension (e.g. `.php`) from a proxy URL.
+ */
+export function imageExtFromUrl(url: string): string | null {
+  const ext = extensionFromUrl(url);
+  return ext && IMAGE_EXTS.has(ext) ? ext : null;
+}
+
 /** Normalizes a few MIME subtypes to our canonical format keys. */
 function fromMime(mime: string): string | null {
   const m = /^(video|audio)\/([\w.+-]+)/i.exec(mime);
