@@ -274,6 +274,13 @@ describe('image-CDN rule batch (2026-07-05)', () => {
     expect(orig('https://example.org/wp-content/uploads/2026/01/photo-scaled.jpg'))
       .toBe('https://example.org/wp-content/uploads/2026/01/photo.jpg');
   });
+  it('Self-hosted MediaWiki (wikiHow): drops /thumb/ and size segment', () => {
+    expect(orig('https://www.wikihow.com/images/thumb/0/00/Pet-a-Cat-Step-1.jpg/v4-460px-Pet-a-Cat-Step-1.jpg'))
+      .toBe('https://www.wikihow.com/images/0/00/Pet-a-Cat-Step-1.jpg');
+    // Wikimedia (upload.wikimedia.org) still works via the same rule
+    expect(orig('https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Cat.jpg/320px-Cat.jpg'))
+      .toBe('https://upload.wikimedia.org/wikipedia/commons/a/ab/Cat.jpg');
+  });
   it('Substack: deproxy decodes the embedded S3 URL', () => {
     expect(deproxy('https://substackcdn.com/image/fetch/$s_!abc!,w_160,h_280,c_crop,f_auto,q_auto:good/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fabc.jpeg'))
       .toBe('https://substack-post-media.s3.amazonaws.com/public/images/abc.jpeg');
