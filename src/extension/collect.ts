@@ -183,47 +183,12 @@ export function collectMedia(): MediaItem[] {
     }
   };
 
-  // <img> tags and their srcset.
-  document.querySelectorAll('img').forEach((img) => {
-    const { width, height } = getImageDimensions(img);
-    const urls = imageUrlsFromElement(img);
-    urls.forEach((src, i) =>
-      collectImageInfo(src, img.alt, i === 0 ? width : 0, i === 0 ? height : 0, undefined, img));
-  });
-
-  // <picture> elements: <img> fallback plus every <source srcset>.
-  document.querySelectorAll('picture').forEach((picture) => {
-    const img = picture.querySelector('img');
-    if (img) {
-      const { width, height } = getImageDimensions(img);
-      const urls = imageUrlsFromElement(img);
-      urls.forEach((src, i) =>
-        collectImageInfo(src, img.alt, i === 0 ? width : 0, i === 0 ? height : 0, undefined, img));
-    }
-    picture.querySelectorAll('source').forEach((source) => {
-      imageUrlsFromElement(source).forEach((src) => collectImageInfo(src, '', 0, 0, undefined, source));
-    });
-  });
-
-  // CSS background-image declarations (handles multiple comma-separated layers).
-  // Resolving computed style for every element is the deep-scan hot path — this
-  // pass runs on each scroll round. Skip elements that aren't rendered so we don't
-  // resolve styles for display:none / 0×0 subtrees (which can't show a background
-  // anyway). jsdom has no layout engine — every element reports 0×0 — so only apply
-  // the guard when the document actually has layout, otherwise it would skip every
+  // Computed once, applied to every scanned root: jsdom has no layout engine —
+  // every element reports 0×0 — so the not-rendered guard below is only safe to
+  // apply when the document actually has layout, otherwise it would skip every
   // element under test.
   const hasLayout =
     (document.documentElement?.offsetHeight ?? 0) > 0 || (document.body?.offsetHeight ?? 0) > 0;
-  document.querySelectorAll<HTMLElement>('*').forEach((el) => {
-    if (hasLayout && el.offsetWidth === 0 && el.offsetHeight === 0) return;
-    const bgImage = window.getComputedStyle(el).getPropertyValue('background-image');
-    if (!bgImage || bgImage === 'none') return;
-    for (const match of bgImage.matchAll(/url\(\s*(['"]?)(.*?)\1\s*\)/g)) {
-      // Pass the element so a resolver can read its context (e.g. a Twitter video
-      // poster set as a background-image finds the cell's /status/ link).
-      if (match[2]) collectImageInfo(match[2], '', 0, 0, undefined, el);
-    }
-  });
 
   // <video> and <audio> — direct-file sources only. Streaming manifests and
   // blob: URLs are skipped (chrome.downloads can't fetch them as one file).
@@ -251,58 +216,111 @@ export function collectMedia(): MediaItem[] {
     media.push(item);
   };
 
-  document.querySelectorAll('video').forEach((video) => {
-    const gif = twitterGifCandidate(video);
-    if (gif && !seenSources.has(gif.url)) {
-      seenSources.add(gif.url);
-      media.push({
-        src: gif.url, alt: '', width: 0, height: 0,
-        type: 'mp4', fileSize: 0, isBase64: false, kind: 'video', poster: gif.poster,
+  // Media inside open shadow DOM (web components) is invisible to a document-only
+  // querySelectorAll, so scan the top document plus every open shadow root. Each
+  // root is walked for all media shapes; open shadow roots are discovered during
+  // the background-image '*' pass and appended here, so a single pass per root
+  // also reaches nested custom elements. Closed roots are inaccessible by design
+  // (el.shadowRoot is null) and skipped.
+  const roots: (Document | ShadowRoot)[] = [document];
+
+  const scanRoot = (root: Document | ShadowRoot): void => {
+    // <img> tags and their srcset.
+    root.querySelectorAll('img').forEach((img) => {
+      const { width, height } = getImageDimensions(img);
+      const urls = imageUrlsFromElement(img);
+      urls.forEach((src, i) =>
+        collectImageInfo(src, img.alt, i === 0 ? width : 0, i === 0 ? height : 0, undefined, img));
+    });
+
+    // <picture> elements: <img> fallback plus every <source srcset>.
+    root.querySelectorAll('picture').forEach((picture) => {
+      const img = picture.querySelector('img');
+      if (img) {
+        const { width, height } = getImageDimensions(img);
+        const urls = imageUrlsFromElement(img);
+        urls.forEach((src, i) =>
+          collectImageInfo(src, img.alt, i === 0 ? width : 0, i === 0 ? height : 0, undefined, img));
+      }
+      picture.querySelectorAll('source').forEach((source) => {
+        imageUrlsFromElement(source).forEach((src) => collectImageInfo(src, '', 0, 0, undefined, source));
       });
-    }
+    });
 
-    const pendingVid = twitterVideoPending(video, pageUrl);
-    if (pendingVid && !seenSources.has(pendingVid.url)) {
-      seenSources.add(pendingVid.url);
-      media.push({
-        src: pendingVid.url, alt: '', width: 0, height: 0, type: 'mp4', fileSize: 0, isBase64: false,
-        kind: 'video', poster: pendingVid.poster, resolveHint: pendingVid.resolveHint, unresolvedVideo: true,
-      });
-    }
+    // CSS background-image declarations (handles multiple comma-separated layers).
+    // Resolving computed style for every element is the deep-scan hot path — this
+    // pass runs on each scroll round — so skip elements that aren't rendered
+    // (display:none / 0×0 subtrees can't show a background). The same walk also
+    // discovers open shadow roots to scan next.
+    root.querySelectorAll<HTMLElement>('*').forEach((el) => {
+      const shadow = el.shadowRoot;
+      if (shadow) roots.push(shadow);
+      if (hasLayout && el.offsetWidth === 0 && el.offsetHeight === 0) return;
+      const bgImage = window.getComputedStyle(el).getPropertyValue('background-image');
+      if (!bgImage || bgImage === 'none') return;
+      for (const match of bgImage.matchAll(/url\(\s*(['"]?)(.*?)\1\s*\)/g)) {
+        // Pass the element so a resolver can read its context (e.g. a Twitter video
+        // poster set as a background-image finds the cell's /status/ link).
+        if (match[2]) collectImageInfo(match[2], '', 0, 0, undefined, el);
+      }
+    });
 
-    const rawPoster = video.getAttribute('poster');
-    const posterUrl = rawPoster ? resolveUrl(rawPoster) : undefined;
-    const alt = video.getAttribute('aria-label') || video.getAttribute('title') || '';
-    collectAv(
-      video.currentSrc || video.getAttribute('src') || video.getAttribute('data-src') || '',
-      'video', undefined, alt, posterUrl,
-    );
-    video.querySelectorAll('source').forEach((s) =>
-      collectAv(s.getAttribute('src') || '', 'video', s.getAttribute('type') || undefined, alt, posterUrl),
-    );
-  });
+    root.querySelectorAll('video').forEach((video) => {
+      const gif = twitterGifCandidate(video);
+      if (gif && !seenSources.has(gif.url)) {
+        seenSources.add(gif.url);
+        media.push({
+          src: gif.url, alt: '', width: 0, height: 0,
+          type: 'mp4', fileSize: 0, isBase64: false, kind: 'video', poster: gif.poster,
+        });
+      }
 
-  document.querySelectorAll('audio').forEach((audio) => {
-    const alt = audio.getAttribute('aria-label') || audio.getAttribute('title') || '';
-    collectAv(
-      audio.currentSrc || audio.getAttribute('src') || audio.getAttribute('data-src') || '',
-      'audio', undefined, alt,
-    );
-    audio.querySelectorAll('source').forEach((s) =>
-      collectAv(s.getAttribute('src') || '', 'audio', s.getAttribute('type') || undefined, alt),
-    );
-  });
+      const pendingVid = twitterVideoPending(video, pageUrl);
+      if (pendingVid && !seenSources.has(pendingVid.url)) {
+        seenSources.add(pendingVid.url);
+        media.push({
+          src: pendingVid.url, alt: '', width: 0, height: 0, type: 'mp4', fileSize: 0, isBase64: false,
+          kind: 'video', poster: pendingVid.poster, resolveHint: pendingVid.resolveHint, unresolvedVideo: true,
+        });
+      }
 
-  // Gallery / lightbox links: full-res <a href> over a thumbnail <img>.
-  document.querySelectorAll('a').forEach((a) => {
-    const c = galleryLinkCandidate(a as HTMLAnchorElement);
-    if (c) collectImageInfo(c.url, '', 0, 0, c.thumbnailSrc, a.querySelector('img') ?? a);
-  });
+      const rawPoster = video.getAttribute('poster');
+      const posterUrl = rawPoster ? resolveUrl(rawPoster) : undefined;
+      const alt = video.getAttribute('aria-label') || video.getAttribute('title') || '';
+      collectAv(
+        video.currentSrc || video.getAttribute('src') || video.getAttribute('data-src') || '',
+        'video', undefined, alt, posterUrl,
+      );
+      video.querySelectorAll('source').forEach((s) =>
+        collectAv(s.getAttribute('src') || '', 'video', s.getAttribute('type') || undefined, alt, posterUrl),
+      );
+    });
 
-  // <noscript> fallbacks (real image often lives here for no-JS users).
-  document.querySelectorAll('noscript').forEach((ns) => {
-    noscriptImageCandidates(ns as HTMLElement).forEach((c) => collectImageInfo(c.url, '', 0, 0, c.thumbnailSrc));
-  });
+    root.querySelectorAll('audio').forEach((audio) => {
+      const alt = audio.getAttribute('aria-label') || audio.getAttribute('title') || '';
+      collectAv(
+        audio.currentSrc || audio.getAttribute('src') || audio.getAttribute('data-src') || '',
+        'audio', undefined, alt,
+      );
+      audio.querySelectorAll('source').forEach((s) =>
+        collectAv(s.getAttribute('src') || '', 'audio', s.getAttribute('type') || undefined, alt),
+      );
+    });
+
+    // Gallery / lightbox links: full-res <a href> over a thumbnail <img>.
+    root.querySelectorAll('a').forEach((a) => {
+      const c = galleryLinkCandidate(a as HTMLAnchorElement);
+      if (c) collectImageInfo(c.url, '', 0, 0, c.thumbnailSrc, a.querySelector('img') ?? a);
+    });
+
+    // <noscript> fallbacks (real image often lives here for no-JS users).
+    root.querySelectorAll('noscript').forEach((ns) => {
+      noscriptImageCandidates(ns as HTMLElement).forEach((c) => collectImageInfo(c.url, '', 0, 0, c.thumbnailSrc));
+    });
+  };
+
+  // Grows as scanRoot() discovers open shadow roots; the index loop picks them up.
+  for (let i = 0; i < roots.length; i++) scanRoot(roots[i]);
 
   return media;
 }
