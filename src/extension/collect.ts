@@ -16,6 +16,7 @@ import { detectAvType, isUndownloadableMedia } from '@/extension/shared/mediaTyp
 import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates, bestSrcsetUrl } from '@/extension/shared/extract';
 import { resolve, MediaCandidate } from '@/extension/shared/resolvers';
 import { twitterGifCandidate, twitterVideoPending } from '@/extension/shared/resolvers/twitter';
+import { instagramPageMedia } from '@/extension/shared/resolvers/instagram';
 
 /** Determines if a URL is a base64-encoded image. */
 export function isBase64Image(src: string): boolean {
@@ -431,6 +432,14 @@ export function collectMedia(): MediaItem[] {
       if (best) collectImageInfo(best);
     }
   });
+
+  // Instagram single-post/reel pages: surface the whole post from its page JSON
+  // (all carousel slides + the real mp4), covering media the DOM hides —
+  // virtualized carousel slides and `blob:`-backed reel videos. No-ops on a
+  // profile grid (no shortcode in the URL); deduped against the walk above.
+  for (const cand of instagramPageMedia(pageUrl)) {
+    pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
+  }
 
   return media;
 }
