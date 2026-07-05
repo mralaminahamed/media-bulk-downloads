@@ -240,11 +240,11 @@ describe('image-CDN rule batch (2026-07-05)', () => {
     const small = 'https://64.media.tumblr.com/s540x810/f7494899f3c89b950936982cf1b05747f2d82ea2.jpg';
     expect(orig(small)).toBe(small);
   });
-  it('BBC: width segment -> 1920 (news + ace/standard)', () => {
+  it('BBC: width segment -> 2048 (news + ace/standard; 1920 404s on news)', () => {
     expect(orig('https://ichef.bbci.co.uk/news/640/cpsprodpb/9c6f/live/aa7b3860.jpg'))
-      .toBe('https://ichef.bbci.co.uk/news/1920/cpsprodpb/9c6f/live/aa7b3860.jpg');
+      .toBe('https://ichef.bbci.co.uk/news/2048/cpsprodpb/9c6f/live/aa7b3860.jpg');
     expect(orig('https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/abc/live/def.jpg'))
-      .toBe('https://ichef.bbci.co.uk/ace/standard/1920/cpsprodpb/abc/live/def.jpg');
+      .toBe('https://ichef.bbci.co.uk/ace/standard/2048/cpsprodpb/abc/live/def.jpg');
   });
   it('Etsy: il_WxH -> il_fullxfull', () => {
     expect(orig('https://i.etsystatic.com/38572517/r/il/a2a0a2/8011468755/il_765x956.8011468755_foh5.jpg'))
