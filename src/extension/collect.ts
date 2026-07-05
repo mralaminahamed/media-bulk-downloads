@@ -13,7 +13,7 @@
 import { ImageInfo, MediaItem } from '@/types';
 import { detectType, parseUrlDimensions } from '@/extension/shared/imageUrl';
 import { detectAvType, isUndownloadableMedia } from '@/extension/shared/mediaType';
-import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates } from '@/extension/shared/extract';
+import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates, bestSrcsetUrl } from '@/extension/shared/extract';
 import { resolve, MediaCandidate } from '@/extension/shared/resolvers';
 import { twitterGifCandidate, twitterVideoPending } from '@/extension/shared/resolvers/twitter';
 
@@ -321,6 +321,32 @@ export function collectMedia(): MediaItem[] {
 
   // Grows as scanRoot() discovers open shadow roots; the index loop picks them up.
   for (let i = 0; i < roots.length; i++) scanRoot(roots[i]);
+
+  // Meta / preload hero images: og:image, twitter:image, and preloaded images
+  // often point at the highest-resolution hero that never appears as an <img>
+  // on the page. These live in the top document head only; dedup + CDN upgrade
+  // run as usual via collectImageInfo.
+  const metaSel = [
+    'meta[property="og:image"]',
+    'meta[property="og:image:url"]',
+    'meta[property="og:image:secure_url"]',
+    'meta[name="twitter:image"]',
+    'meta[name="twitter:image:src"]',
+  ].join(',');
+  document.querySelectorAll(metaSel).forEach((m) => {
+    const content = m.getAttribute('content');
+    if (content) collectImageInfo(content);
+  });
+  document.querySelectorAll('link[rel~="preload"][as="image"]').forEach((link) => {
+    const href = link.getAttribute('href');
+    if (href) collectImageInfo(href);
+    // <link rel=preload as=image imagesrcset> — take the highest-width candidate.
+    const imagesrcset = link.getAttribute('imagesrcset');
+    if (imagesrcset) {
+      const best = bestSrcsetUrl(imagesrcset);
+      if (best) collectImageInfo(best);
+    }
+  });
 
   return media;
 }
