@@ -111,7 +111,14 @@ export function deproxy(url: string): string | null {
     const raw = u.searchParams.get(key);
     if (!raw) continue;
     const decoded = safeDecode(raw);
-    const abs = /^https?:\/\//i.test(decoded) ? decoded : null;
+    let abs: string | null = null;
+    if (/^https?:\/\//i.test(decoded)) {
+      abs = decoded;
+    } else if (decoded.startsWith('/')) {
+      // Same-origin relative inner path (Next.js `?url=%2Fassets%2Fhero.jpg`):
+      // resolve against the proxy host's origin to reach the real asset.
+      try { abs = new URL(decoded, u.origin).href; } catch { abs = null; }
+    }
     if (abs && looksLikeMediaUrl(abs)) return abs;
   }
 
