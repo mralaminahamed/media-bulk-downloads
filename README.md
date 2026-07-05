@@ -34,9 +34,12 @@ It reads only what the page already loaded, so nothing leaves your device.
 ## Features
 
 **Finds what the browser misses**
-- Lazy-loaded images (`data-src`, `data-lazy-src`, and other `data-*` sources)
+- Lazy-loaded images (`data-src`, `data-lazy-src`, WordPress `data-orig-file` /
+  `data-large-file` originals, and other `data-*` sources)
 - Responsive `srcset` / `<picture>` sources and `<noscript>` fallbacks
-- CSS `background-image` URLs
+- CSS `background-image` URLs, including `image-set()` (highest-resolution candidate)
+- Media inside **open Shadow DOM** (web components) and **same-origin iframes**
+- `og:image` / `twitter:image` and `<link rel=preload as=image>` hero images
 - Gallery `<a href>` links (Reddit, Wallhaven, and similar)
 - Direct-file `<video>` and `<audio>` sources
 
@@ -46,7 +49,10 @@ It reads only what the page already loaded, so nothing leaves your device.
 - **CDN upgrades** thumbnails to full size (Twitter/X `name=orig`, YouTube
   `hqdefault`, Pinterest `/originals/`, Google `=s0`, and 50+ more families)
 - **Deep scan** — an opt-in, bounded auto-scroll that surfaces virtualized and
-  infinite-scroll media (it only scrolls; the page loads its own media)
+  infinite-scroll media (it scrolls the page and any nested scroll panes; the page
+  loads its own media). Its limits — max items, time, and scroll steps — are
+  configurable in Settings, it tells you when a limit stopped it early, and it can
+  optionally click **“Load more”** buttons (off by default)
 - **Resolve originals** — an optional setting that fetches the exact
   highest-resolution file from supported hosts (off by default)
 
@@ -116,7 +122,8 @@ package with `yarn lint:firefox`. To load it by hand:
 3. **Filter** by kind, format, or file size.
 4. **Download** one item (click it) or every filtered item (**Download all**).
 5. **Deep scan** (optional) — trigger the auto-scroll to pull in media on
-   infinite-scroll pages.
+   infinite-scroll pages. Tune its limits — and enable optional **“Load more”**
+   clicking — under **Settings → Deep scan**.
 
 Prefer to stay on the page? The optional **on-page bubble** gives you the same tools in
 a draggable panel without opening the toolbar popup.
