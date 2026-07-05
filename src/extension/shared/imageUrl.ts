@@ -211,8 +211,11 @@ const RULES: CdnRule[] = [
     },
   },
   {
-    // Wikimedia: /thumb/<path>/<size>px-<name> -> /<path>.
-    match: (u) => u.hostname === 'upload.wikimedia.org' && u.pathname.includes('/thumb/'),
+    // MediaWiki (Wikimedia + self-hosted wikis like wikiHow/Fandom):
+    // /thumb/<path>/<size>px-<name> -> /<path>. Host-agnostic — the trailing
+    // `<size>px-<name>` segment after a `/thumb/` is the MediaWiki thumbnail
+    // signature. See #76.
+    match: (u) => u.pathname.includes('/thumb/') && /\/[^/]*px-[^/]+$/i.test(u.pathname),
     rewrite: (u) => {
       u.pathname = u.pathname.replace(/\/thumb\//, '/').replace(/\/[^/]*px-[^/]+$/i, '');
     },
