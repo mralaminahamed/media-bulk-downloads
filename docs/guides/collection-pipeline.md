@@ -38,7 +38,10 @@ Every raw, non-base64 URL is routed through `resolve()` — the resolver
 **registry** (`shared/resolvers/index.ts`) — before dedup.
 `<video>`/`<audio>` elements mostly bypass the registry (direct file sources
 only), except for a Twitter-specific poster check that can turn a `<video>` into
-an image-shaped candidate of `kind: 'video' | 'gif'`.
+an image-shaped candidate of `kind: 'video' | 'gif'`. On a single Instagram
+post/reel page a `collectMedia` tail-pass also pulls the whole post from its page
+JSON (`instagramPageMedia`), covering media the DOM hides — virtualized carousel
+slides and `blob:`-backed reel videos.
 
 Element passes (IMG/BG/GAL/NS/AV) run **per root** — the top document plus every
 open shadow root and same-origin `<iframe>` document. The META and PRELOAD passes
@@ -67,7 +70,8 @@ flowchart TB
 
   subgraph REG["shared/resolvers — REGISTRY, tried in order"]
     direction TB
-    TW["twitterResolver<br/>pbs.twimg.com"] -->|"no candidate"| UNS
+    TW["twitterResolver<br/>pbs.twimg.com"] -->|"no candidate"| IG
+    IG["instagramResolver<br/>*.cdninstagram.com / *.fbcdn.net"] -->|"no candidate"| UNS
     UNS["unsplashResolver<br/>images / plus.unsplash.com"] -->|"no candidate"| WH
     WH["wallhavenResolver<br/>th.wallhaven.cc"] -->|"no candidate"| BEH
     BEH["behanceResolver<br/>mir-s3-cdn-cf.behance.net"] -->|"no candidate"| GEN
@@ -130,19 +134,20 @@ layout box (`offsetWidth === 0 && offsetHeight === 0`, e.g. `display:none`).
 ## Resolver registry (`shared/resolvers/`)
 
 `resolve(rawUrl, ctx)` scheme-guards to http(s), then tries each `Resolver` in
-`REGISTRY` order — `twitterResolver → unsplashResolver → wallhavenResolver →
-behanceResolver → genericResolver` — and returns the first non-empty
+`REGISTRY` order — `twitterResolver → instagramResolver → unsplashResolver →
+wallhavenResolver → behanceResolver → genericResolver` — and returns the first non-empty
 `MediaCandidate[]`.
 
 | Resolver            | Matches                                          | Behavior                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 |---------------------|--------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `twitterResolver`   | `pbs.twimg.com`                                  | `/media/<id>` → `name=orig` + real format (`webp`→`jpg`); `/profile_images/` and `/profile_banners/` → strip the size suffix; `/card_img/` → `name=orig`. GIF thumbs (`/tweet_video_thumb/<id>`) → `video.twimg.com/tweet_video/<id>.mp4`, `kind:'gif'`. Real-video posters (`/ext_tw_video_thumb/`, `/amplify_video_thumb/`) → `kind:'video'`, `unresolvedVideo:true`, plus `resolveHint:{platform:'twitter', id: statusId}` — the status id comes from a `/status/<id>` link the element sits inside (the media-grid cell), else the enclosing tweet `<article>`'s **own** permalink (the `<time>`-wrapped or `/photo`/`/video` link — chosen over any quoted/embedded tweet's link in the same article), falling back to the id in the page's own URL (e.g. a single-tweet detail page) when none is found |
+| `instagramResolver` | `*.cdninstagram.com`, `*.fbcdn.net`              | Instagram's CDNs are **signed** (the `stp` size token is covered by the `oh` HMAC — stripping it 403s, verified live), so no URL rewrite is possible. Instead the resolver finds the post shortcode from the enclosing `/p\|reel\|tv/<code>` link (else `ctx.pageUrl`) and returns **every slide** of that post from the media graph Instagram ships in the page's own `<script type="application/json">` hydration and the GraphQL/`api/v1` responses it fetches on scroll: images at their largest `image_versions2.candidates`, videos as their real progressive-mp4 `video_versions` (the on-page `<video>` is a `blob:` MSE stream and undownloadable). The scroll responses are read by a passive MAIN-world sniffer (`ig-media-sniffer`) that wraps the page's `fetch`/`XHR` — read-only, forges nothing — and fed into the resolver via a host-pinning relay. Non-post images (avatars, tagged-user `/username/` links, UI chrome) return `[]` and fall through to the generic resolver |
 | `unsplashResolver`  | `images.unsplash.com`, `plus.unsplash.com`       | Strips resize query params (`w`, `h`, `fit`, `resize`, `q`, `quality`, `dpr`, `crop`, `ar`, `cs`, `fm`, `auto`, `bg`, `blend*`, `ixlib` — a smaller subset on `plus.`); attaches `resolveHint:{platform:'unsplash', id}` when the element sits inside an `<a href="/photos/<id>">`                                                                                                                                                                                                                                                                                                               |
 | `wallhavenResolver` | `th.wallhaven.cc`                                | Reads the wallpaper id from the thumb path (`/{small\|lg\|orig}/<ab>/<id>.jpg`), a `figure[data-wallpaper-id]`, or the figure's `a.preview` `/w/<id>` link (id shape-validated). If the real extension is readable from the DOM (a full `<img>` on the page, or a `span.png`/`span.gif` badge on the figure — confirmed live, ~34% of a page are png), rewrites straight to `w.wallhaven.cc/full/<ab>/wallhaven-<id>.<ext>`; an unbadged figure is genuinely jpg (Wallhaven only badges non-jpg). With no DOM ext evidence at all it hands back the largest guaranteed-existing jpg — the `/orig/` thumb — plus `resolveHint:{platform:'wallhaven', id}` (never a blind full-file URL that could 404 for a png). The grid preview `thumbnailSrc` is bumped `/small`→`/lg` for sharpness (never downgraded), and it reads the figure's `span.wall-res` for the wallpaper's **true** full resolution (not the thumbnail's)                                                       |
 | `behanceResolver`   | `mir-s3-cdn-cf.behance.net`                      | Rewrites `/project_modules/<size>/` (`disp`/`max_1200`/`1400`/`fs`) → `/project_modules/source/`, and strips the search-grid's base64 crop token (`<hash>.<crop>.<ext>` → `<hash>.<ext>`); if the element (or its `srcset`/`data-src`, or a sibling `<source>`) already exposes a `source`/`fs` URL on the same host, that DOM value wins over the rewrite. Returns `[]` (falls through to `genericResolver`) only when the upgrade would leave the URL unchanged (e.g. element already at `source`) — the `fs→source` rewrite otherwise applies                                                 |
 | `genericResolver`   | everything else (catch-all, `match: () => true`) | Today's `deproxy()` → `upgradeToOriginal()` → `RULES` chain — see below                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
-Twitter, Unsplash, Wallhaven, and Behance each get a **dedicated** resolver;
+Twitter, Instagram, Unsplash, Wallhaven, and Behance each get a **dedicated** resolver;
 every other host — including the 40+ CDN families in the coverage benchmark —
 falls through to the generic resolver.
 
@@ -221,7 +226,11 @@ generic resolver, since neither host has a `RULES` entry here.
 `*.tiktokcdn.com`, `media.licdn.com`) get **no rule and no query strip** — their
 signature (an HMAC token bound to the URL, incl. the size on LinkedIn's
 `dms/image/v2` renditions) lives in the URL, so rewriting it would 401/403. They
-are still collected, just not "upgraded."
+are still collected, just not "upgraded." Instagram/Facebook CDN URLs
+(`*.cdninstagram.com`, `*.fbcdn.net`) are the exception that proves the rule: the
+`instagramResolver` never rewrites them either — it instead **reads** the largest
+already-signed URL Instagram shipped in its own page JSON, so the full-res
+original is surfaced without touching the signature.
 
 Every upgrade returns `{ original, thumbnail: <input> }`, so the pre-upgrade URL
 is kept as `thumbnailSrc` and the grid preview renders even if the upgraded
