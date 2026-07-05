@@ -172,6 +172,41 @@ function dropParams(u: URL, keys: string[]): void {
 
 const RESIZE_PARAMS = ['w', 'h', 'fit', 'resize', 'quality', 'q', 'dpr', 'crop'];
 
+/** Decodes a base64url segment to a UTF-8 string; null on failure. */
+function decodeB64Url(seg: string): string | null {
+  try {
+    let s = seg.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = s.length % 4;
+    if (pad) s += '='.repeat(4 - pad);
+    return atob(s);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The per-image max dimensions embedded in a DeviantArt (wixmp) signed token.
+ * The JWT payload is `[[{ width: "<=1920", height: "<=1080", ... }]]`; requesting
+ * a larger size than this cap 403s, so the cap is read rather than guessed.
+ * Returns null when the token can't be parsed.
+ */
+function wixmpTokenCap(token: string): { w: number; h: number } | null {
+  const payload = token.split('.')[1];
+  if (!payload) return null;
+  const json = decodeB64Url(payload);
+  if (!json) return null;
+  try {
+    const parsed = JSON.parse(json) as Array<Array<{ width?: unknown; height?: unknown }>>;
+    const dim = parsed?.[0]?.[0];
+    const w = parseInt(String(dim?.width ?? '').replace(/\D/g, ''), 10);
+    const h = parseInt(String(dim?.height ?? '').replace(/\D/g, ''), 10);
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return null;
+    return { w, h };
+  } catch {
+    return null;
+  }
+}
+
 const RULES: CdnRule[] = [
   {
     // Twitter/X: name=<size> -> name=orig, keep format.
@@ -386,6 +421,25 @@ const RULES: CdnRule[] = [
     // whole query. Unsigned. See #80.
     match: (u) => /(?:^|\.)walmartimages\.com$/i.test(u.hostname),
     rewrite: (u) => { u.search = ''; },
+  },
+  {
+    // DeviantArt (images-wixmp-*.wixmp.com): images carry a /v1/(fit|fill)/w_,h_,
+    // q_,strp/ transform and a signed ?token=<JWT>. Upgrade to the token's
+    // per-image cap (read from the JWT payload) as /v1/fill/ at q_100, keeping the
+    // same token. Exceeding the cap 403s and dropping the token 401s, so the cap
+    // is parsed and never guessed: if the token or cap can't be read, the URL is
+    // left unchanged. See #101.
+    match: (u) => /(?:^|\.)wixmp\.com$/i.test(u.hostname) && /\/v1\/(?:fit|fill)\//.test(u.pathname),
+    rewrite: (u) => {
+      const token = u.searchParams.get('token');
+      if (!token) return;
+      const cap = wixmpTokenCap(token);
+      if (!cap) return;
+      u.pathname = u.pathname.replace(
+        /\/v1\/(?:fit|fill)\/[^/]+\/([^/]+)$/,
+        `/v1/fill/w_${cap.w},h_${cap.h},q_100,strp/$1`,
+      );
+    },
   },
   {
     // IKEA (www.ikea.com/images/...): serves resized images via ?f=<size> or

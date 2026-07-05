@@ -335,6 +335,19 @@ describe('image-CDN rule batch (2026-07-05)', () => {
     expect(orig('https://static01.nyt.com/images/x-superJumbo.jpg?quality=75&auto=webp'))
       .toBe('https://static01.nyt.com/images/x-superJumbo.jpg');
   });
+  it('DeviantArt: upgrades to the JWT cap as /v1/fill/ q_100, keeping the token', () => {
+    const payload = Buffer.from(JSON.stringify([[{ width: '<=1920', height: '<=1080' }]])).toString('base64url');
+    const token = `hdr.${payload}.sig`;
+    const base = 'https://images-wixmp-ed30a86b8c4ca887.wixmp.com/f/uuid/id.jpg';
+    expect(orig(`${base}/v1/fit/w_375,h_211,q_70,strp/x.jpg?token=${token}`))
+      .toBe(`${base}/v1/fill/w_1920,h_1080,q_100,strp/x.jpg?token=${token}`);
+    // fail-safe: no token -> unchanged
+    const noTok = `${base}/v1/fit/w_375,h_211,q_70,strp/x.jpg`;
+    expect(orig(noTok)).toBe(noTok);
+    // fail-safe: unparseable token -> unchanged
+    const bad = `${base}/v1/fit/w_375,h_211,q_70,strp/x.jpg?token=garbage`;
+    expect(orig(bad)).toBe(bad);
+  });
   it('IKEA: forces imwidth=2000, dropping the f resizer', () => {
     expect(orig('https://www.ikea.com/images/95/9e/959e6d9416a7a3c8.png?f=xxs'))
       .toBe('https://www.ikea.com/images/95/9e/959e6d9416a7a3c8.png?imwidth=2000');
