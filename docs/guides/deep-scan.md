@@ -21,8 +21,8 @@ sequenceDiagram
   P->>C: deepScanActiveTab(onProgress)
   C->>C: add runtime.onMessage listener (progress)
   C->>CS: sendMessage("DEEP_SCAN")  [channel held open]
-  CS->>CS: new AbortController
-  CS->>R: startDeepScan(onProgress, signal)
+  CS->>CS: new AbortController + read Settings caps
+  CS->>R: startDeepScan(onProgress, signal, caps)
   loop until idle / cap / abort
     R->>DOM: scrollStep() (one viewport)
     R->>DOM: waitForQuiet() (MutationObserver settles ~400ms)
@@ -61,7 +61,7 @@ sequenceDiagram
 
   U->>B: click ⇊ Deep scan
   B->>A: deepScanLocal(onProgress)
-  A->>R: startDeepScan(onProgress, signal)
+  A->>R: startDeepScan(onProgress, signal, caps from initialSettings)
   loop until idle / cap / abort
     R->>DOM: scroll · wait · collectMedia · merge
     R-->>B: onProgress → progress text
@@ -78,7 +78,7 @@ flowchart TB
   LOOP -->|"aborted?"| STOP
   LOOP -->|"found ≥ maxItems?"| STOP
   LOOP -->|"elapsed ≥ maxMs?"| STOP
-  LOOP --> SCROLL["scrollStep()"]
+  LOOP --> SCROLL["scrollStep()<br/>page + nested scrollers<br/>(+ opt-in load-more clicks)"]
   SCROLL --> WAIT["await waitForQuiet(signal)"]
   WAIT -->|"aborted?"| STOP
   WAIT --> MERGE["added = merge(collect())"]
@@ -93,14 +93,42 @@ flowchart TB
   STOP["restoreScroll() (finally) → return [...found]"]
 ```
 
-### Bounds (fixed defaults, `DEEP_SCAN_DEFAULTS`)
+### Bounds (defaults in `DEEP_SCAN_DEFAULTS`; the first three are user-configurable)
 
-| Cap          | Default | Meaning                                             |
-|--------------|---------|-----------------------------------------------------|
-| `maxScrolls` | 40      | Hard scroll-step ceiling                            |
-| `maxMs`      | 20000   | Wall-clock ceiling (~20s)                           |
-| `maxItems`   | 1000    | Stop once this many unique items are found          |
-| `idleRounds` | 3       | Stop after N consecutive steps that add nothing new |
+`maxItems` / `maxMs` / `maxScrolls` are **defaults only** — the popup path reads
+the user's **Settings → Deep scan** values and passes them into `startDeepScan`,
+overriding these. Only `idleRounds` is a genuinely fixed, non-configurable cap.
+
+| Cap          | Default | Configurable in Settings? | Meaning                                             |
+|--------------|---------|---------------------------|-----------------------------------------------------|
+| `maxItems`   | 1000    | yes (50–5000)             | Stop once this many unique items are found          |
+| `maxMs`      | 20000   | yes (5–120 s, ×1000)      | Wall-clock ceiling (~20s)                           |
+| `maxScrolls` | 40      | yes (5–200)               | Hard scroll-step ceiling                            |
+| `idleRounds` | 3       | no (fixed)                | Stop after N consecutive steps that add nothing new |
+
+### Stop reasons
+
+The final progress event carries a `reason` (`DeepScanStopReason`) so the popup
+can say *why* a scan ended early:
+
+| Reason         | Trigger                                                  |
+|----------------|----------------------------------------------------------|
+| `complete`     | Idle rounds hit or page bottom reached — nothing left    |
+| `max-items`    | `maxItems` cap reached                                   |
+| `max-time`     | `maxMs` wall-clock cap reached                           |
+| `max-scrolls`  | `maxScrolls` step cap reached                            |
+| `aborted`      | User pressed Stop (`AbortController`)                    |
+
+### Scroll surfaces & load-more
+
+- **Nested scrollers** (always on): each step also advances any nested
+  `overflow-y: auto|scroll` pane taller than 200px, not just the page — so media
+  inside inner scroll containers surfaces too.
+- **Load-more clicking** (opt-in, **off by default** — Settings → Deep scan →
+  *Click "Load more" buttons*): when enabled, each step may click up to 3
+  matching `<button>` / `role=button` controls per round (text like "load more",
+  "show more"). Real buttons only — never `<a href>` links, to avoid navigating
+  away.
 
 ## Guarantees
 

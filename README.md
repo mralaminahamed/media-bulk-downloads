@@ -156,6 +156,7 @@ upgrade rules for:
 | Google (Photos, Blogger)           | `=s88-…` → `=s0`                                    |
 | Adobe Scene7 (Target, REI, …)      | `?wid=` → large rendition                           |
 | ArtStation                         | Size bucket (`medium`, …) → `/large/`               |
+| Behance                            | `/project_modules/<size>/` → `/source/` (DOM-aware) |
 | Amazon / eBay / Etsy / Walmart / Newegg | Strip size tokens → full product image         |
 | DeviantArt (wixmp)                 | Decode token cap → largest within-cap render        |
 | imgur / Dribbble / AliExpress      | Strip thumbnail suffix → original                   |
