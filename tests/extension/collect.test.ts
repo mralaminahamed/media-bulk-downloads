@@ -182,6 +182,40 @@ describe('wallhaven true dimensions in collection', () => {
   });
 });
 
+describe('collectMedia — background-image render guard', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('skips non-rendered elements when the document has layout, but keeps visible ones', () => {
+    // jsdom reports 0×0 for everything; fake a layout so the guard activates.
+    const docEl = document.documentElement;
+    Object.defineProperty(docEl, 'offsetHeight', { configurable: true, value: 1000 });
+    try {
+      setBody(
+        `<div id="vis" style="background-image:url('https://cdn.com/visible.jpg')"></div>` +
+          `<div id="hid" style="background-image:url('https://cdn.com/hidden.jpg')"></div>`,
+      );
+      const vis = document.getElementById('vis')!;
+      const hid = document.getElementById('hid')!;
+      Object.defineProperty(vis, 'offsetWidth', { configurable: true, value: 200 });
+      Object.defineProperty(vis, 'offsetHeight', { configurable: true, value: 100 });
+      Object.defineProperty(hid, 'offsetWidth', { configurable: true, value: 0 });
+      Object.defineProperty(hid, 'offsetHeight', { configurable: true, value: 0 });
+
+      const srcs = collectMedia().map((i) => i.src);
+      expect(srcs).toContain('https://cdn.com/visible.jpg');
+      expect(srcs).not.toContain('https://cdn.com/hidden.jpg');
+    } finally {
+      // Restore no-layout so other suites keep collecting every background.
+      Object.defineProperty(docEl, 'offsetHeight', { configurable: true, value: 0 });
+    }
+  });
+
+  it('collects backgrounds normally when the document reports no layout (jsdom default)', () => {
+    setBody(`<div style="background-image:url('https://cdn.com/bg.jpg')"></div>`);
+    expect(collectMedia().map((i) => i.src)).toContain('https://cdn.com/bg.jpg');
+  });
+});
+
 describe('twitter pending video collection', () => {
   afterEach(() => { document.body.innerHTML = ''; window.history.replaceState({}, '', '/'); });
 
