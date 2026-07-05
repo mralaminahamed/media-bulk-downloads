@@ -17,7 +17,7 @@ import { requestResolveOriginals } from '../shared/resolve-originals-active';
 import { downloadedSrcSet, HISTORY_KEY } from '../shared/history';
 import { favouriteSrcSet, FAVOURITES_KEY } from '../shared/favourites';
 import { getImageFileSize, mapWithConcurrency } from './utils';
-import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon } from '@heroicons/react/24/outline';
+import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 
 // Concurrent HEAD requests when enriching remote image sizes.
 const SIZE_FETCH_CONCURRENCY = 6;
@@ -38,6 +38,10 @@ function deepScanCapMessage(reason: DeepScanStopReason | undefined, count: numbe
 
 /** Items the user can actually download now — pending videos are excluded until resolved. */
 const downloadable = (list: ImageInfo[]): ImageInfo[] => list.filter((i) => !i.unresolvedVideo);
+
+/** Pending videos that still carry a resolve hint — the set "Get all videos" acts on. */
+const pendingVideos = (list: ImageInfo[]): ImageInfo[] =>
+  list.filter((i) => i.kind === 'video' && i.unresolvedVideo && !!i.resolveHint);
 
 const App: React.FC<AppProps> = ({
   collect = collectFromActiveTab,
@@ -343,6 +347,35 @@ const App: React.FC<AppProps> = ({
     rawImagesRef.current = swap(rawImagesRef.current);
   };
 
+  /**
+   * Resolve EVERY pending video in the current view in one batched request,
+   * regardless of the resolveOriginals setting (an explicit, user-initiated
+   * action). All targets show a spinner while the batch runs; each that resolves
+   * is swapped to its downloadable mp4, and any that don't are flagged failed.
+   */
+  const handleFetchAllVideos = async (): Promise<void> => {
+    const targets = pendingVideos(state.filteredImages);
+    if (!targets.length) return;
+    const srcs = targets.map((t) => t.src);
+    setFetchingSrcs((p) => { const n = new Set(p); srcs.forEach((s) => n.add(s)); return n; });
+    setResolveFailedSrcs((p) => { const n = new Set(p); srcs.forEach((s) => n.delete(s)); return n; });
+
+    const resolved = await requestResolveOriginals(targets.map((t) => ({ src: t.src, hint: t.resolveHint! })));
+
+    setFetchingSrcs((p) => { const n = new Set(p); srcs.forEach((s) => n.delete(s)); return n; });
+    const failed = srcs.filter((s) => !resolved[s]);
+    if (failed.length) setResolveFailedSrcs((p) => { const n = new Set(p); failed.forEach((s) => n.add(s)); return n; });
+
+    const byOldSrc = new Map<string, ImageInfo>();
+    for (const t of targets) {
+      if (resolved[t.src]) byOldSrc.set(t.src, { ...t, src: resolved[t.src], unresolvedVideo: false, resolveHint: undefined });
+    }
+    if (!byOldSrc.size) return;
+    const swap = (list: ImageInfo[]) => list.map((i) => byOldSrc.get(i.src) ?? i);
+    rawImagesRef.current = swap(rawImagesRef.current);
+    setState((prev) => ({ ...prev, images: swap(prev.images), filteredImages: swap(prev.filteredImages) }));
+  };
+
   const handleToggleFavourite = async (image: ImageInfo): Promise<void> => {
     if (favouriteSrcs.has(image.src)) {
       chrome.runtime.sendMessage({ type: 'REMOVE_FAVOURITE', src: image.src });
@@ -376,6 +409,9 @@ const App: React.FC<AppProps> = ({
   const total = state.images.length;
   const shown = state.filteredImages.length;
   const downloadableShown = downloadable(state.filteredImages).length;
+  const pendingVids = pendingVideos(state.filteredImages);
+  const pendingVideoCount = pendingVids.length;
+  const fetchingVideos = pendingVids.some((v) => fetchingSrcs.has(v.src));
   const hasImages = total > 0;
   const filtered = shown !== total;
 
@@ -488,6 +524,17 @@ const App: React.FC<AppProps> = ({
               </>
             )}
           </p>
+          {pendingVideoCount > 0 && (
+            <button
+              onClick={() => void handleFetchAllVideos()}
+              disabled={fetchingVideos}
+              className="btn btn-ghost flex-none"
+              title="Fetch every pending video's real file over the network"
+            >
+              <VideoCameraIcon className={`h-4 w-4 ${fetchingVideos ? 'animate-pulse' : ''}`} />
+              <span>{fetchingVideos ? 'Fetching…' : `Get all videos (${pendingVideoCount})`}</span>
+            </button>
+          )}
           <button onClick={handleBulkDownload} disabled={downloadableShown === 0} className="btn btn-primary flex-none">
             <ArrowDownTrayIcon className="h-4 w-4" />
             <span>Download{downloadableShown > 0 ? ` ${downloadableShown}` : ''}</span>

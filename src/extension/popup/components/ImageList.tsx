@@ -351,8 +351,17 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                     disabled={fetchingSrcs?.has(selectedImage.src)}
                     className="btn btn-primary w-full disabled:opacity-60"
                   >
-                    <ArrowDownTrayIcon className="h-4 w-4" />
-                    <span>{resolveFailedSrcs?.has(selectedImage.src) ? "Couldn't fetch — retry" : 'Get video'}</span>
+                    {fetchingSrcs?.has(selectedImage.src) ? (
+                      <>
+                        <ArrowPathIcon className="h-4 w-4 animate-[spin_0.9s_linear_infinite]" />
+                        <span>Fetching…</span>
+                      </>
+                    ) : (
+                      <>
+                        <ArrowDownTrayIcon className="h-4 w-4" />
+                        <span>{resolveFailedSrcs?.has(selectedImage.src) ? "Couldn't fetch — retry" : 'Get video'}</span>
+                      </>
+                    )}
                   </button>
                 ) : (
                   <p className="text-center text-[12px] text-(--ink-2)">{"This video's file can't be fetched."}</p>

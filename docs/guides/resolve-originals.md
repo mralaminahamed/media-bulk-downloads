@@ -103,16 +103,17 @@ sequenceDiagram
   after a newer scan/rescan has already started, so a slow request can't
   clobber fresher results.
 
-## On-demand: the "Get video" button
+## On-demand: the "Get video" / "Get all videos" buttons
 
-Phase two now has two triggers, not one — the diagram above is the first:
+Phase two has three triggers — the diagram above is the first:
 
-| Trigger                  | Where it lives                                                                                                | Gated by `resolveOriginals`?                   |
-|--------------------------|---------------------------------------------------------------------------------------------------------------|------------------------------------------------|
-| **Global auto-resolve**  | `enrichOriginals()`, run from `applyResolution()` on every scan, rescan, deep-scan merge, and settings change | Yes — only fires `if (s.resolveOriginals)`     |
-| **Per-item "Get video"** | The action button on a pending video's grid tile / preview modal, `handleFetchVideo()` (`popup/App.tsx`)      | No — fires unconditionally, one hint at a time |
+| Trigger                      | Where it lives                                                                                                | Gated by `resolveOriginals`?                   |
+|------------------------------|---------------------------------------------------------------------------------------------------------------|------------------------------------------------|
+| **Global auto-resolve**      | `enrichOriginals()`, run from `applyResolution()` on every scan, rescan, deep-scan merge, and settings change | Yes — only fires `if (s.resolveOriginals)`     |
+| **Bulk "Get all videos (N)"**| Footer button, `handleFetchAllVideos()` (`popup/App.tsx`) — resolves every pending video in the current view in one batched request; shown only when `N > 0` | No — explicit user action for all N at once |
+| **Per-item "Get video"**     | The action button on a pending video's grid tile / preview modal, `handleFetchVideo()` (`popup/App.tsx`)      | No — fires unconditionally, one hint at a time |
 
-Both triggers end up calling the exact same `RESOLVE_ORIGINALS` message and
+All three triggers end up calling the exact same `RESOLVE_ORIGINALS` message and
 the same `resolveOriginal(hint, deps)` in the background; the only
 differences are how many hints go in the request (the whole eligible batch vs.
 a single one) and whether the setting gates the call at all. The button is a
