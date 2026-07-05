@@ -8,6 +8,7 @@
 
 import { SettingsData, DeepScanProgress } from '@/types';
 import { collectMedia } from './collect';
+import { ingestSniffedIgMedia } from './shared/resolvers/instagram';
 import { withDefaults } from './shared/settings';
 import { startDeepScan } from './content/deepScanRunner';
 
@@ -26,6 +27,21 @@ window.addEventListener('message', (event: MessageEvent) => {
   chrome.runtime.sendMessage({ type: 'X_MEDIA_SEEN', pairs: data.pairs }).catch(() => {
     /* background may be asleep / no receiver */
   });
+});
+
+// Relay the MAIN-world Instagram media sniffer's findings into the resolver.
+// The sniffer (ig-media-sniffer.content.ts) reads the page's own GraphQL /api
+// responses (posts loaded on scroll) and postMessages the extracted media here.
+// Unlike X, IG media resolves in-content (the real mp4 is in the response), so we
+// feed the entries straight to the resolver's in-memory store — collectMedia()
+// then resolves scroll-loaded posts with no network call. Validate the envelope
+// here; ingestSniffedIgMedia re-validates and host-pins every entry (the payload
+// crossed the page realm and is untrusted).
+window.addEventListener('message', (event: MessageEvent) => {
+  if (event.source !== window || event.origin !== location.origin) return;
+  const data = event.data as { source?: unknown; entries?: unknown } | null;
+  if (!data || data.source !== 'ibd-ig-media' || !Array.isArray(data.entries)) return;
+  ingestSniffedIgMedia(data.entries);
 });
 
 // Answer image-collection requests from the popup and background worker.

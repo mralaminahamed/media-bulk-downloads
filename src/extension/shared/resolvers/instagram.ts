@@ -1,5 +1,5 @@
 import { MediaCandidate, Resolver, ResolveContext } from './types';
-import { IgMediaEntry, extractIgMedia, shortcodeFromUrl } from '@/extension/shared/ig-media-sniff';
+import { IgMediaEntry, extractIgMedia, shortcodeFromUrl, pinIgUrl } from '@/extension/shared/ig-media-sniff';
 
 /**
  * Instagram resolver. Instagram serves images/videos from signed CDNs
@@ -28,10 +28,34 @@ let sniffed: IgMediaEntry[] = [];
 // when the page's script blocks, the sniffed count, or the URL change.
 let cache: { token: string; byCode: Map<string, IgMediaEntry[]> } | null = null;
 
-/** Feed media read from a sniffed GraphQL/api response (deduped downstream by url). */
-export function ingestSniffedIgMedia(entries: IgMediaEntry[]): void {
-  if (!Array.isArray(entries) || !entries.length) return;
-  sniffed.push(...entries);
+const SHORTCODE = /^[A-Za-z0-9_-]{1,64}$/;
+
+/**
+ * Feed media read from a sniffed GraphQL/api response into the resolver's store
+ * (deduped downstream by url). The payload arrives across the MAIN→isolated
+ * postMessage boundary, so it is UNTRUSTED — a malicious instagram.com page can
+ * forge the envelope. Re-validate every field and host-pin every URL here; never
+ * store an entry whose url isn't an https Instagram/Facebook CDN URL.
+ */
+export function ingestSniffedIgMedia(entries: unknown): void {
+  if (!Array.isArray(entries)) return;
+  const clean: IgMediaEntry[] = [];
+  for (const raw of entries) {
+    if (!raw || typeof raw !== 'object') continue;
+    const e = raw as Record<string, unknown>;
+    if (typeof e.code !== 'string' || !SHORTCODE.test(e.code)) continue;
+    if (e.kind !== 'image' && e.kind !== 'video') continue;
+    const url = pinIgUrl(e.url);
+    if (!url) continue;
+    const entry: IgMediaEntry = { code: e.code, kind: e.kind, url, ext: typeof e.ext === 'string' ? e.ext : e.kind === 'video' ? 'mp4' : 'jpg' };
+    if (typeof e.width === 'number') entry.width = e.width;
+    if (typeof e.height === 'number') entry.height = e.height;
+    const poster = pinIgUrl(e.poster);
+    if (e.kind === 'video' && poster) entry.poster = poster;
+    clean.push(entry);
+  }
+  if (!clean.length) return;
+  sniffed.push(...clean);
   if (sniffed.length > SNIFF_CAP) sniffed = sniffed.slice(sniffed.length - SNIFF_CAP);
   cache = null;
 }

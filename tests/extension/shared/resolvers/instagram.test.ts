@@ -161,4 +161,20 @@ describe('instagramResolver.resolve — sniffed GraphQL media', () => {
     const out = instagramResolver.resolve(u(`${CDN}/SCROLL_thumb_n.jpg`), { el, allowNetwork: false, pageUrl: 'https://www.instagram.com/user/' });
     expect(out).toEqual([{ url: `${CDN}/SCROLL_1440_n.jpg`, kind: 'image', ext: 'jpg', width: 1440, height: 1440 }]);
   });
+
+  it('drops forged entries (a malicious page could postMessage): only IG-CDN urls survive', () => {
+    ingestSniffedIgMedia([
+      { code: 'EVIL', kind: 'image', url: 'https://evil.com/exfil.jpg', ext: 'jpg', width: 1, height: 1 },
+      { code: 'EVIL', kind: 'image', url: 'javascript:alert(1)', ext: 'jpg' },
+      { code: 'not a code!', kind: 'image', url: `${CDN}/ok_n.jpg`, ext: 'jpg' },
+      { code: 'GOOD', kind: 'image', url: `${CDN}/GOOD_n.jpg`, ext: 'jpg', width: 1440, height: 1440 },
+    ]);
+    document.body.insertAdjacentHTML('beforeend', '<a href="/user/p/EVIL/"><img id="e"></a><a href="/user/p/GOOD/"><img id="g"></a>');
+    // The evil host / scheme entries never made it into the store.
+    expect(instagramResolver.resolve(u(`${CDN}/t.jpg`), { el: document.getElementById('e')!, allowNetwork: false })).toEqual([]);
+    // The valid IG-CDN entry did.
+    expect(instagramResolver.resolve(u(`${CDN}/t.jpg`), { el: document.getElementById('g')!, allowNetwork: false })).toEqual([
+      { url: `${CDN}/GOOD_n.jpg`, kind: 'image', ext: 'jpg', width: 1440, height: 1440 },
+    ]);
+  });
 });
