@@ -1,3 +1,6 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import * as MP4Box from 'mp4box';
 import {
   parseIso8601Duration,
   substituteTemplate,
@@ -6,7 +9,24 @@ import {
   DashRepresentation,
   selectRepresentation,
   assertDownloadable,
+  captureDash,
+  DashDeps,
 } from '@/extension/shared/download/dash';
+
+const fx = (name: string) => new Uint8Array(readFileSync(join(__dirname, '../../../fixtures/dash', name)));
+
+function tracksOf(bytes: Uint8Array): { type: 'video' | 'audio' }[] {
+  const file = MP4Box.createFile() as any;
+  let tracks: { type: 'video' | 'audio' }[] = [];
+  file.onReady = (info: { tracks: { video?: unknown }[] }) => {
+    tracks = info.tracks.map((t) => ({ type: t.video ? 'video' : 'audio' }));
+  };
+  const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer & { fileStart: number };
+  ab.fileStart = 0;
+  file.appendBuffer(ab as any);
+  file.flush();
+  return tracks;
+}
 
 describe('parseIso8601Duration', () => {
   it('parses hours/minutes/seconds and fractions', () => {
@@ -152,5 +172,37 @@ describe('assertDownloadable', () => {
   });
   it('accepts a clear VOD manifest with video', () => {
     expect(() => assertDownloadable({ ...base, video: withVideo })).not.toThrow();
+  });
+});
+
+describe('captureDash — e2e mux', () => {
+  const deps = (mpd = VOD_MPD): DashDeps => ({
+    fetchText: async () => mpd,
+    fetchBytes: async (u: string) => fx(u.split('/').pop()!),
+  });
+
+  it('parses, expands, fetches, and muxes video + audio into one MP4', async () => {
+    const res = await captureDash('https://cdn.test/manifest.mpd', deps());
+    expect(res.ext).toBe('mp4');
+    expect(res.muxedAudio).toBe(true);
+    expect(String.fromCharCode(res.bytes[4], res.bytes[5], res.bytes[6], res.bytes[7])).toBe('ftyp');
+    const tracks = tracksOf(res.bytes);
+    expect(tracks).toHaveLength(2);
+    expect(tracks.some((t) => t.type === 'video')).toBe(true);
+    expect(tracks.some((t) => t.type === 'audio')).toBe(true);
+  });
+
+  it('produces a video-only MP4 when the manifest has no audio AdaptationSet', async () => {
+    const videoOnly = VOD_MPD.replace(/<AdaptationSet mimeType="audio\/mp4">[\s\S]*?<\/AdaptationSet>/, '');
+    const res = await captureDash('https://cdn.test/manifest.mpd', deps(videoOnly));
+    expect(res.muxedAudio).toBe(false);
+    expect(tracksOf(res.bytes)).toHaveLength(1);
+  });
+
+  it('throws too-large when the summed bytes exceed maxBytes', async () => {
+    // v_seg1.m4v is ~90 KB; 1000 bytes forces the video track over budget.
+    await expect(captureDash('https://cdn.test/manifest.mpd', deps(), { maxBytes: 1000 })).rejects.toMatchObject({
+      code: 'too-large',
+    });
   });
 });

@@ -14,6 +14,8 @@
  * SegmentTimeline) is supported; SegmentList / SegmentBase-only is not.
  */
 
+import { muxTracks } from './mux';
+
 /** ISO-8601 media duration (`PT1H2M3.5S`) → seconds. 0 for anything unparseable.
  *  Only the `PT…` (hours/minutes/seconds) form is handled — the only form MPD
  *  `mediaPresentationDuration` uses for VOD. */
@@ -249,4 +251,109 @@ export function assertDownloadable(m: DashManifest): void {
   if (m.isLive) throw new DashError('live', 'This is a live (dynamic) stream — there is no single file to save.');
   if (m.hasDrm) throw new DashError('drm', 'This stream is DRM-protected and cannot be captured.');
   if (!m.video.length) throw new DashError('no-representations', 'The manifest has no video representation.');
+}
+
+// ---- orchestration --------------------------------------------------------
+
+export interface DashDeps {
+  fetchText: (url: string) => Promise<string>;
+  fetchBytes: (url: string) => Promise<Uint8Array>;
+  /** Bounded parallel segment fetches (default 6). */
+  concurrency?: number;
+  onProgress?: (done: number, total: number) => void;
+}
+
+export interface DashCaptureResult {
+  bytes: Uint8Array;
+  ext: 'mp4';
+  mime: string;
+  video?: DashRepresentation;
+  muxedAudio?: boolean;
+  segmentCount: number;
+  durationSec: number;
+}
+
+interface DashBudget {
+  used: number;
+  max?: number;
+}
+
+/** Fetch one track's init + media segments (bounded concurrency, shared budget). */
+async function fetchDashTrack(
+  seg: { initUri: string; segmentUris: string[] },
+  deps: DashDeps,
+  onSegment: () => void,
+  budget: DashBudget,
+): Promise<{ init?: Uint8Array; segments: Uint8Array[] }> {
+  const total = seg.segmentUris.length;
+  const parts: Uint8Array[] = new Array(total);
+  let cursor = 0;
+  const worker = async (): Promise<void> => {
+    while (cursor < total) {
+      const i = cursor++;
+      const bytes = await deps.fetchBytes(seg.segmentUris[i]);
+      parts[i] = bytes;
+      budget.used += bytes.length;
+      if (budget.max && budget.used > budget.max) throw new DashError('too-large', 'Stream exceeds the maximum capture size.');
+      onSegment();
+    }
+  };
+  const limit = Math.max(1, deps.concurrency ?? 6);
+  await Promise.all(Array.from({ length: Math.min(limit, total) }, worker));
+  const init = seg.initUri ? await deps.fetchBytes(seg.initUri) : undefined;
+  return { init, segments: parts };
+}
+
+/**
+ * Full capture: MPD URL → one muxed MP4. Parses the MPD, refuses live/DRM, selects
+ * the highest video + audio, expands each SegmentTemplate, fetches every segment,
+ * and muxes the two fMP4 tracks together.
+ */
+export async function captureDash(url: string, deps: DashDeps, opts: DashCaptureOptions = {}): Promise<DashCaptureResult> {
+  const xml = await deps.fetchText(url);
+  const manifest = parseMpd(xml, url);
+  assertDownloadable(manifest);
+
+  const video = selectRepresentation(manifest.video, opts.quality)!;
+  const audio = manifest.audio.length ? selectRepresentation(manifest.audio, 'highest') : undefined;
+
+  const vExp = expandSegments(video, manifest.durationSec);
+  const aExp = audio ? expandSegments(audio, manifest.durationSec) : undefined;
+
+  const total = vExp.segmentUris.length + (aExp?.segmentUris.length ?? 0);
+  let done = 0;
+  const onSegment = (): void => deps.onProgress?.(++done, total);
+  const budget: DashBudget = { used: 0, max: opts.maxBytes };
+
+  let videoTrack: { init?: Uint8Array; segments: Uint8Array[] };
+  let audioTrack: { init?: Uint8Array; segments: Uint8Array[] } | undefined;
+  try {
+    videoTrack = await fetchDashTrack(vExp, deps, onSegment, budget);
+    audioTrack = aExp ? await fetchDashTrack(aExp, deps, onSegment, budget) : undefined;
+  } catch (e) {
+    if (e instanceof DashError) throw e;
+    throw new DashError('fetch-failed', 'A segment could not be fetched.');
+  }
+  if (!videoTrack.init) throw new DashError('unsupported', 'The video representation has no initialization segment.');
+
+  let bytes: Uint8Array;
+  try {
+    bytes = muxTracks(
+      { init: videoTrack.init, segments: videoTrack.segments },
+      audioTrack && audioTrack.init ? { init: audioTrack.init, segments: audioTrack.segments } : null,
+    );
+  } catch {
+    throw new DashError('unsupported', 'Could not combine this stream’s tracks.');
+  }
+  if (!bytes.length) throw new DashError('empty', 'Nothing was downloaded from the stream.');
+
+  return {
+    bytes,
+    ext: 'mp4',
+    mime: 'video/mp4',
+    video,
+    muxedAudio: !!(audioTrack && audioTrack.init),
+    segmentCount: vExp.segmentUris.length,
+    durationSec: Math.round(manifest.durationSec),
+  };
 }
