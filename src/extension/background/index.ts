@@ -34,7 +34,7 @@ import { upgradeToOriginal, detectType } from '../shared/collection/imageUrl';
 import { extensionFromUrl } from '../shared/collection/mediaType';
 import { resolveOriginal, NetDeps } from '../shared/resolvers/network';
 import { mediaIdFromPoster, pinTwimgUrl } from '../shared/resolvers/x-media-sniff';
-import { recordDownloads, removeEntry, clearHistory, restoreHistory } from '../shared/storage/history';
+import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk } from '../shared/storage/history';
 import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } from '../shared/storage/favourites';
 
 // Re-exported for the background test suite, which imports them from here.
@@ -479,7 +479,7 @@ chrome.runtime.onMessage.addListener(
   (
     message: ChromeMessage,
     sender: chrome.runtime.MessageSender,
-    sendResponse: (response: DownloadResponse | ResolveOriginalsResponse) => void,
+    sendResponse: (response: DownloadResponse | ResolveOriginalsResponse | string[]) => void,
   ) => {
     if (typeof message === 'object' && message.type === 'X_MEDIA_SEEN') {
       // Passive sniffer feed from the x.com content script (per tab). Fire-and-forget.
@@ -574,6 +574,20 @@ chrome.runtime.onMessage.addListener(
     if (typeof message === 'object' && message.type === 'SHOW_DOWNLOAD') {
       chrome.downloads.show((message as ShowDownloadMessage).downloadId);
       return;
+    }
+
+    if (typeof message === 'object' && message.type === 'GET_DOWNLOADED_SRCS') {
+      // On-disk truth for the "already downloaded" tile mark. Only the background
+      // realm can call chrome.downloads, so the popup and bubble both ask here.
+      // One search over the download records, indexed by id — cheaper than one
+      // lookup per history entry — then the pure filter decides what's still present.
+      void (async () => {
+        const history = await loadHistory();
+        const items = await chrome.downloads.search({});
+        const existsById = new Map(items.map((it) => [it.id, it.exists]));
+        sendResponse(srcsStillOnDisk(history, (id) => existsById.get(id) === true));
+      })();
+      return true; // response is sent asynchronously
     }
 
     if (typeof message === 'object' && message.type === 'OPEN_URL') {

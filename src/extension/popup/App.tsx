@@ -17,7 +17,7 @@ import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
 import { collectFromActiveTab } from '../shared/active-tab/collect-active-tab';
 import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/active-tab/deep-scan-active-tab';
 import { requestResolveOriginals } from '../shared/active-tab/resolve-originals-active';
-import { downloadedSrcSet, HISTORY_KEY } from '../shared/storage/history';
+import { HISTORY_KEY } from '../shared/storage/history';
 import { favouriteSrcSet, FAVOURITES_KEY } from '../shared/storage/favourites';
 import { buildZip, zipFileName } from '../shared/download/zip';
 import { convertImage, isConvertible } from '../shared/download/convert';
@@ -25,7 +25,7 @@ import { captureHls, HlsError } from '../shared/download/hls';
 import { browserHlsDeps } from '../shared/download/hls-webcrypto';
 import { buildDownloadFilename } from '../shared/collection/download-name';
 import { hostFromUrl, registrableDomain, todayISO } from '../shared/collection/paths';
-import { copyText, downloadText, getImageFileSize, mapWithConcurrency, sendRuntimeMessage } from './utils';
+import { copyText, downloadText, fetchDownloadedOnDisk, getImageFileSize, mapWithConcurrency, sendRuntimeMessage } from './utils';
 import { Cog6ToothIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 
 // Concurrent HEAD requests when enriching remote image sizes.
@@ -138,12 +138,14 @@ const App: React.FC<AppProps> = ({
   }, []);
 
   useEffect(() => {
-    void downloadedSrcSet().then(setDownloadedSrcs);
+    // The "downloaded" mark reflects files still on disk, not just what history
+    // records — so an item the user deleted becomes re-downloadable (not a
+    // duplicate). chrome.downloads lives in the background, so this asks it, and
+    // re-asks whenever history changes (a new download, or a cleared entry).
+    const refresh = (): void => void fetchDownloadedOnDisk().then(setDownloadedSrcs);
+    refresh();
     const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
-      if (area === 'local' && changes[HISTORY_KEY]) {
-        const next = (changes[HISTORY_KEY].newValue as { src: string }[] | undefined) ?? [];
-        setDownloadedSrcs(new Set(next.map((e) => e.src)));
-      }
+      if (area === 'local' && changes[HISTORY_KEY]) refresh();
     };
     chrome.storage.onChanged.addListener(onChanged);
     return () => chrome.storage.onChanged.removeListener(onChanged);

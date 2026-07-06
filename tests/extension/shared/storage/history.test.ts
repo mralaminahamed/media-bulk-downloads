@@ -1,4 +1,4 @@
-import { mergeHistory, recordDownloads, removeEntry, clearHistory, restoreHistory, downloadedSrcSet, loadHistory, HISTORY_CAP, HISTORY_MAX_BYTES } from '@/extension/shared/storage/history';
+import { mergeHistory, recordDownloads, removeEntry, clearHistory, restoreHistory, downloadedSrcSet, srcsStillOnDisk, loadHistory, HISTORY_CAP, HISTORY_MAX_BYTES } from '@/extension/shared/storage/history';
 import { HistoryEntry } from '@/types';
 
 describe('loadHistory — corrupt storage', () => {
@@ -83,5 +83,25 @@ describe('restoreHistory', () => {
     // dedup by src (a wins at time 9), sorted newest-first — old contents dropped.
     expect(store.map((x) => x.src)).toEqual(['a', 'b']);
     expect(store[0].time).toBe(9);
+  });
+});
+
+describe('srcsStillOnDisk', () => {
+  const withId = (src: string, downloadId: number): HistoryEntry => ({ ...e(src, 1), downloadId });
+
+  it('keeps only entries whose tracked download still exists on disk', () => {
+    const history = [withId('keep', 10), withId('gone', 20)];
+    const onDisk = srcsStillOnDisk(history, (id) => id === 10); // 20 was deleted/moved
+    expect(onDisk).toEqual(['keep']);
+  });
+
+  it('keeps legacy entries without a downloadId (existence cannot be verified)', () => {
+    const history = [e('legacy', 1), withId('present', 10)];
+    const onDisk = srcsStillOnDisk(history, (id) => id === 10);
+    expect(onDisk).toEqual(['legacy', 'present']);
+  });
+
+  it('returns nothing when every tracked file is gone', () => {
+    expect(srcsStillOnDisk([withId('a', 1), withId('b', 2)], () => false)).toEqual([]);
   });
 });
