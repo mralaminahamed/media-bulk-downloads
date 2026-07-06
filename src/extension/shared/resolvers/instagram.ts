@@ -120,8 +120,13 @@ function toCandidate(e: IgMediaEntry): MediaCandidate {
   if (typeof e.height === 'number') cand.height = e.height;
   if (e.kind === 'video' && e.poster) cand.poster = e.poster;
   // A reels-grid clip we only have the cover for — shown by its poster, not
-  // downloadable until the reel's real mp4 is sniffed (on play/open).
-  if (e.pending) cand.unresolvedVideo = true;
+  // downloadable yet. The resolveHint lets "Get video" fetch its real mp4 on
+  // demand (the reel's own page, read with the user's session), and lets a
+  // sniffed mp4 supersede it if the reel plays first.
+  if (e.pending) {
+    cand.unresolvedVideo = true;
+    cand.resolveHint = { platform: 'instagram', id: e.code };
+  }
   return cand;
 }
 

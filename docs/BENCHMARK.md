@@ -209,8 +209,11 @@ Instagram media served from `fbcdn.net` is covered by this resolver.
 Reels-tab / grid **clips ship only a cover** (`media_type` 2 with no
 `video_versions`, confirmed live) — no bulk mp4 exists without forging the
 private per-reel GraphQL, which this extension does not do. They surface as
-**pending videos** (poster = cover) that upgrade to the real mp4 when the reel's
-own response is sniffed (on play/open).
+**pending videos** (poster = cover) that upgrade to the real mp4 either when the
+reel's own response is sniffed (on play/open) or via the opt-in "Get video" —
+the background GETs the reel's own page with the user's session cookies and reads
+the mp4 from its embedded JSON (read-only, no forged API); it reports "couldn't
+fetch" when Instagram gates the page.
 
 ## D. Gaps found
 
