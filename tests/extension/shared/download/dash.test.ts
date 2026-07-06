@@ -1,4 +1,4 @@
-import { parseIso8601Duration, substituteTemplate } from '@/extension/shared/download/dash';
+import { parseIso8601Duration, substituteTemplate, parseMpd } from '@/extension/shared/download/dash';
 
 describe('parseIso8601Duration', () => {
   it('parses hours/minutes/seconds and fractions', () => {
@@ -24,5 +24,51 @@ describe('substituteTemplate', () => {
   });
   it('treats $$ as a literal $', () => {
     expect(substituteTemplate('a$$b', {})).toBe('a$b');
+  });
+});
+
+const VOD_MPD = `<?xml version="1.0"?>
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" type="static" mediaPresentationDuration="PT6S">
+  <Period>
+    <AdaptationSet mimeType="video/mp4">
+      <Representation id="v0" bandwidth="1000000" width="640" height="360" codecs="avc1.640028">
+        <SegmentTemplate initialization="v_init.m4v" media="v_seg$Number$.m4v" startNumber="1" timescale="1" duration="6"/>
+      </Representation>
+    </AdaptationSet>
+    <AdaptationSet mimeType="audio/mp4">
+      <Representation id="a0" bandwidth="128000" codecs="mp4a.40.2">
+        <SegmentTemplate initialization="a_init.m4a" media="a_seg$Number$.m4a" startNumber="1" timescale="1" duration="6"/>
+      </Representation>
+    </AdaptationSet>
+  </Period>
+</MPD>`;
+
+describe('parseMpd', () => {
+  it('extracts video + audio representations and duration', () => {
+    const m = parseMpd(VOD_MPD, 'https://cdn.test/manifest.mpd');
+    expect(m.isLive).toBe(false);
+    expect(m.hasDrm).toBe(false);
+    expect(m.durationSec).toBe(6);
+    expect(m.video).toHaveLength(1);
+    expect(m.audio).toHaveLength(1);
+    expect(m.video[0]).toMatchObject({ id: 'v0', bandwidth: 1000000, width: 640, height: 360, contentType: 'video' });
+    expect(m.video[0].template).toMatchObject({ initialization: 'v_init.m4v', media: 'v_seg$Number$.m4v', startNumber: 1, timescale: 1, duration: 6 });
+    expect(m.video[0].baseUrl).toBe('https://cdn.test/manifest.mpd');
+    expect(m.audio[0]).toMatchObject({ id: 'a0', bandwidth: 128000, contentType: 'audio' });
+  });
+
+  it('flags a dynamic manifest as live', () => {
+    const live = VOD_MPD.replace('type="static"', 'type="dynamic"');
+    expect(parseMpd(live, 'https://cdn.test/m.mpd').isLive).toBe(true);
+  });
+
+  it('flags a manifest with ContentProtection as DRM', () => {
+    const drm = VOD_MPD.replace('<Representation id="v0"', '<ContentProtection schemeIdUri="urn:mpeg:dash:mp4protection:2011"/><Representation id="v0"');
+    expect(parseMpd(drm, 'https://cdn.test/m.mpd').hasDrm).toBe(true);
+  });
+
+  it('resolves a Representation-level BaseURL against the MPD url', () => {
+    const based = VOD_MPD.replace('<SegmentTemplate initialization="v_init.m4v"', '<BaseURL>video/</BaseURL><SegmentTemplate initialization="v_init.m4v"');
+    expect(parseMpd(based, 'https://cdn.test/manifest.mpd').video[0].baseUrl).toBe('https://cdn.test/video/');
   });
 });
