@@ -151,7 +151,7 @@ crop to size. PNG or JPEG.
 
 | Asset          | Size               | Required | Suggested shot                                                     |
 |----------------|--------------------|----------|--------------------------------------------------------------------|
-| Icon           | 64×64 (from 128×128) | ✅ (manifest) | Opera reads the manifest icons — no separate store logo needed |
+| Icon           | 64×64              | ✅ (manifest) | Ships in the build — `src/public/icon/64.png` (rendered from `assets/icon.svg`); Opera reads the manifest icons, no separate store logo needed |
 | Screenshot 1   | 1280×800           | ✅ (≥1)   | Popup with a full media grid + type badges                        |
 | Screenshot 2   | 1280×800           | optional | Filter toolbar in use (kind/format/size)                          |
 | Screenshot 3   | 1280×800           | optional | Preview modal (with prev/next)                                    |
