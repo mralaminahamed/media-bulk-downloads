@@ -64,6 +64,7 @@ export const DownloadButton: React.FC<DownloadButtonProps> = ({ label, disabled,
           aria-haspopup="menu"
           aria-expanded={open}
           aria-label="More download options"
+          title="More download options"
           className="btn btn-primary rounded-l-none border-l border-l-white/25 px-2"
         >
           <ChevronDownIcon className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />

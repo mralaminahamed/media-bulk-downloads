@@ -126,6 +126,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                   checked={isSelected}
                   onClick={(e) => handleCheckbox(e, image, index)}
                   ariaLabel={isSelected ? 'Deselect item' : 'Select item'}
+                  title={isSelected ? 'Deselect item' : 'Select item'}
                   className={`absolute left-1.5 top-1.5 z-10 ${
                     boxUp ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
                   }`}
