@@ -27,7 +27,7 @@ export default defineConfig({
     name: 'Media Bulk Downloads',
     description:
       'Bulk-download images, video & audio from any web page. Smart type filters, instant preview, original quality — fast and private.',
-    permissions: ['downloads', 'downloads.open', 'storage', 'tabs'],
+    permissions: ['downloads', 'downloads.open', 'storage', 'tabs', 'contextMenus'],
     host_permissions: ['<all_urls>'],
     icons: {
       16: 'icon/16.png',

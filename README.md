@@ -132,6 +132,9 @@ package with `yarn lint:firefox`. To load it by hand:
 Prefer to stay on the page? The optional **on-page bubble** gives you the same tools in
 a draggable panel without opening the toolbar popup.
 
+In a hurry? **Right-click** anywhere for **Download all media on this page**, or right-click
+an image for **Download image (original quality)** and **Add image to Favourites** — no popup needed.
+
 ## Permissions
 
 | Permission       | Why it's needed                                                           |
@@ -140,6 +143,7 @@ a draggable panel without opening the toolbar popup.
 | `downloads.open` | Open a downloaded file from the in-app history                            |
 | `storage`        | Keep your settings and download history locally on your device            |
 | `tabs`           | Read the active tab's URL/title to label downloads and open a source page |
+| `contextMenus`   | Add right-click actions (download all / this image, add to favourites)    |
 | `<all_urls>`     | Read media on whatever page you run the extension on                      |
 
 ## Supported sites

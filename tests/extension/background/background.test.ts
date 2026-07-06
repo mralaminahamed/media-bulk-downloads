@@ -9,12 +9,15 @@ import {
   DEFAULT_SETTINGS,
   resolveOriginalsBatch,
   downloadAndRecord,
+  setupContextMenus,
+  mediaFromContext,
 } from '@/extension/background';
 import { ImageInfo, SettingsData } from '@/types';
 
 // The runtime.onMessage handler is registered against the setupTests chrome
 // mock at import time; capture it before any describe swaps global.chrome.
 const messageHandler = (global.chrome.runtime.onMessage.addListener as jest.Mock).mock.calls[0][0];
+const contextMenuHandler = (global.chrome.contextMenus.onClicked.addListener as jest.Mock).mock.calls[0][0];
 
 describe('Background Script', () => {
   let mockChrome: any;
@@ -554,5 +557,59 @@ describe('DOWNLOAD_ZIP — archive bytes → data URL → chrome.downloads', () 
     messageHandler({ type: 'DOWNLOAD_ZIP', bytes: new Uint8Array([1]), filename: 'x.zip' }, {}, sendResponse);
     await new Promise((r) => setTimeout(r, 0));
     expect(sendResponse).toHaveBeenCalledWith({ status: 'error', message: "Couldn't save x.zip." });
+  });
+});
+
+describe('context menu', () => {
+  const info = (over: Partial<chrome.contextMenus.OnClickData>): chrome.contextMenus.OnClickData =>
+    ({ menuItemId: '', editable: false, pageUrl: 'https://page', ...over }) as unknown as chrome.contextMenus.OnClickData;
+  const tab = (over: Partial<chrome.tabs.Tab>): chrome.tabs.Tab => (over as unknown as chrome.tabs.Tab);
+
+  beforeEach(() => {
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({}));
+    loadSettings(); // resolve the settingsReady gate with defaults
+    (chrome.downloads.download as jest.Mock).mockReset().mockImplementation((_o, cb) => cb(1));
+    (chrome.storage.local.get as jest.Mock).mockReset().mockResolvedValue({ downloadHistory: [], favourites: [] });
+    (chrome.storage.local.set as jest.Mock).mockReset().mockResolvedValue(undefined);
+    (chrome.tabs.sendMessage as jest.Mock).mockReset();
+  });
+
+  it('creates the four menu items on setup', () => {
+    (chrome.contextMenus.create as jest.Mock).mockClear();
+    (chrome.contextMenus.removeAll as jest.Mock).mockImplementation((cb?: () => void) => cb?.());
+    setupContextMenus();
+    const ids = (chrome.contextMenus.create as jest.Mock).mock.calls.map((c) => c[0].id);
+    expect(ids).toEqual(['mbd-download-all', 'mbd-download-image', 'mbd-favourite-image', 'mbd-download-media']);
+  });
+
+  it('mediaFromContext upgrades an image, keeps a/v as-is, and skips data: URLs', () => {
+    expect(mediaFromContext(info({ srcUrl: 'data:image/png;base64,AAAA', mediaType: 'image' }))).toBeNull();
+    expect(mediaFromContext(info({ srcUrl: 'https://cdn/a.jpg', mediaType: 'image' }))).toMatchObject({ kind: 'image' });
+    expect(mediaFromContext(info({ srcUrl: 'https://cdn/clip.mp4', mediaType: 'video' }))).toMatchObject({ kind: 'video', src: 'https://cdn/clip.mp4' });
+  });
+
+  it('downloads the single right-clicked image without the size filter', async () => {
+    contextMenuHandler(info({ menuItemId: 'mbd-download-image', srcUrl: 'https://cdn/pic.jpg', mediaType: 'image' }), tab({ url: 'https://page', title: 'T' }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(chrome.downloads.download).toHaveBeenCalledWith(
+      expect.objectContaining({ url: expect.stringContaining('pic.jpg'), filename: expect.stringMatching(/image_1\.(jpe?g)$/) }),
+      expect.any(Function),
+    );
+  });
+
+  it('download-all collects from the tab and downloads the eligible set', async () => {
+    (chrome.tabs.sendMessage as jest.Mock).mockImplementation((_id, _msg, cb) =>
+      cb([{ src: 'https://c/a.jpg', kind: 'image', type: 'jpeg', width: 0, height: 0, fileSize: 0, isBase64: false, alt: '' }]));
+    contextMenuHandler(info({ menuItemId: 'mbd-download-all' }), tab({ id: 9, url: 'https://page', title: 'T' }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(9, 'GET_IMAGES', expect.any(Function));
+    expect(chrome.downloads.download).toHaveBeenCalled();
+  });
+
+  it('adds the right-clicked image to favourites', async () => {
+    contextMenuHandler(info({ menuItemId: 'mbd-favourite-image', srcUrl: 'https://cdn/pic.jpg', mediaType: 'image' }), tab({ url: 'https://page', title: 'T' }));
+    await new Promise((r) => setTimeout(r, 0));
+    const set = (chrome.storage.local.set as jest.Mock).mock.calls.at(-1)?.[0];
+    expect(set.favourites[0]).toMatchObject({ src: expect.stringContaining('pic.jpg'), kind: 'image', sourcePageUrl: 'https://page' });
   });
 });

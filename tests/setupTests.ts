@@ -13,7 +13,17 @@ global.chrome = {
             addListener: jest.fn(),
             removeListener: jest.fn(),
         },
+        onStartup: {
+            addListener: jest.fn(),
+        },
         lastError: undefined,
+    },
+    contextMenus: {
+        create: jest.fn(),
+        removeAll: jest.fn((cb?: () => void) => cb?.()),
+        onClicked: {
+            addListener: jest.fn(),
+        },
     },
     tabs: {
         query: jest.fn().mockResolvedValue([]),
