@@ -61,6 +61,7 @@ function hlsErrorMessage(e: unknown): string {
       case 'drm': return 'This stream is DRM-protected and can’t be captured.';
       case 'sample-aes': return 'This stream uses SAMPLE-AES encryption, which isn’t supported.';
       case 'too-large': return `Stream is too large to capture in the popup (over ${Math.round(HLS_MAX_BYTES / 1024 / 1024)} MB).`;
+      case 'demuxed-unsupported': return 'This stream delivers audio separately in a format that can’t be combined.';
       default: return `Couldn’t capture the stream (${e.code}).`;
     }
   }
@@ -389,7 +390,8 @@ const App: React.FC<AppProps> = ({
           setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
         },
       );
-      setState((prev) => ({ ...prev, status: `Captured ${filename} — ${res.segmentCount} segments.` }));
+      const audioNote = res.muxedAudio ? ' (video + audio)' : '';
+      setState((prev) => ({ ...prev, status: `Captured ${filename} — ${res.segmentCount} segments${audioNote}.` }));
     } catch (e) {
       setState((prev) => ({ ...prev, status: hlsErrorMessage(e) }));
     } finally {
