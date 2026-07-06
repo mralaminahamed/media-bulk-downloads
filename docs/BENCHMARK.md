@@ -206,6 +206,11 @@ forged requests). Verified live 2026-07-06 against a public profile: single
 image, reel (9 MB mp4, HTTP 200), and 9- and 10-slide carousels (every child
 1440 px, HTTP 200). Facebook (row 55) has no page resolver and stays a gap;
 Instagram media served from `fbcdn.net` is covered by this resolver.
+Reels-tab / grid **clips ship only a cover** (`media_type` 2 with no
+`video_versions`, confirmed live) — no bulk mp4 exists without forging the
+private per-reel GraphQL, which this extension does not do. They surface as
+**pending videos** (poster = cover) that upgrade to the real mp4 when the reel's
+own response is sniffed (on play/open).
 
 ## D. Gaps found
 
