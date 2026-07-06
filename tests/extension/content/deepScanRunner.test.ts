@@ -89,7 +89,8 @@ describe('findLoadMoreButtons', () => {
       '<button id="b">Show More Posts</button>' +
       '<div id="c" role="button">See more</div>' +
       '<button id="d">Buy now</button>' +
-      '<a id="e" href="/next">Load more</a>'; // anchor would navigate → excluded
+      '<a id="e" href="/next">Load more</a>' + // plain anchor would navigate → excluded
+      '<a id="f" href="/next" role="button">Load more</a>'; // role=button anchor STILL navigates → excluded
     expect(findLoadMoreButtons(document).map((e) => e.id).sort()).toEqual(['a', 'b', 'c']);
   });
 

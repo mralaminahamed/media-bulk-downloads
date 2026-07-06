@@ -4,7 +4,7 @@
  * Returns raw (unresolved) URL strings; collect.ts resolves/upgrades/dedups.
  */
 import { parseSrcset } from '@/extension/content/collect';
-import { looksLikeMediaUrl } from '@/extension/shared/collection/imageUrl';
+import { looksLikeMediaUrl, splitSrcsetCandidates } from '@/extension/shared/collection/imageUrl';
 
 export interface UrlCandidate {
   url: string;
@@ -28,21 +28,22 @@ const LAZY_SRC_ATTRS = [
 const LAZY_SRCSET_ATTRS = ['srcset', 'data-srcset', 'data-lazy-srcset'];
 const LAZY_BG_ATTRS = ['data-bg', 'data-background', 'data-background-image'];
 
-/** Highest-width candidate in a srcset, or the last one if none carry widths. */
+/**
+ * Highest-resolution candidate in a srcset. Prefers the widest `w` descriptor;
+ * for a pure-density srcset (`hi.jpg 2x, lo.jpg 1x`, no widths) prefers the
+ * densest `x` instead of blindly returning the last entry.
+ */
 export function bestSrcsetUrl(srcset: string): string | null {
-  const entries = srcset
-    .trim()
-    .split(/,(?=\s*(?:https?:|data:|blob:|\/|\.{1,2}\/|[\w-]+[./]))/i)
-    .map((c) => c.trim())
-    .filter(Boolean);
+  const entries = splitSrcsetCandidates(srcset);
   if (!entries.length) return null;
-  let best: { url: string; w: number } | null = null;
+  let best: { url: string; w: number; x: number } | null = null;
   for (const e of entries) {
     const parts = e.split(/\s+/);
     const url = parts[0];
-    const wMatch = parts.slice(1).join(' ').match(/(\d+)w/);
-    const w = wMatch ? parseInt(wMatch[1], 10) : 0;
-    if (!best || w >= best.w) best = { url, w };
+    const descr = parts.slice(1).join(' ');
+    const w = Number(descr.match(/([\d.]+)w/)?.[1] ?? 0);
+    const x = Number(descr.match(/([\d.]+)x/)?.[1] ?? 0);
+    if (!best || w > best.w || (w === best.w && x > best.x)) best = { url, w, x };
   }
   return best?.url ?? null;
 }
@@ -94,9 +95,9 @@ export function noscriptImageCandidates(ns: HTMLElement): UrlCandidate[] {
   let html = ns.textContent || '';
   // When scripting is enabled — every real browser tab a content script runs in,
   // and jsdom's `runScripts: 'dangerously'` — <noscript> is parsed as RAWTEXT, so
-  // `textContent` returns the source with entities left un-decoded. Some templating
-  // also double-escapes the markup. Unescape as a fallback so `&lt;img ...&gt;`
-  // is recognized the same as `<img ...>`. (Only a scripting-disabled parse would
+  // `textContent` returns the source with entities left un-decoded. Unescape once
+  // as a fallback so a singly-escaped `&lt;img ...&gt;` is recognized the same as
+  // `<img ...>`. (Only a scripting-disabled parse would
   // auto-decode, in which case this branch never fires.)
   if (!html.includes('<img') && html.includes('&lt;')) {
     html = html

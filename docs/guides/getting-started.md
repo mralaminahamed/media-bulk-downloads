@@ -94,9 +94,9 @@ src/
   public/icon/                  # extension icons
   types/                        # shared TypeScript types
   extension/
-    background.ts               # service worker: badge, downloads, settings, icon click
-    content.ts                  # content-script logic: GET_IMAGES, DEEP_SCAN, bubble mount
-    collect.ts                  # collectMedia(): DOM -> MediaItem[]
+    background/index.ts         # service worker: badge, downloads, settings, icon click
+    content/index.ts            # content-script logic: GET_IMAGES, DEEP_SCAN, bubble mount
+    content/collect.ts          # collectMedia(): DOM -> MediaItem[]
     content/deepScanRunner.ts   # real-DOM deep-scan bindings
     components/BrandMark.tsx    # shared icon mark (popup header + bubble launcher)
     shared/

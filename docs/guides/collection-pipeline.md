@@ -117,7 +117,7 @@ candidate for that particular path.
 | `<noscript>`       | Parsed with `DOMParser`; the real image often lives here for no-JS users                                    |
 | Gallery `<a href>` | Anchor whose href `looksLikeMediaUrl` → href is the original, inner `<img>` is the `thumbnailSrc`           |
 
-### Root & head sources (`shared/collect.ts`)
+### Root & head sources (`content/collect.ts`)
 
 Beyond the per-element attrs above, `collectMedia()` widens where it looks:
 

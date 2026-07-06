@@ -1,4 +1,4 @@
-import { pinIgUrl, bestIgImage, bestIgVideo, shortcodeFromUrl, extFromIgUrl, extractIgMedia } from '@/extension/shared/resolvers/ig-media-sniff';
+import { pinIgUrl, bestIgImage, shortcodeFromUrl, extFromIgUrl, extractIgMedia } from '@/extension/shared/resolvers/ig-media-sniff';
 
 describe('pinIgUrl', () => {
   it('accepts https cdninstagram / fbcdn hosts only', () => {
@@ -65,24 +65,6 @@ describe('bestIgImage', () => {
     expect(bestIgImage([])).toBeNull();
     expect(bestIgImage(null)).toBeNull();
     expect(bestIgImage([{ url: 'https://evil.com/x.jpg', width: 1, height: 1 }])).toBeNull();
-  });
-});
-
-describe('bestIgVideo', () => {
-  const versions = [
-    { url: 'https://x.cdninstagram.com/480.mp4', width: 480, height: 852, type: 102 },
-    { url: 'https://x.cdninstagram.com/720.mp4', width: 720, height: 1280, type: 101 },
-    { url: 'https://x.cdninstagram.com/360.mp4', width: 360, height: 640, type: 103 },
-  ];
-  it('picks the highest-width mp4, pinned', () => {
-    expect(bestIgVideo(versions)).toBe('https://x.cdninstagram.com/720.mp4');
-  });
-  it('rejects a version on a non-IG host', () => {
-    expect(bestIgVideo([{ url: 'https://evil.com/x.mp4', width: 9999, height: 9999 }])).toBeNull();
-  });
-  it('returns null for empty / non-array input', () => {
-    expect(bestIgVideo([])).toBeNull();
-    expect(bestIgVideo(null)).toBeNull();
   });
 });
 

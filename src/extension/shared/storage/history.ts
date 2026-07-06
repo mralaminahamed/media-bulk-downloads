@@ -2,14 +2,31 @@ import { HistoryEntry } from '@/types';
 
 export const HISTORY_KEY = 'downloadHistory';
 export const HISTORY_CAP = 500;
+// A count cap alone doesn't bound bytes: an entry's `src` can be a full base64
+// data URL, so 500 of them can blow the shared chrome.storage.local quota (~5MB,
+// no unlimitedStorage). Also bound the newest-first list by serialized size.
+export const HISTORY_MAX_BYTES = 2_000_000;
+
+/** Keep newest-first entries until the byte budget is hit; always keeps at least one. */
+function withinByteBudget<T>(entries: T[], maxBytes: number): T[] {
+  let total = 0;
+  const out: T[] = [];
+  for (const entry of entries) {
+    total += JSON.stringify(entry).length;
+    if (total > maxBytes && out.length) break;
+    out.push(entry);
+  }
+  return out;
+}
 
 /** Merge new entries into existing: dedup by src (newest wins, front), sorted
- *  newest-first, capped. Pure. */
+ *  newest-first, capped by count and by serialized size. Pure. */
 export function mergeHistory(existing: HistoryEntry[], added: HistoryEntry[]): HistoryEntry[] {
   const map = new Map<string, HistoryEntry>();
   for (const entry of added) map.set(entry.src, entry);
   for (const entry of existing) if (!map.has(entry.src)) map.set(entry.src, entry);
-  return [...map.values()].sort((a, b) => b.time - a.time).slice(0, HISTORY_CAP);
+  const ranked = [...map.values()].sort((a, b) => b.time - a.time).slice(0, HISTORY_CAP);
+  return withinByteBudget(ranked, HISTORY_MAX_BYTES);
 }
 
 export async function loadHistory(): Promise<HistoryEntry[]> {

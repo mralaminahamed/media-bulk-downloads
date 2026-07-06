@@ -7,6 +7,22 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Instagram** dedicated resolver + passive MAIN-world network sniffer: posts,
+  reels, and carousels resolve to full-resolution images and their real
+  downloadable `.mp4`s from the page's own JSON/GraphQL responses (no forged
+  URLs). Reels shown before their video is seen are labelled **"play to fetch"**
+  and upgrade to the real clip once played.
+- **X/Twitter** video sniffer: captures the page's own progressive-mp4 responses
+  so posted videos download as real files (covers age-restricted clips).
+- **Selective bulk download**: tick individual items (with shift-click ranges and
+  select-all-shown) and download just the chosen set.
+- **Configurable deep scan**: item / time / scroll-step caps, an opt-in
+  **"Load more"** button-clicking pass, nested-scroller stepping, and a notice
+  when a scan stops at a cap (media may remain). Configure under **Settings → Deep scan**.
+- **Broader collection**: open Shadow DOM (web components), same-origin
+  `<iframe>`s, `og:image` / `twitter:image` / `<link rel=preload>` hero images,
+  WordPress `data-orig-file` / `data-large-file` originals, and `image-set()` CSS
+  backgrounds.
 - Download-path templates: the **Save to subfolder** setting now accepts
   `{host}`, `{domain}`, `{date}`, and `{kind}` tokens, so downloads can be
   organized into per-site (and per-day / per-kind) folders automatically — e.g.
@@ -26,6 +42,27 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   from a single shared `BrandMark` component (per-instance gradient IDs), so
   they can no longer drift from the icon users see in the browser — replacing
   the old, mismatched line glyph.
+
+### Fixed
+- Deep scan's opt-in "Load more" pass no longer clicks `<a role="button">`
+  controls that would navigate away and abort the scan.
+- WordPress `data-orig-file` / `data-large-file` originals are no longer tagged
+  with the on-screen thumbnail's dimensions, so the minimum-size filter can't
+  wrongly drop a genuinely large image.
+- The X video sniffer now keeps the most recent clips (evicting the oldest at its
+  cap) and can update a media id with a better variant, instead of freezing on the
+  first ones seen.
+- Saving settings from the popup no longer clobbers the on-page bubble's dragged
+  position/placement (read-modify-write merge).
+- Enriched image byte-sizes survive a settings change instead of resetting and
+  re-firing a burst of HEAD requests.
+- Base64 and URL-encoded inline SVGs now match the `svg` image-type filter.
+- CSS `image-set()` candidates written without a resolution descriptor are kept
+  (default 1×) instead of being dropped.
+- Download history and favourites are bounded by serialized size, so large
+  base64 `data:` entries can't silently exceed the browser storage quota.
+- A deep scan that throws mid-run returns the media gathered so far (with an
+  error notice) instead of an empty result.
 
 ## [1.0.0] - 2026-07-04
 

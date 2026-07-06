@@ -47,6 +47,23 @@ describe('collectMedia — original upgrade', () => {
     expect(shop!.width).toBe(800);
     expect(shop!.height).toBe(600);
   });
+
+  it('does not tag a data-orig-file original with the displayed thumbnail\'s dimensions', () => {
+    // The rendered <img> measures 300x200 (its thumbnail); the full-res original in
+    // data-orig-file is a different, larger asset — it must NOT inherit 300x200, or
+    // the minimum-size filter could wrongly drop it.
+    setBody('<img src="https://ex.com/thumb.jpg" data-orig-file="https://ex.com/original.jpg" width="300" height="200">');
+    const media = collectMedia();
+    const orig = media.find((i) => i.src === 'https://ex.com/original.jpg');
+    const thumb = media.find((i) => i.src === 'https://ex.com/thumb.jpg');
+    expect(orig).toBeDefined();
+    expect(orig!.width).toBe(0);
+    expect(orig!.height).toBe(0);
+    // The displayed thumbnail keeps its real measured size.
+    expect(thumb).toBeDefined();
+    expect(thumb!.width).toBe(300);
+    expect(thumb!.height).toBe(200);
+  });
 });
 
 describe('collectMedia — kind', () => {
@@ -246,6 +263,14 @@ describe('backgroundImageUrls', () => {
   it('handles a value mixing an image-set layer and a plain url() layer', () => {
     const v = 'image-set(url("https://cdn.com/a-1x.jpg") 1x, url("https://cdn.com/a-2x.jpg") 2x), url("https://cdn.com/b.png")';
     expect(backgroundImageUrls(v)).toEqual(['https://cdn.com/a-2x.jpg', 'https://cdn.com/b.png']);
+  });
+
+  it('keeps an image-set candidate that omits its resolution descriptor', () => {
+    // Per spec the descriptor defaults to 1x when absent — the candidate must not be dropped.
+    expect(backgroundImageUrls('image-set(url("https://cdn.com/only.png"))')).toEqual(['https://cdn.com/only.png']);
+    // Mixed: a descriptor-less candidate alongside a 2x one still yields the 2x (higher res).
+    const v = 'image-set("https://cdn.com/base.jpg", "https://cdn.com/hi.jpg" 2x)';
+    expect(backgroundImageUrls(v)).toEqual(['https://cdn.com/hi.jpg']);
   });
 
   it('ignores none / empty', () => {

@@ -13,7 +13,7 @@ always runs, and a network one that runs only when you turn the setting on.
 
 | Phase                      | When                             | Network?                           | Where                                              |
 |----------------------------|----------------------------------|------------------------------------|----------------------------------------------------|
-| **Passive URL resolution** | Every collection / deep scan     | None — `allowNetwork:false`        | `resolve()` registry, in-page (`collect.ts`)       |
+| **Passive URL resolution** | Every collection / deep scan     | None — `allowNetwork:false`        | `resolve()` registry, in-page (`content/collect.ts`)       |
 | **Opt-in network resolve** | Only if `resolveOriginals` is on | Yes — a handful of `fetch()` calls | Background service worker (`resolvers/network.ts`) |
 
 Phase one is [Collection Pipeline](./collection-pipeline.md)'s `resolve()`

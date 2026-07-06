@@ -83,11 +83,6 @@ export function bestIgImage(candidates: unknown): { url: string; width: number; 
   return bestSized(candidates);
 }
 
-/** Highest-width progressive-mp4 URL (IG-pinned), or null. */
-export function bestIgVideo(versions: unknown): string | null {
-  return bestSized(versions)?.url ?? null;
-}
-
 function emitLeaf(node: Record<string, unknown>, code: string, out: IgMediaEntry[], seenUrls: Set<string>): void {
   if (node.video_versions) {
     const best = bestSized(node.video_versions);

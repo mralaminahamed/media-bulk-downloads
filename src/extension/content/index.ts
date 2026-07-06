@@ -15,19 +15,29 @@ import { startDeepScan } from './deepScanRunner';
 // Re-export the pure collection API (kept for tests and other importers).
 export * from './collect';
 
+// The MAIN-world sniffers only run on their own platforms, so the relay listeners
+// they postMessage to are useful only there. Gate each by host so an unrelated
+// <all_urls> page can't push a forged sniffer envelope — host-pinning downstream
+// already blocks non-CDN URLs, but this removes the listener surface entirely.
+const host = location.hostname;
+const onXHost = host === 'x.com' || host.endsWith('.x.com') || host === 'twitter.com' || host.endsWith('.twitter.com');
+const onIgHost = host === 'instagram.com' || host.endsWith('.instagram.com');
+
 // Relay the MAIN-world X/Twitter media sniffer's findings to the background.
 // The sniffer (x-media-sniffer.content.ts) runs in the page realm to read the
 // page's own GraphQL responses; it can't use chrome.*, so it postMessages here.
 // Validate the envelope strictly (same window, same origin, our tag) before
 // forwarding — the background then host-pins each URL.
-window.addEventListener('message', (event: MessageEvent) => {
-  if (event.source !== window || event.origin !== location.origin) return;
-  const data = event.data as { source?: unknown; pairs?: unknown } | null;
-  if (!data || data.source !== 'ibd-x-media' || !Array.isArray(data.pairs)) return;
-  chrome.runtime.sendMessage({ type: 'X_MEDIA_SEEN', pairs: data.pairs }).catch(() => {
-    /* background may be asleep / no receiver */
+if (onXHost) {
+  window.addEventListener('message', (event: MessageEvent) => {
+    if (event.source !== window || event.origin !== location.origin) return;
+    const data = event.data as { source?: unknown; pairs?: unknown } | null;
+    if (!data || data.source !== 'ibd-x-media' || !Array.isArray(data.pairs)) return;
+    chrome.runtime.sendMessage({ type: 'X_MEDIA_SEEN', pairs: data.pairs }).catch(() => {
+      /* background may be asleep / no receiver */
+    });
   });
-});
+}
 
 // Relay the MAIN-world Instagram media sniffer's findings into the resolver.
 // The sniffer (ig-media-sniffer.content.ts) reads the page's own GraphQL /api
@@ -37,12 +47,14 @@ window.addEventListener('message', (event: MessageEvent) => {
 // then resolves scroll-loaded posts with no network call. Validate the envelope
 // here; ingestSniffedIgMedia re-validates and host-pins every entry (the payload
 // crossed the page realm and is untrusted).
-window.addEventListener('message', (event: MessageEvent) => {
-  if (event.source !== window || event.origin !== location.origin) return;
-  const data = event.data as { source?: unknown; entries?: unknown } | null;
-  if (!data || data.source !== 'ibd-ig-media' || !Array.isArray(data.entries)) return;
-  ingestSniffedIgMedia(data.entries);
-});
+if (onIgHost) {
+  window.addEventListener('message', (event: MessageEvent) => {
+    if (event.source !== window || event.origin !== location.origin) return;
+    const data = event.data as { source?: unknown; entries?: unknown } | null;
+    if (!data || data.source !== 'ibd-ig-media' || !Array.isArray(data.entries)) return;
+    ingestSniffedIgMedia(data.entries);
+  });
+}
 
 // Answer image-collection requests from the popup and background worker.
 chrome.runtime.onMessage.addListener(

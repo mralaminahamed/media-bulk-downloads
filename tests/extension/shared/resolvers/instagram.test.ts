@@ -197,6 +197,18 @@ describe('instagramResolver.resolve — sniffed GraphQL media', () => {
     expect(out).toEqual([{ url: `${CDN}/SCROLL_1440_n.jpg`, kind: 'image', ext: 'jpg', width: 1440, height: 1440 }]);
   });
 
+  it('sanitises a forged file extension — never trusts ext verbatim into the download name', () => {
+    ingestSniffedIgMedia([
+      { code: 'EXE', kind: 'image', url: `${CDN}/EXE_n.jpg`, ext: 'exe', width: 1440, height: 1440 },
+      { code: 'TRAV', kind: 'video', url: `${CDN}/TRAV.mp4`, ext: 'a/../b', width: 720, height: 1280, poster: `${CDN}/TRAV_p.jpg` },
+    ]);
+    document.body.insertAdjacentHTML('beforeend', '<a href="/user/p/EXE/"><img id="x"></a><a href="/user/p/TRAV/"><img id="y"></a>');
+    // 'exe' isn't a media extension → falls back to the image default 'jpg'.
+    expect(instagramResolver.resolve(u(`${CDN}/t.jpg`), { el: document.getElementById('x')!, allowNetwork: false })[0].ext).toBe('jpg');
+    // path characters rejected → the video default 'mp4'.
+    expect(instagramResolver.resolve(u(`${CDN}/t.jpg`), { el: document.getElementById('y')!, allowNetwork: false })[0].ext).toBe('mp4');
+  });
+
   it('drops forged entries (a malicious page could postMessage): only IG-CDN urls survive', () => {
     ingestSniffedIgMedia([
       { code: 'EVIL', kind: 'image', url: 'https://evil.com/exfil.jpg', ext: 'jpg', width: 1, height: 1 },

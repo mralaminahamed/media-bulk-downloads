@@ -9,7 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { HistoryEntry } from '@/types';
 import { loadHistory, HISTORY_KEY } from '@/extension/shared/storage/history';
-import { relativeTime } from '../utils';
+import { relativeTime, sendRuntimeMessage } from '../utils';
 import { LoadingImage } from './LoadingImage';
 import { useDialog } from '../hooks/useDialog';
 
@@ -47,31 +47,31 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
   // Mutations go through the background (single writer); update local state
   // optimistically for responsiveness — the storage.onChanged listener reconciles.
   const handleRemove = (entry: HistoryEntry) => {
-    chrome.runtime.sendMessage({ type: 'REMOVE_HISTORY_ENTRY', src: entry.src });
+    sendRuntimeMessage({ type: 'REMOVE_HISTORY_ENTRY', src: entry.src });
     setEntries((prev) => prev.filter((e) => e.src !== entry.src));
   };
 
   const handleClearAll = () => {
-    chrome.runtime.sendMessage({ type: 'CLEAR_HISTORY' });
+    sendRuntimeMessage({ type: 'CLEAR_HISTORY' });
     setEntries([]);
   };
 
   const openSource = (entry: HistoryEntry) => {
-    chrome.runtime.sendMessage({ type: 'OPEN_URL', url: entry.src });
+    sendRuntimeMessage({ type: 'OPEN_URL', url: entry.src });
   };
 
   const openFile = (entry: HistoryEntry) => {
     if (entry.downloadId === undefined) return;
-    chrome.runtime.sendMessage({ type: 'OPEN_DOWNLOAD_FILE', downloadId: entry.downloadId });
+    sendRuntimeMessage({ type: 'OPEN_DOWNLOAD_FILE', downloadId: entry.downloadId });
   };
 
   const revealFile = (entry: HistoryEntry) => {
     if (entry.downloadId === undefined) return;
-    chrome.runtime.sendMessage({ type: 'SHOW_DOWNLOAD', downloadId: entry.downloadId });
+    sendRuntimeMessage({ type: 'SHOW_DOWNLOAD', downloadId: entry.downloadId });
   };
 
   const handleRedownload = (entry: HistoryEntry) => {
-    chrome.runtime.sendMessage({
+    sendRuntimeMessage({
       type: 'DOWNLOAD_IMAGES',
       images: [
         {

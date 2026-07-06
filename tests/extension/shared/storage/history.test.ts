@@ -1,4 +1,4 @@
-import { mergeHistory, recordDownloads, removeEntry, clearHistory, downloadedSrcSet, loadHistory, HISTORY_CAP } from '@/extension/shared/storage/history';
+import { mergeHistory, recordDownloads, removeEntry, clearHistory, downloadedSrcSet, loadHistory, HISTORY_CAP, HISTORY_MAX_BYTES } from '@/extension/shared/storage/history';
 import { HistoryEntry } from '@/types';
 
 describe('loadHistory — corrupt storage', () => {
@@ -26,6 +26,16 @@ describe('mergeHistory', () => {
     const out = mergeHistory(many, []);
     expect(out).toHaveLength(HISTORY_CAP);
     expect(out[0].time).toBe(HISTORY_CAP + 9); // newest
+  });
+  it('bounds the list by serialized byte budget (big base64-style srcs), newest kept', () => {
+    // Each src alone is ~1/3 of the budget, so four entries overflow it.
+    const chunk = 'x'.repeat(Math.ceil(HISTORY_MAX_BYTES / 3));
+    const big = (id: string, time: number): HistoryEntry =>
+      ({ src: `https://p/${id}/${chunk}`, filename: 'f.jpg', kind: 'image', type: 'jpeg', sourcePageUrl: 'https://p', time });
+    const out = mergeHistory([big('a', 1), big('b', 2), big('c', 3), big('d', 4)], []);
+    expect(out.length).toBeGreaterThanOrEqual(1);
+    expect(out.length).toBeLessThan(4); // at least one over-budget entry trimmed
+    expect(out[0].time).toBe(4); // newest retained first
   });
 });
 

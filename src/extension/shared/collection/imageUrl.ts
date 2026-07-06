@@ -5,6 +5,20 @@
  */
 import { getImageType } from '@/extension/content/collect';
 
+/**
+ * Splits a srcset into raw candidate strings (each `URL [descriptor]`), the single
+ * source of truth for candidate splitting shared by parseSrcset and bestSrcsetUrl.
+ * Only splits on commas that separate candidates — commas inside data: URIs or
+ * query strings are preserved by the lookahead.
+ */
+export function splitSrcsetCandidates(srcset: string): string[] {
+  return srcset
+    .trim()
+    .split(/,(?=\s*(?:https?:|data:|blob:|\/|\.{1,2}\/|[\w-]+[./]))/i)
+    .map((c) => c.trim())
+    .filter(Boolean);
+}
+
 /** Normalizes a raw format token (extension or query value) to our type vocab. */
 function normalizeFormat(raw: string): string {
   const ext = raw.toLowerCase();
@@ -105,6 +119,13 @@ export function deproxy(url: string): string | null {
       if (looksLikeMediaUrl(abs)) return abs;
     }
   }
+
+  // A URL whose OWN path is already a media file (…/photo.jpg) is a real asset that
+  // merely carries a ?src=/?url= tracking param — not a proxy. Unwrapping it would
+  // swap the real image for whatever the param points at, so skip the generic pass.
+  // Real proxy endpoints (Cloudinary/weserv handled above, Next.js /_next/image)
+  // have extension-less paths and still fall through.
+  if (MEDIA_EXT.test(u.pathname)) return null;
 
   // Next.js /_next/image and any generic ?url=/?src=/... param.
   for (const key of PROXY_PARAMS) {

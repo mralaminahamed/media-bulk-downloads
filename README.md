@@ -174,7 +174,7 @@ upgrade rules for:
 - **React 19** + **TypeScript** — type-safe UI
 - **Tailwind CSS v4** — utility-first styling on a small design-token system
 - **Vite** (via WXT) — fast bundling
-- **Jest** + **Testing Library** — 28 unit/integration suites
+- **Jest** + **Testing Library** — 35 unit/integration suites
 - **web-ext** — Firefox package validation
 
 ## Project structure
@@ -184,15 +184,19 @@ media-bulk-downloads/
 ├── wxt.config.ts             # WXT config: manifest, browser targets, zip naming
 ├── web-ext.config.ts         # Dev browser-launch config (wxt dev)
 ├── src/
-│   ├── entrypoints/          # WXT entrypoints → background · content · popup
-│   ├── extension/
-│   │   ├── background.ts      # MV3 service worker: downloads, history, messaging
-│   │   ├── content.ts         # Content-script entry (collection + bubble mount)
-│   │   ├── collect.ts         # In-page media collection pipeline
-│   │   ├── shared/            # extract · imageUrl (CDN upgrades) · deepScan ·
-│   │   │   └── resolvers/     #   filters · history · settings · mediaType; resolvers/
-│   │   ├── popup/             # React popup UI: grid, filters, preview, settings
-│   │   └── bubble/            # On-page draggable panel (Shadow DOM)
+│   ├── entrypoints/          # WXT entrypoints → background · content ·
+│   │   │                      #   ig/x MAIN-world media sniffers · popup
+│   ├── extension/            # Grouped by execution context, then concern
+│   │   ├── background/       # MV3 service worker: downloads, history, messaging
+│   │   ├── content/          # In-page: index (listeners) · collect · deepScanRunner
+│   │   ├── shared/           # Cross-context logic:
+│   │   │   ├── active-tab/   #   popup↔content bridges (collect / deep-scan / resolve)
+│   │   │   ├── collection/   #   collect helpers · extract · imageUrl · deepScan · filters
+│   │   │   ├── resolvers/    #   per-site upgraders (instagram, twitter, unsplash, …) + sniffers
+│   │   │   └── storage/      #   history · favourites · settings
+│   │   ├── popup/            # React popup UI: grid, filters, preview, settings
+│   │   ├── components/       # Shared UI (BrandMark)
+│   │   └── bubble/           # On-page draggable panel
 │   ├── styles/               # Tailwind v4 entry + design tokens
 │   ├── public/icon/          # Extension icons (manifest inputs)
 │   └── types/                # Shared TypeScript types
