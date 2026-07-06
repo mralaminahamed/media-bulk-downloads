@@ -151,6 +151,41 @@ describe('instagramPageMedia — opened single post/reel page', () => {
   });
 });
 
+describe('instagramResolver.resolve — reels tab (cover-only clips)', () => {
+  it('resolves a reels-grid cell (background-image inside a /reel/ link) to a pending video', () => {
+    hydrate({
+      code: 'RL',
+      media_type: 2,
+      image_versions2: { candidates: [{ url: `${CDN}/RL_cover_n.jpg`, width: 640, height: 1136 }] },
+    });
+    // A reels-tab cell renders its cover as a background-image inside the /reel/ link.
+    document.body.insertAdjacentHTML('beforeend', '<a href="/rashmiix/reel/RL/"><div id="bg"></div></a>');
+    const el = document.getElementById('bg')!;
+    const out = instagramResolver.resolve(u(`${CDN}/RL_cover_n.jpg`), { el, allowNetwork: false, pageUrl: 'https://www.instagram.com/rashmiix/reels/' });
+
+    expect(out).toEqual([
+      { url: `${CDN}/RL_cover_n.jpg`, kind: 'video', ext: 'mp4', width: 640, height: 1136, poster: `${CDN}/RL_cover_n.jpg`, unresolvedVideo: true },
+    ]);
+  });
+
+  it('upgrades a reel to its real mp4 once the sniffer has seen it (drops the pending cover)', () => {
+    // Reels grid: cover-only pending clip.
+    hydrate({ code: 'RL', media_type: 2, image_versions2: { candidates: [{ url: `${CDN}/RL_cover_n.jpg`, width: 640, height: 1136 }] } });
+    // Then the reel plays/opens and its real video is sniffed for the same code.
+    ingestSniffedIgMedia([
+      { code: 'RL', kind: 'video', url: `${CDN}/RL_720.mp4`, ext: 'mp4', width: 720, height: 1280, poster: `${CDN}/RL_cover_n.jpg` },
+    ]);
+    document.body.insertAdjacentHTML('beforeend', '<a href="/rashmiix/reel/RL/"><div id="bg"></div></a>');
+    const el = document.getElementById('bg')!;
+    const out = instagramResolver.resolve(u(`${CDN}/RL_cover_n.jpg`), { el, allowNetwork: false });
+
+    expect(out).toEqual([
+      { url: `${CDN}/RL_720.mp4`, kind: 'video', ext: 'mp4', width: 720, height: 1280, poster: `${CDN}/RL_cover_n.jpg` },
+    ]);
+    expect(out[0].unresolvedVideo).toBeUndefined();
+  });
+});
+
 describe('instagramResolver.resolve — sniffed GraphQL media', () => {
   it('resolves a scroll-loaded post from sniffed entries even with no embedded JSON', () => {
     ingestSniffedIgMedia([
