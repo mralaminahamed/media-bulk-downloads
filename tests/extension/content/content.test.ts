@@ -38,7 +38,12 @@ describe('Content Script', () => {
     it('extracts correct image type from base64 string', () => {
       expect(getBase64ImageType('data:image/png;base64,abc123')).toBe('png');
       expect(getBase64ImageType('data:image/jpeg;base64,abc123')).toBe('jpeg');
-      expect(getBase64ImageType('data:image/svg+xml;base64,abc123')).toBe('svg+xml');
+      // svg+xml is normalised to the 'svg' that getImageType emits for .svg files,
+      // so the toolbar's imageType='svg' filter matches base64/inline SVGs.
+      expect(getBase64ImageType('data:image/svg+xml;base64,abc123')).toBe('svg');
+      // Inline (URL-encoded, no `;base64`) data URIs end the subtype at the comma.
+      expect(getBase64ImageType('data:image/svg+xml,%3Csvg%3E')).toBe('svg');
+      expect(getBase64ImageType('data:image/png,rawbytes')).toBe('png');
       expect(getBase64ImageType('invalid string')).toBe('unknown');
     });
   });
@@ -258,8 +263,8 @@ describe('Content Script', () => {
   });
 
   describe('getBase64ImageType / size edge cases', () => {
-    it('extracts a compound mime subtype', () => {
-      expect(getBase64ImageType('data:image/svg+xml;charset=utf-8;base64,PD8=')).toBe('svg+xml');
+    it('extracts a compound mime subtype and normalises svg+xml to svg', () => {
+      expect(getBase64ImageType('data:image/svg+xml;charset=utf-8;base64,PD8=')).toBe('svg');
     });
 
     it('sizes a single-byte payload with padding', () => {

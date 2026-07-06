@@ -161,6 +161,12 @@ describe('deproxy', () => {
     expect(deproxy('https://site.com/page?url=' + encodeURIComponent('https://cdn.com/article'))).toBeNull();
     expect(deproxy('https://cdn.com/plain.jpg')).toBeNull();
   });
+  it('does NOT unwrap a real image that merely carries a ?src=/?url= param', () => {
+    // The outer path is itself a media file → it's a real asset with a tracking
+    // param, not a proxy; unwrapping would swap it for the param target.
+    expect(deproxy('https://cdn.com/photo.jpg?src=' + encodeURIComponent('https://evil.com/pixel.png'))).toBeNull();
+    expect(deproxy('https://cdn.com/hero.png?url=' + encodeURIComponent('https://cdn.com/other.jpg'))).toBeNull();
+  });
   it('resolves a relative Next.js _next/image url against the proxy origin', () => {
     expect(deproxy('https://nextjs.org/_next/image?url=' + encodeURIComponent('/static/team/imm.jpeg') + '&w=48&q=75'))
       .toBe('https://nextjs.org/static/team/imm.jpeg');

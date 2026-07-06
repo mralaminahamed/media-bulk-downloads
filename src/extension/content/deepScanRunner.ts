@@ -74,9 +74,10 @@ export function nestedScrollables(root: Document | ShadowRoot = document): HTMLE
   return out;
 }
 
-// Conservative "load more" matcher: only the common expand phrasings, so we don't
-// click unrelated controls. Anchored on \bmore\b / "additional" to avoid "learn
-// more", "read more…" etc. being over-matched is intentional — those ARE expanders.
+// Conservative "load more" matcher: only common expander phrasings, so we don't
+// click unrelated controls. Matches "load/show/view/see/read more", "load additional",
+// and "more results/items/photos/images/posts". "learn more" is deliberately absent —
+// it's usually a nav link rather than an in-place expander.
 const LOAD_MORE_RE = /\b(load|show|view|see|read)\s+more\b|\bload\s+additional\b|\bmore\s+(results|items|photos|images|posts)\b/i;
 
 /**
@@ -88,6 +89,10 @@ const LOAD_MORE_RE = /\b(load|show|view|see|read)\s+more\b|\bload\s+additional\b
 export function findLoadMoreButtons(root: Document | ShadowRoot = document): HTMLElement[] {
   const out: HTMLElement[] = [];
   root.querySelectorAll<HTMLElement>('button, [role="button"]').forEach((el) => {
+    // Never an <a> — even one with role="button" navigates on click, which would
+    // tear down the scan. The [role="button"] selector matches such anchors, so
+    // exclude them explicitly here rather than trusting the selector alone.
+    if (el.tagName === 'A') return;
     if ((el as HTMLButtonElement).disabled || el.getAttribute('aria-disabled') === 'true') return;
     const label = `${el.getAttribute('aria-label') || ''} ${el.textContent || ''}`.trim();
     if (LOAD_MORE_RE.test(label)) out.push(el);

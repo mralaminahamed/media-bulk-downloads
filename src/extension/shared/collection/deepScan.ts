@@ -54,7 +54,11 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
   // Why the loop ends. Defaults to a natural finish; each early-exit path sets its
   // own cap reason so the UI can tell "ran dry" apart from "hit a limit".
   let reason: DeepScanStopReason = 'complete';
-  let scrolls: number;
+  // `scrolls` counts loop iterations entered (drives max-scrolls detection);
+  // `completed` counts scroll steps actually performed (drives progress reporting),
+  // so an exit before the first scrollStep reports 0 rather than 1.
+  let scrolls: number; // assigned by the for-init before any read
+  let completed = 0;
 
   try {
     merge(); // seed from the current DOM
@@ -69,9 +73,10 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
       deps.scrollStep();
       await deps.waitForQuiet(opts.signal);
       if (opts.signal.aborted) { reason = 'aborted'; break; }
+      completed = scrolls; // a full scroll step finished this iteration
 
       const added = merge();
-      deps.onProgress(found.size, scrolls, deps.now() - start);
+      deps.onProgress(found.size, completed, deps.now() - start);
 
       if (found.size >= opts.maxItems) { reason = 'max-items'; break; }
       if (added === 0) {
@@ -84,10 +89,15 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
     }
     // Loop ran to the last iteration without breaking → the scroll cap stopped it.
     if (scrolls > opts.maxScrolls) reason = 'max-scrolls';
+  } catch {
+    // A throw from deps.collect()/scrollStep mid-scan must not discard what we've
+    // already gathered — mark the run errored and return the partial set so the
+    // popup still gets those items and a surfaced reason instead of an empty list.
+    reason = 'error';
   } finally {
     deps.restoreScroll();
   }
 
-  deps.onProgress(found.size, Math.min(scrolls, opts.maxScrolls), deps.now() - start, reason);
+  deps.onProgress(found.size, completed, deps.now() - start, reason);
   return [...found.values()];
 }

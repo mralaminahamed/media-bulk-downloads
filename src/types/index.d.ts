@@ -1,9 +1,9 @@
 import type { ReactNode, ChangeEvent, FocusEvent, CSSProperties, HTMLAttributes } from 'react';
 
-export type ResolvePlatform = 'twitter' | 'wallhaven' | 'unsplash' | 'instagram';
+export type ResolvePlatform = 'twitter' | 'wallhaven' | 'unsplash';
 export interface ResolveHint {
   platform: ResolvePlatform;
-  id: string; // statusId | wallpaper id | photo shortid | instagram shortcode
+  id: string; // statusId | wallpaper id | photo shortid
 }
 
 export interface ImageInfo {
@@ -18,7 +18,6 @@ export interface ImageInfo {
   ext?: string;
   fileSize: number; // in bytes
   isBase64: boolean;
-  fromSrcset?: boolean;
   /** Small/fast variant to preview in the grid when `src` was upgraded to the original. */
   thumbnailSrc?: string;
   /** Which media kind this is; set by the collector from the source element. */
@@ -86,7 +85,7 @@ export type DeepScanAbortMessage = 'DEEP_SCAN_ABORT';
  * reached); the `max-*` values mean a documented cap stopped it early, so media
  * may remain; `aborted` = the user stopped it.
  */
-export type DeepScanStopReason = 'complete' | 'max-items' | 'max-time' | 'max-scrolls' | 'aborted';
+export type DeepScanStopReason = 'complete' | 'max-items' | 'max-time' | 'max-scrolls' | 'aborted' | 'error';
 
 export interface DeepScanProgress {
   type: 'DEEP_SCAN_PROGRESS';

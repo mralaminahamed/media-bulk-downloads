@@ -11,7 +11,7 @@
  */
 
 import { ImageInfo, MediaItem } from '@/types';
-import { detectType, parseUrlDimensions } from '@/extension/shared/collection/imageUrl';
+import { detectType, parseUrlDimensions, splitSrcsetCandidates } from '@/extension/shared/collection/imageUrl';
 import { detectAvType, isUndownloadableMedia } from '@/extension/shared/collection/mediaType';
 import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates, bestSrcsetUrl } from '@/extension/shared/collection/extract';
 import { resolve, MediaCandidate } from '@/extension/shared/resolvers';
@@ -25,8 +25,14 @@ export function isBase64Image(src: string): boolean {
 
 /** Extracts the image type from a base64 data URI. */
 export function getBase64ImageType(src: string): string {
-  const match = src.match(/^data:image\/([\w.+-]+)\s*;/i);
-  return match ? match[1].toLowerCase() : 'unknown';
+  // The subtype ends at the first `;` (…;base64,) or `,` (URL-encoded, no base64),
+  // so match either — otherwise an inline `data:image/svg+xml,<svg…>` reads as
+  // 'unknown'. Normalise `svg+xml` to the 'svg' that getImageType emits for .svg
+  // files, so the toolbar's imageType='svg' filter matches inline/base64 SVGs too.
+  const match = src.match(/^data:image\/([\w.+-]+)\s*[;,]/i);
+  if (!match) return 'unknown';
+  const type = match[1].toLowerCase();
+  return type === 'svg+xml' ? 'svg' : type;
 }
 
 /** Calculates the size of a base64-encoded image in bytes. */
@@ -79,10 +85,8 @@ export function getImageType(src: string): string {
  * separate candidates — commas inside data: URIs or query strings are preserved.
  */
 export function parseSrcset(srcset: string): string[] {
-  return srcset
-    .trim()
-    .split(/,(?=\s*(?:https?:|data:|blob:|\/|\.{1,2}\/|[\w-]+[./]))/i)
-    .map((candidate) => candidate.trim().split(/\s+/)[0])
+  return splitSrcsetCandidates(srcset)
+    .map((candidate) => candidate.split(/\s+/)[0])
     .filter(Boolean);
 }
 
@@ -106,7 +110,10 @@ export function resolveUrl(src: string): string {
  */
 function bestImageSetCandidate(inner: string): string | null {
   let best: { url: string; res: number } | null = null;
-  const candRe = /(?:url\(\s*(['"]?)(.*?)\1\s*\)|(['"])(.*?)\3)\s*([\d.]+)\s*(?:x|dppx)?/gi;
+  // The `<res>x`/`<res>dppx` descriptor is optional — a candidate written without
+  // one (e.g. `image-set("a.png" type("image/png"))`) defaults to 1, so it must
+  // still match rather than be dropped.
+  const candRe = /(?:url\(\s*(['"]?)(.*?)\1\s*\)|(['"])(.*?)\3)(?:\s*([\d.]+)\s*(?:x|dppx))?/gi;
   let c: RegExpExecArray | null;
   while ((c = candRe.exec(inner)) !== null) {
     const url = c[2] || c[4];
@@ -295,23 +302,24 @@ export function collectMedia(): MediaItem[] {
     const ownerDoc = root.nodeType === 9 ? (root as Document) : (root as ShadowRoot).ownerDocument;
     const view = ownerDoc.defaultView ?? window;
 
-    // <img> tags and their srcset.
+    // <img> tags and their srcset. The measured dimensions belong to whatever the
+    // element is actually displaying (currentSrc/src) — not to a higher-res original
+    // pulled from data-orig-file/data-large-file, which imageUrlsFromElement returns
+    // FIRST. Tagging that original with the on-screen thumbnail's size mislabels it
+    // and lets the minimum-size filter wrongly drop a genuinely large image.
     root.querySelectorAll('img').forEach((img) => {
       const { width, height } = getImageDimensions(img);
-      const urls = imageUrlsFromElement(img);
-      urls.forEach((src, i) =>
-        collectImageInfo(src, img.alt, i === 0 ? width : 0, i === 0 ? height : 0, undefined, img));
+      const loaded = img.currentSrc || img.src;
+      imageUrlsFromElement(img).forEach((src) => {
+        const isLoaded = resolveUrl(src) === loaded;
+        collectImageInfo(src, img.alt, isLoaded ? width : 0, isLoaded ? height : 0, undefined, img);
+      });
     });
 
-    // <picture> elements: <img> fallback plus every <source srcset>.
+    // <picture> elements: only the <source srcset> variants here — the fallback
+    // <img> is already covered by the img pass above (results dedup), so re-scanning
+    // it would just repeat work.
     root.querySelectorAll('picture').forEach((picture) => {
-      const img = picture.querySelector('img');
-      if (img) {
-        const { width, height } = getImageDimensions(img);
-        const urls = imageUrlsFromElement(img);
-        urls.forEach((src, i) =>
-          collectImageInfo(src, img.alt, i === 0 ? width : 0, i === 0 ? height : 0, undefined, img));
-      }
       picture.querySelectorAll('source').forEach((source) => {
         imageUrlsFromElement(source).forEach((src) => collectImageInfo(src, '', 0, 0, undefined, source));
       });
@@ -358,9 +366,11 @@ export function collectMedia(): MediaItem[] {
       const rawPoster = video.getAttribute('poster');
       const posterUrl = rawPoster ? resolveUrl(rawPoster) : undefined;
       const alt = video.getAttribute('aria-label') || video.getAttribute('title') || '';
-      collectAv(
-        video.currentSrc || video.getAttribute('src') || video.getAttribute('data-src') || '',
-        'video', undefined, alt, posterUrl,
+      // Try each source rather than short-circuiting on currentSrc: a blob:-backed
+      // currentSrc would otherwise mask a genuinely downloadable mp4 in data-src.
+      // collectAv dedups and drops undownloadable entries, so redundant tries are free.
+      [video.currentSrc, video.getAttribute('src'), video.getAttribute('data-src')].forEach((s) =>
+        collectAv(s || '', 'video', undefined, alt, posterUrl),
       );
       video.querySelectorAll('source').forEach((s) =>
         collectAv(s.getAttribute('src') || '', 'video', s.getAttribute('type') || undefined, alt, posterUrl),
@@ -369,9 +379,8 @@ export function collectMedia(): MediaItem[] {
 
     root.querySelectorAll('audio').forEach((audio) => {
       const alt = audio.getAttribute('aria-label') || audio.getAttribute('title') || '';
-      collectAv(
-        audio.currentSrc || audio.getAttribute('src') || audio.getAttribute('data-src') || '',
-        'audio', undefined, alt,
+      [audio.currentSrc, audio.getAttribute('src'), audio.getAttribute('data-src')].forEach((s) =>
+        collectAv(s || '', 'audio', undefined, alt),
       );
       audio.querySelectorAll('source').forEach((s) =>
         collectAv(s.getAttribute('src') || '', 'audio', s.getAttribute('type') || undefined, alt),

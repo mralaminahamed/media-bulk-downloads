@@ -6,7 +6,12 @@ describe('bestSrcsetUrl', () => {
   it('picks the highest-width candidate', () => {
     expect(bestSrcsetUrl('a.jpg 320w, b.jpg 1024w, c.jpg 640w')).toBe('b.jpg');
   });
-  it('falls back to the last candidate without widths', () => {
+  it('prefers the densest candidate for a pure-density srcset, regardless of order', () => {
+    // Descending density: the densest is FIRST, so a naive "last wins" would pick lo.jpg.
+    expect(bestSrcsetUrl('hi.jpg 2x, lo.jpg 1x')).toBe('hi.jpg');
+    expect(bestSrcsetUrl('lo.jpg 1x, hi.jpg 3x')).toBe('hi.jpg');
+  });
+  it('picks the density-carrying candidate over an undescribed one', () => {
     expect(bestSrcsetUrl('a.jpg, b.jpg 2x')).toBe('b.jpg');
   });
 });

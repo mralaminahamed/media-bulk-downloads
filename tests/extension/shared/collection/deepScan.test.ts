@@ -4,24 +4,26 @@ import { MediaItem, DeepScanStopReason } from '@/types';
 const item = (src: string): MediaItem =>
   ({ src, alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' });
 
-function makeDeps(rounds: MediaItem[][]) {
+function makeDeps(rounds: MediaItem[][], collectFn?: (i: number) => MediaItem[]) {
   let i = 0, restored = false, t = 0;
   let lastReason: DeepScanStopReason | undefined;
+  let lastScrolls = -1;
   const progress: number[] = [];
   return {
     deps: {
-      collect: () => rounds[Math.min(i, rounds.length - 1)] ?? [],
+      collect: () => (collectFn ? collectFn(i) : rounds[Math.min(i, rounds.length - 1)] ?? []),
       scrollStep: () => { i++; },
       atBottom: () => i >= rounds.length,
       waitForQuiet: async () => { t += 100; },
-      onProgress: (found: number, _scrolls: number, _elapsed: number, reason?: DeepScanStopReason) => {
+      onProgress: (found: number, scrolls: number, _elapsed: number, reason?: DeepScanStopReason) => {
         progress.push(found);
+        lastScrolls = scrolls;
         if (reason) lastReason = reason;
       },
       now: () => t,
       restoreScroll: () => { restored = true; },
     },
-    state: () => ({ restored, progress, lastReason }),
+    state: () => ({ restored, progress, lastReason, lastScrolls }),
   };
 }
 
@@ -95,5 +97,26 @@ describe('stop reason', () => {
     const { deps, state } = makeDeps([[item('a')], [item('b')]]);
     await runDeepScan(deps, { ...DEEP_SCAN_DEFAULTS, signal: ac.signal });
     expect(state().lastReason).toBe('aborted');
+  });
+
+  it('reports "error" and returns the partial set when collect throws mid-scan', async () => {
+    const many = Array.from({ length: 3 }, (_, n) => item(`a${n}`));
+    // Seed succeeds; the first post-scroll collect (i>0) throws.
+    const { deps, state } = makeDeps([], (i) => {
+      if (i > 0) throw new Error('DOM exploded');
+      return many;
+    });
+    const out = await runDeepScan(deps, { ...DEEP_SCAN_DEFAULTS, idleRounds: 5, maxScrolls: 5, signal: new AbortController().signal });
+    expect(state().lastReason).toBe('error');
+    expect(out.map((m) => m.src).sort()).toEqual(['a0', 'a1', 'a2']); // seed preserved
+    expect(state().restored).toBe(true);
+  });
+
+  it('reports 0 scroll steps when the seed already fills the item cap (no scrollStep ran)', async () => {
+    const many = Array.from({ length: 50 }, (_, n) => item(`s${n}`));
+    const { deps, state } = makeDeps([many]);
+    await runDeepScan(deps, { ...DEEP_SCAN_DEFAULTS, maxItems: 10, signal: new AbortController().signal });
+    expect(state().lastReason).toBe('max-items');
+    expect(state().lastScrolls).toBe(0);
   });
 });
