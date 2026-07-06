@@ -210,6 +210,19 @@ export function selectVariant(variants: HlsVariant[], quality: HlsCaptureOptions
   return byBandwidth[byBandwidth.length - 1]; // highest
 }
 
+/** Picks the audio rendition for a video variant's AUDIO group: the DEFAULT one,
+ *  else the first with a URI. Returns undefined when the variant names no group,
+ *  no rendition matches, or none carries a URI (audio is muxed into the variant). */
+export function selectAudioRendition(
+  renditions: HlsAudioRendition[],
+  variant: HlsVariant,
+): HlsAudioRendition | undefined {
+  if (!variant.audioGroup) return undefined;
+  const group = renditions.filter((r) => r.groupId === variant.audioGroup && r.uri);
+  if (!group.length) return undefined;
+  return group.find((r) => r.isDefault) ?? group[0];
+}
+
 function parseByteRange(value: string, prevEnd: number): HlsByteRange {
   // EXT-X-BYTERANGE:<length>[@<offset>] — offset defaults to the byte after the
   // previous sub-range of the same resource.

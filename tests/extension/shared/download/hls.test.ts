@@ -3,11 +3,14 @@ import {
   assertDownloadable,
   HlsError,
   HlsDeps,
+  HlsVariant,
+  HlsAudioRendition,
   isMasterPlaylist,
   ivFromSequence,
   parseAudioRenditions,
   parseMaster,
   parseMediaPlaylist,
+  selectAudioRendition,
   selectVariant,
 } from '@/extension/shared/download/hls';
 
@@ -296,5 +299,32 @@ describe('parseMaster — audio group', () => {
   it('leaves audioGroup undefined when the variant names no AUDIO group', () => {
     const vs = parseMaster(MASTER, 'https://cdn.test/master.m3u8');
     expect(vs[0].audioGroup).toBeUndefined();
+  });
+});
+
+describe('selectAudioRendition', () => {
+  const V = (audioGroup?: string): HlsVariant => ({ uri: 'https://cdn.test/v.m3u8', bandwidth: 1, audioGroup });
+  const R = (groupId: string, isDefault: boolean, uri?: string): HlsAudioRendition => ({ groupId, isDefault, uri });
+
+  it('picks the DEFAULT rendition in the variant’s group', () => {
+    const rs = [R('aud', false, 'https://cdn.test/a1.m3u8'), R('aud', true, 'https://cdn.test/a2.m3u8')];
+    expect(selectAudioRendition(rs, V('aud'))?.uri).toBe('https://cdn.test/a2.m3u8');
+  });
+
+  it('falls back to the first rendition with a URI when none is DEFAULT', () => {
+    const rs = [R('aud', false, 'https://cdn.test/a1.m3u8'), R('aud', false, 'https://cdn.test/a2.m3u8')];
+    expect(selectAudioRendition(rs, V('aud'))?.uri).toBe('https://cdn.test/a1.m3u8');
+  });
+
+  it('returns undefined when the variant names no group', () => {
+    expect(selectAudioRendition([R('aud', true, 'https://cdn.test/a.m3u8')], V(undefined))).toBeUndefined();
+  });
+
+  it('returns undefined when no rendition in the group has a URI (audio is muxed in)', () => {
+    expect(selectAudioRendition([R('aud', true, undefined)], V('aud'))).toBeUndefined();
+  });
+
+  it('returns undefined when the group id does not match', () => {
+    expect(selectAudioRendition([R('other', true, 'https://cdn.test/a.m3u8')], V('aud'))).toBeUndefined();
   });
 });
