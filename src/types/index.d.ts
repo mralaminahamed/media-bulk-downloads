@@ -269,6 +269,9 @@ export interface SettingsData {
   excludeBase64Images: boolean;
   /** Show Chrome's native "Save As" dialog per download (user picks a location). */
   saveAs: boolean;
+  /** Show a desktop notification when a download batch finishes. Gated behind the
+   *  optional `notifications` permission, requested when the user enables it. */
+  notifyOnComplete: boolean;
   /** How downloaded files are named: from the URL's original name, or a sequential prefix. */
   namingMode: 'original' | 'prefixed';
   /** Fixed thumbnail edge (px) in the image grid; the grid reflows columns. */

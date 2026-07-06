@@ -250,6 +250,7 @@ describe('Background Script', () => {
         minimumImageSize: 50,
         excludeBase64Images: true,
         saveAs: false,
+        notifyOnComplete: false,
         namingMode: 'prefixed',
         thumbnailSize: 120,
         previewSize: 360,
@@ -675,5 +676,34 @@ describe('keyboard commands', () => {
   it('ignores an unknown command', () => {
     commandHandler('does-not-exist');
     expect(chrome.tabs.query).not.toHaveBeenCalled();
+  });
+});
+
+describe('completion notification', () => {
+  const img = (src: string): ImageInfo =>
+    ({ src, alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' });
+
+  beforeEach(() => {
+    (chrome.downloads.download as jest.Mock).mockReset().mockImplementation((_o, cb) => cb(1));
+    (chrome.storage.local.get as jest.Mock).mockReset().mockResolvedValue({ downloadHistory: [] });
+    (chrome.storage.local.set as jest.Mock).mockReset().mockResolvedValue(undefined);
+    (chrome.notifications.create as jest.Mock).mockReset();
+  });
+
+  it('fires a toast after a batch when notifyOnComplete is on', async () => {
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { notifyOnComplete: true } }));
+    loadSettings();
+    await downloadAndRecord([img('https://c/a.jpg')], undefined);
+    expect(chrome.notifications.create).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'basic', title: 'Media Bulk Downloads', message: 'Downloaded 1 file.' }),
+      expect.any(Function),
+    );
+  });
+
+  it('stays silent when notifyOnComplete is off', async () => {
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { notifyOnComplete: false } }));
+    loadSettings();
+    await downloadAndRecord([img('https://c/a.jpg')], undefined);
+    expect(chrome.notifications.create).not.toHaveBeenCalled();
   });
 });

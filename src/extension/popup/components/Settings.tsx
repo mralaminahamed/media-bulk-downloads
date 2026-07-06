@@ -48,6 +48,18 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
     setSettings((prev) => ({ ...prev, namingMode: mode }));
   };
 
+  // Turning on completion toasts needs the optional `notifications` permission,
+  // requested here inside the click's user gesture. Denied → the toggle stays off.
+  const handleNotifyToggle = () => {
+    if (settings.notifyOnComplete) {
+      setSettings((prev) => ({ ...prev, notifyOnComplete: false }));
+      return;
+    }
+    chrome.permissions.request({ permissions: ['notifications'] }, (granted) => {
+      if (granted) setSettings((prev) => ({ ...prev, notifyOnComplete: true }));
+    });
+  };
+
   const folderPreview = (() => {
     // Resolve the template against a sample site so tokens render in the preview.
     const dir = expandPathTemplate(settings.downloadPath, {
@@ -146,6 +158,14 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
               label="Ask where to save each file"
               checked={settings.saveAs}
               onToggle={() => toggle('saveAs')}
+            />
+
+            <ToggleRow
+              id="set-notify"
+              label="Notify when downloads finish"
+              description="Show a desktop notification with the result of each download batch — handy for keyboard-shortcut and right-click downloads. Asks for notification permission the first time."
+              checked={settings.notifyOnComplete}
+              onToggle={handleNotifyToggle}
             />
 
             <div>

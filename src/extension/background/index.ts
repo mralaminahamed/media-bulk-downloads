@@ -209,7 +209,9 @@ export async function downloadAndRecord(
   );
   const recorded = entries.filter((e): e is HistoryEntry => e !== null);
   await recordDownloads(recorded);
-  return { total: eligible.length, succeeded: recorded.length, failed: eligible.length - recorded.length };
+  const result = { total: eligible.length, succeeded: recorded.length, failed: eligible.length - recorded.length };
+  notifyBatchDone(result);
+  return result;
 }
 
 /** `1 file` / `N files` — correct singular/plural for a count. */
@@ -223,6 +225,25 @@ export function downloadStatusMessage(r: DownloadResult): string {
   if (r.succeeded === 0) return `Couldn't download ${fileCount(r.total)}.`;
   if (r.failed === 0) return `Downloaded ${fileCount(r.succeeded)}.`;
   return `Downloaded ${r.succeeded} of ${fileCount(r.total)} — ${r.failed} failed.`;
+}
+
+/**
+ * Desktop toast when a download batch finishes — the only feedback for downloads
+ * started from a keyboard command or the context menu (no popup is open). Opt-in
+ * (`notifyOnComplete`) and gated on the optional `notifications` permission being
+ * granted, so it's silent unless the user asked for it.
+ */
+export function notifyBatchDone(result: DownloadResult): void {
+  if (!currentSettings.notifyOnComplete || !chrome.notifications || result.total === 0) return;
+  chrome.notifications.create(
+    {
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('icon/128.png'),
+      title: 'Media Bulk Downloads',
+      message: downloadStatusMessage(result),
+    },
+    () => void chrome.runtime.lastError, // notifications perm not granted → ignore
+  );
 }
 
 /**

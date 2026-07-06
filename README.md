@@ -160,6 +160,12 @@ an image for **Download image (original quality)** and **Add image to Favourites
 | `contextMenus`   | Add right-click actions (download all / this image, add to favourites)    |
 | `<all_urls>`     | Read media on whatever page you run the extension on                      |
 
+Optional (requested only when you turn the feature on, never at install):
+
+| Permission      | Why it's needed                                                            |
+|-----------------|----------------------------------------------------------------------------|
+| `notifications` | Show a desktop toast when a download batch finishes (Settings → Downloads) |
+
 ## Supported sites
 
 The engine works on **any website**. On top of the generic pipeline, it ships dedicated
