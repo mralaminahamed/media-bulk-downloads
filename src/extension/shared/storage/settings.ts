@@ -22,6 +22,7 @@ export const DEFAULT_SETTINGS: SettingsData = {
   bubblePanelPlacement: 'anchored',
   bubblePanelPoint: { x: 40, y: 40 },
   resolveOriginals: false,
+  captureHlsStreams: false,
   deepScanMaxItems: 1000,
   deepScanMaxSeconds: 20,
   deepScanMaxScrolls: 40,

@@ -241,6 +241,13 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
               checked={settings.resolveOriginals}
               onToggle={() => toggle('resolveOriginals')}
             />
+            <ToggleRow
+              id="set-captureHlsStreams"
+              label="Capture HLS video streams"
+              description="Surfaces .m3u8 streams as capture items. Off by default — capturing fetches and assembles every segment, which is slow and memory-heavy."
+              checked={settings.captureHlsStreams}
+              onToggle={() => toggle('captureHlsStreams')}
+            />
           </Section>
 
           <Section title="Deep scan">
