@@ -5,6 +5,7 @@ import {
   DownloadResponse,
   DownloadZipMessage,
   DownloadTextMessage,
+  DownloadBytesMessage,
   RestoreDataMessage,
   FavouriteEntry,
   HistoryEntry,
@@ -533,6 +534,18 @@ chrome.runtime.onMessage.addListener(
       // base64 data URL is how text (a URL list / JSON backup) reaches downloads.
       void settingsReady.then(() => {
         const url = `data:${mime};base64,${textToBase64(text)}`;
+        chrome.downloads.download(
+          { url, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
+          () => void chrome.runtime.lastError,
+        );
+      });
+      return; // fire-and-forget
+    }
+
+    if (typeof message === 'object' && message.type === 'DOWNLOAD_BYTES') {
+      const { filename, bytes, mime } = message as DownloadBytesMessage;
+      void settingsReady.then(() => {
+        const url = `data:${mime};base64,${u8ToBase64(bytes)}`;
         chrome.downloads.download(
           { url, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
           () => void chrome.runtime.lastError,

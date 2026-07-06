@@ -7,6 +7,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Image format conversion**: an opt-in **Settings → Downloads** option to
+  re-encode raster images (incl. WebP/AVIF) to **PNG** or **JPEG** as they
+  download, via an in-page canvas. Videos, audio, SVGs, GIFs, and images already
+  in the target format are saved as-is; anything that can't be decoded falls back
+  to its original. A progress bar shows the conversion. No new permissions.
 - **Progress bar** for in-extension batch work the browser's download shelf can't
   show: a determinate bar with a live count while a **ZIP** is being fetched, and
   an indeterminate bar while **resolving videos** ("Get all videos").

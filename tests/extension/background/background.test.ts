@@ -251,6 +251,7 @@ describe('Background Script', () => {
         excludeBase64Images: true,
         saveAs: false,
         notifyOnComplete: false,
+        convertImagesTo: 'off',
         namingMode: 'prefixed',
         thumbnailSize: 120,
         previewSize: 360,
@@ -705,5 +706,26 @@ describe('completion notification', () => {
     loadSettings();
     await downloadAndRecord([img('https://c/a.jpg')], undefined);
     expect(chrome.notifications.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('DOWNLOAD_BYTES router', () => {
+  beforeEach(() => {
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({}));
+    loadSettings();
+    (chrome.downloads.download as jest.Mock).mockReset().mockImplementation((_o, cb) => cb?.(1));
+  });
+
+  it('saves a base64 data URL with the given mime and filename', async () => {
+    messageHandler(
+      { type: 'DOWNLOAD_BYTES', filename: 'cat.png', bytes: new Uint8Array([0x50, 0x4b, 0x03, 0x04]), mime: 'image/png' },
+      {},
+      jest.fn(),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    const arg = (chrome.downloads.download as jest.Mock).mock.calls.at(-1)[0];
+    expect(arg.filename).toBe('cat.png');
+    expect(arg.url).toBe('data:image/png;base64,UEsDBA==');
+    expect(arg.conflictAction).toBe('uniquify');
   });
 });

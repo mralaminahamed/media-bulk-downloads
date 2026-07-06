@@ -168,6 +168,24 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
               onToggle={handleNotifyToggle}
             />
 
+            <SelectField
+              id="set-convert"
+              name="convertImagesTo"
+              label="Convert images on download to:"
+              value={settings.convertImagesTo}
+              onChange={(e) =>
+                setSettings((prev) => ({ ...prev, convertImagesTo: e.target.value as SettingsData['convertImagesTo'] }))
+              }
+            >
+              <option value="off">Keep original format</option>
+              <option value="png">PNG</option>
+              <option value="jpeg">JPEG</option>
+            </SelectField>
+            <p className="text-[11px] leading-relaxed text-(--ink-3)">
+              Re-encodes raster images (incl. WebP/AVIF) to your chosen format as they download.
+              Videos, audio, SVGs, and GIFs are always saved as-is.
+            </p>
+
             <div>
               <span id="naming-label" className="mb-1 block text-[12px] text-(--ink-2)">
                 File naming:

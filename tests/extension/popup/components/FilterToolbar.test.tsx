@@ -18,6 +18,7 @@ describe('FilterToolbar Component', () => {
     excludeBase64Images: false,
     saveAs: false,
     notifyOnComplete: false,
+    convertImagesTo: 'off',
     namingMode: 'prefixed',
     thumbnailSize: 120,
     previewSize: 360,

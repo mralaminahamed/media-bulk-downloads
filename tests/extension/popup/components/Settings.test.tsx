@@ -3,11 +3,12 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Settings from './../../../../src/extension/popup/components/Settings';
 import { DEFAULT_SETTINGS } from '@/extension/shared/storage/settings';
+import { SettingsData } from '@/types';
 
 describe('Settings Component', () => {
   const mockOnClose = jest.fn();
   const mockOnSettingsChange = jest.fn();
-  const initialSettings = {
+  const initialSettings: SettingsData = {
     downloadPath: 'downloads',
     fileNamePrefix: 'image_',
     popupWidth: 400,
@@ -17,6 +18,7 @@ describe('Settings Component', () => {
     excludeBase64Images: false,
     saveAs: false,
     notifyOnComplete: false,
+    convertImagesTo: 'off',
     namingMode: 'prefixed' as const,
     thumbnailSize: 120,
     previewSize: 360,

@@ -10,7 +10,7 @@ import { BrandMark } from '../components/BrandMark';
 import { SkeletonGrid } from './components/states/SkeletonGrid';
 import { EmptyState } from './components/states/EmptyState';
 import { ErrorState } from './components/states/ErrorState';
-import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, DownloadZipMessage, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
+import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, DownloadZipMessage, DownloadBytesMessage, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
 import { filterImagesBySettings, applyToolbarFilters } from '../shared/collection/filters';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
 import { collectFromActiveTab } from '../shared/active-tab/collect-active-tab';
@@ -19,6 +19,8 @@ import { requestResolveOriginals } from '../shared/active-tab/resolve-originals-
 import { downloadedSrcSet, HISTORY_KEY } from '../shared/storage/history';
 import { favouriteSrcSet, FAVOURITES_KEY } from '../shared/storage/favourites';
 import { buildZip, zipFileName } from '../shared/download/zip';
+import { convertImage, isConvertible } from '../shared/download/convert';
+import { buildDownloadFilename } from '../shared/collection/download-name';
 import { hostFromUrl, registrableDomain, todayISO } from '../shared/collection/paths';
 import { copyText, downloadText, getImageFileSize, mapWithConcurrency, sendRuntimeMessage } from './utils';
 import { Cog6ToothIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
@@ -316,21 +318,76 @@ const App: React.FC<AppProps> = ({
   };
 
   const handleDownload = async (images: ImageInfo | ImageInfo[]): Promise<void> => {
-    const imagesToDownload = Array.isArray(images) ? images : [images];
+    const list = Array.isArray(images) ? images : [images];
+    const target = settings.convertImagesTo;
+    if (target === 'off') {
+      await sendPlainDownload(list);
+      return;
+    }
+    await convertAndDownload(list, target);
+  };
+
+  /** The original, fast path: hand the source URLs to the background to download. */
+  const sendPlainDownload = async (list: ImageInfo[]): Promise<void> => {
     setState((prev) => ({
       ...prev,
-      status: `Sending ${imagesToDownload.length} file${imagesToDownload.length === 1 ? '' : 's'} to downloads…`,
+      status: `Sending ${list.length} file${list.length === 1 ? '' : 's'} to downloads…`,
     }));
-
     const sourcePage = await currentSourcePage();
-    const message: DownloadMessage = { type: 'DOWNLOAD_IMAGES', images: imagesToDownload, sourcePage };
+    const message: DownloadMessage = { type: 'DOWNLOAD_IMAGES', images: list, sourcePage };
     chrome.runtime.sendMessage(message, (response: DownloadResponse) => {
-      // chrome.runtime.lastError is only valid during this callback — capture it
-      // now, not later inside the (deferred) setState updater.
+      // chrome.runtime.lastError is only valid during this callback — capture it now.
       const error = chrome.runtime.lastError;
       const status = error ? `Error: ${error.message || 'unknown error'}` : response.message;
       setState((prev) => ({ ...prev, status }));
     });
+  };
+
+  /**
+   * Convert-on-download: raster images are fetched, re-encoded to the target
+   * format via canvas, and saved as bytes. Non-convertible items (video/audio,
+   * svg, gif, already-target) and any that fail download in their original form.
+   */
+  const convertAndDownload = async (list: ImageInfo[], target: 'png' | 'jpeg'): Promise<void> => {
+    const toConvert = list.filter((i) => isConvertible(i, target));
+    const passthrough = list.filter((i) => !isConvertible(i, target));
+    const sourcePage = await currentSourcePage();
+
+    if (passthrough.length) {
+      chrome.runtime.sendMessage({ type: 'DOWNLOAD_IMAGES', images: passthrough, sourcePage } as DownloadMessage);
+    }
+    if (!toConvert.length) {
+      setState((prev) => ({ ...prev, status: `Sent ${passthrough.length} file${passthrough.length === 1 ? '' : 's'} to downloads…` }));
+      return;
+    }
+
+    setProgress({ label: 'Converting', done: 0, total: toConvert.length });
+    let done = 0;
+    const failed: ImageInfo[] = [];
+    await mapWithConcurrency(toConvert, 3, async (img, index) => {
+      try {
+        const res = await fetch(img.src);
+        if (!res.ok) throw new Error('fetch');
+        const converted = await convertImage(await res.blob(), target);
+        if (!converted) throw new Error('convert');
+        const filename = buildDownloadFilename({ ...img, ext: converted.ext }, index, settings, sourcePage.url);
+        const msg: DownloadBytesMessage = { type: 'DOWNLOAD_BYTES', filename, bytes: converted.bytes, mime: converted.mime };
+        chrome.runtime.sendMessage(msg);
+      } catch {
+        failed.push(img);
+      } finally {
+        setProgress({ label: 'Converting', done: ++done, total: toConvert.length });
+      }
+    });
+    setProgress(null);
+
+    // Anything that couldn't be fetched/decoded downloads in its original format.
+    if (failed.length) {
+      chrome.runtime.sendMessage({ type: 'DOWNLOAD_IMAGES', images: failed, sourcePage } as DownloadMessage);
+    }
+    const okCount = toConvert.length - failed.length;
+    const note = failed.length ? ` ${failed.length} couldn't convert — saved original.` : '';
+    setState((prev) => ({ ...prev, status: `Converted ${okCount} image${okCount === 1 ? '' : 's'} to ${target.toUpperCase()}.${note}` }));
   };
 
   const handleBulkDownload = (): void => {
