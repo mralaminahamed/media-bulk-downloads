@@ -287,7 +287,7 @@ Open (not upgradeable — signed / already-original):
 Bundle the real collector and inject it:
 
 ```bash
-# bench-entry.ts:  import { collectMedia } from '@/extension/collect';
+# bench-entry.ts:  import { collectMedia } from '@/extension/content/collect';
 #                  (window as any).__bench = () => tally(collectMedia());  // by kind/upgraded/hints
 esbuild bench-entry.ts --bundle --format=iife --alias:@=./src --outfile=bench.js
 # Inject bench.js into a live page (first viewport, logged-out), scroll to trigger
@@ -295,5 +295,4 @@ esbuild bench-entry.ts --bundle --format=iife --alias:@=./src --outfile=bench.js
 # Virtualized grids (X /media) mount ~20–24 tiles at once — wait before injecting.
 ```
 
-Pipeline under test: [Collection Pipeline](./guides/collection-pipeline.md) ·
-native resolvers: [analysis](./native-resolvers-analysis.md).
+Pipeline under test: [Collection Pipeline](./guides/collection-pipeline.md).

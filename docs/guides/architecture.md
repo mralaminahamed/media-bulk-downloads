@@ -61,9 +61,9 @@ readability.
 
 | Module                                             | Responsibility                                                                                                                               |
 |----------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| `background.ts`                                    | Message router (15 types), per-tab badge, download + history recording, resolve-originals batching, icon-click routing, popup-vs-bubble mode |
-| `content.ts`                                       | Answers `GET_IMAGES`/`DEEP_SCAN`, mounts the bubble, relays `TOGGLE_BUBBLE`                                                                  |
-| `collect.ts`                                       | `collectMedia()` — walks the DOM (top doc + open shadow roots + same-origin iframes, plus `<meta>`/`<link preload>` head sources) into `MediaItem[]` |
+| `background/index.ts`                              | Message router, per-tab badge, download + history recording, resolve-originals batching, icon-click routing, popup-vs-bubble mode |
+| `content/index.ts`                                 | Answers `GET_IMAGES`/`DEEP_SCAN`, mounts the bubble, relays `TOGGLE_BUBBLE`                                                                  |
+| `content/collect.ts`                               | `collectMedia()` — walks the DOM (top doc + open shadow roots + same-origin iframes, plus `<meta>`/`<link preload>` head sources) into `MediaItem[]` |
 | `shared/collection/extract.ts`                                | Deep DOM extraction: lazy `data-*`, best-srcset, `<noscript>`, gallery `<a href>`                                                            |
 | `shared/collection/imageUrl.ts`                               | `deproxy` + `upgradeToOriginal` (CDN rules), type/dimension parsing                                                                          |
 | `shared/collection/mediaType.ts`                              | Video/audio type detection + undownloadable-media skip list                                                                                  |
@@ -77,8 +77,8 @@ readability.
 | `shared/collection/paths.ts`                                  | Download-path token expansion (`{host}`/`{domain}`/`{date}`/`{kind}`) + path sanitizing                                                      |
 | `shared/storage/history.ts`                                | `HistoryEntry[]` persistence in `chrome.storage.local` — merge/dedup/cap, serialized writes                                                  |
 | `shared/storage/favourites.ts`                             | `FavouriteEntry[]` persistence in `chrome.storage.local` — same merge/dedup/cap shape                                                        |
-| `shared/resolvers/index.ts`                        | Resolver `REGISTRY` (`twitterResolver, unsplashResolver, wallhavenResolver, behanceResolver, genericResolver`) + `resolve()` dispatch        |
-| `shared/resolvers/{twitter,unsplash,wallhaven,behance}.ts` | Per-host, synchronous, network-free URL upgrades; attach `resolveHint`/`unresolvedVideo` when a better original needs a network fetch |
+| `shared/resolvers/index.ts`                        | Resolver `REGISTRY` (`twitterResolver, instagramResolver, unsplashResolver, wallhavenResolver, behanceResolver, genericResolver`) + `resolve()` dispatch        |
+| `shared/resolvers/{twitter,instagram,unsplash,wallhaven,behance}.ts` | Per-host, synchronous, network-free URL upgrades; attach `resolveHint`/`unresolvedVideo` when a better original needs a network fetch |
 | `shared/resolvers/generic.ts`                      | Fallback resolver: today's de-proxy + CDN-rule engine, image-only                                                                            |
 | `shared/resolvers/network.ts`                      | The opt-in resolver: actual `fetch()` calls (Twitter syndication API, Wallhaven API, Unsplash download endpoint)                             |
 | `shared/resolvers/types.ts`                        | `Resolver` / `MediaCandidate` / `ResolveContext` contracts shared by the registry                                                            |
