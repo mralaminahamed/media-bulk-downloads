@@ -112,11 +112,13 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
             onChange={(e) => update({ search: e.target.value })}
             placeholder="Search media…"
             aria-label="Search media"
+            title="Search media"
             className="field w-full text-[12px]"
           />
         </label>
         <select
           aria-label="Sort order"
+          title="Sort order"
           value={filters.sortBy}
           onChange={(e) => update({ sortBy: e.target.value as FilterOptions['sortBy'] })}
           className="field shrink-0 py-0 text-[12px]"
@@ -165,6 +167,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
             Tailwind and would otherwise win over h-/w- utilities. */}
         <select
           aria-label="Media format"
+          title="Media format"
           value={filters.imageType}
           onChange={(e) => update({ imageType: e.target.value })}
           className="field shrink-0 py-0 text-[12px]"
@@ -247,6 +250,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
               role="switch"
               aria-checked={!base64Disabled && filters.includeBase64}
               aria-label="Include Base64 images"
+              title={base64Disabled ? 'Disabled — Base64 images are excluded in Settings' : 'Include Base64 images'}
               disabled={base64Disabled}
               onClick={() => update({ includeBase64: !filters.includeBase64 })}
               className="switch"

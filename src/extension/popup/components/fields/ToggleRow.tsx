@@ -13,6 +13,7 @@ export const ToggleRow: React.FC<ToggleRowProps> = ({ id, label, description, ch
         role="switch"
         aria-checked={checked}
         aria-label={label}
+        title={label}
         aria-describedby={description ? `${id}-desc` : undefined}
         onClick={onToggle}
         className="switch"
