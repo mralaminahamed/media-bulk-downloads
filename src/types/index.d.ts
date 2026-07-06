@@ -239,6 +239,42 @@ export interface RestoreDataMessage {
   history: HistoryEntry[];
 }
 
+/** Popup → background: capture this stream. Background owns the offscreen doc,
+ *  the download, and the status, so it needs the item + source page for the
+ *  filename — it must not depend on the popup after this message. */
+export interface CaptureStreamMessage {
+  type: 'CAPTURE_STREAM';
+  manifestUrl: string;
+  item: ImageInfo;
+  sourcePage: { url: string; title?: string };
+}
+
+/** Background → offscreen: run the engine with this capture policy. */
+export interface CaptureRunMessage {
+  type: 'CAPTURE_RUN';
+  manifestUrl: string;
+  quality: number;
+  maxBytes: number;
+}
+
+/** Offscreen → all contexts (the popup listens): capture progress. */
+export interface CaptureProgressMessage {
+  type: 'CAPTURE_PROGRESS';
+  done: number;
+  total: number;
+}
+
+/** Offscreen → background: the capture outcome. On success the blob URL is
+ *  same-extension origin, read by the background's chrome.downloads. */
+export type CaptureRunResult =
+  | { ok: true; blobUrl: string; ext: string; mime: string; segmentCount: number; muxedAudio: boolean }
+  | { ok: false; code: string };
+
+/** Background → popup: the fully-composed status line for a capture. */
+export interface CaptureStreamResponse {
+  status: string;
+}
+
 export type ChromeMessage =
   | DownloadMessage
   | DownloadZipMessage
@@ -260,7 +296,8 @@ export type ChromeMessage =
   | RemoveHistoryMessage
   | AddFavouriteMessage
   | RemoveFavouriteMessage
-  | ClearFavouritesMessage;
+  | ClearFavouritesMessage
+  | CaptureStreamMessage;
 
 export interface AppState {
   status: string;

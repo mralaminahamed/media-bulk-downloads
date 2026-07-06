@@ -73,6 +73,12 @@ global.chrome = {
         show: jest.fn(),
         search: jest.fn().mockResolvedValue([]),
     },
+    offscreen: {
+        Reason: { BLOBS: 'BLOBS' },
+        hasDocument: jest.fn().mockResolvedValue(false),
+        createDocument: jest.fn().mockResolvedValue(undefined),
+        closeDocument: jest.fn().mockResolvedValue(undefined),
+    },
     action: {
         setBadgeText: jest.fn(),
         setBadgeBackgroundColor: jest.fn(),
