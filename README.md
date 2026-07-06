@@ -65,6 +65,8 @@ It reads only what the page already loaded, so nothing leaves your device.
   into a single **ZIP archive** (same folder layout inside; items a CDN blocks
   fall back to individual downloads automatically)
 - Correct file extensions (never a `.jpg` on a real `.png`)
+- Optional **format conversion** on download — re-encode raster images (incl.
+  WebP/AVIF) to **PNG** or **JPEG** (Settings → Downloads)
 - Configurable naming scheme and a **download-path template** — `{host}`,
   `{domain}`, `{date}`, `{kind}` tokens save each site to its own folder
 - **Copy or export links** — copy the shown/selected URLs to the clipboard, or

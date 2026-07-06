@@ -198,6 +198,18 @@ export interface DownloadTextMessage {
 }
 
 /**
+ * Save arbitrary bytes (a canvas-converted image) as a file. Like DOWNLOAD_ZIP
+ * but with a caller-supplied mime — the background encodes a `data:` URL so it
+ * works from the popup and the bubble. Fire-and-forget.
+ */
+export interface DownloadBytesMessage {
+  type: 'DOWNLOAD_BYTES';
+  filename: string;
+  bytes: Uint8Array;
+  mime: string;
+}
+
+/**
  * Replace the stored favourites and download history from an imported backup.
  * Routed through the background so the write lands in the single-writer realm.
  */
@@ -211,6 +223,7 @@ export type ChromeMessage =
   | DownloadMessage
   | DownloadZipMessage
   | DownloadTextMessage
+  | DownloadBytesMessage
   | RestoreDataMessage
   | GetImagesMessage
   | ToggleBubbleMessage
@@ -272,6 +285,9 @@ export interface SettingsData {
   /** Show a desktop notification when a download batch finishes. Gated behind the
    *  optional `notifications` permission, requested when the user enables it. */
   notifyOnComplete: boolean;
+  /** Convert raster images to this format on download. `off` keeps the original
+   *  (and the fast direct-URL download path). */
+  convertImagesTo: 'off' | 'png' | 'jpeg';
   /** How downloaded files are named: from the URL's original name, or a sequential prefix. */
   namingMode: 'original' | 'prefixed';
   /** Fixed thumbnail edge (px) in the image grid; the grid reflows columns. */
