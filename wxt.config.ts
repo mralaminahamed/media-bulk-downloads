@@ -36,6 +36,7 @@ export default defineConfig({
       16: 'icon/16.png',
       32: 'icon/32.png',
       48: 'icon/48.png',
+      64: 'icon/64.png',
       128: 'icon/128.png',
     },
     // Keyboard shortcuts. `_execute_action` is the browser's built-in "open the
