@@ -1,4 +1,4 @@
-import { installResponseSniffer, makeSnifferEmit } from '@/extension/shared/resolvers/response-sniffer';
+import { installResponseSniffer, installUrlSniffer, makeSnifferEmit } from '@/extension/shared/resolvers/response-sniffer';
 
 describe('makeSnifferEmit', () => {
   let posted: unknown[];
@@ -63,5 +63,42 @@ describe('installResponseSniffer (fetch path)', () => {
     await window.fetch('https://site/other');
     await new Promise((r) => setTimeout(r, 0));
     expect(seen).toEqual([]);
+  });
+});
+
+describe('installUrlSniffer', () => {
+  const origFetch = window.fetch;
+  const origOpen = XMLHttpRequest.prototype.open;
+  afterEach(() => {
+    window.fetch = origFetch;
+    XMLHttpRequest.prototype.open = origOpen;
+  });
+
+  it('reports a matching fetch URL and passes the call through', async () => {
+    const seen: string[] = [];
+    const native = jest.fn().mockResolvedValue('ok');
+    window.fetch = native as unknown as typeof fetch;
+    installUrlSniffer({ isMatch: (u) => u.endsWith('.m3u8'), onUrl: (u) => seen.push(u) });
+    await window.fetch('https://cdn/master.m3u8');
+    await window.fetch('https://cdn/thumb.jpg');
+    expect(seen).toEqual(['https://cdn/master.m3u8']);
+    expect(native).toHaveBeenCalledTimes(2); // both calls still reach native fetch
+  });
+
+  it('resolves a relative URL against the page before matching', () => {
+    const seen: string[] = [];
+    window.fetch = jest.fn().mockResolvedValue('ok') as unknown as typeof fetch;
+    installUrlSniffer({ isMatch: (u) => u.endsWith('.m3u8'), onUrl: (u) => seen.push(u) });
+    void window.fetch('live/index.m3u8');
+    expect(seen).toEqual([`${location.origin}/live/index.m3u8`]);
+  });
+
+  it('reports a matching XMLHttpRequest.open URL', () => {
+    const seen: string[] = [];
+    window.fetch = jest.fn() as unknown as typeof fetch;
+    installUrlSniffer({ isMatch: (u) => u.endsWith('.m3u8'), onUrl: (u) => seen.push(u) });
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', 'https://cdn/x/stream.m3u8');
+    expect(seen).toEqual(['https://cdn/x/stream.m3u8']);
   });
 });

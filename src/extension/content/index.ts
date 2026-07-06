@@ -9,6 +9,7 @@
 import { SettingsData, DeepScanProgress } from '@/types';
 import { collectMedia } from './collect';
 import { ingestSniffedIgMedia } from '../shared/resolvers/instagram';
+import { ingestSniffedHls } from '../shared/resolvers/hls-sniff';
 import { withDefaults } from '../shared/storage/settings';
 import { startDeepScan } from './deepScanRunner';
 
@@ -55,6 +56,18 @@ if (onIgHost) {
     ingestSniffedIgMedia(data.entries);
   });
 }
+
+// Relay the MAIN-world HLS sniffer's findings into the collector's store. Unlike
+// the X/IG sniffers, HLS streams appear on any site, so this runs on every host
+// (the sniffer matches <all_urls>). The envelope crossed the page realm and is
+// untrusted; ingestSniffedHls re-validates every URL (http(s) + .m3u8) — the same
+// class the DOM path already surfaces, so no new capability, only new coverage.
+window.addEventListener('message', (event: MessageEvent) => {
+  if (event.source !== window || event.origin !== location.origin) return;
+  const data = event.data as { source?: unknown; urls?: unknown } | null;
+  if (!data || data.source !== 'ibd-hls' || !Array.isArray(data.urls)) return;
+  ingestSniffedHls(data.urls);
+});
 
 // Answer image-collection requests from the popup and background worker.
 chrome.runtime.onMessage.addListener(

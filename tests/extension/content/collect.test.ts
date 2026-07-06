@@ -1,4 +1,5 @@
 import { collectMedia, backgroundImageUrls } from '@/extension/content/collect';
+import { ingestSniffedHls, resetSniffedHls } from '@/extension/shared/resolvers/hls-sniff';
 
 const setBody = (html: string) => {
   document.body.innerHTML = html;
@@ -135,6 +136,22 @@ describe('collectMedia — HLS streams', () => {
   it('still drops blob: and .mpd (only .m3u8 is captured)', () => {
     setBody('<video src="blob:https://ex.com/x"></video><a href="https://cdn.com/dash.mpd">dash</a>');
     expect(hls(collectMedia())).toHaveLength(0);
+  });
+
+  it('surfaces a sniffer-caught manifest (hls.js — not in the DOM)', () => {
+    resetSniffedHls();
+    ingestSniffedHls(['https://cdn.com/sniffed/master.m3u8']);
+    const [item] = hls(collectMedia());
+    expect(item).toMatchObject({ kind: 'video', hlsManifest: 'https://cdn.com/sniffed/master.m3u8' });
+    resetSniffedHls();
+  });
+
+  it('dedupes a manifest present in both the DOM and the sniffer store', () => {
+    resetSniffedHls();
+    setBody('<video src="https://cdn.com/dup.m3u8"></video>');
+    ingestSniffedHls(['https://cdn.com/dup.m3u8']);
+    expect(hls(collectMedia())).toHaveLength(1);
+    resetSniffedHls();
   });
 });
 

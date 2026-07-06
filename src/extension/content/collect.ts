@@ -18,6 +18,7 @@ import { resolve, MediaCandidate } from '@/extension/shared/resolvers';
 import { twitterGifCandidate, twitterVideoPending } from '@/extension/shared/resolvers/twitter';
 import { instagramPageMedia } from '@/extension/shared/resolvers/instagram';
 import { youtubeVideoId } from '@/extension/shared/resolvers/youtube';
+import { sniffedHlsManifests } from '@/extension/shared/resolvers/hls-sniff';
 
 /** Determines if a URL is a base64-encoded image. */
 export function isBase64Image(src: string): boolean {
@@ -534,6 +535,11 @@ export function collectMedia(): MediaItem[] {
   for (const cand of instagramPageMedia(pageUrl)) {
     pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
   }
+
+  // HLS manifests the MAIN-world sniffer caught (hls.js / native players fetch
+  // the .m3u8 via XHR, so it never appears in the DOM). Surfaced as capturable
+  // streams; pushHls dedupes against any manifest already found in the DOM.
+  for (const manifest of sniffedHlsManifests()) pushHls(manifest, '');
 
   return media;
 }
