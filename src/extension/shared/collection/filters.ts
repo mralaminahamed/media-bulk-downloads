@@ -24,7 +24,12 @@ export function passesSettingsFilters(img: ImageInfo, settings: SettingsData): b
 
   const meetsBase64 = !settings.excludeBase64Images || !img.isBase64;
 
-  return meetsSize && meetsBase64;
+  // HLS (.m3u8) streams are surfaced only when the user opts into stream capture.
+  // When off they're hidden everywhere this gate runs — badge count, popup/bubble
+  // list, and download eligibility — so no capture button or "HLS" tile appears.
+  const meetsHls = settings.captureHlsStreams || !img.hlsManifest;
+
+  return meetsSize && meetsBase64 && meetsHls;
 }
 
 /**

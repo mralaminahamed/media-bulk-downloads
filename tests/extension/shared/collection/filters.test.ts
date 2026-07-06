@@ -22,6 +22,7 @@ const base: SettingsData = {
   bubblePanelPlacement: 'anchored',
   bubblePanelPoint: { x: 40, y: 40 },
   resolveOriginals: false,
+  captureHlsStreams: false,
   deepScanMaxItems: 1000,
   deepScanMaxSeconds: 20,
   deepScanMaxScrolls: 40,
@@ -61,6 +62,15 @@ describe('passesSettingsFilters', () => {
     const settings = { ...base, excludeBase64Images: true };
     expect(passesSettingsFilters(img({ isBase64: true }), settings)).toBe(false);
     expect(passesSettingsFilters(img({ isBase64: false }), settings)).toBe(true);
+  });
+
+  it('hides HLS streams unless capture is enabled', () => {
+    const stream = img({ src: 'https://cdn.com/live.m3u8', kind: 'video', hlsManifest: 'https://cdn.com/live.m3u8' });
+    // Default (off): stream is dropped, plain media is kept.
+    expect(passesSettingsFilters(stream, base)).toBe(false);
+    expect(passesSettingsFilters(img({}), base)).toBe(true);
+    // Enabled: the stream passes.
+    expect(passesSettingsFilters(stream, { ...base, captureHlsStreams: true })).toBe(true);
   });
 });
 
