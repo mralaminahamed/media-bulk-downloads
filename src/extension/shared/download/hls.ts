@@ -46,6 +46,17 @@ export interface HlsVariant {
   resolution?: { width: number; height: number };
   codecs?: string;
   name?: string;
+  audioGroup?: string; // the STREAM-INF AUDIO="…" group id (demuxed audio lives there)
+}
+
+/** An `#EXT-X-MEDIA:TYPE=AUDIO` rendition. A `uri` means the audio is a separate
+ *  (demuxed) track; its absence means the audio is muxed into the video variant. */
+export interface HlsAudioRendition {
+  groupId: string;
+  name?: string;
+  language?: string;
+  isDefault: boolean;
+  uri?: string; // absolute
 }
 
 export interface HlsKey {
@@ -153,9 +164,31 @@ export function parseMaster(text: string, baseUrl: string): HlsVariant[] {
       resolution: res ? { width: Number(res[1]), height: Number(res[2]) } : undefined,
       codecs: attrs.CODECS,
       name: attrs.NAME,
+      audioGroup: attrs.AUDIO || undefined,
     });
   }
   return variants;
+}
+
+/** Parses `#EXT-X-MEDIA:TYPE=AUDIO` renditions from a master playlist,
+ *  absolute-resolving each URI. Non-audio media (subtitles, closed captions) is
+ *  ignored — only audio can be muxed back into the video. */
+export function parseAudioRenditions(text: string, baseUrl: string): HlsAudioRendition[] {
+  const out: HlsAudioRendition[] = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line.startsWith('#EXT-X-MEDIA:')) continue;
+    const a = parseAttributes(line.slice('#EXT-X-MEDIA:'.length));
+    if (a.TYPE !== 'AUDIO') continue;
+    out.push({
+      groupId: a['GROUP-ID'] ?? '',
+      name: a.NAME || undefined,
+      language: a.LANGUAGE || undefined,
+      isDefault: a.DEFAULT === 'YES',
+      uri: a.URI ? new URL(a.URI, baseUrl).href : undefined,
+    });
+  }
+  return out;
 }
 
 /** Picks the variant matching the quality preference. */

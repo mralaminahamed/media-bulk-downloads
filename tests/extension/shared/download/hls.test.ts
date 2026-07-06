@@ -5,6 +5,7 @@ import {
   HlsDeps,
   isMasterPlaylist,
   ivFromSequence,
+  parseAudioRenditions,
   parseMaster,
   parseMediaPlaylist,
   selectVariant,
@@ -258,5 +259,42 @@ b.ts
     );
     await expect(captureHls('https://cdn.test/v/index.m3u8', deps)).rejects.toMatchObject({ code: 'live' });
     expect(fetched).toBe(0);
+  });
+});
+
+const MASTER_DEMUX = `#EXTM3U
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aud",NAME="English",LANGUAGE="en",DEFAULT=YES,AUTOSELECT=YES,URI="audio/en.m3u8"
+#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="English",URI="subs/en.m3u8"
+#EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=640x360,CODECS="avc1.640028,mp4a.40.2",AUDIO="aud"
+video/v.m3u8
+`;
+
+describe('parseAudioRenditions', () => {
+  it('parses TYPE=AUDIO rows with absolute URIs and the DEFAULT flag', () => {
+    const rs = parseAudioRenditions(MASTER_DEMUX, 'https://cdn.test/path/master.m3u8');
+    expect(rs).toHaveLength(1); // subtitles ignored
+    expect(rs[0]).toMatchObject({
+      groupId: 'aud',
+      name: 'English',
+      language: 'en',
+      isDefault: true,
+      uri: 'https://cdn.test/path/audio/en.m3u8',
+    });
+  });
+
+  it('returns an empty array for a master with no audio media', () => {
+    expect(parseAudioRenditions(MASTER, 'https://cdn.test/master.m3u8')).toEqual([]);
+  });
+});
+
+describe('parseMaster — audio group', () => {
+  it('records the AUDIO group id on the variant', () => {
+    const vs = parseMaster(MASTER_DEMUX, 'https://cdn.test/path/master.m3u8');
+    expect(vs[0].audioGroup).toBe('aud');
+  });
+
+  it('leaves audioGroup undefined when the variant names no AUDIO group', () => {
+    const vs = parseMaster(MASTER, 'https://cdn.test/master.m3u8');
+    expect(vs[0].audioGroup).toBeUndefined();
   });
 });
