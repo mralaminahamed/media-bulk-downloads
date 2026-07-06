@@ -74,6 +74,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Stored locally, capped at 500. See [docs/guides/favourites.md](docs/guides/favourites.md).
 
 ### Changed
+- Media collection now walks each DOM root **once** instead of eight times — the
+  `<img>`/`<picture>`/`<video>`/`<audio>`/`<a>`/`<noscript>`/`<iframe>` passes are
+  bucketed during the single element walk the background-image scan already does.
+  Same results; less work per scan, which matters most during deep scan (it
+  re-scans a growing DOM every scroll round).
 - Unified the in-app brand mark with the installed toolbar icon. The popup
   header and the on-page bubble launcher now render the actual icon artwork
   from a single shared `BrandMark` component (per-instance gradient IDs), so
