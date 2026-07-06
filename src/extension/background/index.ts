@@ -330,7 +330,16 @@ export function storeSniffedMedia(tabId: number, pairs: unknown): void {
     if (!Array.isArray(pair)) continue;
     const [mid, url] = pair;
     const pinned = pinTwimgUrl(url);
-    if (typeof mid === 'string' && pinned && map.size < SNIFF_CAP_PER_TAB) map.set(mid, pinned);
+    if (typeof mid !== 'string' || !pinned) continue;
+    // Always record: updating an existing id with a better variant must not be
+    // blocked by the cap, and a new id past the cap evicts the OLDEST entry
+    // (Map keeps insertion order) so a long session keeps its most recent clips
+    // rather than freezing on the first 800 seen.
+    if (!map.has(mid) && map.size >= SNIFF_CAP_PER_TAB) {
+      const oldest = map.keys().next().value;
+      if (oldest !== undefined) map.delete(oldest);
+    }
+    map.set(mid, pinned);
   }
 }
 

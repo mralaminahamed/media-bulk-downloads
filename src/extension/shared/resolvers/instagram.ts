@@ -34,6 +34,11 @@ let parsedScripts = new WeakSet<Element>();
 let cache: { key: string; byCode: Map<string, IgMediaEntry[]> } | null = null;
 
 const SHORTCODE = /^[A-Za-z0-9_-]{1,64}$/;
+// The extension flows verbatim into the download filename, so a forged envelope
+// must not smuggle an executable ('exe') or path characters through it. IG serves
+// only images/videos, so restrict to known media extensions; anything else falls
+// back to the kind's default below.
+const EXT = /^(?:jpe?g|png|webp|gif|avif|heic|mp4|mov|webm|m4v)$/i;
 
 /**
  * Feed media read from a sniffed GraphQL/api response into the resolver's store
@@ -52,7 +57,8 @@ export function ingestSniffedIgMedia(entries: unknown): void {
     if (e.kind !== 'image' && e.kind !== 'video') continue;
     const url = pinIgUrl(e.url);
     if (!url) continue;
-    const entry: IgMediaEntry = { code: e.code, kind: e.kind, url, ext: typeof e.ext === 'string' ? e.ext : e.kind === 'video' ? 'mp4' : 'jpg' };
+    const ext = typeof e.ext === 'string' && EXT.test(e.ext) ? e.ext.toLowerCase() : e.kind === 'video' ? 'mp4' : 'jpg';
+    const entry: IgMediaEntry = { code: e.code, kind: e.kind, url, ext };
     if (typeof e.width === 'number') entry.width = e.width;
     if (typeof e.height === 'number') entry.height = e.height;
     const poster = pinIgUrl(e.poster);
@@ -89,6 +95,9 @@ function buildByCode(): Map<string, IgMediaEntry[]> {
       /* not JSON / not ours — ignore */
     }
   });
+  // Bound `parsed` the same way as `sniffed`: a long SPA session parses many
+  // hydration blocks and would otherwise grow this list without limit (newest wins).
+  if (parsed.length > SNIFF_CAP) parsed = parsed.slice(parsed.length - SNIFF_CAP);
 
   const key = `${parsed.length}|${sniffed.length}`;
   if (cache && cache.key === key) return cache.byCode;
