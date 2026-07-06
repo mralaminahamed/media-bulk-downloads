@@ -1,4 +1,4 @@
-import type { ReactNode, ChangeEvent, FocusEvent, CSSProperties, HTMLAttributes } from 'react';
+import type { ReactNode, ChangeEvent, FocusEvent, MouseEvent, CSSProperties, HTMLAttributes } from 'react';
 
 export type ResolvePlatform = 'twitter' | 'wallhaven' | 'unsplash' | 'vimeo';
 export interface ResolveHint {
@@ -463,6 +463,18 @@ export interface ToggleRowProps {
   description?: ReactNode;
   checked: boolean;
   onToggle: () => void;
+}
+
+export interface SelectCheckboxProps {
+  /** Fully selected — filled box with a check. */
+  checked: boolean;
+  /** Partial selection — filled box with a dash; reports aria-checked="mixed". */
+  indeterminate?: boolean;
+  onClick: (e: MouseEvent<HTMLButtonElement>) => void;
+  ariaLabel: string;
+  title?: string;
+  /** Positioning / visibility classes from the call site, appended last so they win. */
+  className?: string;
 }
 
 export interface SectionProps {

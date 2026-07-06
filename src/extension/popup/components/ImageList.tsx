@@ -16,6 +16,7 @@ import { PlayBadge } from './icons/PlayBadge';
 import { FilmIcon } from './icons/FilmIcon';
 import { AudioIcon } from './icons/AudioIcon';
 import { LoadingImage } from './LoadingImage';
+import { SelectCheckbox } from './fields/SelectCheckbox';
 
 const SIZE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
 
@@ -121,22 +122,14 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
           >
             <div className="checker relative aspect-square">
               {selectable && (
-                <button
-                  type="button"
-                  role="checkbox"
-                  aria-checked={isSelected}
-                  aria-label={isSelected ? 'Deselect item' : 'Select item'}
+                <SelectCheckbox
+                  checked={isSelected}
                   onClick={(e) => handleCheckbox(e, image, index)}
-                  className={`absolute left-1.5 top-1.5 z-10 grid h-5 w-5 place-items-center rounded-[5px] border transition-all ${
-                    isSelected
-                      ? 'border-(--brand-ink) bg-(--brand-ink) text-white'
-                      : 'border-(--ctl-ring) bg-(--panel)/85 text-transparent backdrop-blur-sm'
-                  } ${boxUp ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'}`}
-                >
-                  <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
-                </button>
+                  ariaLabel={isSelected ? 'Deselect item' : 'Select item'}
+                  className={`absolute left-1.5 top-1.5 z-10 ${
+                    boxUp ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
+                  }`}
+                />
               )}
               {image.kind === 'image' ? (
                 <LoadingImage
