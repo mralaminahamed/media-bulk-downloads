@@ -1,3 +1,6 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import * as MP4Box from 'mp4box';
 import {
   captureHls,
   assertDownloadable,
@@ -326,5 +329,92 @@ describe('selectAudioRendition', () => {
 
   it('returns undefined when the group id does not match', () => {
     expect(selectAudioRendition([R('other', true, 'https://cdn.test/a.m3u8')], V('aud'))).toBeUndefined();
+  });
+});
+
+const fx = (name: string) => new Uint8Array(readFileSync(join(__dirname, '../../../fixtures/dash', name)));
+
+/** Parse an MP4's tracks back out to assert what captureHls muxed. */
+function tracksOf(bytes: Uint8Array): { type: 'video' | 'audio' }[] {
+  const file = MP4Box.createFile() as any;
+  let tracks: { type: 'video' | 'audio' }[] = [];
+  file.onReady = (info: { tracks: { video?: unknown }[] }) => {
+    tracks = info.tracks.map((t) => ({ type: t.video ? 'video' : 'audio' }));
+  };
+  const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer & { fileStart: number };
+  ab.fileStart = 0;
+  file.appendBuffer(ab as any);
+  file.flush();
+  return tracks;
+}
+
+describe('captureHls — demuxed fMP4 audio', () => {
+  const MASTER = `#EXTM3U
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aud",NAME="English",DEFAULT=YES,URI="audio/en.m3u8"
+#EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=640x360,CODECS="avc1.640028,mp4a.40.2",AUDIO="aud"
+video/v.m3u8
+`;
+  const VIDEO_PL = `#EXTM3U
+#EXT-X-TARGETDURATION:6
+#EXT-X-MEDIA-SEQUENCE:0
+#EXT-X-MAP:URI="v_init.m4v"
+#EXTINF:6.0,
+v_seg1.m4v
+#EXT-X-ENDLIST
+`;
+  const AUDIO_PL = `#EXTM3U
+#EXT-X-TARGETDURATION:6
+#EXT-X-MEDIA-SEQUENCE:0
+#EXT-X-MAP:URI="a_init.m4a"
+#EXTINF:6.0,
+a_seg1.m4a
+#EXT-X-ENDLIST
+`;
+  const deps = (audioPl = AUDIO_PL): HlsDeps => ({
+    fetchText: async (u: string) => {
+      if (u.endsWith('master.m3u8')) return MASTER;
+      if (u.endsWith('v.m3u8')) return VIDEO_PL;
+      if (u.endsWith('en.m3u8')) return audioPl;
+      throw new Error(`no text ${u}`);
+    },
+    fetchBytes: async (u: string) => fx(u.split('/').pop()!),
+    decrypt: async (_k, _iv, d) => d,
+  });
+
+  it('muxes the separate audio rendition into the video → mp4 with both tracks', async () => {
+    const res = await captureHls('https://cdn.test/master.m3u8', deps());
+    expect(res.ext).toBe('mp4');
+    expect(res.muxedAudio).toBe(true);
+    expect(String.fromCharCode(res.bytes[4], res.bytes[5], res.bytes[6], res.bytes[7])).toBe('ftyp');
+    const tracks = tracksOf(res.bytes);
+    expect(tracks).toHaveLength(2);
+    expect(tracks.some((t) => t.type === 'video')).toBe(true);
+    expect(tracks.some((t) => t.type === 'audio')).toBe(true);
+  });
+
+  it('reports combined progress across both tracks', async () => {
+    const calls: [number, number][] = [];
+    const d = { ...deps(), onProgress: (done: number, total: number) => calls.push([done, total]) };
+    await captureHls('https://cdn.test/master.m3u8', d);
+    expect(calls[calls.length - 1]).toEqual([2, 2]); // 1 video + 1 audio segment
+  });
+
+  it('throws too-large when the summed track bytes exceed maxBytes', async () => {
+    await expect(captureHls('https://cdn.test/master.m3u8', deps(), { maxBytes: 1000 })).rejects.toMatchObject({
+      code: 'too-large',
+    });
+  });
+
+  it('throws demuxed-unsupported when the separate audio is not fMP4 (MPEG-TS)', async () => {
+    const AUDIO_TS = `#EXTM3U
+#EXT-X-TARGETDURATION:6
+#EXT-X-MEDIA-SEQUENCE:0
+#EXTINF:6.0,
+a_seg0.ts
+#EXT-X-ENDLIST
+`;
+    await expect(captureHls('https://cdn.test/master.m3u8', deps(AUDIO_TS))).rejects.toMatchObject({
+      code: 'demuxed-unsupported',
+    });
   });
 });

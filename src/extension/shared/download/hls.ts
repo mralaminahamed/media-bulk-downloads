@@ -21,12 +21,15 @@
  * are refused too — they have no finite end, so there is no single file to save.
  */
 
+import { muxTracks } from './mux';
+
 export type HlsErrorCode =
   | 'no-variants' // master playlist had no usable EXT-X-STREAM-INF
   | 'live' // media playlist has no EXT-X-ENDLIST — not a finite file
   | 'drm' // Widevine/PlayReady/FairPlay or EXT-X-SESSION-KEY
   | 'sample-aes' // SAMPLE-AES — DRM-adjacent, not plain AES-128
   | 'unsupported-key' // an EXT-X-KEY METHOD we don't implement
+  | 'demuxed-unsupported' // separate audio that isn't fMP4, or mp4box couldn't mux
   | 'empty' // playlist had no segments, or nothing downloaded
   | 'too-large' // assembled bytes exceeded opts.maxBytes
   | 'fetch-failed'; // a segment or key could not be fetched
@@ -114,6 +117,7 @@ export interface HlsCaptureResult {
   ext: 'ts' | 'mp4' | 'aac';
   mime: string;
   variant?: HlsVariant;
+  muxedAudio?: boolean; // true when a separate audio rendition was muxed in
   segmentCount: number;
   durationSec: number;
 }
@@ -446,14 +450,61 @@ export async function captureHls(
 
   let mediaUrl = url;
   let variant: HlsVariant | undefined;
+  let audioRendition: HlsAudioRendition | undefined;
   if (isMasterPlaylist(rootText)) {
     variant = selectVariant(parseMaster(rootText, url), opts.quality);
     mediaUrl = variant.uri;
+    audioRendition = selectAudioRendition(parseAudioRenditions(rootText, url), variant);
   }
 
   const mediaText = mediaUrl === url && !variant ? rootText : await deps.fetchText(mediaUrl);
   const playlist = parseMediaPlaylist(mediaText, mediaUrl);
   assertDownloadable(playlist);
+
+  // Demuxed stream: audio ships as its own rendition (separate URI), so the video
+  // variant is video-only. mp4box can recombine fMP4 tracks; anything else fails
+  // loudly rather than saving a silent file.
+  if (audioRendition?.uri) {
+    const audioText = await deps.fetchText(audioRendition.uri);
+    const audioPlaylist = parseMediaPlaylist(audioText, audioRendition.uri);
+    assertDownloadable(audioPlaylist);
+
+    if (!playlist.initUri || !audioPlaylist.initUri) {
+      throw new HlsError(
+        'demuxed-unsupported',
+        'This stream delivers audio separately in a format that can’t be combined.',
+      );
+    }
+
+    const totalSegs = playlist.segments.length + audioPlaylist.segments.length;
+    let doneSegs = 0;
+    const onSegment = (): void => deps.onProgress?.(++doneSegs, totalSegs);
+    const budget: FetchBudget = { used: 0, max: opts.maxBytes };
+
+    const videoTrack = await fetchTrack(playlist, deps, onSegment, budget);
+    const audioTrack = await fetchTrack(audioPlaylist, deps, onSegment, budget);
+
+    let muxed: Uint8Array;
+    try {
+      muxed = muxTracks(
+        { init: videoTrack.init!, segments: videoTrack.segments },
+        { init: audioTrack.init!, segments: audioTrack.segments },
+      );
+    } catch {
+      throw new HlsError('demuxed-unsupported', 'Could not combine this stream’s audio and video.');
+    }
+    if (!muxed.length) throw new HlsError('empty', 'Nothing was downloaded from the stream.');
+
+    return {
+      bytes: muxed,
+      ext: 'mp4',
+      mime: MIME.mp4,
+      variant,
+      muxedAudio: true,
+      segmentCount: playlist.segments.length,
+      durationSec: Math.round(playlist.totalDuration),
+    };
+  }
 
   const ext = guessContainer(playlist.segments[0].uri, !!playlist.initUri);
   const total = playlist.segments.length;
