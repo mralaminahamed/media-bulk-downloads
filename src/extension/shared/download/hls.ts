@@ -368,6 +368,70 @@ export function assertDownloadable(pl: HlsMediaPlaylist): void {
 
 // ---- orchestration -------------------------------------------------------
 
+/** Shared byte budget across a capture's tracks; fetchTrack throws too-large when
+ *  the running total exceeds `max`. */
+interface FetchBudget {
+  used: number;
+  max?: number;
+}
+
+/**
+ * Fetches ONE track — the fMP4 init segment (if any) plus every media segment,
+ * in order, decrypting AES-128 as needed — and returns them separately (the
+ * MuxTrack shape). `onSegment` fires once per completed segment so the caller can
+ * report combined progress; `budget` accumulates bytes across tracks.
+ */
+async function fetchTrack(
+  playlist: HlsMediaPlaylist,
+  deps: HlsDeps,
+  onSegment: () => void,
+  budget: FetchBudget,
+): Promise<{ init?: Uint8Array; segments: Uint8Array[] }> {
+  const keyCache = new Map<string, Promise<Uint8Array>>();
+  const getKey = (keyUri: string): Promise<Uint8Array> => {
+    let p = keyCache.get(keyUri);
+    if (!p) {
+      p = deps.fetchBytes(keyUri).then((b) => {
+        if (b.length !== 16) throw new HlsError('fetch-failed', 'AES-128 key was not 16 bytes.');
+        return b;
+      });
+      keyCache.set(keyUri, p);
+    }
+    return p;
+  };
+
+  const total = playlist.segments.length;
+  const parts: Uint8Array[] = new Array(total);
+  let cursor = 0;
+
+  const fetchSegment = async (seg: HlsSegment): Promise<Uint8Array> => {
+    const raw = await deps.fetchBytes(seg.uri, seg.byteRange);
+    if (!seg.key || seg.key.method !== 'AES-128' || !seg.key.uri) return raw;
+    const key = await getKey(seg.key.uri);
+    const iv = seg.key.iv ?? ivFromSequence(seg.seq);
+    return deps.decrypt(key, iv, raw);
+  };
+
+  const worker = async (): Promise<void> => {
+    while (cursor < total) {
+      const i = cursor++;
+      const bytes = await fetchSegment(playlist.segments[i]);
+      parts[i] = bytes;
+      budget.used += bytes.length;
+      if (budget.max && budget.used > budget.max) {
+        throw new HlsError('too-large', 'Stream exceeds the maximum capture size.');
+      }
+      onSegment();
+    }
+  };
+
+  const limit = Math.max(1, deps.concurrency ?? 6);
+  await Promise.all(Array.from({ length: Math.min(limit, total) }, worker));
+
+  const init = playlist.initUri ? await deps.fetchBytes(playlist.initUri, playlist.initByteRange) : undefined;
+  return { init, segments: parts };
+}
+
 /**
  * Full capture: master/media URL → assembled file bytes. Fetches the media
  * playlist (resolving a master first), refuses live/DRM, then downloads the init
@@ -392,54 +456,15 @@ export async function captureHls(
   assertDownloadable(playlist);
 
   const ext = guessContainer(playlist.segments[0].uri, !!playlist.initUri);
-
-  // Fetch + cache each distinct AES-128 key once.
-  const keyCache = new Map<string, Promise<Uint8Array>>();
-  const getKey = (keyUri: string): Promise<Uint8Array> => {
-    let p = keyCache.get(keyUri);
-    if (!p) {
-      p = deps.fetchBytes(keyUri).then((b) => {
-        if (b.length !== 16) throw new HlsError('fetch-failed', 'AES-128 key was not 16 bytes.');
-        return b;
-      });
-      keyCache.set(keyUri, p);
-    }
-    return p;
-  };
-
   const total = playlist.segments.length;
-  const parts: Uint8Array[] = new Array(total);
   let done = 0;
-  let bytesTotal = 0;
-  let cursor = 0;
+  const onSegment = (): void => deps.onProgress?.(++done, total);
+  const budget: FetchBudget = { used: 0, max: opts.maxBytes };
 
-  const fetchSegment = async (seg: HlsSegment): Promise<Uint8Array> => {
-    const raw = await deps.fetchBytes(seg.uri, seg.byteRange);
-    if (!seg.key || seg.key.method !== 'AES-128' || !seg.key.uri) return raw;
-    const key = await getKey(seg.key.uri);
-    const iv = seg.key.iv ?? ivFromSequence(seg.seq);
-    return deps.decrypt(key, iv, raw);
-  };
-
-  const worker = async (): Promise<void> => {
-    while (cursor < total) {
-      const i = cursor++;
-      const bytes = await fetchSegment(playlist.segments[i]);
-      parts[i] = bytes;
-      bytesTotal += bytes.length;
-      if (opts.maxBytes && bytesTotal > opts.maxBytes) {
-        throw new HlsError('too-large', 'Stream exceeds the maximum capture size.');
-      }
-      deps.onProgress?.(++done, total);
-    }
-  };
-
-  const limit = Math.max(1, deps.concurrency ?? 6);
-  await Promise.all(Array.from({ length: Math.min(limit, total) }, worker));
-
+  const track = await fetchTrack(playlist, deps, onSegment, budget);
   const chunks: Uint8Array[] = [];
-  if (playlist.initUri) chunks.push(await deps.fetchBytes(playlist.initUri, playlist.initByteRange));
-  chunks.push(...parts);
+  if (track.init) chunks.push(track.init);
+  chunks.push(...track.segments);
   const bytes = concat(chunks);
   if (!bytes.length) throw new HlsError('empty', 'Nothing was downloaded from the stream.');
 
