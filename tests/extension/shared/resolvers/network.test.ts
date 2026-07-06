@@ -60,3 +60,30 @@ describe('resolveOriginal — unsplash', () => {
     expect(called).toBe(false);
   });
 });
+
+describe('resolveOriginal — vimeo', () => {
+  const config = (progressive: unknown[]) => ({ request: { files: { progressive } } });
+
+  it('returns the highest progressive mp4, pinned to vimeocdn.com', async () => {
+    const payload = config([
+      { height: 360, url: 'https://vod-progressive-ak.vimeocdn.com/a/360.mp4' },
+      { height: 720, url: 'https://vod-progressive-ak.vimeocdn.com/a/720.mp4' },
+      { height: 540, url: 'https://vod-progressive-ak.vimeocdn.com/a/540.mp4' },
+    ]);
+    expect(await resolveOriginal({ platform: 'vimeo', id: '76979871' }, { fetch: mockFetch(payload) }))
+      .toBe('https://vod-progressive-ak.vimeocdn.com/a/720.mp4');
+  });
+
+  it('returns null when there is no progressive rendition (HLS/DASH-only)', async () => {
+    expect(await resolveOriginal({ platform: 'vimeo', id: '1' }, { fetch: mockFetch(config([])) })).toBeNull();
+  });
+
+  it('rejects a progressive URL that is not https vimeocdn.com (untrusted JSON URL)', async () => {
+    const evil = config([{ height: 1080, url: 'https://evil.example/x.mp4' }]);
+    expect(await resolveOriginal({ platform: 'vimeo', id: '1' }, { fetch: mockFetch(evil) })).toBeNull();
+  });
+
+  it('returns null on a 403 (domain-locked) config', async () => {
+    expect(await resolveOriginal({ platform: 'vimeo', id: '1' }, { fetch: mockFetch({}, false) })).toBeNull();
+  });
+});

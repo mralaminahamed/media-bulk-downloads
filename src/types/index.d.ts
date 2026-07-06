@@ -1,6 +1,6 @@
 import type { ReactNode, ChangeEvent, FocusEvent, CSSProperties, HTMLAttributes } from 'react';
 
-export type ResolvePlatform = 'twitter' | 'wallhaven' | 'unsplash';
+export type ResolvePlatform = 'twitter' | 'wallhaven' | 'unsplash' | 'vimeo';
 export interface ResolveHint {
   platform: ResolvePlatform;
   id: string; // statusId | wallpaper id | photo shortid

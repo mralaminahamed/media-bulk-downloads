@@ -450,6 +450,38 @@ describe('collectMedia — YouTube posters', () => {
   });
 });
 
+describe('collectMedia — Vimeo videos', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+  const vimeo = (m: { resolveHint?: { platform: string } }[]) => m.filter((i) => i.resolveHint?.platform === 'vimeo');
+
+  it('surfaces a Vimeo player <iframe> as a pending video with a resolve hint', () => {
+    setBody('<iframe src="https://player.vimeo.com/video/76979871?autoplay=1"></iframe>');
+    const [item] = vimeo(collectMedia());
+    expect(item).toMatchObject({
+      kind: 'video', type: 'mp4', unresolvedVideo: true,
+      src: 'https://vimeo.com/76979871', resolveHint: { platform: 'vimeo', id: '76979871' },
+    });
+  });
+
+  it('surfaces a Vimeo watch link', () => {
+    setBody('<a href="https://vimeo.com/channels/staffpicks/76979871">watch</a>');
+    expect(vimeo(collectMedia())[0]).toMatchObject({ resolveHint: { platform: 'vimeo', id: '76979871' } });
+  });
+
+  it('dedupes an embed and a link to the same video', () => {
+    setBody(
+      '<iframe src="https://player.vimeo.com/video/76979871"></iframe>' +
+      '<a href="https://vimeo.com/76979871">same</a>',
+    );
+    expect(vimeo(collectMedia())).toHaveLength(1);
+  });
+
+  it('ignores a Vimeo user/channel page (no video id)', () => {
+    setBody('<a href="https://vimeo.com/staffpicks">channel</a>');
+    expect(vimeo(collectMedia())).toHaveLength(0);
+  });
+});
+
 describe('collectMedia — shadow DOM', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 

@@ -7,6 +7,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Vimeo videos**: a Vimeo embed (`player.vimeo.com/video/…`) or a `vimeo.com`
+  link is surfaced as a video and, on the opt-in **Get video** / resolve pass,
+  fetched as a direct **progressive MP4** (highest available) read from Vimeo's
+  own public player config — Vimeo hides the file behind that config, so the
+  generic HLS sniffer can't see it. Domain-locked / privacy videos (whose config
+  returns 403) and renditions with no progressive MP4 are left unresolved; the
+  URL is host-pinned to `vimeocdn.com`. No new permissions.
 - **HLS stream capture** (VOD): a `.m3u8` stream found on a page — a native
   `<video src=…m3u8>`, a `<source>`, an `og:video`, or a direct link — is now
   surfaced as a **capturable** item. **Capture** fetches the manifest and every
