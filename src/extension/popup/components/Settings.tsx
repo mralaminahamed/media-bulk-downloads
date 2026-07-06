@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { BubbleCorner, BubblePanelPlacement, SettingsData, SettingsProps } from '@/types';
-import { expandPathTemplate, todayISO } from '@/extension/shared/paths';
+import { expandPathTemplate, todayISO } from '@/extension/shared/collection/paths';
 import { useDialog } from '../hooks/useDialog';
 import { TextField } from './fields/TextField';
 import { NumberField } from './fields/NumberField';

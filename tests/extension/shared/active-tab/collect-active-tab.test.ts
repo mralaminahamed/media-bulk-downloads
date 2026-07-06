@@ -1,4 +1,4 @@
-import { collectFromActiveTab } from '@/extension/shared/collect-active-tab';
+import { collectFromActiveTab } from '@/extension/shared/active-tab/collect-active-tab';
 import { ImageInfo } from '@/types';
 
 describe('collectFromActiveTab', () => {

@@ -8,7 +8,7 @@ import {
   FolderOpenIcon,
 } from '@heroicons/react/24/outline';
 import { HistoryEntry } from '@/types';
-import { loadHistory, HISTORY_KEY } from '@/extension/shared/history';
+import { loadHistory, HISTORY_KEY } from '@/extension/shared/storage/history';
 import { relativeTime } from '../utils';
 import { LoadingImage } from './LoadingImage';
 import { useDialog } from '../hooks/useDialog';

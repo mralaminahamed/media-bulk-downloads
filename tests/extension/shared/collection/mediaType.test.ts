@@ -4,7 +4,7 @@ import {
   avExtensionForType,
   extensionFromUrl,
   imageExtFromUrl,
-} from '@/extension/shared/mediaType';
+} from '@/extension/shared/collection/mediaType';
 
 describe('imageExtFromUrl', () => {
   it('returns the literal image extension, preserving jpg vs jpeg', () => {

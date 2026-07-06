@@ -1,6 +1,6 @@
 import {
   imageUrlsFromElement, bestSrcsetUrl, galleryLinkCandidate, noscriptImageCandidates,
-} from '@/extension/shared/extract';
+} from '@/extension/shared/collection/extract';
 
 describe('bestSrcsetUrl', () => {
   it('picks the highest-width candidate', () => {

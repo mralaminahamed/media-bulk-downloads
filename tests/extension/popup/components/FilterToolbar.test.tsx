@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import FilterToolbar from '@/extension/popup/components/FilterToolbar';
 import { SettingsData } from '@/types';
-import { DEFAULT_SETTINGS } from '@/extension/shared/settings';
+import { DEFAULT_SETTINGS } from '@/extension/shared/storage/settings';
 
 describe('FilterToolbar Component', () => {
   const mockOnFilterChange = jest.fn();

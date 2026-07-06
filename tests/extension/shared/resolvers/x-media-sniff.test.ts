@@ -1,4 +1,4 @@
-import { mediaIdFromPoster, pinTwimgUrl, bestMp4, extractVideoPairs } from '@/extension/shared/x-media-sniff';
+import { mediaIdFromPoster, pinTwimgUrl, bestMp4, extractVideoPairs } from '@/extension/shared/resolvers/x-media-sniff';
 
 describe('mediaIdFromPoster', () => {
   it('reads the media id from amplify / ext / gif posters', () => {

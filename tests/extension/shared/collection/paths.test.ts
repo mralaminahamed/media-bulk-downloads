@@ -3,7 +3,7 @@ import {
   expandPathTemplate,
   hostFromUrl,
   registrableDomain,
-} from '@/extension/shared/paths';
+} from '@/extension/shared/collection/paths';
 
 describe('hostFromUrl', () => {
   it('returns the hostname of an http(s) URL', () => {

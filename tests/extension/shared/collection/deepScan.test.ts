@@ -1,4 +1,4 @@
-import { runDeepScan, DEEP_SCAN_DEFAULTS } from '@/extension/shared/deepScan';
+import { runDeepScan, DEEP_SCAN_DEFAULTS } from '@/extension/shared/collection/deepScan';
 import { MediaItem, DeepScanStopReason } from '@/types';
 
 const item = (src: string): MediaItem =>

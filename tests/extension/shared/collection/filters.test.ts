@@ -1,4 +1,4 @@
-import { passesSettingsFilters, filterImagesBySettings, applyToolbarFilters } from '@/extension/shared/filters';
+import { passesSettingsFilters, filterImagesBySettings, applyToolbarFilters } from '@/extension/shared/collection/filters';
 import { ImageInfo, SettingsData, FilterOptions } from '@/types';
 
 const base: SettingsData = {

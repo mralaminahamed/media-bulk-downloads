@@ -3,7 +3,7 @@
  * type detection (extension or query param), dimension parsing, and CDN upgrade
  * to the original asset. No requests are ever issued here.
  */
-import { getImageType } from '@/extension/collect';
+import { getImageType } from '@/extension/content/collect';
 
 /** Normalizes a raw format token (extension or query value) to our type vocab. */
 function normalizeFormat(raw: string): string {

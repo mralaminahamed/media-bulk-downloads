@@ -1,5 +1,5 @@
-import { upgradeToOriginal } from '@/extension/shared/imageUrl';
-import { imageExtFromUrl } from '@/extension/shared/mediaType';
+import { upgradeToOriginal } from '@/extension/shared/collection/imageUrl';
+import { imageExtFromUrl } from '@/extension/shared/collection/mediaType';
 import { MediaCandidate, Resolver } from './types';
 
 /** Fallback resolver: today's de-proxy + CDN-rule engine, image-only. */

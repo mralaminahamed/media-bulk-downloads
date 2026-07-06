@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BubbleCorner, BubblePanelPlacement, DeepScanProgress, ImageInfo, SettingsData } from '@/types';
-import { withDefaults } from '../shared/settings';
-import { collectMedia } from '../collect';
+import { withDefaults } from '../shared/storage/settings';
+import { collectMedia } from '../content/collect';
 import { startDeepScan } from '../content/deepScanRunner';
 import App from '../popup/App';
 import { BrandMark } from '../components/BrandMark';

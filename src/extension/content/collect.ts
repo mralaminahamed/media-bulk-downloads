@@ -11,9 +11,9 @@
  */
 
 import { ImageInfo, MediaItem } from '@/types';
-import { detectType, parseUrlDimensions } from '@/extension/shared/imageUrl';
-import { detectAvType, isUndownloadableMedia } from '@/extension/shared/mediaType';
-import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates, bestSrcsetUrl } from '@/extension/shared/extract';
+import { detectType, parseUrlDimensions } from '@/extension/shared/collection/imageUrl';
+import { detectAvType, isUndownloadableMedia } from '@/extension/shared/collection/mediaType';
+import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates, bestSrcsetUrl } from '@/extension/shared/collection/extract';
 import { resolve, MediaCandidate } from '@/extension/shared/resolvers';
 import { twitterGifCandidate, twitterVideoPending } from '@/extension/shared/resolvers/twitter';
 import { instagramPageMedia } from '@/extension/shared/resolvers/instagram';

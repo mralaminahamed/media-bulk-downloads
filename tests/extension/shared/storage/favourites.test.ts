@@ -1,7 +1,7 @@
 import {
   mergeFavourites, addFavourite, removeFavourite, clearFavourites,
   favouriteSrcSet, loadFavourites, FAVOURITES_CAP,
-} from '@/extension/shared/favourites';
+} from '@/extension/shared/storage/favourites';
 import { FavouriteEntry } from '@/types';
 
 const f = (src: string, time: number): FavouriteEntry =>

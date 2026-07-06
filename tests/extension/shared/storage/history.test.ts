@@ -1,4 +1,4 @@
-import { mergeHistory, recordDownloads, removeEntry, clearHistory, downloadedSrcSet, loadHistory, HISTORY_CAP } from '@/extension/shared/history';
+import { mergeHistory, recordDownloads, removeEntry, clearHistory, downloadedSrcSet, loadHistory, HISTORY_CAP } from '@/extension/shared/storage/history';
 import { HistoryEntry } from '@/types';
 
 describe('loadHistory — corrupt storage', () => {

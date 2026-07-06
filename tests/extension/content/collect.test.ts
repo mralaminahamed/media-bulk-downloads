@@ -1,4 +1,4 @@
-import { collectMedia, backgroundImageUrls } from '@/extension/collect';
+import { collectMedia, backgroundImageUrls } from '@/extension/content/collect';
 
 const setBody = (html: string) => {
   document.body.innerHTML = html;
