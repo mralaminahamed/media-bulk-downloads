@@ -15,6 +15,7 @@ import {
   RemoveFavouriteMessage,
   RemoveHistoryMessage,
   ResolveHint,
+  ResolvedMedia,
   ResolveOriginalsMessage,
   ResolveOriginalsResponse,
   SettingsData,
@@ -295,20 +296,21 @@ export async function resolveOriginalsBatch(
   hints: { src: string; hint: ResolveHint }[],
   deps: NetDeps = { fetch: (...a) => fetch(...a) },
   sniffed?: Map<string, string>,
-): Promise<Record<string, string>> {
-  const out: Record<string, string> = {};
+): Promise<Record<string, ResolvedMedia>> {
+  const out: Record<string, ResolvedMedia> = {};
   const limit = 4;
   let i = 0;
   async function worker() {
     while (i < hints.length) {
       const { src, hint } = hints[i++];
-      let url: string | null = null;
+      let sniffedUrl: string | null = null;
       if (hint.platform === 'twitter' && sniffed) {
         const mid = mediaIdFromPoster(src);
-        if (mid) url = sniffed.get(mid) ?? null;
+        if (mid) sniffedUrl = sniffed.get(mid) ?? null;
       }
-      if (!url) url = await resolveOriginal(hint, deps);
-      if (url) out[src] = url;
+      if (sniffedUrl) { out[src] = { url: sniffedUrl }; continue; }
+      const res = await resolveOriginal(hint, deps);
+      if (res) out[src] = res;
     }
   }
   await Promise.all(Array.from({ length: Math.min(limit, hints.length) }, worker));

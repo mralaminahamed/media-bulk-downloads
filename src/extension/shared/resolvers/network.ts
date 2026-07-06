@@ -1,4 +1,4 @@
-import { ResolveHint } from '@/types';
+import { ResolveHint, ResolvedMedia } from '@/types';
 
 export interface NetDeps { fetch: typeof fetch }
 
@@ -26,7 +26,12 @@ interface VimeoProgressive {
 }
 
 interface VimeoConfig {
-  request?: { files?: { progressive?: VimeoProgressive[] } };
+  request?: {
+    files?: {
+      progressive?: VimeoProgressive[];
+      hls?: { default_cdn?: string; cdns?: Record<string, { url?: string }> };
+    };
+  };
 }
 
 /**
@@ -98,7 +103,7 @@ function unsplash(id: string): string {
  * progressive MP4 — a direct, downloadable file. Videos with no progressive
  * rendition (HLS/DASH-only) or that are domain-locked (config 403s) return null.
  */
-async function vimeo(id: string, deps: NetDeps): Promise<string | null> {
+async function vimeo(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
   try {
     const r = await deps.fetch(`https://player.vimeo.com/video/${encodeURIComponent(id)}/config`);
     if (!r.ok) return null;
@@ -110,18 +115,27 @@ async function vimeo(id: string, deps: NetDeps): Promise<string | null> {
         if (!best || h > best.h) best = { h, url: p.url };
       }
     }
-    return pinnedUrl(best?.url, 'vimeocdn.com');
+    const prog = pinnedUrl(best?.url, 'vimeocdn.com');
+    if (prog) return { url: prog };
+
+    // No progressive rendition — fall back to the HLS master (a .m3u8 to capture,
+    // never a direct download). Vimeo HLS is demuxed fMP4; #170 mux gives it sound.
+    const hls = j?.request?.files?.hls;
+    const cdns = hls?.cdns ?? {};
+    const chosen = (hls?.default_cdn ? cdns[hls.default_cdn]?.url : undefined) ?? Object.values(cdns)[0]?.url;
+    const master = pinnedUrl(chosen, 'vimeocdn.com');
+    return master ? { url: master, hls: true } : null;
   } catch {
     return null;
   }
 }
 
-/** Resolve one hint to a final URL, or null on failure. Never throws. */
-export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise<string | null> {
+/** Resolve one hint to a final media target, or null on failure. Never throws. */
+export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise<ResolvedMedia | null> {
   switch (hint.platform) {
-    case 'twitter': return twitter(hint.id, deps);
-    case 'wallhaven': return wallhaven(hint.id, deps);
-    case 'unsplash': return unsplash(hint.id);
+    case 'twitter': { const u = await twitter(hint.id, deps); return u ? { url: u } : null; }
+    case 'wallhaven': { const u = await wallhaven(hint.id, deps); return u ? { url: u } : null; }
+    case 'unsplash': return { url: unsplash(hint.id) };
     case 'vimeo': return vimeo(hint.id, deps);
     default: return null;
   }

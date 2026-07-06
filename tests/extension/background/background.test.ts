@@ -354,7 +354,7 @@ describe('resolveOriginalsBatch', () => {
       { src: 'poster.jpg', hint: { platform: 'twitter', id: '1' } },
       { src: 'thumb.jpg', hint: { platform: 'wallhaven', id: 'x' } }, // 401 -> skipped
     ], deps);
-    expect(out).toEqual({ 'poster.jpg': 'https://video.twimg.com/hi.mp4' });
+    expect(out).toEqual({ 'poster.jpg': { url: 'https://video.twimg.com/hi.mp4' } });
   });
 
   it('prefers a sniffed mp4 over the network for a twitter video poster', async () => {
@@ -366,7 +366,7 @@ describe('resolveOriginalsBatch', () => {
       { fetch: fetchMock as unknown as typeof fetch },
       sniffed,
     );
-    expect(out).toEqual({ [src]: 'https://video.twimg.com/orig.mp4' });
+    expect(out).toEqual({ [src]: { url: 'https://video.twimg.com/orig.mp4' } });
     expect(fetchMock).not.toHaveBeenCalled(); // no forged request when the page already exposed it
   });
 
@@ -380,7 +380,7 @@ describe('resolveOriginalsBatch', () => {
       deps,
       new Map(), // empty sniffer map
     );
-    expect(out).toEqual({ [src]: 'https://video.twimg.com/net.mp4' });
+    expect(out).toEqual({ [src]: { url: 'https://video.twimg.com/net.mp4' } });
   });
 });
 
@@ -401,7 +401,7 @@ describe('X_MEDIA_SEEN sniffer store + resolve wiring', () => {
       sendResponse,
     );
     await new Promise((r) => setTimeout(r, 0));
-    expect(sendResponse).toHaveBeenCalledWith({ resolved: { [src]: 'https://video.twimg.com/good.mp4' } });
+    expect(sendResponse).toHaveBeenCalledWith({ resolved: { [src]: { url: 'https://video.twimg.com/good.mp4' } } });
   });
 });
 
