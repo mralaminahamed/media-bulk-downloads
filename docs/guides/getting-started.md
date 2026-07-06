@@ -76,8 +76,8 @@ Persisted with `chrome.storage.sync`:
   (original name vs. sequential prefix), "Ask where to save each file".
 - **Collection** — minimum image size, exclude base64, and **"Resolve exact
   originals"** (off by default) — an opt-in toggle that lets the background
-  fetch a few supported hosts (Twitter/X, Wallhaven, Unsplash) for the exact
-  original file. See [Resolve Originals](./resolve-originals.md).
+  fetch a few supported hosts (Twitter/X, Instagram reels, Wallhaven, Unsplash)
+  for the exact original file. See [Resolve Originals](./resolve-originals.md).
 - **Deep scan** — max items (50–5000), max time (5–120 s), max scroll steps
   (5–200), and **"Click 'Load more' buttons"** (off by default). These override
   the built-in defaults per scan. See [Deep Scan](./deep-scan.md).
