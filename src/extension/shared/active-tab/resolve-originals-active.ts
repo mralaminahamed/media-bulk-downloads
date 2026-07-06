@@ -1,4 +1,4 @@
-import { ResolveHint, ResolveOriginalsResponse } from '@/types';
+import { ResolveHint, ResolvedMedia, ResolveOriginalsResponse } from '@/types';
 
 /**
  * Asks the background to resolve original media URLs for the given hints
@@ -7,7 +7,7 @@ import { ResolveHint, ResolveOriginalsResponse } from '@/types';
  */
 export async function requestResolveOriginals(
   targets: { src: string; hint: ResolveHint }[],
-): Promise<Record<string, string>> {
+): Promise<Record<string, ResolvedMedia>> {
   if (!targets.length) return {};
   return new Promise((resolve) => {
     chrome.runtime.sendMessage({ type: 'RESOLVE_ORIGINALS', hints: targets }, (resp: ResolveOriginalsResponse) => {

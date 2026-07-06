@@ -218,7 +218,7 @@ const App: React.FC<AppProps> = ({
     const byOldSrc = new Map<string, ImageInfo>();
     for (const i of eligible) {
       if (i.resolveHint && resolved[i.src]) {
-        byOldSrc.set(i.src, { ...i, src: resolved[i.src], unresolvedVideo: false, resolveHint: undefined });
+        byOldSrc.set(i.src, { ...i, src: resolved[i.src].url, unresolvedVideo: false, resolveHint: undefined });
       }
     }
     if (!byOldSrc.size) return;
@@ -597,11 +597,12 @@ const App: React.FC<AppProps> = ({
     setResolveFailedSrcs((p) => { const n = new Set(p); n.delete(src); return n; });
     const resolved = await requestResolveOriginals([{ src, hint: image.resolveHint }]);
     setFetchingSrcs((p) => { const n = new Set(p); n.delete(src); return n; });
-    const url = resolved[src];
-    if (!url) {
+    const r = resolved[src];
+    if (!r) {
       setResolveFailedSrcs((p) => new Set(p).add(src));
       return;
     }
+    const url = r.url;
     const swap = (list: ImageInfo[]) =>
       list.map((i) => (i.src === src ? { ...i, src: url, unresolvedVideo: false, resolveHint: undefined } : i));
     setState((prev) => ({ ...prev, images: swap(prev.images), filteredImages: swap(prev.filteredImages) }));
@@ -634,7 +635,7 @@ const App: React.FC<AppProps> = ({
 
     const byOldSrc = new Map<string, ImageInfo>();
     for (const t of targets) {
-      if (resolved[t.src]) byOldSrc.set(t.src, { ...t, src: resolved[t.src], unresolvedVideo: false, resolveHint: undefined });
+      if (resolved[t.src]) byOldSrc.set(t.src, { ...t, src: resolved[t.src].url, unresolvedVideo: false, resolveHint: undefined });
     }
     if (!byOldSrc.size) return;
     const swap = (list: ImageInfo[]) => list.map((i) => byOldSrc.get(i.src) ?? i);

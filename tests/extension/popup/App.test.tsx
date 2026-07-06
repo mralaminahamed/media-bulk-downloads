@@ -18,7 +18,7 @@ jest.mock('@/extension/shared/active-tab/deep-scan-active-tab', () => ({
 }));
 
 jest.mock('@/extension/shared/active-tab/resolve-originals-active', () => ({
-  requestResolveOriginals: jest.fn(async () => ({ 'poster.jpg': 'https://video.twimg.com/hi.mp4' })),
+  requestResolveOriginals: jest.fn(async () => ({ 'poster.jpg': { url: 'https://video.twimg.com/hi.mp4' } })),
 }));
 
 const image = (over: Partial<ImageInfo>): ImageInfo => ({
@@ -271,8 +271,8 @@ describe('App Component', () => {
     const resolveMock = requestResolveOriginals as jest.Mock;
     resolveMock.mockClear(); // shared across tests; reset call count without touching the default impl
     resolveMock.mockResolvedValueOnce({
-      'poster1.jpg': 'https://video.twimg.com/a.mp4',
-      'poster2.jpg': 'https://video.twimg.com/b.mp4',
+      'poster1.jpg': { url: 'https://video.twimg.com/a.mp4' },
+      'poster2.jpg': { url: 'https://video.twimg.com/b.mp4' },
     });
 
     render(
@@ -385,7 +385,7 @@ describe('App Component', () => {
     expect(container.querySelector('video')).toBeNull(); // no preview modal opened
     expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
 
-    resolveMock.mockResolvedValue({ 'poster.jpg': 'https://video.twimg.com/hi.mp4' }); // restore default
+    resolveMock.mockResolvedValue({ 'poster.jpg': { url: 'https://video.twimg.com/hi.mp4' } }); // restore default
   });
 
   it('shows a pending video but excludes it from the download count', async () => {
@@ -404,7 +404,7 @@ describe('App Component', () => {
   });
 
   it('fetches a single video on demand even when resolveOriginals is off', async () => {
-    (requestResolveOriginals as jest.Mock).mockResolvedValueOnce({ 'poster.jpg': 'https://video.twimg.com/hi.mp4' });
+    (requestResolveOriginals as jest.Mock).mockResolvedValueOnce({ 'poster.jpg': { url: 'https://video.twimg.com/hi.mp4' } });
     render(<App collect={async () => [pendingVideo]} />);
     fireEvent.click(await screen.findByTitle('Get video'));
     await waitFor(() =>
@@ -429,7 +429,7 @@ describe('App Component', () => {
     // (e.g. minimumImageSize) would revert the just-resolved video back to a
     // pending tile. handleFetchVideo now mirrors the swap into rawImagesRef
     // too, so the upgrade survives the re-filter below.
-    (requestResolveOriginals as jest.Mock).mockResolvedValueOnce({ 'poster.jpg': 'https://video.twimg.com/hi.mp4' });
+    (requestResolveOriginals as jest.Mock).mockResolvedValueOnce({ 'poster.jpg': { url: 'https://video.twimg.com/hi.mp4' } });
     render(<App collect={async () => [pendingVideo]} />);
 
     fireEvent.click(await screen.findByTitle('Get video'));

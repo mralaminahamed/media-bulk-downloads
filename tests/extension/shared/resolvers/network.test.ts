@@ -15,7 +15,7 @@ describe('resolveOriginal — twitter', () => {
   };
   it('picks the highest-bitrate mp4', async () => {
     const url = await resolveOriginal({ platform: 'twitter', id: '123' }, { fetch: mockFetch(tweetJson) });
-    expect(url).toBe('https://video.twimg.com/hi.mp4');
+    expect(url).toEqual({ url: 'https://video.twimg.com/hi.mp4' });
   });
   it('returns null when only HLS variants exist', async () => {
     const hls = { mediaDetails: [{ video_info: { variants: [{ content_type: 'application/x-mpegURL', url: 'x.m3u8' }] } }] };
@@ -40,7 +40,7 @@ describe('resolveOriginal — wallhaven', () => {
   it('returns data.path', async () => {
     const wh = { data: { path: 'https://w.wallhaven.cc/full/ab/wallhaven-abcdef.png', file_type: 'image/png' } };
     expect(await resolveOriginal({ platform: 'wallhaven', id: 'abcdef' }, { fetch: mockFetch(wh) }))
-      .toBe('https://w.wallhaven.cc/full/ab/wallhaven-abcdef.png');
+      .toEqual({ url: 'https://w.wallhaven.cc/full/ab/wallhaven-abcdef.png' });
   });
   it('returns null on 401 (nsfw/unlisted)', async () => {
     expect(await resolveOriginal({ platform: 'wallhaven', id: 'x' }, { fetch: mockFetch({}, false) })).toBeNull();
@@ -56,7 +56,7 @@ describe('resolveOriginal — unsplash', () => {
     let called = false;
     const spy = (async () => { called = true; return { ok: true, json: async () => ({}) }; }) as unknown as typeof fetch;
     const url = await resolveOriginal({ platform: 'unsplash', id: 'abc123' }, { fetch: spy });
-    expect(url).toBe('https://unsplash.com/photos/abc123/download');
+    expect(url).toEqual({ url: 'https://unsplash.com/photos/abc123/download' });
     expect(called).toBe(false);
   });
 });
@@ -71,7 +71,7 @@ describe('resolveOriginal — vimeo', () => {
       { height: 540, url: 'https://vod-progressive-ak.vimeocdn.com/a/540.mp4' },
     ]);
     expect(await resolveOriginal({ platform: 'vimeo', id: '76979871' }, { fetch: mockFetch(payload) }))
-      .toBe('https://vod-progressive-ak.vimeocdn.com/a/720.mp4');
+      .toEqual({ url: 'https://vod-progressive-ak.vimeocdn.com/a/720.mp4' });
   });
 
   it('returns null when there is no progressive rendition (HLS/DASH-only)', async () => {

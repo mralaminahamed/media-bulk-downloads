@@ -6,6 +6,13 @@ export interface ResolveHint {
   id: string; // statusId | wallpaper id | photo shortid
 }
 
+/** A resolved media target. `hls` marks `url` as an HLS `.m3u8` master to CAPTURE
+ *  (segment-assemble), not a direct file to hand to chrome.downloads. */
+export interface ResolvedMedia {
+  url: string;
+  hls?: boolean;
+}
+
 export interface ImageInfo {
   src: string;
   alt: string;
@@ -119,7 +126,7 @@ export interface ResolveOriginalsMessage {
 }
 
 export interface ResolveOriginalsResponse {
-  resolved: Record<string, string>; // src -> resolvedUrl (successes only)
+  resolved: Record<string, ResolvedMedia>; // src -> resolved media (successes only)
 }
 
 /** Content → background: mp4 URLs the page's own API responses exposed, per tab.
