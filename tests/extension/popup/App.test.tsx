@@ -103,6 +103,50 @@ describe('App Component', () => {
     expect(await screen.findByText('Downloaded 2 files.')).toBeInTheDocument();
   });
 
+  it('selects one item and downloads only the selection', async () => {
+    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((_m, cb) =>
+      cb({ status: 'success', message: 'Downloaded 1 file.' }),
+    );
+    render(<App collect={async () => [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })]} />);
+    await screen.findByText('Filters');
+
+    // Before selecting: the plain bulk button downloads everything.
+    expect(screen.getByRole('button', { name: /download 2/i })).toBeInTheDocument();
+
+    await userEvent.click(screen.getAllByRole('checkbox', { name: /select item/i })[0]);
+
+    // Footer swaps to the selective action.
+    await userEvent.click(await screen.findByRole('button', { name: /download selected 1/i }));
+
+    await waitFor(() =>
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'DOWNLOAD_IMAGES', images: [expect.objectContaining({ src: 'a.jpg' })] }),
+        expect.any(Function),
+      ),
+    );
+  });
+
+  it('select-all ticks every shown item and Clear resets to bulk', async () => {
+    render(<App collect={async () => [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })]} />);
+    await screen.findByText('Filters');
+
+    await userEvent.click(screen.getByRole('checkbox', { name: /select all shown/i }));
+
+    expect(await screen.findByRole('button', { name: /download selected 2/i })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /^clear$/i }));
+
+    expect(screen.getByRole('button', { name: /download 2/i })).toBeInTheDocument();
+  });
+
+  it('offers no selection checkbox for a pending video (nothing downloadable)', async () => {
+    render(<App collect={async () => [pendingVideo]} />);
+    await screen.findByText('Filters');
+
+    expect(screen.queryByRole('checkbox', { name: /select item/i })).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: /select all shown/i })).toBeNull();
+  });
+
   it('disables download when a type filter matches nothing', async () => {
     render(<App collect={async () => [image({ type: 'png' })]} />);
     await screen.findByText('Filters');

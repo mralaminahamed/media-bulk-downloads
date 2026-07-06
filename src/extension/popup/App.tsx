@@ -67,6 +67,10 @@ const App: React.FC<AppProps> = ({
   const [favouriteSrcs, setFavouriteSrcs] = useState<Set<string>>(new Set());
   const [resolveFailedSrcs, setResolveFailedSrcs] = useState<Set<string>>(new Set());
   const [fetchingSrcs, setFetchingSrcs] = useState<Set<string>>(new Set());
+  // Selective bulk download: srcs the user has ticked. Scoped to what's shown —
+  // pruned whenever the filtered view changes (see the effect below).
+  const [selectedSrcs, setSelectedSrcs] = useState<Set<string>>(new Set());
+  const selectAllRef = useRef<HTMLInputElement>(null);
 
   // All images collected from the page, before any settings/toolbar filtering.
   const rawImagesRef = useRef<ImageInfo[]>([]);
@@ -321,6 +325,52 @@ const App: React.FC<AppProps> = ({
 
   const handleSingleImageDownload = (image: ImageInfo): void => void handleDownload(image);
 
+  // ── Selective bulk download ────────────────────────────────────────────────
+  const handleToggleSelect = (image: ImageInfo): void => {
+    if (image.unresolvedVideo) return; // only downloadable items are selectable
+    setSelectedSrcs((prev) => {
+      const next = new Set(prev);
+      if (next.has(image.src)) next.delete(image.src);
+      else next.add(image.src);
+      return next;
+    });
+  };
+
+  /** Shift-click: add every downloadable item in the clicked run. */
+  const handleSelectRange = (imgs: ImageInfo[]): void => {
+    setSelectedSrcs((prev) => {
+      const next = new Set(prev);
+      for (const i of imgs) if (!i.unresolvedVideo) next.add(i.src);
+      return next;
+    });
+  };
+
+  const handleSelectAllShown = (): void =>
+    setSelectedSrcs(new Set(downloadable(state.filteredImages).map((i) => i.src)));
+
+  const handleClearSelection = (): void => setSelectedSrcs(new Set());
+
+  const handleDownloadSelected = (): void => {
+    const chosen = downloadable(state.filteredImages).filter((i) => selectedSrcs.has(i.src));
+    if (chosen.length) void handleDownload(chosen);
+  };
+
+  // Keep the selection scoped to what's currently shown: drop any ticked src that
+  // a filter change or rescan removed from the downloadable view.
+  useEffect(() => {
+    setSelectedSrcs((prev) => {
+      if (prev.size === 0) return prev;
+      const shown = new Set(downloadable(state.filteredImages).map((i) => i.src));
+      let changed = false;
+      const next = new Set<string>();
+      for (const s of prev) {
+        if (shown.has(s)) next.add(s);
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [state.filteredImages]);
+
   /**
    * Resolve ONE pending video's real file on demand, regardless of the global
    * resolveOriginals setting (this is an explicit, user-initiated request).
@@ -414,6 +464,14 @@ const App: React.FC<AppProps> = ({
   const fetchingVideos = pendingVids.some((v) => fetchingSrcs.has(v.src));
   const hasImages = total > 0;
   const filtered = shown !== total;
+  const selectedCount = selectedSrcs.size;
+  const allShownSelected = downloadableShown > 0 && selectedCount === downloadableShown;
+
+  // Native checkbox indeterminate state can't be set via JSX — reflect a partial
+  // selection (some but not all shown) onto the select-all box each render.
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = selectedCount > 0 && !allShownSelected;
+  }, [selectedCount, allShownSelected]);
 
   return (
     <div className="ibd-app flex h-full flex-col overflow-hidden bg-(--paper) text-(--ink)">
@@ -506,6 +564,10 @@ const App: React.FC<AppProps> = ({
             onFetchVideo={handleFetchVideo}
             resolveFailedSrcs={resolveFailedSrcs}
             fetchingSrcs={fetchingSrcs}
+            selectedSrcs={selectedSrcs}
+            selectionActive={selectedCount > 0}
+            onToggleSelect={handleToggleSelect}
+            onSelectRange={handleSelectRange}
           />
         )}
       </main>
@@ -513,17 +575,37 @@ const App: React.FC<AppProps> = ({
       {/* Action bar */}
       {hasImages && !state.isLoading && (
         <footer className="flex items-center justify-between gap-3 border-t hairline bg-(--panel) px-4 py-2.5">
-          <p className="num min-w-0 flex-1 truncate text-[11px] text-(--ink-2)">
-            {state.status ? (
-              state.status
-            ) : (
-              <>
-                <span className="text-(--ink)">{shown}</span>
-                <span className="text-(--ink-3)"> / {total}</span>
-                {filtered && <span className="text-(--ink-3)"> shown</span>}
-              </>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            {downloadableShown > 0 && (
+              <input
+                ref={selectAllRef}
+                type="checkbox"
+                checked={allShownSelected}
+                onChange={() => (allShownSelected ? handleClearSelection() : handleSelectAllShown())}
+                className="h-3.5 w-3.5 shrink-0 cursor-pointer accent-(--brand-ink)"
+                title={allShownSelected ? 'Clear selection' : 'Select all shown'}
+                aria-label={allShownSelected ? 'Clear selection' : 'Select all shown'}
+              />
             )}
-          </p>
+            <p className="num min-w-0 truncate text-[11px] text-(--ink-2)">
+              {state.status ? (
+                state.status
+              ) : selectedCount > 0 ? (
+                <>
+                  <span className="text-(--ink)">{selectedCount}</span> selected
+                  <button onClick={handleClearSelection} className="ml-1.5 text-(--ink-3) underline-offset-2 hover:text-(--ink) hover:underline">
+                    Clear
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="text-(--ink)">{shown}</span>
+                  <span className="text-(--ink-3)"> / {total}</span>
+                  {filtered && <span className="text-(--ink-3)"> shown</span>}
+                </>
+              )}
+            </p>
+          </div>
           {pendingVideoCount > 0 && (
             <button
               onClick={() => void handleFetchAllVideos()}
@@ -535,10 +617,17 @@ const App: React.FC<AppProps> = ({
               <span>{fetchingVideos ? 'Fetching…' : `Get all videos (${pendingVideoCount})`}</span>
             </button>
           )}
+          {selectedCount > 0 ? (
+            <button onClick={handleDownloadSelected} className="btn btn-primary flex-none" title="Download the selected items">
+              <ArrowDownTrayIcon className="h-4 w-4" />
+              <span>Download selected {selectedCount}</span>
+            </button>
+          ) : (
           <button onClick={handleBulkDownload} disabled={downloadableShown === 0} className="btn btn-primary flex-none">
             <ArrowDownTrayIcon className="h-4 w-4" />
             <span>Download{downloadableShown > 0 ? ` ${downloadableShown}` : ''}</span>
           </button>
+          )}
         </footer>
       )}
 

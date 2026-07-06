@@ -292,6 +292,14 @@ export interface ImageListProps {
   resolveFailedSrcs?: Set<string>;
   /** Srcs currently being resolved (shows a spinner, disables the button). */
   fetchingSrcs?: Set<string>;
+  /** Selected item srcs for selective bulk download (ring + checked box). */
+  selectedSrcs?: Set<string>;
+  /** True when at least one item is selected — keeps every checkbox visible. */
+  selectionActive?: boolean;
+  /** Toggle one item's selection (checkbox click without Shift). */
+  onToggleSelect?: (image: ImageInfo) => void;
+  /** Select a contiguous run of items at once (checkbox Shift-click). */
+  onSelectRange?: (images: ImageInfo[]) => void;
 }
 
 export interface SettingsProps {
