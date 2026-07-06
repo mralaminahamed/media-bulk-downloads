@@ -1,5 +1,4 @@
 import { ResolveHint } from '@/types';
-import { igMediaFromHtml, pinIgUrl } from '@/extension/shared/ig-media-sniff';
 
 export interface NetDeps { fetch: typeof fetch }
 
@@ -85,39 +84,12 @@ function unsplash(id: string): string {
   return `https://unsplash.com/photos/${encodeURIComponent(id)}/download`;
 }
 
-/**
- * Fetch a reel/post's own page with the user's session cookies and read the real
- * mp4 out of its embedded JSON. Read-only: it GETs a page the user could open
- * themselves — no forged private-API request. Returns null when the page ships no
- * video (e.g. Instagram gated it, or it defers the media to a client GraphQL call
- * the plain fetch can't trigger) — the caller then reports "couldn't fetch".
- */
-async function instagram(code: string, deps: NetDeps): Promise<string | null> {
-  if (!/^[A-Za-z0-9_-]{1,64}$/.test(code)) return null;
-  for (const path of [`reel/${code}`, `p/${code}`]) {
-    try {
-      const r = await deps.fetch(`https://www.instagram.com/${path}/`, { credentials: 'include' });
-      if (!r.ok) continue;
-      const entries = igMediaFromHtml(await r.text());
-      const match =
-        entries.find((e) => e.code === code && e.kind === 'video' && !e.pending) ??
-        entries.find((e) => e.kind === 'video' && !e.pending);
-      const url = pinIgUrl(match?.url);
-      if (url) return url;
-    } catch {
-      /* try the next path / give up */
-    }
-  }
-  return null;
-}
-
 /** Resolve one hint to a final URL, or null on failure. Never throws. */
 export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise<string | null> {
   switch (hint.platform) {
     case 'twitter': return twitter(hint.id, deps);
     case 'wallhaven': return wallhaven(hint.id, deps);
     case 'unsplash': return unsplash(hint.id);
-    case 'instagram': return instagram(hint.id, deps);
     default: return null;
   }
 }

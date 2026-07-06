@@ -1,4 +1,4 @@
-import { pinIgUrl, bestIgImage, bestIgVideo, shortcodeFromUrl, extFromIgUrl, extractIgMedia, igMediaFromHtml } from '@/extension/shared/ig-media-sniff';
+import { pinIgUrl, bestIgImage, bestIgVideo, shortcodeFromUrl, extFromIgUrl, extractIgMedia } from '@/extension/shared/ig-media-sniff';
 
 describe('pinIgUrl', () => {
   it('accepts https cdninstagram / fbcdn hosts only', () => {
@@ -185,40 +185,5 @@ describe('extractIgMedia', () => {
     expect(extractIgMedia(null)).toEqual([]);
     expect(extractIgMedia('nope')).toEqual([]);
     expect(extractIgMedia({ a: { b: { c: {} } } })).toEqual([]);
-  });
-});
-
-describe('igMediaFromHtml', () => {
-  const media = {
-    code: 'REEL',
-    media_type: 2,
-    image_versions2: { candidates: [{ url: 'https://x.cdninstagram.com/REEL_poster_n.jpg', width: 720, height: 1280 }] },
-    video_versions: [{ url: 'https://x.cdninstagram.com/REEL_720.mp4', width: 720, height: 1280, type: 101 }],
-  };
-
-  it('mines media from the JSON script blocks of a reel page HTML', () => {
-    const html = `<!doctype html><html><head></head><body>
-      <script type="application/json" data-sjs>${JSON.stringify({ require: [[media]] })}</script>
-      <script type="application/json">${JSON.stringify({ nothing: true })}</script>
-    </body></html>`;
-    const out = igMediaFromHtml(html);
-    expect(out).toEqual([
-      {
-        code: 'REEL',
-        kind: 'video',
-        url: 'https://x.cdninstagram.com/REEL_720.mp4',
-        ext: 'mp4',
-        width: 720,
-        height: 1280,
-        poster: 'https://x.cdninstagram.com/REEL_poster_n.jpg',
-      },
-    ]);
-  });
-
-  it('returns [] for HTML with no video (gated page) and never throws on junk', () => {
-    expect(igMediaFromHtml('<html><body>please log in</body></html>')).toEqual([]);
-    expect(igMediaFromHtml('<script type="application/json">not json {{</script> video_versions')).toEqual([]);
-    expect(igMediaFromHtml(null)).toEqual([]);
-    expect(igMediaFromHtml(42)).toEqual([]);
   });
 });

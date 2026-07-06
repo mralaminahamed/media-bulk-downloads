@@ -151,26 +151,3 @@ export function extractIgMedia(root: unknown): IgMediaEntry[] {
   walk(root, undefined);
   return out;
 }
-
-/**
- * Pull IG media from the `<script type="application/json">` blocks in a page's
- * raw HTML string. The background worker has no DOM, so it fetches a reel/post
- * page and mines its embedded hydration this way. Pure; never throws; bounded.
- */
-export function igMediaFromHtml(html: unknown): IgMediaEntry[] {
-  if (typeof html !== 'string' || html.indexOf('video_versions') === -1) return [];
-  const out: IgMediaEntry[] = [];
-  const re = /<script\b[^>]*\btype="application\/json"[^>]*>([\s\S]*?)<\/script>/gi;
-  let m: RegExpExecArray | null;
-  let guard = 0;
-  while ((m = re.exec(html)) !== null && guard++ < 500) {
-    const text = m[1];
-    if (!text || text.indexOf('video_versions') === -1) continue;
-    try {
-      out.push(...extractIgMedia(JSON.parse(text)));
-    } catch {
-      /* not JSON / not ours — skip */
-    }
-  }
-  return out;
-}
