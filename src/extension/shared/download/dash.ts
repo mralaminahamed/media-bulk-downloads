@@ -180,3 +180,39 @@ export function parseMpd(xml: string, baseUrl: string): DashManifest {
   }
   return { isLive, hasDrm, video, audio, durationSec };
 }
+
+// ---- segment expansion ----------------------------------------------------
+
+/** Expand a representation's SegmentTemplate into absolute init + media URLs. */
+export function expandSegments(rep: DashRepresentation, durationSec: number): { initUri: string; segmentUris: string[] } {
+  const t = rep.template;
+  const baseVars = { RepresentationID: rep.id, Bandwidth: rep.bandwidth };
+  const initUri = t.initialization ? new URL(substituteTemplate(t.initialization, baseVars), rep.baseUrl).href : '';
+  if (!t.media) {
+    throw new DashError('unsupported', 'SegmentTemplate has no media template (SegmentList / SegmentBase not supported).');
+  }
+
+  const uris: string[] = [];
+  const push = (num: number, time: number): void => {
+    uris.push(new URL(substituteTemplate(t.media!, { ...baseVars, Number: num, Time: time }), rep.baseUrl).href);
+  };
+
+  if (t.timeline && t.timeline.length) {
+    let number = t.startNumber;
+    let time = t.timeline[0].t ?? 0;
+    for (const s of t.timeline) {
+      if (s.t !== undefined) time = s.t;
+      for (let i = 0; i <= s.r; i++) {
+        push(number, time);
+        number += 1;
+        time += s.d;
+      }
+    }
+  } else if (t.duration) {
+    const count = Math.max(0, Math.ceil((durationSec * t.timescale) / t.duration));
+    for (let i = 0; i < count; i++) push(t.startNumber + i, (t.startNumber + i) * t.duration);
+  } else {
+    throw new DashError('unsupported', 'SegmentTemplate has neither a duration nor a SegmentTimeline.');
+  }
+  return { initUri, segmentUris: uris };
+}

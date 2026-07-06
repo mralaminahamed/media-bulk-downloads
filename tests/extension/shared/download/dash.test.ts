@@ -1,4 +1,4 @@
-import { parseIso8601Duration, substituteTemplate, parseMpd } from '@/extension/shared/download/dash';
+import { parseIso8601Duration, substituteTemplate, parseMpd, expandSegments, DashRepresentation } from '@/extension/shared/download/dash';
 
 describe('parseIso8601Duration', () => {
   it('parses hours/minutes/seconds and fractions', () => {
@@ -70,5 +70,44 @@ describe('parseMpd', () => {
   it('resolves a Representation-level BaseURL against the MPD url', () => {
     const based = VOD_MPD.replace('<SegmentTemplate initialization="v_init.m4v"', '<BaseURL>video/</BaseURL><SegmentTemplate initialization="v_init.m4v"');
     expect(parseMpd(based, 'https://cdn.test/manifest.mpd').video[0].baseUrl).toBe('https://cdn.test/video/');
+  });
+});
+
+describe('expandSegments', () => {
+  const rep = (template: object): DashRepresentation => ({
+    id: 'v0', bandwidth: 1, contentType: 'video',
+    baseUrl: 'https://cdn.test/x/', template: { startNumber: 1, timescale: 1, ...template } as never,
+  });
+
+  it('duration mode: computes count from total and numbers from startNumber', () => {
+    const out = expandSegments(rep({ initialization: 'init-$RepresentationID$.m4s', media: 'seg-$Number$.m4s', duration: 4, timescale: 1, startNumber: 1 }), 10);
+    expect(out.initUri).toBe('https://cdn.test/x/init-v0.m4s');
+    // ceil(10*1/4) = 3 segments, numbered 1..3
+    expect(out.segmentUris).toEqual([
+      'https://cdn.test/x/seg-1.m4s',
+      'https://cdn.test/x/seg-2.m4s',
+      'https://cdn.test/x/seg-3.m4s',
+    ]);
+  });
+
+  it('duration mode: respects a non-1 startNumber', () => {
+    const out = expandSegments(rep({ media: 'seg-$Number$.m4s', duration: 5, timescale: 1, startNumber: 10 }), 5);
+    expect(out.segmentUris).toEqual(['https://cdn.test/x/seg-10.m4s']);
+  });
+
+  it('timeline mode: expands S@r repeats and substitutes $Time$', () => {
+    const out = expandSegments(rep({
+      media: 'seg-$Time$.m4s', timescale: 1, startNumber: 1,
+      timeline: [{ t: 0, d: 100, r: 2 }], // 3 segments at times 0,100,200
+    }), 0);
+    expect(out.segmentUris).toEqual([
+      'https://cdn.test/x/seg-0.m4s',
+      'https://cdn.test/x/seg-100.m4s',
+      'https://cdn.test/x/seg-200.m4s',
+    ]);
+  });
+
+  it('throws unsupported when there is no media template', () => {
+    expect(() => expandSegments(rep({ initialization: 'i.m4s' }), 10)).toThrow(/unsupported|SegmentList|SegmentBase/i);
   });
 });
