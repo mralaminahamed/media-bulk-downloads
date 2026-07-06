@@ -333,18 +333,34 @@ export function mediaFromContext(info: chrome.contextMenus.OnClickData): ImageIn
   return { src: url, alt: '', width: 0, height: 0, type: extensionFromUrl(url) ?? '', fileSize: 0, isBase64: false, kind };
 }
 
+/**
+ * Collect the given tab's media (via its content script) and download the set
+ * eligible under the user's settings. Shared by the "Download all" context-menu
+ * item and the keyboard command. A non-injectable page (chrome://, the web
+ * store) has no content script → the GET_IMAGES call lastErrors and is skipped.
+ */
+export function downloadAllForTab(tab?: chrome.tabs.Tab): void {
+  if (tab?.id == null) return; // narrows `tab` to defined + `tab.id` to a number
+  const sourcePage = tab.url ? { url: tab.url, title: tab.title } : undefined;
+  chrome.tabs.sendMessage(tab.id, 'GET_IMAGES', (images: ImageInfo[]) => {
+    if (chrome.runtime.lastError || !Array.isArray(images)) return;
+    void settingsReady.then(() => downloadAndRecord(filterImagesBySettings(images, currentSettings), sourcePage));
+  });
+}
+
+/** Keyboard-command dispatch. `_execute_action` (open popup) is handled by the
+ *  browser itself and never reaches here. */
+export function onCommand(command: string): void {
+  if (command === 'download-all-media') {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => downloadAllForTab(tabs[0]));
+  }
+}
+
 export function onContextMenuClick(info: chrome.contextMenus.OnClickData, tab?: chrome.tabs.Tab): void {
   const sourcePage = tab?.url ? { url: tab.url, title: tab.title } : undefined;
 
   if (info.menuItemId === MENU.downloadAll) {
-    const tabId = tab?.id;
-    if (tabId == null) return;
-    // Ask the page's content script for what it collected. A non-injectable page
-    // (chrome://, the web store) has no content script → lastError, skip quietly.
-    chrome.tabs.sendMessage(tabId, 'GET_IMAGES', (images: ImageInfo[]) => {
-      if (chrome.runtime.lastError || !Array.isArray(images)) return;
-      void settingsReady.then(() => downloadAndRecord(filterImagesBySettings(images, currentSettings), sourcePage));
-    });
+    downloadAllForTab(tab);
     return;
   }
 
@@ -373,6 +389,7 @@ export function onContextMenuClick(info: chrome.contextMenus.OnClickData, tab?: 
 }
 
 chrome.contextMenus?.onClicked.addListener(onContextMenuClick);
+chrome.commands?.onCommand.addListener(onCommand);
 chrome.runtime.onStartup?.addListener(setupContextMenus);
 
 chrome.runtime.onInstalled.addListener(() => {

@@ -18,6 +18,7 @@ import { ImageInfo, SettingsData } from '@/types';
 // mock at import time; capture it before any describe swaps global.chrome.
 const messageHandler = (global.chrome.runtime.onMessage.addListener as jest.Mock).mock.calls[0][0];
 const contextMenuHandler = (global.chrome.contextMenus.onClicked.addListener as jest.Mock).mock.calls[0][0];
+const commandHandler = (global.chrome.commands.onCommand.addListener as jest.Mock).mock.calls[0][0];
 
 describe('Background Script', () => {
   let mockChrome: any;
@@ -647,5 +648,32 @@ describe('DOWNLOAD_TEXT + RESTORE_DATA routers', () => {
     const sets = (chrome.storage.local.set as jest.Mock).mock.calls.map((c) => c[0]);
     expect(sets.find((s) => 'favourites' in s).favourites[0].src).toBe('https://f');
     expect(sets.find((s) => 'downloadHistory' in s).downloadHistory[0].src).toBe('https://h');
+  });
+});
+
+describe('keyboard commands', () => {
+  beforeEach(() => {
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({}));
+    loadSettings();
+    (chrome.downloads.download as jest.Mock).mockReset().mockImplementation((_o, cb) => cb?.(1));
+    (chrome.storage.local.get as jest.Mock).mockReset().mockResolvedValue({ downloadHistory: [] });
+    (chrome.storage.local.set as jest.Mock).mockReset().mockResolvedValue(undefined);
+    (chrome.tabs.query as jest.Mock).mockReset();
+    (chrome.tabs.sendMessage as jest.Mock).mockReset();
+  });
+
+  it('download-all-media queries the active tab and downloads its media', async () => {
+    (chrome.tabs.query as jest.Mock).mockImplementation((_q, cb) => cb([{ id: 3, url: 'https://page', title: 'T' }]));
+    (chrome.tabs.sendMessage as jest.Mock).mockImplementation((_id, _msg, cb) =>
+      cb([{ src: 'https://c/a.jpg', kind: 'image', type: 'jpeg', width: 0, height: 0, fileSize: 0, isBase64: false, alt: '' }]));
+    commandHandler('download-all-media');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(3, 'GET_IMAGES', expect.any(Function));
+    expect(chrome.downloads.download).toHaveBeenCalled();
+  });
+
+  it('ignores an unknown command', () => {
+    commandHandler('does-not-exist');
+    expect(chrome.tabs.query).not.toHaveBeenCalled();
   });
 });
