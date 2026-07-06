@@ -6,6 +6,8 @@ disclosures, required visual assets, and the packaging steps.
 
 Version at time of writing: **1.0.0** · Manifest **V3**.
 
+> **Live listing:** https://chromewebstore.google.com/detail/media-bulk-downloads/jmdhkdengijmmkelofaleinbipophckn
+
 ---
 
 ## 1. Pre-submission checklist
