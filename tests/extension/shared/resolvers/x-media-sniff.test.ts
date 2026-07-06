@@ -1,4 +1,4 @@
-import { mediaIdFromPoster, pinTwimgUrl, bestMp4, extractVideoPairs } from '@/extension/shared/resolvers/x-media-sniff';
+import { mediaIdFromPoster, pinTwimgUrl, bestMp4, bestHls, extractVideoPairs } from '@/extension/shared/resolvers/x-media-sniff';
 
 describe('mediaIdFromPoster', () => {
   it('reads the media id from amplify / ext / gif posters', () => {
@@ -45,6 +45,24 @@ describe('bestMp4', () => {
   });
 });
 
+describe('bestHls', () => {
+  it('returns the x-mpegURL variant URL (twimg-pinned)', () => {
+    const variants = [
+      { content_type: 'video/mp4', bitrate: 5, url: 'https://video.twimg.com/a/720.mp4' },
+      { content_type: 'application/x-mpegURL', url: 'https://video.twimg.com/a/pl.m3u8' },
+    ];
+    expect(bestHls(variants)).toBe('https://video.twimg.com/a/pl.m3u8');
+  });
+  it('rejects an x-mpegURL master on a non-twimg host', () => {
+    expect(bestHls([{ content_type: 'application/x-mpegURL', url: 'https://evil.com/x.m3u8' }])).toBeNull();
+  });
+  it('returns null when there is no x-mpegURL variant', () => {
+    expect(bestHls([{ content_type: 'video/mp4', url: 'https://video.twimg.com/a/720.mp4' }])).toBeNull();
+    expect(bestHls([])).toBeNull();
+    expect(bestHls(null)).toBeNull();
+  });
+});
+
 describe('extractVideoPairs', () => {
   it('extracts [mediaId, best-mp4] from a nested timeline-shaped response', () => {
     const json = {
@@ -74,7 +92,7 @@ describe('extractVideoPairs', () => {
         ],
       },
     };
-    expect(extractVideoPairs(json)).toEqual([['2073829265800572928', 'https://video.twimg.com/amplify_video/2073829265800572928/vid/720.mp4']]);
+    expect(extractVideoPairs(json)).toEqual([['2073829265800572928', { url: 'https://video.twimg.com/amplify_video/2073829265800572928/vid/720.mp4' }]]);
   });
 
   it('falls back to the media id parsed from media_url_https when id_str is absent', () => {
@@ -84,7 +102,21 @@ describe('extractVideoPairs', () => {
         video_info: { variants: [{ bitrate: 1, content_type: 'video/mp4', url: 'https://video.twimg.com/ext_tw_video/555/vid/a.mp4' }] },
       },
     };
-    expect(extractVideoPairs(json)).toEqual([['555', 'https://video.twimg.com/ext_tw_video/555/vid/a.mp4']]);
+    expect(extractVideoPairs(json)).toEqual([['555', { url: 'https://video.twimg.com/ext_tw_video/555/vid/a.mp4' }]]);
+  });
+
+  it('emits an HLS-only media object as { url, hls: true }', () => {
+    const json = { data: { m: { id_str: '900',
+      video_info: { variants: [{ content_type: 'application/x-mpegURL', url: 'https://video.twimg.com/900/pl.m3u8' }] } } } };
+    expect(extractVideoPairs(json)).toEqual([['900', { url: 'https://video.twimg.com/900/pl.m3u8', hls: true }]]);
+  });
+
+  it('prefers mp4 over HLS when a media object has both', () => {
+    const json = { data: { m: { id_str: '901', video_info: { variants: [
+      { content_type: 'application/x-mpegURL', url: 'https://video.twimg.com/901/pl.m3u8' },
+      { content_type: 'video/mp4', bitrate: 5, url: 'https://video.twimg.com/901/720.mp4' },
+    ] } } } };
+    expect(extractVideoPairs(json)).toEqual([['901', { url: 'https://video.twimg.com/901/720.mp4' }]]);
   });
 
   it('is empty and never throws for responses without video or for junk', () => {

@@ -17,9 +17,31 @@ describe('resolveOriginal — twitter', () => {
     const url = await resolveOriginal({ platform: 'twitter', id: '123' }, { fetch: mockFetch(tweetJson) });
     expect(url).toEqual({ url: 'https://video.twimg.com/hi.mp4' });
   });
-  it('returns null when only HLS variants exist', async () => {
-    const hls = { mediaDetails: [{ video_info: { variants: [{ content_type: 'application/x-mpegURL', url: 'x.m3u8' }] } }] };
-    expect(await resolveOriginal({ platform: 'twitter', id: '1' }, { fetch: mockFetch(hls) })).toBeNull();
+  it('resolves an HLS-only tweet to its x-mpegURL master (twimg-pinned)', async () => {
+    const hls = { mediaDetails: [{ video_info: { variants: [{ content_type: 'application/x-mpegURL', url: 'https://video.twimg.com/x.m3u8' }] } }] };
+    expect(await resolveOriginal({ platform: 'twitter', id: '1' }, { fetch: mockFetch(hls) }))
+      .toEqual({ url: 'https://video.twimg.com/x.m3u8', hls: true });
+  });
+  it('falls back to the x-mpegURL master when there is no mp4 variant', async () => {
+    const hls = { mediaDetails: [{ video_info: { variants: [
+      { content_type: 'application/x-mpegURL', url: 'https://video.twimg.com/live/pl.m3u8' },
+    ] } }] };
+    expect(await resolveOriginal({ platform: 'twitter', id: '1' }, { fetch: mockFetch(hls) }))
+      .toEqual({ url: 'https://video.twimg.com/live/pl.m3u8', hls: true });
+  });
+  it('prefers mp4 over the x-mpegURL master when both exist', async () => {
+    const both = { mediaDetails: [{ video_info: { variants: [
+      { content_type: 'application/x-mpegURL', url: 'https://video.twimg.com/live/pl.m3u8' },
+      { content_type: 'video/mp4', bitrate: 9, url: 'https://video.twimg.com/hi.mp4' },
+    ] } }] };
+    expect(await resolveOriginal({ platform: 'twitter', id: '1' }, { fetch: mockFetch(both) }))
+      .toEqual({ url: 'https://video.twimg.com/hi.mp4' });
+  });
+  it('rejects an x-mpegURL master on a non-twimg host', async () => {
+    const evil = { mediaDetails: [{ video_info: { variants: [
+      { content_type: 'application/x-mpegURL', url: 'https://evil.example/x.m3u8' },
+    ] } }] };
+    expect(await resolveOriginal({ platform: 'twitter', id: '1' }, { fetch: mockFetch(evil) })).toBeNull();
   });
   it('returns null on a non-ok response', async () => {
     expect(await resolveOriginal({ platform: 'twitter', id: '1' }, { fetch: mockFetch({}, false) })).toBeNull();

@@ -3,11 +3,15 @@
  * the background store both import these; nothing here touches the DOM, `chrome.*`,
  * or the network, so it is unit-testable and safe to run in the page realm.
  *
- * Strategy: X's own GraphQL/timeline responses carry each video's real progressive
- * mp4 URLs in `video_info.variants[]`, keyed by the media object's `id_str` — the
- * same number that appears in the poster path (`amplify_video_thumb/<id>`). We read
- * those responses passively and map media id → highest-bitrate mp4.
+ * Strategy: X's own GraphQL/timeline responses carry each video's real renditions
+ * in `video_info.variants[]`, keyed by the media object's `id_str` — the same
+ * number that appears in the poster path (`amplify_video_thumb/<id>`). We read
+ * those responses passively and map media id → the highest-bitrate progressive
+ * mp4, or, when a media object has no mp4 variant, its `application/x-mpegURL`
+ * (HLS) master as a capturable stream (`{ url, hls: true }`).
  */
+
+import { ResolvedMedia } from '@/types';
 
 /** Media id from a Twitter video poster / media URL, or null. */
 export function mediaIdFromPoster(url: string): string | null {
@@ -48,16 +52,30 @@ export function bestMp4(variants: unknown): string | null {
   return best?.url ?? null;
 }
 
+/** First `application/x-mpegURL` (HLS) variant URL (twimg-pinned), or null. */
+export function bestHls(variants: unknown): string | null {
+  if (!Array.isArray(variants)) return null;
+  for (const v of variants as Variant[]) {
+    if (v?.content_type !== 'application/x-mpegURL') continue;
+    const url = pinTwimgUrl(v.url);
+    if (url) return url;
+  }
+  return null;
+}
+
 const asStr = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
 
 /**
- * Deep-walk an API JSON response and return `[mediaId, best-mp4]` pairs for every
- * media object that carries `video_info.variants`. Pure and defensive: never
- * throws, bounded step count, first mp4 per media id wins. The media id is the
- * object's `id_str` / `media_id_str`, else parsed from its `media_url_https`.
+ * Deep-walk an API JSON response and return `[mediaId, ResolvedMedia]` pairs for
+ * every media object that carries `video_info.variants`. Prefers the best mp4
+ * (`{ url }`); a media object with no mp4 variant falls back to its
+ * `application/x-mpegURL` master (`{ url, hls: true }`), a capturable stream.
+ * Pure and defensive: never throws, bounded step count, first media per id wins.
+ * The media id is the object's `id_str` / `media_id_str`, else parsed from its
+ * `media_url_https`.
  */
-export function extractVideoPairs(root: unknown): [string, string][] {
-  const out: [string, string][] = [];
+export function extractVideoPairs(root: unknown): [string, ResolvedMedia][] {
+  const out: [string, ResolvedMedia][] = [];
   const seen = new Set<string>();
   const stack: unknown[] = [root];
   let steps = 0;
@@ -72,9 +90,11 @@ export function extractVideoPairs(root: unknown): [string, string][] {
         asStr(obj.media_id_str) ??
         (asStr(obj.media_url_https) ? mediaIdFromPoster(obj.media_url_https as string) : null);
       const mp4 = bestMp4(vi.variants);
-      if (mid && mp4 && !seen.has(mid)) {
+      const hls = mp4 ? null : bestHls(vi.variants);
+      const media: ResolvedMedia | null = mp4 ? { url: mp4 } : hls ? { url: hls, hls: true } : null;
+      if (mid && media && !seen.has(mid)) {
         seen.add(mid);
-        out.push([mid, mp4]);
+        out.push([mid, media]);
       }
     }
     for (const k in obj) {

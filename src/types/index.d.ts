@@ -129,11 +129,11 @@ export interface ResolveOriginalsResponse {
   resolved: Record<string, ResolvedMedia>; // src -> resolved media (successes only)
 }
 
-/** Content → background: mp4 URLs the page's own API responses exposed, per tab.
- *  Each pair is `[mediaId, mp4Url]`; the background host-pins + stores them. */
+/** Content → background: mp4/HLS URLs the page's own API responses exposed, per tab.
+ *  Each pair is `[mediaId, ResolvedMedia]`; the background re-pins + stores them. */
 export interface XMediaSeenMessage {
   type: 'X_MEDIA_SEEN';
-  pairs: [string, string][];
+  pairs: [string, ResolvedMedia][];
 }
 
 /** Open a downloaded file in the OS default app (chrome.downloads.open). */
