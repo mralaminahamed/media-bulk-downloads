@@ -86,4 +86,44 @@ describe('resolveOriginal — vimeo', () => {
   it('returns null on a 403 (domain-locked) config', async () => {
     expect(await resolveOriginal({ platform: 'vimeo', id: '1' }, { fetch: mockFetch({}, false) })).toBeNull();
   });
+
+  const hlsConfig = (progressive: unknown[], hls: unknown) => ({ request: { files: { progressive, hls } } });
+
+  it('falls back to the default_cdn HLS master when there is no progressive rendition', async () => {
+    const payload = hlsConfig([], {
+      default_cdn: 'fastly_skyfire',
+      cdns: {
+        akfire_interconnect_quic: { url: 'https://vod-adaptive-ak.vimeocdn.com/a/akfire.m3u8' },
+        fastly_skyfire: { url: 'https://vod-adaptive-ak.vimeocdn.com/a/fastly.m3u8' },
+      },
+    });
+    expect(await resolveOriginal({ platform: 'vimeo', id: '1' }, { fetch: mockFetch(payload) }))
+      .toEqual({ url: 'https://vod-adaptive-ak.vimeocdn.com/a/fastly.m3u8', hls: true });
+  });
+
+  it('uses the first cdn when default_cdn is missing/unknown', async () => {
+    const payload = hlsConfig([], {
+      cdns: { only_cdn: { url: 'https://vod-adaptive-ak.vimeocdn.com/a/only.m3u8' } },
+    });
+    expect(await resolveOriginal({ platform: 'vimeo', id: '1' }, { fetch: mockFetch(payload) }))
+      .toEqual({ url: 'https://vod-adaptive-ak.vimeocdn.com/a/only.m3u8', hls: true });
+  });
+
+  it('prefers progressive over HLS when both exist', async () => {
+    const payload = hlsConfig(
+      [{ height: 720, url: 'https://vod-progressive-ak.vimeocdn.com/a/720.mp4' }],
+      { default_cdn: 'c', cdns: { c: { url: 'https://vod-adaptive-ak.vimeocdn.com/a/m.m3u8' } } },
+    );
+    expect(await resolveOriginal({ platform: 'vimeo', id: '1' }, { fetch: mockFetch(payload) }))
+      .toEqual({ url: 'https://vod-progressive-ak.vimeocdn.com/a/720.mp4' });
+  });
+
+  it('rejects an HLS master that is not https vimeocdn.com (untrusted JSON URL)', async () => {
+    const payload = hlsConfig([], { default_cdn: 'c', cdns: { c: { url: 'https://evil.example/x.m3u8' } } });
+    expect(await resolveOriginal({ platform: 'vimeo', id: '1' }, { fetch: mockFetch(payload) })).toBeNull();
+  });
+
+  it('returns null when there is neither a progressive nor an HLS rendition', async () => {
+    expect(await resolveOriginal({ platform: 'vimeo', id: '1' }, { fetch: mockFetch(hlsConfig([], undefined)) })).toBeNull();
+  });
 });

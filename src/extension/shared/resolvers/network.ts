@@ -26,7 +26,12 @@ interface VimeoProgressive {
 }
 
 interface VimeoConfig {
-  request?: { files?: { progressive?: VimeoProgressive[] } };
+  request?: {
+    files?: {
+      progressive?: VimeoProgressive[];
+      hls?: { default_cdn?: string; cdns?: Record<string, { url?: string }> };
+    };
+  };
 }
 
 /**
@@ -111,7 +116,15 @@ async function vimeo(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
       }
     }
     const prog = pinnedUrl(best?.url, 'vimeocdn.com');
-    return prog ? { url: prog } : null;
+    if (prog) return { url: prog };
+
+    // No progressive rendition — fall back to the HLS master (a .m3u8 to capture,
+    // never a direct download). Vimeo HLS is demuxed fMP4; #170 mux gives it sound.
+    const hls = j?.request?.files?.hls;
+    const cdns = hls?.cdns ?? {};
+    const chosen = (hls?.default_cdn ? cdns[hls.default_cdn]?.url : undefined) ?? Object.values(cdns)[0]?.url;
+    const master = pinnedUrl(chosen, 'vimeocdn.com');
+    return master ? { url: master, hls: true } : null;
   } catch {
     return null;
   }
