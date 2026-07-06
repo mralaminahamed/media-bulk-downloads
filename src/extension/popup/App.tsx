@@ -6,6 +6,7 @@ import FavouritesPanel from './components/FavouritesPanel';
 import FilterToolbar, { DEFAULT_FILTERS } from './components/FilterToolbar';
 import { DownloadButton } from './components/DownloadButton';
 import { ProgressBar } from './components/ProgressBar';
+import { SelectCheckbox } from './components/fields/SelectCheckbox';
 import { BrandMark } from '../components/BrandMark';
 import { SkeletonGrid } from './components/states/SkeletonGrid';
 import { EmptyState } from './components/states/EmptyState';
@@ -105,7 +106,6 @@ const App: React.FC<AppProps> = ({
   // Live progress for in-extension batch work (zip fetch, video resolve). null = idle.
   // total 0 → indeterminate.
   const [progress, setProgress] = useState<{ label: string; done: number; total: number } | null>(null);
-  const selectAllRef = useRef<HTMLInputElement>(null);
 
   // All images collected from the page, before any settings/toolbar filtering.
   const rawImagesRef = useRef<ImageInfo[]>([]);
@@ -692,12 +692,6 @@ const App: React.FC<AppProps> = ({
   const selectedCount = selectedSrcs.size;
   const allShownSelected = downloadableShown > 0 && selectedCount === downloadableShown;
 
-  // Native checkbox indeterminate state can't be set via JSX — reflect a partial
-  // selection (some but not all shown) onto the select-all box each render.
-  useEffect(() => {
-    if (selectAllRef.current) selectAllRef.current.indeterminate = selectedCount > 0 && !allShownSelected;
-  }, [selectedCount, allShownSelected]);
-
   return (
     <div className="ibd-app flex h-full flex-col overflow-hidden bg-(--paper) text-(--ink)">
       {/* Header (doubles as the panel drag handle in the bubble surface) */}
@@ -802,14 +796,13 @@ const App: React.FC<AppProps> = ({
         <footer className="flex items-center justify-between gap-3 border-t hairline bg-(--panel) px-4 py-2.5">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             {downloadableShown > 0 && (
-              <input
-                ref={selectAllRef}
-                type="checkbox"
+              <SelectCheckbox
                 checked={allShownSelected}
-                onChange={() => (allShownSelected ? handleClearSelection() : handleSelectAllShown())}
-                className="h-3.5 w-3.5 shrink-0 cursor-pointer accent-(--brand-ink)"
+                indeterminate={selectedCount > 0 && !allShownSelected}
+                onClick={() => (allShownSelected ? handleClearSelection() : handleSelectAllShown())}
+                className="shrink-0 cursor-pointer"
                 title={allShownSelected ? 'Clear selection' : 'Select all shown'}
-                aria-label={allShownSelected ? 'Clear selection' : 'Select all shown'}
+                ariaLabel={allShownSelected ? 'Clear selection' : 'Select all shown'}
               />
             )}
             {progress ? (
