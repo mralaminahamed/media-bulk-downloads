@@ -249,16 +249,18 @@ export function notifyBatchDone(result: DownloadResult): void {
 }
 
 /**
- * Real mp4 URLs the page's own GraphQL responses exposed, per tab
- * (`mediaId -> mp4`). Filled passively by the MAIN-world sniffer (see
+ * Real mp4/HLS media the page's own GraphQL responses exposed, per tab
+ * (`mediaId -> ResolvedMedia`). Filled passively by the MAIN-world sniffer (see
  * `x-media-sniffer.content.ts`), consumed sniffer-first when resolving Twitter
  * videos so age-restricted clips the user can see resolve without any forged
  * request. In-memory, bounded, dropped when the tab closes.
  */
-const snifferByTab = new Map<number, Map<string, string>>();
+const snifferByTab = new Map<number, Map<string, ResolvedMedia>>();
 const SNIFF_CAP_PER_TAB = 800;
 
-/** Merge sniffed `[mediaId, mp4]` pairs for a tab; host-pin and cap defensively. */
+/** Merge sniffed `[mediaId, ResolvedMedia]` pairs for a tab; the content script is
+ *  untrusted, so this RE-PINS the sniffed `.url` (the real trust boundary) and
+ *  caps defensively. */
 export function storeSniffedMedia(tabId: number, pairs: unknown): void {
   if (!Array.isArray(pairs)) return;
   let map = snifferByTab.get(tabId);
@@ -268,9 +270,11 @@ export function storeSniffedMedia(tabId: number, pairs: unknown): void {
   }
   for (const pair of pairs) {
     if (!Array.isArray(pair)) continue;
-    const [mid, url] = pair;
-    const pinned = pinTwimgUrl(url);
-    if (typeof mid !== 'string' || !pinned) continue;
+    const [mid, media] = pair;
+    if (typeof mid !== 'string' || !media || typeof media !== 'object') continue;
+    const pinned = pinTwimgUrl((media as ResolvedMedia).url);
+    if (!pinned) continue;
+    const value: ResolvedMedia = (media as ResolvedMedia).hls ? { url: pinned, hls: true } : { url: pinned };
     // Always record: updating an existing id with a better variant must not be
     // blocked by the cap, and a new id past the cap evicts the OLDEST entry
     // (Map keeps insertion order) so a long session keeps its most recent clips
@@ -279,7 +283,7 @@ export function storeSniffedMedia(tabId: number, pairs: unknown): void {
       const oldest = map.keys().next().value;
       if (oldest !== undefined) map.delete(oldest);
     }
-    map.set(mid, pinned);
+    map.set(mid, value);
   }
 }
 
@@ -295,7 +299,7 @@ export function storeSniffedMedia(tabId: number, pairs: unknown): void {
 export async function resolveOriginalsBatch(
   hints: { src: string; hint: ResolveHint }[],
   deps: NetDeps = { fetch: (...a) => fetch(...a) },
-  sniffed?: Map<string, string>,
+  sniffed?: Map<string, ResolvedMedia>,
 ): Promise<Record<string, ResolvedMedia>> {
   const out: Record<string, ResolvedMedia> = {};
   const limit = 4;
@@ -303,12 +307,12 @@ export async function resolveOriginalsBatch(
   async function worker() {
     while (i < hints.length) {
       const { src, hint } = hints[i++];
-      let sniffedUrl: string | null = null;
+      let sniffedMedia: ResolvedMedia | undefined;
       if (hint.platform === 'twitter' && sniffed) {
         const mid = mediaIdFromPoster(src);
-        if (mid) sniffedUrl = sniffed.get(mid) ?? null;
+        if (mid) sniffedMedia = sniffed.get(mid);
       }
-      if (sniffedUrl) { out[src] = { url: sniffedUrl }; continue; }
+      if (sniffedMedia) { out[src] = sniffedMedia; continue; }
       const res = await resolveOriginal(hint, deps);
       if (res) out[src] = res;
     }

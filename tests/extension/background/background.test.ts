@@ -359,7 +359,7 @@ describe('resolveOriginalsBatch', () => {
 
   it('prefers a sniffed mp4 over the network for a twitter video poster', async () => {
     const fetchMock = jest.fn();
-    const sniffed = new Map([['999', 'https://video.twimg.com/orig.mp4']]);
+    const sniffed = new Map([['999', { url: 'https://video.twimg.com/orig.mp4' }]]);
     const src = 'https://pbs.twimg.com/amplify_video_thumb/999/img/x.jpg';
     const out = await resolveOriginalsBatch(
       [{ src, hint: { platform: 'twitter', id: '1' } }],
@@ -388,7 +388,7 @@ describe('X_MEDIA_SEEN sniffer store + resolve wiring', () => {
   it('stores host-pinned sniffed mp4s per tab and resolves twitter videos from that tab without the network', async () => {
     // Sniffer feed for tab 7: a valid twimg mp4 (kept) and an off-host one (dropped by the host-pin).
     messageHandler(
-      { type: 'X_MEDIA_SEEN', pairs: [['777', 'https://video.twimg.com/good.mp4'], ['888', 'https://evil.com/bad.mp4']] },
+      { type: 'X_MEDIA_SEEN', pairs: [['777', { url: 'https://video.twimg.com/good.mp4' }], ['888', { url: 'https://evil.com/bad.mp4' }]] },
       { tab: { id: 7 } },
       jest.fn(),
     );
@@ -402,6 +402,23 @@ describe('X_MEDIA_SEEN sniffer store + resolve wiring', () => {
     );
     await new Promise((r) => setTimeout(r, 0));
     expect(sendResponse).toHaveBeenCalledWith({ resolved: { [src]: { url: 'https://video.twimg.com/good.mp4' } } });
+  });
+
+  it('stores a sniffed HLS-only master and resolves the twitter video to a capturable stream', async () => {
+    messageHandler(
+      { type: 'X_MEDIA_SEEN', pairs: [['654', { url: 'https://video.twimg.com/654/pl.m3u8', hls: true }]] },
+      { tab: { id: 9 } },
+      jest.fn(),
+    );
+    const src = 'https://pbs.twimg.com/amplify_video_thumb/654/img/a.jpg';
+    const sendResponse = jest.fn();
+    messageHandler(
+      { type: 'RESOLVE_ORIGINALS', hints: [{ src, hint: { platform: 'twitter', id: '1' } }] },
+      { tab: { id: 9 } },
+      sendResponse,
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sendResponse).toHaveBeenCalledWith({ resolved: { [src]: { url: 'https://video.twimg.com/654/pl.m3u8', hls: true } } });
   });
 });
 

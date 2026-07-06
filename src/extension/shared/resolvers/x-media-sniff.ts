@@ -9,6 +9,8 @@
  * those responses passively and map media id → highest-bitrate mp4.
  */
 
+import { ResolvedMedia } from '@/types';
+
 /** Media id from a Twitter video poster / media URL, or null. */
 export function mediaIdFromPoster(url: string): string | null {
   return url.match(/\/(?:ext_tw_video_thumb|amplify_video_thumb|tweet_video_thumb)\/(\d+)/)?.[1] ?? null;
@@ -48,6 +50,17 @@ export function bestMp4(variants: unknown): string | null {
   return best?.url ?? null;
 }
 
+/** First `application/x-mpegURL` (HLS) variant URL (twimg-pinned), or null. */
+export function bestHls(variants: unknown): string | null {
+  if (!Array.isArray(variants)) return null;
+  for (const v of variants as Variant[]) {
+    if (v?.content_type !== 'application/x-mpegURL') continue;
+    const url = pinTwimgUrl(v.url);
+    if (url) return url;
+  }
+  return null;
+}
+
 const asStr = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
 
 /**
@@ -56,8 +69,8 @@ const asStr = (v: unknown): string | null => (typeof v === 'string' && v ? v : n
  * throws, bounded step count, first mp4 per media id wins. The media id is the
  * object's `id_str` / `media_id_str`, else parsed from its `media_url_https`.
  */
-export function extractVideoPairs(root: unknown): [string, string][] {
-  const out: [string, string][] = [];
+export function extractVideoPairs(root: unknown): [string, ResolvedMedia][] {
+  const out: [string, ResolvedMedia][] = [];
   const seen = new Set<string>();
   const stack: unknown[] = [root];
   let steps = 0;
@@ -72,9 +85,11 @@ export function extractVideoPairs(root: unknown): [string, string][] {
         asStr(obj.media_id_str) ??
         (asStr(obj.media_url_https) ? mediaIdFromPoster(obj.media_url_https as string) : null);
       const mp4 = bestMp4(vi.variants);
-      if (mid && mp4 && !seen.has(mid)) {
+      const hls = mp4 ? null : bestHls(vi.variants);
+      const media: ResolvedMedia | null = mp4 ? { url: mp4 } : hls ? { url: hls, hls: true } : null;
+      if (mid && media && !seen.has(mid)) {
         seen.add(mid);
-        out.push([mid, mp4]);
+        out.push([mid, media]);
       }
     }
     for (const k in obj) {
