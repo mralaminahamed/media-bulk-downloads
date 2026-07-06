@@ -843,7 +843,8 @@ const App: React.FC<AppProps> = ({
           )}
           {selectedCount > 0 ? (
             <DownloadButton
-              label={`Download selected ${selectedCount}`}
+              label="Download selected"
+              count={selectedCount}
               onDownload={handleDownloadSelected}
               onZip={handleDownloadSelectedZip}
               onCopyLinks={() => void handleCopyLinks(selectedDownloadable())}
@@ -851,7 +852,8 @@ const App: React.FC<AppProps> = ({
             />
           ) : (
             <DownloadButton
-              label={`Download${downloadableShown > 0 ? ` ${downloadableShown}` : ''}`}
+              label="Download"
+              count={downloadableShown > 0 ? downloadableShown : undefined}
               disabled={downloadableShown === 0}
               onDownload={handleBulkDownload}
               onZip={handleBulkDownloadZip}
