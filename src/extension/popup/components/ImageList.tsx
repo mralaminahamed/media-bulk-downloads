@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ImageInfo, ImageListProps } from '@/types';
 import { useDialog } from '../hooks/useDialog';
 import {
@@ -36,10 +36,23 @@ const typeLabel = (img: ImageInfo): string => (img.isBase64 ? 'B64' : img.type.t
 /** A Twitter video whose real file hasn't been fetched yet: shown, not downloadable. */
 const isPendingVideo = (img: ImageInfo): boolean => img.kind === 'video' && !!img.unresolvedVideo;
 
-const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnailSize = 120, previewSize = 360, downloadedSrcs, favouriteSrcs, onToggleFavourite, onFetchVideo, resolveFailedSrcs, fetchingSrcs }) => {
+const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnailSize = 120, previewSize = 360, downloadedSrcs, favouriteSrcs, onToggleFavourite, onFetchVideo, resolveFailedSrcs, fetchingSrcs, selectedSrcs, selectionActive, onToggleSelect, onSelectRange }) => {
   // Index-based selection so the modal can page through images without closing.
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const selectedImage = selectedIndex !== null ? images[selectedIndex] ?? null : null;
+
+  // Anchor for Shift-click range selection (index of the last checkbox toggled).
+  const rangeAnchor = useRef<number | null>(null);
+  const handleCheckbox = (e: React.MouseEvent, image: ImageInfo, index: number): void => {
+    e.stopPropagation();
+    if (e.shiftKey && rangeAnchor.current !== null && onSelectRange) {
+      const [a, b] = rangeAnchor.current <= index ? [rangeAnchor.current, index] : [index, rangeAnchor.current];
+      onSelectRange(images.slice(a, b + 1));
+    } else {
+      onToggleSelect?.(image);
+    }
+    rangeAnchor.current = index;
+  };
 
   const close = () => setSelectedIndex(null);
   const hasPrev = selectedIndex !== null && selectedIndex > 0;
@@ -71,13 +84,36 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
         className="grid justify-center gap-2.5"
         style={{ gridTemplateColumns: `repeat(auto-fill, ${thumbnailSize}px)` }}
       >
-        {images.map((image, index) => (
+        {images.map((image, index) => {
+          const isSelected = selectedSrcs?.has(image.src) ?? false;
+          // Only downloadable items are selectable — a pending video has no file.
+          const selectable = !!onToggleSelect && !isPendingVideo(image);
+          const boxUp = selectable && (selectionActive || isSelected);
+          return (
           <figure
             key={image.src}
-            className="card reveal group m-0"
+            className={`card reveal group m-0 ${isSelected ? 'ring-2 ring-(--brand-ink)' : ''}`}
             style={{ animationDelay: `${Math.min(index, 12) * 0.022}s` }}
           >
             <div className="checker relative aspect-square">
+              {selectable && (
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={isSelected}
+                  aria-label={isSelected ? 'Deselect item' : 'Select item'}
+                  onClick={(e) => handleCheckbox(e, image, index)}
+                  className={`absolute left-1.5 top-1.5 z-10 grid h-5 w-5 place-items-center rounded-[5px] border transition-all ${
+                    isSelected
+                      ? 'border-(--brand-ink) bg-(--brand-ink) text-white'
+                      : 'border-(--ctl-ring) bg-(--panel)/85 text-transparent backdrop-blur-sm'
+                  } ${boxUp ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'}`}
+                >
+                  <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                </button>
+              )}
               {image.kind === 'image' ? (
                 <LoadingImage
                   key={image.thumbnailSrc ?? image.src}
@@ -107,8 +143,9 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                 </div>
               )}
 
-              {/* Type tag */}
-              <span className="eyebrow absolute left-1.5 top-1.5 rounded-xs bg-(--panel)/85 px-1.5 py-0.5 text-[9px] leading-none text-(--ink) backdrop-blur-sm">
+              {/* Type tag — shares the top-left slot with the select checkbox,
+                  so it fades out whenever the checkbox is shown. */}
+              <span className={`eyebrow absolute left-1.5 top-1.5 rounded-xs bg-(--panel)/85 px-1.5 py-0.5 text-[9px] leading-none text-(--ink) backdrop-blur-sm ${boxUp ? 'opacity-0' : selectable ? 'group-hover:opacity-0' : ''}`}>
                 {typeLabel(image)}
               </span>
 
@@ -203,7 +240,8 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
               <span className="num text-[10px] text-(--ink-2)">{formatFileSize(image.fileSize)}</span>
             </figcaption>
           </figure>
-        ))}
+          );
+        })}
       </div>
 
       {selectedImage && (
