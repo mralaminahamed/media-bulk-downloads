@@ -36,6 +36,26 @@ const typeLabel = (img: ImageInfo): string => (img.isBase64 ? 'B64' : img.type.t
 /** A Twitter video whose real file hasn't been fetched yet: shown, not downloadable. */
 const isPendingVideo = (img: ImageInfo): boolean => img.kind === 'video' && !!img.unresolvedVideo;
 
+/** True for a URL on an Instagram CDN host. */
+const isIgUrl = (u: string | undefined): boolean => {
+  if (!u) return false;
+  try {
+    const h = new URL(u).hostname;
+    return h.endsWith('cdninstagram.com') || h.endsWith('fbcdn.net');
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * A pending Instagram reel: its mp4 isn't in the feed but appears the moment the
+ * reel plays (captured by the sniffer), so it's not "can't fetch" — it's "play to
+ * fetch". Reels carry no resolveHint (there's no network resolve for them); their
+ * src/poster is on an Instagram CDN.
+ */
+const isPendingReel = (img: ImageInfo): boolean =>
+  isPendingVideo(img) && !img.resolveHint && (isIgUrl(img.src) || isIgUrl(img.poster));
+
 const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnailSize = 120, previewSize = 360, downloadedSrcs, favouriteSrcs, onToggleFavourite, onFetchVideo, resolveFailedSrcs, fetchingSrcs, selectedSrcs, selectionActive, onToggleSelect, onSelectRange }) => {
   // Index-based selection so the modal can page through images without closing.
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -153,6 +173,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                 <span className="eyebrow absolute bottom-1.5 left-1.5 rounded-xs bg-(--panel)/85 px-1.5 py-0.5 text-[9px] leading-none text-(--ink) backdrop-blur-sm">
                   {resolveFailedSrcs?.has(image.src) ? "couldn't fetch"
                     : image.resolveHint ? 'not fetched'
+                    : isPendingReel(image) ? 'play to fetch'
                     : "can't fetch"}
                 </span>
               )}
@@ -401,6 +422,8 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                       </>
                     )}
                   </button>
+                ) : isPendingReel(selectedImage) ? (
+                  <p className="text-center text-[12px] text-(--ink-2)">Play this reel on Instagram, then rescan — its video will be downloadable.</p>
                 ) : (
                   <p className="text-center text-[12px] text-(--ink-2)">{"This video's file can't be fetched."}</p>
                 )
