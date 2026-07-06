@@ -57,6 +57,7 @@ export function ingestSniffedIgMedia(entries: unknown): void {
     if (typeof e.height === 'number') entry.height = e.height;
     const poster = pinIgUrl(e.poster);
     if (e.kind === 'video' && poster) entry.poster = poster;
+    if (e.pending === true) entry.pending = true;
     clean.push(entry);
   }
   if (!clean.length) return;
@@ -118,7 +119,20 @@ function toCandidate(e: IgMediaEntry): MediaCandidate {
   if (typeof e.width === 'number') cand.width = e.width;
   if (typeof e.height === 'number') cand.height = e.height;
   if (e.kind === 'video' && e.poster) cand.poster = e.poster;
+  // A reels-grid clip we only have the cover for — shown by its poster, not
+  // downloadable until the reel's real mp4 is sniffed (on play/open).
+  if (e.pending) cand.unresolvedVideo = true;
   return cand;
+}
+
+/**
+ * Once a reel's real mp4 has been seen (a resolved video for its code), drop the
+ * pending cover-only entry for that same code so the tile is downloadable rather
+ * than stuck "not fetched". Entries here all share one shortcode.
+ */
+function preferResolved(entries: IgMediaEntry[]): IgMediaEntry[] {
+  const hasResolvedVideo = entries.some((e) => e.kind === 'video' && !e.pending);
+  return hasResolvedVideo ? entries.filter((e) => !(e.kind === 'video' && e.pending)) : entries;
 }
 
 export const instagramResolver: Resolver = {
@@ -129,7 +143,7 @@ export const instagramResolver: Resolver = {
     if (!code) return [];
     const entries = buildByCode().get(code);
     if (!entries || !entries.length) return [];
-    return entries.map(toCandidate);
+    return preferResolved(entries).map(toCandidate);
   },
 };
 
@@ -145,5 +159,5 @@ export function instagramPageMedia(pageUrl?: string): MediaCandidate[] {
   const code = shortcodeFromUrl(pageUrl);
   if (!code) return [];
   const entries = buildByCode().get(code);
-  return entries ? entries.map(toCandidate) : [];
+  return entries ? preferResolved(entries).map(toCandidate) : [];
 }

@@ -151,6 +151,26 @@ describe('extractIgMedia', () => {
     ]);
   });
 
+  it('emits a reels-grid clip (media_type 2, cover only, no video_versions) as a pending video', () => {
+    const out = extractIgMedia({
+      code: 'REEL',
+      media_type: 2,
+      image_versions2: { candidates: [{ url: 'https://x.cdninstagram.com/REEL_cover_n.jpg', width: 640, height: 1136 }] },
+    });
+    expect(out).toEqual([
+      {
+        code: 'REEL',
+        kind: 'video',
+        url: 'https://x.cdninstagram.com/REEL_cover_n.jpg',
+        ext: 'mp4',
+        poster: 'https://x.cdninstagram.com/REEL_cover_n.jpg',
+        pending: true,
+        width: 640,
+        height: 1136,
+      },
+    ]);
+  });
+
   it('dedups the same media url reached twice (grid + hydration)', () => {
     const m = imageMedia('DUP', 1080);
     const out = extractIgMedia({ a: m, b: { ...m } });

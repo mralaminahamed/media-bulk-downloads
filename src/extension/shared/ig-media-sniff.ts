@@ -21,6 +21,10 @@ export interface IgMediaEntry {
   width?: number;
   height?: number;
   poster?: string;
+  /** A clip we only have the cover for (reels-grid feed) — no mp4 URL yet. `url`
+   *  is the cover; it resolves to a real video once that reel's own response
+   *  (carrying `video_versions`) is seen. */
+  pending?: boolean;
 }
 
 const isIgHost = (h: string): boolean =>
@@ -99,7 +103,15 @@ function emitLeaf(node: Record<string, unknown>, code: string, out: IgMediaEntry
     const img = bestIgImage((node.image_versions2 as { candidates?: unknown }).candidates);
     if (!img || seenUrls.has(img.url)) return;
     seenUrls.add(img.url);
-    out.push({ code, kind: 'image', url: img.url, ext: extFromIgUrl(img.url), width: img.width, height: img.height });
+    // A clip/reel (media_type 2) that carries only a cover — the reels-grid feed
+    // ships no `video_versions`, so surface it as a pending video (poster = cover)
+    // that resolves once the reel's own response is seen. Everything else is a
+    // still image.
+    if (Number(node.media_type) === 2) {
+      out.push({ code, kind: 'video', url: img.url, ext: 'mp4', poster: img.url, pending: true, width: img.width, height: img.height });
+    } else {
+      out.push({ code, kind: 'image', url: img.url, ext: extFromIgUrl(img.url), width: img.width, height: img.height });
+    }
   }
 }
 
