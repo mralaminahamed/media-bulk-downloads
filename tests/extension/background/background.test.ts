@@ -405,6 +405,26 @@ describe('X_MEDIA_SEEN sniffer store + resolve wiring', () => {
   });
 });
 
+describe('GET_DOWNLOADED_SRCS handler', () => {
+  it('responds with only the srcs whose downloaded file still exists on disk', async () => {
+    (chrome.storage.local.get as jest.Mock).mockReset().mockResolvedValue({
+      downloadHistory: [
+        { src: 'https://c/keep.jpg', time: 2, downloadId: 10, filename: 'k', kind: 'image', type: 'jpeg', sourcePageUrl: 'p' },
+        { src: 'https://c/gone.jpg', time: 1, downloadId: 20, filename: 'g', kind: 'image', type: 'jpeg', sourcePageUrl: 'p' },
+      ],
+    });
+    (chrome.downloads.search as jest.Mock).mockReset().mockResolvedValue([
+      { id: 10, exists: true },
+      { id: 20, exists: false }, // deleted/moved since download
+    ]);
+    const sendResponse = jest.fn();
+    const async = messageHandler({ type: 'GET_DOWNLOADED_SRCS' }, {}, sendResponse);
+    expect(async).toBe(true); // keeps the message channel open for the async reply
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sendResponse).toHaveBeenCalledWith(['https://c/keep.jpg']);
+  });
+});
+
 describe('downloadAndRecord', () => {
   beforeEach(() => {
     (chrome.downloads.download as jest.Mock).mockReset();

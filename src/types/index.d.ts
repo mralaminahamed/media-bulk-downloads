@@ -141,6 +141,13 @@ export interface ShowDownloadMessage {
   downloadId: number;
 }
 
+/** Ask the background for the srcs already downloaded whose file still exists on
+ *  disk. Routed here because `chrome.downloads` is unavailable to the content
+ *  script (bubble). Response is a `string[]` of srcs. */
+export interface GetDownloadedSrcsMessage {
+  type: 'GET_DOWNLOADED_SRCS';
+}
+
 /** Open a URL in a new browser tab (chrome.tabs.create). */
 export interface OpenUrlMessage {
   type: 'OPEN_URL';
@@ -240,6 +247,7 @@ export type ChromeMessage =
   | XMediaSeenMessage
   | OpenDownloadMessage
   | ShowDownloadMessage
+  | GetDownloadedSrcsMessage
   | OpenUrlMessage
   | ClearHistoryMessage
   | RemoveHistoryMessage

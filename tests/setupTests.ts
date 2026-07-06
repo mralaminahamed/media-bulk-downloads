@@ -71,6 +71,7 @@ global.chrome = {
         download: jest.fn(),
         open: jest.fn(),
         show: jest.fn(),
+        search: jest.fn().mockResolvedValue([]),
     },
     action: {
         setBadgeText: jest.fn(),

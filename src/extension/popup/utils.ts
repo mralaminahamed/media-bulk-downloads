@@ -50,6 +50,26 @@ export function downloadText(filename: string, text: string, mime = 'text/plain'
     sendRuntimeMessage({ type: 'DOWNLOAD_TEXT', filename, text, mime });
 }
 
+/**
+ * The set of media srcs already downloaded whose file still exists on disk.
+ * Routed through the background (DOWNLOADED_SRCS) because chrome.downloads is
+ * unavailable to the on-page bubble's content script. Resolves to an empty set
+ * if the worker is asleep / gives no answer, so the UI just shows nothing as
+ * downloaded rather than breaking.
+ */
+export function fetchDownloadedOnDisk(): Promise<Set<string>> {
+  return new Promise((resolve) => {
+    try {
+      chrome.runtime.sendMessage({ type: 'GET_DOWNLOADED_SRCS' }, (srcs?: string[]) => {
+        void chrome.runtime.lastError; // swallow "no receiver" when the worker is asleep
+        resolve(new Set(Array.isArray(srcs) ? srcs : []));
+      });
+    } catch {
+      resolve(new Set());
+    }
+  });
+}
+
 /** Compact relative time: "now", "5m", "3h", "2d", else a date. */
 export function relativeTime(ms: number): string {
     const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
