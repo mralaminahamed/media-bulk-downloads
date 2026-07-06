@@ -22,8 +22,9 @@ discovers on real pages.
   network resolution (Twitter videos, Wallhaven bare thumbs, Unsplash).
 - Sample URLs are shown as `origin + path` (query stripped) for privacy.
 
-Run dates: 2026-07-03 / 2026-07-04 / **2026-07-05** (§A re-run 2026-07-05 against
-the current rule set — 32 CDN rules + 5 resolvers). Chrome (Manifest V3).
+Run dates: 2026-07-03 / 2026-07-04 / **2026-07-05** / **2026-07-06** (§A re-run
+2026-07-05 against the current rule set — 32 CDN rules + 6 resolvers; Instagram
+resolver added 2026-07-06). Chrome (Manifest V3).
 
 ## A. Live-verified results
 
@@ -180,7 +181,7 @@ logged-out), **[G]** a known gap.
 | 51 | Guardian                           | i.guim.co.uk (signed)         | *(none — HMAC `s=` token; any width change → 401)*                                          | G       |
 | 52 | 500px                              | drscdn.500px.org (signed)     | *(none — signed URLs)*                                                                      | G       |
 | 53 | Giphy / Tenor                      | media*.giphy.com / tenor.com  | direct (already served at original size)                                                    | C       |
-| 54 | Instagram                          | *.cdninstagram.com (signed)   | left intact                                                                                | A       |
+| 54 | Instagram                          | *.cdninstagram.com (signed)   | **resolver** — reads the post's media graph from page JSON + sniffed GraphQL; every carousel slide + real mp4 (signed URLs read, never rewritten) | **L**³  |
 | 55 | Facebook                           | *.fbcdn.net (signed)          | left intact                                                                                | A       |
 | 56 | TikTok                             | *.tiktokcdn.com (signed)      | —                                                                                          | A       |
 | 57 | Temu                               | img.kwcdn.com                 | drop the Qiniu `imageView2/…` transform query → stored original (sample-based)             | C²      |
@@ -194,6 +195,17 @@ so the rewrite replaced a working image with a dead link (see §D).
 captcha-gated, so it was not live-injected). The rule fires only when the query
 carries the `imageView2` transform, so a signed/plain kwcdn URL is left untouched
 (worst case: a no-op, never a broken link).
+
+³ Instagram is **signed** (stripping the `stp` size token → 403, verified live),
+so no URL-rewrite rule is possible. Instead a dedicated resolver reads the
+largest URL Instagram itself signed and shipped: `image_versions2.candidates[0]`
+and the real progressive-mp4 `video_versions` live in the page's own
+`<script type="application/json">` hydration and the GraphQL/`api/v1` responses
+it fetches on scroll (captured by a passive MAIN-world sniffer — read-only, no
+forged requests). Verified live 2026-07-06 against a public profile: single
+image, reel (9 MB mp4, HTTP 200), and 9- and 10-slide carousels (every child
+1440 px, HTTP 200). Facebook (row 55) has no page resolver and stays a gap;
+Instagram media served from `fbcdn.net` is covered by this resolver.
 
 ## D. Gaps found
 
