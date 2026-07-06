@@ -12,7 +12,7 @@
 
 import { ImageInfo, MediaItem } from '@/types';
 import { detectType, parseUrlDimensions, splitSrcsetCandidates } from '@/extension/shared/collection/imageUrl';
-import { detectAvType, isUndownloadableMedia } from '@/extension/shared/collection/mediaType';
+import { detectAvType, isUndownloadableMedia, isHlsManifest } from '@/extension/shared/collection/mediaType';
 import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates, bestSrcsetUrl } from '@/extension/shared/collection/extract';
 import { resolve, MediaCandidate } from '@/extension/shared/resolvers';
 import { twitterGifCandidate, twitterVideoPending } from '@/extension/shared/resolvers/twitter';
@@ -257,6 +257,22 @@ export function collectMedia(): MediaItem[] {
 
   // <video> and <audio> — direct-file sources only. Streaming manifests and
   // blob: URLs are skipped (chrome.downloads can't fetch them as one file).
+  // An HLS manifest (.m3u8) surfaced as a capturable video: it is not a single
+  // file, but the HLS engine can fetch + assemble its segments. `src` holds the
+  // manifest URL for preview/keying; `hlsManifest` marks it for the capture path
+  // so it is never handed to chrome.downloads directly.
+  const pushHls = (resolved: string, alt: string, posterUrl?: string): void => {
+    if (seenSources.has(resolved)) return;
+    seenSources.add(resolved);
+    const item: MediaItem = {
+      src: resolved, alt, width: 0, height: 0,
+      type: 'm3u8', fileSize: 0, isBase64: false, kind: 'video',
+      hlsManifest: resolved,
+    };
+    if (posterUrl && /^(https?:|data:image\/)/i.test(posterUrl)) item.poster = posterUrl;
+    media.push(item);
+  };
+
   const collectAv = (
     rawSrc: string,
     kind: 'video' | 'audio',
@@ -266,6 +282,10 @@ export function collectMedia(): MediaItem[] {
   ): void => {
     if (!rawSrc) return;
     const resolved = resolveUrl(rawSrc);
+    if (kind === 'video' && isHlsManifest(resolved) && /^https?:\/\//i.test(resolved)) {
+      pushHls(resolved, alt, posterUrl);
+      return;
+    }
     if (isUndownloadableMedia(resolved)) return;
     // Only real http(s) files are downloadable; drop javascript:/data:/other
     // schemes that isUndownloadableMedia (blob/streams only) doesn't cover.
@@ -429,7 +449,10 @@ export function collectMedia(): MediaItem[] {
       // video's public poster thumbnail. Gated to real video ids so ordinary
       // links don't get force-collected as images.
       const href = a.getAttribute('href');
-      if (href && youtubeVideoId(resolveUrl(href))) collectImageInfo(href, '', 0, 0, undefined, a);
+      const resolvedHref = href ? resolveUrl(href) : '';
+      if (resolvedHref && youtubeVideoId(resolvedHref)) collectImageInfo(href!, '', 0, 0, undefined, a);
+      // A direct link to an HLS manifest — surface it as a capturable stream.
+      else if (resolvedHref && isHlsManifest(resolvedHref) && /^https?:\/\//i.test(resolvedHref)) pushHls(resolvedHref, '');
     });
 
     // <noscript> fallbacks (real image often lives here for no-JS users).

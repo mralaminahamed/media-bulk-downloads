@@ -77,7 +77,7 @@ describe('collectMedia — kind', () => {
 describe('collectMedia — video & audio', () => {
   beforeEach(() => { document.body.innerHTML = ''; });
 
-  it('collects a <video> with poster and <source>s, skipping streams', () => {
+  it('collects a <video> with poster and <source>s; the .m3u8 becomes a capturable HLS item', () => {
     document.body.innerHTML = `
       <video poster="https://ex.com/p.jpg" aria-label="Clip">
         <source src="https://ex.com/v.mp4" type="video/mp4">
@@ -86,7 +86,10 @@ describe('collectMedia — video & audio', () => {
     const media = collectMedia();
     const vid = media.find((m) => m.src === 'https://ex.com/v.mp4');
     expect(vid).toMatchObject({ kind: 'video', type: 'mp4', poster: 'https://ex.com/p.jpg', alt: 'Clip' });
-    expect(media.some((m) => m.src.endsWith('.m3u8'))).toBe(false);
+    // The HLS manifest is no longer dropped — it is surfaced as a capture item
+    // (kind video, hlsManifest set) rather than a plain single-file download.
+    const hls = media.find((m) => m.src === 'https://ex.com/live.m3u8');
+    expect(hls).toMatchObject({ kind: 'video', type: 'm3u8', hlsManifest: 'https://ex.com/live.m3u8', poster: 'https://ex.com/p.jpg' });
   });
 
   it('collects <audio> sources as audio kind', () => {
@@ -98,6 +101,40 @@ describe('collectMedia — video & audio', () => {
   it('skips blob: video sources', () => {
     document.body.innerHTML = `<video src="blob:https://ex.com/abc"></video>`;
     expect(collectMedia().some((m) => m.kind === 'video')).toBe(false);
+  });
+});
+
+describe('collectMedia — HLS streams', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+  const hls = (m: { src: string }[]) => m.filter((i) => (i as { hlsManifest?: string }).hlsManifest);
+
+  it('surfaces a native <video src=.m3u8> as a capture item', () => {
+    setBody('<video src="https://cdn.com/master.m3u8" poster="https://cdn.com/p.jpg"></video>');
+    const [item] = hls(collectMedia());
+    expect(item).toMatchObject({ kind: 'video', type: 'm3u8', hlsManifest: 'https://cdn.com/master.m3u8', poster: 'https://cdn.com/p.jpg' });
+  });
+
+  it('surfaces a direct <a href=.m3u8> link as a capture item', () => {
+    setBody('<a href="https://cdn.com/live/index.m3u8">watch live</a>');
+    expect(hls(collectMedia()).map((i) => (i as { hlsManifest?: string }).hlsManifest)).toEqual(['https://cdn.com/live/index.m3u8']);
+  });
+
+  it('keeps a query string on the manifest URL', () => {
+    setBody('<video src="https://cdn.com/master.m3u8?token=abc"></video>');
+    expect(hls(collectMedia())[0]).toMatchObject({ hlsManifest: 'https://cdn.com/master.m3u8?token=abc' });
+  });
+
+  it('dedupes the same manifest seen as both a <source> and a link', () => {
+    setBody(
+      '<video><source src="https://cdn.com/m.m3u8" type="application/x-mpegURL"></video>' +
+      '<a href="https://cdn.com/m.m3u8">same</a>',
+    );
+    expect(hls(collectMedia())).toHaveLength(1);
+  });
+
+  it('still drops blob: and .mpd (only .m3u8 is captured)', () => {
+    setBody('<video src="blob:https://ex.com/x"></video><a href="https://cdn.com/dash.mpd">dash</a>');
+    expect(hls(collectMedia())).toHaveLength(0);
   });
 });
 
@@ -322,9 +359,10 @@ describe('collectMedia — meta / preload hero sources', () => {
     expect(collectMedia().some((i) => i.src === 'https://cdn.com/secure.mp4' && i.kind === 'video')).toBe(true);
   });
 
-  it('skips a streaming og:video (.m3u8) — not a single downloadable file', () => {
+  it('surfaces a streaming og:video (.m3u8) as a capturable HLS item', () => {
     document.head.innerHTML = '<meta property="og:video" content="https://cdn.com/stream.m3u8">';
-    expect(collectMedia().some((i) => i.src.includes('stream.m3u8'))).toBe(false);
+    const hls = collectMedia().find((i) => i.src === 'https://cdn.com/stream.m3u8');
+    expect(hls).toMatchObject({ kind: 'video', hlsManifest: 'https://cdn.com/stream.m3u8' });
   });
 });
 

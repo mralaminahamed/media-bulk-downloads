@@ -36,6 +36,10 @@ const typeLabel = (img: ImageInfo): string => (img.isBase64 ? 'B64' : img.type.t
 /** A Twitter video whose real file hasn't been fetched yet: shown, not downloadable. */
 const isPendingVideo = (img: ImageInfo): boolean => img.kind === 'video' && !!img.unresolvedVideo;
 
+/** An HLS stream: downloadable, but by capturing (fetch + assemble segments)
+ *  rather than a single-file download, so the action reads "Capture stream". */
+const isHlsStream = (img: ImageInfo): boolean => !!img.hlsManifest;
+
 /** True for a URL on an Instagram CDN host. */
 const isIgUrl = (u: string | undefined): boolean => {
   if (!u) return false;
@@ -178,6 +182,12 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                 </span>
               )}
 
+              {isHlsStream(image) && (
+                <span className="eyebrow absolute bottom-1.5 left-1.5 rounded-xs bg-(--panel)/85 px-1.5 py-0.5 text-[9px] leading-none text-(--ink) backdrop-blur-sm">
+                  HLS · capture
+                </span>
+              )}
+
               {downloadedSrcs?.has(image.src) && (
                 <span
                   className="absolute right-1.5 top-1.5 grid h-4 w-4 place-items-center rounded-full bg-(--brand-ink) text-white ring-1 ring-(--ctl-ring)"
@@ -243,8 +253,8 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                 ) : (
                   <button
                     onClick={() => onImageDownload(image)}
-                    title="Download"
-                    aria-label="Download"
+                    title={isHlsStream(image) ? 'Capture stream' : 'Download'}
+                    aria-label={isHlsStream(image) ? 'Capture stream' : 'Download'}
                     className="grid h-8 w-8 place-items-center rounded-full bg-(--brand-ink) text-white ring-1 ring-(--ctl-ring) transition-transform hover:scale-105 active:scale-95"
                   >
                     <ArrowDownTrayIcon className="h-4 w-4" />
@@ -332,6 +342,22 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                     className="mx-auto w-full object-contain"
                     style={{ maxHeight: previewSize }}
                   />
+                ) : isHlsStream(selectedImage) ? (
+                  // An HLS manifest can't play in a bare <video>; show the poster
+                  // (or a film glyph) — the file is produced by Capture, not here.
+                  selectedImage.poster ? (
+                    <LoadingImage
+                      key={selectedImage.poster}
+                      src={selectedImage.poster}
+                      alt={selectedImage.alt}
+                      className="mx-auto w-full object-contain"
+                      style={{ maxHeight: previewSize }}
+                    />
+                  ) : (
+                    <div className="grid place-items-center p-10">
+                      <FilmIcon className="h-12 w-12 text-(--ink-3)" />
+                    </div>
+                  )
                 ) : selectedImage.kind === 'video' ? (
                   <video
                     key={selectedImage.src}
@@ -428,9 +454,9 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                   <p className="text-center text-[12px] text-(--ink-2)">{"This video's file can't be fetched."}</p>
                 )
               ) : (
-                <button onClick={() => onImageDownload(selectedImage)} title="Download" aria-label="Download" className="btn btn-primary w-full">
+                <button onClick={() => onImageDownload(selectedImage)} title={isHlsStream(selectedImage) ? 'Capture stream' : 'Download'} aria-label={isHlsStream(selectedImage) ? 'Capture stream' : 'Download'} className="btn btn-primary w-full">
                   <ArrowDownTrayIcon className="h-4 w-4" />
-                  <span>Download</span>
+                  <span>{isHlsStream(selectedImage) ? 'Capture stream' : 'Download'}</span>
                 </button>
               )}
             </div>
