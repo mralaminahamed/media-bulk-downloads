@@ -17,6 +17,7 @@ import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
 import { collectFromActiveTab } from '../shared/active-tab/collect-active-tab';
 import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/active-tab/deep-scan-active-tab';
 import { requestResolveOriginals } from '../shared/active-tab/resolve-originals-active';
+import { applyResolved } from './apply-resolved';
 import { HISTORY_KEY } from '../shared/storage/history';
 import { favouriteSrcSet, FAVOURITES_KEY } from '../shared/storage/favourites';
 import { buildZip, zipFileName } from '../shared/download/zip';
@@ -207,7 +208,7 @@ const App: React.FC<AppProps> = ({
    * upgrade survives a later re-filter (settings change, deep scan). Items that
    * never resolve simply stay pending — nothing flickers in and then disappears.
    */
-  const enrichOriginals = useCallback(async (eligible: ImageInfo[]): Promise<void> => {
+  const enrichOriginals = useCallback(async (eligible: ImageInfo[], captureHls: boolean): Promise<void> => {
     const generation = ++resolveGenRef.current;
     const targets = eligible.filter((i) => i.resolveHint).map((i) => ({ src: i.src, hint: i.resolveHint! }));
     if (!targets.length) return;
@@ -217,8 +218,10 @@ const App: React.FC<AppProps> = ({
     // oldSrc -> resolved item (hint cleared, src swapped to the real original)
     const byOldSrc = new Map<string, ImageInfo>();
     for (const i of eligible) {
-      if (i.resolveHint && resolved[i.src]) {
-        byOldSrc.set(i.src, { ...i, src: resolved[i.src].url, unresolvedVideo: false, resolveHint: undefined });
+      const r = i.resolveHint ? resolved[i.src] : undefined;
+      if (r) {
+        const swapped = applyResolved(i, r, captureHls);
+        if (swapped) byOldSrc.set(i.src, swapped);
       }
     }
     if (!byOldSrc.size) return;
@@ -258,7 +261,7 @@ const App: React.FC<AppProps> = ({
       // Preserve the active toolbar filter when repopulating the grid.
       const filtered = applyToolbarFilters(eligible, filtersRef.current);
       setState((prev) => ({ ...prev, images: eligible, filteredImages: filtered }));
-      if (s.resolveOriginals) void enrichOriginals(eligible);
+      if (s.resolveOriginals) void enrichOriginals(eligible, s.captureHlsStreams);
       void enrichImageSizes(eligible);
     },
     [enrichOriginals, enrichImageSizes],
@@ -598,13 +601,15 @@ const App: React.FC<AppProps> = ({
     const resolved = await requestResolveOriginals([{ src, hint: image.resolveHint }]);
     setFetchingSrcs((p) => { const n = new Set(p); n.delete(src); return n; });
     const r = resolved[src];
-    if (!r) {
-      setResolveFailedSrcs((p) => new Set(p).add(src));
+    const swapped = r ? applyResolved(image, r, settings.captureHlsStreams) : null;
+    if (!swapped) {
+      // A null result is either no-resolution or an HLS-only video with capture
+      // off. Only mark a hard failure when nothing resolved; a gated HLS item
+      // stays quietly pending (turning on stream capture resolves it next time).
+      if (!r) setResolveFailedSrcs((p) => new Set(p).add(src));
       return;
     }
-    const url = r.url;
-    const swap = (list: ImageInfo[]) =>
-      list.map((i) => (i.src === src ? { ...i, src: url, unresolvedVideo: false, resolveHint: undefined } : i));
+    const swap = (list: ImageInfo[]) => list.map((i) => (i.src === src ? swapped : i));
     setState((prev) => ({ ...prev, images: swap(prev.images), filteredImages: swap(prev.filteredImages) }));
     // Mirror into the raw set too, so a later settings-change re-filter doesn't
     // revert this item back to a pending tile.
@@ -635,7 +640,9 @@ const App: React.FC<AppProps> = ({
 
     const byOldSrc = new Map<string, ImageInfo>();
     for (const t of targets) {
-      if (resolved[t.src]) byOldSrc.set(t.src, { ...t, src: resolved[t.src].url, unresolvedVideo: false, resolveHint: undefined });
+      const r = resolved[t.src];
+      const swapped = r ? applyResolved(t, r, settings.captureHlsStreams) : null;
+      if (swapped) byOldSrc.set(t.src, swapped);
     }
     if (!byOldSrc.size) return;
     const swap = (list: ImageInfo[]) => list.map((i) => byOldSrc.get(i.src) ?? i);
