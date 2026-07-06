@@ -48,11 +48,11 @@ export const DownloadButton: React.FC<DownloadButtonProps> = ({ label, disabled,
 
   return (
     <div ref={ref} className="relative flex-none">
-      <div className="flex">
+      <div className="btn-group">
         <button
           onClick={onDownload}
           disabled={disabled}
-          className="btn btn-primary rounded-r-none"
+          className="btn btn-primary"
           title="Download as separate files"
         >
           <ArrowDownTrayIcon className="h-4 w-4" />
@@ -65,7 +65,7 @@ export const DownloadButton: React.FC<DownloadButtonProps> = ({ label, disabled,
           aria-expanded={open}
           aria-label="More download options"
           title="More download options"
-          className="btn btn-primary rounded-l-none border-l border-l-white/25 px-2"
+          className="btn btn-primary px-2"
         >
           <ChevronDownIcon className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>

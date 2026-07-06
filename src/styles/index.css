@@ -365,6 +365,24 @@ input.num[type="number"]::-webkit-inner-spin-button {
   font-size: 12px;
 }
 
+/* Split button — two .btn halves fused into one control (e.g. Download + caret).
+   .btn's `border-radius` and `border` are unlayered shorthands, so they outrank
+   Tailwind's `rounded-*`/`border-*` utilities (unlayered beats the utilities
+   layer in v4) — the inner corners wouldn't square and the divider wouldn't show.
+   Square the seam and draw the divider here, at higher specificity, instead. */
+.btn-group {
+  display: inline-flex;
+}
+.btn-group > .btn:not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.btn-group > .btn:not(:first-child) {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left-color: rgba(255, 255, 255, 0.22);
+}
+
 /* Text field. */
 .field {
   height: 34px;
