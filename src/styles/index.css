@@ -411,6 +411,15 @@ select.field {
   }
 }
 
+/* Icon-prefixed search input. .field's `padding: 0 10px` shorthand outranks the
+   Tailwind `pl-8` utility (an unlayered rule beats the utilities layer in v4), so
+   the query text would slide under the leading magnifier icon. Reserve the left
+   room here at higher specificity — the same fix select.field uses on the right
+   for its chevron. */
+input[type="search"].field {
+  padding-left: 32px;
+}
+
 /* Multi-line variant. .field hard-sets height:34px, which would crush a
    <textarea> to one line — give textareas their own sizing while keeping the
    brand border, focus ring, and radius. */

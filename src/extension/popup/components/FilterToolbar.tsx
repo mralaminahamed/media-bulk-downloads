@@ -112,7 +112,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
             onChange={(e) => update({ search: e.target.value })}
             placeholder="Search media…"
             aria-label="Search media"
-            className="field h-[30px] w-full pl-8 text-[12px]"
+            className="field h-[30px] w-full text-[12px]"
           />
         </label>
         <select
