@@ -400,7 +400,10 @@ a_seg1.m4a
   });
 
   it('throws too-large when the summed track bytes exceed maxBytes', async () => {
-    await expect(captureHls('https://cdn.test/master.m3u8', deps(), { maxBytes: 1000 })).rejects.toMatchObject({
+    // 100000 is between the video segment (92461 B) and video+audio (126093 B),
+    // so the video track passes its own budget check and only the audio bytes,
+    // added to the SAME shared budget, tip it over — proving cross-track accrual.
+    await expect(captureHls('https://cdn.test/master.m3u8', deps(), { maxBytes: 100000 })).rejects.toMatchObject({
       code: 'too-large',
     });
   });

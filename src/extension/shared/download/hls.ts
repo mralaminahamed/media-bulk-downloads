@@ -14,6 +14,13 @@
  * MPEG-TS (`.ts`) segments concatenate into a playable `.ts`; fMP4 (`.m4s`)
  * segments prefixed with their `EXT-X-MAP` init concatenate into an `.mp4`.
  *
+ * DEMUXED streams (a video-only variant plus a separate `#EXT-X-MEDIA:TYPE=AUDIO`
+ * rendition — common for fMP4/CMAF) would concatenate to a SILENT file, so those
+ * are handled specially: the audio rendition is fetched alongside the video and
+ * the two fMP4 tracks are muxed into one `.mp4` (via `muxTracks`). Demuxed audio
+ * that isn't fMP4, or a mux failure, throws `demuxed-unsupported` rather than
+ * saving a silent video.
+ *
  * POLICY LINE: standard HLS AES-128 (the key is served openly in the manifest to
  * every client) is supported. DRM — SAMPLE-AES / Widevine / PlayReady / FairPlay
  * (keyformat identifiers, EXT-X-SESSION-KEY) — is REFUSED: circumventing it would
@@ -440,6 +447,8 @@ async function fetchTrack(
  * Full capture: master/media URL → assembled file bytes. Fetches the media
  * playlist (resolving a master first), refuses live/DRM, then downloads the init
  * + every segment in order (bounded concurrency), decrypting AES-128 as needed.
+ * When the master advertises a separate (demuxed) audio rendition, its track is
+ * fetched too and muxed with the video into one `.mp4`; see the file header.
  */
 export async function captureHls(
   url: string,
