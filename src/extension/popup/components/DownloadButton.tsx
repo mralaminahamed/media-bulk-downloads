@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowDownTrayIcon, ArchiveBoxArrowDownIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, ArchiveBoxArrowDownIcon, ChevronDownIcon, LinkIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
 
 interface DownloadButtonProps {
   /** Primary button text, e.g. "Download 42" or "Download selected 5". */
@@ -9,14 +9,19 @@ interface DownloadButtonProps {
   onDownload: () => void;
   /** Bundle the same set into a single ZIP archive. */
   onZip: () => void;
+  /** Copy the same set's URLs to the clipboard. */
+  onCopyLinks: () => void;
+  /** Export the same set's URLs as a .txt file. */
+  onExportLinks: () => void;
 }
 
 /**
  * Split primary button: click the main area to download separate files (the
- * long-standing default), or open the caret menu to download the same set as a
- * ZIP archive. The menu closes on outside-click, Escape, or a selection.
+ * long-standing default), or open the caret menu for the alternative actions on
+ * the same set — ZIP, copy links, export links. The menu closes on
+ * outside-click, Escape, or a selection.
  */
-export const DownloadButton: React.FC<DownloadButtonProps> = ({ label, disabled, onDownload, onZip }) => {
+export const DownloadButton: React.FC<DownloadButtonProps> = ({ label, disabled, onDownload, onZip, onCopyLinks, onExportLinks }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -85,6 +90,23 @@ export const DownloadButton: React.FC<DownloadButtonProps> = ({ label, disabled,
           >
             <ArchiveBoxArrowDownIcon className="h-4 w-4 shrink-0 text-(--ink-2)" />
             <span>As ZIP archive</span>
+          </button>
+          <div className="my-1 border-t hairline" role="separator" />
+          <button
+            role="menuitem"
+            onClick={choose(onCopyLinks)}
+            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-(--ink) hover:bg-(--panel-2)"
+          >
+            <LinkIcon className="h-4 w-4 shrink-0 text-(--ink-2)" />
+            <span>Copy links</span>
+          </button>
+          <button
+            role="menuitem"
+            onClick={choose(onExportLinks)}
+            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-(--ink) hover:bg-(--panel-2)"
+          >
+            <DocumentArrowDownIcon className="h-4 w-4 shrink-0 text-(--ink-2)" />
+            <span>Export links (.txt)</span>
           </button>
         </div>
       )}

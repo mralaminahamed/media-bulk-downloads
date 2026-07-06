@@ -32,6 +32,24 @@ export function sendRuntimeMessage(message: unknown): void {
     }
 }
 
+/** Copy text to the clipboard; returns whether it succeeded. */
+export async function copyText(text: string): Promise<boolean> {
+    try {
+        await navigator.clipboard.writeText(text);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Save a text payload as a file. Routed through the background (DOWNLOAD_TEXT) so
+ * it works from the on-page bubble too, which has no chrome.downloads.
+ */
+export function downloadText(filename: string, text: string, mime = 'text/plain'): void {
+    sendRuntimeMessage({ type: 'DOWNLOAD_TEXT', filename, text, mime });
+}
+
 /** Compact relative time: "now", "5m", "3h", "2d", else a date. */
 export function relativeTime(ms: number): string {
     const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));

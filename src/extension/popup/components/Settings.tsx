@@ -1,7 +1,11 @@
-import React, { useMemo, useState } from 'react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import React, { useMemo, useRef, useState } from 'react';
+import { XMarkIcon, ArrowDownTrayIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import { BubbleCorner, BubblePanelPlacement, SettingsData, SettingsProps } from '@/types';
 import { expandPathTemplate, todayISO } from '@/extension/shared/collection/paths';
+import { buildBackup, parseBackup } from '@/extension/shared/storage/backup';
+import { loadFavourites } from '@/extension/shared/storage/favourites';
+import { loadHistory } from '@/extension/shared/storage/history';
+import { downloadText, sendRuntimeMessage } from '../utils';
 import { useDialog } from '../hooks/useDialog';
 import { TextField } from './fields/TextField';
 import { NumberField } from './fields/NumberField';
@@ -59,6 +63,34 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
     // Persistence is owned by the parent (App.handleSettingsChange).
     onSettingsChange(settings);
     onClose();
+  };
+
+  // ── Backup (export / import all data) ───────────────────────────────────────
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [backupNote, setBackupNote] = useState('');
+
+  const handleExportBackup = async () => {
+    const [favourites, history] = await Promise.all([loadFavourites(), loadHistory()]);
+    const backup = buildBackup(settings, favourites, history, new Date().toISOString());
+    downloadText(`media-bulk-downloads-backup-${todayISO()}.json`, JSON.stringify(backup, null, 2), 'application/json');
+    setBackupNote('Backup exported.');
+  };
+
+  const handleImportBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // let the same file be picked again later
+    if (!file) return;
+    const backup = parseBackup(await file.text());
+    if (!backup) {
+      setBackupNote('That file is not a valid Media Bulk Downloads backup.');
+      return;
+    }
+    // Settings apply locally + persist; favourites/history replace via the
+    // background (single-writer).
+    setSettings(backup.settings);
+    onSettingsChange(backup.settings);
+    sendRuntimeMessage({ type: 'RESTORE_DATA', favourites: backup.favourites, history: backup.history });
+    setBackupNote(`Imported settings, ${backup.favourites.length} favourites, and ${backup.history.length} history entries.`);
   };
 
   return (
@@ -345,6 +377,36 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
               Drag the bubble on any page to fine-tune its position. Works everywhere the
               popup can run except restricted pages (chrome://, the Web Store, PDFs).
             </p>
+          </Section>
+
+          <Section title="Backup">
+            <p className="text-[11px] leading-relaxed text-(--ink-3)">
+              Save your settings, favourites, and history to a JSON file, or restore from a
+              previous backup. Importing <strong>replaces</strong> your current favourites and
+              history. Everything stays on your device.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => void handleExportBackup()} className="btn btn-ghost btn-sm">
+                <ArrowDownTrayIcon className="h-4 w-4" />
+                <span>Export backup</span>
+              </button>
+              <button onClick={() => fileInputRef.current?.click()} className="btn btn-ghost btn-sm">
+                <ArrowUpTrayIcon className="h-4 w-4" />
+                <span>Import backup</span>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/json,.json"
+                onChange={(e) => void handleImportBackup(e)}
+                className="hidden"
+              />
+            </div>
+            {backupNote && (
+              <p aria-live="polite" className="text-[11px] text-(--ink-2)">
+                {backupNote}
+              </p>
+            )}
           </Section>
         </div>
 

@@ -1,4 +1,4 @@
-import { mergeHistory, recordDownloads, removeEntry, clearHistory, downloadedSrcSet, loadHistory, HISTORY_CAP, HISTORY_MAX_BYTES } from '@/extension/shared/storage/history';
+import { mergeHistory, recordDownloads, removeEntry, clearHistory, restoreHistory, downloadedSrcSet, loadHistory, HISTORY_CAP, HISTORY_MAX_BYTES } from '@/extension/shared/storage/history';
 import { HistoryEntry } from '@/types';
 
 describe('loadHistory — corrupt storage', () => {
@@ -70,5 +70,18 @@ describe('storage helpers', () => {
       });
     await Promise.all([recordDownloads([e('a', 1)]), recordDownloads([e('b', 2)])]);
     expect(store.map((x) => x.src).sort()).toEqual(['a', 'b']);
+  });
+});
+
+describe('restoreHistory', () => {
+  it('replaces history with the normalized imported list (dedup + newest-first)', async () => {
+    let store: HistoryEntry[] = [];
+    (chrome.storage.local.set as jest.Mock).mockReset().mockImplementation(async (obj: Record<string, HistoryEntry[]>) => {
+      store = obj.downloadHistory;
+    });
+    await restoreHistory([e('a', 1), e('b', 3), e('a', 9)]);
+    // dedup by src (a wins at time 9), sorted newest-first — old contents dropped.
+    expect(store.map((x) => x.src)).toEqual(['a', 'b']);
+    expect(store[0].time).toBe(9);
   });
 });

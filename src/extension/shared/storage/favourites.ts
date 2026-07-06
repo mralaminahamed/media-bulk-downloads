@@ -67,6 +67,13 @@ export async function removeFavourite(src: string): Promise<void> {
   });
 }
 
+/** Replace favourites with an imported list, normalized (dedup/sort/cap/byte-budget). */
+export async function restoreFavourites(entries: FavouriteEntry[]): Promise<void> {
+  return serialize(async () => {
+    await chrome.storage.local.set({ [FAVOURITES_KEY]: mergeFavourites([], entries) });
+  });
+}
+
 export async function clearFavourites(): Promise<void> {
   return serialize(async () => {
     await chrome.storage.local.set({ [FAVOURITES_KEY]: [] });
