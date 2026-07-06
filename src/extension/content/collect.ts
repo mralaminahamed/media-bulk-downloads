@@ -18,6 +18,7 @@ import { resolve, MediaCandidate } from '@/extension/shared/resolvers';
 import { twitterGifCandidate, twitterVideoPending } from '@/extension/shared/resolvers/twitter';
 import { instagramPageMedia } from '@/extension/shared/resolvers/instagram';
 import { youtubeVideoId } from '@/extension/shared/resolvers/youtube';
+import { vimeoVideoId } from '@/extension/shared/resolvers/vimeo';
 import { sniffedHlsManifests } from '@/extension/shared/resolvers/hls-sniff';
 
 /** Determines if a URL is a base64-encoded image. */
@@ -274,6 +275,21 @@ export function collectMedia(): MediaItem[] {
     media.push(item);
   };
 
+  // A Vimeo video (embed iframe or link) surfaced as a pending video: Vimeo hides
+  // the file behind its player config, so the real mp4 is fetched on the opt-in
+  // resolve pass (resolveHint 'vimeo'), like a Twitter video. Keyed by the canonical
+  // watch URL so an embed + a link to the same video collapse to one item.
+  const pushVimeo = (id: string): void => {
+    const watch = `https://vimeo.com/${id}`;
+    if (seenSources.has(watch)) return;
+    seenSources.add(watch);
+    media.push({
+      src: watch, alt: '', width: 0, height: 0, type: 'mp4',
+      fileSize: 0, isBase64: false, kind: 'video',
+      unresolvedVideo: true, resolveHint: { platform: 'vimeo', id },
+    });
+  };
+
   const collectAv = (
     rawSrc: string,
     kind: 'video' | 'audio',
@@ -454,6 +470,8 @@ export function collectMedia(): MediaItem[] {
       if (resolvedHref && youtubeVideoId(resolvedHref)) collectImageInfo(href!, '', 0, 0, undefined, a);
       // A direct link to an HLS manifest — surface it as a capturable stream.
       else if (resolvedHref && isHlsManifest(resolvedHref) && /^https?:\/\//i.test(resolvedHref)) pushHls(resolvedHref, '');
+      // A link to a Vimeo video — surface as a pending video resolved on demand.
+      else if (resolvedHref && vimeoVideoId(resolvedHref)) pushVimeo(vimeoVideoId(resolvedHref)!);
     });
 
     // <noscript> fallbacks (real image often lives here for no-JS users).
@@ -470,7 +488,10 @@ export function collectMedia(): MediaItem[] {
       // below) still exposes the video id in its src — surface the public poster.
       // Covers lazy embeds that keep the real URL in data-src until scrolled.
       const embedSrc = frame.getAttribute('src') || frame.getAttribute('data-src') || '';
-      if (embedSrc && youtubeVideoId(resolveUrl(embedSrc))) collectImageInfo(embedSrc, '', 0, 0, undefined, frame);
+      const resolvedEmbed = embedSrc ? resolveUrl(embedSrc) : '';
+      if (resolvedEmbed && youtubeVideoId(resolvedEmbed)) collectImageInfo(embedSrc, '', 0, 0, undefined, frame);
+      // A Vimeo player <iframe> — surface as a pending video (resolved on demand).
+      else if (resolvedEmbed && vimeoVideoId(resolvedEmbed)) pushVimeo(vimeoVideoId(resolvedEmbed)!);
 
       let doc: Document | null;
       try {

@@ -186,6 +186,7 @@ upgrade rules for:
 | Wikipedia / Wikimedia / MediaWiki   | `/thumb/` path → original (incl. self-hosted wikis) |
 | YouTube                             | Embeds / links / thumbnails → `hqdefault` poster (always-present max) |
 | Twitter / X                         | `name=orig` for photos; video-poster recognition    |
+| Vimeo                               | Embeds / links → direct progressive MP4 (via config) |
 | Reddit                             | Gallery `<a href>` → direct `i.redd.it` original    |
 | Unsplash                           | Strip resize params → native-format master          |
 | Pinterest                          | `/NNNx/` → `/originals/`                            |
