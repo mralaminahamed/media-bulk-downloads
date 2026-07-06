@@ -307,6 +307,25 @@ describe('collectMedia — meta / preload hero sources', () => {
     setBody('<img src="https://cdn.com/hero.jpg">');
     expect(collectMedia().filter((i) => i.src === 'https://cdn.com/hero.jpg')).toHaveLength(1);
   });
+
+  it('collects a direct og:video mp4 with the og:image as its poster', () => {
+    document.head.innerHTML =
+      '<meta property="og:image" content="https://cdn.com/poster.jpg">' +
+      '<meta property="og:video" content="https://cdn.com/clip.mp4">' +
+      '<meta property="og:video:type" content="video/mp4">';
+    const vid = collectMedia().find((i) => i.src === 'https://cdn.com/clip.mp4');
+    expect(vid).toMatchObject({ kind: 'video', type: 'mp4', poster: 'https://cdn.com/poster.jpg' });
+  });
+
+  it('reads og:video:url and og:video:secure_url too', () => {
+    document.head.innerHTML = '<meta property="og:video:secure_url" content="https://cdn.com/secure.mp4">';
+    expect(collectMedia().some((i) => i.src === 'https://cdn.com/secure.mp4' && i.kind === 'video')).toBe(true);
+  });
+
+  it('skips a streaming og:video (.m3u8) — not a single downloadable file', () => {
+    document.head.innerHTML = '<meta property="og:video" content="https://cdn.com/stream.m3u8">';
+    expect(collectMedia().some((i) => i.src.includes('stream.m3u8'))).toBe(false);
+  });
 });
 
 describe('collectMedia — same-origin iframes', () => {

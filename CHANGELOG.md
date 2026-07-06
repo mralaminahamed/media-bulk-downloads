@@ -7,6 +7,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **`og:video` collection**: direct downloadable `.mp4`s exposed only in
+  `<meta property="og:video">` (common on news, product, and embed pages) are now
+  collected, with the `og:image` as their poster. Streaming manifests
+  (`.m3u8` / `.mpd`) are still skipped — they aren't a single downloadable file.
 - **Image format conversion**: an opt-in **Settings → Downloads** option to
   re-encode raster images (incl. WebP/AVIF) to **PNG** or **JPEG** as they
   download, via an in-page canvas. Videos, audio, SVGs, GIFs, and images already

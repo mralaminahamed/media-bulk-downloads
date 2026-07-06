@@ -464,6 +464,23 @@ export function collectMedia(): MediaItem[] {
     const content = m.getAttribute('content');
     if (content) collectImageInfo(content);
   });
+
+  // og:video: some pages (news, product, embeds) expose a direct downloadable
+  // mp4 in <meta property="og:video"> that never appears as a <video> element.
+  // collectAv drops streaming manifests (.m3u8/.mpd) and blob: URLs, so only real
+  // files pass through. og:video:type supplies the mime; og:image is its poster.
+  const ogVideoType = document.querySelector('meta[property="og:video:type"]')?.getAttribute('content') || undefined;
+  const ogPoster = document
+    .querySelector('meta[property="og:image"], meta[property="og:image:secure_url"]')
+    ?.getAttribute('content');
+  const ogPosterUrl = ogPoster ? resolveUrl(ogPoster) : undefined;
+  document
+    .querySelectorAll('meta[property="og:video"], meta[property="og:video:url"], meta[property="og:video:secure_url"]')
+    .forEach((m) => {
+      const content = m.getAttribute('content');
+      if (content) collectAv(content, 'video', ogVideoType, '', ogPosterUrl);
+    });
+
   document.querySelectorAll('link[rel~="preload"][as="image"]').forEach((link) => {
     const href = link.getAttribute('href');
     if (href) collectImageInfo(href);

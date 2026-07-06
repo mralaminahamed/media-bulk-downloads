@@ -41,7 +41,8 @@ It reads only what the page already loaded, so nothing leaves your device.
 - Media inside **open Shadow DOM** (web components) and **same-origin iframes**
 - `og:image` / `twitter:image` and `<link rel=preload as=image>` hero images
 - Gallery `<a href>` links (Reddit, Wallhaven, and similar)
-- Direct-file `<video>` and `<audio>` sources
+- Direct-file `<video>` and `<audio>` sources, plus direct `og:video` mp4s (news,
+  product, and embed pages that expose the file only in a meta tag)
 
 **Upgrades to original quality**
 - **De-proxies** wrapped URLs (Next.js `_next/image` — absolute and relative —
