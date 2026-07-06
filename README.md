@@ -9,6 +9,7 @@ Fast, network-free by default, and built for Chrome, Firefox, and Edge from one 
 
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/jmdhkdengijmmkelofaleinbipophckn?label=Chrome%20Web%20Store&color=4f46e5)](https://chromewebstore.google.com/detail/media-bulk-downloads/jmdhkdengijmmkelofaleinbipophckn)
 [![Edge Add-ons](https://img.shields.io/badge/dynamic/json?label=Edge%20Add-ons&prefix=v&query=%24.version&url=https%3A%2F%2Fmicrosoftedge.microsoft.com%2Faddons%2Fgetproductdetailsbycrxid%2Fihhhecmabfocelgmjafijchhhlpdlnll&color=0078D7&logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/0RDCKGS01KRC)
+[![Firefox Add-ons](https://img.shields.io/amo/v/media-bulk-downloads?label=Firefox%20Add-ons&color=FF7139&logo=firefoxbrowser&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/media-bulk-downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-yellow.svg)](https://developer.chrome.com/docs/extensions/develop/migrate)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
@@ -96,6 +97,10 @@ It reads only what the page already loaded, so nothing leaves your device.
 [**install Media Bulk Downloads**](https://chromewebstore.google.com/detail/media-bulk-downloads/jmdhkdengijmmkelofaleinbipophckn),
 one click, no account. Other Chromium browsers (Brave, Opera, Vivaldi) can install the
 Chrome build too.
+
+**From Firefox Add-ons (AMO)** —
+[**install Media Bulk Downloads**](https://addons.mozilla.org/en-US/firefox/addon/media-bulk-downloads/)
+for Firefox 109+.
 
 **From source** — requires **Node 20.19+** and Corepack Yarn (`.nvmrc` pins 22). The
 build runs on [WXT](https://wxt.dev), which targets every browser from one codebase:

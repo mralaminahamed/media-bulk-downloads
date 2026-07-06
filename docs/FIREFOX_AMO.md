@@ -11,6 +11,8 @@ the Firefox sibling of [CHROME_WEBSTORE.md](./CHROME_WEBSTORE.md) and
 [EDGE_ADDONS.md](./EDGE_ADDONS.md); the listing copy is intentionally identical
 so all three stores match.
 
+> **Live listing:** https://addons.mozilla.org/en-US/firefox/addon/media-bulk-downloads/
+
 > **Different from Chrome / Edge — don't miss these:**
 > - AMO is **free**; you sign in with a Firefox account.
 > - The add-on **ID is mandatory** and already baked into the manifest
