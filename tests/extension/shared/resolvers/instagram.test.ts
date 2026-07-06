@@ -164,7 +164,16 @@ describe('instagramResolver.resolve — reels tab (cover-only clips)', () => {
     const out = instagramResolver.resolve(u(`${CDN}/RL_cover_n.jpg`), { el, allowNetwork: false, pageUrl: 'https://www.instagram.com/rashmiix/reels/' });
 
     expect(out).toEqual([
-      { url: `${CDN}/RL_cover_n.jpg`, kind: 'video', ext: 'mp4', width: 640, height: 1136, poster: `${CDN}/RL_cover_n.jpg`, unresolvedVideo: true },
+      {
+        url: `${CDN}/RL_cover_n.jpg`,
+        kind: 'video',
+        ext: 'mp4',
+        width: 640,
+        height: 1136,
+        poster: `${CDN}/RL_cover_n.jpg`,
+        unresolvedVideo: true,
+        resolveHint: { platform: 'instagram', id: 'RL' },
+      },
     ]);
   });
 
