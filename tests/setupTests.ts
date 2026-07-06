@@ -16,7 +16,15 @@ global.chrome = {
         onStartup: {
             addListener: jest.fn(),
         },
+        getURL: jest.fn((p: string) => `chrome-extension://test/${p}`),
         lastError: undefined,
+    },
+    notifications: {
+        create: jest.fn(),
+    },
+    permissions: {
+        request: jest.fn(),
+        contains: jest.fn(),
     },
     contextMenus: {
         create: jest.fn(),

@@ -7,6 +7,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Download-complete notifications**: an opt-in desktop toast reporting the
+  result of each download batch — the only feedback when you download from a
+  keyboard shortcut or the right-click menu (no popup open). Enable under
+  **Settings → Downloads**; it requests the optional `notifications` permission
+  the first time, so nothing is prompted at install.
 - **Keyboard shortcuts**: open the popup (`Ctrl/⌘+Shift+M`) or download all media
   on the current page (`Ctrl/⌘+Shift+Y`) without touching the mouse. Rebind or
   disable them at `chrome://extensions/shortcuts`. (No new permission — `commands`
