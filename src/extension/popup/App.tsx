@@ -5,6 +5,7 @@ import HistoryPanel from './components/HistoryPanel';
 import FavouritesPanel from './components/FavouritesPanel';
 import FilterToolbar, { DEFAULT_FILTERS } from './components/FilterToolbar';
 import { DownloadButton } from './components/DownloadButton';
+import { ProgressBar } from './components/ProgressBar';
 import { BrandMark } from '../components/BrandMark';
 import { SkeletonGrid } from './components/states/SkeletonGrid';
 import { EmptyState } from './components/states/EmptyState';
@@ -73,6 +74,9 @@ const App: React.FC<AppProps> = ({
   // Selective bulk download: srcs the user has ticked. Scoped to what's shown —
   // pruned whenever the filtered view changes (see the effect below).
   const [selectedSrcs, setSelectedSrcs] = useState<Set<string>>(new Set());
+  // Live progress for in-extension batch work (zip fetch, video resolve). null = idle.
+  // total 0 → indeterminate.
+  const [progress, setProgress] = useState<{ label: string; done: number; total: number } | null>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
 
   // All images collected from the page, before any settings/toolbar filtering.
@@ -372,13 +376,14 @@ const App: React.FC<AppProps> = ({
   // CORS — then hand the bytes to the background to write via chrome.downloads.
   const handleDownloadZip = async (images: ImageInfo[]): Promise<void> => {
     if (!images.length) return;
-    setState((prev) => ({ ...prev, status: `Zipping 0/${images.length}…` }));
+    setProgress({ label: 'Zipping', done: 0, total: images.length });
 
     const sourcePage = await currentSourcePage();
     const { bytes, ok, failed } = await buildZip(images, settings, sourcePage.url, {
       fetch: (...args) => fetch(...args),
-      onProgress: (done, total) => setState((prev) => ({ ...prev, status: `Zipping ${done}/${total}…` })),
+      onProgress: (done, total) => setProgress({ label: 'Zipping', done, total }),
     });
+    setProgress(null); // fetch phase done; the download itself is near-instant
 
     // Nothing could be fetched (every host blocked the hotlink / offline) — fall
     // back to individual downloads, which go through the browser's own fetch.
@@ -488,9 +493,12 @@ const App: React.FC<AppProps> = ({
     const srcs = targets.map((t) => t.src);
     setFetchingSrcs((p) => { const n = new Set(p); srcs.forEach((s) => n.add(s)); return n; });
     setResolveFailedSrcs((p) => { const n = new Set(p); srcs.forEach((s) => n.delete(s)); return n; });
+    // Indeterminate — the resolve happens in one background batch with no per-item signal.
+    setProgress({ label: 'Fetching videos', done: 0, total: 0 });
 
     const resolved = await requestResolveOriginals(targets.map((t) => ({ src: t.src, hint: t.resolveHint! })));
 
+    setProgress(null);
     setFetchingSrcs((p) => { const n = new Set(p); srcs.forEach((s) => n.delete(s)); return n; });
     const failed = srcs.filter((s) => !resolved[s]);
     if (failed.length) setResolveFailedSrcs((p) => { const n = new Set(p); failed.forEach((s) => n.add(s)); return n; });
@@ -679,6 +687,9 @@ const App: React.FC<AppProps> = ({
                 aria-label={allShownSelected ? 'Clear selection' : 'Select all shown'}
               />
             )}
+            {progress ? (
+              <ProgressBar label={progress.label} done={progress.done} total={progress.total} />
+            ) : (
             <p className="num min-w-0 truncate text-[11px] text-(--ink-2)">
               {state.status ? (
                 state.status
@@ -697,6 +708,7 @@ const App: React.FC<AppProps> = ({
                 </>
               )}
             </p>
+            )}
           </div>
           {pendingVideoCount > 0 && (
             <button

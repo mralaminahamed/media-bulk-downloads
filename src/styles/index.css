@@ -544,6 +544,33 @@ input[type="range"] {
   }
 }
 
+/* Indeterminate progress bar — a rounded segment sliding across the track, for
+   work whose size isn't known up front (e.g. resolving videos). */
+@keyframes progress-slide {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(360%);
+  }
+}
+.progress-indet::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 28%;
+  border-radius: 999px;
+  background: var(--brand);
+  animation: progress-slide 1.15s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress-indet::after {
+    animation: none;
+    width: 100%;
+    opacity: 0.4;
+  }
+}
+
 /* ── Loading skeleton ────────────────────────────────────────────────────────
    A quiet placeholder surface with a sweeping highlight. Sits under real
    content (thumbnails, grid tiles) until it loads. */

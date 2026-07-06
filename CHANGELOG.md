@@ -7,6 +7,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Progress bar** for in-extension batch work the browser's download shelf can't
+  show: a determinate bar with a live count while a **ZIP** is being fetched, and
+  an indeterminate bar while **resolving videos** ("Get all videos").
 - **Download-complete notifications**: an opt-in desktop toast reporting the
   result of each download batch — the only feedback when you download from a
   keyboard shortcut or the right-click menu (no popup open). Enable under
