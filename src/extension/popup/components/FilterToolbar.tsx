@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDownIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, MagnifyingGlassIcon, BarsArrowUpIcon, BarsArrowDownIcon } from '@heroicons/react/24/outline';
 import { FilterOptions, SettingsData } from '@/types';
 
 interface FilterToolbarProps {
@@ -13,7 +13,18 @@ export const DEFAULT_FILTERS: FilterOptions = {
   minSize: 0,
   includeBase64: true,
   sizeBucket: 'all',
+  search: '',
+  sortBy: 'default',
+  sortDir: 'desc',
 };
+
+const SORT_OPTIONS: { value: FilterOptions['sortBy']; label: string }[] = [
+  { value: 'default', label: 'Sort: Default' },
+  { value: 'name', label: 'Sort: Name' },
+  { value: 'size', label: 'Sort: Size' },
+  { value: 'dimensions', label: 'Sort: Dimensions' },
+  { value: 'type', label: 'Sort: Type' },
+];
 
 const KIND_OPTIONS: { value: FilterOptions['mediaKind']; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -78,12 +89,57 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
     (filters.minSize > 0 ? 1 : 0) +
     (!filters.includeBase64 && !base64Disabled ? 1 : 0);
   const activeCount =
-    (filters.mediaKind !== 'all' ? 1 : 0) + (filters.imageType !== 'all' ? 1 : 0) + advancedCount;
+    (filters.mediaKind !== 'all' ? 1 : 0) +
+    (filters.imageType !== 'all' ? 1 : 0) +
+    advancedCount +
+    (filters.search.trim() ? 1 : 0) +
+    (filters.sortBy !== 'default' ? 1 : 0);
 
   const showSize = filters.mediaKind === 'all' || filters.mediaKind === 'image';
 
+  const sortDirLabel = filters.sortDir === 'asc' ? 'Ascending' : 'Descending';
+
   return (
     <section className="border-b hairline bg-(--panel) px-4 py-2.5">
+      {/* Search + sort row: free-text query over the shown grid, plus an order
+          control. Wraps on very narrow popups. */}
+      <div className="mb-2.5 flex flex-wrap items-center gap-2">
+        <label className="relative min-w-[140px] flex-1">
+          <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-(--ink-3)" />
+          <input
+            type="search"
+            value={filters.search}
+            onChange={(e) => update({ search: e.target.value })}
+            placeholder="Search media…"
+            aria-label="Search media"
+            className="field h-[30px] w-full pl-8 text-[12px]"
+          />
+        </label>
+        <select
+          aria-label="Sort order"
+          value={filters.sortBy}
+          onChange={(e) => update({ sortBy: e.target.value as FilterOptions['sortBy'] })}
+          className="field shrink-0 py-0 text-[12px]"
+          style={{ height: 30, width: 150 }}
+        >
+          {SORT_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={() => update({ sortDir: filters.sortDir === 'asc' ? 'desc' : 'asc' })}
+          disabled={filters.sortBy === 'default'}
+          className="iconbtn iconbtn-sm shrink-0 disabled:opacity-40"
+          aria-label={`Sort direction: ${sortDirLabel}`}
+          title={sortDirLabel}
+        >
+          {filters.sortDir === 'asc' ? <BarsArrowUpIcon className="h-4 w-4" /> : <BarsArrowDownIcon className="h-4 w-4" />}
+        </button>
+      </div>
+
       {/* Primary line: Kind (segmented, one-tap) · Type (dropdown) · More (advanced).
           Wraps only if a narrow popup can't fit it all on one row. */}
       <div className="flex flex-wrap items-center gap-2">

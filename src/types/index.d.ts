@@ -259,6 +259,10 @@ export interface SettingsData {
 
 export type SizeBucket = 'all' | 'small' | 'medium' | 'large';
 
+/** How the shown grid is ordered. `default` = collection order (no sort). */
+export type SortKey = 'default' | 'name' | 'size' | 'dimensions' | 'type';
+export type SortDir = 'asc' | 'desc';
+
 export interface FilterOptions {
   /** Primary media-kind filter. */
   mediaKind: 'all' | 'image' | 'video' | 'audio';
@@ -266,6 +270,11 @@ export interface FilterOptions {
   minSize: number;
   includeBase64: boolean;
   sizeBucket: SizeBucket;
+  /** Free-text query matched against filename, alt, type, and URL. Empty = off. */
+  search: string;
+  /** Sort key + direction applied after filtering. */
+  sortBy: SortKey;
+  sortDir: SortDir;
 }
 
 // ── Component props ──────────────────────────────────────────────────────────
