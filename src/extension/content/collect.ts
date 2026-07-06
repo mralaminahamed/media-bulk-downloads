@@ -302,12 +302,55 @@ export function collectMedia(): MediaItem[] {
     const ownerDoc = root.nodeType === 9 ? (root as Document) : (root as ShadowRoot).ownerDocument;
     const view = ownerDoc.defaultView ?? window;
 
+    // ONE traversal per root. The '*' walk is mandatory anyway (background-image
+    // needs getComputedStyle on every element), so bucket the media tags and
+    // discover open shadow roots in the same pass instead of firing a separate
+    // full-subtree querySelectorAll for each of img/picture/video/audio/a/noscript/
+    // iframe. That turned eight walks of the DOM into one — a real saving on big
+    // pages, and in deep scan where scanRoot re-runs every scroll round.
+    const imgs: HTMLImageElement[] = [];
+    const pictures: Element[] = [];
+    const videos: HTMLVideoElement[] = [];
+    const audios: HTMLAudioElement[] = [];
+    const anchors: HTMLAnchorElement[] = [];
+    const noscripts: HTMLElement[] = [];
+    const iframes: HTMLIFrameElement[] = [];
+    const backgrounds: [Element, string][] = [];
+
+    root.querySelectorAll<HTMLElement>('*').forEach((el) => {
+      // Discover open shadow roots regardless of layout (a not-rendered host can
+      // still contain visible media once its component mounts).
+      const shadow = el.shadowRoot;
+      if (shadow) addRoot(shadow);
+
+      switch (el.tagName) {
+        case 'IMG': imgs.push(el as HTMLImageElement); break;
+        case 'PICTURE': pictures.push(el); break;
+        case 'VIDEO': videos.push(el as HTMLVideoElement); break;
+        case 'AUDIO': audios.push(el as HTMLAudioElement); break;
+        case 'A': anchors.push(el as HTMLAnchorElement); break;
+        case 'NOSCRIPT': noscripts.push(el); break;
+        case 'IFRAME': iframes.push(el as HTMLIFrameElement); break;
+      }
+
+      // CSS background-image (handles multiple comma-separated layers). Resolving
+      // computed style for every element is the deep-scan hot path, so skip
+      // elements that aren't rendered (display:none / 0×0 can't show a background).
+      if (hasLayout && el.offsetWidth === 0 && el.offsetHeight === 0) return;
+      const bgImage = view.getComputedStyle(el).getPropertyValue('background-image');
+      if (bgImage && bgImage !== 'none') backgrounds.push([el, bgImage]);
+    });
+
+    // Process the buckets in the same order the separate passes used to run, so
+    // dedup priority (first-seen src wins its dimensions/thumbnail) is unchanged:
+    // img → picture → background → video → audio → link → noscript → frame.
+
     // <img> tags and their srcset. The measured dimensions belong to whatever the
     // element is actually displaying (currentSrc/src) — not to a higher-res original
     // pulled from data-orig-file/data-large-file, which imageUrlsFromElement returns
     // FIRST. Tagging that original with the on-screen thumbnail's size mislabels it
     // and lets the minimum-size filter wrongly drop a genuinely large image.
-    root.querySelectorAll('img').forEach((img) => {
+    imgs.forEach((img) => {
       const { width, height } = getImageDimensions(img);
       const loaded = img.currentSrc || img.src;
       imageUrlsFromElement(img).forEach((src) => {
@@ -319,32 +362,22 @@ export function collectMedia(): MediaItem[] {
     // <picture> elements: only the <source srcset> variants here — the fallback
     // <img> is already covered by the img pass above (results dedup), so re-scanning
     // it would just repeat work.
-    root.querySelectorAll('picture').forEach((picture) => {
+    pictures.forEach((picture) => {
       picture.querySelectorAll('source').forEach((source) => {
         imageUrlsFromElement(source).forEach((src) => collectImageInfo(src, '', 0, 0, undefined, source));
       });
     });
 
-    // CSS background-image declarations (handles multiple comma-separated layers).
-    // Resolving computed style for every element is the deep-scan hot path — this
-    // pass runs on each scroll round — so skip elements that aren't rendered
-    // (display:none / 0×0 subtrees can't show a background). The same walk also
-    // discovers open shadow roots to scan next.
-    root.querySelectorAll<HTMLElement>('*').forEach((el) => {
-      const shadow = el.shadowRoot;
-      if (shadow) addRoot(shadow);
-      if (hasLayout && el.offsetWidth === 0 && el.offsetHeight === 0) return;
-      const bgImage = view.getComputedStyle(el).getPropertyValue('background-image');
-      if (!bgImage || bgImage === 'none') return;
-      // Pass the element so a resolver can read its context (e.g. a Twitter video
-      // poster set as a background-image finds the cell's /status/ link). image-set
-      // layers contribute only their highest-resolution candidate.
+    // Pass the element so a resolver can read its context (e.g. a Twitter video
+    // poster set as a background-image finds the cell's /status/ link). image-set
+    // layers contribute only their highest-resolution candidate.
+    backgrounds.forEach(([el, bgImage]) => {
       for (const url of backgroundImageUrls(bgImage)) {
         collectImageInfo(url, '', 0, 0, undefined, el);
       }
     });
 
-    root.querySelectorAll('video').forEach((video) => {
+    videos.forEach((video) => {
       const gif = twitterGifCandidate(video);
       if (gif && !seenSources.has(gif.url)) {
         seenSources.add(gif.url);
@@ -377,7 +410,7 @@ export function collectMedia(): MediaItem[] {
       );
     });
 
-    root.querySelectorAll('audio').forEach((audio) => {
+    audios.forEach((audio) => {
       const alt = audio.getAttribute('aria-label') || audio.getAttribute('title') || '';
       [audio.currentSrc, audio.getAttribute('src'), audio.getAttribute('data-src')].forEach((s) =>
         collectAv(s || '', 'audio', undefined, alt),
@@ -388,21 +421,21 @@ export function collectMedia(): MediaItem[] {
     });
 
     // Gallery / lightbox links: full-res <a href> over a thumbnail <img>.
-    root.querySelectorAll('a').forEach((a) => {
-      const c = galleryLinkCandidate(a as HTMLAnchorElement);
+    anchors.forEach((a) => {
+      const c = galleryLinkCandidate(a);
       if (c) collectImageInfo(c.url, '', 0, 0, c.thumbnailSrc, a.querySelector('img') ?? a);
     });
 
     // <noscript> fallbacks (real image often lives here for no-JS users).
-    root.querySelectorAll('noscript').forEach((ns) => {
-      noscriptImageCandidates(ns as HTMLElement).forEach((c) => collectImageInfo(c.url, '', 0, 0, c.thumbnailSrc));
+    noscripts.forEach((ns) => {
+      noscriptImageCandidates(ns).forEach((c) => collectImageInfo(c.url, '', 0, 0, c.thumbnailSrc));
     });
 
     // Same-origin <iframe> documents — descend into reachable frames. Accessing
     // contentDocument throws or returns null for cross-origin frames; guard and
     // skip those. Nested same-origin frames are reached because their document is
     // scanned in turn.
-    root.querySelectorAll('iframe').forEach((frame) => {
+    iframes.forEach((frame) => {
       let doc: Document | null;
       try {
         doc = frame.contentDocument;
