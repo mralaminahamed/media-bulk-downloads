@@ -159,8 +159,23 @@ export interface ClearFavouritesMessage {
   type: 'CLEAR_FAVOURITES';
 }
 
+/**
+ * Download a pre-built ZIP archive. The archive is fetched + zipped in the
+ * popup/bubble (which can fetch cross-origin and hold the bytes); the background
+ * turns the bytes into a `data:` URL and hands them to chrome.downloads — the
+ * service worker itself has no `URL.createObjectURL`. Routing through the
+ * background also lets the on-page bubble (a content script, no downloads API)
+ * use the same path, and survives the popup closing after it dispatches.
+ */
+export interface DownloadZipMessage {
+  type: 'DOWNLOAD_ZIP';
+  bytes: Uint8Array;
+  filename: string;
+}
+
 export type ChromeMessage =
   | DownloadMessage
+  | DownloadZipMessage
   | GetImagesMessage
   | ToggleBubbleMessage
   | DeepScanMessage

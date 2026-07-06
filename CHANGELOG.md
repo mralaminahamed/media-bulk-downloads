@@ -7,6 +7,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Download as ZIP**: bundle the shown or selected media into a single ZIP
+  archive from the download button's caret menu, instead of many separate files.
+  Items are stored under the same `{host}/{domain}/{date}/{kind}` folder layout
+  inside the archive, so unzipping reproduces your configured structure. Any item
+  a CDN blocks (hotlink `403` / offline) falls back to an individual download
+  automatically. Archives are built in-page and never leave your device.
 - **Instagram** dedicated resolver + passive MAIN-world network sniffer: posts,
   reels, and carousels resolve to full-resolution images and their real
   downloadable `.mp4`s from the page's own JSON/GraphQL responses (no forged

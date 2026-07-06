@@ -1,0 +1,129 @@
+import { zipSync } from 'fflate';
+import { ImageInfo, SettingsData } from '@/types';
+import { buildDownloadFilename } from '../collection/download-name';
+import { hostFromUrl, registrableDomain, sanitizePathSegment, todayISO } from '../collection/paths';
+
+/**
+ * Builds a single ZIP archive from collected media, run in the popup/bubble
+ * React context (both are extension pages with `<all_urls>` host permission, so
+ * their `fetch` bypasses page CORS). Each item's bytes are fetched and stored
+ * under the SAME folder/name it would get as an individual download, so
+ * unzipping reproduces the user's configured layout. Fetch failures (a CDN that
+ * 403s a hotlink, a network error) don't abort the archive — the item is
+ * reported in `failed` so the caller can fall back to an individual download.
+ */
+
+export interface ZipItemResult {
+  src: string;
+  /** Path assigned inside the archive; empty when the fetch failed. */
+  path: string;
+  ok: boolean;
+}
+
+export interface ZipResult {
+  /** The archive bytes; empty (length 0) when nothing could be fetched. */
+  bytes: Uint8Array;
+  /** How many items were fetched and added. */
+  ok: number;
+  results: ZipItemResult[];
+  /** Items whose bytes couldn't be fetched — candidates for individual download. */
+  failed: ImageInfo[];
+}
+
+export interface ZipDeps {
+  /** Injectable so tests don't hit the network. */
+  fetch: typeof fetch;
+  /** Bounded parallel fetches (default 6). */
+  concurrency?: number;
+  onProgress?: (done: number, total: number) => void;
+}
+
+/**
+ * Ensures each archive path is unique. Two items can resolve to the same name
+ * (e.g. `namingMode: 'original'` with two `photo.jpg`s) — a ZIP with duplicate
+ * paths silently drops all but one, so append ` (n)` before the extension.
+ */
+function uniquePath(path: string, used: Set<string>): string {
+  if (!used.has(path)) {
+    used.add(path);
+    return path;
+  }
+  const slash = path.lastIndexOf('/');
+  const dir = slash >= 0 ? path.slice(0, slash + 1) : '';
+  const name = slash >= 0 ? path.slice(slash + 1) : path;
+  const dot = name.lastIndexOf('.');
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : '';
+  let n = 2;
+  let candidate = `${dir}${stem} (${n})${ext}`;
+  while (used.has(candidate)) candidate = `${dir}${stem} (${++n})${ext}`;
+  used.add(candidate);
+  return candidate;
+}
+
+/** Fetch a URL's bytes, or null on any failure (non-ok status, network, empty). */
+async function fetchBytes(url: string, doFetch: typeof fetch): Promise<Uint8Array | null> {
+  try {
+    const res = await doFetch(url);
+    if (!res.ok) return null;
+    const buf = await res.arrayBuffer();
+    return buf.byteLength > 0 ? new Uint8Array(buf) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function buildZip(
+  images: ImageInfo[],
+  settings: SettingsData,
+  sourcePageUrl: string | undefined,
+  deps: ZipDeps,
+): Promise<ZipResult> {
+  const used = new Set<string>();
+  // Assign a stable internal path per image up front — index-based names keep
+  // the original order; uniquePath resolves any 'original'-mode collisions.
+  const planned = images.map((image, index) => ({
+    image,
+    path: uniquePath(buildDownloadFilename(image, index, settings, sourcePageUrl), used),
+  }));
+
+  const files: Record<string, Uint8Array> = {};
+  const results: ZipItemResult[] = new Array(planned.length);
+  const failed: ImageInfo[] = [];
+  const limit = Math.max(1, deps.concurrency ?? 6);
+  let done = 0;
+  let cursor = 0;
+
+  async function worker(): Promise<void> {
+    while (cursor < planned.length) {
+      const i = cursor++;
+      const { image, path } = planned[i];
+      const bytes = await fetchBytes(image.src, deps.fetch);
+      if (bytes) {
+        files[path] = bytes;
+        results[i] = { src: image.src, path, ok: true };
+      } else {
+        results[i] = { src: image.src, path: '', ok: false };
+        failed.push(image);
+      }
+      deps.onProgress?.(++done, planned.length);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, planned.length) }, worker));
+
+  const ok = results.filter((r) => r.ok).length;
+  // level 0 = store. Media (jpg/png/webp/mp4) is already compressed, so
+  // deflating wastes CPU for ~no size gain; storing is fast and deterministic.
+  const bytes = ok > 0 ? zipSync(files, { level: 0 }) : new Uint8Array(0);
+  return { bytes, ok, results, failed };
+}
+
+/**
+ * Archive filename for a download batch, e.g. `twitter.com-media-2026-07-06.zip`.
+ * `date` is injectable for deterministic tests (defaults to today, local time).
+ */
+export function zipFileName(sourcePageUrl?: string, date: string = todayISO()): string {
+  const domain = registrableDomain(hostFromUrl(sourcePageUrl));
+  const base = domain ? `${domain}-media` : 'media';
+  return `${sanitizePathSegment(`${base}-${date}`)}.zip`;
+}

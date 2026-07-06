@@ -510,3 +510,49 @@ describe('DOWNLOAD_IMAGES — settings gate (no ephemeral-worker default-setting
     );
   });
 });
+
+describe('DOWNLOAD_ZIP — archive bytes → data URL → chrome.downloads', () => {
+  beforeEach(() => {
+    // Resolve the settingsReady gate with defaults (saveAs off).
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_keys, cb) => cb({}));
+    loadSettings();
+    (chrome.downloads.download as jest.Mock).mockReset();
+  });
+
+  it('downloads a base64 data: URL with the given filename, saveAs, and uniquify', async () => {
+    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(5));
+    const sendResponse = jest.fn();
+    const bytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04]); // ZIP magic
+
+    const handled = messageHandler(
+      { type: 'DOWNLOAD_ZIP', bytes, filename: 'example.com-media-2026-07-06.zip' },
+      {},
+      sendResponse,
+    );
+    expect(handled).toBe(true); // async response
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(chrome.downloads.download).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: 'data:application/zip;base64,UEsDBA==',
+        filename: 'example.com-media-2026-07-06.zip',
+        saveAs: false,
+        conflictAction: 'uniquify',
+      }),
+      expect.any(Function),
+    );
+    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Saved example.com-media-2026-07-06.zip.' });
+  });
+
+  it('reports an error when chrome cannot start the download', async () => {
+    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => {
+      (chrome.runtime as unknown as { lastError?: unknown }).lastError = { message: 'boom' };
+      cb(undefined);
+      (chrome.runtime as unknown as { lastError?: unknown }).lastError = undefined;
+    });
+    const sendResponse = jest.fn();
+    messageHandler({ type: 'DOWNLOAD_ZIP', bytes: new Uint8Array([1]), filename: 'x.zip' }, {}, sendResponse);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sendResponse).toHaveBeenCalledWith({ status: 'error', message: "Couldn't save x.zip." });
+  });
+});

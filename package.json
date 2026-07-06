@@ -53,6 +53,7 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "fflate": "^0.8.3",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
