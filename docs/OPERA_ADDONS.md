@@ -255,3 +255,75 @@ downloads / downloads.open: save and reopen files. storage: local settings + his
 PRIVACY
 No data is collected or transmitted; no remote code is executed. Settings and history never leave the device.
 ```
+
+---
+
+## 9. General tab — form fields (copy-paste)
+
+The exact fields on the Opera dashboard **General** tab, in order, with the value
+to paste (or why to leave a field blank). After filling these, go to **General →
+Submit changes** to send the version to moderation.
+
+**Service website URL** — *leave blank.*
+```
+(blank)
+```
+> Only for extensions connected to a service you own/develop for. Media Bulk
+> Downloads is a standalone tool with no backing service, so this stays empty
+> (Opera's note explicitly excludes personal repos/profiles).
+
+**Extension support page URL**
+```
+https://github.com/mralaminahamed/media-bulk-downloads/issues
+```
+
+**Extension source code URL (public)**
+```
+https://github.com/mralaminahamed/media-bulk-downloads
+```
+
+**Extension source code URL (required only for Opera moderators)** — the package
+is bundled/minified by WXT, so Opera requires this. Pin it to the tag matching the
+uploaded version:
+```
+https://github.com/mralaminahamed/media-bulk-downloads/tree/v1.0.0
+```
+> Bump the tag each release so it always corresponds to the current package
+> (`git tag v<version> && git push --tags`).
+
+**Build instructions** — paste this so a reviewer can reproduce the uploaded
+Chromium package from source:
+```
+Build environment
+- OS: macOS, Linux, or Windows (WXT is cross-platform; the OS does not affect output)
+- Node.js 22 (repo pins it in .nvmrc)
+- Yarn 4.17.0 via Corepack (pinned in package.json "packageManager") — no global install needed
+
+Steps
+1. git clone https://github.com/mralaminahamed/media-bulk-downloads.git
+2. cd media-bulk-downloads
+3. git checkout v1.0.0            # the tag matching the uploaded version
+4. corepack enable
+5. corepack yarn install --immutable
+6. corepack yarn zip             # builds and packages the Chromium zip
+
+Output
+- Uploaded package: .output/media-bulk-downloads-1.0.0-chrome.zip
+- Unpacked build:   .output/chrome-mv3/  (its manifest.json matches the submitted package)
+Built with WXT (https://wxt.dev); no other tooling required.
+```
+
+**License URL** (EULA section — MIT)
+```
+https://github.com/mralaminahamed/media-bulk-downloads/blob/main/LICENSE
+```
+> Use the URL **or** paste the full MIT text into *Full license text* — not both
+> needed. The URL is enough since the repo is public.
+
+**Privacy policy URL**
+```
+https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md
+```
+> Use the URL **or** paste the full text into *Full privacy policy text*. The URL
+> is enough. This satisfies Opera's requirement to describe data handling — the
+> policy states no user data (including location) is collected or transmitted.
