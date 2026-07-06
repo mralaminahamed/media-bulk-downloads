@@ -59,7 +59,7 @@ function getToken(id: string): string {
     .replace(/(0+|\.)/g, '');
 }
 
-async function twitter(id: string, deps: NetDeps): Promise<string | null> {
+async function twitter(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
   try {
     const token = getToken(id);
     const r = await deps.fetch(
@@ -77,7 +77,23 @@ async function twitter(id: string, deps: NetDeps): Promise<string | null> {
         }
       }
     }
-    return pinnedUrl(best?.url, 'twimg.com');
+    const mp4 = pinnedUrl(best?.url, 'twimg.com');
+    if (mp4) return { url: mp4 };
+
+    // No progressive mp4 — fall back to the x-mpegURL (HLS) master as a capturable
+    // stream. Live masters are refused later by captureHls (no EXT-X-ENDLIST).
+    let hlsUrl: string | null = null;
+    for (const d of details) {
+      for (const v of d?.video_info?.variants ?? []) {
+        if (v?.content_type === 'application/x-mpegURL' && typeof v.url === 'string') {
+          hlsUrl = v.url;
+          break;
+        }
+      }
+      if (hlsUrl) break;
+    }
+    const master = pinnedUrl(hlsUrl, 'twimg.com');
+    return master ? { url: master, hls: true } : null;
   } catch {
     return null;
   }
@@ -133,7 +149,7 @@ async function vimeo(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
 /** Resolve one hint to a final media target, or null on failure. Never throws. */
 export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise<ResolvedMedia | null> {
   switch (hint.platform) {
-    case 'twitter': { const u = await twitter(hint.id, deps); return u ? { url: u } : null; }
+    case 'twitter': return twitter(hint.id, deps);
     case 'wallhaven': { const u = await wallhaven(hint.id, deps); return u ? { url: u } : null; }
     case 'unsplash': return { url: unsplash(hint.id) };
     case 'vimeo': return vimeo(hint.id, deps);
