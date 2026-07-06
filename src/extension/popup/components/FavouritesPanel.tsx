@@ -7,7 +7,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { FavouriteEntry } from '@/types';
 import { loadFavourites, FAVOURITES_KEY } from '@/extension/shared/storage/favourites';
-import { relativeTime } from '../utils';
+import { relativeTime, sendRuntimeMessage } from '../utils';
 import { LoadingImage } from './LoadingImage';
 import { useDialog } from '../hooks/useDialog';
 
@@ -58,21 +58,21 @@ const FavouritesPanel: React.FC<FavouritesPanelProps> = ({ onClose }) => {
   // Mutations go through the background (single writer); update local state
   // optimistically — the storage.onChanged listener reconciles.
   const handleRemove = (entry: FavouriteEntry) => {
-    chrome.runtime.sendMessage({ type: 'REMOVE_FAVOURITE', src: entry.src });
+    sendRuntimeMessage({ type: 'REMOVE_FAVOURITE', src: entry.src });
     setEntries((prev) => prev.filter((e) => e.src !== entry.src));
   };
 
   const handleClearAll = () => {
-    chrome.runtime.sendMessage({ type: 'CLEAR_FAVOURITES' });
+    sendRuntimeMessage({ type: 'CLEAR_FAVOURITES' });
     setEntries([]);
   };
 
   const openSource = (entry: FavouriteEntry) => {
-    chrome.runtime.sendMessage({ type: 'OPEN_URL', url: entry.sourcePageUrl || entry.src });
+    sendRuntimeMessage({ type: 'OPEN_URL', url: entry.sourcePageUrl || entry.src });
   };
 
   const handleDownload = (entry: FavouriteEntry) => {
-    chrome.runtime.sendMessage({
+    sendRuntimeMessage({
       type: 'DOWNLOAD_IMAGES',
       images: [
         {

@@ -16,7 +16,7 @@ import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/active-tab/
 import { requestResolveOriginals } from '../shared/active-tab/resolve-originals-active';
 import { downloadedSrcSet, HISTORY_KEY } from '../shared/storage/history';
 import { favouriteSrcSet, FAVOURITES_KEY } from '../shared/storage/favourites';
-import { getImageFileSize, mapWithConcurrency } from './utils';
+import { getImageFileSize, mapWithConcurrency, sendRuntimeMessage } from './utils';
 import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 
 // Concurrent HEAD requests when enriching remote image sizes.
@@ -148,6 +148,10 @@ const App: React.FC<AppProps> = ({
       const apply = (list: ImageInfo[]) =>
         list.map((i) => (i.src === img.src ? { ...i, fileSize: size } : i));
 
+      // Mirror the size into the raw set too (like enrichOriginals does), so a later
+      // settings-change re-filter re-derives from rawImagesRef WITHOUT wiping the
+      // enriched sizes and re-firing a fresh round of HEAD requests.
+      rawImagesRef.current = apply(rawImagesRef.current);
       setState((prev) => ({
         ...prev,
         images: apply(prev.images),
@@ -225,6 +229,10 @@ const App: React.FC<AppProps> = ({
   const fetchImages = useCallback(async (): Promise<void> => {
     enrichGenRef.current++; // cancel any in-flight enrichment
     resolveGenRef.current++; // cancel any in-flight resolution
+    // A rescan unmounts FilterToolbar (isLoading) and it remounts at DEFAULT_FILTERS;
+    // reset the ref too so the repopulated grid isn't left silently filtered by the
+    // previous run's selection while the toolbar shows "All".
+    filtersRef.current = DEFAULT_FILTERS;
     setState((prev) => ({ ...prev, isLoading: true, status: '' }));
 
     try {
@@ -319,8 +327,9 @@ const App: React.FC<AppProps> = ({
   };
 
   const handleBulkDownload = (): void => {
-    const base = state.filteredImages.length > 0 ? state.filteredImages : state.images;
-    void handleDownload(downloadable(base));
+    // Always act on the shown (filtered) set — never fall back to the unfiltered
+    // images, which would ignore the active filter.
+    void handleDownload(downloadable(state.filteredImages));
   };
 
   const handleSingleImageDownload = (image: ImageInfo): void => void handleDownload(image);
@@ -428,7 +437,7 @@ const App: React.FC<AppProps> = ({
 
   const handleToggleFavourite = async (image: ImageInfo): Promise<void> => {
     if (favouriteSrcs.has(image.src)) {
-      chrome.runtime.sendMessage({ type: 'REMOVE_FAVOURITE', src: image.src });
+      sendRuntimeMessage({ type: 'REMOVE_FAVOURITE', src: image.src });
       setFavouriteSrcs((prev) => {
         const next = new Set(prev);
         next.delete(image.src);
@@ -446,14 +455,27 @@ const App: React.FC<AppProps> = ({
       ...(image.thumbnailSrc ?? image.poster ? { thumbnailSrc: image.thumbnailSrc ?? image.poster } : {}),
       ...(sourcePage.title ? { sourcePageTitle: sourcePage.title } : {}),
     };
-    chrome.runtime.sendMessage({ type: 'ADD_FAVOURITE', entry });
+    sendRuntimeMessage({ type: 'ADD_FAVOURITE', entry });
     setFavouriteSrcs((prev) => new Set(prev).add(image.src));
   };
 
-  // Single source of truth for persistence: the popup owns writing settings.
+  // Single source of truth for the form's fields: the popup owns writing settings.
   const handleSettingsChange = (newSettings: SettingsData) => {
     setSettings(newSettings);
-    chrome.storage.sync.set({ settings: newSettings });
+    // Read-modify-write so a blind full-object save can't clobber the drag-owned
+    // bubble fields (position/placement/point) that the on-page bubble persists out
+    // of band — the settings form never edits those, so keep whatever's stored.
+    chrome.storage.sync.get(['settings'], (result) => {
+      const stored = withDefaults(result.settings);
+      chrome.storage.sync.set({
+        settings: {
+          ...newSettings,
+          bubblePosition: stored.bubblePosition,
+          bubblePanelPlacement: stored.bubblePanelPlacement,
+          bubblePanelPoint: stored.bubblePanelPoint,
+        },
+      });
+    });
   };
 
   const total = state.images.length;

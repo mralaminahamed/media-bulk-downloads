@@ -128,12 +128,18 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
   const origin = useRef({ x: 0, y: 0 });
   const moved = useRef(0);
 
+  // Latest settings, refreshed by the sync listener below, so a deep scan started
+  // after the user edits the caps honours the new values rather than the frozen
+  // mount-time snapshot.
+  const settingsRef = useRef(initialSettings);
+
   // Deep scan runs in-page here (no messaging); track the in-flight controller so
   // the Stop button can abort it.
   const deepScanAbortRef = useRef<AbortController | null>(null);
   const deepScanLocal = useCallback((onProgress: (p: DeepScanProgress) => void): Promise<ImageInfo[]> => {
     const ac = new AbortController();
     deepScanAbortRef.current = ac;
+    const s = settingsRef.current;
     return startDeepScan(
       (found, scrolls, elapsedMs, reason) => {
         const p: DeepScanProgress = { type: 'DEEP_SCAN_PROGRESS', found, scrolls, elapsedMs };
@@ -143,13 +149,13 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
       ac.signal,
       // Honour the user's configured caps + Load-more toggle, same as the popup path.
       {
-        maxItems: initialSettings.deepScanMaxItems,
-        maxMs: initialSettings.deepScanMaxSeconds * 1000,
-        maxScrolls: initialSettings.deepScanMaxScrolls,
-        clickLoadMore: initialSettings.deepScanClickLoadMore,
+        maxItems: s.deepScanMaxItems,
+        maxMs: s.deepScanMaxSeconds * 1000,
+        maxScrolls: s.deepScanMaxScrolls,
+        clickLoadMore: s.deepScanClickLoadMore,
       },
     );
-  }, [initialSettings]);
+  }, []);
   const abortDeepScanLocal = useCallback(() => {
     deepScanAbortRef.current?.abort();
   }, []);
@@ -163,6 +169,7 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
     const listener = (changes: { [k: string]: chrome.storage.StorageChange }, area: string) => {
       if (area !== 'sync' || !changes.settings) return;
       const next = withDefaults(changes.settings.newValue as Partial<SettingsData>);
+      settingsRef.current = next; // keep deep-scan caps + Load-more toggle live
       setCorner(next.bubblePosition.corner);
       setPos({ x: next.bubblePosition.x, y: next.bubblePosition.y });
       setSize({ w: next.bubbleWidth, h: next.bubbleHeight });

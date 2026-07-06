@@ -15,6 +15,23 @@ export async function getImageFileSize(url: string): Promise<number> {
     }
 }
 
+/**
+ * Fire-and-forget runtime message: reads any rejection so a momentarily-asleep
+ * background worker doesn't surface an "Unchecked runtime.lastError" in the console.
+ * Use for messages whose response we don't consume.
+ */
+export function sendRuntimeMessage(message: unknown): void {
+    // MV3's promise form rejects when no receiver is listening; read that rejection
+    // so it doesn't surface as an Unchecked lastError. Guard the return value —
+    // some environments (and test mocks) hand back void, with nothing to catch.
+    const result = chrome.runtime.sendMessage(message) as Promise<unknown> | undefined;
+    if (result && typeof result.then === 'function') {
+        result.catch(() => {
+            /* no receiver / background asleep */
+        });
+    }
+}
+
 /** Compact relative time: "now", "5m", "3h", "2d", else a date. */
 export function relativeTime(ms: number): string {
     const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
