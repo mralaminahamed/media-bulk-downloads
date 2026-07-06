@@ -107,7 +107,7 @@ so it always fires — either as the real handler for an unrecognized host, or a
 the fallback when a dedicated resolver upstream matched the host but returned no
 candidate for that particular path.
 
-### Extraction sources (`shared/extract.ts`)
+### Extraction sources (`shared/collection/extract.ts`)
 
 | Source             | Attributes / pattern                                                                                        |
 |--------------------|-------------------------------------------------------------------------------------------------------------|
@@ -151,7 +151,7 @@ Twitter, Instagram, Unsplash, Wallhaven, and Behance each get a **dedicated** re
 every other host — including the 40+ CDN families in the coverage benchmark —
 falls through to the generic resolver.
 
-## Generic resolver: URL intelligence (`shared/imageUrl.ts`)
+## Generic resolver: URL intelligence (`shared/collection/imageUrl.ts`)
 
 Reached for any host no dedicated resolver above claims, **plus** the rare
 fallthrough case: `twitterResolver.resolve()` returns `[]` for a

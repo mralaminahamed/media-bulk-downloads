@@ -7,7 +7,7 @@ description: Add or modify a platform/CDN media resolver (upgrade a thumbnail UR
 
 The collection engine turns a raw URL into `MediaCandidate[]`. Two layers:
 
-1. **Generic upgrades** — `src/extension/shared/imageUrl.ts`:
+1. **Generic upgrades** — `src/extension/shared/collection/imageUrl.ts`:
    `deproxy()` (unwrap Next.js/weserv/Cloudinary), `upgradeToOriginal()` (rewrite
    CDN thumbnails to full size), `parseUrlDimensions()`, `detectType()`,
    `looksLikeMediaUrl()`. Add host-agnostic CDN rules here.
@@ -53,7 +53,7 @@ interface MediaCandidate {
 - Shape-validate any page-controlled value (e.g. a `data-*` id) before putting it
   in a URL path (`/^[a-z0-9]+$/i`).
 - Add tests in `tests/extension/shared/resolvers/<site>.test.ts` (call the
-  resolver directly) and, for collection wiring, `tests/extension/collect.test.ts`.
+  resolver directly) and, for collection wiring, `tests/extension/content/collect.test.ts`.
 - Verify live: bundle the real `collectMedia()` into an IIFE exposing
   `window.__bench` via a Vite/esbuild lib build, inject it into the target page
   with the browser javascript tool, and run it once. Strip query strings from any

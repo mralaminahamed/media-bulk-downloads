@@ -50,7 +50,7 @@ flowchart LR
   I -->|yes| BUB["setPopup('')<br/>→ click fires action.onClicked<br/>→ TOGGLE_BUBBLE to content"]
 ```
 
-`isInjectableUrl` (`src/extension/background.ts`) passes only `http(s):` and
+`isInjectableUrl` (`src/extension/background/index.ts`) passes only `http(s):` and
 `file:` URLs, and explicitly rejects three store hosts even though they're
 `https:`: `chromewebstore.google.com`, `chrome.google.com/webstore`, and
 `addons.mozilla.org`. So even with the bubble enabled, those pages (and any

@@ -54,7 +54,7 @@ sequenceDiagram
 `REMOVE_FAVOURITE` and `CLEAR_FAVOURITES` follow the identical single-writer →
 `storage.onChanged` path — only the mutation inside `favourites.ts` differs.
 
-Implementation: `src/extension/shared/favourites.ts`,
+Implementation: `src/extension/shared/storage/favourites.ts`,
 `src/extension/popup/components/FavouritesPanel.tsx`, and the star controls in
 `src/extension/popup/components/ImageList.tsx`.
 

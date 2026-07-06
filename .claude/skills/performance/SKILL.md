@@ -20,7 +20,7 @@ media sets, so cost is bounded deliberately.
 - **`collectMedia()` scans every element** for CSS backgrounds
   (`querySelectorAll('*')` + `getComputedStyle`). It's the dominant cost on huge
   pages and re-runs each deep-scan round — keep it lean; don't add per-element work.
-- **Deep scan is bounded** (`shared/deepScan.ts`): `maxScrolls: 40`, `maxMs: 20000`,
+- **Deep scan is bounded** (`shared/collection/deepScan.ts`): `maxScrolls: 40`, `maxMs: 20000`,
   `maxItems: 1000` (enforced inside `merge()`), `idleRounds: 3`; `waitForQuiet` has
   a 2s hard cap. Keep these ceilings.
 - **Remote size enrichment** (`getImageFileSize`, popup only, user-initiated) is
@@ -38,7 +38,7 @@ media sets, so cost is bounded deliberately.
 
 ## References
 
-- Deep scan (this repo) — `src/extension/shared/deepScan.ts`, `docs/guides/deep-scan.md`
+- Deep scan (this repo) — `src/extension/shared/collection/deepScan.ts`, `docs/guides/deep-scan.md`
 - Collection pipeline — `docs/guides/collection-pipeline.md`
 - MV3 service worker lifecycle — https://developer.chrome.com/docs/extensions/develop/concepts/service-workers
 - `getComputedStyle` cost — https://developer.mozilla.org/en-US/docs/Web/API/Window/getComputedStyle

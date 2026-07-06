@@ -23,7 +23,7 @@ flowchart TB
 
   subgraph PAGE["Web page"]
     CS["Content script — content.ts"]
-    COL["collectMedia() — collect.ts + shared/extract.ts"]
+    COL["collectMedia() — collect.ts + shared/collection/extract.ts"]
     DS["deepScanRunner.ts"]
     BUB["Bubble — React in Shadow DOM (bubble/)"]
   end
@@ -64,19 +64,19 @@ readability.
 | `background.ts`                                    | Message router (15 types), per-tab badge, download + history recording, resolve-originals batching, icon-click routing, popup-vs-bubble mode |
 | `content.ts`                                       | Answers `GET_IMAGES`/`DEEP_SCAN`, mounts the bubble, relays `TOGGLE_BUBBLE`                                                                  |
 | `collect.ts`                                       | `collectMedia()` — walks the DOM (top doc + open shadow roots + same-origin iframes, plus `<meta>`/`<link preload>` head sources) into `MediaItem[]` |
-| `shared/extract.ts`                                | Deep DOM extraction: lazy `data-*`, best-srcset, `<noscript>`, gallery `<a href>`                                                            |
-| `shared/imageUrl.ts`                               | `deproxy` + `upgradeToOriginal` (CDN rules), type/dimension parsing                                                                          |
-| `shared/mediaType.ts`                              | Video/audio type detection + undownloadable-media skip list                                                                                  |
-| `shared/deepScan.ts`                               | Pure, bounded, abortable deep-scan loop                                                                                                      |
+| `shared/collection/extract.ts`                                | Deep DOM extraction: lazy `data-*`, best-srcset, `<noscript>`, gallery `<a href>`                                                            |
+| `shared/collection/imageUrl.ts`                               | `deproxy` + `upgradeToOriginal` (CDN rules), type/dimension parsing                                                                          |
+| `shared/collection/mediaType.ts`                              | Video/audio type detection + undownloadable-media skip list                                                                                  |
+| `shared/collection/deepScan.ts`                               | Pure, bounded, abortable deep-scan loop                                                                                                      |
 | `content/deepScanRunner.ts`                        | Binds the loop to the real DOM (page + nested-scroller scrolling, opt-in load-more clicking, MutationObserver); reads Settings caps          |
-| `shared/deep-scan-active-tab.ts`                   | Popup client that drives deep scan over messaging                                                                                            |
-| `shared/collect-active-tab.ts`                     | Popup client that fetches `GET_IMAGES` from the active tab's content script                                                                  |
-| `shared/resolve-originals-active.ts`               | Popup client that sends `RESOLVE_ORIGINALS` and unwraps the resolved-URL map                                                                 |
-| `shared/filters.ts`                                | `filterImagesBySettings` (badge/eligibility) + `applyToolbarFilters`                                                                         |
-| `shared/settings.ts`                               | `DEFAULT_SETTINGS` + `withDefaults()` — tolerant merge of stored settings over defaults                                                      |
-| `shared/paths.ts`                                  | Download-path token expansion (`{host}`/`{domain}`/`{date}`/`{kind}`) + path sanitizing                                                      |
-| `shared/history.ts`                                | `HistoryEntry[]` persistence in `chrome.storage.local` — merge/dedup/cap, serialized writes                                                  |
-| `shared/favourites.ts`                             | `FavouriteEntry[]` persistence in `chrome.storage.local` — same merge/dedup/cap shape                                                        |
+| `shared/active-tab/deep-scan-active-tab.ts`                   | Popup client that drives deep scan over messaging                                                                                            |
+| `shared/active-tab/collect-active-tab.ts`                     | Popup client that fetches `GET_IMAGES` from the active tab's content script                                                                  |
+| `shared/active-tab/resolve-originals-active.ts`               | Popup client that sends `RESOLVE_ORIGINALS` and unwraps the resolved-URL map                                                                 |
+| `shared/collection/filters.ts`                                | `filterImagesBySettings` (badge/eligibility) + `applyToolbarFilters`                                                                         |
+| `shared/storage/settings.ts`                               | `DEFAULT_SETTINGS` + `withDefaults()` — tolerant merge of stored settings over defaults                                                      |
+| `shared/collection/paths.ts`                                  | Download-path token expansion (`{host}`/`{domain}`/`{date}`/`{kind}`) + path sanitizing                                                      |
+| `shared/storage/history.ts`                                | `HistoryEntry[]` persistence in `chrome.storage.local` — merge/dedup/cap, serialized writes                                                  |
+| `shared/storage/favourites.ts`                             | `FavouriteEntry[]` persistence in `chrome.storage.local` — same merge/dedup/cap shape                                                        |
 | `shared/resolvers/index.ts`                        | Resolver `REGISTRY` (`twitterResolver, unsplashResolver, wallhavenResolver, behanceResolver, genericResolver`) + `resolve()` dispatch        |
 | `shared/resolvers/{twitter,unsplash,wallhaven,behance}.ts` | Per-host, synchronous, network-free URL upgrades; attach `resolveHint`/`unresolvedVideo` when a better original needs a network fetch |
 | `shared/resolvers/generic.ts`                      | Fallback resolver: today's de-proxy + CDN-rule engine, image-only                                                                            |

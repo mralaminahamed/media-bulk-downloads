@@ -7,7 +7,7 @@ discovers on real pages.
 
 ## Method
 
-- The real `src/extension/collect.ts` (with `extract.ts` / `imageUrl.ts` /
+- The real `src/extension/content/collect.ts` (with `extract.ts` / `imageUrl.ts` /
   `mediaType.ts` / `resolvers/*`) is bundled unchanged into an IIFE
   (`esbuild --bundle --format=iife --alias:@=./src`), injected into the page, and
   run once. No source is mocked or altered.
