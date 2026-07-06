@@ -17,6 +17,7 @@ import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates, be
 import { resolve, MediaCandidate } from '@/extension/shared/resolvers';
 import { twitterGifCandidate, twitterVideoPending } from '@/extension/shared/resolvers/twitter';
 import { instagramPageMedia } from '@/extension/shared/resolvers/instagram';
+import { youtubeVideoId } from '@/extension/shared/resolvers/youtube';
 
 /** Determines if a URL is a base64-encoded image. */
 export function isBase64Image(src: string): boolean {
@@ -424,6 +425,11 @@ export function collectMedia(): MediaItem[] {
     anchors.forEach((a) => {
       const c = galleryLinkCandidate(a);
       if (c) collectImageInfo(c.url, '', 0, 0, c.thumbnailSrc, a.querySelector('img') ?? a);
+      // A link to a YouTube video (even a bare text link, no <img>) — surface the
+      // video's public poster thumbnail. Gated to real video ids so ordinary
+      // links don't get force-collected as images.
+      const href = a.getAttribute('href');
+      if (href && youtubeVideoId(resolveUrl(href))) collectImageInfo(href, '', 0, 0, undefined, a);
     });
 
     // <noscript> fallbacks (real image often lives here for no-JS users).
@@ -436,6 +442,12 @@ export function collectMedia(): MediaItem[] {
     // skip those. Nested same-origin frames are reached because their document is
     // scanned in turn.
     iframes.forEach((frame) => {
+      // A YouTube <iframe> embed (cross-origin, so its document is unreachable
+      // below) still exposes the video id in its src — surface the public poster.
+      // Covers lazy embeds that keep the real URL in data-src until scrolled.
+      const embedSrc = frame.getAttribute('src') || frame.getAttribute('data-src') || '';
+      if (embedSrc && youtubeVideoId(resolveUrl(embedSrc))) collectImageInfo(embedSrc, '', 0, 0, undefined, frame);
+
       let doc: Document | null;
       try {
         doc = frame.contentDocument;

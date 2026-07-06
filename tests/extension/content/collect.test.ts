@@ -359,6 +359,42 @@ describe('collectMedia — same-origin iframes', () => {
   });
 });
 
+describe('collectMedia — YouTube posters', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+  const ID = 'dQw4w9WgXcQ';
+  const HQ = `https://i.ytimg.com/vi/${ID}/hqdefault.jpg`;
+
+  it('turns a YouTube embed iframe into its public poster thumbnail', () => {
+    setBody(`<iframe src="https://www.youtube.com/embed/${ID}?rel=0"></iframe>`);
+    expect(collectMedia().map((i) => i.src)).toContain(HQ);
+  });
+
+  it('reads a lazy embed that keeps its URL in data-src', () => {
+    setBody(`<iframe data-src="https://www.youtube-nocookie.com/embed/${ID}"></iframe>`);
+    expect(collectMedia().map((i) => i.src)).toContain(HQ);
+  });
+
+  it('surfaces the poster for a bare text link to a video (no <img>)', () => {
+    setBody(`<a href="https://youtu.be/${ID}">watch this</a>`);
+    expect(collectMedia().map((i) => i.src)).toContain(HQ);
+  });
+
+  it('does not force-collect a non-YouTube iframe or an ordinary link', () => {
+    setBody('<iframe src="https://maps.example.com/embed"></iframe><a href="https://ex.com/page">read</a>');
+    const srcs = collectMedia().map((i) => i.src);
+    expect(srcs).not.toContain('https://maps.example.com/embed');
+    expect(srcs).not.toContain('https://ex.com/page');
+  });
+
+  it('dedupes an embed and a link that point at the same video', () => {
+    setBody(
+      `<iframe src="https://www.youtube.com/embed/${ID}"></iframe>` +
+      `<a href="https://www.youtube.com/watch?v=${ID}">same video</a>`,
+    );
+    expect(collectMedia().filter((i) => i.src === HQ)).toHaveLength(1);
+  });
+});
+
 describe('collectMedia — shadow DOM', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
