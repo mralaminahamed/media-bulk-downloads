@@ -411,13 +411,15 @@ select.field {
   }
 }
 
-/* Icon-prefixed search input. .field's `padding: 0 10px` shorthand outranks the
-   Tailwind `pl-8` utility (an unlayered rule beats the utilities layer in v4), so
-   the query text would slide under the leading magnifier icon. Reserve the left
-   room here at higher specificity — the same fix select.field uses on the right
-   for its chevron. */
+/* Icon-prefixed search input. .field's `padding: 0 10px` shorthand and its
+   `height: 34px` both outrank the input's Tailwind `pl-8` / `h-[30px]` utilities
+   (an unlayered rule beats the utilities layer in v4), so the query text would
+   slide under the leading magnifier icon and the box would stand 4px taller than
+   the 30px sort <select> beside it. Reserve the left room and pin the row height
+   here at higher specificity — the same fix select.field uses for its chevron. */
 input[type="search"].field {
   padding-left: 32px;
+  height: 30px;
 }
 
 /* Multi-line variant. .field hard-sets height:34px, which would crush a
