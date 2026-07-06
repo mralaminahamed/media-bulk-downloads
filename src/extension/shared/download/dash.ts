@@ -216,3 +216,37 @@ export function expandSegments(rep: DashRepresentation, durationSec: number): { 
   }
   return { initUri, segmentUris: uris };
 }
+
+// ---- selection + guards ---------------------------------------------------
+
+export interface DashCaptureOptions {
+  /** 'highest' (default) or 'lowest' bandwidth, or a target height (e.g. 720). */
+  quality?: 'highest' | 'lowest' | number;
+  maxBytes?: number;
+}
+
+/** Picks the representation matching the quality preference (mirrors hls.ts). */
+export function selectRepresentation(
+  reps: DashRepresentation[],
+  quality: DashCaptureOptions['quality'] = 'highest',
+): DashRepresentation | undefined {
+  if (!reps.length) return undefined;
+  const byBw = [...reps].sort((a, b) => a.bandwidth - b.bandwidth);
+  if (quality === 'lowest') return byBw[0];
+  if (typeof quality === 'number') {
+    const withH = reps.filter((r) => r.height);
+    if (withH.length) {
+      return withH.sort(
+        (a, b) => Math.abs(a.height! - quality) - Math.abs(b.height! - quality) || b.bandwidth - a.bandwidth,
+      )[0];
+    }
+  }
+  return byBw[byBw.length - 1];
+}
+
+/** Refuses live / DRM / video-less manifests before any bytes are fetched. */
+export function assertDownloadable(m: DashManifest): void {
+  if (m.isLive) throw new DashError('live', 'This is a live (dynamic) stream — there is no single file to save.');
+  if (m.hasDrm) throw new DashError('drm', 'This stream is DRM-protected and cannot be captured.');
+  if (!m.video.length) throw new DashError('no-representations', 'The manifest has no video representation.');
+}

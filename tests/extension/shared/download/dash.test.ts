@@ -1,4 +1,12 @@
-import { parseIso8601Duration, substituteTemplate, parseMpd, expandSegments, DashRepresentation } from '@/extension/shared/download/dash';
+import {
+  parseIso8601Duration,
+  substituteTemplate,
+  parseMpd,
+  expandSegments,
+  DashRepresentation,
+  selectRepresentation,
+  assertDownloadable,
+} from '@/extension/shared/download/dash';
 
 describe('parseIso8601Duration', () => {
   it('parses hours/minutes/seconds and fractions', () => {
@@ -109,5 +117,40 @@ describe('expandSegments', () => {
 
   it('throws unsupported when there is no media template', () => {
     expect(() => expandSegments(rep({ initialization: 'i.m4s' }), 10)).toThrow(/unsupported|SegmentList|SegmentBase/i);
+  });
+});
+
+describe('selectRepresentation', () => {
+  const v = (id: string, bandwidth: number, height?: number): DashRepresentation => ({
+    id, bandwidth, height, contentType: 'video', baseUrl: 'https://x/', template: { startNumber: 1, timescale: 1 },
+  });
+  it('picks highest bandwidth by default, lowest on request', () => {
+    const reps = [v('a', 100), v('c', 900), v('b', 500)];
+    expect(selectRepresentation(reps)?.id).toBe('c');
+    expect(selectRepresentation(reps, 'lowest')?.id).toBe('a');
+  });
+  it('picks the representation closest to a target height', () => {
+    const reps = [v('a', 100, 360), v('b', 900, 1080), v('c', 500, 720)];
+    expect(selectRepresentation(reps, 720)?.id).toBe('c');
+  });
+  it('returns undefined for an empty list', () => {
+    expect(selectRepresentation([])).toBeUndefined();
+  });
+});
+
+describe('assertDownloadable', () => {
+  const base = { isLive: false, hasDrm: false, durationSec: 6, audio: [] as never[] };
+  const withVideo = [{ id: 'v', bandwidth: 1, contentType: 'video', baseUrl: 'https://x/', template: { startNumber: 1, timescale: 1 } }] as never;
+  it('refuses a live manifest', () => {
+    expect(() => assertDownloadable({ ...base, isLive: true, video: withVideo })).toThrow(/live/i);
+  });
+  it('refuses a DRM manifest', () => {
+    expect(() => assertDownloadable({ ...base, hasDrm: true, video: withVideo })).toThrow(/DRM/i);
+  });
+  it('refuses a manifest with no video representation', () => {
+    expect(() => assertDownloadable({ ...base, video: [] as never })).toThrow(/no video|representation/i);
+  });
+  it('accepts a clear VOD manifest with video', () => {
+    expect(() => assertDownloadable({ ...base, video: withVideo })).not.toThrow();
   });
 });
