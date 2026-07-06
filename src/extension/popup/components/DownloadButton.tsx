@@ -1,0 +1,93 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowDownTrayIcon, ArchiveBoxArrowDownIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+
+interface DownloadButtonProps {
+  /** Primary button text, e.g. "Download 42" or "Download selected 5". */
+  label: string;
+  disabled?: boolean;
+  /** Default action — download as separate files. */
+  onDownload: () => void;
+  /** Bundle the same set into a single ZIP archive. */
+  onZip: () => void;
+}
+
+/**
+ * Split primary button: click the main area to download separate files (the
+ * long-standing default), or open the caret menu to download the same set as a
+ * ZIP archive. The menu closes on outside-click, Escape, or a selection.
+ */
+export const DownloadButton: React.FC<DownloadButtonProps> = ({ label, disabled, onDownload, onZip }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e: MouseEvent): void => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const choose = (fn: () => void) => (): void => {
+    setOpen(false);
+    fn();
+  };
+
+  return (
+    <div ref={ref} className="relative flex-none">
+      <div className="flex">
+        <button
+          onClick={onDownload}
+          disabled={disabled}
+          className="btn btn-primary rounded-r-none"
+          title="Download as separate files"
+        >
+          <ArrowDownTrayIcon className="h-4 w-4" />
+          <span>{label}</span>
+        </button>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          disabled={disabled}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label="More download options"
+          className="btn btn-primary rounded-l-none border-l border-l-white/25 px-2"
+        >
+          <ChevronDownIcon className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 bottom-full mb-1.5 w-56 overflow-hidden rounded-(--radius-sm) border hairline bg-(--panel) py-1 shadow-lg"
+        >
+          <button
+            role="menuitem"
+            onClick={choose(onDownload)}
+            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-(--ink) hover:bg-(--panel-2)"
+          >
+            <ArrowDownTrayIcon className="h-4 w-4 shrink-0 text-(--ink-2)" />
+            <span>As separate files</span>
+          </button>
+          <button
+            role="menuitem"
+            onClick={choose(onZip)}
+            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-(--ink) hover:bg-(--panel-2)"
+          >
+            <ArchiveBoxArrowDownIcon className="h-4 w-4 shrink-0 text-(--ink-2)" />
+            <span>As ZIP archive</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};

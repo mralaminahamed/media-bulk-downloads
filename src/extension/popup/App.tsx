@@ -4,11 +4,12 @@ import Settings from './components/Settings';
 import HistoryPanel from './components/HistoryPanel';
 import FavouritesPanel from './components/FavouritesPanel';
 import FilterToolbar, { DEFAULT_FILTERS } from './components/FilterToolbar';
+import { DownloadButton } from './components/DownloadButton';
 import { BrandMark } from '../components/BrandMark';
 import { SkeletonGrid } from './components/states/SkeletonGrid';
 import { EmptyState } from './components/states/EmptyState';
 import { ErrorState } from './components/states/ErrorState';
-import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
+import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, DownloadZipMessage, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
 import { filterImagesBySettings, applyToolbarFilters } from '../shared/collection/filters';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
 import { collectFromActiveTab } from '../shared/active-tab/collect-active-tab';
@@ -16,8 +17,9 @@ import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/active-tab/
 import { requestResolveOriginals } from '../shared/active-tab/resolve-originals-active';
 import { downloadedSrcSet, HISTORY_KEY } from '../shared/storage/history';
 import { favouriteSrcSet, FAVOURITES_KEY } from '../shared/storage/favourites';
+import { buildZip, zipFileName } from '../shared/download/zip';
 import { getImageFileSize, mapWithConcurrency, sendRuntimeMessage } from './utils';
-import { Cog6ToothIcon, ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
+import { Cog6ToothIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 
 // Concurrent HEAD requests when enriching remote image sizes.
 const SIZE_FETCH_CONCURRENCY = 6;
@@ -364,6 +366,50 @@ const App: React.FC<AppProps> = ({
     if (chosen.length) void handleDownload(chosen);
   };
 
+  // ── ZIP download ───────────────────────────────────────────────────────────
+  // Fetch + zip the media in this (extension) context — fetch here bypasses page
+  // CORS — then hand the bytes to the background to write via chrome.downloads.
+  const handleDownloadZip = async (images: ImageInfo[]): Promise<void> => {
+    if (!images.length) return;
+    setState((prev) => ({ ...prev, status: `Zipping 0/${images.length}…` }));
+
+    const sourcePage = await currentSourcePage();
+    const { bytes, ok, failed } = await buildZip(images, settings, sourcePage.url, {
+      fetch: (...args) => fetch(...args),
+      onProgress: (done, total) => setState((prev) => ({ ...prev, status: `Zipping ${done}/${total}…` })),
+    });
+
+    // Nothing could be fetched (every host blocked the hotlink / offline) — fall
+    // back to individual downloads, which go through the browser's own fetch.
+    if (ok === 0) {
+      void handleDownload(images);
+      return;
+    }
+
+    // Items that failed to fetch fall back to a normal per-file download
+    // (fire-and-forget; the ZIP response owns the status line).
+    if (failed.length) {
+      const fallback: DownloadMessage = { type: 'DOWNLOAD_IMAGES', images: failed, sourcePage };
+      chrome.runtime.sendMessage(fallback);
+    }
+
+    const filename = zipFileName(sourcePage.url);
+    const message: DownloadZipMessage = { type: 'DOWNLOAD_ZIP', bytes, filename };
+    chrome.runtime.sendMessage(message, (response: DownloadResponse) => {
+      const error = chrome.runtime.lastError;
+      const base = error ? `Error: ${error.message || 'unknown error'}` : response.message;
+      const note = failed.length ? ` ${failed.length} couldn't be fetched — downloading those individually.` : '';
+      setState((prev) => ({ ...prev, status: `${base}${note}` }));
+    });
+  };
+
+  const handleBulkDownloadZip = (): void => void handleDownloadZip(downloadable(state.filteredImages));
+
+  const handleDownloadSelectedZip = (): void => {
+    const chosen = downloadable(state.filteredImages).filter((i) => selectedSrcs.has(i.src));
+    if (chosen.length) void handleDownloadZip(chosen);
+  };
+
   // Keep the selection scoped to what's currently shown: drop any ticked src that
   // a filter change or rescan removed from the downloadable view.
   useEffect(() => {
@@ -640,15 +686,18 @@ const App: React.FC<AppProps> = ({
             </button>
           )}
           {selectedCount > 0 ? (
-            <button onClick={handleDownloadSelected} className="btn btn-primary flex-none" title="Download the selected items">
-              <ArrowDownTrayIcon className="h-4 w-4" />
-              <span>Download selected {selectedCount}</span>
-            </button>
+            <DownloadButton
+              label={`Download selected ${selectedCount}`}
+              onDownload={handleDownloadSelected}
+              onZip={handleDownloadSelectedZip}
+            />
           ) : (
-          <button onClick={handleBulkDownload} disabled={downloadableShown === 0} className="btn btn-primary flex-none">
-            <ArrowDownTrayIcon className="h-4 w-4" />
-            <span>Download{downloadableShown > 0 ? ` ${downloadableShown}` : ''}</span>
-          </button>
+            <DownloadButton
+              label={`Download${downloadableShown > 0 ? ` ${downloadableShown}` : ''}`}
+              disabled={downloadableShown === 0}
+              onDownload={handleBulkDownload}
+              onZip={handleBulkDownloadZip}
+            />
           )}
         </footer>
       )}

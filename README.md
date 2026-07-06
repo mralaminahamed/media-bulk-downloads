@@ -59,7 +59,9 @@ It reads only what the page already loaded, so nothing leaves your device.
 **Filters and downloads cleanly**
 - Filter by **kind** (image / video / audio), **format** (jpg, png, gif, webp, mp4,
   webm, mp3…), and **size**
-- Download one item or the entire filtered set
+- Download one item or the entire filtered set — as separate files or bundled
+  into a single **ZIP archive** (same folder layout inside; items a CDN blocks
+  fall back to individual downloads automatically)
 - Correct file extensions (never a `.jpg` on a real `.png`)
 - Configurable naming scheme and a **download-path template** — `{host}`,
   `{domain}`, `{date}`, `{kind}` tokens save each site to its own folder
@@ -121,6 +123,8 @@ package with `yarn lint:firefox`. To load it by hand:
 2. **Browse the grid** — hover to preview, click a tile for the full-size view.
 3. **Filter** by kind, format, or file size.
 4. **Download** one item (click it) or every filtered item (**Download all**).
+   Use the button's caret to grab the set **As ZIP archive** instead of separate
+   files.
 5. **Deep scan** (optional) — trigger the auto-scroll to pull in media on
    infinite-scroll pages. Tune its limits — and enable optional **“Load more”**
    clicking — under **Settings → Deep scan**.
