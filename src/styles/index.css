@@ -1,8 +1,11 @@
 @import "tailwindcss";
 
-/* Keep the JS theme (brand color ramps, animations, forms plugin) via the v4
-   legacy config bridge. */
-@config "../../tailwind.config.js";
+/* Load the @tailwindcss/forms plugin the v4-native way. The old
+   tailwind.config.js existed only to register this plugin — its color ramps,
+   keyframe animations, darkMode and content globs were all unused (this file
+   drives the theme through CSS custom properties and raw @media queries), so
+   the config file was removed. */
+@plugin "@tailwindcss/forms";
 
 /* ── Design tokens ───────────────────────────────────────────────────────────
    "Precision utility": cool paper canvas, ink text, a single indigo accent,
@@ -381,6 +384,50 @@ input.num[type="number"]::-webkit-inner-spin-button {
 }
 .field::placeholder {
   color: var(--ink-3);
+}
+.field:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Native <select> on .field. The @tailwindcss/forms plugin injects a fixed grey
+   (#6b7280) caret that ignores the theme, and .field's padding:0 10px overrides
+   the plugin's right-padding so long options collide with it. Replace both:
+   our own chevron tinted to --ink-3 (theme-aware via the dark override below),
+   with room reserved on the right so text never runs under it. */
+select.field {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 30px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='16'%20height='16'%20viewBox='0%200%2016%2016'%20fill='none'%20stroke='%239a9ca6'%20stroke-width='1.6'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M4%206l4%204%204-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  background-size: 15px 15px;
+}
+@media (prefers-color-scheme: dark) {
+  select.field {
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='16'%20height='16'%20viewBox='0%200%2016%2016'%20fill='none'%20stroke='%236d6f7c'%20stroke-width='1.6'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M4%206l4%204%204-4'/%3E%3C/svg%3E");
+  }
+}
+
+/* Multi-line variant. .field hard-sets height:34px, which would crush a
+   <textarea> to one line — give textareas their own sizing while keeping the
+   brand border, focus ring, and radius. */
+textarea.field {
+  height: auto;
+  min-height: 76px;
+  padding: 8px 10px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+/* Tint all native checkbox / radio / range controls with the brand accent, so
+   any control (not just the ones styled inline) reads on-brand. */
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+  accent-color: var(--brand-ink);
 }
 
 /* Toggle switch. */
