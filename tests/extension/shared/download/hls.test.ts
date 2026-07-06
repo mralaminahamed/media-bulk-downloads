@@ -420,4 +420,49 @@ a_seg0.ts
       code: 'demuxed-unsupported',
     });
   });
+
+  it('throws demuxed-unsupported when mp4box cannot mux the fMP4 tracks', async () => {
+    // Audio playlist advertises fMP4 (EXT-X-MAP present) so it clears the init
+    // guard, but its bytes are not decodable fMP4 → muxTracks throws → fail loud.
+    const AUDIO_BAD = `#EXTM3U
+#EXT-X-TARGETDURATION:6
+#EXT-X-MEDIA-SEQUENCE:0
+#EXT-X-MAP:URI="bad_init.m4a"
+#EXTINF:6.0,
+bad_seg.m4a
+#EXT-X-ENDLIST
+`;
+    const d: HlsDeps = {
+      ...deps(AUDIO_BAD),
+      fetchBytes: async (u: string) => {
+        const name = u.split('/').pop()!;
+        return name.startsWith('bad_') ? new Uint8Array([1, 2, 3, 4]) : fx(name);
+      },
+    };
+    await expect(captureHls('https://cdn.test/master.m3u8', d)).rejects.toMatchObject({
+      code: 'demuxed-unsupported',
+    });
+  });
+
+  it('keeps a muxed fMP4 (audio group present but no rendition URI) on the concat path', async () => {
+    // The audio rendition carries no URI → audio is muxed into the variant →
+    // selectAudioRendition returns undefined → the unchanged concat path runs.
+    const MASTER_MUXED = `#EXTM3U
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aud",NAME="English",DEFAULT=YES
+#EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=640x360,CODECS="avc1.640028,mp4a.40.2",AUDIO="aud"
+video/v.m3u8
+`;
+    const d: HlsDeps = {
+      fetchText: async (u: string) => {
+        if (u.endsWith('master.m3u8')) return MASTER_MUXED;
+        if (u.endsWith('v.m3u8')) return VIDEO_PL;
+        throw new Error(`no text ${u}`);
+      },
+      fetchBytes: async (u: string) => fx(u.split('/').pop()!),
+      decrypt: async (_k, _iv, data) => data,
+    };
+    const res = await captureHls('https://cdn.test/master.m3u8', d);
+    expect(res.muxedAudio).toBeFalsy();
+    expect(res.ext).toBe('mp4'); // fMP4 concat (EXT-X-MAP present), not muxed
+  });
 });

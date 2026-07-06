@@ -473,6 +473,12 @@ export async function captureHls(
   // Demuxed stream: audio ships as its own rendition (separate URI), so the video
   // variant is video-only. mp4box can recombine fMP4 tracks; anything else fails
   // loudly rather than saving a silent file.
+  //
+  // A demuxed stream that omits the STREAM-INF `AUDIO=` attribute (or whose
+  // renditions carry no URI) is HLS-non-conformant: we can't discover its audio
+  // and it falls through to the concat path below — a video-only file, same as
+  // this engine has always produced for such input. Not something we can fix
+  // without the manifest telling us the audio exists.
   if (audioRendition?.uri) {
     const audioText = await deps.fetchText(audioRendition.uri);
     const audioPlaylist = parseMediaPlaylist(audioText, audioRendition.uri);
