@@ -7,6 +7,18 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **HLS stream capture** (VOD): a `.m3u8` stream found on a page — a native
+  `<video src=…m3u8>`, a `<source>`, an `og:video`, or a direct link — is now
+  surfaced as a **capturable** item. **Capture** fetches the manifest and every
+  segment, decrypts standard **AES-128** as needed, and assembles them into one
+  file (MPEG-TS `.ts`, or `.mp4` for fragmented-MP4 streams) — no external tools.
+  It picks the ~720p variant by default and runs in the popup (so keep it open,
+  like the ZIP flow). **DRM** (Widevine/PlayReady/FairPlay, SAMPLE-AES) and
+  **live** streams are refused — capturing them would breach the stream's DRM and
+  the Chrome Web Store policy. Streams over the in-popup size cap report a clear
+  message. No new permissions. (Detection today is from the page DOM; passive
+  network detection of `hls.js`/blob players and unbounded-size capture are
+  planned follow-ups.)
 - **YouTube poster resolver**: a dedicated, policy-compliant resolver that turns
   any YouTube video reference — an embedded player `<iframe>` (including
   privacy-enhanced `youtube-nocookie` and lazy `data-src` embeds), or a link in

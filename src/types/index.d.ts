@@ -28,6 +28,12 @@ export interface ImageInfo {
   resolveHint?: ResolveHint;
   /** Twitter real video: poster is shown but the item is NOT downloadable until resolved. */
   unresolvedVideo?: boolean;
+  /** HLS stream: the `.m3u8` manifest URL. Present items are captured (fetch +
+   *  assemble segments) rather than downloaded as a single file; `src` holds the
+   *  manifest URL too, but it must never be handed to chrome.downloads directly. */
+  hlsManifest?: string;
+  /** Approximate stream duration in seconds, when known from the manifest. */
+  durationSec?: number;
 }
 
 /** Preferred name for a collected media item (image, video, or audio). */

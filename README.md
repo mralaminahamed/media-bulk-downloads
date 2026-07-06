@@ -43,6 +43,9 @@ It reads only what the page already loaded, so nothing leaves your device.
 - Gallery `<a href>` links (Reddit, Wallhaven, and similar)
 - Direct-file `<video>` and `<audio>` sources, plus direct `og:video` mp4s (news,
   product, and embed pages that expose the file only in a meta tag)
+- **HLS streams** (`.m3u8`) exposed in the page — captured (manifest + segments
+  fetched, AES-128 decrypted, assembled into one `.ts`/`.mp4`). DRM and live
+  streams are refused; see [Capture below](#hls-stream-capture)
 - **YouTube video posters** — an embedded player `<iframe>` or a link to a video
   (`watch`, `youtu.be`, `/embed`, `/shorts`, `/live`, `youtube-nocookie`) becomes
   its downloadable poster thumbnail, even with no `<img>` on the page
@@ -200,6 +203,21 @@ upgrade rules for:
 | Wallhaven                          | PNG/GIF detection → correct extension               |
 
 …and 50+ more CDN families — see the live [coverage benchmark](./docs/BENCHMARK.md).
+
+## HLS stream capture
+
+When a page exposes an HLS manifest (`.m3u8`) — a native `<video>`/`<source>`,
+an `og:video`, or a direct link — it appears in the grid tagged **HLS · capture**.
+**Capture** fetches the manifest and every segment, decrypts standard **AES-128**
+where present, and assembles them into a single file: MPEG-TS `.ts`, or `.mp4` for
+fragmented-MP4 streams. It selects the ~720p variant by default and runs in the
+popup, so keep the popup open while it works (like the ZIP flow).
+
+**Not captured, by design:** **DRM** (Widevine / PlayReady / FairPlay,
+`SAMPLE-AES`) and **live** streams — capturing them would breach the stream's DRM
+and Chrome Web Store policy. Streams larger than the in-popup size cap report a
+message rather than exhausting memory. Detection today is from the page DOM;
+passive network detection (`hls.js` / blob players) is a planned follow-up.
 
 ## Tech stack
 

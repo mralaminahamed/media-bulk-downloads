@@ -66,6 +66,12 @@ export function isUndownloadableMedia(url: string): boolean {
   return /^blob:/i.test(url) || /\.(m3u8|mpd)(?:[?#]|$)/i.test(url);
 }
 
+/** True for an HLS manifest URL — not a single file, but capturable via the HLS
+ *  engine (fetch + assemble segments). DASH (.mpd) is not yet captured. */
+export function isHlsManifest(url: string): boolean {
+  return /\.m3u8(?:[?#]|$)/i.test(url);
+}
+
 /** File extension for a canonical av type, or null if unrecognized. */
 export function avExtensionForType(type: string): string | null {
   return VIDEO_TYPES[type] ?? AUDIO_TYPES[type] ?? null;

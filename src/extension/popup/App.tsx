@@ -20,6 +20,8 @@ import { downloadedSrcSet, HISTORY_KEY } from '../shared/storage/history';
 import { favouriteSrcSet, FAVOURITES_KEY } from '../shared/storage/favourites';
 import { buildZip, zipFileName } from '../shared/download/zip';
 import { convertImage, isConvertible } from '../shared/download/convert';
+import { captureHls, HlsError } from '../shared/download/hls';
+import { browserHlsDeps } from '../shared/download/hls-webcrypto';
 import { buildDownloadFilename } from '../shared/collection/download-name';
 import { hostFromUrl, registrableDomain, todayISO } from '../shared/collection/paths';
 import { copyText, downloadText, getImageFileSize, mapWithConcurrency, sendRuntimeMessage } from './utils';
@@ -42,8 +44,32 @@ function deepScanCapMessage(reason: DeepScanStopReason | undefined, count: numbe
   }
 }
 
-/** Items the user can actually download now — pending videos are excluded until resolved. */
-const downloadable = (list: ImageInfo[]): ImageInfo[] => list.filter((i) => !i.unresolvedVideo);
+// Cap in-popup HLS capture: the assembled bytes live in the popup's memory, so
+// bound them. Streams over this abort with a clear message (offscreen streaming
+// for unbounded sizes is a planned follow-up).
+const HLS_MAX_BYTES = 200 * 1024 * 1024;
+// Default capture quality — the variant closest to 720p, a sane size/quality
+// balance that fits the cap for typical VOD clips.
+const HLS_TARGET_HEIGHT = 720;
+
+/** A user-facing message for a failed HLS capture, from the typed engine error. */
+function hlsErrorMessage(e: unknown): string {
+  if (e instanceof HlsError) {
+    switch (e.code) {
+      case 'live': return 'Live streams can’t be captured — there is no fixed end.';
+      case 'drm': return 'This stream is DRM-protected and can’t be captured.';
+      case 'sample-aes': return 'This stream uses SAMPLE-AES encryption, which isn’t supported.';
+      case 'too-large': return `Stream is too large to capture in the popup (over ${Math.round(HLS_MAX_BYTES / 1024 / 1024)} MB).`;
+      default: return `Couldn’t capture the stream (${e.code}).`;
+    }
+  }
+  return 'Couldn’t capture the stream.';
+}
+
+/** Items the user can actually download/zip now — pending videos and HLS streams
+ *  (which are captured individually, not fetched as one file) are excluded. */
+const downloadable = (list: ImageInfo[]): ImageInfo[] =>
+  list.filter((i) => !i.unresolvedVideo && !i.hlsManifest);
 
 /** Pending videos that still carry a resolve hint — the set "Get all videos" acts on. */
 const pendingVideos = (list: ImageInfo[]): ImageInfo[] =>
@@ -319,12 +345,54 @@ const App: React.FC<AppProps> = ({
 
   const handleDownload = async (images: ImageInfo | ImageInfo[]): Promise<void> => {
     const list = Array.isArray(images) ? images : [images];
+    // HLS streams are captured (fetch + assemble segments), not fetched as a
+    // single file — route them to the capture path, sequentially.
+    const streams = list.filter((i) => i.hlsManifest);
+    for (const s of streams) await captureStream(s);
+    const rest = list.filter((i) => !i.hlsManifest);
+    if (!rest.length) return;
     const target = settings.convertImagesTo;
     if (target === 'off') {
-      await sendPlainDownload(list);
+      await sendPlainDownload(rest);
       return;
     }
-    await convertAndDownload(list, target);
+    await convertAndDownload(rest, target);
+  };
+
+  /**
+   * Capture an HLS stream: fetch the manifest and every segment, decrypt AES-128
+   * as needed, assemble in order, and save via a blob URL. Runs in the popup
+   * (an extension page whose `fetch` bypasses page CORS and that has WebCrypto +
+   * URL.createObjectURL), so the popup must stay open — same as the ZIP flow.
+   */
+  const captureStream = async (item: ImageInfo): Promise<void> => {
+    const sourcePage = await currentSourcePage();
+    setProgress({ label: 'Capturing stream', done: 0, total: 0 });
+    try {
+      const res = await captureHls(
+        item.hlsManifest!,
+        browserHlsDeps((done, total) => setProgress({ label: 'Capturing stream', done, total })),
+        { quality: HLS_TARGET_HEIGHT, maxBytes: HLS_MAX_BYTES },
+      );
+      const filename = buildDownloadFilename({ ...item, ext: res.ext }, 0, settings, sourcePage.url);
+      // A standalone ArrayBuffer copy — Blob rejects a plain Uint8Array's
+      // `ArrayBufferLike` backing under strict DOM types.
+      const ab = res.bytes.buffer.slice(res.bytes.byteOffset, res.bytes.byteOffset + res.bytes.byteLength) as ArrayBuffer;
+      const blobUrl = URL.createObjectURL(new Blob([ab], { type: res.mime }));
+      chrome.downloads.download(
+        { url: blobUrl, filename, saveAs: settings.saveAs, conflictAction: 'uniquify' },
+        () => {
+          void chrome.runtime.lastError;
+          // Keep the blob alive long enough for chrome.downloads to read it.
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+        },
+      );
+      setState((prev) => ({ ...prev, status: `Captured ${filename} — ${res.segmentCount} segments.` }));
+    } catch (e) {
+      setState((prev) => ({ ...prev, status: hlsErrorMessage(e) }));
+    } finally {
+      setProgress(null);
+    }
   };
 
   /** The original, fast path: hand the source URLs to the background to download. */
@@ -400,7 +468,7 @@ const App: React.FC<AppProps> = ({
 
   // ── Selective bulk download ────────────────────────────────────────────────
   const handleToggleSelect = (image: ImageInfo): void => {
-    if (image.unresolvedVideo) return; // only downloadable items are selectable
+    if (image.unresolvedVideo || image.hlsManifest) return; // pending/stream items are captured individually, not bulk-selected
     setSelectedSrcs((prev) => {
       const next = new Set(prev);
       if (next.has(image.src)) next.delete(image.src);
@@ -413,7 +481,7 @@ const App: React.FC<AppProps> = ({
   const handleSelectRange = (imgs: ImageInfo[]): void => {
     setSelectedSrcs((prev) => {
       const next = new Set(prev);
-      for (const i of imgs) if (!i.unresolvedVideo) next.add(i.src);
+      for (const i of imgs) if (!i.unresolvedVideo && !i.hlsManifest) next.add(i.src);
       return next;
     });
   };
