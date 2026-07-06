@@ -35,6 +35,21 @@ export default defineConfig({
       48: 'icon/48.png',
       128: 'icon/128.png',
     },
+    // Keyboard shortcuts. `_execute_action` is the browser's built-in "open the
+    // popup" command; `download-all-media` is dispatched via commands.onCommand.
+    // Suggested keys are best-effort — the browser drops any that conflict, and
+    // users can rebind them at the extension shortcuts page. `commands` is a
+    // manifest key, not a permission, so this adds no permission prompt.
+    commands: {
+      _execute_action: {
+        suggested_key: { default: 'Ctrl+Shift+M', mac: 'Command+Shift+M' },
+        description: 'Open Media Bulk Downloads',
+      },
+      'download-all-media': {
+        suggested_key: { default: 'Ctrl+Shift+Y', mac: 'Command+Shift+Y' },
+        description: 'Download all media on the current page',
+      },
+    },
     ...(browser === 'firefox'
       ? {
           browser_specific_settings: {

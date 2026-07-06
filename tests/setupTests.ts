@@ -25,6 +25,11 @@ global.chrome = {
             addListener: jest.fn(),
         },
     },
+    commands: {
+        onCommand: {
+            addListener: jest.fn(),
+        },
+    },
     tabs: {
         query: jest.fn().mockResolvedValue([]),
         get: jest.fn(),

@@ -7,6 +7,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Keyboard shortcuts**: open the popup (`Ctrl/⌘+Shift+M`) or download all media
+  on the current page (`Ctrl/⌘+Shift+Y`) without touching the mouse. Rebind or
+  disable them at `chrome://extensions/shortcuts`. (No new permission — `commands`
+  is a manifest key.)
 - **Copy / export links & data backup**: the download button's menu can now
   **copy** the shown/selected media URLs to the clipboard or **export** them as a
   `.txt`. A new **Settings → Backup** section exports your settings, favourites,

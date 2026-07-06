@@ -142,6 +142,13 @@ a draggable panel without opening the toolbar popup.
 In a hurry? **Right-click** anywhere for **Download all media on this page**, or right-click
 an image for **Download image (original quality)** and **Add image to Favourites** — no popup needed.
 
+**Keyboard shortcuts** (rebind at `chrome://extensions/shortcuts`):
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl/⌘ + Shift + M` | Open the popup |
+| `Ctrl/⌘ + Shift + Y` | Download all media on the current page |
+
 ## Permissions
 
 | Permission       | Why it's needed                                                           |
