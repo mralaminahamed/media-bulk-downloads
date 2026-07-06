@@ -4,7 +4,8 @@
  * which images are "eligible" for a given set of user settings.
  */
 
-import { ImageInfo, SettingsData, FilterOptions, SizeBucket } from '@/types';
+import { ImageInfo, SettingsData, FilterOptions, SizeBucket, SortKey, SortDir } from '@/types';
+import { originalNameFromUrl } from './download-name';
 
 /**
  * Whether an image passes the global user settings (minimum size + base64
@@ -43,14 +44,62 @@ function inSizeBucket(item: ImageInfo, bucket: SizeBucket): boolean {
   return edge >= 1024; // large
 }
 
-/** Applies the toolbar filters (kind, format, size, min-size, base64). */
+/** A readable filename for an item (basename from the URL, else the raw src). */
+function itemName(item: ImageInfo): string {
+  return originalNameFromUrl(item.src) ?? item.src;
+}
+
+/** Whether an item matches a free-text query (filename, alt, type, or URL). */
+function matchesSearch(item: ImageInfo, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return (
+    itemName(item).toLowerCase().includes(q) ||
+    (item.alt ?? '').toLowerCase().includes(q) ||
+    item.type.toLowerCase().includes(q) ||
+    item.src.toLowerCase().includes(q)
+  );
+}
+
+/**
+ * Comparator for a sort key. Items with an unknown value (size/area 0) always
+ * sort last regardless of direction, so the "biggest/smallest" views aren't
+ * polluted by srcset candidates and CSS backgrounds whose size is unknown.
+ */
+function compareBy(a: ImageInfo, b: ImageInfo, key: SortKey, dir: SortDir): number {
+  const sign = dir === 'asc' ? 1 : -1;
+  if (key === 'name') return sign * itemName(a).localeCompare(itemName(b), undefined, { numeric: true, sensitivity: 'base' });
+  if (key === 'type') return sign * (a.type.localeCompare(b.type) || itemName(a).localeCompare(itemName(b)));
+
+  // Numeric keys: size (bytes) or dimensions (pixel area). 0 = unknown → last.
+  const value = (i: ImageInfo): number => (key === 'size' ? i.fileSize : i.width * i.height);
+  const va = value(a);
+  const vb = value(b);
+  if (va === 0 && vb === 0) return 0;
+  if (va === 0) return 1; // unknown always after known
+  if (vb === 0) return -1;
+  return sign * (va - vb);
+}
+
+/**
+ * Applies the toolbar filters (kind, format, size, min-size, base64), the
+ * free-text search, and the chosen sort order. Filtering is followed by an
+ * optional stable sort; `sortBy: 'default'` preserves collection order.
+ */
 export function applyToolbarFilters(items: ImageInfo[], filters: FilterOptions): ImageInfo[] {
   const minBytes = (Number.isFinite(filters.minSize) ? filters.minSize : 0) * 1024;
-  return items.filter((item) => {
+  const shown = items.filter((item) => {
     if (filters.mediaKind !== 'all' && item.kind !== filters.mediaKind) return false;
     if (!inSizeBucket(item, filters.sizeBucket)) return false;
     if (filters.imageType !== 'all' && item.type !== filters.imageType) return false;
     if (minBytes > 0 && item.fileSize > 0 && item.fileSize < minBytes) return false;
-    return !(!filters.includeBase64 && item.isBase64);
+    if (!filters.includeBase64 && item.isBase64) return false;
+    return matchesSearch(item, filters.search ?? '');
   });
+
+  if (filters.sortBy && filters.sortBy !== 'default') {
+    // Copy first — sort mutates, and `items` (state) must not be reordered in place.
+    return [...shown].sort((a, b) => compareBy(a, b, filters.sortBy, filters.sortDir));
+  }
+  return shown;
 }

@@ -59,6 +59,8 @@ It reads only what the page already loaded, so nothing leaves your device.
 **Filters and downloads cleanly**
 - Filter by **kind** (image / video / audio), **format** (jpg, png, gif, webp, mp4,
   webm, mp3…), and **size**
+- **Search** the grid by filename, alt text, type, or URL, and **sort** by name,
+  size, dimensions, or type — handy on pages with hundreds of items
 - Download one item or the entire filtered set — as separate files or bundled
   into a single **ZIP archive** (same folder layout inside; items a CDN blocks
   fall back to individual downloads automatically)
@@ -121,7 +123,8 @@ package with `yarn lint:firefox`. To load it by hand:
 
 1. **Click the toolbar icon** on any page — the popup opens and scans for media.
 2. **Browse the grid** — hover to preview, click a tile for the full-size view.
-3. **Filter** by kind, format, or file size.
+3. **Filter** by kind, format, or file size — or **search** and **sort** the grid
+   from the row above the filters.
 4. **Download** one item (click it) or every filtered item (**Download all**).
    Use the button's caret to grab the set **As ZIP archive** instead of separate
    files.

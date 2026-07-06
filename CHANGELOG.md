@@ -12,6 +12,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   right-clicking an image (and **Download this media** on a video/audio element)
   — no need to open the popup. Single-image downloads are upgraded to their
   original via the CDN rules. Adds the `contextMenus` permission.
+- **Grid search & sort**: a search box (matched against filename, alt text, type,
+  and URL) plus a sort control (by name, size, dimensions, or type, ascending or
+  descending) above the filter row — makes big result sets navigable. Items with
+  an unknown size/dimension sort last so the "largest/smallest" views stay clean.
 - **Download as ZIP**: bundle the shown or selected media into a single ZIP
   archive from the download button's caret menu, instead of many separate files.
   Items are stored under the same `{host}/{domain}/{date}/{kind}` folder layout
