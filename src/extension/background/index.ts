@@ -4,6 +4,7 @@ import {
   DownloadMessage,
   DownloadResponse,
   DownloadZipMessage,
+  FavouriteEntry,
   HistoryEntry,
   ImageInfo,
   OpenDownloadMessage,
@@ -26,6 +27,8 @@ import {
   originalNameFromUrl,
 } from '../shared/collection/download-name';
 import { u8ToBase64 } from '../shared/download/base64';
+import { upgradeToOriginal, detectType } from '../shared/collection/imageUrl';
+import { extensionFromUrl } from '../shared/collection/mediaType';
 import { resolveOriginal, NetDeps } from '../shared/resolvers/network';
 import { mediaIdFromPoster, pinTwimgUrl } from '../shared/resolvers/x-media-sniff';
 import { recordDownloads, removeEntry, clearHistory } from '../shared/storage/history';
@@ -288,8 +291,91 @@ export async function resolveOriginalsBatch(
   return out;
 }
 
+// ── Right-click context menu ─────────────────────────────────────────────────
+const MENU = {
+  downloadAll: 'mbd-download-all',
+  downloadImage: 'mbd-download-image',
+  favouriteImage: 'mbd-favourite-image',
+  downloadMedia: 'mbd-download-media',
+} as const;
+
+/**
+ * (Re)create the context menu items. removeAll-then-create is idempotent, so
+ * this is safe to run on both install and startup without duplicate-id errors.
+ */
+export function setupContextMenus(): void {
+  if (!chrome.contextMenus) return;
+  chrome.contextMenus.removeAll(() => {
+    void chrome.runtime.lastError;
+    chrome.contextMenus.create({ id: MENU.downloadAll, title: 'Download all media on this page', contexts: ['all'] });
+    chrome.contextMenus.create({ id: MENU.downloadImage, title: 'Download image (original quality)', contexts: ['image'] });
+    chrome.contextMenus.create({ id: MENU.favouriteImage, title: 'Add image to Favourites', contexts: ['image'] });
+    chrome.contextMenus.create({ id: MENU.downloadMedia, title: 'Download this media', contexts: ['video', 'audio'] });
+    void chrome.runtime.lastError; // ignore a benign duplicate-id if menus already exist
+  });
+}
+
+/**
+ * Build an ImageInfo for a right-clicked media element. Images are upgraded to
+ * their original via the CDN rules; video/audio are taken as-is. Only real
+ * http(s) media is downloadable here — data:/blob: srcs are skipped.
+ */
+export function mediaFromContext(info: chrome.contextMenus.OnClickData): ImageInfo | null {
+  const url = info.srcUrl;
+  if (!url || !/^https?:/i.test(url)) return null;
+  const kind: ImageInfo['kind'] = info.mediaType === 'video' ? 'video' : info.mediaType === 'audio' ? 'audio' : 'image';
+  if (kind === 'image') {
+    const { original } = upgradeToOriginal(url);
+    return { src: original, alt: '', width: 0, height: 0, type: detectType(original), fileSize: 0, isBase64: false, kind };
+  }
+  return { src: url, alt: '', width: 0, height: 0, type: extensionFromUrl(url) ?? '', fileSize: 0, isBase64: false, kind };
+}
+
+export function onContextMenuClick(info: chrome.contextMenus.OnClickData, tab?: chrome.tabs.Tab): void {
+  const sourcePage = tab?.url ? { url: tab.url, title: tab.title } : undefined;
+
+  if (info.menuItemId === MENU.downloadAll) {
+    const tabId = tab?.id;
+    if (tabId == null) return;
+    // Ask the page's content script for what it collected. A non-injectable page
+    // (chrome://, the web store) has no content script → lastError, skip quietly.
+    chrome.tabs.sendMessage(tabId, 'GET_IMAGES', (images: ImageInfo[]) => {
+      if (chrome.runtime.lastError || !Array.isArray(images)) return;
+      void settingsReady.then(() => downloadAndRecord(filterImagesBySettings(images, currentSettings), sourcePage));
+    });
+    return;
+  }
+
+  if (info.menuItemId === MENU.downloadImage || info.menuItemId === MENU.downloadMedia) {
+    const media = mediaFromContext(info);
+    // A single explicit right-click download is NOT run through the size/base64
+    // filters — the user picked this exact item.
+    if (media) void settingsReady.then(() => downloadAndRecord([media], sourcePage));
+    return;
+  }
+
+  if (info.menuItemId === MENU.favouriteImage) {
+    const media = mediaFromContext(info);
+    if (!media) return;
+    const entry: FavouriteEntry = {
+      src: media.src,
+      kind: media.kind,
+      type: media.type,
+      thumbnailSrc: info.srcUrl,
+      sourcePageUrl: tab?.url ?? '',
+      sourcePageTitle: tab?.title,
+      time: Date.now(),
+    };
+    void addFavourite(entry);
+  }
+}
+
+chrome.contextMenus?.onClicked.addListener(onContextMenuClick);
+chrome.runtime.onStartup?.addListener(setupContextMenus);
+
 chrome.runtime.onInstalled.addListener(() => {
   loadSettings();
+  setupContextMenus();
 });
 
 // Service workers are ephemeral; reload settings whenever the worker starts.

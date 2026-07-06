@@ -7,6 +7,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Right-click menu**: **Download all media on this page** from anywhere, plus
+  **Download image (original quality)** and **Add image to Favourites** when
+  right-clicking an image (and **Download this media** on a video/audio element)
+  — no need to open the popup. Single-image downloads are upgraded to their
+  original via the CDN rules. Adds the `contextMenus` permission.
 - **Grid search & sort**: a search box (matched against filename, alt text, type,
   and URL) plus a sort control (by name, size, dimensions, or type, ascending or
   descending) above the filter row — makes big result sets navigable. Items with
