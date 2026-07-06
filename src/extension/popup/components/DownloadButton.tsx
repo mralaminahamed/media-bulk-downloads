@@ -2,8 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowDownTrayIcon, ArchiveBoxArrowDownIcon, ChevronDownIcon, LinkIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
 
 interface DownloadButtonProps {
-  /** Primary button text, e.g. "Download 42" or "Download selected 5". */
+  /** Primary button text, e.g. "Download" or "Download selected". */
   label: string;
+  /** Item count shown as a pill after the label. Omitted → no pill (e.g. nothing to download). */
+  count?: number;
   disabled?: boolean;
   /** Default action — download as separate files. */
   onDownload: () => void;
@@ -21,7 +23,7 @@ interface DownloadButtonProps {
  * the same set — ZIP, copy links, export links. The menu closes on
  * outside-click, Escape, or a selection.
  */
-export const DownloadButton: React.FC<DownloadButtonProps> = ({ label, disabled, onDownload, onZip, onCopyLinks, onExportLinks }) => {
+export const DownloadButton: React.FC<DownloadButtonProps> = ({ label, count, disabled, onDownload, onZip, onCopyLinks, onExportLinks }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -54,9 +56,13 @@ export const DownloadButton: React.FC<DownloadButtonProps> = ({ label, disabled,
           disabled={disabled}
           className="btn btn-primary"
           title="Download as separate files"
+          // The count renders as a separate pill span, so spell the accessible
+          // name out here — otherwise it reads as "Download5" with no space.
+          aria-label={count != null ? `${label} ${count}` : label}
         >
           <ArrowDownTrayIcon className="h-4 w-4" />
           <span>{label}</span>
+          {count != null && <span className="countpill">{count}</span>}
         </button>
         <button
           onClick={() => setOpen((o) => !o)}
