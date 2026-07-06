@@ -1,6 +1,6 @@
 import { MediaItem } from '@/types';
-import { collectMedia } from '@/extension/collect';
-import { runDeepScan, DeepScanDeps, DEEP_SCAN_DEFAULTS } from '@/extension/shared/deepScan';
+import { collectMedia } from '@/extension/content/collect';
+import { runDeepScan, DeepScanDeps, DEEP_SCAN_DEFAULTS } from '@/extension/shared/collection/deepScan';
 
 /** Finds the element that actually scrolls the page, falling back to window. */
 function primaryScroller(): {

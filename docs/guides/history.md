@@ -68,9 +68,9 @@ recording.
 
 ## Implementation
 
-`src/extension/shared/history.ts` (`HISTORY_KEY`, `HISTORY_CAP`,
+`src/extension/shared/storage/history.ts` (`HISTORY_KEY`, `HISTORY_CAP`,
 `mergeHistory`, `recordDownloads`, `removeEntry`, `clearHistory`,
-`downloadedSrcSet`), `src/extension/background.ts` (`downloadAndRecord`, and
+`downloadedSrcSet`), `src/extension/background/index.ts` (`downloadAndRecord`, and
 the `CLEAR_HISTORY` / `REMOVE_HISTORY_ENTRY` / `OPEN_DOWNLOAD_FILE` /
 `SHOW_DOWNLOAD` message handlers), and
 `src/extension/popup/components/HistoryPanel.tsx`.

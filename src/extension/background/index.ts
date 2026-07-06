@@ -16,20 +16,20 @@ import {
   ShowDownloadMessage,
   XMediaSeenMessage,
 } from '@/types';
-import { filterImagesBySettings } from './shared/filters';
-import { DEFAULT_SETTINGS, withDefaults } from './shared/settings';
+import { filterImagesBySettings } from '../shared/collection/filters';
+import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
 import {
   sanitizePathSegment,
   expandPathTemplate,
   hostFromUrl,
   registrableDomain,
   todayISO,
-} from './shared/paths';
-import { avExtensionForType, extensionFromUrl } from './shared/mediaType';
-import { resolveOriginal, NetDeps } from './shared/resolvers/network';
-import { mediaIdFromPoster, pinTwimgUrl } from './shared/x-media-sniff';
-import { recordDownloads, removeEntry, clearHistory } from './shared/history';
-import { addFavourite, removeFavourite, clearFavourites } from './shared/favourites';
+} from '../shared/collection/paths';
+import { avExtensionForType, extensionFromUrl } from '../shared/collection/mediaType';
+import { resolveOriginal, NetDeps } from '../shared/resolvers/network';
+import { mediaIdFromPoster, pinTwimgUrl } from '../shared/resolvers/x-media-sniff';
+import { recordDownloads, removeEntry, clearHistory } from '../shared/storage/history';
+import { addFavourite, removeFavourite, clearFavourites } from '../shared/storage/favourites';
 
 export { DEFAULT_SETTINGS, sanitizePathSegment };
 

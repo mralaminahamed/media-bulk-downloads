@@ -74,7 +74,7 @@ can never point outside `Downloads/`.
 - **Unknown tokens** — a `{typo}` that isn't a real token is dropped, not written
   literally.
 - **Safety** — the whole expanded path is run through `sanitizePathSegment`
-  (`src/extension/shared/paths.ts`): traversal (`..`), leading slashes, illegal
+  (`src/extension/shared/collection/paths.ts`): traversal (`..`), leading slashes, illegal
   filename characters, and Windows reserved device names are all neutralized, so a
   template can never write outside `Downloads/`. A token *value* is always a single
   segment — a value containing `/` cannot inject extra folders.
@@ -84,11 +84,11 @@ can never point outside `Downloads/`.
 ## Implementation
 
 - `expandPathTemplate(template, tokens)` — token substitution + sanitizing
-  (`src/extension/shared/paths.ts`).
+  (`src/extension/shared/collection/paths.ts`).
 - `hostFromUrl`, `registrableDomain`, `todayISO` — token-value helpers (same file).
 - `buildDownloadFilename(image, index, settings, sourcePageUrl?)` — resolves the
   tokens against the source page and prepends the folder
-  (`src/extension/background.ts`); the source URL is threaded from
+  (`src/extension/background/index.ts`); the source URL is threaded from
   `downloadAndRecord`.
 
 ## Back-compatibility

@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import HistoryPanel from '@/extension/popup/components/HistoryPanel';
-import * as history from '@/extension/shared/history';
+import * as history from '@/extension/shared/storage/history';
 
 const entry = {
   src: 'https://c/a.jpg', filename: 'a.jpg', kind: 'image' as const, type: 'jpeg',

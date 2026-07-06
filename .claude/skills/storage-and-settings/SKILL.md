@@ -1,6 +1,6 @@
 ---
 name: storage-and-settings
-description: Work with this extension's persisted state — user settings (chrome.storage.sync) and download history (chrome.storage.local) — including defaults, tolerating legacy/corrupt shapes, the single-writer rule, and the ephemeral-worker settings gate. Use when adding a setting, changing the history model, touching shared/settings.ts or shared/history.ts, or reasoning about persistence/migrations.
+description: Work with this extension's persisted state — user settings (chrome.storage.sync) and download history (chrome.storage.local) — including defaults, tolerating legacy/corrupt shapes, the single-writer rule, and the ephemeral-worker settings gate. Use when adding a setting, changing the history model, touching shared/storage/settings.ts or shared/storage/history.ts, or reasoning about persistence/migrations.
 ---
 
 # Storage & settings
@@ -8,13 +8,13 @@ description: Work with this extension's persisted state — user settings (chrom
 Two stores, two purposes:
 
 - **Settings → `chrome.storage.sync`** (key `settings`). Follows the user's Chrome
-  profile. `SettingsData` in `src/types`. Defaults + merge in `shared/settings.ts`.
+  profile. `SettingsData` in `src/types`. Defaults + merge in `shared/storage/settings.ts`.
 - **Download history → `chrome.storage.local`** (key `downloadHistory`, cap
-  `HISTORY_CAP = 500`). Device-local. Logic in `shared/history.ts`.
+  `HISTORY_CAP = 500`). Device-local. Logic in `shared/storage/history.ts`.
 
 ## Adding / changing a setting
 
-1. Add the field to `SettingsData` and to `DEFAULT_SETTINGS` (`shared/settings.ts`).
+1. Add the field to `SettingsData` and to `DEFAULT_SETTINGS` (`shared/storage/settings.ts`).
 2. `withDefaults(stored)` merges stored over defaults and is the migration path —
    it backfills missing fields for old users and **guards nested objects**
    (`bubblePosition`, `bubblePanelPoint`) so a corrupt non-object value can't inject
@@ -41,8 +41,8 @@ Two stores, two purposes:
 
 ## References
 
-- Settings + history source (this repo) — `src/extension/shared/settings.ts`,
-  `src/extension/shared/history.ts`, `src/types/index.d.ts`
+- Settings + history source (this repo) — `src/extension/shared/storage/settings.ts`,
+  `src/extension/shared/storage/history.ts`, `src/types/index.d.ts`
 - chrome.storage — https://developer.chrome.com/docs/extensions/reference/api/storage
 - sync vs local (quotas) — https://developer.chrome.com/docs/extensions/reference/api/storage#storage-areas
 - Firefox storage — https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/storage

@@ -8,9 +8,9 @@
 
 import { SettingsData, DeepScanProgress } from '@/types';
 import { collectMedia } from './collect';
-import { ingestSniffedIgMedia } from './shared/resolvers/instagram';
-import { withDefaults } from './shared/settings';
-import { startDeepScan } from './content/deepScanRunner';
+import { ingestSniffedIgMedia } from '../shared/resolvers/instagram';
+import { withDefaults } from '../shared/storage/settings';
+import { startDeepScan } from './deepScanRunner';
 
 // Re-export the pure collection API (kept for tests and other importers).
 export * from './collect';
@@ -95,7 +95,7 @@ let bubbleController: { unmount: () => void } | null = null;
 
 async function mountBubble(settings: SettingsData): Promise<void> {
   if (bubbleController) return;
-  const { mountBubble: mount } = await import('./bubble/mount');
+  const { mountBubble: mount } = await import('../bubble/mount');
   // A concurrent unmount may have raced in while the chunk loaded.
   if (bubbleController) return;
   bubbleController = mount(settings);

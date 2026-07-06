@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import FavouritesPanel from '@/extension/popup/components/FavouritesPanel';
-import * as favourites from '@/extension/shared/favourites';
+import * as favourites from '@/extension/shared/storage/favourites';
 
 const entry = {
   src: 'https://c/a.jpg', kind: 'image' as const, type: 'jpeg',

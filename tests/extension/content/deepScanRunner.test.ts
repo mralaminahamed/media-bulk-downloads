@@ -1,10 +1,10 @@
-jest.mock('@/extension/shared/deepScan', () => {
-  const actual = jest.requireActual('@/extension/shared/deepScan');
+jest.mock('@/extension/shared/collection/deepScan', () => {
+  const actual = jest.requireActual('@/extension/shared/collection/deepScan');
   return { __esModule: true, ...actual, runDeepScan: jest.fn(() => Promise.resolve([])) };
 });
 
 import { buildDeepScanDeps, nestedScrollables, startDeepScan, findLoadMoreButtons } from '@/extension/content/deepScanRunner';
-import { runDeepScan, DEEP_SCAN_DEFAULTS } from '@/extension/shared/deepScan';
+import { runDeepScan, DEEP_SCAN_DEFAULTS } from '@/extension/shared/collection/deepScan';
 
 const mockMetrics = (el: HTMLElement, scrollHeight: number, clientHeight: number, scrollTop: number) => {
   Object.defineProperty(el, 'scrollHeight', { configurable: true, value: scrollHeight });

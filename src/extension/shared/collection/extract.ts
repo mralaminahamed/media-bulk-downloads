@@ -3,8 +3,8 @@
  * attributes, best-srcset, <noscript> fallbacks, and <a href> gallery links.
  * Returns raw (unresolved) URL strings; collect.ts resolves/upgrades/dedups.
  */
-import { parseSrcset } from '@/extension/collect';
-import { looksLikeMediaUrl } from '@/extension/shared/imageUrl';
+import { parseSrcset } from '@/extension/content/collect';
+import { looksLikeMediaUrl } from '@/extension/shared/collection/imageUrl';
 
 export interface UrlCandidate {
   url: string;

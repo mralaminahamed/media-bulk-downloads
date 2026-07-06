@@ -3,10 +3,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from '@/extension/popup/App';
 import { ImageInfo } from '@/types';
-import { deepScanActiveTab } from '@/extension/shared/deep-scan-active-tab';
-import { requestResolveOriginals } from '@/extension/shared/resolve-originals-active';
+import { deepScanActiveTab } from '@/extension/shared/active-tab/deep-scan-active-tab';
+import { requestResolveOriginals } from '@/extension/shared/active-tab/resolve-originals-active';
 
-jest.mock('@/extension/shared/deep-scan-active-tab', () => ({
+jest.mock('@/extension/shared/active-tab/deep-scan-active-tab', () => ({
   deepScanActiveTab: jest.fn(async (onProgress) => {
     onProgress({ type: 'DEEP_SCAN_PROGRESS', found: 2, scrolls: 1, elapsedMs: 100 });
     return [
@@ -17,7 +17,7 @@ jest.mock('@/extension/shared/deep-scan-active-tab', () => ({
   abortDeepScanActiveTab: jest.fn(),
 }));
 
-jest.mock('@/extension/shared/resolve-originals-active', () => ({
+jest.mock('@/extension/shared/active-tab/resolve-originals-active', () => ({
   requestResolveOriginals: jest.fn(async () => ({ 'poster.jpg': 'https://video.twimg.com/hi.mp4' })),
 }));
 

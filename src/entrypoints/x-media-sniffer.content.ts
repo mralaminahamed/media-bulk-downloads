@@ -1,5 +1,5 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import { extractVideoPairs } from '@/extension/shared/x-media-sniff';
+import { extractVideoPairs } from '@/extension/shared/resolvers/x-media-sniff';
 
 /**
  * MAIN-world content script for x.com / twitter.com. Runs in the page's own realm

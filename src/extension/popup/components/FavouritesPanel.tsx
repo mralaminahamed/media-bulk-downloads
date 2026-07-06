@@ -6,7 +6,7 @@ import {
   ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
 import { FavouriteEntry } from '@/types';
-import { loadFavourites, FAVOURITES_KEY } from '@/extension/shared/favourites';
+import { loadFavourites, FAVOURITES_KEY } from '@/extension/shared/storage/favourites';
 import { relativeTime } from '../utils';
 import { LoadingImage } from './LoadingImage';
 import { useDialog } from '../hooks/useDialog';

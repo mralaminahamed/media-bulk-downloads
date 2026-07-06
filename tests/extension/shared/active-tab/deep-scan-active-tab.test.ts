@@ -1,4 +1,4 @@
-import { deepScanActiveTab, abortDeepScanActiveTab } from '@/extension/shared/deep-scan-active-tab';
+import { deepScanActiveTab, abortDeepScanActiveTab } from '@/extension/shared/active-tab/deep-scan-active-tab';
 
 describe('deep-scan-active-tab — abort targets the scanning tab', () => {
   beforeEach(() => {

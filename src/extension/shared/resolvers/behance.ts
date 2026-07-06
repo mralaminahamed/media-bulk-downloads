@@ -1,4 +1,4 @@
-import { imageExtFromUrl } from '@/extension/shared/mediaType';
+import { imageExtFromUrl } from '@/extension/shared/collection/mediaType';
 import { MediaCandidate, Resolver, ResolveContext } from './types';
 
 const HOST = 'mir-s3-cdn-cf.behance.net';
