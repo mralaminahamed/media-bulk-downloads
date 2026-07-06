@@ -63,6 +63,30 @@ describe('ImageList Component', () => {
     expect(screen.queryByText('Get video')).not.toBeInTheDocument();
   });
 
+  it('labels a pending Instagram reel "play to fetch", not "can\'t fetch"', () => {
+    const reel: ImageInfo = {
+      src: 'https://scontent-del2-3.cdninstagram.com/RL_cover_n.jpg', alt: '', width: 640, height: 1136,
+      type: 'mp4', fileSize: 0, isBase64: false, kind: 'video', unresolvedVideo: true,
+      poster: 'https://scontent-del2-3.cdninstagram.com/RL_cover_n.jpg',
+    };
+    render(<ImageList images={[reel]} onImageDownload={jest.fn()} />);
+    expect(screen.getByText('play to fetch')).toBeInTheDocument();
+    expect(screen.queryByText("can't fetch")).not.toBeInTheDocument();
+    // No download / Get-video button on a pending reel (no resolveHint).
+    expect(screen.queryByTitle('Download')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Get video')).not.toBeInTheDocument();
+  });
+
+  it('still labels a non-Instagram pending video with no resolve path "can\'t fetch"', () => {
+    const gif: ImageInfo = {
+      src: 'https://pbs.twimg.com/x.jpg', alt: '', width: 0, height: 0, type: 'mp4', fileSize: 0,
+      isBase64: false, kind: 'video', unresolvedVideo: true, poster: 'https://pbs.twimg.com/x.jpg',
+    };
+    render(<ImageList images={[gif]} onImageDownload={jest.fn()} />);
+    expect(screen.getByText("can't fetch")).toBeInTheDocument();
+    expect(screen.queryByText('play to fetch')).not.toBeInTheDocument();
+  });
+
   it('closes the preview modal', () => {
     render(<ImageList images={mockImages} onImageDownload={jest.fn()} />);
     fireEvent.click(screen.getAllByTitle('View Details')[0]);
