@@ -138,6 +138,25 @@ describe('expandSegments', () => {
   it('throws unsupported when there is no media template', () => {
     expect(() => expandSegments(rep({ initialization: 'i.m4s' }), 10)).toThrow(/unsupported|SegmentList|SegmentBase/i);
   });
+
+  it('duration mode: $Time$ is the 0-based media offset, independent of startNumber', () => {
+    // count = ceil(10*1/5) = 2; times must be 0 and 5 even though startNumber is 10.
+    const out = expandSegments(rep({ media: 'seg-$Time$.m4s', duration: 5, timescale: 1, startNumber: 10 }), 10);
+    expect(out.segmentUris).toEqual(['https://cdn.test/x/seg-0.m4s', 'https://cdn.test/x/seg-5.m4s']);
+  });
+
+  it('timeline mode: S@r=-1 repeats to the end of the period duration', () => {
+    // 250s at d=100 → segments at t=0,100,200 (3 segments), numbered 1..3.
+    const out = expandSegments(rep({
+      media: 'seg-$Number$.m4s', timescale: 1, startNumber: 1,
+      timeline: [{ t: 0, d: 100, r: -1 }],
+    }), 250);
+    expect(out.segmentUris).toEqual([
+      'https://cdn.test/x/seg-1.m4s',
+      'https://cdn.test/x/seg-2.m4s',
+      'https://cdn.test/x/seg-3.m4s',
+    ]);
+  });
 });
 
 describe('selectRepresentation', () => {

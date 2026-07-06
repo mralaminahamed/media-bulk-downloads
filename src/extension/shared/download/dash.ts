@@ -204,7 +204,10 @@ export function expandSegments(rep: DashRepresentation, durationSec: number): { 
     let time = t.timeline[0].t ?? 0;
     for (const s of t.timeline) {
       if (s.t !== undefined) time = s.t;
-      for (let i = 0; i <= s.r; i++) {
+      // r < 0 means "repeat to the end of the period" — fill from the total duration.
+      const repeats =
+        s.r >= 0 ? s.r : s.d > 0 ? Math.max(0, Math.ceil((durationSec * t.timescale - time) / s.d) - 1) : 0;
+      for (let i = 0; i <= repeats; i++) {
         push(number, time);
         number += 1;
         time += s.d;
@@ -212,7 +215,8 @@ export function expandSegments(rep: DashRepresentation, durationSec: number): { 
     }
   } else if (t.duration) {
     const count = Math.max(0, Math.ceil((durationSec * t.timescale) / t.duration));
-    for (let i = 0; i < count; i++) push(t.startNumber + i, (t.startNumber + i) * t.duration);
+    // $Time$ is the 0-based media-time offset (i·duration); $Number$ counts from startNumber.
+    for (let i = 0; i < count; i++) push(t.startNumber + i, i * t.duration);
   } else {
     throw new DashError('unsupported', 'SegmentTemplate has neither a duration nor a SegmentTimeline.');
   }
