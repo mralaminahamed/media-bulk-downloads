@@ -81,7 +81,7 @@ const item = (over: Partial<ImageInfo>): ImageInfo =>
   ({ ...toolbarBase, src: 'x', type: 'png', kind: 'image', ...over }) as ImageInfo;
 
 const F = (over: Partial<FilterOptions>): FilterOptions =>
-  ({ mediaKind: 'all', imageType: 'all', minSize: 0, includeBase64: true, sizeBucket: 'all', ...over });
+  ({ mediaKind: 'all', imageType: 'all', minSize: 0, includeBase64: true, sizeBucket: 'all', search: '', sortBy: 'default', sortDir: 'desc', ...over });
 
 describe('applyToolbarFilters — mediaKind', () => {
   const items = [
@@ -109,5 +109,61 @@ describe('applyToolbarFilters — format narrowing within a kind', () => {
     expect(
       applyToolbarFilters(videoItems, F({ mediaKind: 'video', imageType: 'mp4' })).map((i) => i.src),
     ).toEqual(['v1']);
+  });
+});
+
+describe('applyToolbarFilters — search', () => {
+  const items = [
+    item({ src: 'https://cdn/sunset-beach.jpg', alt: 'A calm evening', type: 'jpeg' }),
+    item({ src: 'https://cdn/logo.png', alt: 'Brand logo', type: 'png' }),
+    item({ src: 'https://cdn/clip.mp4', alt: '', type: 'mp4', kind: 'video' }),
+  ];
+  it('matches on filename', () => {
+    expect(applyToolbarFilters(items, F({ search: 'sunset' })).map((i) => i.src)).toEqual(['https://cdn/sunset-beach.jpg']);
+  });
+  it('matches on alt text, case-insensitively', () => {
+    expect(applyToolbarFilters(items, F({ search: 'BRAND' })).map((i) => i.src)).toEqual(['https://cdn/logo.png']);
+  });
+  it('matches on type', () => {
+    expect(applyToolbarFilters(items, F({ search: 'mp4' })).map((i) => i.src)).toEqual(['https://cdn/clip.mp4']);
+  });
+  it('matches on the URL', () => {
+    expect(applyToolbarFilters(items, F({ search: 'cdn/logo' })).map((i) => i.src)).toEqual(['https://cdn/logo.png']);
+  });
+  it('an empty/whitespace query keeps everything', () => {
+    expect(applyToolbarFilters(items, F({ search: '   ' }))).toHaveLength(3);
+  });
+});
+
+describe('applyToolbarFilters — sort', () => {
+  const items = [
+    item({ src: 'https://cdn/b.jpg', fileSize: 200, width: 10, height: 10, type: 'png' }),
+    item({ src: 'https://cdn/a.jpg', fileSize: 100, width: 40, height: 40, type: 'jpeg' }),
+    item({ src: 'https://cdn/c.jpg', fileSize: 0, width: 0, height: 0, type: 'gif' }),
+  ];
+  it('leaves collection order when sortBy is default', () => {
+    expect(applyToolbarFilters(items, F({})).map((i) => i.src)).toEqual(['https://cdn/b.jpg', 'https://cdn/a.jpg', 'https://cdn/c.jpg']);
+  });
+  it('sorts by name ascending', () => {
+    expect(applyToolbarFilters(items, F({ sortBy: 'name', sortDir: 'asc' })).map((i) => i.src)).toEqual([
+      'https://cdn/a.jpg', 'https://cdn/b.jpg', 'https://cdn/c.jpg',
+    ]);
+  });
+  it('sorts by size descending, unknown size last', () => {
+    expect(applyToolbarFilters(items, F({ sortBy: 'size', sortDir: 'desc' })).map((i) => i.fileSize)).toEqual([200, 100, 0]);
+  });
+  it('sorts by size ascending with unknown still last', () => {
+    // 0 = unknown always sinks to the end regardless of direction.
+    expect(applyToolbarFilters(items, F({ sortBy: 'size', sortDir: 'asc' })).map((i) => i.fileSize)).toEqual([100, 200, 0]);
+  });
+  it('sorts by dimensions (pixel area) descending', () => {
+    expect(applyToolbarFilters(items, F({ sortBy: 'dimensions', sortDir: 'desc' })).map((i) => i.src)).toEqual([
+      'https://cdn/a.jpg', 'https://cdn/b.jpg', 'https://cdn/c.jpg',
+    ]);
+  });
+  it('does not reorder the input array in place', () => {
+    const input = [...items];
+    applyToolbarFilters(input, F({ sortBy: 'name', sortDir: 'asc' }));
+    expect(input.map((i) => i.src)).toEqual(['https://cdn/b.jpg', 'https://cdn/a.jpg', 'https://cdn/c.jpg']);
   });
 });

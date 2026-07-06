@@ -7,6 +7,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Grid search & sort**: a search box (matched against filename, alt text, type,
+  and URL) plus a sort control (by name, size, dimensions, or type, ascending or
+  descending) above the filter row — makes big result sets navigable. Items with
+  an unknown size/dimension sort last so the "largest/smallest" views stay clean.
 - **Download as ZIP**: bundle the shown or selected media into a single ZIP
   archive from the download button's caret menu, instead of many separate files.
   Items are stored under the same `{host}/{domain}/{date}/{kind}` folder layout
