@@ -635,6 +635,10 @@ const App: React.FC<AppProps> = ({
 
     setProgress(null);
     setFetchingSrcs((p) => { const n = new Set(p); srcs.forEach((s) => n.delete(s)); return n; });
+    // Keyed on the raw resolver result: only truly-unresolved items are failures.
+    // A gated HLS-only item (resolved, but capture off → applyResolved returns
+    // null below) is NOT a failure — it stays quietly pending, same as the single
+    // handleFetchVideo path.
     const failed = srcs.filter((s) => !resolved[s]);
     if (failed.length) setResolveFailedSrcs((p) => { const n = new Set(p); failed.forEach((s) => n.add(s)); return n; });
 
