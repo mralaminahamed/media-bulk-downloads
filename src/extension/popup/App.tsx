@@ -208,7 +208,7 @@ const App: React.FC<AppProps> = ({
    * upgrade survives a later re-filter (settings change, deep scan). Items that
    * never resolve simply stay pending — nothing flickers in and then disappears.
    */
-  const enrichOriginals = useCallback(async (eligible: ImageInfo[], captureHls: boolean): Promise<void> => {
+  const enrichOriginals = useCallback(async (eligible: ImageInfo[], captureHlsStreams: boolean): Promise<void> => {
     const generation = ++resolveGenRef.current;
     const targets = eligible.filter((i) => i.resolveHint).map((i) => ({ src: i.src, hint: i.resolveHint! }));
     if (!targets.length) return;
@@ -220,7 +220,7 @@ const App: React.FC<AppProps> = ({
     for (const i of eligible) {
       const r = i.resolveHint ? resolved[i.src] : undefined;
       if (r) {
-        const swapped = applyResolved(i, r, captureHls);
+        const swapped = applyResolved(i, r, captureHlsStreams);
         if (swapped) byOldSrc.set(i.src, swapped);
       }
     }
