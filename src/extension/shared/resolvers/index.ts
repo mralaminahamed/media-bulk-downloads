@@ -5,8 +5,9 @@ import { instagramResolver } from './instagram';
 import { twitterResolver } from './twitter';
 import { unsplashResolver } from './unsplash';
 import { wallhavenResolver } from './wallhaven';
+import { youtubeResolver } from './youtube';
 
-export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, unsplashResolver, wallhavenResolver, behanceResolver, genericResolver];
+export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, unsplashResolver, wallhavenResolver, behanceResolver, youtubeResolver, genericResolver];
 
 export function resolve(rawUrl: string, ctx: ResolveContext): MediaCandidate[] {
   let u: URL;

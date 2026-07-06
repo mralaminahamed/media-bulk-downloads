@@ -43,6 +43,9 @@ It reads only what the page already loaded, so nothing leaves your device.
 - Gallery `<a href>` links (Reddit, Wallhaven, and similar)
 - Direct-file `<video>` and `<audio>` sources, plus direct `og:video` mp4s (news,
   product, and embed pages that expose the file only in a meta tag)
+- **YouTube video posters** — an embedded player `<iframe>` or a link to a video
+  (`watch`, `youtu.be`, `/embed`, `/shorts`, `/live`, `youtube-nocookie`) becomes
+  its downloadable poster thumbnail, even with no `<img>` on the page
 
 **Upgrades to original quality**
 - **De-proxies** wrapped URLs (Next.js `_next/image` — absolute and relative —
@@ -177,7 +180,7 @@ upgrade rules for:
 | Site                                | Upgrade                                             |
 |-------------------------------------|-----------------------------------------------------|
 | Wikipedia / Wikimedia / MediaWiki   | `/thumb/` path → original (incl. self-hosted wikis) |
-| YouTube                             | Small thumbnails → `hqdefault` (always-present max) |
+| YouTube                             | Embeds / links / thumbnails → `hqdefault` poster (always-present max) |
 | Twitter / X                         | `name=orig` for photos; video-poster recognition    |
 | Reddit                             | Gallery `<a href>` → direct `i.redd.it` original    |
 | Unsplash                           | Strip resize params → native-format master          |

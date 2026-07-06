@@ -7,6 +7,17 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **YouTube poster resolver**: a dedicated, policy-compliant resolver that turns
+  any YouTube video reference — an embedded player `<iframe>` (including
+  privacy-enhanced `youtube-nocookie` and lazy `data-src` embeds), or a link in
+  `watch` / `youtu.be` / `/embed` / `/shorts` / `/live` / `/v` form — into that
+  video's **public poster thumbnail** (`i.ytimg.com/.../hqdefault.jpg`), even when
+  no `<img>` for it exists on the page. It emits the largest variant *guaranteed*
+  to exist (`hqdefault`, 480×360); collection is network-free so higher variants
+  (`maxres`/`sd`) that 404 for many videos are never synthesized. Video/audio
+  **streams are intentionally not touched** — YouTube delivers them as ciphered
+  DASH/HLS and downloading them breaks the YouTube ToS and Chrome Web Store
+  policy; only the openly-embeddable poster image is collected. No new permissions.
 - **`og:video` collection**: direct downloadable `.mp4`s exposed only in
   `<meta property="og:video">` (common on news, product, and embed pages) are now
   collected, with the `og:image` as their poster. Streaming manifests
