@@ -14,6 +14,13 @@
  * MPEG-TS (`.ts`) segments concatenate into a playable `.ts`; fMP4 (`.m4s`)
  * segments prefixed with their `EXT-X-MAP` init concatenate into an `.mp4`.
  *
+ * DEMUXED streams (a video-only variant plus a separate `#EXT-X-MEDIA:TYPE=AUDIO`
+ * rendition — common for fMP4/CMAF) would concatenate to a SILENT file, so those
+ * are handled specially: the audio rendition is fetched alongside the video and
+ * the two fMP4 tracks are muxed into one `.mp4` (via `muxTracks`). Demuxed audio
+ * that isn't fMP4, or a mux failure, throws `demuxed-unsupported` rather than
+ * saving a silent video.
+ *
  * POLICY LINE: standard HLS AES-128 (the key is served openly in the manifest to
  * every client) is supported. DRM — SAMPLE-AES / Widevine / PlayReady / FairPlay
  * (keyformat identifiers, EXT-X-SESSION-KEY) — is REFUSED: circumventing it would
@@ -21,12 +28,15 @@
  * are refused too — they have no finite end, so there is no single file to save.
  */
 
+import { muxTracks } from './mux';
+
 export type HlsErrorCode =
   | 'no-variants' // master playlist had no usable EXT-X-STREAM-INF
   | 'live' // media playlist has no EXT-X-ENDLIST — not a finite file
   | 'drm' // Widevine/PlayReady/FairPlay or EXT-X-SESSION-KEY
   | 'sample-aes' // SAMPLE-AES — DRM-adjacent, not plain AES-128
   | 'unsupported-key' // an EXT-X-KEY METHOD we don't implement
+  | 'demuxed-unsupported' // separate audio that isn't fMP4, or mp4box couldn't mux
   | 'empty' // playlist had no segments, or nothing downloaded
   | 'too-large' // assembled bytes exceeded opts.maxBytes
   | 'fetch-failed'; // a segment or key could not be fetched
@@ -46,6 +56,17 @@ export interface HlsVariant {
   resolution?: { width: number; height: number };
   codecs?: string;
   name?: string;
+  audioGroup?: string; // the STREAM-INF AUDIO="…" group id (demuxed audio lives there)
+}
+
+/** An `#EXT-X-MEDIA:TYPE=AUDIO` rendition. A `uri` means the audio is a separate
+ *  (demuxed) track; its absence means the audio is muxed into the video variant. */
+export interface HlsAudioRendition {
+  groupId: string;
+  name?: string;
+  language?: string;
+  isDefault: boolean;
+  uri?: string; // absolute
 }
 
 export interface HlsKey {
@@ -103,6 +124,7 @@ export interface HlsCaptureResult {
   ext: 'ts' | 'mp4' | 'aac';
   mime: string;
   variant?: HlsVariant;
+  muxedAudio?: boolean; // true when a separate audio rendition was muxed in
   segmentCount: number;
   durationSec: number;
 }
@@ -153,9 +175,31 @@ export function parseMaster(text: string, baseUrl: string): HlsVariant[] {
       resolution: res ? { width: Number(res[1]), height: Number(res[2]) } : undefined,
       codecs: attrs.CODECS,
       name: attrs.NAME,
+      audioGroup: attrs.AUDIO || undefined,
     });
   }
   return variants;
+}
+
+/** Parses `#EXT-X-MEDIA:TYPE=AUDIO` renditions from a master playlist,
+ *  absolute-resolving each URI. Non-audio media (subtitles, closed captions) is
+ *  ignored — only audio can be muxed back into the video. */
+export function parseAudioRenditions(text: string, baseUrl: string): HlsAudioRendition[] {
+  const out: HlsAudioRendition[] = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line.startsWith('#EXT-X-MEDIA:')) continue;
+    const a = parseAttributes(line.slice('#EXT-X-MEDIA:'.length));
+    if (a.TYPE !== 'AUDIO') continue;
+    out.push({
+      groupId: a['GROUP-ID'] ?? '',
+      name: a.NAME || undefined,
+      language: a.LANGUAGE || undefined,
+      isDefault: a.DEFAULT === 'YES',
+      uri: a.URI ? new URL(a.URI, baseUrl).href : undefined,
+    });
+  }
+  return out;
 }
 
 /** Picks the variant matching the quality preference. */
@@ -175,6 +219,19 @@ export function selectVariant(variants: HlsVariant[], quality: HlsCaptureOptions
     }
   }
   return byBandwidth[byBandwidth.length - 1]; // highest
+}
+
+/** Picks the audio rendition for a video variant's AUDIO group: the DEFAULT one,
+ *  else the first with a URI. Returns undefined when the variant names no group,
+ *  no rendition matches, or none carries a URI (audio is muxed into the variant). */
+export function selectAudioRendition(
+  renditions: HlsAudioRendition[],
+  variant: HlsVariant,
+): HlsAudioRendition | undefined {
+  if (!variant.audioGroup) return undefined;
+  const group = renditions.filter((r) => r.groupId === variant.audioGroup && r.uri);
+  if (!group.length) return undefined;
+  return group.find((r) => r.isDefault) ?? group[0];
 }
 
 function parseByteRange(value: string, prevEnd: number): HlsByteRange {
@@ -322,32 +379,25 @@ export function assertDownloadable(pl: HlsMediaPlaylist): void {
 
 // ---- orchestration -------------------------------------------------------
 
+/** Shared byte budget across a capture's tracks; fetchTrack throws too-large when
+ *  the running total exceeds `max`. */
+interface FetchBudget {
+  used: number;
+  max?: number;
+}
+
 /**
- * Full capture: master/media URL → assembled file bytes. Fetches the media
- * playlist (resolving a master first), refuses live/DRM, then downloads the init
- * + every segment in order (bounded concurrency), decrypting AES-128 as needed.
+ * Fetches ONE track — the fMP4 init segment (if any) plus every media segment,
+ * in order, decrypting AES-128 as needed — and returns them separately (the
+ * MuxTrack shape). `onSegment` fires once per completed segment so the caller can
+ * report combined progress; `budget` accumulates bytes across tracks.
  */
-export async function captureHls(
-  url: string,
+async function fetchTrack(
+  playlist: HlsMediaPlaylist,
   deps: HlsDeps,
-  opts: HlsCaptureOptions = {},
-): Promise<HlsCaptureResult> {
-  const rootText = await deps.fetchText(url);
-
-  let mediaUrl = url;
-  let variant: HlsVariant | undefined;
-  if (isMasterPlaylist(rootText)) {
-    variant = selectVariant(parseMaster(rootText, url), opts.quality);
-    mediaUrl = variant.uri;
-  }
-
-  const mediaText = mediaUrl === url && !variant ? rootText : await deps.fetchText(mediaUrl);
-  const playlist = parseMediaPlaylist(mediaText, mediaUrl);
-  assertDownloadable(playlist);
-
-  const ext = guessContainer(playlist.segments[0].uri, !!playlist.initUri);
-
-  // Fetch + cache each distinct AES-128 key once.
+  onSegment: () => void,
+  budget: FetchBudget,
+): Promise<{ init?: Uint8Array; segments: Uint8Array[] }> {
   const keyCache = new Map<string, Promise<Uint8Array>>();
   const getKey = (keyUri: string): Promise<Uint8Array> => {
     let p = keyCache.get(keyUri);
@@ -363,8 +413,6 @@ export async function captureHls(
 
   const total = playlist.segments.length;
   const parts: Uint8Array[] = new Array(total);
-  let done = 0;
-  let bytesTotal = 0;
   let cursor = 0;
 
   const fetchSegment = async (seg: HlsSegment): Promise<Uint8Array> => {
@@ -380,20 +428,109 @@ export async function captureHls(
       const i = cursor++;
       const bytes = await fetchSegment(playlist.segments[i]);
       parts[i] = bytes;
-      bytesTotal += bytes.length;
-      if (opts.maxBytes && bytesTotal > opts.maxBytes) {
+      budget.used += bytes.length;
+      if (budget.max && budget.used > budget.max) {
         throw new HlsError('too-large', 'Stream exceeds the maximum capture size.');
       }
-      deps.onProgress?.(++done, total);
+      onSegment();
     }
   };
 
   const limit = Math.max(1, deps.concurrency ?? 6);
   await Promise.all(Array.from({ length: Math.min(limit, total) }, worker));
 
+  const init = playlist.initUri ? await deps.fetchBytes(playlist.initUri, playlist.initByteRange) : undefined;
+  return { init, segments: parts };
+}
+
+/**
+ * Full capture: master/media URL → assembled file bytes. Fetches the media
+ * playlist (resolving a master first), refuses live/DRM, then downloads the init
+ * + every segment in order (bounded concurrency), decrypting AES-128 as needed.
+ * When the master advertises a separate (demuxed) audio rendition, its track is
+ * fetched too and muxed with the video into one `.mp4`; see the file header.
+ */
+export async function captureHls(
+  url: string,
+  deps: HlsDeps,
+  opts: HlsCaptureOptions = {},
+): Promise<HlsCaptureResult> {
+  const rootText = await deps.fetchText(url);
+
+  let mediaUrl = url;
+  let variant: HlsVariant | undefined;
+  let audioRendition: HlsAudioRendition | undefined;
+  if (isMasterPlaylist(rootText)) {
+    variant = selectVariant(parseMaster(rootText, url), opts.quality);
+    mediaUrl = variant.uri;
+    audioRendition = selectAudioRendition(parseAudioRenditions(rootText, url), variant);
+  }
+
+  const mediaText = mediaUrl === url && !variant ? rootText : await deps.fetchText(mediaUrl);
+  const playlist = parseMediaPlaylist(mediaText, mediaUrl);
+  assertDownloadable(playlist);
+
+  // Demuxed stream: audio ships as its own rendition (separate URI), so the video
+  // variant is video-only. mp4box can recombine fMP4 tracks; anything else fails
+  // loudly rather than saving a silent file.
+  //
+  // A demuxed stream that omits the STREAM-INF `AUDIO=` attribute (or whose
+  // renditions carry no URI) is HLS-non-conformant: we can't discover its audio
+  // and it falls through to the concat path below — a video-only file, same as
+  // this engine has always produced for such input. Not something we can fix
+  // without the manifest telling us the audio exists.
+  if (audioRendition?.uri) {
+    const audioText = await deps.fetchText(audioRendition.uri);
+    const audioPlaylist = parseMediaPlaylist(audioText, audioRendition.uri);
+    assertDownloadable(audioPlaylist);
+
+    if (!playlist.initUri || !audioPlaylist.initUri) {
+      throw new HlsError(
+        'demuxed-unsupported',
+        'This stream delivers audio separately in a format that can’t be combined.',
+      );
+    }
+
+    const totalSegs = playlist.segments.length + audioPlaylist.segments.length;
+    let doneSegs = 0;
+    const onSegment = (): void => deps.onProgress?.(++doneSegs, totalSegs);
+    const budget: FetchBudget = { used: 0, max: opts.maxBytes };
+
+    const videoTrack = await fetchTrack(playlist, deps, onSegment, budget);
+    const audioTrack = await fetchTrack(audioPlaylist, deps, onSegment, budget);
+
+    let muxed: Uint8Array;
+    try {
+      muxed = muxTracks(
+        { init: videoTrack.init!, segments: videoTrack.segments },
+        { init: audioTrack.init!, segments: audioTrack.segments },
+      );
+    } catch {
+      throw new HlsError('demuxed-unsupported', 'Could not combine this stream’s audio and video.');
+    }
+    if (!muxed.length) throw new HlsError('empty', 'Nothing was downloaded from the stream.');
+
+    return {
+      bytes: muxed,
+      ext: 'mp4',
+      mime: MIME.mp4,
+      variant,
+      muxedAudio: true,
+      segmentCount: playlist.segments.length,
+      durationSec: Math.round(playlist.totalDuration),
+    };
+  }
+
+  const ext = guessContainer(playlist.segments[0].uri, !!playlist.initUri);
+  const total = playlist.segments.length;
+  let done = 0;
+  const onSegment = (): void => deps.onProgress?.(++done, total);
+  const budget: FetchBudget = { used: 0, max: opts.maxBytes };
+
+  const track = await fetchTrack(playlist, deps, onSegment, budget);
   const chunks: Uint8Array[] = [];
-  if (playlist.initUri) chunks.push(await deps.fetchBytes(playlist.initUri, playlist.initByteRange));
-  chunks.push(...parts);
+  if (track.init) chunks.push(track.init);
+  chunks.push(...track.segments);
   const bytes = concat(chunks);
   if (!bytes.length) throw new HlsError('empty', 'Nothing was downloaded from the stream.');
 
