@@ -67,9 +67,13 @@ It reads only what the page already loaded, so nothing leaves your device.
 - Correct file extensions (never a `.jpg` on a real `.png`)
 - Configurable naming scheme and a **download-path template** — `{host}`,
   `{domain}`, `{date}`, `{kind}` tokens save each site to its own folder
+- **Copy or export links** — copy the shown/selected URLs to the clipboard, or
+  export them as a `.txt`, from the download button's menu
 - **Download history** with open-file, reveal-in-folder, and re-download actions
 - **Favourites** — star media to a saved list that persists across sessions,
   re-downloadable anytime
+- **Backup & restore** — export your settings, favourites, and history to a JSON
+  file and import it back (Settings → Backup)
 
 **Private by design**
 - **Network-free by default** — collection reads only what the page already loaded

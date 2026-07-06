@@ -1,5 +1,5 @@
 import {
-  mergeFavourites, addFavourite, removeFavourite, clearFavourites,
+  mergeFavourites, addFavourite, removeFavourite, clearFavourites, restoreFavourites,
   favouriteSrcSet, loadFavourites, FAVOURITES_CAP,
 } from '@/extension/shared/storage/favourites';
 import { FavouriteEntry } from '@/types';
@@ -52,5 +52,17 @@ describe('favourites storage helpers', () => {
   });
   it('favouriteSrcSet returns the src set', async () => {
     expect(await favouriteSrcSet()).toEqual(new Set(['a']));
+  });
+});
+
+describe('restoreFavourites', () => {
+  it('replaces favourites with the normalized imported list', async () => {
+    let store: FavouriteEntry[] = [];
+    (chrome.storage.local.set as jest.Mock).mockReset().mockImplementation(async (obj: Record<string, FavouriteEntry[]>) => {
+      store = obj.favourites;
+    });
+    await restoreFavourites([f('a', 1), f('b', 3), f('a', 9)]);
+    expect(store.map((x) => x.src)).toEqual(['a', 'b']);
+    expect(store[0].time).toBe(9);
   });
 });

@@ -613,3 +613,39 @@ describe('context menu', () => {
     expect(set.favourites[0]).toMatchObject({ src: expect.stringContaining('pic.jpg'), kind: 'image', sourcePageUrl: 'https://page' });
   });
 });
+
+describe('DOWNLOAD_TEXT + RESTORE_DATA routers', () => {
+  beforeEach(() => {
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({}));
+    loadSettings(); // resolve settingsReady with defaults (saveAs off)
+    (chrome.downloads.download as jest.Mock).mockReset().mockImplementation((_o, cb) => cb?.(1));
+    (chrome.storage.local.get as jest.Mock).mockReset().mockResolvedValue({ downloadHistory: [], favourites: [] });
+    (chrome.storage.local.set as jest.Mock).mockReset().mockResolvedValue(undefined);
+  });
+
+  it('DOWNLOAD_TEXT saves a base64 data URL of the text with the given filename + mime', async () => {
+    messageHandler({ type: 'DOWNLOAD_TEXT', filename: 'links.txt', text: 'https://a\nhttps://b', mime: 'text/plain' }, {}, jest.fn());
+    await new Promise((r) => setTimeout(r, 0));
+    const arg = (chrome.downloads.download as jest.Mock).mock.calls.at(-1)[0];
+    expect(arg.filename).toBe('links.txt');
+    expect(arg.url.startsWith('data:text/plain;base64,')).toBe(true);
+    const decoded = Buffer.from(arg.url.split(',')[1], 'base64').toString('utf8');
+    expect(decoded).toBe('https://a\nhttps://b');
+  });
+
+  it('RESTORE_DATA replaces favourites and history in storage', async () => {
+    messageHandler(
+      {
+        type: 'RESTORE_DATA',
+        favourites: [{ src: 'https://f', kind: 'image', type: 'jpeg', sourcePageUrl: 'p', time: 1 }],
+        history: [{ src: 'https://h', filename: 'h.jpg', kind: 'image', type: 'jpeg', sourcePageUrl: 'p', time: 2 }],
+      },
+      {},
+      jest.fn(),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    const sets = (chrome.storage.local.set as jest.Mock).mock.calls.map((c) => c[0]);
+    expect(sets.find((s) => 'favourites' in s).favourites[0].src).toBe('https://f');
+    expect(sets.find((s) => 'downloadHistory' in s).downloadHistory[0].src).toBe('https://h');
+  });
+});

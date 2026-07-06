@@ -7,6 +7,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Copy / export links & data backup**: the download button's menu can now
+  **copy** the shown/selected media URLs to the clipboard or **export** them as a
+  `.txt`. A new **Settings → Backup** section exports your settings, favourites,
+  and history to a JSON file and imports them back (import replaces favourites and
+  history). No new permissions; everything stays on your device.
 - **Right-click menu**: **Download all media on this page** from anywhere, plus
   **Download image (original quality)** and **Add image to Favourites** when
   right-clicking an image (and **Download this media** on a video/audio element)

@@ -63,6 +63,17 @@ export interface FavouriteEntry {
   time: number;
 }
 
+/** A portable data backup: user settings + favourites + download history. */
+export interface BackupData {
+  /** Fixed tag identifying the file as a Media Bulk Downloads backup. */
+  app: 'media-bulk-downloads';
+  version: number;
+  exportedAt: string;
+  settings: SettingsData;
+  favourites: FavouriteEntry[];
+  history: HistoryEntry[];
+}
+
 export interface DownloadResponse {
   status: 'success' | 'error';
   message: string;
@@ -173,9 +184,34 @@ export interface DownloadZipMessage {
   filename: string;
 }
 
+/**
+ * Save a text payload (a URL list, or a JSON data backup) as a file. Routed
+ * through the background so it works from both the popup and the on-page bubble
+ * (a content script, which has no chrome.downloads); the background encodes it
+ * as a `data:` URL. Fire-and-forget.
+ */
+export interface DownloadTextMessage {
+  type: 'DOWNLOAD_TEXT';
+  filename: string;
+  text: string;
+  mime: string;
+}
+
+/**
+ * Replace the stored favourites and download history from an imported backup.
+ * Routed through the background so the write lands in the single-writer realm.
+ */
+export interface RestoreDataMessage {
+  type: 'RESTORE_DATA';
+  favourites: FavouriteEntry[];
+  history: HistoryEntry[];
+}
+
 export type ChromeMessage =
   | DownloadMessage
   | DownloadZipMessage
+  | DownloadTextMessage
+  | RestoreDataMessage
   | GetImagesMessage
   | ToggleBubbleMessage
   | DeepScanMessage

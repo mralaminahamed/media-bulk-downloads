@@ -20,6 +20,18 @@ export function u8ToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+/**
+ * UTF-8-safe base64 of a string. `btoa` only handles Latin-1, so a URL list or
+ * JSON backup with non-ASCII would corrupt; percent-encode to UTF-8 bytes first.
+ * Avoids `TextEncoder`, which isn't present in every worker/test environment.
+ */
+export function textToBase64(text: string): string {
+  const latin1 = encodeURIComponent(text).replace(/%([0-9A-F]{2})/g, (_m, hex: string) =>
+    String.fromCharCode(parseInt(hex, 16)),
+  );
+  return btoa(latin1);
+}
+
 /** Decode a base64 string back to bytes (used by tests to verify a round-trip). */
 export function base64ToU8(b64: string): Uint8Array {
   const binary = atob(b64);

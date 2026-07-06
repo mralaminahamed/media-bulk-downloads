@@ -18,7 +18,8 @@ import { requestResolveOriginals } from '../shared/active-tab/resolve-originals-
 import { downloadedSrcSet, HISTORY_KEY } from '../shared/storage/history';
 import { favouriteSrcSet, FAVOURITES_KEY } from '../shared/storage/favourites';
 import { buildZip, zipFileName } from '../shared/download/zip';
-import { getImageFileSize, mapWithConcurrency, sendRuntimeMessage } from './utils';
+import { hostFromUrl, registrableDomain, todayISO } from '../shared/collection/paths';
+import { copyText, downloadText, getImageFileSize, mapWithConcurrency, sendRuntimeMessage } from './utils';
 import { Cog6ToothIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 
 // Concurrent HEAD requests when enriching remote image sizes.
@@ -410,6 +411,29 @@ const App: React.FC<AppProps> = ({
     if (chosen.length) void handleDownloadZip(chosen);
   };
 
+  // ── Copy / export links ──────────────────────────────────────────────────
+  const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
+  const linkList = (images: ImageInfo[]): string => images.map((i) => i.src).join('\n');
+  const linksFileName = (url?: string): string => {
+    const domain = registrableDomain(hostFromUrl(url));
+    return `${domain ? `${domain}-` : ''}media-links-${todayISO()}.txt`;
+  };
+
+  const handleCopyLinks = async (images: ImageInfo[]): Promise<void> => {
+    if (!images.length) return;
+    const ok = await copyText(linkList(images));
+    setState((prev) => ({ ...prev, status: ok ? `Copied ${plural(images.length, 'link')}.` : 'Copy failed — clipboard blocked.' }));
+  };
+
+  const handleExportLinks = async (images: ImageInfo[]): Promise<void> => {
+    if (!images.length) return;
+    const { url } = await currentSourcePage();
+    downloadText(linksFileName(url), linkList(images), 'text/plain');
+    setState((prev) => ({ ...prev, status: `Exported ${plural(images.length, 'link')}.` }));
+  };
+
+  const selectedDownloadable = (): ImageInfo[] => downloadable(state.filteredImages).filter((i) => selectedSrcs.has(i.src));
+
   // Keep the selection scoped to what's currently shown: drop any ticked src that
   // a filter change or rescan removed from the downloadable view.
   useEffect(() => {
@@ -690,6 +714,8 @@ const App: React.FC<AppProps> = ({
               label={`Download selected ${selectedCount}`}
               onDownload={handleDownloadSelected}
               onZip={handleDownloadSelectedZip}
+              onCopyLinks={() => void handleCopyLinks(selectedDownloadable())}
+              onExportLinks={() => void handleExportLinks(selectedDownloadable())}
             />
           ) : (
             <DownloadButton
@@ -697,6 +723,8 @@ const App: React.FC<AppProps> = ({
               disabled={downloadableShown === 0}
               onDownload={handleBulkDownload}
               onZip={handleBulkDownloadZip}
+              onCopyLinks={() => void handleCopyLinks(downloadable(state.filteredImages))}
+              onExportLinks={() => void handleExportLinks(downloadable(state.filteredImages))}
             />
           )}
         </footer>

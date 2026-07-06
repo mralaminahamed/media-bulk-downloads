@@ -70,6 +70,13 @@ export async function clearHistory(): Promise<void> {
   });
 }
 
+/** Replace history with an imported list, normalized (dedup/sort/cap/byte-budget). */
+export async function restoreHistory(entries: HistoryEntry[]): Promise<void> {
+  return serialize(async () => {
+    await chrome.storage.local.set({ [HISTORY_KEY]: mergeHistory([], entries) });
+  });
+}
+
 export async function downloadedSrcSet(): Promise<Set<string>> {
   return new Set((await loadHistory()).map((e) => e.src));
 }

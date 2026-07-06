@@ -4,6 +4,8 @@ import {
   DownloadMessage,
   DownloadResponse,
   DownloadZipMessage,
+  DownloadTextMessage,
+  RestoreDataMessage,
   FavouriteEntry,
   HistoryEntry,
   ImageInfo,
@@ -26,13 +28,13 @@ import {
   extensionForType,
   originalNameFromUrl,
 } from '../shared/collection/download-name';
-import { u8ToBase64 } from '../shared/download/base64';
+import { u8ToBase64, textToBase64 } from '../shared/download/base64';
 import { upgradeToOriginal, detectType } from '../shared/collection/imageUrl';
 import { extensionFromUrl } from '../shared/collection/mediaType';
 import { resolveOriginal, NetDeps } from '../shared/resolvers/network';
 import { mediaIdFromPoster, pinTwimgUrl } from '../shared/resolvers/x-media-sniff';
-import { recordDownloads, removeEntry, clearHistory } from '../shared/storage/history';
-import { addFavourite, removeFavourite, clearFavourites } from '../shared/storage/favourites';
+import { recordDownloads, removeEntry, clearHistory, restoreHistory } from '../shared/storage/history';
+import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } from '../shared/storage/favourites';
 
 // Re-exported for the background test suite, which imports them from here.
 export { DEFAULT_SETTINGS, sanitizePathSegment, buildDownloadFilename, extensionForType, originalNameFromUrl };
@@ -485,6 +487,28 @@ chrome.runtime.onMessage.addListener(
         );
       });
       return true; // response sent asynchronously after the download dispatches
+    }
+
+    if (typeof message === 'object' && message.type === 'DOWNLOAD_TEXT') {
+      const { filename, text, mime } = message as DownloadTextMessage;
+      // Same rationale as DOWNLOAD_ZIP: the SW has no URL.createObjectURL, so a
+      // base64 data URL is how text (a URL list / JSON backup) reaches downloads.
+      void settingsReady.then(() => {
+        const url = `data:${mime};base64,${textToBase64(text)}`;
+        chrome.downloads.download(
+          { url, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
+          () => void chrome.runtime.lastError,
+        );
+      });
+      return; // fire-and-forget
+    }
+
+    if (typeof message === 'object' && message.type === 'RESTORE_DATA') {
+      // Replace favourites + history from an imported backup, in the single-writer realm.
+      const { favourites, history } = message as RestoreDataMessage;
+      void restoreFavourites(favourites);
+      void restoreHistory(history);
+      return; // fire-and-forget
     }
 
     if (typeof message === 'object' && message.type === 'OPEN_DOWNLOAD_FILE') {
