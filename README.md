@@ -43,7 +43,8 @@ It reads only what the page already loaded, so nothing leaves your device.
 - Gallery `<a href>` links (Reddit, Wallhaven, and similar)
 - Direct-file `<video>` and `<audio>` sources, plus direct `og:video` mp4s (news,
   product, and embed pages that expose the file only in a meta tag)
-- **HLS streams** (`.m3u8`) exposed in the page — captured (manifest + segments
+- **HLS streams** (`.m3u8`) exposed in the page **or fetched by its player**
+  (`hls.js`, via a passive network sniffer) — captured (manifest + segments
   fetched, AES-128 decrypted, assembled into one `.ts`/`.mp4`). DRM and live
   streams are refused; see [Capture below](#hls-stream-capture)
 - **YouTube video posters** — an embedded player `<iframe>` or a link to a video
@@ -216,8 +217,13 @@ popup, so keep the popup open while it works (like the ZIP flow).
 **Not captured, by design:** **DRM** (Widevine / PlayReady / FairPlay,
 `SAMPLE-AES`) and **live** streams — capturing them would breach the stream's DRM
 and Chrome Web Store policy. Streams larger than the in-popup size cap report a
-message rather than exhausting memory. Detection today is from the page DOM;
-passive network detection (`hls.js` / blob players) is a planned follow-up.
+message rather than exhausting memory.
+
+Streams are found two ways: in the page DOM, and via a passive, MAIN-world
+**network sniffer** that notes the `.m3u8` manifests `hls.js` / native players
+fetch over XHR — the common modern case, where the manifest never touches the
+DOM. The sniffer only observes request URLs (never response bodies) and forges no
+requests of its own.
 
 ## Tech stack
 

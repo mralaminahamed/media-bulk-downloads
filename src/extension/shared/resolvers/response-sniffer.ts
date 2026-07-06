@@ -71,6 +71,55 @@ export function installResponseSniffer({ isApi, emit, urlKey }: ResponseSnifferO
   };
 }
 
+export interface UrlSnifferOptions {
+  /** Which request URLs to report (absolute-resolved before this is called). */
+  isMatch: (url: string) => boolean;
+  /** Called with each matching absolute request URL. */
+  onUrl: (url: string) => void;
+}
+
+/**
+ * Wrap the page's fetch + XMLHttpRequest.open to observe request URLs (not
+ * bodies) — for detecting resources the app requests, e.g. an HLS `.m3u8`
+ * manifest fetched by hls.js. Reports at request time (so a slow/failed response
+ * doesn't hide the URL), resolves relative URLs against the page, and swallows
+ * every error so the page is never disturbed.
+ */
+export function installUrlSniffer({ isMatch, onUrl }: UrlSnifferOptions): void {
+  const report = (raw: string | undefined): void => {
+    try {
+      if (!raw) return;
+      const abs = new URL(raw, location.href).href;
+      if (isMatch(abs)) onUrl(abs);
+    } catch {
+      /* not a URL / ignore */
+    }
+  };
+
+  const nativeFetch = window.fetch;
+  window.fetch = function patchedFetch(this: unknown, ...args: Parameters<typeof fetch>) {
+    try {
+      const input = args[0];
+      report(typeof input === 'string' ? input : input instanceof Request ? input.url : String(input ?? ''));
+    } catch {
+      /* never disturb the page */
+    }
+    return nativeFetch.apply(this as never, args);
+  } as typeof fetch;
+
+  const XHR = XMLHttpRequest.prototype;
+  const nativeOpen = XHR.open;
+  XHR.open = function patchedOpen(this: XMLHttpRequest, method: string, url: string | URL, ...rest: unknown[]) {
+    try {
+      report(String(url));
+    } catch {
+      /* ignore */
+    }
+    // @ts-expect-error — forward the native signature verbatim
+    return nativeOpen.call(this, method, url, ...rest);
+  };
+}
+
 export interface EmitOptions<T> {
   /** Cheap substring gate applied before the (costly) JSON parse + deep walk. */
   guard: (text: string) => boolean;

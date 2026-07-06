@@ -16,9 +16,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   like the ZIP flow). **DRM** (Widevine/PlayReady/FairPlay, SAMPLE-AES) and
   **live** streams are refused — capturing them would breach the stream's DRM and
   the Chrome Web Store policy. Streams over the in-popup size cap report a clear
-  message. No new permissions. (Detection today is from the page DOM; passive
-  network detection of `hls.js`/blob players and unbounded-size capture are
-  planned follow-ups.)
+  message. No new permissions. Streams are found both in the page DOM and — via
+  a passive, MAIN-world network sniffer — from `hls.js` / native players that
+  fetch the `.m3u8` over XHR (so it never appears in the DOM); the sniffer only
+  reads request URLs, never bodies. Unbounded-size capture and capture without
+  the popup open (via an offscreen document) are planned follow-ups.
 - **YouTube poster resolver**: a dedicated, policy-compliant resolver that turns
   any YouTube video reference — an embedded player `<iframe>` (including
   privacy-enhanced `youtube-nocookie` and lazy `data-src` embeds), or a link in
