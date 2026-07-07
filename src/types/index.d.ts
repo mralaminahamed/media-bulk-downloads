@@ -76,6 +76,14 @@ export interface FavouriteEntry {
   time: number;
 }
 
+export type ExcludedKind = 'url' | 'host';
+/** One blocklist entry: an exact media URL or a host. */
+export interface ExcludedEntry {
+  value: string;
+  kind: ExcludedKind;
+  time: number;
+}
+
 /** A portable data backup: user settings + favourites + download history. */
 export interface BackupData {
   /** Fixed tag identifying the file as a Media Bulk Downloads backup. */
