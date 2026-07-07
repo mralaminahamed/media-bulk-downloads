@@ -832,7 +832,16 @@ const App: React.FC<AppProps> = ({
             ) : (
             <p className="num min-w-0 truncate text-[11px] text-(--ink-2)">
               {state.status ? (
-                state.status
+                // A status line is sticky (cleared only on rescan/filter), so keep the
+                // Clear affordance reachable when a selection is still live underneath it.
+                <>
+                  {state.status}
+                  {selectedCount > 0 && (
+                    <button onClick={handleClearSelection} className="ml-1.5 text-(--ink-3) underline-offset-2 hover:text-(--ink) hover:underline">
+                      Clear
+                    </button>
+                  )}
+                </>
               ) : selectedCount > 0 ? (
                 <>
                   <span className="text-(--ink)">{selectedCount}</span> selected

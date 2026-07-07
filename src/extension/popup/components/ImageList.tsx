@@ -357,7 +357,10 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                       >
                         <button
                           role="menuitem"
-                          onClick={() => { onExclude(selectedImage, 'url'); setExcludeMenuOpen(false); }}
+                          // Close the preview after excluding — the shown image is about to be
+                          // filtered out of `images`, so closing is deterministic; leaving the
+                          // modal open would silently reindex it to a neighbour.
+                          onClick={() => { onExclude(selectedImage, 'url'); close(); }}
                           className="flex w-full items-center px-3 py-1.5 text-[12px] text-(--ink) hover:bg-(--panel-2)"
                         >
                           Exclude this image
@@ -365,7 +368,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                         {hostFromUrl(selectedImage.src) !== '' && (
                           <button
                             role="menuitem"
-                            onClick={() => { onExclude(selectedImage, 'host'); setExcludeMenuOpen(false); }}
+                            onClick={() => { onExclude(selectedImage, 'host'); close(); }}
                             className="flex w-full items-center px-3 py-1.5 text-[12px] text-(--ink) hover:bg-(--panel-2)"
                           >
                             Exclude host ({hostFromUrl(selectedImage.src)})
