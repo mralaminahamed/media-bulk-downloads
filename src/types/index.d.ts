@@ -293,7 +293,7 @@ export interface CaptureProgressMessage {
 /** Offscreen → background: the capture outcome. On success the blob URL is
  *  same-extension origin, read by the background's chrome.downloads. */
 export type CaptureRunResult =
-  | { ok: true; blobUrl: string; ext: string; mime: string; segmentCount: number; muxedAudio: boolean }
+  | { ok: true; blobUrl: string; ext: string; segmentCount: number; muxedAudio: boolean }
   | { ok: false; code: string };
 
 /** Background → popup: the fully-composed status line for a capture. */

@@ -57,7 +57,7 @@ describe('offscreen capture host', () => {
     expect(captureHls).toHaveBeenCalledWith('https://x/m.m3u8', expect.anything(), { quality: 720, maxBytes: 1000 });
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'CAPTURE_PROGRESS', runId: 'run-1', done: 3, total: 7 });
     expect(sendResponse).toHaveBeenCalledWith({
-      ok: true, blobUrl: 'blob:test', ext: 'mp4', mime: 'video/mp4', segmentCount: 5, muxedAudio: true,
+      ok: true, blobUrl: 'blob:test', ext: 'mp4', segmentCount: 5, muxedAudio: true,
     });
   });
 

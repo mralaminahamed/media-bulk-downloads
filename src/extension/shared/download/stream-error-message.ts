@@ -1,4 +1,4 @@
-import { HLS_MAX_BYTES } from './capture-constants';
+import { STREAM_MAX_BYTES } from './capture-constants';
 
 /**
  * A user-facing message for a failed stream capture (HLS or DASH), from the
@@ -10,7 +10,7 @@ export function streamErrorMessage(code: string): string {
     case 'live': return 'Live streams can’t be captured — there is no fixed end.';
     case 'drm': return 'This stream is DRM-protected and can’t be captured.';
     case 'sample-aes': return 'This stream uses SAMPLE-AES encryption, which isn’t supported.';
-    case 'too-large': return `Stream is too large to capture (over ${Math.round(HLS_MAX_BYTES / 1024 / 1024 / 1024)} GB).`;
+    case 'too-large': return `Stream is too large to capture (over ${Math.round(STREAM_MAX_BYTES / 1024 / 1024 / 1024)} GB).`;
     case 'demuxed-unsupported': return 'This stream delivers audio separately in a format that can’t be combined.';
     case 'no-representations': return 'This stream has no downloadable video.';
     case 'unsupported': return 'This stream uses a format that can’t be captured.';
