@@ -1,4 +1,4 @@
-import { youtubeResolver, youtubeVideoId } from '@/extension/shared/resolvers/youtube';
+import { youtubeResolver, youtubeVideoId } from '@/extension/shared/resolvers/sites/youtube';
 
 const ID = 'dQw4w9WgXcQ'; // 11 chars
 const HQ = `https://i.ytimg.com/vi/${ID}/hqdefault.jpg`;

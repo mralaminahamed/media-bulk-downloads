@@ -6,7 +6,7 @@ description: Reason about this extension's permissions, host access, and privacy
 # Permissions & privacy
 
 Declared in `wxt.config.ts` (manifest function). Current set — keep this list and
-the store justifications (`docs/CHROME_WEBSTORE.md` §4) in sync:
+the store justifications (`docs/store-submissions/CHROME_WEBSTORE.md` §4) in sync:
 
 | Permission | Why |
 |---|---|
@@ -40,7 +40,7 @@ the store justifications (`docs/CHROME_WEBSTORE.md` §4) in sync:
 
 ## References
 
-- Privacy policy + store disclosures (this repo) — `PRIVACY.md`, `docs/CHROME_WEBSTORE.md`
+- Privacy policy + store disclosures (this repo) — `PRIVACY.md`, `docs/store-submissions/CHROME_WEBSTORE.md`
 - Chrome permissions list — https://developer.chrome.com/docs/extensions/reference/permissions-list
 - Declare permissions — https://developer.chrome.com/docs/extensions/develop/concepts/declare-permissions
 - CWS user-data policy — https://developer.chrome.com/docs/webstore/program-policies/user-data-faq

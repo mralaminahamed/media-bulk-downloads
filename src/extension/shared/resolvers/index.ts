@@ -1,12 +1,12 @@
 import { MediaCandidate, Resolver, ResolveContext } from './types';
-import { behanceResolver } from './behance';
-import { genericResolver } from './generic';
-import { instagramResolver } from './instagram';
-import { magnificResolver } from './magnific';
-import { twitterResolver } from './twitter';
-import { unsplashResolver } from './unsplash';
-import { wallhavenResolver } from './wallhaven';
-import { youtubeResolver } from './youtube';
+import { behanceResolver } from './sites/behance';
+import { genericResolver } from './sites/generic';
+import { instagramResolver } from './sites/instagram';
+import { magnificResolver } from './sites/magnific';
+import { twitterResolver } from './sites/twitter';
+import { unsplashResolver } from './sites/unsplash';
+import { wallhavenResolver } from './sites/wallhaven';
+import { youtubeResolver } from './sites/youtube';
 
 export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, unsplashResolver, wallhavenResolver, behanceResolver, magnificResolver, youtubeResolver, genericResolver];
 

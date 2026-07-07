@@ -1,6 +1,6 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import { extractIgMedia } from '@/extension/shared/resolvers/ig-media-sniff';
-import { installResponseSniffer, makeSnifferEmit } from '@/extension/shared/resolvers/response-sniffer';
+import { extractIgMedia } from '@/extension/shared/resolvers/sniffers/ig-media-sniff';
+import { installResponseSniffer, makeSnifferEmit } from '@/extension/shared/resolvers/sniffers/response-sniffer';
 
 /**
  * MAIN-world content script for instagram.com. Runs in the page's own realm at

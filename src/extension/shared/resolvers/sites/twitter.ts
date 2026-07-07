@@ -1,4 +1,4 @@
-import { MediaCandidate, Resolver } from './types';
+import { MediaCandidate, Resolver } from '../types';
 
 const SIZE_SUFFIX = /:(thumb|small|medium|large|orig)$/;
 const AVATAR_SIZE = /_(?:normal|bigger|mini|reasonably_small|\d{2,4}x\d{2,4})(?=\.\w+$)/i;

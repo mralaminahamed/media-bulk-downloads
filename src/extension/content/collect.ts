@@ -15,11 +15,11 @@ import { detectType, parseUrlDimensions, splitSrcsetCandidates } from '@/extensi
 import { detectAvType, isUndownloadableMedia, isHlsManifest, isDashManifest } from '@/extension/shared/collection/mediaType';
 import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates, bestSrcsetUrl } from '@/extension/shared/collection/extract';
 import { resolve, MediaCandidate } from '@/extension/shared/resolvers';
-import { twitterGifCandidate, twitterVideoPending } from '@/extension/shared/resolvers/twitter';
-import { instagramPageMedia } from '@/extension/shared/resolvers/instagram';
-import { youtubeVideoId } from '@/extension/shared/resolvers/youtube';
-import { vimeoVideoId } from '@/extension/shared/resolvers/vimeo';
-import { sniffedHlsManifests } from '@/extension/shared/resolvers/hls-sniff';
+import { twitterGifCandidate, twitterVideoPending } from '@/extension/shared/resolvers/sites/twitter';
+import { instagramPageMedia } from '@/extension/shared/resolvers/sites/instagram';
+import { youtubeVideoId } from '@/extension/shared/resolvers/sites/youtube';
+import { vimeoVideoId } from '@/extension/shared/resolvers/sites/vimeo';
+import { sniffedHlsManifests } from '@/extension/shared/resolvers/sniffers/hls-sniff';
 
 /** Determines if a URL is a base64-encoded image. */
 export function isBase64Image(src: string): boolean {

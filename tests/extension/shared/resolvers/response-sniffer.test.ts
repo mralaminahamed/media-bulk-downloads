@@ -1,4 +1,4 @@
-import { installResponseSniffer, installUrlSniffer, makeSnifferEmit } from '@/extension/shared/resolvers/response-sniffer';
+import { installResponseSniffer, installUrlSniffer, makeSnifferEmit } from '@/extension/shared/resolvers/sniffers/response-sniffer';
 
 describe('makeSnifferEmit', () => {
   let posted: unknown[];

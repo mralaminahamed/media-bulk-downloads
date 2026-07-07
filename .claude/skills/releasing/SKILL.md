@@ -31,14 +31,14 @@ into every browser's manifest.
 
 The full submission package — paste-ready name/summary/description, category,
 per-permission justifications, privacy/data disclosures, screenshot specs — lives
-in `docs/CHROME_WEBSTORE.md`. Privacy policy: `PRIVACY.md` (hosted at the repo's
+in `docs/store-submissions/CHROME_WEBSTORE.md`. Privacy policy: `PRIVACY.md` (hosted at the repo's
 public URL). Screenshots: 1280×800 or 640×400, 24-bit PNG, no alpha (there's a
 `assets/screenshot-1280x800.png`). Other Chromium browsers (Brave/Opera/Vivaldi)
 use the Chrome zip.
 
 ## References
 
-- Submission package (this repo) — `docs/CHROME_WEBSTORE.md`, `PRIVACY.md`, `CHANGELOG.md`
+- Submission package (this repo) — `docs/store-submissions/CHROME_WEBSTORE.md`, `PRIVACY.md`, `CHANGELOG.md`
 - WXT publishing / zip — https://wxt.dev/guide/essentials/publishing
 - Chrome Web Store publishing — https://developer.chrome.com/docs/webstore/publish
 - Edge Add-ons submission — https://learn.microsoft.com/en-us/microsoft-edge/extensions-chromium/publish/publish-extension

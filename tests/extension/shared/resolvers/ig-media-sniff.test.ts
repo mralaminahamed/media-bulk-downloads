@@ -1,4 +1,4 @@
-import { pinIgUrl, bestIgImage, shortcodeFromUrl, extFromIgUrl, extractIgMedia } from '@/extension/shared/resolvers/ig-media-sniff';
+import { pinIgUrl, bestIgImage, shortcodeFromUrl, extFromIgUrl, extractIgMedia } from '@/extension/shared/resolvers/sniffers/ig-media-sniff';
 
 describe('pinIgUrl', () => {
   it('accepts https cdninstagram / fbcdn hosts only', () => {

@@ -1,4 +1,4 @@
-import { MediaCandidate, Resolver } from './types';
+import { MediaCandidate, Resolver } from '../types';
 
 /**
  * YouTube resolver — POLICY-COMPLIANT, thumbnails only.

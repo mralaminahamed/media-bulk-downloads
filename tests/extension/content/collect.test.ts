@@ -3,13 +3,13 @@
 // store — ingestSniffedHls only accepts .m3u8, see hls-sniff.ts). Every other test
 // keeps the real behavior: ingestSniffedHls/resetSniffedHls are spread through
 // untouched, and the default implementation just delegates to the actual function.
-jest.mock('@/extension/shared/resolvers/hls-sniff', () => {
-  const actual = jest.requireActual('@/extension/shared/resolvers/hls-sniff');
+jest.mock('@/extension/shared/resolvers/sniffers/hls-sniff', () => {
+  const actual = jest.requireActual('@/extension/shared/resolvers/sniffers/hls-sniff');
   return { __esModule: true, ...actual, sniffedHlsManifests: jest.fn(actual.sniffedHlsManifests) };
 });
 
 import { collectMedia, backgroundImageUrls } from '@/extension/content/collect';
-import { ingestSniffedHls, resetSniffedHls, sniffedHlsManifests } from '@/extension/shared/resolvers/hls-sniff';
+import { ingestSniffedHls, resetSniffedHls, sniffedHlsManifests } from '@/extension/shared/resolvers/sniffers/hls-sniff';
 
 const setBody = (html: string) => {
   document.body.innerHTML = html;

@@ -17,7 +17,7 @@ name: Release
 #   CHROME_CLIENT_ID       OAuth client id  (Chrome Web Store API)
 #   CHROME_CLIENT_SECRET   OAuth client secret
 #   CHROME_REFRESH_TOKEN   OAuth refresh token
-# See docs/CHROME_WEBSTORE.md and https://developer.chrome.com/docs/webstore/using-api
+# See docs/store-submissions/CHROME_WEBSTORE.md and https://developer.chrome.com/docs/webstore/using-api
 
 on:
   push:

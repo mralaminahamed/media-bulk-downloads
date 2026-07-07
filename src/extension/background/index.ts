@@ -39,7 +39,7 @@ import { u8ToBase64, textToBase64 } from '../shared/download/base64';
 import { upgradeToOriginal, detectType } from '../shared/collection/imageUrl';
 import { extensionFromUrl } from '../shared/collection/mediaType';
 import { resolveOriginal, NetDeps } from '../shared/resolvers/network';
-import { mediaIdFromPoster, pinTwimgUrl } from '../shared/resolvers/x-media-sniff';
+import { mediaIdFromPoster, pinTwimgUrl } from '../shared/resolvers/sniffers/x-media-sniff';
 import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk } from '../shared/storage/history';
 import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } from '../shared/storage/favourites';
 import { addExcluded, removeExcluded, clearExcluded, restoreExcluded, excludedMatchers, EXCLUDED_KEY } from '../shared/storage/excluded';

@@ -179,7 +179,7 @@ Initial public release.
 - **Cross-browser builds** via [WXT](https://wxt.dev): Chrome, Firefox (MV3,
   109+), and Edge packages and store-ready zips from one codebase (`yarn zip:all`).
 - Network-free by default; settings and download history stored locally.
-- Chrome Web Store submission package (`docs/CHROME_WEBSTORE.md`), privacy policy
+- Chrome Web Store submission package (`docs/store-submissions/CHROME_WEBSTORE.md`), privacy policy
   (`PRIVACY.md`), and community health files (contributing guide, security
   policy, code of conduct, issue/PR templates).
 

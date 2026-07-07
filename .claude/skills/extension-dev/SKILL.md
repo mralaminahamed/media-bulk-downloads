@@ -63,7 +63,7 @@ Permissions (keep in sync with `wxt.config.ts`): `downloads`, `downloads.open`,
 ## In-repo docs
 
 `docs/guides/` (architecture, collection-pipeline, download, badge, bubble) for
-deeper walkthroughs; `docs/CHROME_WEBSTORE.md` for store submission.
+deeper walkthroughs; `docs/store-submissions/CHROME_WEBSTORE.md` for store submission.
 
 ## References
 
