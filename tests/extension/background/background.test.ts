@@ -815,6 +815,35 @@ describe('CAPTURE_STREAM', () => {
     expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringContaining('(video + audio)') });
   });
 
+  it('forwards CAPTURE_RUN with engine:dash for an mpd item', async () => {
+    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+      ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 4, muxedAudio: true,
+    } as CaptureRunResult);
+    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(123));
+    const dashItem = { ...item, type: 'mpd' };
+    const sendResponse = jest.fn();
+
+    messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: dashItem.hlsManifest, item: dashItem, sourcePage }, {}, sendResponse);
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'CAPTURE_RUN', engine: 'dash' }));
+  });
+
+  it('forwards CAPTURE_RUN with engine:hls for an m3u8 item', async () => {
+    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+      ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 9, muxedAudio: true,
+    } as CaptureRunResult);
+    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(123));
+    const sendResponse = jest.fn();
+
+    messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'CAPTURE_RUN', engine: 'hls' }));
+  });
+
   it('tolerates the concurrent-create race: createDocument rejects but a document now exists, so capture still proceeds', async () => {
     (chrome.offscreen.hasDocument as jest.Mock).mockReset()
       .mockResolvedValueOnce(false)

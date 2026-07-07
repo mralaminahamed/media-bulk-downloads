@@ -11,10 +11,9 @@ describe('hls-sniff store', () => {
     ]);
   });
 
-  it('rejects non-.m3u8, non-http, and non-string entries', () => {
+  it('rejects non-manifest, non-http, and non-string entries', () => {
     ingestSniffedHls([
       'https://cdn.test/video.mp4',
-      'https://cdn.test/stream.mpd',
       'blob:https://cdn.test/x.m3u8',
       'ftp://cdn.test/y.m3u8',
       42,
@@ -43,5 +42,16 @@ describe('hls-sniff store', () => {
     expect(stored).toHaveLength(500);
     expect(stored[0]).toBe('https://cdn.test/20.m3u8'); // first 20 evicted
     expect(stored[stored.length - 1]).toBe('https://cdn.test/519.m3u8');
+  });
+
+  it('stores a sniffed .mpd URL', () => {
+    resetSniffedHls();
+    ingestSniffedHls(['https://cdn.com/movie.mpd']);
+    expect(sniffedHlsManifests()).toContain('https://cdn.com/movie.mpd');
+  });
+  it('still rejects a non-manifest URL', () => {
+    resetSniffedHls();
+    ingestSniffedHls(['https://cdn.com/not-a-manifest.txt', 'ftp://x/a.mpd']);
+    expect(sniffedHlsManifests()).toEqual([]);
   });
 });
