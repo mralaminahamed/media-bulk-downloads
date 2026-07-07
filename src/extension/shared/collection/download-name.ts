@@ -21,7 +21,10 @@ import { avExtensionForType, extensionFromUrl } from './mediaType';
 export function extensionForType(type: string): string {
   switch (type) {
     case 'jpeg':
-      return 'jpeg';
+      // Use the conventional `.jpg` — matches what imageExtFromUrl preserves from
+      // a URL, so the same JPEG is never saved as `.jpg` one way and `.jpeg` the
+      // other depending on whether its extension was captured.
+      return 'jpg';
     case 'png':
     case 'gif':
     case 'webp':

@@ -36,4 +36,12 @@ describe('downloadExtension', () => {
     };
     expect(downloadExtension(item)).toBe('png');
   });
+
+  it('derives a jpeg-typed image (no ext) as .jpg, matching URL-captured .jpg', () => {
+    const item: ImageInfo = {
+      kind: 'image', type: 'jpeg', src: 'https://x/photo?format=jpeg',
+      width: 0, height: 0, fileSize: 0, isBase64: false, alt: '',
+    };
+    expect(downloadExtension(item)).toBe('jpg');
+  });
 });
