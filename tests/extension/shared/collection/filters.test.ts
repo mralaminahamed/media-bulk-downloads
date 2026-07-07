@@ -23,6 +23,7 @@ const base: SettingsData = {
   bubblePanelPoint: { x: 40, y: 40 },
   resolveOriginals: false,
   captureHlsStreams: false,
+  excludeEmoji: false,
   deepScanMaxItems: 1000,
   deepScanMaxSeconds: 20,
   deepScanMaxScrolls: 40,
@@ -71,6 +72,15 @@ describe('passesSettingsFilters', () => {
     expect(passesSettingsFilters(img({}), base)).toBe(true);
     // Enabled: the stream passes.
     expect(passesSettingsFilters(stream, { ...base, captureHlsStreams: true })).toBe(true);
+  });
+
+  it('excludes emoji images when the setting is on', () => {
+    const settings = { ...base, excludeEmoji: true };
+    expect(passesSettingsFilters(img({ src: 'https://abs.twimg.com/emoji/v2/svg/1f9f8.svg' }), settings)).toBe(false);
+    expect(passesSettingsFilters(img({ src: 'https://pbs.twimg.com/media/x.jpg' }), settings)).toBe(true);
+  });
+  it('keeps emoji images when the setting is off', () => {
+    expect(passesSettingsFilters(img({ src: 'https://abs.twimg.com/emoji/v2/svg/1f9f8.svg' }), base)).toBe(true);
   });
 });
 

@@ -245,6 +245,31 @@ describe('App Component', () => {
     await waitFor(() => expect(headerCount()).toBe('4'));
   });
 
+  it('live re-filters the grid when Exclude emoji is toggled on', async () => {
+    // Regression: the settings-change effect's dependency array omitted
+    // settings.excludeEmoji, so toggling this setting alone (without a
+    // re-scan) left the emoji tile stuck in the grid.
+    const emojiItem = image({
+      src: 'https://abs.twimg.com/emoji/v2/svg/1f9f8.svg', type: 'svg', kind: 'image',
+      width: 0, height: 0, fileSize: 0, isBase64: false, alt: '',
+    });
+    const { container } = render(
+      <App collect={async () => [emojiItem, image({ src: 'https://c/photo.jpg' })]} />,
+    );
+    await screen.findByText('Filters');
+    const headerCount = () => container.querySelector('header .num')?.textContent;
+
+    // Both items are eligible before the setting is enabled.
+    await waitFor(() => expect(headerCount()).toBe('2'));
+
+    fireEvent.click(screen.getByTitle('Settings'));
+    fireEvent.click(screen.getByRole('switch', { name: /exclude emoji/i }));
+    fireEvent.click(screen.getByText('Save'));
+
+    // The emoji tile drops out immediately — no re-scan required.
+    await waitFor(() => expect(headerCount()).toBe('1'));
+  });
+
   it('shows a pending Twitter video (but never resolves it) when resolveOriginals is off', async () => {
     (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: false } }));
 

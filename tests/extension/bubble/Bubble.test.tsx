@@ -32,6 +32,7 @@ const settings: SettingsData = {
   bubblePanelPoint: { x: 40, y: 40 },
   resolveOriginals: false,
   captureHlsStreams: false,
+  excludeEmoji: false,
   deepScanMaxItems: 1000,
   deepScanMaxSeconds: 20,
   deepScanMaxScrolls: 40,

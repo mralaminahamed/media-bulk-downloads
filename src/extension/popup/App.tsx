@@ -280,7 +280,7 @@ const App: React.FC<AppProps> = ({
     applyResolution(eligible, settings);
     // Keyed on the settings fields that affect eligibility + resolution.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.minimumImageSize, settings.excludeBase64Images, settings.resolveOriginals, settings.captureHlsStreams, applyResolution]);
+  }, [settings.minimumImageSize, settings.excludeBase64Images, settings.excludeEmoji, settings.resolveOriginals, settings.captureHlsStreams, applyResolution]);
 
   const handleDeepScan = async () => {
     if (deepScanning) {

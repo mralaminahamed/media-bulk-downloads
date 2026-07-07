@@ -30,6 +30,7 @@ describe('Settings Component', () => {
     bubblePanelPoint: { x: 40, y: 40 },
     resolveOriginals: false,
     captureHlsStreams: false,
+    excludeEmoji: false,
     deepScanMaxItems: 1000,
     deepScanMaxSeconds: 20,
     deepScanMaxScrolls: 40,
@@ -93,6 +94,21 @@ describe('Settings Component', () => {
     fireEvent.click(screen.getByText('Save'));
     expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({
       showImageCount: false,
+    }));
+  });
+
+  it('toggles exclude emoji', () => {
+    render(
+      <Settings
+        onClose={mockOnClose}
+        onSettingsChange={mockOnSettingsChange}
+        settings={initialSettings}
+      />
+    );
+    fireEvent.click(screen.getByRole('switch', { name: /exclude emoji/i }));
+    fireEvent.click(screen.getByText('Save'));
+    expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({
+      excludeEmoji: true,
     }));
   });
 

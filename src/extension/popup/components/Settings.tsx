@@ -235,6 +235,13 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
               onToggle={() => toggle('excludeBase64Images')}
             />
             <ToggleRow
+              id="set-excludeEmoji"
+              label="Exclude emoji"
+              description="Hide emoji graphics (Twitter/WordPress twemoji, etc.) from results."
+              checked={settings.excludeEmoji}
+              onToggle={() => toggle('excludeEmoji')}
+            />
+            <ToggleRow
               id="set-resolveOriginals"
               label="Resolve exact originals (network requests)"
               description="Fetches Twitter videos and exact Wallhaven/Unsplash originals. Off by default — keeps collection private."
