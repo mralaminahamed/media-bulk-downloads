@@ -421,6 +421,27 @@ describe('App Component', () => {
     expect(await screen.findByText(/couldn't fetch/i)).toBeInTheDocument();
   });
 
+  it('captures an HLS stream via the background and shows the returned status', async () => {
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { captureHlsStreams: true } }));
+    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((msg, cb) => {
+      if (msg?.type === 'CAPTURE_STREAM' && cb) cb({ status: 'Captured clip.mp4 — 8 segments (video + audio).' });
+    });
+
+    const hlsItem = image({
+      src: 'https://x/master.m3u8', hlsManifest: 'https://x/master.m3u8', type: 'm3u8', kind: 'video',
+      width: 0, height: 0, fileSize: 0, isBase64: false, alt: '',
+    });
+    render(<App collect={async () => [hlsItem]} />);
+    await screen.findByText('Filters');
+
+    fireEvent.click(await screen.findByTitle('Capture stream'));
+
+    expect(await screen.findByText(/Captured clip\.mp4 — 8 segments/)).toBeInTheDocument();
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'CAPTURE_STREAM' }), expect.any(Function),
+    );
+  });
+
   it('keeps a per-item-fetched video downloadable after a settings change re-filters the grid', async () => {
     // Regression: handleFetchVideo used to swap the resolved item into
     // state.images/filteredImages only, leaving rawImagesRef.current still
