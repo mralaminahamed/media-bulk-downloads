@@ -1,10 +1,11 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from '@/extension/popup/App';
 import { ImageInfo } from '@/types';
 import { deepScanActiveTab } from '@/extension/shared/active-tab/deep-scan-active-tab';
 import { requestResolveOriginals } from '@/extension/shared/active-tab/resolve-originals-active';
+import { excludedMatchers, EXCLUDED_KEY } from '@/extension/shared/storage/excluded';
 
 jest.mock('@/extension/shared/active-tab/deep-scan-active-tab', () => ({
   deepScanActiveTab: jest.fn(async (onProgress) => {
@@ -19,6 +20,11 @@ jest.mock('@/extension/shared/active-tab/deep-scan-active-tab', () => ({
 
 jest.mock('@/extension/shared/active-tab/resolve-originals-active', () => ({
   requestResolveOriginals: jest.fn(async () => ({ 'poster.jpg': { url: 'https://video.twimg.com/hi.mp4' } })),
+}));
+
+jest.mock('@/extension/shared/storage/excluded', () => ({
+  excludedMatchers: jest.fn(async () => ({ urls: new Set(), hosts: new Set() })),
+  EXCLUDED_KEY: 'excluded',
 }));
 
 const image = (over: Partial<ImageInfo>): ImageInfo => ({
@@ -267,6 +273,45 @@ describe('App Component', () => {
     fireEvent.click(screen.getByText('Save'));
 
     // The emoji tile drops out immediately — no re-scan required.
+    await waitFor(() => expect(headerCount()).toBe('1'));
+  });
+
+  it('live-removes excluded sources from the grid on a storage change', async () => {
+    const matchersMock = excludedMatchers as jest.Mock;
+    matchersMock.mockResolvedValueOnce({ urls: new Set(), hosts: new Set() }); // initial load: nothing excluded yet
+
+    const { container } = render(
+      <App
+        collect={async () => [
+          image({ src: 'https://cdn.ads.com/a.png' }),
+          image({ src: 'https://keep.com/b.png' }),
+        ]}
+      />,
+    );
+    await screen.findByText('Filters');
+    const headerCount = () => container.querySelector('header .num')?.textContent;
+
+    // Both items are eligible before anything is excluded.
+    await waitFor(() => expect(headerCount()).toBe('2'));
+
+    // Next call to excludedMatchers() (triggered by the storage change below)
+    // returns a host match for cdn.ads.com.
+    matchersMock.mockResolvedValueOnce({ urls: new Set(), hosts: new Set(['cdn.ads.com']) });
+
+    // App registers its excluded-storage listener last (after history and
+    // favourites) on every mount, so the most recently recorded addListener
+    // call is this render's — pick that one rather than every accumulated
+    // call across the whole suite (which would re-consume the queued
+    // mockResolvedValueOnce on a stale, already-unmounted listener).
+    const addListenerMock = chrome.storage.onChanged.addListener as jest.Mock;
+    const excludedListener = addListenerMock.mock.calls[addListenerMock.mock.calls.length - 1][0];
+    await act(async () => {
+      excludedListener({ [EXCLUDED_KEY]: { newValue: [] } }, 'local');
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // The excluded host's item drops out immediately — no re-scan required.
     await waitFor(() => expect(headerCount()).toBe('1'));
   });
 

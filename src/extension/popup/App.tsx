@@ -12,7 +12,7 @@ import { SkeletonGrid } from './components/states/SkeletonGrid';
 import { EmptyState } from './components/states/EmptyState';
 import { ErrorState } from './components/states/ErrorState';
 import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, DownloadZipMessage, DownloadBytesMessage, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
-import { filterImagesBySettings, applyToolbarFilters } from '../shared/collection/filters';
+import { filterImagesBySettings, applyToolbarFilters, filterExcluded, ExcludedMatchers } from '../shared/collection/filters';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
 import { collectFromActiveTab } from '../shared/active-tab/collect-active-tab';
 import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/active-tab/deep-scan-active-tab';
@@ -20,6 +20,7 @@ import { requestResolveOriginals } from '../shared/active-tab/resolve-originals-
 import { applyResolved } from './apply-resolved';
 import { HISTORY_KEY } from '../shared/storage/history';
 import { favouriteSrcSet, FAVOURITES_KEY } from '../shared/storage/favourites';
+import { excludedMatchers, EXCLUDED_KEY } from '../shared/storage/excluded';
 import { buildZip, zipFileName } from '../shared/download/zip';
 import { convertImage, isConvertible } from '../shared/download/convert';
 import { buildDownloadFilename } from '../shared/collection/download-name';
@@ -76,6 +77,8 @@ const App: React.FC<AppProps> = ({
   const [downloadedSrcs, setDownloadedSrcs] = useState<Set<string>>(new Set());
   const [showFavourites, setShowFavourites] = useState(false);
   const [favouriteSrcs, setFavouriteSrcs] = useState<Set<string>>(new Set());
+  const [excludedMatch, setExcludedMatch] = useState<ExcludedMatchers>({ urls: new Set(), hosts: new Set() });
+  const excludedRef = useRef<ExcludedMatchers>({ urls: new Set(), hosts: new Set() });
   const [resolveFailedSrcs, setResolveFailedSrcs] = useState<Set<string>>(new Set());
   const [fetchingSrcs, setFetchingSrcs] = useState<Set<string>>(new Set());
   // Selective bulk download: srcs the user has ticked. Scoped to what's shown —
@@ -136,6 +139,16 @@ const App: React.FC<AppProps> = ({
         const next = (changes[FAVOURITES_KEY].newValue as { src: string }[] | undefined) ?? [];
         setFavouriteSrcs(new Set(next.map((e) => e.src)));
       }
+    };
+    chrome.storage.onChanged.addListener(onChanged);
+    return () => chrome.storage.onChanged.removeListener(onChanged);
+  }, []);
+
+  useEffect(() => {
+    const load = () => void excludedMatchers().then((m) => { excludedRef.current = m; setExcludedMatch(m); });
+    load();
+    const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+      if (area === 'local' && changes[EXCLUDED_KEY]) load();
     };
     chrome.storage.onChanged.addListener(onChanged);
     return () => chrome.storage.onChanged.removeListener(onChanged);
@@ -257,7 +270,7 @@ const App: React.FC<AppProps> = ({
       const raw = Array.isArray(imageList) ? imageList : [];
       rawImagesRef.current = raw;
       const s = settingsRef.current; // latest settings, not a stale closure
-      const eligible = filterImagesBySettings(raw, s);
+      const eligible = filterExcluded(filterImagesBySettings(raw, s), excludedRef.current);
 
       setState((prev) => ({ ...prev, status: '', isLoading: false }));
       applyResolution(eligible, s);
@@ -276,11 +289,12 @@ const App: React.FC<AppProps> = ({
   // mount, so the first scan runs before a persisted resolveOriginals is known).
   useEffect(() => {
     if (rawImagesRef.current.length === 0) return;
-    const eligible = filterImagesBySettings(rawImagesRef.current, settings);
+    const eligible = filterExcluded(filterImagesBySettings(rawImagesRef.current, settings), excludedRef.current);
     applyResolution(eligible, settings);
-    // Keyed on the settings fields that affect eligibility + resolution.
+    // Keyed on the settings fields that affect eligibility + resolution, plus
+    // excludedMatch so an exclusion-list change re-derives the grid too.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.minimumImageSize, settings.excludeBase64Images, settings.excludeEmoji, settings.resolveOriginals, settings.captureHlsStreams, applyResolution]);
+  }, [settings.minimumImageSize, settings.excludeBase64Images, settings.excludeEmoji, settings.resolveOriginals, settings.captureHlsStreams, applyResolution, excludedMatch]);
 
   const handleDeepScan = async () => {
     if (deepScanning) {
@@ -302,7 +316,7 @@ const App: React.FC<AppProps> = ({
       });
       const merged = [...bySrc.values()];
       rawImagesRef.current = merged;
-      const eligible = filterImagesBySettings(merged, settings);
+      const eligible = filterExcluded(filterImagesBySettings(merged, settings), excludedRef.current);
       applyResolution(eligible, settings);
       // If a cap (not a natural finish) ended the scan, tell the user media may remain.
       const capMsg = deepScanCapMessage(stopReason, merged.length);
