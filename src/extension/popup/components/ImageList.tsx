@@ -68,28 +68,31 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const selectedImage = selectedIndex !== null ? images[selectedIndex] ?? null : null;
 
-  // Per-item exclude menu: which item's disclosure (if any) is open, keyed by
-  // src since only one can be open at a time. A map of src -> wrapper element
-  // backs the outside-click close, since each tile mounts its own wrapper.
-  const [excludeMenuSrc, setExcludeMenuSrc] = useState<string | null>(null);
-  const excludeMenuRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  // The preview modal's exclude menu (open/closed). The modal shows one image, so
+  // a single boolean + one wrapper ref back the outside-click / Escape close.
+  const [excludeMenuOpen, setExcludeMenuOpen] = useState(false);
+  const excludeMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (excludeMenuSrc === null) return;
+    if (!excludeMenuOpen) return;
     const onPointer = (e: MouseEvent): void => {
-      const el = excludeMenuRefs.current.get(excludeMenuSrc);
-      if (el && !el.contains(e.target as Node)) setExcludeMenuSrc(null);
+      if (excludeMenuRef.current && !excludeMenuRef.current.contains(e.target as Node)) setExcludeMenuOpen(false);
     };
+    // Capture phase + stopPropagation so Escape closes ONLY the menu — useDialog's
+    // bubble-phase Escape (which closes the whole modal) never receives the event.
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') setExcludeMenuSrc(null);
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setExcludeMenuOpen(false);
+      }
     };
     document.addEventListener('mousedown', onPointer);
-    document.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey, true);
     return () => {
       document.removeEventListener('mousedown', onPointer);
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey, true);
     };
-  }, [excludeMenuSrc]);
+  }, [excludeMenuOpen]);
 
   // Anchor for Shift-click range selection (index of the last checkbox toggled).
   const rangeAnchor = useRef<number | null>(null);
@@ -104,7 +107,10 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
     rangeAnchor.current = index;
   };
 
-  const close = () => setSelectedIndex(null);
+  const close = () => {
+    setSelectedIndex(null);
+    setExcludeMenuOpen(false);
+  };
   const hasPrev = selectedIndex !== null && selectedIndex > 0;
   const hasNext = selectedIndex !== null && selectedIndex < images.length - 1;
   const goPrev = () => setSelectedIndex((i) => (i !== null && i > 0 ? i - 1 : i));
@@ -253,55 +259,6 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                       : <StarIcon className="h-4 w-4" />}
                   </button>
                 )}
-                {onExclude && (
-                  <div
-                    ref={(el) => {
-                      if (el) excludeMenuRefs.current.set(image.src, el);
-                      else excludeMenuRefs.current.delete(image.src);
-                    }}
-                    className="relative"
-                  >
-                    <button
-                      onClick={() => setExcludeMenuSrc((cur) => (cur === image.src ? null : image.src))}
-                      title="Exclude source"
-                      aria-label="Exclude source"
-                      aria-haspopup="menu"
-                      aria-expanded={excludeMenuSrc === image.src}
-                      className="grid h-8 w-8 place-items-center rounded-full bg-(--panel) text-(--ink) ring-1 ring-(--ctl-ring) transition-transform hover:scale-105 active:scale-95"
-                    >
-                      <NoSymbolIcon className="h-4 w-4" />
-                    </button>
-                    {excludeMenuSrc === image.src && (
-                      <div
-                        role="menu"
-                        className="absolute left-1/2 top-full z-20 mt-1.5 w-48 -translate-x-1/2 overflow-hidden rounded-(--radius-sm) border hairline bg-(--panel) py-1 text-left shadow-lg"
-                      >
-                        <button
-                          role="menuitem"
-                          onClick={() => {
-                            onExclude(image, 'url');
-                            setExcludeMenuSrc(null);
-                          }}
-                          className="flex w-full items-center px-3 py-1.5 text-[12px] text-(--ink) hover:bg-(--panel-2)"
-                        >
-                          Exclude this image
-                        </button>
-                        {hostFromUrl(image.src) !== '' && (
-                          <button
-                            role="menuitem"
-                            onClick={() => {
-                              onExclude(image, 'host');
-                              setExcludeMenuSrc(null);
-                            }}
-                            className="flex w-full items-center px-3 py-1.5 text-[12px] text-(--ink) hover:bg-(--panel-2)"
-                          >
-                            Exclude host ({hostFromUrl(image.src)})
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
                 {isPendingVideo(image) ? (
                   image.resolveHint ? (
                     <button
@@ -380,6 +337,43 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                       ? <StarIconSolid className="h-4.5 w-4.5 text-(--brand-ink)" />
                       : <StarIcon className="h-4.5 w-4.5" />}
                   </button>
+                )}
+                {onExclude && (
+                  <div ref={excludeMenuRef} className="relative">
+                    <button
+                      onClick={() => setExcludeMenuOpen((v) => !v)}
+                      title="Exclude source"
+                      aria-label="Exclude source"
+                      aria-haspopup="menu"
+                      aria-expanded={excludeMenuOpen}
+                      className="iconbtn"
+                    >
+                      <NoSymbolIcon className="h-4.5 w-4.5" />
+                    </button>
+                    {excludeMenuOpen && (
+                      <div
+                        role="menu"
+                        className="absolute right-0 top-full z-20 mt-1.5 w-48 overflow-hidden rounded-(--radius-sm) border hairline bg-(--panel) py-1 text-left shadow-lg"
+                      >
+                        <button
+                          role="menuitem"
+                          onClick={() => { onExclude(selectedImage, 'url'); setExcludeMenuOpen(false); }}
+                          className="flex w-full items-center px-3 py-1.5 text-[12px] text-(--ink) hover:bg-(--panel-2)"
+                        >
+                          Exclude this image
+                        </button>
+                        {hostFromUrl(selectedImage.src) !== '' && (
+                          <button
+                            role="menuitem"
+                            onClick={() => { onExclude(selectedImage, 'host'); setExcludeMenuOpen(false); }}
+                            className="flex w-full items-center px-3 py-1.5 text-[12px] text-(--ink) hover:bg-(--panel-2)"
+                          >
+                            Exclude host ({hostFromUrl(selectedImage.src)})
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
                 <a
                   href={selectedImage.src}
