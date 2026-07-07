@@ -3,8 +3,9 @@
  *
  * Pure and deterministic: no network, DOM, or crypto of its own — the caller
  * injects `fetchText` / `fetchBytes` / `decrypt`. This lets the same engine run
- * in the service worker (real fetch + WebCrypto), in an offscreen document, and
- * in tests / Node validation (node:crypto, canned fixtures).
+ * in an extension page — the offscreen document, where captures actually run
+ * (real fetch + WebCrypto) — and in tests / Node validation (node:crypto, canned
+ * fixtures).
  *
  * It turns a `.m3u8` master or media playlist into one assembled file:
  *   master  → pick a variant (highest bandwidth by default) → its media playlist
@@ -99,7 +100,7 @@ export interface HlsMediaPlaylist {
 }
 
 /** AES-128-CBC decrypt: (rawKey16, iv16, ciphertext) → plaintext. Injected so the
- *  engine stays crypto-free (WebCrypto in the SW, node:crypto in tests). */
+ *  engine stays crypto-free (WebCrypto in the offscreen doc, node:crypto in tests). */
 export type DecryptFn = (key: Uint8Array, iv: Uint8Array, data: Uint8Array) => Promise<Uint8Array>;
 
 export interface HlsDeps {

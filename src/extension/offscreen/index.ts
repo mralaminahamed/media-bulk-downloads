@@ -41,7 +41,7 @@ async function runCapture(
     const blobUrl = URL.createObjectURL(new Blob([ab], { type: res.mime }));
     // Keep the blob alive long enough for the background's chrome.downloads to read it.
     setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
-    return { ok: true, blobUrl, ext: res.ext, mime: res.mime, segmentCount: res.segmentCount, muxedAudio: !!res.muxedAudio };
+    return { ok: true, blobUrl, ext: res.ext, segmentCount: res.segmentCount, muxedAudio: !!res.muxedAudio };
   } catch (e) {
     const code = e instanceof HlsError || e instanceof DashError ? e.code : 'unknown';
     return { ok: false, code };

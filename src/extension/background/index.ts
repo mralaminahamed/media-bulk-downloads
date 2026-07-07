@@ -44,7 +44,7 @@ import { mediaIdFromPoster, pinTwimgUrl } from '../shared/resolvers/sniffers/x-m
 import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk } from '../shared/storage/history';
 import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } from '../shared/storage/favourites';
 import { addExcluded, removeExcluded, clearExcluded, restoreExcluded, excludedMatchers, EXCLUDED_KEY } from '../shared/storage/excluded';
-import { HLS_MAX_BYTES, HLS_TARGET_HEIGHT } from '../shared/download/capture-constants';
+import { STREAM_MAX_BYTES, STREAM_TARGET_HEIGHT } from '../shared/download/capture-constants';
 import { streamErrorMessage } from '../shared/download/stream-error-message';
 import { newCaptureRunId } from '../shared/active-tab/capture-stream-active';
 
@@ -266,8 +266,8 @@ async function captureStreamToFile(
     runId,
     manifestUrl: item.hlsManifest,
     engine: item.type === 'mpd' ? 'dash' : 'hls',
-    quality: HLS_TARGET_HEIGHT,
-    maxBytes: HLS_MAX_BYTES,
+    quality: STREAM_TARGET_HEIGHT,
+    maxBytes: STREAM_MAX_BYTES,
   })) as CaptureRunResult | undefined;
   if (!result || !result.ok) return { ok: false, code: result?.ok === false ? result.code : 'unknown' };
   const filename = buildDownloadFilename({ ...item, ext: result.ext }, 0, currentSettings, sourcePage?.url);
