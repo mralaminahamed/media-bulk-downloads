@@ -56,6 +56,14 @@ describe('resolveOriginal — twitter', () => {
     ] } }] };
     expect(await resolveOriginal({ platform: 'twitter', id: '1' }, { fetch: mockFetch(evil) })).toBeNull();
   });
+  it('returns null (never throws) when the mp4 url is a malformed string the URL constructor rejects', () => {
+    // A string that isn't a parseable URL makes pinnedUrl's `new URL()` throw; its
+    // catch returns null, so the whole resolve yields null rather than crashing.
+    const bad = { mediaDetails: [{ video_info: { variants: [
+      { content_type: 'video/mp4', bitrate: 1, url: 'not a url' },
+    ] } }] };
+    return expect(resolveOriginal({ platform: 'twitter', id: '1' }, { fetch: mockFetch(bad) })).resolves.toBeNull();
+  });
 });
 
 describe('resolveOriginal — wallhaven', () => {
@@ -70,6 +78,10 @@ describe('resolveOriginal — wallhaven', () => {
   it('rejects a data.path pointing off-host (untrusted JSON URL)', async () => {
     const evil = { data: { path: 'https://evil.example/x.png' } };
     expect(await resolveOriginal({ platform: 'wallhaven', id: 'x' }, { fetch: mockFetch(evil) })).toBeNull();
+  });
+  it('returns null when fetch throws', async () => {
+    const throwing = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
+    expect(await resolveOriginal({ platform: 'wallhaven', id: 'x' }, { fetch: throwing })).toBeNull();
   });
 });
 
@@ -147,5 +159,21 @@ describe('resolveOriginal — vimeo', () => {
 
   it('returns null when there is neither a progressive nor an HLS rendition', async () => {
     expect(await resolveOriginal({ platform: 'vimeo', id: '1' }, { fetch: mockFetch(hlsConfig([], undefined)) })).toBeNull();
+  });
+
+  it('returns null when fetch throws', async () => {
+    const throwing = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
+    expect(await resolveOriginal({ platform: 'vimeo', id: '1' }, { fetch: throwing })).toBeNull();
+  });
+});
+
+describe('resolveOriginal — unknown platform', () => {
+  it('returns null for a platform with no resolver (default case), without fetching', async () => {
+    let called = false;
+    const spy = (async () => { called = true; return { ok: true, json: async () => ({}) }; }) as unknown as typeof fetch;
+    // A hint whose platform isn't one of the four handled cases falls through to `default`.
+    const unknownHint = { platform: 'facebook', id: 'x' } as unknown as Parameters<typeof resolveOriginal>[0];
+    expect(await resolveOriginal(unknownHint, { fetch: spy })).toBeNull();
+    expect(called).toBe(false);
   });
 });

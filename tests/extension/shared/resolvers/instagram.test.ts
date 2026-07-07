@@ -225,3 +225,109 @@ describe('instagramResolver.resolve — sniffed GraphQL media', () => {
     ]);
   });
 });
+
+describe('ingestSniffedIgMedia — untrusted-input validation & edge cases', () => {
+  /** Resolve a post whose thumbnail sits under a /p|reel/<code> ancestor link. */
+  const resolveCode = (code: string) => {
+    document.body.insertAdjacentHTML('beforeend', `<a href="/user/p/${code}/"><img id="${code}"></a>`);
+    return instagramResolver.resolve(u(`${CDN}/thumb_n.jpg`), { el: document.getElementById(code)!, allowNetwork: false });
+  };
+
+  it('ignores a non-array payload without throwing, and stores nothing', () => {
+    ingestSniffedIgMedia('not-an-array');
+    ingestSniffedIgMedia(null);
+    ingestSniffedIgMedia(undefined);
+    ingestSniffedIgMedia({ code: 'X' });
+    expect(resolveCode('NADA')).toEqual([]);
+  });
+
+  it('skips null / primitive / wrong-kind entries and keeps the valid one', () => {
+    ingestSniffedIgMedia([
+      null,
+      'a string',
+      42,
+      { code: 'AUD', kind: 'audio', url: `${CDN}/aud_n.jpg`, ext: 'jpg' }, // kind not image|video -> dropped
+      { code: 'OK', kind: 'image', url: `${CDN}/OK_1440_n.jpg`, ext: 'jpg', width: 1440, height: 1440 },
+    ]);
+    expect(resolveCode('OK')).toEqual([{ url: `${CDN}/OK_1440_n.jpg`, kind: 'image', ext: 'jpg', width: 1440, height: 1440 }]);
+    expect(resolveCode('AUD')).toEqual([]); // the audio-kind entry never entered the store
+  });
+
+  it('defaults a missing ext to jpg and surfaces an entry with no width/height without dimension fields', () => {
+    // No ext and no width/height on the sniffed entry — exercises both defaulting paths.
+    ingestSniffedIgMedia([{ code: 'NOWH', kind: 'image', url: `${CDN}/NOWH_n.jpg` }]);
+    const [c] = resolveCode('NOWH');
+    expect(c).toEqual({ url: `${CDN}/NOWH_n.jpg`, kind: 'image', ext: 'jpg' });
+    expect(c.width).toBeUndefined();
+    expect(c.height).toBeUndefined();
+  });
+
+  it('honours a sniffed pending flag -> a cover-only pending video', () => {
+    ingestSniffedIgMedia([
+      { code: 'PEND', kind: 'video', url: `${CDN}/PEND_cover_n.jpg`, ext: 'mp4', width: 640, height: 1136, poster: `${CDN}/PEND_cover_n.jpg`, pending: true },
+    ]);
+    const [c] = resolveCode('PEND');
+    expect(c).toMatchObject({ kind: 'video', ext: 'mp4', unresolvedVideo: true, poster: `${CDN}/PEND_cover_n.jpg` });
+  });
+
+  it('when every sniffed entry is rejected (host-pinning), the store stays empty (no crash)', () => {
+    ingestSniffedIgMedia([
+      { code: 'EVIL', kind: 'image', url: 'https://evil.com/x.jpg', ext: 'jpg' },
+      { code: 'EVIL', kind: 'image', url: 'javascript:alert(1)', ext: 'jpg' },
+    ]);
+    expect(resolveCode('EVIL')).toEqual([]);
+  });
+
+  it('bounds the sniffed store to its cap (newest entries win)', () => {
+    const many = Array.from({ length: 4001 }, (_, i) => ({
+      code: 'MANY', kind: 'image', url: `${CDN}/MANY_${i}_n.jpg`, ext: 'jpg', width: 1440, height: 1440,
+    }));
+    ingestSniffedIgMedia(many);
+    const out = resolveCode('MANY');
+    expect(out).toHaveLength(4000); // 4001 ingested, capped to the last 4000
+    expect(out[out.length - 1].url).toBe(`${CDN}/MANY_4000_n.jpg`);
+  });
+});
+
+describe('instagram buildByCode + instagramPageMedia — parsing edge cases', () => {
+  it('skips script blocks with no media token and invalid-JSON blocks, keeping the good post', () => {
+    // (a) valid JSON, but no media tokens -> cheap-guard skip
+    hydrate({ hello: 'world', nested: { a: 1 } });
+    // (b) mentions the token substring but is NOT valid JSON -> JSON.parse throws, swallowed
+    const bad = document.createElement('script');
+    bad.type = 'application/json';
+    bad.textContent = 'this mentions image_versions2 but is not valid json {';
+    document.body.appendChild(bad);
+    // (c) a genuine post — the good path must still resolve
+    hydrate({ code: 'GOODJSON', media_type: 1, image_versions2: { candidates: [{ url: `${CDN}/GOODJSON_n.jpg`, width: 1080, height: 1080 }] } });
+
+    document.body.insertAdjacentHTML('beforeend', '<a href="/user/p/GOODJSON/"><img id="t"></a>');
+    const el = document.getElementById('t')!;
+    const expected = [{ url: `${CDN}/GOODJSON_n.jpg`, kind: 'image', ext: 'jpg', width: 1080, height: 1080 }];
+    expect(instagramResolver.resolve(u(`${CDN}/t.jpg`), { el, allowNetwork: false })).toEqual(expected);
+    // A second resolve (e.g. deep-scan re-run) must not re-parse the same <script>
+    // nodes — each is parsed exactly once — yet still return the same media.
+    expect(instagramResolver.resolve(u(`${CDN}/t.jpg`), { el, allowNetwork: false })).toEqual(expected);
+  });
+
+  it('dedups the same code+url reached from both embedded JSON and a sniffed entry', () => {
+    const dupUrl = `${CDN}/DUP_1440_n.jpg`;
+    hydrate({ code: 'DUP', media_type: 1, image_versions2: { candidates: [{ url: dupUrl, width: 1440, height: 1440 }] } });
+    ingestSniffedIgMedia([{ code: 'DUP', kind: 'image', url: dupUrl, ext: 'jpg', width: 1440, height: 1440 }]);
+    document.body.insertAdjacentHTML('beforeend', '<a href="/user/p/DUP/"><img id="t"></a>');
+    expect(instagramResolver.resolve(u(`${CDN}/t.jpg`), { el: document.getElementById('t')!, allowNetwork: false })).toHaveLength(1);
+  });
+
+  it('bounds the parsed store to its cap (a huge carousel is sliced to the newest entries)', () => {
+    const carousel_media = Array.from({ length: 4001 }, (_, i) => ({
+      media_type: 1, image_versions2: { candidates: [{ url: `${CDN}/CAP_${i}_n.jpg`, width: 1440, height: 1440 }] },
+    }));
+    hydrate({ code: 'CAP', media_type: 8, carousel_media });
+    expect(instagramPageMedia('https://www.instagram.com/rashmiix/p/CAP/')).toHaveLength(4000);
+  });
+
+  it('instagramPageMedia returns [] when the URL has a shortcode but no media is known for it', () => {
+    hydrate({ code: 'OTHER', media_type: 1, image_versions2: { candidates: [{ url: `${CDN}/OTHER_n.jpg`, width: 1, height: 1 }] } });
+    expect(instagramPageMedia('https://www.instagram.com/rashmiix/p/UNKNOWN/')).toEqual([]);
+  });
+});

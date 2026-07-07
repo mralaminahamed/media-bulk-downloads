@@ -64,6 +64,44 @@ describe('installResponseSniffer (fetch path)', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(seen).toEqual([]);
   });
+
+  it('feeds an XHR JSON API response body to emit on load', () => {
+    // Stub the native send so nothing hits the (nonexistent) network; install
+    // captures this as the "native" send it forwards to.
+    XMLHttpRequest.prototype.send = jest.fn();
+    const seen: string[] = [];
+    installResponseSniffer({ isApi: (u) => u.includes('/api/'), emit: (t) => seen.push(t), urlKey: '__k' });
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', 'https://site/api/thing');
+    Object.defineProperty(xhr, 'responseText', { value: '{"MEDIA":1}', configurable: true });
+    xhr.getResponseHeader = jest.fn().mockReturnValue('application/json');
+    xhr.send();
+    xhr.dispatchEvent(new Event('load'));
+    expect(seen).toEqual(['{"MEDIA":1}']);
+  });
+
+  it('does not emit an XHR response from a non-API URL, or a non-JSON content type', () => {
+    XMLHttpRequest.prototype.send = jest.fn();
+    const seen: string[] = [];
+    installResponseSniffer({ isApi: (u) => u.includes('/api/'), emit: (t) => seen.push(t), urlKey: '__k' });
+
+    const nonApi = new XMLHttpRequest();
+    nonApi.open('GET', 'https://site/other');
+    Object.defineProperty(nonApi, 'responseText', { value: 'x', configurable: true });
+    nonApi.getResponseHeader = jest.fn().mockReturnValue('application/json');
+    nonApi.send();
+    nonApi.dispatchEvent(new Event('load'));
+
+    const notJson = new XMLHttpRequest();
+    notJson.open('GET', 'https://site/api/thing');
+    Object.defineProperty(notJson, 'responseText', { value: 'x', configurable: true });
+    notJson.getResponseHeader = jest.fn().mockReturnValue('text/html');
+    notJson.send();
+    notJson.dispatchEvent(new Event('load'));
+
+    expect(seen).toEqual([]);
+  });
 });
 
 describe('installUrlSniffer', () => {

@@ -32,6 +32,8 @@ describe('youtubeVideoId', () => {
     ['the i.ytimg thumbnail CDN (stays with generic)', `https://i.ytimg.com/vi/${ID}/default.jpg`],
     ['an id that is too short', 'https://www.youtube.com/watch?v=abc'],
     ['an id with an illegal char', 'https://www.youtube.com/watch?v=dQw4w9WgX!Q'],
+    ['a youtu.be short link whose id is not 11 valid chars', 'https://youtu.be/short'],
+    ['a youtu.be link with an over-long first segment', 'https://youtu.be/thisistoolongxx/more'],
     ['a malformed URL', 'http://'],
   ])('returns null for %s', (_label, url) => {
     expect(youtubeVideoId(url)).toBeNull();
@@ -66,5 +68,11 @@ describe('youtubeResolver', () => {
     const fromShort = youtubeResolver.resolve(new URL(`https://youtu.be/${ID}`), { allowNetwork: false });
     expect(fromEmbed[0].url).toBe(HQ);
     expect(fromShort[0].url).toBe(HQ);
+  });
+
+  it('resolve() returns [] for a URL that carries no video id (guards the match gate)', () => {
+    // resolve is normally reached only after match(); called directly on a non-video
+    // page URL it must still yield nothing rather than a bogus i.ytimg poster.
+    expect(youtubeResolver.resolve(new URL('https://www.youtube.com/playlist?list=PL123'), { allowNetwork: false })).toEqual([]);
   });
 });

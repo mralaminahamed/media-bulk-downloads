@@ -259,6 +259,15 @@ describe('deproxy', () => {
     const u = 'https://site.com/_next/image?url=' + encodeURIComponent('https://cdn.com/a.jpg') + '&w=64';
     expect(upgradeToOriginal(u)).toEqual({ original: 'https://cdn.com/a.jpg', thumbnail: u });
   });
+  it('keeps the raw inner value when its percent-encoding is malformed (safeDecode fallback)', () => {
+    // `%ZZ` is not a valid escape — decodeURIComponent throws inside safeDecode,
+    // which must fall back to the raw string rather than crash, so the media URL
+    // is still unwrapped (exercises both the weserv and generic proxy paths).
+    expect(deproxy('https://images.weserv.nl/?url=https://cdn.com/a%ZZ.png'))
+      .toBe('https://cdn.com/a%ZZ.png');
+    expect(deproxy('https://p.com/proxy?src=https%3A%2F%2Fcdn.com%2Fa%ZZ.png'))
+      .toBe('https://cdn.com/a%ZZ.png');
+  });
 });
 
 describe('CDN rules — path-based upgrades', () => {
@@ -443,6 +452,20 @@ describe('image-CDN rule batch (2026-07-05)', () => {
     // fail-safe: unparseable token -> unchanged
     const bad = `${base}/v1/fit/w_375,h_211,q_70,strp/x.jpg?token=garbage`;
     expect(orig(bad)).toBe(bad);
+  });
+  it('DeviantArt: leaves the URL untouched when the token payload cannot be read', () => {
+    const base = 'https://images-wixmp-ed30a86b8c4ca887.wixmp.com/f/uuid/id.jpg';
+    const path = '/v1/fit/w_375,h_211,q_70,strp/x.jpg';
+    // Payload segment present, but it is not valid base64 → atob throws inside
+    // decodeB64Url → cap unreadable → URL left as-is (never 403 by guessing).
+    const badB64 = `${base}${path}?token=hdr.@@@@.sig`;
+    expect(orig(badB64)).toBe(badB64);
+    // Payload decodes to valid text but is not valid JSON → JSON.parse throws.
+    const nonJson = `${base}${path}?token=hdr.${Buffer.from('not json{').toString('base64url')}.sig`;
+    expect(orig(nonJson)).toBe(nonJson);
+    // Payload is valid JSON but carries no usable width/height cap → null cap.
+    const noDims = `${base}${path}?token=hdr.${Buffer.from(JSON.stringify([[{}]])).toString('base64url')}.sig`;
+    expect(orig(noDims)).toBe(noDims);
   });
   it('IKEA: forces imwidth=2000, dropping the f resizer', () => {
     expect(orig('https://www.ikea.com/images/95/9e/959e6d9416a7a3c8.png?f=xxs'))

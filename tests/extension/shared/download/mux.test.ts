@@ -46,3 +46,68 @@ describe('muxTracks', () => {
     expect(() => muxTracks({ init: VIDEO.init, segments: [] })).toThrow(/no decodable samples/);
   });
 });
+
+/**
+ * Defensive fallbacks that real avc1 fixtures never trigger: a sample-description
+ * entry with no width/height (dimensions must come from the track header) and a
+ * getBuffer() result exposing only `.buffer` (length must come from its
+ * byteLength). Faked via a minimal mp4box stand-in, real mp4box restored after.
+ */
+describe('muxTracks — dimension + buffer fallbacks', () => {
+  // `import * as MP4Box` is a wrapper of non-configurable getters (can't spyOn),
+  // but those getters read live from the raw CJS module, whose createFile IS
+  // writable — swap it there so mux.ts's MP4Box.createFile() sees the fake.
+  const rawMp4box = jest.requireActual('mp4box') as { createFile: () => unknown };
+  const originalCreateFile = rawMp4box.createFile;
+  afterEach(() => { rawMp4box.createFile = originalCreateFile; });
+
+  // A minimal mp4box stand-in whose onReady delivers `info`, whose stsd entry is
+  // `entry`, and whose getBuffer exposes only `.buffer` (no byteLength/position).
+  const fakeFileFactory = (info: Record<string, unknown>, entry: Record<string, unknown>) => (): unknown => {
+    const self: Record<string, unknown> = {
+      onReady: null,
+      onSamples: null,
+      _ready: false,
+      setExtractionOptions: () => undefined,
+      start() {
+        (self.onSamples as ((id: number, u: unknown, s: unknown[]) => void) | null)?.(info.id as number, null, [
+          { data: new Uint8Array([0]), duration: 10, dts: 0, cts: 0, is_sync: true },
+        ]);
+      },
+      appendBuffer: () => undefined,
+      flush() {
+        if (self.onReady && !self._ready) {
+          self._ready = true;
+          (self.onReady as (i: unknown) => void)({ tracks: [info] });
+        }
+      },
+      getTrackById: () => ({ mdia: { minf: { stbl: { stsd: { entries: [entry] } } } } }),
+      addTrack: () => 2,
+      addSample: () => undefined,
+      getBuffer: () => ({ buffer: new ArrayBuffer(10) }), // no byteLength / position
+    };
+    return self;
+  };
+
+  it('takes track_width/height and buffer.byteLength when the entry + DataStream omit them', () => {
+    // entry.width falsy AND info.video falsy → dimensions come from track_width/height.
+    const info = { id: 1, timescale: 600, track_width: 320, track_height: 240 };
+    const entry = { type: 'avc1', boxes: [] };
+    rawMp4box.createFile = fakeFileFactory(info, entry);
+
+    const out = muxTracks({ init: new Uint8Array([1]), segments: [new Uint8Array([2])] });
+    expect(out).toBeInstanceOf(Uint8Array);
+    expect(out.length).toBe(10); // length resolved from ds.buffer.byteLength
+  });
+
+  it('takes info.video.width/height when the entry omits them but the track info carries video', () => {
+    // entry.width falsy but info.video present → the middle `||` branch is used.
+    const info = { id: 1, timescale: 600, video: { width: 128, height: 96 } };
+    const entry = { type: 'avc1', boxes: [] };
+    rawMp4box.createFile = fakeFileFactory(info, entry);
+
+    const out = muxTracks({ init: new Uint8Array([1]), segments: [new Uint8Array([2])] });
+    expect(out).toBeInstanceOf(Uint8Array);
+    expect(out.length).toBe(10);
+  });
+});

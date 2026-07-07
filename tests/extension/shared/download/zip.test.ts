@@ -77,6 +77,27 @@ describe('buildZip', () => {
     expect(keysOf(bytes)).toEqual(['photo (2).jpg', 'photo.jpg']);
   });
 
+  it('treats an ok response with an empty body as a failure', async () => {
+    // res.ok === true but arrayBuffer is 0 bytes → fetchBytes returns null → failed.
+    const images = [img('https://cdn/empty.jpg')];
+    const fetch = makeFetch({ 'https://cdn/empty.jpg': [] });
+    const { bytes, ok, failed } = await buildZip(images, DEFAULT_SETTINGS, undefined, { fetch });
+    expect(ok).toBe(0);
+    expect(failed.map((i) => i.src)).toEqual(['https://cdn/empty.jpg']);
+    expect(bytes).toHaveLength(0);
+  });
+
+  it('uniquifies colliding names that live inside a subfolder (path with a slash)', async () => {
+    // original naming + a folder template makes both items resolve to
+    // `pics/photo.jpg`, so uniquePath must split the dir off the name.
+    const settings: SettingsData = { ...DEFAULT_SETTINGS, namingMode: 'original', downloadPath: 'pics' };
+    const images = [img('https://a.com/dir1/photo.jpg'), img('https://b.com/dir2/photo.jpg')];
+    const fetch = makeFetch({ 'https://a.com/dir1/photo.jpg': [1], 'https://b.com/dir2/photo.jpg': [2] });
+    const { bytes, ok } = await buildZip(images, settings, undefined, { fetch });
+    expect(ok).toBe(2);
+    expect(keysOf(bytes)).toEqual(['pics/photo (2).jpg', 'pics/photo.jpg']);
+  });
+
   it('reports progress once per item', async () => {
     const images = [img('https://cdn/a.jpg'), img('https://cdn/b.jpg')];
     const fetch = makeFetch({ 'https://cdn/a.jpg': [1], 'https://cdn/b.jpg': [2] });
@@ -97,5 +118,10 @@ describe('zipFileName', () => {
 
   it('falls back to a generic name when the source host is unknown', () => {
     expect(zipFileName(undefined, '2026-07-06')).toBe('media-2026-07-06.zip');
+  });
+
+  it('defaults the date to today (local) when none is passed', () => {
+    // Exercises the todayISO() default parameter.
+    expect(zipFileName('https://www.twitter.com/x')).toMatch(/^twitter\.com-media-\d{4}-\d{2}-\d{2}\.zip$/);
   });
 });

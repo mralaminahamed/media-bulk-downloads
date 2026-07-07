@@ -157,3 +157,53 @@ describe('wallhaven true resolution', () => {
     expect(c.height).toBeUndefined();
   });
 });
+
+// When the URL path is NOT the canonical /size/xx/id.jpg thumb, idFrom can't read
+// the id from the URL and must fall back to the grid figure's DOM. A `.png`-suffixed
+// thumb URL (no `.jpg`) is the simplest way to force that fallback path.
+describe('wallhaven idFrom DOM fallbacks (non-standard thumb URL)', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  const NONSTD = 'https://th.wallhaven.cc/small/ab/abcdef'; // no `.jpg` -> URL-regex misses
+
+  function figure(opts: { dataId?: string; previewHref?: string; badge?: 'png' | 'gif' }): HTMLImageElement {
+    document.body.innerHTML = '';
+    const fig = document.createElement('figure');
+    if (opts.dataId !== undefined) fig.setAttribute('data-wallpaper-id', opts.dataId);
+    const img = document.createElement('img');
+    img.setAttribute('data-src', NONSTD);
+    fig.appendChild(img);
+    if (opts.previewHref !== undefined) {
+      const a = document.createElement('a');
+      a.className = 'preview';
+      a.setAttribute('href', opts.previewHref);
+      fig.appendChild(a);
+    }
+    if (opts.badge) { const s = document.createElement('span'); s.className = opts.badge; fig.appendChild(s); }
+    document.body.appendChild(fig);
+    return img;
+  }
+
+  it('reads the id from the figure data-wallpaper-id', () => {
+    const img = figure({ dataId: 'po7y9j', badge: 'png' });
+    const [c] = wallhavenResolver.resolve(new URL(NONSTD), { el: img, allowNetwork: false });
+    expect(c.url).toBe('https://w.wallhaven.cc/full/po/wallhaven-po7y9j.png');
+  });
+
+  it('reads the id from the figure preview link (/w/<id>) when data-wallpaper-id is absent', () => {
+    const img = figure({ previewHref: '/w/xyz789', badge: 'gif' });
+    const [c] = wallhavenResolver.resolve(new URL(NONSTD), { el: img, allowNetwork: false });
+    expect(c.url).toBe('https://w.wallhaven.cc/full/xy/wallhaven-xyz789.gif');
+  });
+
+  it('rejects a non-id-shaped data-wallpaper-id and falls back to the preview link (path-injection guard)', () => {
+    const img = figure({ dataId: 'bad/../id', previewHref: '/w/safe123', badge: 'png' });
+    const [c] = wallhavenResolver.resolve(new URL(NONSTD), { el: img, allowNetwork: false });
+    expect(c.url).toBe('https://w.wallhaven.cc/full/sa/wallhaven-safe123.png');
+  });
+
+  it('returns [] when neither the URL, an id attribute, nor a preview link yields an id', () => {
+    const img = figure({ badge: 'png' });
+    expect(wallhavenResolver.resolve(new URL(NONSTD), { el: img, allowNetwork: false })).toEqual([]);
+  });
+});

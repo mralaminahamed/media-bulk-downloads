@@ -1,4 +1,12 @@
-import { getImageFileSize, mapWithConcurrency } from '@/extension/popup/utils';
+import {
+  getImageFileSize,
+  mapWithConcurrency,
+  sendRuntimeMessage,
+  copyText,
+  downloadText,
+  fetchDownloadedOnDisk,
+  relativeTime,
+} from '@/extension/popup/utils';
 
 describe('utils', () => {
   describe('getImageFileSize', () => {
@@ -93,6 +101,88 @@ describe('utils', () => {
       const items = Array.from({ length: 50 }, (_, i) => i);
       const result = await mapWithConcurrency(items, 4, async (n) => n * 2);
       expect(result).toEqual(items.map((n) => n * 2));
+    });
+  });
+
+  describe('sendRuntimeMessage', () => {
+    const send = chrome.runtime.sendMessage as jest.Mock;
+    afterEach(() => send.mockReset());
+
+    it('swallows a rejected promise (no receiver) without throwing', () => {
+      send.mockReturnValue(Promise.reject(new Error('no receiver')));
+      expect(() => sendRuntimeMessage({ type: 'X' })).not.toThrow();
+    });
+
+    it('tolerates a void return (mock/env with no promise)', () => {
+      send.mockReturnValue(undefined);
+      expect(() => sendRuntimeMessage({ type: 'X' })).not.toThrow();
+    });
+  });
+
+  describe('copyText', () => {
+    it('returns true when the clipboard write succeeds', async () => {
+      Object.assign(navigator, { clipboard: { writeText: jest.fn().mockResolvedValue(undefined) } });
+      await expect(copyText('hi')).resolves.toBe(true);
+    });
+
+    it('returns false when the clipboard is blocked', async () => {
+      Object.assign(navigator, { clipboard: { writeText: jest.fn().mockRejectedValue(new Error('blocked')) } });
+      await expect(copyText('hi')).resolves.toBe(false);
+    });
+  });
+
+  describe('downloadText', () => {
+    it('routes a DOWNLOAD_TEXT message through the background', () => {
+      const send = chrome.runtime.sendMessage as jest.Mock;
+      send.mockReset().mockReturnValue(undefined);
+      downloadText('links.txt', 'a\nb', 'text/plain');
+      expect(send).toHaveBeenCalledWith({ type: 'DOWNLOAD_TEXT', filename: 'links.txt', text: 'a\nb', mime: 'text/plain' });
+    });
+
+    it('defaults the mime to text/plain', () => {
+      const send = chrome.runtime.sendMessage as jest.Mock;
+      send.mockReset().mockReturnValue(undefined);
+      downloadText('x.txt', 'y');
+      expect(send).toHaveBeenCalledWith(expect.objectContaining({ mime: 'text/plain' }));
+    });
+  });
+
+  describe('fetchDownloadedOnDisk', () => {
+    const send = chrome.runtime.sendMessage as jest.Mock;
+    beforeEach(() => {
+      send.mockReset();
+      (chrome.runtime as unknown as { lastError?: unknown }).lastError = undefined;
+    });
+
+    it('resolves the returned srcs as a Set', async () => {
+      send.mockImplementation((_msg, cb) => cb(['https://x/a', 'https://x/b']));
+      await expect(fetchDownloadedOnDisk()).resolves.toEqual(new Set(['https://x/a', 'https://x/b']));
+    });
+
+    it('resolves an empty set when the worker gives a non-array / no answer', async () => {
+      send.mockImplementation((_msg, cb) => cb(undefined));
+      await expect(fetchDownloadedOnDisk()).resolves.toEqual(new Set());
+    });
+
+    it('resolves an empty set when sendMessage throws', async () => {
+      send.mockImplementation(() => { throw new Error('context invalidated'); });
+      await expect(fetchDownloadedOnDisk()).resolves.toEqual(new Set());
+    });
+  });
+
+  describe('relativeTime', () => {
+    it('formats each bucket boundary', () => {
+      const now = Date.now();
+      expect(relativeTime(now)).toBe('now');
+      expect(relativeTime(now - 90_000)).toBe('1m');
+      expect(relativeTime(now - 3 * 3600_000)).toBe('3h');
+      expect(relativeTime(now - 2 * 86400_000)).toBe('2d');
+      // beyond a week → an absolute date (not one of the compact tokens)
+      expect(relativeTime(now - 10 * 86400_000)).not.toMatch(/^(now|\d+[mhd])$/);
+    });
+
+    it('clamps a future timestamp to "now"', () => {
+      expect(relativeTime(Date.now() + 60_000)).toBe('now');
     });
   });
 });

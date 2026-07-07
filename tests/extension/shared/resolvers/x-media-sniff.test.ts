@@ -23,6 +23,11 @@ describe('pinTwimgUrl', () => {
     expect(pinTwimgUrl(42)).toBeNull();
     expect(pinTwimgUrl(undefined)).toBeNull();
   });
+  it('returns null (never throws) for a string the URL constructor rejects', () => {
+    // Untrusted API JSON: a malformed string makes `new URL()` throw; the catch returns null.
+    expect(pinTwimgUrl('not a url')).toBeNull();
+    expect(pinTwimgUrl('https://')).toBeNull();
+  });
 });
 
 describe('bestMp4', () => {
