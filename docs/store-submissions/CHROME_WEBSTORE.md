@@ -19,7 +19,8 @@ Version at time of writing: **1.1.0** · Manifest **V3**.
 - [ ] `commands` (keyboard shortcuts) and the MAIN-world content scripts (page + Instagram/X media sniffers) are present — no extra permission needed, but note them for review (see §4).
 - [ ] Icons 16/32/48/64/128 present (`src/public/icon/`) — ✅ already in the build.
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
-- [ ] At least **1 screenshot** at 1280×800 or 640×400 (see §5).
+- [ ] At least **1 screenshot** at 1280×800 or 640×400 (see §5) — ✅ `assets/screenshot-1280x800.png`.
+- [ ] Promo tiles (optional): small 440×280 + marquee 1400×560 — ✅ in `assets/` (`promo-small-440x280.png`, `promo-marquee-1400x560.png`).
 - [ ] `.output/media-bulk-downloads-<version>-chrome.zip` produced by `yarn zip`.
 - [ ] Single-purpose description, permission justifications, and data disclosures filled in (below).
 
@@ -179,24 +180,27 @@ transmit page content for any other purpose.
 
 ## 5. Required visual assets
 
-Capture from the running extension (`yarn build`, load `.output/chrome-mv3` unpacked), then
-crop to the exact sizes. PNG or JPEG, no alpha needed.
+Icon and promo tiles already live in the repo (`assets/`, `src/public/icon/`).
+Screenshots are captured from the running extension (`yarn build`, load
+`.output/chrome-mv3` unpacked) and cropped to the exact size. PNG or JPEG, no alpha.
 
-| Asset | Size | Required | Suggested shot |
+| Asset | Size | Required | File / suggested shot |
 |---|---|---|---|
-| Store icon | 128×128 | ✅ (have it) | `src/public/icon/128.png` |
-| Screenshot 1 | 1280×800 or 640×400 | ✅ (≥1) | Popup with a full media grid + type badges |
+| Store icon | 128×128 | required | ✅ `src/public/icon/128.png` |
+| Screenshot 1 | 1280×800 or 640×400 | ✅ (≥1 required) | ✅ `assets/screenshot-1280x800.png` — popup with a full media grid + type badges |
 | Screenshot 2 | 1280×800 or 640×400 | optional | Filter toolbar in use (kind/format/size) |
-| Screenshot 3 | 1280×800 or 640×400 | optional | Preview modal (with prev/next) |
+| Screenshot 3 | 1280×800 or 640×400 | optional | Preview modal (with prev/next + the exclude menu) |
 | Screenshot 4 | 1280×800 or 640×400 | optional | Settings sheet |
 | Screenshot 5 | 1280×800 or 640×400 | optional | Download history with the open/reveal actions |
 | Screenshot 6 | 1280×800 or 640×400 | optional | Selection + ZIP / copy-links menu |
-| Screenshot 7 | 1280×800 or 640×400 | optional | Favourites panel |
-| Small promo tile | 440×280 | optional | Logo + "Bulk-download images, video & audio" |
-| Marquee promo | 1400×560 | optional | Only if featured |
+| Screenshot 7 | 1280×800 or 640×400 | optional | Favourites / Excluded-sources panel |
+| Small promo tile | 440×280 | optional | ✅ `assets/promo-small-440x280.png` |
+| Marquee promo tile | 1400×560 | optional (featured only) | ✅ `assets/promo-marquee-1400x560.png` |
 
-Tip: shoot each screenshot in both light and dark once and pick the stronger — the
-UI supports both.
+The two promo tiles carry the brand mark (the toolbar icon), the wordmark, and the
+"images · video · audio, original quality" message — regenerate them from the
+source in `assets/` if the branding ever changes. Tip: shoot each screenshot in
+both light and dark once and pick the stronger — the UI supports both.
 
 ---
 
