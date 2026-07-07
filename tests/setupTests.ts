@@ -42,7 +42,7 @@ global.chrome = {
         query: jest.fn().mockResolvedValue([]),
         get: jest.fn(),
         create: jest.fn(),
-        sendMessage: jest.fn(),
+        sendMessage: jest.fn().mockResolvedValue(undefined),
         onActivated: {
             addListener: jest.fn(),
         },
@@ -72,6 +72,12 @@ global.chrome = {
         open: jest.fn(),
         show: jest.fn(),
         search: jest.fn().mockResolvedValue([]),
+    },
+    offscreen: {
+        Reason: { BLOBS: 'BLOBS' },
+        hasDocument: jest.fn().mockResolvedValue(false),
+        createDocument: jest.fn().mockResolvedValue(undefined),
+        closeDocument: jest.fn().mockResolvedValue(undefined),
     },
     action: {
         setBadgeText: jest.fn(),

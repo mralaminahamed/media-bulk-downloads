@@ -12,7 +12,7 @@ import {
   setupContextMenus,
   mediaFromContext,
 } from '@/extension/background';
-import { ImageInfo, SettingsData } from '@/types';
+import { CaptureRunResult, ImageInfo, SettingsData } from '@/types';
 
 // The runtime.onMessage handler is registered against the setupTests chrome
 // mock at import time; capture it before any describe swaps global.chrome.
@@ -765,5 +765,146 @@ describe('DOWNLOAD_BYTES router', () => {
     expect(arg.filename).toBe('cat.png');
     expect(arg.url).toBe('data:image/png;base64,UEsDBA==');
     expect(arg.conflictAction).toBe('uniquify');
+  });
+});
+
+describe('CAPTURE_STREAM', () => {
+  const item = { src: 'https://x/m.m3u8', hlsManifest: 'https://x/m.m3u8', type: 'm3u8', kind: 'video', width: 0, height: 0, fileSize: 0, isBase64: false, alt: '' };
+  const sourcePage = { url: 'https://x/watch', title: 'X' };
+
+  beforeEach(() => {
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({}));
+    loadSettings(); // resolve the settingsReady gate with defaults
+    (chrome.offscreen.hasDocument as jest.Mock).mockResolvedValue(false);
+    (chrome.offscreen.createDocument as jest.Mock).mockReset().mockResolvedValue(undefined);
+    (chrome.downloads.download as jest.Mock).mockReset();
+  });
+
+  it('ensures the offscreen doc, downloads the returned blob, and responds with a status', async () => {
+    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+      ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 9, muxedAudio: true,
+    } as CaptureRunResult);
+    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(123));
+    const sendResponse = jest.fn();
+
+    messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(chrome.offscreen.createDocument).toHaveBeenCalledTimes(1);
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'CAPTURE_RUN', manifestUrl: item.hlsManifest, quality: 720, maxBytes: 1024 * 1024 * 1024 }));
+    expect(chrome.downloads.download).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'blob:cap', conflictAction: 'uniquify', filename: expect.stringMatching(/\.mp4$/) }),
+      expect.any(Function),
+    );
+    expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringContaining('9 segments') });
+    expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringContaining('(video + audio)') });
+  });
+
+  it('tolerates the concurrent-create race: createDocument rejects but a document now exists, so capture still proceeds', async () => {
+    (chrome.offscreen.hasDocument as jest.Mock).mockReset()
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+    (chrome.offscreen.createDocument as jest.Mock).mockReset()
+      .mockRejectedValue(new Error('Only a single offscreen document may be created'));
+    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+      ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 9, muxedAudio: true,
+    } as CaptureRunResult);
+    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(123));
+    const sendResponse = jest.fn();
+
+    messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(chrome.offscreen.createDocument).toHaveBeenCalledTimes(1);
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'CAPTURE_RUN' }));
+    expect(chrome.downloads.download).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'blob:cap', conflictAction: 'uniquify' }),
+      expect.any(Function),
+    );
+    expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringContaining('9 segments') });
+  });
+
+  it('reports a capture failure (not a throw) when createDocument keeps rejecting and no document ever appears', async () => {
+    (chrome.offscreen.hasDocument as jest.Mock).mockReset().mockResolvedValue(false);
+    (chrome.offscreen.createDocument as jest.Mock).mockReset()
+      .mockRejectedValue(new Error('Only a single offscreen document may be created'));
+    const sendResponse = jest.fn();
+
+    messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(sendResponse).toHaveBeenCalledWith({ status: 'Couldn’t capture the stream.' });
+    expect(chrome.downloads.download).not.toHaveBeenCalled();
+  });
+
+  it('does not re-create the offscreen doc when one already exists', async () => {
+    (chrome.offscreen.hasDocument as jest.Mock).mockResolvedValue(true);
+    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({ ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 1, muxedAudio: false } as CaptureRunResult);
+    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(1));
+
+    messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage }, {}, jest.fn());
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(chrome.offscreen.createDocument).not.toHaveBeenCalled();
+  });
+
+  it('responds with the mapped error and does not download when the engine fails', async () => {
+    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({ ok: false, code: 'too-large' } as CaptureRunResult);
+    const sendResponse = jest.fn();
+    messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(chrome.downloads.download).not.toHaveBeenCalled();
+    expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringMatching(/1 GB/) });
+  });
+
+  // The offscreen doc broadcasts CAPTURE_PROGRESS via chrome.runtime.sendMessage,
+  // which never reaches content-script contexts (the on-page bubble). The
+  // background relays it via chrome.tabs.sendMessage to the tab that started the
+  // capture, recovered from CAPTURE_STREAM's sender.tab.id.
+  describe('CAPTURE_PROGRESS relay', () => {
+    beforeEach(() => {
+      (chrome.tabs.sendMessage as jest.Mock).mockReset().mockResolvedValue(undefined);
+    });
+
+    it('forwards progress to the tab that started the capture', async () => {
+      (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+        ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 1, muxedAudio: false,
+      } as CaptureRunResult);
+      (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(1));
+
+      messageHandler(
+        { type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage },
+        { tab: { id: 42 } },
+        jest.fn(),
+      );
+      messageHandler({ type: 'CAPTURE_PROGRESS', done: 3, total: 10 }, {}, jest.fn());
+
+      expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(42, expect.objectContaining({ type: 'CAPTURE_PROGRESS' }));
+
+      // Let the capture finish so activeCaptureTabId clears and no state leaks
+      // into other tests.
+      await new Promise((r) => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    it('does not forward when no capture is active (popup capture, whose sender.tab is undefined)', async () => {
+      (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+        ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 1, muxedAudio: false,
+      } as CaptureRunResult);
+      (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(1));
+
+      // Popup capture: sender.tab is undefined, so activeCaptureTabId stays unset.
+      messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage }, {}, jest.fn());
+      await new Promise((r) => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
+
+      messageHandler({ type: 'CAPTURE_PROGRESS', done: 1, total: 10 }, {}, jest.fn());
+
+      expect(chrome.tabs.sendMessage).not.toHaveBeenCalled();
+    });
   });
 });

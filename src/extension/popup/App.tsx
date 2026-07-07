@@ -22,10 +22,9 @@ import { HISTORY_KEY } from '../shared/storage/history';
 import { favouriteSrcSet, FAVOURITES_KEY } from '../shared/storage/favourites';
 import { buildZip, zipFileName } from '../shared/download/zip';
 import { convertImage, isConvertible } from '../shared/download/convert';
-import { captureHls, HlsError } from '../shared/download/hls';
-import { browserHlsDeps } from '../shared/download/hls-webcrypto';
 import { buildDownloadFilename } from '../shared/collection/download-name';
 import { hostFromUrl, registrableDomain, todayISO } from '../shared/collection/paths';
+import { requestCaptureStream } from '../shared/active-tab/capture-stream-active';
 import { copyText, downloadText, fetchDownloadedOnDisk, getImageFileSize, mapWithConcurrency, sendRuntimeMessage } from './utils';
 import { Cog6ToothIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 
@@ -44,29 +43,6 @@ function deepScanCapMessage(reason: DeepScanStopReason | undefined, count: numbe
     case 'max-scrolls': return 'Stopped at the scroll limit — some media may remain.';
     default: return null;
   }
-}
-
-// Cap in-popup HLS capture: the assembled bytes live in the popup's memory, so
-// bound them. Streams over this abort with a clear message (offscreen streaming
-// for unbounded sizes is a planned follow-up).
-const HLS_MAX_BYTES = 200 * 1024 * 1024;
-// Default capture quality — the variant closest to 720p, a sane size/quality
-// balance that fits the cap for typical VOD clips.
-const HLS_TARGET_HEIGHT = 720;
-
-/** A user-facing message for a failed HLS capture, from the typed engine error. */
-function hlsErrorMessage(e: unknown): string {
-  if (e instanceof HlsError) {
-    switch (e.code) {
-      case 'live': return 'Live streams can’t be captured — there is no fixed end.';
-      case 'drm': return 'This stream is DRM-protected and can’t be captured.';
-      case 'sample-aes': return 'This stream uses SAMPLE-AES encryption, which isn’t supported.';
-      case 'too-large': return `Stream is too large to capture in the popup (over ${Math.round(HLS_MAX_BYTES / 1024 / 1024)} MB).`;
-      case 'demuxed-unsupported': return 'This stream delivers audio separately in a format that can’t be combined.';
-      default: return `Couldn’t capture the stream (${e.code}).`;
-    }
-  }
-  return 'Couldn’t capture the stream.';
 }
 
 /** Items the user can actually download/zip now — pending videos and HLS streams
@@ -366,37 +342,22 @@ const App: React.FC<AppProps> = ({
   };
 
   /**
-   * Capture an HLS stream: fetch the manifest and every segment, decrypt AES-128
-   * as needed, assemble in order, and save via a blob URL. Runs in the popup
-   * (an extension page whose `fetch` bypasses page CORS and that has WebCrypto +
-   * URL.createObjectURL), so the popup must stay open — same as the ZIP flow.
+   * Capture an HLS stream. The heavy lifting (fetch + mux + blob) runs in the
+   * background's offscreen document; this only fires the request, mirrors progress
+   * into the ProgressBar, and shows the status the background composes. The
+   * capture completes even if the popup closes before this resolves.
    */
   const captureStream = async (item: ImageInfo): Promise<void> => {
     const sourcePage = await currentSourcePage();
     setProgress({ label: 'Capturing stream', done: 0, total: 0 });
     try {
-      const res = await captureHls(
+      const status = await requestCaptureStream(
         item.hlsManifest!,
-        browserHlsDeps((done, total) => setProgress({ label: 'Capturing stream', done, total })),
-        { quality: HLS_TARGET_HEIGHT, maxBytes: HLS_MAX_BYTES },
+        item,
+        sourcePage,
+        (done, total) => setProgress({ label: 'Capturing stream', done, total }),
       );
-      const filename = buildDownloadFilename({ ...item, ext: res.ext }, 0, settings, sourcePage.url);
-      // A standalone ArrayBuffer copy — Blob rejects a plain Uint8Array's
-      // `ArrayBufferLike` backing under strict DOM types.
-      const ab = res.bytes.buffer.slice(res.bytes.byteOffset, res.bytes.byteOffset + res.bytes.byteLength) as ArrayBuffer;
-      const blobUrl = URL.createObjectURL(new Blob([ab], { type: res.mime }));
-      chrome.downloads.download(
-        { url: blobUrl, filename, saveAs: settings.saveAs, conflictAction: 'uniquify' },
-        () => {
-          void chrome.runtime.lastError;
-          // Keep the blob alive long enough for chrome.downloads to read it.
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
-        },
-      );
-      const audioNote = res.muxedAudio ? ' (video + audio)' : '';
-      setState((prev) => ({ ...prev, status: `Captured ${filename} — ${res.segmentCount} segments${audioNote}.` }));
-    } catch (e) {
-      setState((prev) => ({ ...prev, status: hlsErrorMessage(e) }));
+      setState((prev) => ({ ...prev, status }));
     } finally {
       setProgress(null);
     }

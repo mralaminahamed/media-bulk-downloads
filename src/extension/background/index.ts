@@ -21,6 +21,9 @@ import {
   SettingsData,
   ShowDownloadMessage,
   XMediaSeenMessage,
+  CaptureRunResult,
+  CaptureStreamMessage,
+  CaptureStreamResponse,
 } from '@/types';
 import { filterImagesBySettings } from '../shared/collection/filters';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
@@ -37,6 +40,8 @@ import { resolveOriginal, NetDeps } from '../shared/resolvers/network';
 import { mediaIdFromPoster, pinTwimgUrl } from '../shared/resolvers/x-media-sniff';
 import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk } from '../shared/storage/history';
 import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } from '../shared/storage/favourites';
+import { HLS_MAX_BYTES, HLS_TARGET_HEIGHT } from '../shared/download/capture-constants';
+import { hlsErrorMessage } from '../shared/download/hls-error-message';
 
 // Re-exported for the background test suite, which imports them from here.
 export { DEFAULT_SETTINGS, sanitizePathSegment, buildDownloadFilename, extensionForType, originalNameFromUrl };
@@ -44,6 +49,14 @@ export { DEFAULT_SETTINGS, sanitizePathSegment, buildDownloadFilename, extension
 let currentSettings: SettingsData = { ...DEFAULT_SETTINGS };
 
 const BADGE_COLOR = '#4F46E5';
+
+/**
+ * Tab id the in-flight capture originated from, so CAPTURE_PROGRESS broadcasts
+ * from the offscreen doc (which content scripts never receive via
+ * runtime.sendMessage) can be relayed to that tab's bubble. Unset for popup
+ * captures (sender.tab is undefined there) and cleared once the capture ends.
+ */
+let activeCaptureTabId: number | undefined;
 
 // The service worker is ephemeral: a message can wake it and be handled before
 // the async settings read completes. `settingsReady` resolves once settings have
@@ -481,11 +494,32 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
+const OFFSCREEN_URL = 'offscreen.html';
+
+/**
+ * Ensure the single offscreen document exists (creating it on first capture and
+ * reusing it after). Tolerates the concurrent-create race: two rapid captures can
+ * both see no document, and the second createDocument throws — if a document now
+ * exists, that is fine.
+ */
+async function ensureOffscreen(): Promise<void> {
+  if (await chrome.offscreen.hasDocument()) return;
+  try {
+    await chrome.offscreen.createDocument({
+      url: OFFSCREEN_URL,
+      reasons: [chrome.offscreen.Reason.BLOBS],
+      justification: 'Assemble HLS/DASH stream segments into a downloadable video file.',
+    });
+  } catch (e) {
+    if (!(await chrome.offscreen.hasDocument())) throw e;
+  }
+}
+
 chrome.runtime.onMessage.addListener(
   (
     message: ChromeMessage,
     sender: chrome.runtime.MessageSender,
-    sendResponse: (response: DownloadResponse | ResolveOriginalsResponse | string[]) => void,
+    sendResponse: (response: DownloadResponse | ResolveOriginalsResponse | string[] | CaptureStreamResponse) => void,
   ) => {
     if (typeof message === 'object' && message.type === 'X_MEDIA_SEEN') {
       // Passive sniffer feed from the x.com content script (per tab). Fire-and-forget.
@@ -650,6 +684,59 @@ chrome.runtime.onMessage.addListener(
       if (sender.tab?.id != null) run(sender.tab.id);
       else chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => run(tabs[0]?.id));
       return true; // async
+    }
+
+    if (typeof message === 'object' && message.type === 'CAPTURE_STREAM') {
+      const { manifestUrl, item, sourcePage } = message as CaptureStreamMessage;
+      // Track the originating tab (unset for popup captures, whose sender.tab is
+      // undefined) so a CAPTURE_PROGRESS broadcast can be relayed to it below.
+      activeCaptureTabId = sender.tab?.id;
+      // Everything after this fire lives in the background + offscreen doc — no
+      // dependency on the popup, so the download completes even if it closes.
+      void settingsReady.then(async () => {
+        try {
+          await ensureOffscreen();
+          const result = (await chrome.runtime.sendMessage({
+            type: 'CAPTURE_RUN', manifestUrl, quality: HLS_TARGET_HEIGHT, maxBytes: HLS_MAX_BYTES,
+          })) as CaptureRunResult | undefined;
+          if (!result || !result.ok) {
+            activeCaptureTabId = undefined;
+            sendResponse({ status: hlsErrorMessage(result?.ok === false ? result.code : 'unknown') });
+            return;
+          }
+          const filename = buildDownloadFilename({ ...item, ext: result.ext }, 0, currentSettings, sourcePage.url);
+          chrome.downloads.download(
+            { url: result.blobUrl, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
+            (downloadId) => {
+              activeCaptureTabId = undefined;
+              const err = chrome.runtime.lastError;
+              const audioNote = result.muxedAudio ? ' (video + audio)' : '';
+              const status = err || downloadId === undefined
+                ? `Couldn’t save ${filename}.`
+                : `Captured ${filename} — ${result.segmentCount} segments${audioNote}.`;
+              sendResponse({ status });
+            },
+          );
+        } catch {
+          activeCaptureTabId = undefined;
+          sendResponse({ status: 'Couldn’t capture the stream.' });
+        }
+      });
+      return true; // response sent asynchronously
+    }
+
+    if (typeof message === 'object' && message.type === 'CAPTURE_PROGRESS') {
+      // The offscreen doc broadcasts progress via runtime.sendMessage, which does
+      // not reach content-script contexts. Relay it to the capturing tab so the
+      // on-page bubble's progress listener receives it (the popup, an extension
+      // page, already gets the broadcast directly). tabId is unset for popup
+      // captures (sender.tab is undefined there), so nothing is forwarded then.
+      if (activeCaptureTabId != null) {
+        void chrome.tabs.sendMessage(activeCaptureTabId, message).catch(() => {
+          /* tab closed / no receiver */
+        });
+      }
+      return false; // not for this context to answer
     }
 
     // Unmatched messages (e.g. the content script's DEEP_SCAN_PROGRESS broadcast)
