@@ -730,7 +730,7 @@ chrome.runtime.onMessage.addListener(
         try {
           await ensureOffscreen();
           const result = (await chrome.runtime.sendMessage({
-            type: 'CAPTURE_RUN', manifestUrl, quality: HLS_TARGET_HEIGHT, maxBytes: HLS_MAX_BYTES,
+            type: 'CAPTURE_RUN', manifestUrl, engine: item.type === 'mpd' ? 'dash' : 'hls', quality: HLS_TARGET_HEIGHT, maxBytes: HLS_MAX_BYTES,
           })) as CaptureRunResult | undefined;
           if (!result || !result.ok) {
             activeCaptureTabId = undefined;

@@ -270,6 +270,8 @@ export interface CaptureStreamMessage {
 export interface CaptureRunMessage {
   type: 'CAPTURE_RUN';
   manifestUrl: string;
+  /** Which engine the offscreen host runs. */
+  engine: 'hls' | 'dash';
   quality: number;
   maxBytes: number;
 }

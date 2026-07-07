@@ -8,8 +8,18 @@ jest.mock('@/extension/shared/download/hls', () => ({
   },
 }));
 
+jest.mock('@/extension/shared/download/dash', () => ({
+  captureDash: jest.fn(),
+  DashError: class DashError extends Error {
+    code: string;
+    constructor(code: string) { super(code); this.code = code; }
+  },
+}));
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { captureHls, HlsError } = require('@/extension/shared/download/hls');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { captureDash, DashError } = require('@/extension/shared/download/dash');
 
 type Listener = (msg: unknown, sender: unknown, sendResponse: (r: unknown) => void) => unknown;
 
@@ -40,7 +50,7 @@ describe('offscreen capture host', () => {
       return { bytes: new Uint8Array([1, 2, 3]), ext: 'mp4', mime: 'video/mp4', segmentCount: 5, muxedAudio: true };
     });
     const sendResponse = jest.fn();
-    const ret = getListener()({ type: 'CAPTURE_RUN', manifestUrl: 'https://x/m.m3u8', quality: 720, maxBytes: 1000 }, {}, sendResponse);
+    const ret = getListener()({ type: 'CAPTURE_RUN', engine: 'hls', manifestUrl: 'https://x/m.m3u8', quality: 720, maxBytes: 1000 }, {}, sendResponse);
     expect(ret).toBe(true); // async response
     await new Promise((r) => setTimeout(r, 0));
 
@@ -54,8 +64,33 @@ describe('offscreen capture host', () => {
   it('returns the error code when the engine throws HlsError', async () => {
     (captureHls as jest.Mock).mockRejectedValue(new HlsError('too-large'));
     const sendResponse = jest.fn();
-    getListener()({ type: 'CAPTURE_RUN', manifestUrl: 'https://x/m.m3u8', quality: 720, maxBytes: 1 }, {}, sendResponse);
+    getListener()({ type: 'CAPTURE_RUN', engine: 'hls', manifestUrl: 'https://x/m.m3u8', quality: 720, maxBytes: 1 }, {}, sendResponse);
     await new Promise((r) => setTimeout(r, 0));
     expect(sendResponse).toHaveBeenCalledWith({ ok: false, code: 'too-large' });
+  });
+
+  it('runs captureDash for engine:dash and returns the blob URL', async () => {
+    (captureDash as jest.Mock).mockResolvedValue({ bytes: new Uint8Array([1]), ext: 'mp4', mime: 'video/mp4', segmentCount: 4, muxedAudio: true });
+    const sendResponse = jest.fn();
+    getListener()({ type: 'CAPTURE_RUN', engine: 'dash', manifestUrl: 'https://x/m.mpd', quality: 720, maxBytes: 1000 }, {}, sendResponse);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(captureDash).toHaveBeenCalledWith('https://x/m.mpd', expect.anything(), { quality: 720, maxBytes: 1000 });
+    expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({ ok: true, blobUrl: 'blob:test', ext: 'mp4', muxedAudio: true }));
+  });
+
+  it('returns the DashError code on failure', async () => {
+    (captureDash as jest.Mock).mockRejectedValue(new DashError('drm'));
+    const sendResponse = jest.fn();
+    getListener()({ type: 'CAPTURE_RUN', engine: 'dash', manifestUrl: 'https://x/m.mpd', quality: 720, maxBytes: 1 }, {}, sendResponse);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sendResponse).toHaveBeenCalledWith({ ok: false, code: 'drm' });
+  });
+
+  it('still runs captureHls for engine:hls', async () => {
+    (captureHls as jest.Mock).mockResolvedValue({ bytes: new Uint8Array([1]), ext: 'ts', mime: 'video/mp2t', segmentCount: 2, muxedAudio: false });
+    const sendResponse = jest.fn();
+    getListener()({ type: 'CAPTURE_RUN', engine: 'hls', manifestUrl: 'https://x/m.m3u8', quality: 720, maxBytes: 1000 }, {}, sendResponse);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(captureHls).toHaveBeenCalled();
   });
 });
