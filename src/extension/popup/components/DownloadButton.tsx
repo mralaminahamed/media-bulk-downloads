@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowDownTrayIcon, ArchiveBoxArrowDownIcon, ChevronDownIcon, LinkIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, ArchiveBoxArrowDownIcon, ChevronDownIcon, LinkIcon, DocumentArrowDownIcon, NoSymbolIcon } from '@heroicons/react/24/outline';
 
 interface DownloadButtonProps {
   /** Primary button text, e.g. "Download" or "Download selected". */
@@ -15,6 +15,8 @@ interface DownloadButtonProps {
   onCopyLinks: () => void;
   /** Export the same set's URLs as a .txt file. */
   onExportLinks: () => void;
+  /** Add the same set's sources to the exclusion list. Only offered when provided (the selection variant). */
+  onExclude?: () => void;
 }
 
 /**
@@ -23,7 +25,7 @@ interface DownloadButtonProps {
  * the same set — ZIP, copy links, export links. The menu closes on
  * outside-click, Escape, or a selection.
  */
-export const DownloadButton: React.FC<DownloadButtonProps> = ({ label, count, disabled, onDownload, onZip, onCopyLinks, onExportLinks }) => {
+export const DownloadButton: React.FC<DownloadButtonProps> = ({ label, count, disabled, onDownload, onZip, onCopyLinks, onExportLinks, onExclude }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -115,6 +117,19 @@ export const DownloadButton: React.FC<DownloadButtonProps> = ({ label, count, di
             <DocumentArrowDownIcon className="h-4 w-4 shrink-0 text-(--ink-2)" />
             <span>Export links (.txt)</span>
           </button>
+          {onExclude && (
+            <>
+              <div className="my-1 border-t hairline" role="separator" />
+              <button
+                role="menuitem"
+                onClick={choose(onExclude)}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-(--ink) hover:bg-(--panel-2)"
+              >
+                <NoSymbolIcon className="h-4 w-4 shrink-0 text-(--ink-2)" />
+                <span>Exclude</span>
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

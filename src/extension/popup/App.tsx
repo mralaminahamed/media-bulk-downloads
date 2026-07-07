@@ -12,7 +12,7 @@ import { BrandMark } from '../components/BrandMark';
 import { SkeletonGrid } from './components/states/SkeletonGrid';
 import { EmptyState } from './components/states/EmptyState';
 import { ErrorState } from './components/states/ErrorState';
-import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, DownloadZipMessage, DownloadBytesMessage, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
+import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, DownloadZipMessage, DownloadBytesMessage, ExcludedKind, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
 import { filterImagesBySettings, applyToolbarFilters, filterExcluded, ExcludedMatchers } from '../shared/collection/filters';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
 import { collectFromActiveTab } from '../shared/active-tab/collect-active-tab';
@@ -655,6 +655,16 @@ const App: React.FC<AppProps> = ({
     setFavouriteSrcs((prev) => new Set(prev).add(image.src));
   };
 
+  const excludeItem = (image: ImageInfo, kind: ExcludedKind): void => {
+    const value = kind === 'host' ? hostFromUrl(image.src) : image.src;
+    if (!value) return;
+    sendRuntimeMessage({ type: 'ADD_EXCLUDED', entry: { value, kind, time: Date.now() } });
+  };
+  const excludeSelected = (): void => {
+    for (const i of selectedDownloadable()) sendRuntimeMessage({ type: 'ADD_EXCLUDED', entry: { value: i.src, kind: 'url', time: Date.now() } });
+    setSelectedSrcs(new Set());
+  };
+
   // Single source of truth for the form's fields: the popup owns writing settings.
   const handleSettingsChange = (newSettings: SettingsData) => {
     setSettings(newSettings);
@@ -776,6 +786,7 @@ const App: React.FC<AppProps> = ({
             downloadedSrcs={downloadedSrcs}
             favouriteSrcs={favouriteSrcs}
             onToggleFavourite={handleToggleFavourite}
+            onExclude={excludeItem}
             onFetchVideo={handleFetchVideo}
             resolveFailedSrcs={resolveFailedSrcs}
             fetchingSrcs={fetchingSrcs}
@@ -843,6 +854,7 @@ const App: React.FC<AppProps> = ({
               onZip={handleDownloadSelectedZip}
               onCopyLinks={() => void handleCopyLinks(selectedDownloadable())}
               onExportLinks={() => void handleExportLinks(selectedDownloadable())}
+              onExclude={excludeSelected}
             />
           ) : (
             <DownloadButton

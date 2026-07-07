@@ -10,6 +10,7 @@ import {
   ChevronRightIcon,
   StarIcon,
   ArrowPathIcon,
+  NoSymbolIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { PlayBadge } from './icons/PlayBadge';
@@ -17,6 +18,7 @@ import { FilmIcon } from './icons/FilmIcon';
 import { AudioIcon } from './icons/AudioIcon';
 import { LoadingImage } from './LoadingImage';
 import { SelectCheckbox } from './fields/SelectCheckbox';
+import { hostFromUrl } from '@/extension/shared/collection/paths';
 
 const SIZE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
 
@@ -61,10 +63,33 @@ const isIgUrl = (u: string | undefined): boolean => {
 const isPendingReel = (img: ImageInfo): boolean =>
   isPendingVideo(img) && !img.resolveHint && (isIgUrl(img.src) || isIgUrl(img.poster));
 
-const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnailSize = 120, previewSize = 360, downloadedSrcs, favouriteSrcs, onToggleFavourite, onFetchVideo, resolveFailedSrcs, fetchingSrcs, selectedSrcs, selectionActive, onToggleSelect, onSelectRange }) => {
+const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnailSize = 120, previewSize = 360, downloadedSrcs, favouriteSrcs, onToggleFavourite, onExclude, onFetchVideo, resolveFailedSrcs, fetchingSrcs, selectedSrcs, selectionActive, onToggleSelect, onSelectRange }) => {
   // Index-based selection so the modal can page through images without closing.
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const selectedImage = selectedIndex !== null ? images[selectedIndex] ?? null : null;
+
+  // Per-item exclude menu: which item's disclosure (if any) is open, keyed by
+  // src since only one can be open at a time. A map of src -> wrapper element
+  // backs the outside-click close, since each tile mounts its own wrapper.
+  const [excludeMenuSrc, setExcludeMenuSrc] = useState<string | null>(null);
+  const excludeMenuRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  useEffect(() => {
+    if (excludeMenuSrc === null) return;
+    const onPointer = (e: MouseEvent): void => {
+      const el = excludeMenuRefs.current.get(excludeMenuSrc);
+      if (el && !el.contains(e.target as Node)) setExcludeMenuSrc(null);
+    };
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setExcludeMenuSrc(null);
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [excludeMenuSrc]);
 
   // Anchor for Shift-click range selection (index of the last checkbox toggled).
   const rangeAnchor = useRef<number | null>(null);
@@ -227,6 +252,55 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                       ? <StarIconSolid className="h-4 w-4 text-(--brand-ink)" />
                       : <StarIcon className="h-4 w-4" />}
                   </button>
+                )}
+                {onExclude && (
+                  <div
+                    ref={(el) => {
+                      if (el) excludeMenuRefs.current.set(image.src, el);
+                      else excludeMenuRefs.current.delete(image.src);
+                    }}
+                    className="relative"
+                  >
+                    <button
+                      onClick={() => setExcludeMenuSrc((cur) => (cur === image.src ? null : image.src))}
+                      title="Exclude source"
+                      aria-label="Exclude source"
+                      aria-haspopup="menu"
+                      aria-expanded={excludeMenuSrc === image.src}
+                      className="grid h-8 w-8 place-items-center rounded-full bg-(--panel) text-(--ink) ring-1 ring-(--ctl-ring) transition-transform hover:scale-105 active:scale-95"
+                    >
+                      <NoSymbolIcon className="h-4 w-4" />
+                    </button>
+                    {excludeMenuSrc === image.src && (
+                      <div
+                        role="menu"
+                        className="absolute left-1/2 top-full z-20 mt-1.5 w-48 -translate-x-1/2 overflow-hidden rounded-(--radius-sm) border hairline bg-(--panel) py-1 text-left shadow-lg"
+                      >
+                        <button
+                          role="menuitem"
+                          onClick={() => {
+                            onExclude(image, 'url');
+                            setExcludeMenuSrc(null);
+                          }}
+                          className="flex w-full items-center px-3 py-1.5 text-[12px] text-(--ink) hover:bg-(--panel-2)"
+                        >
+                          Exclude this image
+                        </button>
+                        {hostFromUrl(image.src) !== '' && (
+                          <button
+                            role="menuitem"
+                            onClick={() => {
+                              onExclude(image, 'host');
+                              setExcludeMenuSrc(null);
+                            }}
+                            className="flex w-full items-center px-3 py-1.5 text-[12px] text-(--ink) hover:bg-(--panel-2)"
+                          >
+                            Exclude host ({hostFromUrl(image.src)})
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
                 {isPendingVideo(image) ? (
                   image.resolveHint ? (

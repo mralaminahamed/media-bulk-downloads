@@ -449,6 +449,8 @@ export interface ImageListProps {
   favouriteSrcs?: Set<string>;
   /** Toggle an item's favourite state (add if absent, remove if present). */
   onToggleFavourite?: (image: ImageInfo) => void;
+  /** Add an item's URL (or its host) to the exclusion list. */
+  onExclude?: (image: ImageInfo, kind: ExcludedKind) => void;
   /** Resolve one pending video's real file on demand (per-item "Get video"). */
   onFetchVideo?: (image: ImageInfo) => void;
   /** Srcs whose on-demand resolve returned nothing (tombstone / failure). */

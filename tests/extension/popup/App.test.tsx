@@ -539,4 +539,59 @@ describe('App Component', () => {
     // Still downloadable — the resolved video was not reverted to pending.
     expect(await screen.findByRole('button', { name: /download 1/i })).toBeInTheDocument();
   });
+
+  it('per-item "Exclude this image" dispatches ADD_EXCLUDED with kind url', async () => {
+    render(<App collect={async () => [image({ src: 'https://cdn.ads.com/a.png' })]} />);
+    await screen.findByText('Filters');
+
+    await userEvent.click(screen.getByTitle('Exclude source'));
+    await userEvent.click(await screen.findByText('Exclude this image'));
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'ADD_EXCLUDED',
+        entry: expect.objectContaining({ value: 'https://cdn.ads.com/a.png', kind: 'url', time: expect.any(Number) }),
+      }),
+    );
+  });
+
+  it('per-item "Exclude host …" dispatches ADD_EXCLUDED with kind host and the host value', async () => {
+    render(<App collect={async () => [image({ src: 'https://cdn.ads.com/a.png' })]} />);
+    await screen.findByText('Filters');
+
+    await userEvent.click(screen.getByTitle('Exclude source'));
+    await userEvent.click(await screen.findByText(/Exclude host.*cdn\.ads\.com/));
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'ADD_EXCLUDED',
+        entry: expect.objectContaining({ value: 'cdn.ads.com', kind: 'host', time: expect.any(Number) }),
+      }),
+    );
+  });
+
+  it('bulk Exclude dispatches an ADD_EXCLUDED per selected item', async () => {
+    render(<App collect={async () => [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })]} />);
+    await screen.findByText('Filters');
+
+    await userEvent.click(screen.getByRole('checkbox', { name: /select all shown/i }));
+    await userEvent.click(await screen.findByRole('button', { name: /more download options/i }));
+    await userEvent.click(await screen.findByText('Exclude'));
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'ADD_EXCLUDED',
+        entry: expect.objectContaining({ value: 'a.jpg', kind: 'url', time: expect.any(Number) }),
+      }),
+    );
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'ADD_EXCLUDED',
+        entry: expect.objectContaining({ value: 'b.jpg', kind: 'url', time: expect.any(Number) }),
+      }),
+    );
+    expect(
+      (chrome.runtime.sendMessage as jest.Mock).mock.calls.filter((c) => c[0]?.type === 'ADD_EXCLUDED'),
+    ).toHaveLength(2);
+  });
 });
