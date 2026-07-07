@@ -97,6 +97,21 @@ describe('Settings Component', () => {
     }));
   });
 
+  it('toggles exclude emoji', () => {
+    render(
+      <Settings
+        onClose={mockOnClose}
+        onSettingsChange={mockOnSettingsChange}
+        settings={initialSettings}
+      />
+    );
+    fireEvent.click(screen.getByRole('switch', { name: /exclude emoji/i }));
+    fireEvent.click(screen.getByText('Save'));
+    expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({
+      excludeEmoji: true,
+    }));
+  });
+
   it('saves number fields as numbers', () => {
     render(
       <Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />
