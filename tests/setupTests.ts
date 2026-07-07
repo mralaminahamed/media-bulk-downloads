@@ -117,3 +117,9 @@ global.chrome = {
         getCurrent: jest.fn(),
     },
 } as unknown as typeof chrome;
+
+// Reset the in-memory chrome.storage.local backing store after every test so
+// state written by one test never leaks into a later test in the same file.
+afterEach(() => {
+    for (const k of Object.keys(localStorageStore)) delete localStorageStore[k];
+});
