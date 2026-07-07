@@ -261,6 +261,9 @@ export interface RestoreDataMessage {
  *  filename — it must not depend on the popup after this message. */
 export interface CaptureStreamMessage {
   type: 'CAPTURE_STREAM';
+  /** Caller-owned unique id scoping this capture's progress across contexts, so
+   *  concurrent captures (e.g. two tabs) never cross-route their progress. */
+  runId: string;
   manifestUrl: string;
   item: ImageInfo;
   sourcePage: { url: string; title?: string };
@@ -269,6 +272,8 @@ export interface CaptureStreamMessage {
 /** Background → offscreen: run the engine with this capture policy. */
 export interface CaptureRunMessage {
   type: 'CAPTURE_RUN';
+  /** Echoed back on each CAPTURE_PROGRESS so the background/caller can route it. */
+  runId: string;
   manifestUrl: string;
   /** Which engine the offscreen host runs. */
   engine: 'hls' | 'dash';
@@ -279,6 +284,8 @@ export interface CaptureRunMessage {
 /** Offscreen → all contexts (the popup listens): capture progress. */
 export interface CaptureProgressMessage {
   type: 'CAPTURE_PROGRESS';
+  /** Which capture this progress belongs to (see CaptureStreamMessage.runId). */
+  runId: string;
   done: number;
   total: number;
 }

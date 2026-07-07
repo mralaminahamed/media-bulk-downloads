@@ -15,20 +15,21 @@ import { CaptureRunMessage, CaptureRunResult } from '@/types';
 export function installOffscreenCaptureHost(): void {
   chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
     if (!message || (message as { type?: unknown }).type !== 'CAPTURE_RUN') return;
-    const { manifestUrl, engine, quality, maxBytes } = message as CaptureRunMessage;
-    void runCapture(manifestUrl, engine, quality, maxBytes).then(sendResponse);
+    const { runId, manifestUrl, engine, quality, maxBytes } = message as CaptureRunMessage;
+    void runCapture(runId, manifestUrl, engine, quality, maxBytes).then(sendResponse);
     return true; // response is sent asynchronously
   });
 }
 
 async function runCapture(
+  runId: string,
   manifestUrl: string,
   engine: 'hls' | 'dash',
   quality: number,
   maxBytes: number,
 ): Promise<CaptureRunResult> {
   const onProgress = (done: number, total: number): void => {
-    void chrome.runtime.sendMessage({ type: 'CAPTURE_PROGRESS', done, total });
+    void chrome.runtime.sendMessage({ type: 'CAPTURE_PROGRESS', runId, done, total });
   };
   try {
     const res = engine === 'dash'

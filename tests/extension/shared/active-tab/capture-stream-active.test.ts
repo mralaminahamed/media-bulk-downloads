@@ -1,20 +1,36 @@
-import { requestCaptureStream } from '@/extension/shared/active-tab/capture-stream-active';
+import { newCaptureRunId, requestCaptureStream } from '@/extension/shared/active-tab/capture-stream-active';
 import { ImageInfo } from '@/types';
+
+describe('newCaptureRunId', () => {
+  it('returns a non-empty, unique id each call (no crypto.randomUUID — runs in http content scripts)', () => {
+    const a = newCaptureRunId();
+    const b = newCaptureRunId();
+    expect(a).toMatch(/^cap-/);
+    expect(a).not.toBe(b);
+  });
+});
 
 const item = { src: 'https://x/m.m3u8', hlsManifest: 'https://x/m.m3u8', type: 'm3u8', kind: 'video', width: 0, height: 0, fileSize: 0, isBase64: false, alt: '' } as ImageInfo;
 
 describe('requestCaptureStream', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('sends CAPTURE_STREAM, relays progress, resolves the status, and unsubscribes', async () => {
+  it('sends CAPTURE_STREAM, relays only its own runId progress, resolves the status, and unsubscribes', async () => {
     (chrome.runtime.sendMessage as jest.Mock).mockImplementation((_msg, cb) => cb({ status: 'Captured foo.mp4 — 5 segments.' }));
     const onProgress = jest.fn();
 
     const promise = requestCaptureStream('https://x/m.m3u8', item, { url: 'https://x/watch' }, onProgress);
 
-    // The helper registered a progress listener; drive a progress broadcast through it.
+    // The runId the helper minted, read off the CAPTURE_STREAM it sent.
+    const sent = (chrome.runtime.sendMessage as jest.Mock).mock.calls.find((c) => c[0]?.type === 'CAPTURE_STREAM')![0];
+    expect(typeof sent.runId).toBe('string');
     const listener = (chrome.runtime.onMessage.addListener as jest.Mock).mock.calls.at(-1)![0];
-    listener({ type: 'CAPTURE_PROGRESS', done: 2, total: 4 });
+
+    // A concurrent capture's progress (different runId) is ignored…
+    listener({ type: 'CAPTURE_PROGRESS', runId: 'other-run', done: 9, total: 9 });
+    expect(onProgress).not.toHaveBeenCalled();
+    // …only this capture's own runId relays.
+    listener({ type: 'CAPTURE_PROGRESS', runId: sent.runId, done: 2, total: 4 });
     expect(onProgress).toHaveBeenCalledWith(2, 4);
 
     await expect(promise).resolves.toBe('Captured foo.mp4 — 5 segments.');
