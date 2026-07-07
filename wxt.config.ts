@@ -27,7 +27,7 @@ export default defineConfig({
     name: 'Media Bulk Downloads',
     description:
       'Bulk-download images, video & audio from any web page. Smart type filters, instant preview, original quality — fast and private.',
-    permissions: ['downloads', 'downloads.open', 'storage', 'tabs', 'contextMenus'],
+    permissions: ['downloads', 'downloads.open', 'storage', 'tabs', 'contextMenus', 'offscreen'],
     // Requested at runtime only when the user turns on "notify when downloads
     // finish" — so it never shows an install-time permission prompt.
     optional_permissions: ['notifications'],
