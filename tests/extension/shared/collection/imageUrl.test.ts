@@ -20,6 +20,11 @@ describe('detectType', () => {
   it('returns unknown when neither is present', () => {
     expect(detectType('https://cdn.test/img?x=1')).toBe('unknown');
   });
+
+  it('reads the bluesky @<fmt> path suffix (extension-less atproto CDN)', () => {
+    expect(detectType('https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:x/bafy123@jpeg')).toBe('jpeg');
+    expect(detectType('https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:x/bafy123@png')).toBe('png');
+  });
 });
 
 describe('parseUrlDimensions', () => {
@@ -80,6 +85,26 @@ describe('upgradeToOriginal', () => {
       'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Cat.jpg/320px-Cat.jpg',
       'https://upload.wikimedia.org/wikipedia/commons/a/ab/Cat.jpg',
     ],
+    [
+      'squarespace forces format=2500w',
+      'https://images.squarespace-cdn.com/content/abc/def/photo.jpg?format=500w',
+      'https://images.squarespace-cdn.com/content/abc/def/photo.jpg?format=2500w',
+    ],
+    [
+      'wix strips the /v1/fill transform back to the base media file',
+      'https://static.wixstatic.com/media/0784b1_abc~mv2.jpg/v1/fill/w_105,h_159,al_c,q_80,enc_avif/Group.jpg',
+      'https://static.wixstatic.com/media/0784b1_abc~mv2.jpg',
+    ],
+    [
+      'bluesky feed_thumbnail -> feed_fullsize',
+      'https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:abc/bafkrei123@jpeg',
+      'https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:abc/bafkrei123@jpeg',
+    ],
+    [
+      'bandcamp art size code -> _0 original',
+      'https://f4.bcbits.com/img/a3164574832_10.jpg',
+      'https://f4.bcbits.com/img/a3164574832_0.jpg',
+    ],
   ];
 
   it.each(cases)('%s', (_name, input, expected) => {
@@ -129,6 +154,22 @@ describe('upgradeToOriginal', () => {
     expect(r.original).toBe(input);
     expect(r.thumbnail).toBeUndefined();
   });
+
+  it('leaves a squarespace url already at format=2500w unchanged', () => {
+    const url = 'https://images.squarespace-cdn.com/content/a/b/x.jpg?format=2500w';
+    const r = upgradeToOriginal(url);
+    expect(r.original).toBe(url);
+    expect(r.thumbnail).toBeUndefined();
+  });
+
+  it('does not rewrite a bandcamp non-art image lacking the a<id> art prefix', () => {
+    // Band/bio photos use a bare-digit id (no leading `a`) and have no guaranteed
+    // _0 sibling, so the rule is scoped to the a<digits> album/track-art prefix.
+    const url = 'https://f4.bcbits.com/img/0123456789_10.jpg';
+    const r = upgradeToOriginal(url);
+    expect(r.original).toBe(url);
+    expect(r.thumbnail).toBeUndefined();
+  });
 });
 
 describe('looksLikeMediaUrl', () => {
@@ -142,6 +183,10 @@ describe('looksLikeMediaUrl', () => {
   it('rejects a non-media format param', () => {
     expect(looksLikeMediaUrl('https://site.com/export?format=csv')).toBe(false);
     expect(looksLikeMediaUrl('https://cdn.example.org/x?format=jpg')).toBe(true);
+  });
+
+  it('accepts the cdn.bsky.app host (extension-less @jpeg feed images)', () => {
+    expect(looksLikeMediaUrl('https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:x/bafy123@jpeg')).toBe(true);
   });
 });
 

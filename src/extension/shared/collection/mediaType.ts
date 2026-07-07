@@ -32,7 +32,11 @@ const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'jfif', 'png', 'gif', 'webp', 'svg', 
  */
 export function imageExtFromUrl(url: string): string | null {
   const ext = extensionFromUrl(url);
-  return ext && IMAGE_EXTS.has(ext) ? ext : null;
+  if (ext && IMAGE_EXTS.has(ext)) return ext;
+  // Bluesky / atproto CDN encodes the format as an `@<fmt>` path suffix
+  // (…/bafy…@jpeg) with no dotted extension — read it for the download name.
+  const at = /@([a-z0-9]{1,5})$/i.exec(url.split(/[?#]/)[0]);
+  return at && IMAGE_EXTS.has(at[1].toLowerCase()) ? at[1].toLowerCase() : null;
 }
 
 /** Normalizes a few MIME subtypes to our canonical format keys. */
