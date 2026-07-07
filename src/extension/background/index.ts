@@ -44,7 +44,7 @@ import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory
 import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } from '../shared/storage/favourites';
 import { addExcluded, removeExcluded, clearExcluded, restoreExcluded, excludedMatchers, EXCLUDED_KEY } from '../shared/storage/excluded';
 import { HLS_MAX_BYTES, HLS_TARGET_HEIGHT } from '../shared/download/capture-constants';
-import { hlsErrorMessage } from '../shared/download/hls-error-message';
+import { streamErrorMessage } from '../shared/download/stream-error-message';
 
 // Re-exported for the background test suite, which imports them from here.
 export { DEFAULT_SETTINGS, sanitizePathSegment, buildDownloadFilename, extensionForType, originalNameFromUrl };
@@ -734,7 +734,7 @@ chrome.runtime.onMessage.addListener(
           })) as CaptureRunResult | undefined;
           if (!result || !result.ok) {
             activeCaptureTabId = undefined;
-            sendResponse({ status: hlsErrorMessage(result?.ok === false ? result.code : 'unknown') });
+            sendResponse({ status: streamErrorMessage(result?.ok === false ? result.code : 'unknown') });
             return;
           }
           const filename = buildDownloadFilename({ ...item, ext: result.ext }, 0, currentSettings, sourcePage.url);
