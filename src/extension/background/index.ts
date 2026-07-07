@@ -397,7 +397,7 @@ export function downloadAllForTab(tab?: chrome.tabs.Tab): void {
   const sourcePage = tab.url ? { url: tab.url, title: tab.title } : undefined;
   chrome.tabs.sendMessage(tab.id, 'GET_IMAGES', (images: ImageInfo[]) => {
     if (chrome.runtime.lastError || !Array.isArray(images)) return;
-    void settingsReady.then(() => downloadAndRecord(filterImagesBySettings(images, currentSettings), sourcePage));
+    void settingsReady.then(() => downloadAndRecord(filterExcluded(filterImagesBySettings(images, currentSettings), excludedCache), sourcePage));
   });
 }
 
@@ -552,7 +552,7 @@ chrome.runtime.onMessage.addListener(
       // the real outcome (how many started / failed) rather than a premature,
       // never-updated "Downloading…".
       void settingsReady.then(async () => {
-        const eligible = filterImagesBySettings(images, currentSettings);
+        const eligible = filterExcluded(filterImagesBySettings(images, currentSettings), excludedCache);
         const result = await downloadAndRecord(eligible, sourcePage);
         sendResponse({
           status: result.failed > 0 && result.succeeded === 0 ? 'error' : 'success',
