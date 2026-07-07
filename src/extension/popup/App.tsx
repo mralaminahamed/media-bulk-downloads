@@ -3,6 +3,7 @@ import ImageList from './components/ImageList';
 import Settings from './components/Settings';
 import HistoryPanel from './components/HistoryPanel';
 import FavouritesPanel from './components/FavouritesPanel';
+import ExcludedPanel from './components/ExcludedPanel';
 import FilterToolbar, { DEFAULT_FILTERS } from './components/FilterToolbar';
 import { DownloadButton } from './components/DownloadButton';
 import { ProgressBar } from './components/ProgressBar';
@@ -27,7 +28,7 @@ import { buildDownloadFilename } from '../shared/collection/download-name';
 import { hostFromUrl, registrableDomain, todayISO } from '../shared/collection/paths';
 import { requestCaptureStream } from '../shared/active-tab/capture-stream-active';
 import { copyText, downloadText, fetchDownloadedOnDisk, getImageFileSize, mapWithConcurrency, sendRuntimeMessage } from './utils';
-import { Cog6ToothIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
+import { Cog6ToothIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon, NoSymbolIcon } from '@heroicons/react/24/outline';
 
 // Concurrent HEAD requests when enriching remote image sizes.
 const SIZE_FETCH_CONCURRENCY = 6;
@@ -76,6 +77,7 @@ const App: React.FC<AppProps> = ({
   const [deepProgress, setDeepProgress] = useState<DeepScanProgress | null>(null);
   const [downloadedSrcs, setDownloadedSrcs] = useState<Set<string>>(new Set());
   const [showFavourites, setShowFavourites] = useState(false);
+  const [showExcluded, setShowExcluded] = useState(false);
   const [favouriteSrcs, setFavouriteSrcs] = useState<Set<string>>(new Set());
   const [excludedMatch, setExcludedMatch] = useState<ExcludedMatchers>({ urls: new Set(), hosts: new Set() });
   const excludedRef = useRef<ExcludedMatchers>({ urls: new Set(), hosts: new Set() });
@@ -699,6 +701,9 @@ const App: React.FC<AppProps> = ({
             <button onClick={() => setShowFavourites(true)} className="iconbtn" title="Favourites" aria-label="Favourites">
               <StarIcon className="h-4.5 w-4.5" />
             </button>
+            <button onClick={() => setShowExcluded(true)} className="iconbtn" title="Excluded sources" aria-label="Excluded sources">
+              <NoSymbolIcon className="h-4.5 w-4.5" />
+            </button>
             <button onClick={() => setShowHistory(true)} className="iconbtn" title="Download history" aria-label="Download history">
               <ClockIcon className="h-4.5 w-4.5" />
             </button>
@@ -860,6 +865,8 @@ const App: React.FC<AppProps> = ({
       {showHistory && <HistoryPanel onClose={() => setShowHistory(false)} />}
 
       {showFavourites && <FavouritesPanel onClose={() => setShowFavourites(false)} />}
+
+      {showExcluded && <ExcludedPanel onClose={() => setShowExcluded(false)} />}
     </div>
   );
 };
