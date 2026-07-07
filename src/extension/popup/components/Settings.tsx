@@ -103,7 +103,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
     setSettings(backup.settings);
     onSettingsChange(backup.settings);
     sendRuntimeMessage({ type: 'RESTORE_DATA', favourites: backup.favourites, history: backup.history, excluded: backup.excluded });
-    setBackupNote(`Imported settings, ${backup.favourites.length} favourites, and ${backup.history.length} history entries.`);
+    setBackupNote(`Imported settings, ${backup.favourites.length} favourites, ${backup.history.length} history entries, and ${backup.excluded.length} blocked sources.`);
   };
 
   return (
@@ -434,9 +434,9 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
 
           <Section title="Backup">
             <p className="text-[11px] leading-relaxed text-(--ink-3)">
-              Save your settings, favourites, and history to a JSON file, or restore from a
-              previous backup. Importing <strong>replaces</strong> your current favourites and
-              history. Everything stays on your device.
+              Save your settings, favourites, history, and blocked sources to a JSON file, or
+              restore from a previous backup. Importing <strong>replaces</strong> your current
+              favourites, history, and blocked sources. Everything stays on your device.
             </p>
             <div className="flex flex-wrap gap-2">
               <button onClick={() => void handleExportBackup()} className="btn btn-ghost btn-sm">
