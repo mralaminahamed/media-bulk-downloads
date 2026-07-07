@@ -1,5 +1,8 @@
 import '@testing-library/jest-dom';
 
+// Backing store for the chrome.storage.local mock below.
+const localStorageStore: Record<string, unknown> = {};
+
 // A reasonably complete Chrome API mock so extension modules (which register
 // event listeners at import time) can be imported without crashing. Individual
 // tests override specific methods as needed.
@@ -58,9 +61,32 @@ global.chrome = {
             get: jest.fn(),
             set: jest.fn(),
         },
+        // Backed by a real in-memory store so storage modules (favourites,
+        // history, excluded, ...) round-trip across get/set within a test —
+        // individual tests still override get/set with mockResolvedValue /
+        // mockImplementation when they need a specific canned shape.
         local: {
-            get: jest.fn().mockResolvedValue({}),
-            set: jest.fn().mockResolvedValue(undefined),
+            get: jest.fn((keys?: string | string[] | Record<string, unknown> | null) => {
+                if (keys == null) return Promise.resolve({ ...localStorageStore });
+                if (typeof keys === 'string') {
+                    return Promise.resolve(keys in localStorageStore ? { [keys]: localStorageStore[keys] } : {});
+                }
+                if (Array.isArray(keys)) {
+                    const out: Record<string, unknown> = {};
+                    keys.forEach((k) => { if (k in localStorageStore) out[k] = localStorageStore[k]; });
+                    return Promise.resolve(out);
+                }
+                const defaults = keys as Record<string, unknown>;
+                const out: Record<string, unknown> = {};
+                Object.keys(defaults).forEach((k) => {
+                    out[k] = k in localStorageStore ? localStorageStore[k] : defaults[k];
+                });
+                return Promise.resolve(out);
+            }),
+            set: jest.fn((items: Record<string, unknown>) => {
+                Object.assign(localStorageStore, items);
+                return Promise.resolve(undefined);
+            }),
         },
         onChanged: {
             addListener: jest.fn(),
@@ -91,3 +117,9 @@ global.chrome = {
         getCurrent: jest.fn(),
     },
 } as unknown as typeof chrome;
+
+// Reset the in-memory chrome.storage.local backing store after every test so
+// state written by one test never leaks into a later test in the same file.
+afterEach(() => {
+    for (const k of Object.keys(localStorageStore)) delete localStorageStore[k];
+});

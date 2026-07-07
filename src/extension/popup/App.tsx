@@ -3,6 +3,7 @@ import ImageList from './components/ImageList';
 import Settings from './components/Settings';
 import HistoryPanel from './components/HistoryPanel';
 import FavouritesPanel from './components/FavouritesPanel';
+import ExcludedPanel from './components/ExcludedPanel';
 import FilterToolbar, { DEFAULT_FILTERS } from './components/FilterToolbar';
 import { DownloadButton } from './components/DownloadButton';
 import { ProgressBar } from './components/ProgressBar';
@@ -11,8 +12,8 @@ import { BrandMark } from '../components/BrandMark';
 import { SkeletonGrid } from './components/states/SkeletonGrid';
 import { EmptyState } from './components/states/EmptyState';
 import { ErrorState } from './components/states/ErrorState';
-import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, DownloadZipMessage, DownloadBytesMessage, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
-import { filterImagesBySettings, applyToolbarFilters } from '../shared/collection/filters';
+import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, DownloadZipMessage, DownloadBytesMessage, ExcludedKind, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
+import { filterImagesBySettings, applyToolbarFilters, filterExcluded, ExcludedMatchers } from '../shared/collection/filters';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
 import { collectFromActiveTab } from '../shared/active-tab/collect-active-tab';
 import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/active-tab/deep-scan-active-tab';
@@ -20,13 +21,14 @@ import { requestResolveOriginals } from '../shared/active-tab/resolve-originals-
 import { applyResolved } from './apply-resolved';
 import { HISTORY_KEY } from '../shared/storage/history';
 import { favouriteSrcSet, FAVOURITES_KEY } from '../shared/storage/favourites';
+import { excludedMatchers, EXCLUDED_KEY } from '../shared/storage/excluded';
 import { buildZip, zipFileName } from '../shared/download/zip';
 import { convertImage, isConvertible } from '../shared/download/convert';
 import { buildDownloadFilename } from '../shared/collection/download-name';
 import { hostFromUrl, registrableDomain, todayISO } from '../shared/collection/paths';
 import { requestCaptureStream } from '../shared/active-tab/capture-stream-active';
 import { copyText, downloadText, fetchDownloadedOnDisk, getImageFileSize, mapWithConcurrency, sendRuntimeMessage } from './utils';
-import { Cog6ToothIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
+import { Cog6ToothIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon, NoSymbolIcon } from '@heroicons/react/24/outline';
 
 // Concurrent HEAD requests when enriching remote image sizes.
 const SIZE_FETCH_CONCURRENCY = 6;
@@ -75,7 +77,10 @@ const App: React.FC<AppProps> = ({
   const [deepProgress, setDeepProgress] = useState<DeepScanProgress | null>(null);
   const [downloadedSrcs, setDownloadedSrcs] = useState<Set<string>>(new Set());
   const [showFavourites, setShowFavourites] = useState(false);
+  const [showExcluded, setShowExcluded] = useState(false);
   const [favouriteSrcs, setFavouriteSrcs] = useState<Set<string>>(new Set());
+  const [excludedMatch, setExcludedMatch] = useState<ExcludedMatchers>({ urls: new Set(), hosts: new Set() });
+  const excludedRef = useRef<ExcludedMatchers>({ urls: new Set(), hosts: new Set() });
   const [resolveFailedSrcs, setResolveFailedSrcs] = useState<Set<string>>(new Set());
   const [fetchingSrcs, setFetchingSrcs] = useState<Set<string>>(new Set());
   // Selective bulk download: srcs the user has ticked. Scoped to what's shown —
@@ -136,6 +141,16 @@ const App: React.FC<AppProps> = ({
         const next = (changes[FAVOURITES_KEY].newValue as { src: string }[] | undefined) ?? [];
         setFavouriteSrcs(new Set(next.map((e) => e.src)));
       }
+    };
+    chrome.storage.onChanged.addListener(onChanged);
+    return () => chrome.storage.onChanged.removeListener(onChanged);
+  }, []);
+
+  useEffect(() => {
+    const load = () => void excludedMatchers().then((m) => { excludedRef.current = m; setExcludedMatch(m); });
+    load();
+    const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+      if (area === 'local' && changes[EXCLUDED_KEY]) load();
     };
     chrome.storage.onChanged.addListener(onChanged);
     return () => chrome.storage.onChanged.removeListener(onChanged);
@@ -257,7 +272,7 @@ const App: React.FC<AppProps> = ({
       const raw = Array.isArray(imageList) ? imageList : [];
       rawImagesRef.current = raw;
       const s = settingsRef.current; // latest settings, not a stale closure
-      const eligible = filterImagesBySettings(raw, s);
+      const eligible = filterExcluded(filterImagesBySettings(raw, s), excludedRef.current);
 
       setState((prev) => ({ ...prev, status: '', isLoading: false }));
       applyResolution(eligible, s);
@@ -276,11 +291,12 @@ const App: React.FC<AppProps> = ({
   // mount, so the first scan runs before a persisted resolveOriginals is known).
   useEffect(() => {
     if (rawImagesRef.current.length === 0) return;
-    const eligible = filterImagesBySettings(rawImagesRef.current, settings);
+    const eligible = filterExcluded(filterImagesBySettings(rawImagesRef.current, settings), excludedRef.current);
     applyResolution(eligible, settings);
-    // Keyed on the settings fields that affect eligibility + resolution.
+    // Keyed on the settings fields that affect eligibility + resolution, plus
+    // excludedMatch so an exclusion-list change re-derives the grid too.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.minimumImageSize, settings.excludeBase64Images, settings.excludeEmoji, settings.resolveOriginals, settings.captureHlsStreams, applyResolution]);
+  }, [settings.minimumImageSize, settings.excludeBase64Images, settings.excludeEmoji, settings.resolveOriginals, settings.captureHlsStreams, applyResolution, excludedMatch]);
 
   const handleDeepScan = async () => {
     if (deepScanning) {
@@ -302,7 +318,7 @@ const App: React.FC<AppProps> = ({
       });
       const merged = [...bySrc.values()];
       rawImagesRef.current = merged;
-      const eligible = filterImagesBySettings(merged, settings);
+      const eligible = filterExcluded(filterImagesBySettings(merged, settings), excludedRef.current);
       applyResolution(eligible, settings);
       // If a cap (not a natural finish) ended the scan, tell the user media may remain.
       const capMsg = deepScanCapMessage(stopReason, merged.length);
@@ -639,6 +655,16 @@ const App: React.FC<AppProps> = ({
     setFavouriteSrcs((prev) => new Set(prev).add(image.src));
   };
 
+  const excludeItem = (image: ImageInfo, kind: ExcludedKind): void => {
+    const value = kind === 'host' ? hostFromUrl(image.src) : image.src;
+    if (!value) return;
+    sendRuntimeMessage({ type: 'ADD_EXCLUDED', entry: { value, kind, time: Date.now() } });
+  };
+  const excludeSelected = (): void => {
+    for (const i of selectedDownloadable()) sendRuntimeMessage({ type: 'ADD_EXCLUDED', entry: { value: i.src, kind: 'url', time: Date.now() } });
+    setSelectedSrcs(new Set());
+  };
+
   // Single source of truth for the form's fields: the popup owns writing settings.
   const handleSettingsChange = (newSettings: SettingsData) => {
     setSettings(newSettings);
@@ -684,6 +710,9 @@ const App: React.FC<AppProps> = ({
           <div className="flex items-center gap-0.5">
             <button onClick={() => setShowFavourites(true)} className="iconbtn" title="Favourites" aria-label="Favourites">
               <StarIcon className="h-4.5 w-4.5" />
+            </button>
+            <button onClick={() => setShowExcluded(true)} className="iconbtn" title="Excluded sources" aria-label="Excluded sources">
+              <NoSymbolIcon className="h-4.5 w-4.5" />
             </button>
             <button onClick={() => setShowHistory(true)} className="iconbtn" title="Download history" aria-label="Download history">
               <ClockIcon className="h-4.5 w-4.5" />
@@ -757,6 +786,7 @@ const App: React.FC<AppProps> = ({
             downloadedSrcs={downloadedSrcs}
             favouriteSrcs={favouriteSrcs}
             onToggleFavourite={handleToggleFavourite}
+            onExclude={excludeItem}
             onFetchVideo={handleFetchVideo}
             resolveFailedSrcs={resolveFailedSrcs}
             fetchingSrcs={fetchingSrcs}
@@ -824,6 +854,7 @@ const App: React.FC<AppProps> = ({
               onZip={handleDownloadSelectedZip}
               onCopyLinks={() => void handleCopyLinks(selectedDownloadable())}
               onExportLinks={() => void handleExportLinks(selectedDownloadable())}
+              onExclude={excludeSelected}
             />
           ) : (
             <DownloadButton
@@ -846,6 +877,8 @@ const App: React.FC<AppProps> = ({
       {showHistory && <HistoryPanel onClose={() => setShowHistory(false)} />}
 
       {showFavourites && <FavouritesPanel onClose={() => setShowFavourites(false)} />}
+
+      {showExcluded && <ExcludedPanel onClose={() => setShowExcluded(false)} />}
     </div>
   );
 };

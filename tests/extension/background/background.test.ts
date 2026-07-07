@@ -1,3 +1,12 @@
+jest.mock('@/extension/shared/storage/excluded', () => ({
+  ...jest.requireActual('@/extension/shared/storage/excluded'),
+  addExcluded: jest.fn().mockResolvedValue(undefined),
+  removeExcluded: jest.fn().mockResolvedValue(undefined),
+  clearExcluded: jest.fn().mockResolvedValue(undefined),
+}));
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const excludedMod = require('@/extension/shared/storage/excluded');
+
 import {
   updateTabBadge,
   loadSettings,
@@ -19,6 +28,9 @@ import { CaptureRunResult, ImageInfo, SettingsData } from '@/types';
 const messageHandler = (global.chrome.runtime.onMessage.addListener as jest.Mock).mock.calls[0][0];
 const contextMenuHandler = (global.chrome.contextMenus.onClicked.addListener as jest.Mock).mock.calls[0][0];
 const commandHandler = (global.chrome.commands.onCommand.addListener as jest.Mock).mock.calls[0][0];
+// Same rationale: captures the listener that refreshes the module's live
+// `excludedCache` on `chrome.storage.onChanged` (namespace 'local', EXCLUDED_KEY).
+const storageChangedHandler = (global.chrome.storage.onChanged.addListener as jest.Mock).mock.calls[0][0];
 
 describe('Background Script', () => {
   let mockChrome: any;
@@ -681,6 +693,7 @@ describe('DOWNLOAD_TEXT + RESTORE_DATA routers', () => {
         type: 'RESTORE_DATA',
         favourites: [{ src: 'https://f', kind: 'image', type: 'jpeg', sourcePageUrl: 'p', time: 1 }],
         history: [{ src: 'https://h', filename: 'h.jpg', kind: 'image', type: 'jpeg', sourcePageUrl: 'p', time: 2 }],
+        excluded: [],
       },
       {},
       jest.fn(),
@@ -907,5 +920,113 @@ describe('CAPTURE_STREAM', () => {
 
       expect(chrome.tabs.sendMessage).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('EXCLUDED routing', () => {
+  it('ADD_EXCLUDED calls addExcluded', () => {
+    messageHandler({ type: 'ADD_EXCLUDED', entry: { value: 'https://x/a.png', kind: 'url', time: 1 } }, {}, jest.fn());
+    expect(excludedMod.addExcluded).toHaveBeenCalledWith({ value: 'https://x/a.png', kind: 'url', time: 1 });
+  });
+  it('REMOVE_EXCLUDED calls removeExcluded with kind+value', () => {
+    messageHandler({ type: 'REMOVE_EXCLUDED', kind: 'host', value: 'cdn.ads.com' }, {}, jest.fn());
+    expect(excludedMod.removeExcluded).toHaveBeenCalledWith('host', 'cdn.ads.com');
+  });
+  it('CLEAR_EXCLUDED calls clearExcluded', () => {
+    messageHandler({ type: 'CLEAR_EXCLUDED' }, {}, jest.fn());
+    expect(excludedMod.clearExcluded).toHaveBeenCalled();
+  });
+});
+
+describe('excluded blocklist reaches the background download paths', () => {
+  // This block's own stateful backing store for chrome.storage.local (mirrors
+  // setupTests' mock), so seeding `excluded` here round-trips through
+  // excludedMatchers() when the storage.onChanged listener reloads the cache —
+  // other describes above have since overwritten the shared mock's
+  // implementation with canned resolved values.
+  let localStore: Record<string, unknown>;
+
+  const adImage: ImageInfo = { src: 'https://cdn.ads.com/ad.jpg', kind: 'image', type: 'jpeg', width: 0, height: 0, fileSize: 0, isBase64: false, alt: '' };
+  const goodImage: ImageInfo = { src: 'https://c/good.jpg', kind: 'image', type: 'jpeg', width: 0, height: 0, fileSize: 0, isBase64: false, alt: '' };
+
+  beforeEach(() => {
+    localStore = {};
+    (chrome.storage.local.get as jest.Mock).mockReset().mockImplementation(
+      (keys?: string | string[] | Record<string, unknown> | null) => {
+        if (keys == null) return Promise.resolve({ ...localStore });
+        if (typeof keys === 'string') return Promise.resolve(keys in localStore ? { [keys]: localStore[keys] } : {});
+        if (Array.isArray(keys)) {
+          const out: Record<string, unknown> = {};
+          keys.forEach((k) => { if (k in localStore) out[k] = localStore[k]; });
+          return Promise.resolve(out);
+        }
+        const defaults = keys as Record<string, unknown>;
+        const out: Record<string, unknown> = {};
+        Object.keys(defaults).forEach((k) => { out[k] = k in localStore ? localStore[k] : defaults[k]; });
+        return Promise.resolve(out);
+      },
+    );
+    (chrome.storage.local.set as jest.Mock).mockReset().mockImplementation((items: Record<string, unknown>) => {
+      Object.assign(localStore, items);
+      return Promise.resolve(undefined);
+    });
+
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({}));
+    loadSettings(); // resolve the settingsReady gate with defaults
+    (chrome.downloads.download as jest.Mock).mockReset().mockImplementation((_o, cb) => cb(1));
+    (chrome.tabs.sendMessage as jest.Mock).mockReset();
+  });
+
+  afterEach(async () => {
+    // Reset the module's live excludedCache back to empty so the blocklist
+    // seeded here never leaks into a later test in this file.
+    storageChangedHandler({ excluded: { newValue: [] } }, 'local');
+    await new Promise((r) => setTimeout(r, 0));
+  });
+
+  /** Seeds the blocklist and fires the onChanged listener the same way a real
+   *  ADD_EXCLUDED write would, then waits for reloadExcluded's async read. */
+  const seedExcludedHost = async (host: string) => {
+    await chrome.storage.local.set({ excluded: [{ value: host, kind: 'host', time: 1 }] });
+    storageChangedHandler({ excluded: { newValue: [{ value: host, kind: 'host', time: 1 }] } }, 'local');
+    await new Promise((r) => setTimeout(r, 0));
+  };
+
+  it('"download all media on this page" (context menu) skips a blocklisted host but downloads the rest', async () => {
+    await seedExcludedHost('cdn.ads.com');
+    (chrome.tabs.sendMessage as jest.Mock).mockImplementation((_id, _msg, cb) => cb([adImage, goodImage]));
+
+    contextMenuHandler(
+      { menuItemId: 'mbd-download-all', editable: false, pageUrl: 'https://page' },
+      { id: 9, url: 'https://page', title: 'T' },
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(chrome.downloads.download).toHaveBeenCalledTimes(1);
+    expect(chrome.downloads.download).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://c/good.jpg' }),
+      expect.any(Function),
+    );
+    expect(chrome.downloads.download).not.toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://cdn.ads.com/ad.jpg' }),
+      expect.any(Function),
+    );
+  });
+
+  it('DOWNLOAD_IMAGES message handler also skips a blocklisted host (defense in depth)', async () => {
+    await seedExcludedHost('cdn.ads.com');
+
+    messageHandler({ type: 'DOWNLOAD_IMAGES', images: [adImage, goodImage], sourcePage: undefined }, {}, jest.fn());
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(chrome.downloads.download).toHaveBeenCalledTimes(1);
+    expect(chrome.downloads.download).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://c/good.jpg' }),
+      expect.any(Function),
+    );
+    expect(chrome.downloads.download).not.toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://cdn.ads.com/ad.jpg' }),
+      expect.any(Function),
+    );
   });
 });

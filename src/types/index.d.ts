@@ -76,6 +76,14 @@ export interface FavouriteEntry {
   time: number;
 }
 
+export type ExcludedKind = 'url' | 'host';
+/** One blocklist entry: an exact media URL or a host. */
+export interface ExcludedEntry {
+  value: string;
+  kind: ExcludedKind;
+  time: number;
+}
+
 /** A portable data backup: user settings + favourites + download history. */
 export interface BackupData {
   /** Fixed tag identifying the file as a Media Bulk Downloads backup. */
@@ -85,6 +93,7 @@ export interface BackupData {
   settings: SettingsData;
   favourites: FavouriteEntry[];
   history: HistoryEntry[];
+  excluded: ExcludedEntry[];
 }
 
 export interface DownloadResponse {
@@ -190,6 +199,13 @@ export interface ClearFavouritesMessage {
   type: 'CLEAR_FAVOURITES';
 }
 
+/** Add one blocklist entry. Routed through the background (single writer). */
+export interface AddExcludedMessage { type: 'ADD_EXCLUDED'; entry: ExcludedEntry }
+/** Remove one blocklist entry by kind+value. */
+export interface RemoveExcludedMessage { type: 'REMOVE_EXCLUDED'; kind: ExcludedKind; value: string }
+/** Clear the whole blocklist. */
+export interface ClearExcludedMessage { type: 'CLEAR_EXCLUDED' }
+
 /**
  * Download a pre-built ZIP archive. The archive is fetched + zipped in the
  * popup/bubble (which can fetch cross-origin and hold the bytes); the background
@@ -237,6 +253,7 @@ export interface RestoreDataMessage {
   type: 'RESTORE_DATA';
   favourites: FavouriteEntry[];
   history: HistoryEntry[];
+  excluded: ExcludedEntry[];
 }
 
 /** Popup → background: capture this stream. Background owns the offscreen doc,
@@ -297,6 +314,9 @@ export type ChromeMessage =
   | AddFavouriteMessage
   | RemoveFavouriteMessage
   | ClearFavouritesMessage
+  | AddExcludedMessage
+  | RemoveExcludedMessage
+  | ClearExcludedMessage
   | CaptureStreamMessage
   | CaptureProgressMessage;
 
@@ -429,6 +449,8 @@ export interface ImageListProps {
   favouriteSrcs?: Set<string>;
   /** Toggle an item's favourite state (add if absent, remove if present). */
   onToggleFavourite?: (image: ImageInfo) => void;
+  /** Add an item's URL (or its host) to the exclusion list. */
+  onExclude?: (image: ImageInfo, kind: ExcludedKind) => void;
   /** Resolve one pending video's real file on demand (per-item "Get video"). */
   onFetchVideo?: (image: ImageInfo) => void;
   /** Srcs whose on-demand resolve returned nothing (tombstone / failure). */

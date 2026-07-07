@@ -4,18 +4,29 @@ import { FavouriteEntry, HistoryEntry } from '@/types';
 
 const fav: FavouriteEntry = { src: 'https://a', kind: 'image', type: 'jpeg', sourcePageUrl: 'p', time: 1 };
 const hist: HistoryEntry = { src: 'https://h', filename: 'x.jpg', kind: 'image', type: 'jpeg', sourcePageUrl: 'p', time: 2 };
+const exc = { value: 'cdn.ads.com', kind: 'host' as const, time: 1 };
 
 describe('buildBackup', () => {
   it('assembles a tagged, versioned backup with the given time', () => {
-    const b = buildBackup(DEFAULT_SETTINGS, [fav], [hist], '2026-07-06T00:00:00Z');
+    const b = buildBackup(DEFAULT_SETTINGS, [fav], [hist], [], '2026-07-06T00:00:00Z');
     expect(b).toMatchObject({ app: BACKUP_APP, version: BACKUP_VERSION, exportedAt: '2026-07-06T00:00:00Z' });
     expect(b.favourites).toEqual([fav]);
     expect(b.history).toEqual([hist]);
   });
+
+  it('round-trips excluded', () => {
+    const json = JSON.stringify(buildBackup(DEFAULT_SETTINGS, [fav], [hist], [exc], 't'));
+    expect(parseBackup(json)!.excluded).toEqual([exc]);
+  });
+
+  it('defaults excluded to [] for a legacy backup', () => {
+    const legacy = JSON.stringify({ app: BACKUP_APP, version: 1, settings: {}, favourites: [], history: [] });
+    expect(parseBackup(legacy)!.excluded).toEqual([]);
+  });
 });
 
 describe('parseBackup', () => {
-  const valid = JSON.stringify(buildBackup(DEFAULT_SETTINGS, [fav], [hist], 't'));
+  const valid = JSON.stringify(buildBackup(DEFAULT_SETTINGS, [fav], [hist], [], 't'));
 
   it('parses a valid backup and restores its entries + settings', () => {
     const b = parseBackup(valid);
