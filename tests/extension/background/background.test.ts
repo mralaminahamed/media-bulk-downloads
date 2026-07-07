@@ -1,3 +1,12 @@
+jest.mock('@/extension/shared/storage/excluded', () => ({
+  ...jest.requireActual('@/extension/shared/storage/excluded'),
+  addExcluded: jest.fn().mockResolvedValue(undefined),
+  removeExcluded: jest.fn().mockResolvedValue(undefined),
+  clearExcluded: jest.fn().mockResolvedValue(undefined),
+}));
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const excludedMod = require('@/extension/shared/storage/excluded');
+
 import {
   updateTabBadge,
   loadSettings,
@@ -907,5 +916,20 @@ describe('CAPTURE_STREAM', () => {
 
       expect(chrome.tabs.sendMessage).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('EXCLUDED routing', () => {
+  it('ADD_EXCLUDED calls addExcluded', () => {
+    messageHandler({ type: 'ADD_EXCLUDED', entry: { value: 'https://x/a.png', kind: 'url', time: 1 } }, {}, jest.fn());
+    expect(excludedMod.addExcluded).toHaveBeenCalledWith({ value: 'https://x/a.png', kind: 'url', time: 1 });
+  });
+  it('REMOVE_EXCLUDED calls removeExcluded with kind+value', () => {
+    messageHandler({ type: 'REMOVE_EXCLUDED', kind: 'host', value: 'cdn.ads.com' }, {}, jest.fn());
+    expect(excludedMod.removeExcluded).toHaveBeenCalledWith('host', 'cdn.ads.com');
+  });
+  it('CLEAR_EXCLUDED calls clearExcluded', () => {
+    messageHandler({ type: 'CLEAR_EXCLUDED' }, {}, jest.fn());
+    expect(excludedMod.clearExcluded).toHaveBeenCalled();
   });
 });

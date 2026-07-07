@@ -198,6 +198,13 @@ export interface ClearFavouritesMessage {
   type: 'CLEAR_FAVOURITES';
 }
 
+/** Add one blocklist entry. Routed through the background (single writer). */
+export interface AddExcludedMessage { type: 'ADD_EXCLUDED'; entry: ExcludedEntry }
+/** Remove one blocklist entry by kind+value. */
+export interface RemoveExcludedMessage { type: 'REMOVE_EXCLUDED'; kind: ExcludedKind; value: string }
+/** Clear the whole blocklist. */
+export interface ClearExcludedMessage { type: 'CLEAR_EXCLUDED' }
+
 /**
  * Download a pre-built ZIP archive. The archive is fetched + zipped in the
  * popup/bubble (which can fetch cross-origin and hold the bytes); the background
@@ -305,6 +312,9 @@ export type ChromeMessage =
   | AddFavouriteMessage
   | RemoveFavouriteMessage
   | ClearFavouritesMessage
+  | AddExcludedMessage
+  | RemoveExcludedMessage
+  | ClearExcludedMessage
   | CaptureStreamMessage
   | CaptureProgressMessage;
 

@@ -1,4 +1,5 @@
 import {
+  AddExcludedMessage,
   AddFavouriteMessage,
   ChromeMessage,
   DownloadMessage,
@@ -12,6 +13,7 @@ import {
   ImageInfo,
   OpenDownloadMessage,
   OpenUrlMessage,
+  RemoveExcludedMessage,
   RemoveFavouriteMessage,
   RemoveHistoryMessage,
   ResolveHint,
@@ -25,7 +27,7 @@ import {
   CaptureStreamMessage,
   CaptureStreamResponse,
 } from '@/types';
-import { filterImagesBySettings } from '../shared/collection/filters';
+import { filterImagesBySettings, filterExcluded, ExcludedMatchers } from '../shared/collection/filters';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
 import { sanitizePathSegment } from '../shared/collection/paths';
 import {
@@ -40,6 +42,7 @@ import { resolveOriginal, NetDeps } from '../shared/resolvers/network';
 import { mediaIdFromPoster, pinTwimgUrl } from '../shared/resolvers/x-media-sniff';
 import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk } from '../shared/storage/history';
 import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } from '../shared/storage/favourites';
+import { addExcluded, removeExcluded, clearExcluded, excludedMatchers, EXCLUDED_KEY } from '../shared/storage/excluded';
 import { HLS_MAX_BYTES, HLS_TARGET_HEIGHT } from '../shared/download/capture-constants';
 import { hlsErrorMessage } from '../shared/download/hls-error-message';
 
@@ -47,6 +50,14 @@ import { hlsErrorMessage } from '../shared/download/hls-error-message';
 export { DEFAULT_SETTINGS, sanitizePathSegment, buildDownloadFilename, extensionForType, originalNameFromUrl };
 
 let currentSettings: SettingsData = { ...DEFAULT_SETTINGS };
+
+/** Live cache of the blocklist match sets, kept fresh via chrome.storage.onChanged
+ *  so the badge count (a synchronous filter) never has to await storage. */
+let excludedCache: ExcludedMatchers = { urls: new Set(), hosts: new Set() };
+function reloadExcluded(): void {
+  void excludedMatchers().then((m) => { excludedCache = m; });
+}
+reloadExcluded();
 
 const BADGE_COLOR = '#4F46E5';
 
@@ -167,7 +178,8 @@ function updateTabBadge(tabId: number): void {
     }
 
     if (images) {
-      const badgeText = filterImagesBySettings(images, currentSettings).length.toString();
+      const eligible = filterExcluded(filterImagesBySettings(images, currentSettings), excludedCache);
+      const badgeText = eligible.length.toString();
       chrome.action.setBadgeText({ text: badgeText, tabId });
       chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR, tabId });
     }
@@ -451,6 +463,11 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     // download isn't left waiting on the initial read.
     markSettingsLoaded?.();
     markSettingsLoaded = undefined;
+  } else if (namespace === 'local' && changes[EXCLUDED_KEY]) {
+    // The blocklist lives in storage.local (see excluded.ts). Refresh the live
+    // matcher cache so the badge count reflects the change; the next natural
+    // badge refresh (tab switch/reload) picks up the new cache.
+    reloadExcluded();
   }
 });
 
@@ -663,6 +680,21 @@ chrome.runtime.onMessage.addListener(
 
     if (typeof message === 'object' && message.type === 'CLEAR_FAVOURITES') {
       void clearFavourites();
+      return;
+    }
+
+    // Excluded-sources (blocklist) mutations — same single-writer rationale.
+    if (typeof message === 'object' && message.type === 'ADD_EXCLUDED') {
+      void addExcluded((message as AddExcludedMessage).entry);
+      return; // fire-and-forget
+    }
+    if (typeof message === 'object' && message.type === 'REMOVE_EXCLUDED') {
+      const m = message as RemoveExcludedMessage;
+      void removeExcluded(m.kind, m.value);
+      return;
+    }
+    if (typeof message === 'object' && message.type === 'CLEAR_EXCLUDED') {
+      void clearExcluded();
       return;
     }
 
