@@ -97,7 +97,7 @@ jobs:
           } >> RELEASE_NOTES.md
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           name: ${{ github.ref_name }}
           body_path: RELEASE_NOTES.md
@@ -133,13 +133,18 @@ jobs:
             echo "::warning::CHROME_* secrets not configured — skipping Chrome Web Store publish."
           fi
 
+      # Official CLI (npm, version-pinned) rather than a third-party action — one
+      # less unpinned dependency in the release path. It reads the OAuth creds
+      # from the EXTENSION_ID / CLIENT_ID / CLIENT_SECRET / REFRESH_TOKEN env vars.
       - name: Publish to Chrome Web Store
         if: steps.guard.outputs.ready == 'true'
-        uses: mnao305/chrome-webstore-upload-action@v5.0.0
-        with:
-          file-path: .output/media-bulk-downloads-${{ needs.release.outputs.version }}-chrome.zip
-          extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
-          client-id: ${{ secrets.CHROME_CLIENT_ID }}
-          client-secret: ${{ secrets.CHROME_CLIENT_SECRET }}
-          refresh-token: ${{ secrets.CHROME_REFRESH_TOKEN }}
-          publish: true
+        env:
+          EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          npx --yes chrome-webstore-upload-cli@4 upload \
+            --source ".output/media-bulk-downloads-${VERSION}-chrome.zip" \
+            --auto-publish
