@@ -241,6 +241,38 @@ export async function downloadAndRecord(
   return result;
 }
 
+/**
+ * Capture one HLS/DASH stream item to a downloaded file: run the offscreen
+ * engine, then hand the muxed BLOB (never the manifest URL) to chrome.downloads.
+ * Shared by the popup's CAPTURE_STREAM handler and the bulk "Download all" path,
+ * so neither ever saves the raw manifest text. Returns a status descriptor.
+ */
+async function captureStreamToFile(
+  item: ImageInfo,
+  sourcePage: { url: string; title?: string } | undefined,
+): Promise<
+  | { ok: true; filename: string; saved: boolean; segmentCount: number; muxedAudio: boolean }
+  | { ok: false; code: string }
+> {
+  await ensureOffscreen();
+  const result = (await chrome.runtime.sendMessage({
+    type: 'CAPTURE_RUN',
+    manifestUrl: item.hlsManifest,
+    engine: item.type === 'mpd' ? 'dash' : 'hls',
+    quality: HLS_TARGET_HEIGHT,
+    maxBytes: HLS_MAX_BYTES,
+  })) as CaptureRunResult | undefined;
+  if (!result || !result.ok) return { ok: false, code: result?.ok === false ? result.code : 'unknown' };
+  const filename = buildDownloadFilename({ ...item, ext: result.ext }, 0, currentSettings, sourcePage?.url);
+  const saved = await new Promise<boolean>((resolve) =>
+    chrome.downloads.download(
+      { url: result.blobUrl, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
+      (id) => resolve(!chrome.runtime.lastError && id !== undefined),
+    ),
+  );
+  return { ok: true, filename, saved, segmentCount: result.segmentCount, muxedAudio: result.muxedAudio };
+}
+
 /** `1 file` / `N files` — correct singular/plural for a count. */
 function fileCount(n: number): string {
   return `${n} file${n === 1 ? '' : 's'}`;
@@ -397,7 +429,16 @@ export function downloadAllForTab(tab?: chrome.tabs.Tab): void {
   const sourcePage = tab.url ? { url: tab.url, title: tab.title } : undefined;
   chrome.tabs.sendMessage(tab.id, 'GET_IMAGES', (images: ImageInfo[]) => {
     if (chrome.runtime.lastError || !Array.isArray(images)) return;
-    void settingsReady.then(() => downloadAndRecord(filterExcluded(filterImagesBySettings(images, currentSettings), excludedCache), sourcePage));
+    void settingsReady.then(() => {
+      const eligible = filterExcluded(filterImagesBySettings(images, currentSettings), excludedCache);
+      // HLS/DASH streams must be CAPTURED (fetch + mux segments), never handed to
+      // chrome.downloads as a manifest URL — that saves the raw .m3u8/.mpd text as
+      // a broken file. Split them out and capture each; download the rest normally.
+      const streams = eligible.filter((i) => i.hlsManifest);
+      const regular = eligible.filter((i) => !i.hlsManifest);
+      if (regular.length) void downloadAndRecord(regular, sourcePage);
+      for (const s of streams) void captureStreamToFile(s, sourcePage).catch(() => {});
+    });
   });
 }
 
@@ -720,7 +761,7 @@ chrome.runtime.onMessage.addListener(
     }
 
     if (typeof message === 'object' && message.type === 'CAPTURE_STREAM') {
-      const { manifestUrl, item, sourcePage } = message as CaptureStreamMessage;
+      const { item, sourcePage } = message as CaptureStreamMessage;
       // Track the originating tab (unset for popup captures, whose sender.tab is
       // undefined) so a CAPTURE_PROGRESS broadcast can be relayed to it below.
       activeCaptureTabId = sender.tab?.id;
@@ -728,28 +769,18 @@ chrome.runtime.onMessage.addListener(
       // dependency on the popup, so the download completes even if it closes.
       void settingsReady.then(async () => {
         try {
-          await ensureOffscreen();
-          const result = (await chrome.runtime.sendMessage({
-            type: 'CAPTURE_RUN', manifestUrl, engine: item.type === 'mpd' ? 'dash' : 'hls', quality: HLS_TARGET_HEIGHT, maxBytes: HLS_MAX_BYTES,
-          })) as CaptureRunResult | undefined;
-          if (!result || !result.ok) {
-            activeCaptureTabId = undefined;
-            sendResponse({ status: streamErrorMessage(result?.ok === false ? result.code : 'unknown') });
+          const cap = await captureStreamToFile(item, sourcePage);
+          activeCaptureTabId = undefined;
+          if (!cap.ok) {
+            sendResponse({ status: streamErrorMessage(cap.code) });
             return;
           }
-          const filename = buildDownloadFilename({ ...item, ext: result.ext }, 0, currentSettings, sourcePage.url);
-          chrome.downloads.download(
-            { url: result.blobUrl, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
-            (downloadId) => {
-              activeCaptureTabId = undefined;
-              const err = chrome.runtime.lastError;
-              const audioNote = result.muxedAudio ? ' (video + audio)' : '';
-              const status = err || downloadId === undefined
-                ? `Couldn’t save ${filename}.`
-                : `Captured ${filename} — ${result.segmentCount} segments${audioNote}.`;
-              sendResponse({ status });
-            },
-          );
+          const audioNote = cap.muxedAudio ? ' (video + audio)' : '';
+          sendResponse({
+            status: cap.saved
+              ? `Captured ${cap.filename} — ${cap.segmentCount} segments${audioNote}.`
+              : `Couldn’t save ${cap.filename}.`,
+          });
         } catch {
           activeCaptureTabId = undefined;
           sendResponse({ status: 'Couldn’t capture the stream.' });

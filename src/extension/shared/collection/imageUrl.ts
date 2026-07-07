@@ -232,6 +232,26 @@ function wixmpTokenCap(token: string): { w: number; h: number } | null {
   }
 }
 
+/** Cloudinary transformation param keys (resize/crop/quality/format/effect/…). */
+const CLOUDINARY_KEYS = new Set([
+  'w', 'h', 'c', 'q', 'e', 'g', 'x', 'y', 'r', 'o', 'a', 'b', 'co', 'dpr', 'fl',
+  'ar', 'z', 'l', 'u', 't', 'f', 'd', 'p', 'cs', 'vc', 'bo', 'br', 'ac', 'so',
+  'eo', 'du', 'fps', 'ki', 'sp', 'if', 'pg', 'vs', 'dn', 'dl',
+]);
+
+/**
+ * A Cloudinary transformation segment: a comma-list of `<key>_<value>` params
+ * whose keys are all real transform keys and whose values carry no `_`. A
+ * public-id folder (mac_photos, q_and_a) fails this test, so it is never
+ * mistaken for a transform and stripped (which would 404).
+ */
+function isCloudinaryTransform(seg: string): boolean {
+  return seg.split(',').every((t) => {
+    const i = t.indexOf('_');
+    return i > 0 && CLOUDINARY_KEYS.has(t.slice(0, i)) && !t.slice(i + 1).includes('_');
+  });
+}
+
 const RULES: CdnRule[] = [
   {
     // Twitter/X: name=<size> -> name=orig, keep format.
@@ -268,13 +288,22 @@ const RULES: CdnRule[] = [
     rewrite: (u) => dropParams(u, RESIZE_PARAMS),
   },
   {
-    // Cloudinary: remove the transform segment right after /upload/.
+    // Cloudinary: strip the leading transformation segment(s) right after
+    // /upload/. A transform segment is a comma-list of `<key>_<value>` params
+    // (w_300,h_200,c_fill,…); a public-id folder that merely contains w_/h_/c_/q_
+    // as a substring (mac_photos, q_and_a, new_w_series) is NOT one — the old
+    // substring rule stripped those and returned a 404. Each comma-token is
+    // validated against Cloudinary's transform keys (value carrying no `_`)
+    // before the segment is dropped. Chained transforms (/w_300/e_blur/) are all
+    // stripped; the version (v123…) and public-id/folder segments are kept.
     match: (u) => u.hostname === 'res.cloudinary.com',
     rewrite: (u) => {
-      u.pathname = u.pathname.replace(
-        /\/upload\/[^/]*(?:w_|h_|c_|q_)[^/]*\//,
-        '/upload/',
-      );
+      u.pathname = u.pathname.replace(/\/upload\/((?:[^/]+\/)+)/, (whole: string, segs: string) => {
+        const parts = segs.split('/').filter(Boolean);
+        let i = 0;
+        while (i < parts.length && isCloudinaryTransform(parts[i])) i++;
+        return i === 0 ? whole : `/upload/${parts.slice(i).map((p) => `${p}/`).join('')}`;
+      });
     },
   },
   {

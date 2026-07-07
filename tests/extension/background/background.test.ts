@@ -660,6 +660,34 @@ describe('context menu', () => {
     expect(chrome.downloads.download).toHaveBeenCalled();
   });
 
+  it('download-all captures HLS/DASH stream items instead of downloading the manifest URL', async () => {
+    // Streams only survive filterImagesBySettings when capture is enabled.
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { captureHlsStreams: true } }));
+    loadSettings();
+    await new Promise((r) => setTimeout(r, 0));
+    (chrome.offscreen.hasDocument as jest.Mock).mockResolvedValue(false);
+    (chrome.offscreen.createDocument as jest.Mock).mockReset().mockResolvedValue(undefined);
+    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+      ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 5, muxedAudio: false,
+    } as CaptureRunResult);
+    (chrome.tabs.sendMessage as jest.Mock).mockImplementation((_id, _msg, cb) =>
+      cb([
+        { src: 'https://c/a.jpg', kind: 'image', type: 'jpeg', width: 0, height: 0, fileSize: 0, isBase64: false, alt: '' },
+        { src: 'https://x/m.m3u8', hlsManifest: 'https://x/m.m3u8', type: 'm3u8', kind: 'video', width: 0, height: 0, fileSize: 0, isBase64: false, alt: '' },
+      ]));
+    contextMenuHandler(info({ menuItemId: 'mbd-download-all' }), tab({ id: 9, url: 'https://page', title: 'T' }));
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    // The stream is routed through the offscreen capture engine…
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'CAPTURE_RUN', manifestUrl: 'https://x/m.m3u8', engine: 'hls' }),
+    );
+    // …and its manifest URL is NEVER handed to chrome.downloads (only the captured blob + the jpg).
+    const dlUrls = (chrome.downloads.download as jest.Mock).mock.calls.map((c) => c[0].url);
+    expect(dlUrls).toContain('blob:cap');
+    expect(dlUrls).not.toContain('https://x/m.m3u8');
+  });
+
   it('adds the right-clicked image to favourites', async () => {
     contextMenuHandler(info({ menuItemId: 'mbd-favourite-image', srcUrl: 'https://cdn/pic.jpg', mediaType: 'image' }), tab({ url: 'https://page', title: 'T' }));
     await new Promise((r) => setTimeout(r, 0));
