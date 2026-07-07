@@ -77,9 +77,10 @@ readability.
 | `shared/collection/paths.ts`                                  | Download-path token expansion (`{host}`/`{domain}`/`{date}`/`{kind}`) + path sanitizing                                                      |
 | `shared/storage/history.ts`                                | `HistoryEntry[]` persistence in `chrome.storage.local` — merge/dedup/cap, serialized writes                                                  |
 | `shared/storage/favourites.ts`                             | `FavouriteEntry[]` persistence in `chrome.storage.local` — same merge/dedup/cap shape                                                        |
-| `shared/resolvers/index.ts`                        | Resolver `REGISTRY` (`twitterResolver, instagramResolver, unsplashResolver, wallhavenResolver, behanceResolver, genericResolver`) + `resolve()` dispatch        |
-| `shared/resolvers/{twitter,instagram,unsplash,wallhaven,behance}.ts` | Per-host, synchronous, network-free URL upgrades; attach `resolveHint`/`unresolvedVideo` when a better original needs a network fetch |
-| `shared/resolvers/generic.ts`                      | Fallback resolver: today's de-proxy + CDN-rule engine, image-only                                                                            |
+| `shared/resolvers/index.ts`                        | Resolver `REGISTRY` (`twitterResolver, instagramResolver, unsplashResolver, wallhavenResolver, behanceResolver, magnificResolver, youtubeResolver, genericResolver`) + `resolve()` dispatch |
+| `shared/resolvers/sites/{twitter,instagram,unsplash,wallhaven,behance,magnific,youtube,vimeo}.ts` | Per-host, synchronous, network-free URL upgrades; attach `resolveHint`/`unresolvedVideo` when a better original needs a network fetch |
+| `shared/resolvers/sites/generic.ts`                | Fallback resolver: today's de-proxy + CDN-rule engine, image-only                                                                            |
+| `shared/resolvers/sniffers/{response,hls,ig-media,x-media}-sniff*.ts` | Passive MAIN-world response/URL sniffers (HLS/DASH manifests, X/Instagram media JSON) + their in-content stores                    |
 | `shared/resolvers/network.ts`                      | The opt-in resolver: actual `fetch()` calls (Twitter syndication API, Wallhaven API, Unsplash download endpoint)                             |
 | `shared/resolvers/types.ts`                        | `Resolver` / `MediaCandidate` / `ResolveContext` contracts shared by the registry                                                            |
 | `popup/`                                           | Popup React app                                                                                                                              |
