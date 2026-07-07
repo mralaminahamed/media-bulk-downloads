@@ -413,6 +413,12 @@ describe('collectMedia — meta / preload hero sources', () => {
     const hls = collectMedia().find((i) => i.src === 'https://cdn.com/stream.m3u8');
     expect(hls).toMatchObject({ kind: 'video', hlsManifest: 'https://cdn.com/stream.m3u8' });
   });
+
+  it('surfaces a streaming og:video (.mpd) as a capturable DASH item', () => {
+    document.head.innerHTML = '<meta property="og:video" content="https://cdn.com/movie.mpd">';
+    const dash = collectMedia().find((i) => i.src === 'https://cdn.com/movie.mpd');
+    expect(dash).toMatchObject({ kind: 'video', type: 'mpd', hlsManifest: 'https://cdn.com/movie.mpd' });
+  });
 });
 
 describe('collectMedia — same-origin iframes', () => {
