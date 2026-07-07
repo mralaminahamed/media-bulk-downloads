@@ -120,6 +120,21 @@ export function installUrlSniffer({ isMatch, onUrl }: UrlSnifferOptions): void {
   };
 }
 
+/**
+ * Register a replay trigger for a MAIN-world sniffer. The isolated relay that
+ * consumes a sniffer's postMessages only starts listening at `document_idle`
+ * (after its async import), so anything the sniffer posted earlier is lost. When
+ * the relay announces itself by posting `{ source: readySource }`, run `replay`
+ * (which re-posts everything seen so far). The envelope is validated to the same
+ * window + origin, matching the relay's own guard.
+ */
+export function installReplayOnReady(readySource: string, replay: () => void): void {
+  window.addEventListener('message', (e: MessageEvent) => {
+    if (e.source !== window || e.origin !== location.origin) return;
+    if ((e.data as { source?: unknown } | null)?.source === readySource) replay();
+  });
+}
+
 export interface EmitOptions<T> {
   /** Cheap substring gate applied before the (costly) JSON parse + deep walk. */
   guard: (text: string) => boolean;

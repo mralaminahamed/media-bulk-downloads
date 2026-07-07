@@ -1,5 +1,5 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import { installUrlSniffer } from '@/extension/shared/resolvers/sniffers/response-sniffer';
+import { installReplayOnReady, installUrlSniffer } from '@/extension/shared/resolvers/sniffers/response-sniffer';
 
 /**
  * MAIN-world content script (all sites). Runs in the page's own realm at
@@ -20,13 +20,21 @@ export default defineContentScript({
   world: 'MAIN',
   main() {
     const seen = new Set<string>(); // avoid re-posting the same manifest
+    const post = (urls: string[]): void => window.postMessage({ source: 'ibd-hls', urls }, location.origin);
     installUrlSniffer({
       isMatch: (url) => HLS_RE.test(url),
       onUrl: (url) => {
         if (seen.has(url)) return;
         seen.add(url);
-        window.postMessage({ source: 'ibd-hls', urls: [url] }, location.origin);
+        post([url]);
       },
+    });
+    // This sniffer runs at document_start; the isolated relay that ingests these
+    // posts only registers at document_idle. Manifests fetched in that gap
+    // (autoplay/preload players) would be lost, so when the relay announces
+    // itself, re-post everything seen so far (the ingest side dedups).
+    installReplayOnReady('ibd-hls-ready', () => {
+      if (seen.size) post([...seen]);
     });
   },
 });
