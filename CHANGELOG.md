@@ -6,6 +6,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-07
+
 ### Added
 - **Vimeo videos**: a Vimeo embed (`player.vimeo.com/video/…`) or a `vimeo.com`
   link is surfaced as a video and, on the opt-in **Get video** / resolve pass,
@@ -179,5 +181,6 @@ Initial public release.
 - Twitter/X GIF thumbnails served without a path extension are collected as
   downloadable video instead of leaking as a still image.
 
-[Unreleased]: https://github.com/mralaminahamed/media-bulk-downloads/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/mralaminahamed/media-bulk-downloads/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/mralaminahamed/media-bulk-downloads/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/mralaminahamed/media-bulk-downloads/releases/tag/v1.0.0
