@@ -21,6 +21,12 @@ describe('browserDashDeps', () => {
     await expect(deps.fetchText('https://x/m.mpd')).rejects.toThrow(/404/);
   });
 
+  it('fetchBytes throws with the status on a non-ok segment response', async () => {
+    (global as { fetch: unknown }).fetch = jest.fn().mockResolvedValue({ ok: false, status: 500 });
+    const deps = browserDashDeps();
+    await expect(deps.fetchBytes('https://x/s.m4s')).rejects.toThrow(/500/);
+  });
+
   it('passes onProgress through', () => {
     const cb = jest.fn();
     expect(browserDashDeps(cb).onProgress).toBe(cb);

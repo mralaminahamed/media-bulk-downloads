@@ -21,4 +21,12 @@ describe('unsplashResolver', () => {
     const r = unsplashResolver.resolve(new URL('https://images.unsplash.com/photo-1?w=200'), { el: img, allowNetwork: false })[0];
     expect(r.resolveHint).toEqual({ platform: 'unsplash', id: 'xyz789' });
   });
+  it('sets no thumbnailSrc when nothing is stripped (output URL equals the input)', () => {
+    // A bare photo URL with no size params: the stripped URL is identical to the
+    // input, so there is no smaller original to preview — thumbnailSrc stays unset.
+    const r = one('https://images.unsplash.com/photo-abc');
+    expect(r.url).toBe('https://images.unsplash.com/photo-abc');
+    expect(r.thumbnailSrc).toBeUndefined();
+    expect(r.resolveHint).toBeUndefined();
+  });
 });

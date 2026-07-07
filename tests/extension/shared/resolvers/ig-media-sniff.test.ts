@@ -14,6 +14,11 @@ describe('pinIgUrl', () => {
     expect(pinIgUrl(42)).toBeNull();
     expect(pinIgUrl(undefined)).toBeNull();
   });
+  it('returns null (never throws) for a string the URL constructor rejects', () => {
+    // A malformed string is untrusted page JSON — `new URL()` throws, the catch swallows it.
+    expect(pinIgUrl('not a url')).toBeNull();
+    expect(pinIgUrl('https://')).toBeNull();
+  });
 });
 
 describe('shortcodeFromUrl', () => {
@@ -38,6 +43,9 @@ describe('extFromIgUrl', () => {
   });
   it('defaults to jpg when the path has no extension', () => {
     expect(extFromIgUrl('https://x.cdninstagram.com/v/t51/a_n')).toBe('jpg');
+  });
+  it('defaults to jpg (never throws) when the URL constructor rejects the string', () => {
+    expect(extFromIgUrl('not a url')).toBe('jpg');
   });
 });
 

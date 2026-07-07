@@ -119,4 +119,50 @@ describe('stop reason', () => {
     expect(state().lastReason).toBe('max-items');
     expect(state().lastScrolls).toBe(0);
   });
+
+  it('reports "aborted" when the signal aborts DURING the quiet-wait (mid-scroll)', async () => {
+    // The loop-top guard can't catch this: the signal is still live when the
+    // iteration begins, the scroll fires, and only then does waitForQuiet abort —
+    // so the post-scroll guard is the one that must stop the loop. `completed`
+    // stays 0 because the scroll step never fully finished.
+    const ac = new AbortController();
+    let lastReason: DeepScanStopReason | undefined;
+    let restored = false;
+    const deps = {
+      collect: () => [item('a')],
+      scrollStep: () => {},
+      atBottom: () => false,
+      waitForQuiet: async () => { ac.abort(); },
+      onProgress: (_f: number, _s: number, _e: number, reason?: DeepScanStopReason) => {
+        if (reason) lastReason = reason;
+      },
+      now: () => 0,
+      restoreScroll: () => { restored = true; },
+    };
+    const out = await runDeepScan(deps, { ...DEEP_SCAN_DEFAULTS, signal: ac.signal });
+    expect(lastReason).toBe('aborted');
+    expect(out.map((m) => m.src)).toEqual(['a']); // seed preserved
+    expect(restored).toBe(true);
+  });
+
+  it('reports "max-items" when a mid-scan round (not the seed) crosses the cap', async () => {
+    // The seed stays under the cap; the first post-scroll round pushes over it, so
+    // the ceiling is detected AFTER the merge rather than by the loop-top guard.
+    let i = 0;
+    let lastReason: DeepScanStopReason | undefined;
+    const deps = {
+      collect: () => (i === 0 ? [item('a')] : [item('a'), item('b'), item('c'), item('d')]),
+      scrollStep: () => { i++; },
+      atBottom: () => false,
+      waitForQuiet: async () => {},
+      onProgress: (_f: number, _s: number, _e: number, reason?: DeepScanStopReason) => {
+        if (reason) lastReason = reason;
+      },
+      now: () => 0,
+      restoreScroll: () => {},
+    };
+    const out = await runDeepScan(deps, { ...DEEP_SCAN_DEFAULTS, maxItems: 3, signal: new AbortController().signal });
+    expect(lastReason).toBe('max-items');
+    expect(out.length).toBe(3);
+  });
 });

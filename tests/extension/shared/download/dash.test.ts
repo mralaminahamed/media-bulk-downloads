@@ -11,6 +11,7 @@ import {
   assertDownloadable,
   captureDash,
   DashDeps,
+  DashError,
 } from '@/extension/shared/download/dash';
 
 const fx = (name: string) => new Uint8Array(readFileSync(join(__dirname, '../../../fixtures/dash', name)));
@@ -99,6 +100,48 @@ describe('parseMpd', () => {
     const based = VOD_MPD.replace('<SegmentTemplate initialization="v_init.m4v"', '<BaseURL>video/</BaseURL><SegmentTemplate initialization="v_init.m4v"');
     expect(parseMpd(based, 'https://cdn.test/manifest.mpd').video[0].baseUrl).toBe('https://cdn.test/video/');
   });
+
+  it('falls back to the raw base when a BaseURL cannot be resolved (unparseable base)', () => {
+    // An MPD-level relative <BaseURL> against a non-absolute base makes `new URL`
+    // throw inside resolveBase; it must swallow it and keep the base unchanged.
+    const based = VOD_MPD.replace('<Period>', '<BaseURL>video/</BaseURL><Period>');
+    const m = parseMpd(based, 'not-an-absolute-url');
+    expect(m.video[0].baseUrl).toBe('not-an-absolute-url');
+  });
+
+  it('skips a Representation whose type is neither video nor audio', () => {
+    // A text/subtitle AdaptationSet classifies to null and is dropped entirely.
+    const withText = VOD_MPD.replace(
+      '<AdaptationSet mimeType="audio/mp4">',
+      `<AdaptationSet mimeType="application/mp4" contentType="text">
+      <Representation id="t0" bandwidth="1000">
+        <SegmentTemplate initialization="t_init.mp4" media="t_seg$Number$.mp4" startNumber="1" timescale="1" duration="6"/>
+      </Representation>
+    </AdaptationSet>
+    <AdaptationSet mimeType="audio/mp4">`,
+    );
+    const m = parseMpd(withText, 'https://cdn.test/manifest.mpd');
+    expect(m.video).toHaveLength(1);
+    expect(m.audio).toHaveLength(1);
+    expect([...m.video, ...m.audio].some((r) => r.id === 't0')).toBe(false);
+  });
+
+  it('parses a SegmentTimeline (S t/d/r) off a SegmentTemplate', () => {
+    const timelined = VOD_MPD.replace(
+      '<SegmentTemplate initialization="v_init.m4v" media="v_seg$Number$.m4v" startNumber="1" timescale="1" duration="6"/>',
+      `<SegmentTemplate initialization="v_init.m4v" media="v_seg$Number$.m4v" startNumber="1" timescale="1000">
+        <SegmentTimeline>
+          <S t="0" d="1000" r="2"/>
+          <S d="500"/>
+        </SegmentTimeline>
+      </SegmentTemplate>`,
+    );
+    const m = parseMpd(timelined, 'https://cdn.test/manifest.mpd');
+    expect(m.video[0].template.timeline).toEqual([
+      { t: 0, d: 1000, r: 2 },
+      { t: undefined, d: 500, r: 0 },
+    ]);
+  });
 });
 
 describe('expandSegments', () => {
@@ -137,6 +180,16 @@ describe('expandSegments', () => {
 
   it('throws unsupported when there is no media template', () => {
     expect(() => expandSegments(rep({ initialization: 'i.m4s' }), 10)).toThrow(/unsupported|SegmentList|SegmentBase/i);
+  });
+
+  it('throws unsupported when the template has media but neither duration nor timeline', () => {
+    try {
+      expandSegments(rep({ media: 'seg-$Number$.m4s' }), 10);
+      throw new Error('expected expandSegments to throw');
+    } catch (e) {
+      expect((e as DashError).code).toBe('unsupported');
+      expect((e as DashError).message).toMatch(/duration|SegmentTimeline/i);
+    }
   });
 
   it('duration mode: $Time$ is the 0-based media offset, independent of startNumber', () => {
@@ -223,5 +276,25 @@ describe('captureDash — e2e mux', () => {
     await expect(captureDash('https://cdn.test/manifest.mpd', deps(), { maxBytes: 1000 })).rejects.toMatchObject({
       code: 'too-large',
     });
+  });
+
+  it('maps a non-DashError fetch failure to fetch-failed', async () => {
+    const videoOnly = VOD_MPD.replace(/<AdaptationSet mimeType="audio\/mp4">[\s\S]*?<\/AdaptationSet>/, '');
+    const failing: DashDeps = {
+      fetchText: async () => videoOnly,
+      fetchBytes: async () => { throw new Error('boom'); },
+    };
+    await expect(captureDash('https://cdn.test/manifest.mpd', failing)).rejects.toMatchObject({ code: 'fetch-failed' });
+  });
+
+  it('maps an undecodable mux to unsupported', async () => {
+    // Non-empty garbage passes the init/empty guards but mp4box cannot demux it,
+    // so muxTracks throws and captureDash reports `unsupported`.
+    const videoOnly = VOD_MPD.replace(/<AdaptationSet mimeType="audio\/mp4">[\s\S]*?<\/AdaptationSet>/, '');
+    const garbage: DashDeps = {
+      fetchText: async () => videoOnly,
+      fetchBytes: async () => new Uint8Array([1, 2, 3, 4]),
+    };
+    await expect(captureDash('https://cdn.test/manifest.mpd', garbage)).rejects.toMatchObject({ code: 'unsupported' });
   });
 });

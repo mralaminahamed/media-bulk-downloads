@@ -48,6 +48,19 @@ describe('imageUrlsFromElement', () => {
   });
 });
 
+describe('imageUrlsFromElement — CSS background lazy attrs', () => {
+  it('extracts the URL from a data-bg url(...) wrapper', () => {
+    const el = document.createElement('div');
+    el.setAttribute('data-bg', "url('https://cdn.com/bg.jpg')");
+    expect(imageUrlsFromElement(el)).toContain('https://cdn.com/bg.jpg');
+  });
+  it('uses a bare data-background value that is not wrapped in url()', () => {
+    const el = document.createElement('div');
+    el.setAttribute('data-background', 'https://cdn.com/plain-bg.png');
+    expect(imageUrlsFromElement(el)).toContain('https://cdn.com/plain-bg.png');
+  });
+});
+
 describe('galleryLinkCandidate', () => {
   it('returns full-res href with the inner img as thumbnail', () => {
     const a = document.createElement('a');
@@ -63,6 +76,14 @@ describe('galleryLinkCandidate', () => {
     a.appendChild(document.createElement('img'));
     expect(galleryLinkCandidate(a)).toBeNull();
   });
+  it('returns null when the href cannot be parsed even against the base URI', () => {
+    // An unclosed IPv6 authority (`http://[`) is unparseable by the URL
+    // constructor with or without a base, so the guard returns null rather than
+    // throwing out of the collector.
+    const a = document.createElement('a');
+    a.setAttribute('href', 'http://[');
+    expect(galleryLinkCandidate(a)).toBeNull();
+  });
 });
 
 describe('noscriptImageCandidates', () => {
@@ -70,5 +91,38 @@ describe('noscriptImageCandidates', () => {
     const ns = document.createElement('noscript');
     ns.textContent = '<img src="https://cdn.com/real.png" alt="x">';
     expect(noscriptImageCandidates(ns)).toEqual([{ url: 'https://cdn.com/real.png' }]);
+  });
+
+  it('also extracts the best srcset candidate from a noscript <img srcset>', () => {
+    const ns = document.createElement('noscript');
+    ns.textContent =
+      '<img src="https://cdn.com/lo.jpg" srcset="https://cdn.com/a-320.jpg 320w, https://cdn.com/a-1200.jpg 1200w">';
+    expect(noscriptImageCandidates(ns)).toEqual([
+      { url: 'https://cdn.com/lo.jpg' },
+      { url: 'https://cdn.com/a-1200.jpg' },
+    ]);
+  });
+
+  it('returns [] when there is no <img> markup', () => {
+    const ns = document.createElement('noscript');
+    ns.textContent = 'just some plain text, no image here';
+    expect(noscriptImageCandidates(ns)).toEqual([]);
+  });
+
+  it('returns [] (not a crash) when the HTML parser throws', () => {
+    const ns = document.createElement('noscript');
+    ns.textContent = '<img src="https://cdn.com/x.jpg">';
+    const RealDOMParser = global.DOMParser;
+    // Force the defensive catch: a parser that throws must yield [] gracefully.
+    (global as unknown as { DOMParser: unknown }).DOMParser = class {
+      parseFromString(): Document {
+        throw new Error('parse boom');
+      }
+    };
+    try {
+      expect(noscriptImageCandidates(ns)).toEqual([]);
+    } finally {
+      global.DOMParser = RealDOMParser;
+    }
   });
 });

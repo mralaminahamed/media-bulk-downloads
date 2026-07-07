@@ -31,6 +31,18 @@ describe('twitterResolver — images', () => {
     expect(one('https://pbs.twimg.com/profile_banners/1/1600/1500x500').url)
       .toBe('https://pbs.twimg.com/profile_banners/1/1600');
   });
+  it('card_img with a name param -> name=orig, keeps thumbnail = input', () => {
+    const input = 'https://pbs.twimg.com/card_img/908519/W3sImage?format=jpg&name=800x320';
+    const c = one(input);
+    expect(c.url).toBe('https://pbs.twimg.com/card_img/908519/W3sImage?format=jpg&name=orig');
+    expect(c).toMatchObject({ kind: 'image', thumbnailSrc: input });
+  });
+  it('card_img with no name param is returned unchanged (nothing to upgrade past)', () => {
+    const input = 'https://pbs.twimg.com/card_img/908519/W3sImage?format=jpg';
+    const c = one(input);
+    expect(c.url).toBe(input);
+    expect(c).toMatchObject({ kind: 'image', thumbnailSrc: input });
+  });
   it('returns [] for non-media twimg paths', () => {
     expect(twitterResolver.resolve(u('https://pbs.twimg.com/semantic_core_img/1/x.jpg'), ctx)).toEqual([]);
   });

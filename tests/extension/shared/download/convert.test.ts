@@ -68,4 +68,31 @@ describe('convertImage', () => {
     };
     expect(await convertImage(new Blob(), 'png', deps)).toBeNull();
   });
+
+  it('uses the default (global) createImageBitmap + OffscreenCanvas deps when none are injected', async () => {
+    // jsdom exposes neither primitive; back both globals so the default deps
+    // (createImageBitmap(blob) / new OffscreenCanvas(w,h)) actually run. A null
+    // 2D context makes convertImage bail to null after both defaults fired.
+    const g = globalThis as unknown as {
+      createImageBitmap?: unknown;
+      OffscreenCanvas?: unknown;
+    };
+    const origBitmap = g.createImageBitmap;
+    const origCanvas = g.OffscreenCanvas;
+    const bitmap = jest.fn(async () => ({ width: 2, height: 2, close: () => undefined }) as unknown as ImageBitmap);
+    const canvasCtor = jest.fn(function (this: { getContext: () => null }) {
+      this.getContext = () => null;
+    });
+    g.createImageBitmap = bitmap;
+    g.OffscreenCanvas = canvasCtor;
+    try {
+      // No deps arg → defaultDeps → invokes both globals.
+      expect(await convertImage(new Blob(), 'png')).toBeNull();
+      expect(bitmap).toHaveBeenCalledTimes(1);
+      expect(canvasCtor).toHaveBeenCalledWith(2, 2);
+    } finally {
+      g.createImageBitmap = origBitmap;
+      g.OffscreenCanvas = origCanvas;
+    }
+  });
 });

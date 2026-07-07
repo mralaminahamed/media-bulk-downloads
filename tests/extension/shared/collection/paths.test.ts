@@ -3,6 +3,7 @@ import {
   expandPathTemplate,
   hostFromUrl,
   registrableDomain,
+  PathTokens,
 } from '@/extension/shared/collection/paths';
 
 describe('hostFromUrl', () => {
@@ -78,6 +79,14 @@ describe('expandPathTemplate', () => {
   it('treats a token value as a single segment (no injected subfolders)', () => {
     const evil = { ...tokens, domain: 'a/../../b' };
     expect(expandPathTemplate('{domain}', evil)).toBe('ab');
+  });
+
+  it('treats a missing/undefined token value as empty (defensive)', () => {
+    // A token object with an unresolved value (e.g. `kind` never set) must collapse
+    // that segment rather than emit the literal `undefined` into the path.
+    const partial = { host: 'ex.com', domain: 'ex.com', date: '2026-07-04' } as unknown as PathTokens;
+    expect(expandPathTemplate('{kind}/pics', partial)).toBe('pics');
+    expect(expandPathTemplate('{host}/{kind}', partial)).toBe('ex.com');
   });
 });
 

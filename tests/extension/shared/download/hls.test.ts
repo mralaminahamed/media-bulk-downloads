@@ -120,6 +120,17 @@ b.ts
     expect(pl.segments[1].key).toMatchObject({ method: 'AES-128', uri: 'https://cdn.test/s/enc.key' });
   });
 
+  it('decodes an explicit hex IV on an EXT-X-KEY into 16 bytes', () => {
+    // Exercises hexToBytes: the `0x…` prefix is stripped and each byte pair parsed.
+    const enc = `#EXTM3U
+#EXT-X-KEY:METHOD=AES-128,URI="enc.key",IV=0x000102030405060708090A0B0C0D0E0F
+#EXTINF:6,
+a.ts
+#EXT-X-ENDLIST`;
+    const pl = parseMediaPlaylist(enc, 'https://cdn.test/s/i.m3u8');
+    expect(Array.from(pl.segments[0].key!.iv!)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+  });
+
   it('reads an fMP4 EXT-X-MAP init segment', () => {
     const fmp4 = `#EXTM3U
 #EXT-X-MAP:URI="init.mp4"
@@ -169,6 +180,16 @@ describe('assertDownloadable — policy guards', () => {
   it('refuses SAMPLE-AES', () => {
     const s = { segments: [seg({ method: 'SAMPLE-AES' })], isLive: false } as never;
     expect(() => assertDownloadable(s)).toThrow(/SAMPLE-AES/i);
+  });
+  it('refuses an unknown encryption method with unsupported-key', () => {
+    const s = { segments: [seg({ method: 'AES-256' })], isLive: false } as never;
+    expect(() => assertDownloadable(s)).toThrow(HlsError);
+    try {
+      assertDownloadable(s);
+    } catch (e) {
+      expect((e as HlsError).code).toBe('unsupported-key');
+      expect((e as HlsError).message).toMatch(/AES-256/);
+    }
   });
   it('accepts plain AES-128 and clear content', () => {
     expect(() => assertDownloadable(pl({}))).not.toThrow();

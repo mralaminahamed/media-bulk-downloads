@@ -81,6 +81,15 @@ describe('magnificResolver', () => {
     expect(r.width).toBe(2000);
   });
 
+  it('skips a malformed srcset entry (URL constructor throws) and keeps the valid widest', () => {
+    // A crafted srcset entry that isn't a parseable URL must be swallowed (continue),
+    // never crash the resolver — the valid CDN entry still wins.
+    document.body.innerHTML = `<img src="${v(740)}" srcset="not-a-valid-url 5000w, ${v(2000)} 2000w">`;
+    const img = document.querySelector('img')!;
+    const r = magnificResolver.resolve(new URL(v(740)), { el: img, allowNetwork: false })[0];
+    expect(r.url).toBe(v(2000));
+  });
+
   it('returns a bare, element-less URL unchanged (no fabrication, no downgrade)', () => {
     const r = one('https://img.magnific.com/free-photo/nurse_1098-511.jpg');
     expect(r.url).toBe('https://img.magnific.com/free-photo/nurse_1098-511.jpg');

@@ -122,6 +122,30 @@ describe('applyToolbarFilters — mediaKind', () => {
   });
 });
 
+describe('applyToolbarFilters — size buckets (known dimensions)', () => {
+  // edge = max(width, height); bucket cutoffs are small < 256 <= medium < 1024 <= large.
+  const sized = [
+    item({ src: 'tiny', width: 100, height: 80 }),      // edge 100  -> small
+    item({ src: 'mid', width: 512, height: 400 }),       // edge 512  -> medium
+    item({ src: 'big', width: 2000, height: 1200 }),     // edge 2000 -> large
+    item({ src: 'edge256', width: 256, height: 10 }),    // edge 256  -> medium (lower bound, inclusive)
+    item({ src: 'edge1024', width: 1024, height: 10 }),  // edge 1024 -> large (upper bound of medium is exclusive)
+  ];
+  it('small keeps only items whose longest edge is under 256', () => {
+    expect(applyToolbarFilters(sized, F({ sizeBucket: 'small' })).map((i) => i.src)).toEqual(['tiny']);
+  });
+  it('medium keeps 256 <= edge < 1024 (256 inclusive, 1024 exclusive)', () => {
+    expect(applyToolbarFilters(sized, F({ sizeBucket: 'medium' })).map((i) => i.src)).toEqual(['mid', 'edge256']);
+  });
+  it('large keeps edge >= 1024', () => {
+    expect(applyToolbarFilters(sized, F({ sizeBucket: 'large' })).map((i) => i.src)).toEqual(['big', 'edge1024']);
+  });
+  it('still never hides an item with unknown dimensions from a size bucket', () => {
+    const withUnknown = [...sized, item({ src: 'unknown', width: 0, height: 0 })];
+    expect(applyToolbarFilters(withUnknown, F({ sizeBucket: 'large' })).map((i) => i.src)).toContain('unknown');
+  });
+});
+
 describe('applyToolbarFilters — format narrowing within a kind', () => {
   it('narrows video items by format', () => {
     const videoItems = [
