@@ -1,4 +1,4 @@
-import { installResponseSniffer, installUrlSniffer, makeSnifferEmit } from '@/extension/shared/resolvers/sniffers/response-sniffer';
+import { installReplayOnReady, installResponseSniffer, installUrlSniffer, makeSnifferEmit } from '@/extension/shared/resolvers/sniffers/response-sniffer';
 
 describe('makeSnifferEmit', () => {
   let posted: unknown[];
@@ -100,5 +100,32 @@ describe('installUrlSniffer', () => {
     const xhr = new XMLHttpRequest();
     xhr.open('GET', 'https://cdn/x/stream.m3u8');
     expect(seen).toEqual(['https://cdn/x/stream.m3u8']);
+  });
+});
+
+describe('installReplayOnReady', () => {
+  const fire = (data: unknown, opts: { origin?: string; source?: unknown } = {}) =>
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data,
+        origin: opts.origin ?? location.origin,
+        source: ('source' in opts ? opts.source : window) as never,
+      }),
+    );
+
+  it('runs the replay when the ready envelope arrives from the same window + origin', () => {
+    const replay = jest.fn();
+    installReplayOnReady('ibd-hls-ready', replay);
+    fire({ source: 'ibd-hls-ready' });
+    expect(replay).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a wrong origin, a foreign window source, and a non-ready envelope', () => {
+    const replay = jest.fn();
+    installReplayOnReady('ibd-hls-ready', replay);
+    fire({ source: 'ibd-hls-ready' }, { origin: 'https://evil.example' });
+    fire({ source: 'ibd-hls-ready' }, { source: null });
+    fire({ source: 'something-else' });
+    expect(replay).not.toHaveBeenCalled();
   });
 });

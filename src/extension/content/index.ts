@@ -57,17 +57,22 @@ if (onIgHost) {
   });
 }
 
-// Relay the MAIN-world HLS sniffer's findings into the collector's store. Unlike
-// the X/IG sniffers, HLS streams appear on any site, so this runs on every host
-// (the sniffer matches <all_urls>). The envelope crossed the page realm and is
-// untrusted; ingestSniffedHls re-validates every URL (http(s) + .m3u8) — the same
-// class the DOM path already surfaces, so no new capability, only new coverage.
+// Relay the MAIN-world HLS/DASH sniffer's findings into the collector's store.
+// Unlike the X/IG sniffers, streams appear on any site, so this runs on every
+// host (the sniffer matches <all_urls>). The envelope crossed the page realm and
+// is untrusted; ingestSniffedHls re-validates every URL (http(s) + .m3u8/.mpd) —
+// the same class the DOM path already surfaces, so no new capability, only new
+// coverage.
 window.addEventListener('message', (event: MessageEvent) => {
   if (event.source !== window || event.origin !== location.origin) return;
   const data = event.data as { source?: unknown; urls?: unknown } | null;
   if (!data || data.source !== 'ibd-hls' || !Array.isArray(data.urls)) return;
   ingestSniffedHls(data.urls);
 });
+// The sniffer runs at document_start but this relay only registered now
+// (document_idle). Announce readiness so the sniffer re-posts any manifests it
+// saw before this listener existed (ingestSniffedHls dedups the replay).
+window.postMessage({ source: 'ibd-hls-ready' }, location.origin);
 
 // Answer image-collection requests from the popup and background worker.
 chrome.runtime.onMessage.addListener(
