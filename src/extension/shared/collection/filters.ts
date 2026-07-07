@@ -6,6 +6,7 @@
 
 import { ImageInfo, SettingsData, FilterOptions, SizeBucket, SortKey, SortDir } from '@/types';
 import { originalNameFromUrl } from './download-name';
+import { isEmojiUrl } from './emoji';
 
 /**
  * Whether an image passes the global user settings (minimum size + base64
@@ -24,12 +25,16 @@ export function passesSettingsFilters(img: ImageInfo, settings: SettingsData): b
 
   const meetsBase64 = !settings.excludeBase64Images || !img.isBase64;
 
+  // Emoji graphics (twemoji from Twitter/WordPress/GitHub/etc.) are hidden only
+  // when the user opts in. Keyed off src, so harmless for non-image kinds.
+  const meetsEmoji = !settings.excludeEmoji || !isEmojiUrl(img.src);
+
   // HLS (.m3u8) streams are surfaced only when the user opts into stream capture.
   // When off they're hidden everywhere this gate runs — badge count, popup/bubble
   // list, and download eligibility — so no capture button or "HLS" tile appears.
   const meetsHls = settings.captureHlsStreams || !img.hlsManifest;
 
-  return meetsSize && meetsBase64 && meetsHls;
+  return meetsSize && meetsBase64 && meetsHls && meetsEmoji;
 }
 
 /**

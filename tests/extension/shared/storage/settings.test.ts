@@ -5,6 +5,10 @@ describe('DEFAULT_SETTINGS naming/saveAs defaults', () => {
     expect(DEFAULT_SETTINGS.namingMode).toBe('prefixed');
     expect(DEFAULT_SETTINGS.saveAs).toBe(false);
   });
+
+  it('defaults exclude-emoji off', () => {
+    expect(DEFAULT_SETTINGS.excludeEmoji).toBe(false);
+  });
 });
 
 describe('withDefaults', () => {

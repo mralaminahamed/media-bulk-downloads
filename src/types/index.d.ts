@@ -339,6 +339,8 @@ export interface SettingsData {
   showImageCount: boolean;
   minimumImageSize: number;
   excludeBase64Images: boolean;
+  /** Hide emoji graphics (twemoji from Twitter/WordPress/GitHub/etc.). */
+  excludeEmoji: boolean;
   /** Show Chrome's native "Save As" dialog per download (user picks a location). */
   saveAs: boolean;
   /** Show a desktop notification when a download batch finishes. Gated behind the

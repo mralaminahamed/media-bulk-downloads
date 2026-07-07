@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS: SettingsData = {
   showImageCount: true,
   minimumImageSize: 0,
   excludeBase64Images: false,
+  excludeEmoji: false,
   saveAs: false,
   notifyOnComplete: false,
   convertImagesTo: 'off',
