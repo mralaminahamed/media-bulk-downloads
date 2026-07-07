@@ -120,6 +120,36 @@ describe('upgradeToOriginal', () => {
     expect(original).toBe('https://res.cloudinary.com/demo/image/upload/sample.jpg');
   });
 
+  it('cloudinary strips a single-param transform and chained transform segments', () => {
+    expect(upgradeToOriginal('https://res.cloudinary.com/demo/image/upload/w_500/sample.jpg').original)
+      .toBe('https://res.cloudinary.com/demo/image/upload/sample.jpg');
+    // chained: /w_300/e_blur/ — both are transform segments
+    expect(upgradeToOriginal('https://res.cloudinary.com/demo/image/upload/w_300/e_blur/sample.jpg').original)
+      .toBe('https://res.cloudinary.com/demo/image/upload/sample.jpg');
+  });
+
+  it('cloudinary keeps the public-id folder and stops at the version segment', () => {
+    // a real transform followed by a public-id folder: strip only the transform
+    expect(upgradeToOriginal('https://res.cloudinary.com/demo/image/upload/w_300/folder/sample.jpg').original)
+      .toBe('https://res.cloudinary.com/demo/image/upload/folder/sample.jpg');
+    // version segment (v123…) is not a transform — leave everything from it on
+    const versioned = 'https://res.cloudinary.com/demo/image/upload/v1699999999/folder/sample.jpg';
+    expect(upgradeToOriginal(versioned).original).toBe(versioned);
+  });
+
+  it('cloudinary does NOT strip a folder whose name merely contains w_/h_/c_/q_', () => {
+    // These are public-id folders, not transforms — the old substring rule 404'd them.
+    for (const url of [
+      'https://res.cloudinary.com/demo/image/upload/mac_photos/img.jpg', // contains "c_"
+      'https://res.cloudinary.com/demo/image/upload/q_and_a/img.jpg',    // starts "q_", value has "_"
+      'https://res.cloudinary.com/demo/image/upload/new_w_series/img.jpg', // contains "w_"
+    ]) {
+      const r = upgradeToOriginal(url);
+      expect(r.original).toBe(url);
+      expect(r.thumbnail).toBeUndefined();
+    }
+  });
+
   it('passes through an unknown host with no thumbnail', () => {
     const r = upgradeToOriginal('https://example.com/pics/photo.jpg');
     expect(r).toEqual({ original: 'https://example.com/pics/photo.jpg' });
