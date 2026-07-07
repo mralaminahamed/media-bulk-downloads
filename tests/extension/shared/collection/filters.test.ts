@@ -132,6 +132,19 @@ describe('applyToolbarFilters — format narrowing within a kind', () => {
       applyToolbarFilters(videoItems, F({ mediaKind: 'video', imageType: 'mp4' })).map((i) => i.src),
     ).toEqual(['v1']);
   });
+
+  it('with kind=all, a specific image format narrows images but keeps video/audio', () => {
+    const mixed = [
+      item({ src: 'a', kind: 'image', type: 'png' }),
+      item({ src: 'b', kind: 'image', type: 'jpeg' }),
+      item({ src: 'v', kind: 'video', type: 'mp4' }),
+      item({ src: 'm', kind: 'audio', type: 'mp3' }),
+    ];
+    // The Type dropdown offers image formats when kind is 'all', so 'png' narrows
+    // images to png — it must NOT drop the video/audio (they can never be png).
+    expect(applyToolbarFilters(mixed, F({ mediaKind: 'all', imageType: 'png' })).map((i) => i.src))
+      .toEqual(['a', 'v', 'm']);
+  });
 });
 
 describe('applyToolbarFilters — search', () => {

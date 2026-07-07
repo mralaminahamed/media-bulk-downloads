@@ -83,6 +83,9 @@ const App: React.FC<AppProps> = ({
   const excludedRef = useRef<ExcludedMatchers>({ urls: new Set(), hosts: new Set() });
   const [resolveFailedSrcs, setResolveFailedSrcs] = useState<Set<string>>(new Set());
   const [fetchingSrcs, setFetchingSrcs] = useState<Set<string>>(new Set());
+  // Whether a batch "Get all videos" run is in flight (distinct from a single
+  // per-item "Get video", which only spins that tile — not the batch button).
+  const [fetchingAllVideos, setFetchingAllVideos] = useState(false);
   // Selective bulk download: srcs the user has ticked. Scoped to what's shown —
   // pruned whenever the filtered view changes (see the effect below).
   const [selectedSrcs, setSelectedSrcs] = useState<Set<string>>(new Set());
@@ -229,12 +232,15 @@ const App: React.FC<AppProps> = ({
           present.add(item.src);
         }
       }
-      // Derive the filtered view from the new image set so the active toolbar
-      // filter still applies to upgraded and newly-appended items.
+      // Derive the filtered view from the new image set so the exclude blocklist,
+      // settings gates, AND the active toolbar filter all still apply to upgraded
+      // and newly-appended items — a resolved src (e.g. a pending video's mp4)
+      // that lands on the blocklist or fails a settings gate must not surface.
+      const eligible = filterExcluded(filterImagesBySettings(nextImages, settingsRef.current), excludedRef.current);
       return {
         ...prev,
         images: nextImages,
-        filteredImages: applyToolbarFilters(nextImages, filtersRef.current),
+        filteredImages: applyToolbarFilters(eligible, filtersRef.current),
       };
     });
   }, []);
@@ -603,15 +609,22 @@ const App: React.FC<AppProps> = ({
     const targets = pendingVideos(state.filteredImages);
     if (!targets.length) return;
     const srcs = targets.map((t) => t.src);
+    setFetchingAllVideos(true);
     setFetchingSrcs((p) => { const n = new Set(p); srcs.forEach((s) => n.add(s)); return n; });
     setResolveFailedSrcs((p) => { const n = new Set(p); srcs.forEach((s) => n.delete(s)); return n; });
     // Indeterminate — the resolve happens in one background batch with no per-item signal.
     setProgress({ label: 'Fetching videos', done: 0, total: 0 });
 
-    const resolved = await requestResolveOriginals(targets.map((t) => ({ src: t.src, hint: t.resolveHint! })));
-
-    setProgress(null);
-    setFetchingSrcs((p) => { const n = new Set(p); srcs.forEach((s) => n.delete(s)); return n; });
+    let resolved: Awaited<ReturnType<typeof requestResolveOriginals>>;
+    try {
+      resolved = await requestResolveOriginals(targets.map((t) => ({ src: t.src, hint: t.resolveHint! })));
+    } finally {
+      // Always clear the in-flight UI — even if the resolve throws — so the batch
+      // button and the per-item spinners never stick.
+      setProgress(null);
+      setFetchingAllVideos(false);
+      setFetchingSrcs((p) => { const n = new Set(p); srcs.forEach((s) => n.delete(s)); return n; });
+    }
     // Keyed on the raw resolver result: only truly-unresolved items are failures.
     // A gated HLS-only item (resolved, but capture off → applyResolved returns
     // null below) is NOT a failure — it stays quietly pending, same as the single
@@ -689,7 +702,9 @@ const App: React.FC<AppProps> = ({
   const downloadableShown = downloadable(state.filteredImages).length;
   const pendingVids = pendingVideos(state.filteredImages);
   const pendingVideoCount = pendingVids.length;
-  const fetchingVideos = pendingVids.some((v) => fetchingSrcs.has(v.src));
+  // The batch button reflects a batch run only — a single per-item fetch (which
+  // adds one src to fetchingSrcs) must not disable "Get all videos".
+  const fetchingVideos = fetchingAllVideos;
   const hasImages = total > 0;
   const filtered = shown !== total;
   const selectedCount = selectedSrcs.size;

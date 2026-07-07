@@ -51,6 +51,13 @@ describe('parseUrlDimensions', () => {
     expect(parseUrlDimensions('https://pbs.twimg.com/media/ABC?name=orig')).toBeNull();
     expect(parseUrlDimensions('https://img.test/photo.jpg')).toBeNull();
   });
+
+  it('does not read a WxH embedded in an alphanumeric id token', () => {
+    // `12x34` sits inside the opaque token `a12x34b` — not a real size token.
+    expect(parseUrlDimensions('https://cdn.test/a12x34b/photo.jpg')).toBeNull();
+    // but a real, boundary-delimited token still parses.
+    expect(parseUrlDimensions('https://cdn.test/hero-1920x1080.jpg')).toEqual({ width: 1920, height: 1080 });
+  });
 });
 
 describe('upgradeToOriginal', () => {

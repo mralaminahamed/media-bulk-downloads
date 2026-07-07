@@ -32,9 +32,9 @@ describe('buildZip', () => {
     expect(failed).toEqual([]);
     const entries = unzipSync(bytes);
     // Default settings: prefix "image_", 1-indexed, jpeg extension, no subfolder.
-    expect(Object.keys(entries).sort()).toEqual(['image_1.jpeg', 'image_2.jpeg']);
-    expect(Array.from(entries['image_1.jpeg'])).toEqual([1, 2, 3]);
-    expect(Array.from(entries['image_2.jpeg'])).toEqual([4, 5]);
+    expect(Object.keys(entries).sort()).toEqual(['image_1.jpg', 'image_2.jpg']);
+    expect(Array.from(entries['image_1.jpg'])).toEqual([1, 2, 3]);
+    expect(Array.from(entries['image_2.jpg'])).toEqual([4, 5]);
     expect(results.map((r) => r.ok)).toEqual([true, true]);
   });
 
@@ -47,7 +47,7 @@ describe('buildZip', () => {
     expect(ok).toBe(2);
     expect(failed.map((i) => i.src)).toEqual(['https://cdn/bad.jpg']);
     // The failed item's slot name is not in the archive; the others are.
-    expect(keysOf(bytes)).toEqual(['image_1.jpeg', 'image_3.jpeg']);
+    expect(keysOf(bytes)).toEqual(['image_1.jpg', 'image_3.jpg']);
   });
 
   it('treats a thrown fetch the same as a failure', async () => {
@@ -65,7 +65,7 @@ describe('buildZip', () => {
     const fetch = makeFetch({ 'https://cdn/a.jpg': [1] });
     const { bytes } = await buildZip(images, settings, 'https://www.example.com/page', { fetch });
     const [path] = keysOf(bytes);
-    expect(path).toMatch(/^example\.com\/\d{4}-\d{2}-\d{2}\/image_1\.jpeg$/);
+    expect(path).toMatch(/^example\.com\/\d{4}-\d{2}-\d{2}\/image_1\.jpg$/);
   });
 
   it('uniquifies colliding names in original-naming mode', async () => {
@@ -74,7 +74,7 @@ describe('buildZip', () => {
     const fetch = makeFetch({ 'https://a.com/dir1/photo.jpg': [1], 'https://b.com/dir2/photo.jpg': [2] });
     const { bytes, ok } = await buildZip(images, settings, undefined, { fetch });
     expect(ok).toBe(2);
-    expect(keysOf(bytes)).toEqual(['photo (2).jpeg', 'photo.jpeg']);
+    expect(keysOf(bytes)).toEqual(['photo (2).jpg', 'photo.jpg']);
   });
 
   it('reports progress once per item', async () => {

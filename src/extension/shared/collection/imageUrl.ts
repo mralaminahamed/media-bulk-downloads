@@ -159,7 +159,7 @@ function safeDecode(s: string): string {
 }
 
 /** A standalone `WxH` token, e.g. 360x480 — not part of a longer number run. */
-const WxH = /(?<![\d])(\d{2,5})x(\d{2,5})(?![\d])/i;
+const WxH = /(?<![\dA-Za-z])(\d{2,5})x(\d{2,5})(?![\dA-Za-z])/i;
 
 /**
  * Best-effort pixel dimensions encoded in a URL. Handles `name=WxH`, bare `WxH`

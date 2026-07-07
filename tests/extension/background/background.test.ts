@@ -70,7 +70,7 @@ describe('Background Script', () => {
 
   describe('extensionForType', () => {
     it('maps known types to safe extensions', () => {
-      expect(extensionForType('jpeg')).toBe('jpeg');
+      expect(extensionForType('jpeg')).toBe('jpg');
       expect(extensionForType('png')).toBe('png');
       expect(extensionForType('webp')).toBe('webp');
       expect(extensionForType('svg')).toBe('svg');
@@ -83,14 +83,14 @@ describe('Background Script', () => {
   });
 
   describe('jpeg extension', () => {
-    it('maps jpeg type to a .jpeg extension', () => {
-      expect(extensionForType('jpeg')).toBe('jpeg');
+    it('maps jpeg type to the conventional .jpg extension', () => {
+      expect(extensionForType('jpeg')).toBe('jpg');
     });
 
-    it('names a jpeg image file with .jpeg', () => {
+    it('names a jpeg image file with .jpg', () => {
       const img = { src: 'https://pbs.twimg.com/media/ABC?format=jpg&name=orig', alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' as const };
       const name = buildDownloadFilename(img, 0, { ...DEFAULT_SETTINGS, namingMode: 'original', downloadPath: '' });
-      expect(name).toMatch(/\.jpeg$/);
+      expect(name).toMatch(/\.jpg$/);
     });
   });
 
@@ -121,7 +121,7 @@ describe('Background Script', () => {
     });
 
     it('builds a prefixed, 1-indexed filename', () => {
-      expect(buildDownloadFilename(img({ type: 'jpeg' }), 0, settings)).toBe('image_1.jpeg');
+      expect(buildDownloadFilename(img({ type: 'jpeg' }), 0, settings)).toBe('image_1.jpg');
       expect(buildDownloadFilename(img({ type: 'png' }), 4, settings)).toBe('image_5.png');
     });
 
@@ -133,7 +133,7 @@ describe('Background Script', () => {
     });
 
     it('falls back to the type-derived extension when the resolver gave no ext', () => {
-      expect(buildDownloadFilename(img({ type: 'jpeg' }), 0, settings)).toBe('image_1.jpeg');
+      expect(buildDownloadFilename(img({ type: 'jpeg' }), 0, settings)).toBe('image_1.jpg');
     });
 
     it('uses the resolver ext in original-name mode too', () => {
@@ -156,7 +156,7 @@ describe('Background Script', () => {
     it('uses the original URL name in original mode, with type-derived extension', () => {
       const s = { ...settings, namingMode: 'original' as const };
       // extension comes from image.type, NOT the URL's extension.
-      expect(buildDownloadFilename(img({ src: 'https://x.com/a/cat.png', type: 'jpeg' }), 0, s)).toBe('cat.jpeg');
+      expect(buildDownloadFilename(img({ src: 'https://x.com/a/cat.png', type: 'jpeg' }), 0, s)).toBe('cat.jpg');
     });
 
     it('falls back to the prefix+index when the URL has no usable name', () => {
@@ -180,7 +180,7 @@ describe('Background Script', () => {
       const s = { ...settings, downloadPath: '{kind}/{host}' };
       expect(
         buildDownloadFilename(img({ type: 'jpeg' }), 0, s, 'https://cdn.example.org/a'),
-      ).toBe('image/cdn.example.org/image_1.jpeg');
+      ).toBe('image/cdn.example.org/image_1.jpg');
     });
 
     it('collapses site tokens when the source host is unknown', () => {
@@ -478,7 +478,7 @@ describe('downloadAndRecord', () => {
     (chrome.downloads.download as jest.Mock).mockImplementation((_opts, cb) => cb(1));
     await downloadAndRecord([img('https://c/a.jpg')], undefined);
     expect(chrome.downloads.download).toHaveBeenCalledWith(
-      expect.objectContaining({ url: 'https://c/a.jpg', filename: 'image_1.jpeg', saveAs: false, conflictAction: 'uniquify' }),
+      expect.objectContaining({ url: 'https://c/a.jpg', filename: 'image_1.jpg', saveAs: false, conflictAction: 'uniquify' }),
       expect.any(Function),
     );
   });
@@ -562,7 +562,7 @@ describe('DOWNLOAD_IMAGES — settings gate (no ephemeral-worker default-setting
     await new Promise((r) => setTimeout(r, 0)); // flush settingsReady.then → downloadAndRecord
 
     expect(chrome.downloads.download).toHaveBeenCalledWith(
-      expect.objectContaining({ filename: 'Pics/image_1.jpeg' }),
+      expect.objectContaining({ filename: 'Pics/image_1.jpg' }),
       expect.any(Function),
     );
   });
