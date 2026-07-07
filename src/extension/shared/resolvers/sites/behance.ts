@@ -1,5 +1,5 @@
 import { imageExtFromUrl } from '@/extension/shared/collection/mediaType';
-import { MediaCandidate, Resolver, ResolveContext } from './types';
+import { MediaCandidate, Resolver, ResolveContext } from '../types';
 
 const HOST = 'mir-s3-cdn-cf.behance.net';
 const SOURCE_RE = new RegExp(`${HOST.replace(/\./g, '\\.')}/project_modules/(?:source|fs)/`);

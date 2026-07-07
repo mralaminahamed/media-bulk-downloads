@@ -1,5 +1,5 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import { installUrlSniffer } from '@/extension/shared/resolvers/response-sniffer';
+import { installUrlSniffer } from '@/extension/shared/resolvers/sniffers/response-sniffer';
 
 /**
  * MAIN-world content script (all sites). Runs in the page's own realm at

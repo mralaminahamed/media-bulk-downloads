@@ -1,4 +1,4 @@
-import { twitterResolver, twitterGifCandidate, twitterVideoPending } from '@/extension/shared/resolvers/twitter';
+import { twitterResolver, twitterGifCandidate, twitterVideoPending } from '@/extension/shared/resolvers/sites/twitter';
 
 const ctx = { allowNetwork: false };
 const u = (s: string) => new URL(s);

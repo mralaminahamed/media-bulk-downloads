@@ -1,4 +1,4 @@
-import { ingestSniffedHls, sniffedHlsManifests, resetSniffedHls } from '@/extension/shared/resolvers/hls-sniff';
+import { ingestSniffedHls, sniffedHlsManifests, resetSniffedHls } from '@/extension/shared/resolvers/sniffers/hls-sniff';
 
 describe('hls-sniff store', () => {
   beforeEach(() => resetSniffedHls());

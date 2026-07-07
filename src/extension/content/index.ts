@@ -8,8 +8,8 @@
 
 import { SettingsData, DeepScanProgress } from '@/types';
 import { collectMedia } from './collect';
-import { ingestSniffedIgMedia } from '../shared/resolvers/instagram';
-import { ingestSniffedHls } from '../shared/resolvers/hls-sniff';
+import { ingestSniffedIgMedia } from '../shared/resolvers/sites/instagram';
+import { ingestSniffedHls } from '../shared/resolvers/sniffers/hls-sniff';
 import { withDefaults } from '../shared/storage/settings';
 import { startDeepScan } from './deepScanRunner';
 

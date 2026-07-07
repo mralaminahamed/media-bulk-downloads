@@ -1,5 +1,5 @@
-import { MediaCandidate, Resolver, ResolveContext } from './types';
-import { IgMediaEntry, extractIgMedia, shortcodeFromUrl, pinIgUrl } from '@/extension/shared/resolvers/ig-media-sniff';
+import { MediaCandidate, Resolver, ResolveContext } from '../types';
+import { IgMediaEntry, extractIgMedia, shortcodeFromUrl, pinIgUrl } from '@/extension/shared/resolvers/sniffers/ig-media-sniff';
 
 /**
  * Instagram resolver. Instagram serves images/videos from signed CDNs

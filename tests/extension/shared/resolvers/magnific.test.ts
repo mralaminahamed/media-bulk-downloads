@@ -1,4 +1,4 @@
-import { magnificResolver } from '@/extension/shared/resolvers/magnific';
+import { magnificResolver } from '@/extension/shared/resolvers/sites/magnific';
 import { resolve } from '@/extension/shared/resolvers';
 
 const ctx = { allowNetwork: false };

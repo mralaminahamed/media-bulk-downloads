@@ -1,4 +1,4 @@
-import { vimeoVideoId } from '@/extension/shared/resolvers/vimeo';
+import { vimeoVideoId } from '@/extension/shared/resolvers/sites/vimeo';
 
 describe('vimeoVideoId', () => {
   it.each([
