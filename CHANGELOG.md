@@ -6,6 +6,21 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Magnific** (magnific.com) stock-image resolver: the site serves one photo as
+  a responsive `srcset` of five widths (up to 2000px), each carrying its own
+  signed, width-bound token — so the same photo otherwise lands as up to five
+  duplicate grid items, and the browser only loads a viewport-sized variant
+  (often ~1480px). The resolver collapses those variants into a single item at
+  the **widest** size the page itself served (2000px here), with a smaller
+  variant as its thumbnail and an aspect-correct size for the min-size filter and
+  sort. It uses only magnific's own page-issued tokens — it never strips the
+  signature (that would drop the image to the 626px `og:image` default), never
+  requests a resolution beyond what the site served (the token rejects it), and
+  never touches magnific's login or licensed-download flow; licensing and
+  attribution under magnific's terms remain the user's responsibility. No new
+  permissions.
+
 ## [1.1.0] - 2026-07-07
 
 ### Added
