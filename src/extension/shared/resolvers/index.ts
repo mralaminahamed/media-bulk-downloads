@@ -2,12 +2,13 @@ import { MediaCandidate, Resolver, ResolveContext } from './types';
 import { behanceResolver } from './behance';
 import { genericResolver } from './generic';
 import { instagramResolver } from './instagram';
+import { magnificResolver } from './magnific';
 import { twitterResolver } from './twitter';
 import { unsplashResolver } from './unsplash';
 import { wallhavenResolver } from './wallhaven';
 import { youtubeResolver } from './youtube';
 
-export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, unsplashResolver, wallhavenResolver, behanceResolver, youtubeResolver, genericResolver];
+export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, unsplashResolver, wallhavenResolver, behanceResolver, magnificResolver, youtubeResolver, genericResolver];
 
 export function resolve(rawUrl: string, ctx: ResolveContext): MediaCandidate[] {
   let u: URL;
