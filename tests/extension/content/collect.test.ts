@@ -1,5 +1,15 @@
+// `sniffedHlsManifests` is wrapped in a jest.fn so the DASH sniffed-case test can
+// override its return value for one call (a real .mpd can never reach the actual
+// store — ingestSniffedHls only accepts .m3u8, see hls-sniff.ts). Every other test
+// keeps the real behavior: ingestSniffedHls/resetSniffedHls are spread through
+// untouched, and the default implementation just delegates to the actual function.
+jest.mock('@/extension/shared/resolvers/hls-sniff', () => {
+  const actual = jest.requireActual('@/extension/shared/resolvers/hls-sniff');
+  return { __esModule: true, ...actual, sniffedHlsManifests: jest.fn(actual.sniffedHlsManifests) };
+});
+
 import { collectMedia, backgroundImageUrls } from '@/extension/content/collect';
-import { ingestSniffedHls, resetSniffedHls } from '@/extension/shared/resolvers/hls-sniff';
+import { ingestSniffedHls, resetSniffedHls, sniffedHlsManifests } from '@/extension/shared/resolvers/hls-sniff';
 
 const setBody = (html: string) => {
   document.body.innerHTML = html;
@@ -133,8 +143,8 @@ describe('collectMedia — HLS streams', () => {
     expect(hls(collectMedia())).toHaveLength(1);
   });
 
-  it('still drops blob: and .mpd (only .m3u8 is captured)', () => {
-    setBody('<video src="blob:https://ex.com/x"></video><a href="https://cdn.com/dash.mpd">dash</a>');
+  it('still drops blob: (a .mpd link is now captured — see DASH streams below)', () => {
+    setBody('<video src="blob:https://ex.com/x"></video>');
     expect(hls(collectMedia())).toHaveLength(0);
   });
 
@@ -152,6 +162,28 @@ describe('collectMedia — HLS streams', () => {
     ingestSniffedHls(['https://cdn.com/dup.m3u8']);
     expect(hls(collectMedia())).toHaveLength(1);
     resetSniffedHls();
+  });
+});
+
+describe('collectMedia — DASH streams', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('surfaces a .mpd <video> as a DASH capture item', () => {
+    document.body.innerHTML = '<video src="https://cdn.com/movie.mpd" poster="https://cdn.com/p.jpg"></video>';
+    const item = collectMedia().find((i) => (i as { hlsManifest?: string }).hlsManifest === 'https://cdn.com/movie.mpd');
+    expect(item).toMatchObject({ kind: 'video', type: 'mpd', hlsManifest: 'https://cdn.com/movie.mpd' });
+  });
+
+  it('surfaces a direct <a href=.mpd> link as a DASH capture item', () => {
+    setBody('<a href="https://cdn.com/dash/manifest.mpd">watch</a>');
+    const item = collectMedia().find((i) => (i as { hlsManifest?: string }).hlsManifest === 'https://cdn.com/dash/manifest.mpd');
+    expect(item).toMatchObject({ kind: 'video', type: 'mpd', hlsManifest: 'https://cdn.com/dash/manifest.mpd' });
+  });
+
+  it('surfaces a sniffer-caught .mpd manifest as a DASH capture item', () => {
+    (sniffedHlsManifests as jest.Mock).mockReturnValueOnce(['https://cdn.com/sniffed/movie.mpd']);
+    const item = collectMedia().find((i) => (i as { hlsManifest?: string }).hlsManifest === 'https://cdn.com/sniffed/movie.mpd');
+    expect(item).toMatchObject({ kind: 'video', type: 'mpd', hlsManifest: 'https://cdn.com/sniffed/movie.mpd' });
   });
 });
 

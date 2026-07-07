@@ -12,7 +12,7 @@
 
 import { ImageInfo, MediaItem } from '@/types';
 import { detectType, parseUrlDimensions, splitSrcsetCandidates } from '@/extension/shared/collection/imageUrl';
-import { detectAvType, isUndownloadableMedia, isHlsManifest } from '@/extension/shared/collection/mediaType';
+import { detectAvType, isUndownloadableMedia, isHlsManifest, isDashManifest } from '@/extension/shared/collection/mediaType';
 import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates, bestSrcsetUrl } from '@/extension/shared/collection/extract';
 import { resolve, MediaCandidate } from '@/extension/shared/resolvers';
 import { twitterGifCandidate, twitterVideoPending } from '@/extension/shared/resolvers/twitter';
@@ -275,6 +275,20 @@ export function collectMedia(): MediaItem[] {
     media.push(item);
   };
 
+  /** A DASH manifest (.mpd) surfaced as a capturable video — same as pushHls but
+   *  tagged `type:'mpd'` so the capture path routes it to the DASH engine. */
+  const pushDash = (resolved: string, alt: string, posterUrl?: string): void => {
+    if (seenSources.has(resolved)) return;
+    seenSources.add(resolved);
+    const item: MediaItem = {
+      src: resolved, alt, width: 0, height: 0,
+      type: 'mpd', fileSize: 0, isBase64: false, kind: 'video',
+      hlsManifest: resolved,
+    };
+    if (posterUrl && /^(https?:|data:image\/)/i.test(posterUrl)) item.poster = posterUrl;
+    media.push(item);
+  };
+
   // A Vimeo video (embed iframe or link) surfaced as a pending video: Vimeo hides
   // the file behind its player config, so the real mp4 is fetched on the opt-in
   // resolve pass (resolveHint 'vimeo'), like a Twitter video. Keyed by the canonical
@@ -301,6 +315,10 @@ export function collectMedia(): MediaItem[] {
     const resolved = resolveUrl(rawSrc);
     if (kind === 'video' && isHlsManifest(resolved) && /^https?:\/\//i.test(resolved)) {
       pushHls(resolved, alt, posterUrl);
+      return;
+    }
+    if (kind === 'video' && isDashManifest(resolved) && /^https?:\/\//i.test(resolved)) {
+      pushDash(resolved, alt, posterUrl);
       return;
     }
     if (isUndownloadableMedia(resolved)) return;
@@ -470,6 +488,8 @@ export function collectMedia(): MediaItem[] {
       if (resolvedHref && youtubeVideoId(resolvedHref)) collectImageInfo(href!, '', 0, 0, undefined, a);
       // A direct link to an HLS manifest — surface it as a capturable stream.
       else if (resolvedHref && isHlsManifest(resolvedHref) && /^https?:\/\//i.test(resolvedHref)) pushHls(resolvedHref, '');
+      // A direct link to a DASH manifest — surface it as a capturable stream.
+      else if (resolvedHref && isDashManifest(resolvedHref) && /^https?:\/\//i.test(resolvedHref)) pushDash(resolvedHref, '');
       // A link to a Vimeo video — surface as a pending video resolved on demand.
       else if (resolvedHref && vimeoVideoId(resolvedHref)) pushVimeo(vimeoVideoId(resolvedHref)!);
     });
@@ -560,7 +580,10 @@ export function collectMedia(): MediaItem[] {
   // HLS manifests the MAIN-world sniffer caught (hls.js / native players fetch
   // the .m3u8 via XHR, so it never appears in the DOM). Surfaced as capturable
   // streams; pushHls dedupes against any manifest already found in the DOM.
-  for (const manifest of sniffedHlsManifests()) pushHls(manifest, '');
+  for (const manifest of sniffedHlsManifests()) {
+    if (isDashManifest(manifest)) pushDash(manifest, '');
+    else pushHls(manifest, '');
+  }
 
   return media;
 }

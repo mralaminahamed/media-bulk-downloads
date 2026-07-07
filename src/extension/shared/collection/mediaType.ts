@@ -67,9 +67,14 @@ export function isUndownloadableMedia(url: string): boolean {
 }
 
 /** True for an HLS manifest URL — not a single file, but capturable via the HLS
- *  engine (fetch + assemble segments). DASH (.mpd) is not yet captured. */
+ *  engine (fetch + assemble segments). DASH (.mpd) is handled by `isDashManifest`. */
 export function isHlsManifest(url: string): boolean {
   return /\.m3u8(?:[?#]|$)/i.test(url);
+}
+
+/** True for a DASH manifest URL — capturable via the DASH engine (fetch + mux). */
+export function isDashManifest(url: string): boolean {
+  return /\.mpd(?:[?#]|$)/i.test(url);
 }
 
 /** File extension for a canonical av type, or null if unrecognized. */

@@ -4,6 +4,7 @@ import {
   avExtensionForType,
   extensionFromUrl,
   imageExtFromUrl,
+  isDashManifest,
 } from '@/extension/shared/collection/mediaType';
 
 describe('imageExtFromUrl', () => {
@@ -44,6 +45,16 @@ describe('isUndownloadableMedia', () => {
   });
   it('passes normal files', () => {
     expect(isUndownloadableMedia('https://ex.com/a.mp4')).toBe(false);
+  });
+});
+
+describe('isDashManifest', () => {
+  it('matches .mpd (incl. query/hash), not .m3u8', () => {
+    expect(isDashManifest('https://x/manifest.mpd')).toBe(true);
+    expect(isDashManifest('https://x/m.mpd?token=1')).toBe(true);
+    expect(isDashManifest('https://x/m.mpd#f')).toBe(true);
+    expect(isDashManifest('https://x/master.m3u8')).toBe(false);
+    expect(isDashManifest('https://x/video.mp4')).toBe(false);
   });
 });
 
