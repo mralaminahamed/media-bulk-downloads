@@ -544,6 +544,9 @@ describe('App Component', () => {
     render(<App collect={async () => [image({ src: 'https://cdn.ads.com/a.png' })]} />);
     await screen.findByText('Filters');
 
+    // open the target item's preview modal first (the exclude control now lives there)
+    const detailButtons = await screen.findAllByRole('button', { name: 'View Details' });
+    await userEvent.click(detailButtons[0]); // the sole/target seeded item
     await userEvent.click(screen.getByTitle('Exclude source'));
     await userEvent.click(await screen.findByText('Exclude this image'));
 
@@ -559,6 +562,9 @@ describe('App Component', () => {
     render(<App collect={async () => [image({ src: 'https://cdn.ads.com/a.png' })]} />);
     await screen.findByText('Filters');
 
+    // open the target item's preview modal first (the exclude control now lives there)
+    const detailButtons = await screen.findAllByRole('button', { name: 'View Details' });
+    await userEvent.click(detailButtons[0]); // the sole/target seeded item
     await userEvent.click(screen.getByTitle('Exclude source'));
     await userEvent.click(await screen.findByText(/Exclude host.*cdn\.ads\.com/));
 
@@ -568,6 +574,15 @@ describe('App Component', () => {
         entry: expect.objectContaining({ value: 'cdn.ads.com', kind: 'host', time: expect.any(Number) }),
       }),
     );
+  });
+
+  it('exposes the exclude control only in the preview modal, not the grid hover', async () => {
+    render(<App collect={async () => [image({ src: 'https://cdn.ads.com/a.png' })]} />);
+    // enable capture-independent render; wait for the grid
+    await screen.findAllByRole('button', { name: 'View Details' });
+    expect(screen.queryByTitle('Exclude source')).toBeNull(); // not in the hover overlay
+    await userEvent.click((await screen.findAllByRole('button', { name: 'View Details' }))[0]);
+    expect(screen.getByTitle('Exclude source')).toBeInTheDocument(); // in the modal
   });
 
   it('bulk Exclude dispatches an ADD_EXCLUDED per selected item', async () => {
