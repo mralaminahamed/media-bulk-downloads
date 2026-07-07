@@ -117,10 +117,15 @@ export function filterExcluded(items: ImageInfo[], m: ExcludedMatchers): ImageIn
  */
 export function applyToolbarFilters(items: ImageInfo[], filters: FilterOptions): ImageInfo[] {
   const minBytes = (Number.isFinite(filters.minSize) ? filters.minSize : 0) * 1024;
+  // The Type dropdown offers formats for the selected kind — image formats when
+  // kind is 'all'. So the format filter applies only to items of that family;
+  // otherwise picking 'PNG' with kind 'all' would silently drop every video/audio
+  // (whose type is never an image format).
+  const typeFamily = filters.mediaKind === 'all' ? 'image' : filters.mediaKind;
   const shown = items.filter((item) => {
     if (filters.mediaKind !== 'all' && item.kind !== filters.mediaKind) return false;
     if (!inSizeBucket(item, filters.sizeBucket)) return false;
-    if (filters.imageType !== 'all' && item.type !== filters.imageType) return false;
+    if (filters.imageType !== 'all' && item.kind === typeFamily && item.type !== filters.imageType) return false;
     if (minBytes > 0 && item.fileSize > 0 && item.fileSize < minBytes) return false;
     if (!filters.includeBase64 && item.isBase64) return false;
     return matchesSearch(item, filters.search ?? '');
