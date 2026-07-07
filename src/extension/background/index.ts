@@ -50,6 +50,14 @@ let currentSettings: SettingsData = { ...DEFAULT_SETTINGS };
 
 const BADGE_COLOR = '#4F46E5';
 
+/**
+ * Tab id the in-flight capture originated from, so CAPTURE_PROGRESS broadcasts
+ * from the offscreen doc (which content scripts never receive via
+ * runtime.sendMessage) can be relayed to that tab's bubble. Unset for popup
+ * captures (sender.tab is undefined there) and cleared once the capture ends.
+ */
+let activeCaptureTabId: number | undefined;
+
 // The service worker is ephemeral: a message can wake it and be handled before
 // the async settings read completes. `settingsReady` resolves once settings have
 // been read at least once, so a download that wakes the worker never runs against
@@ -680,6 +688,9 @@ chrome.runtime.onMessage.addListener(
 
     if (typeof message === 'object' && message.type === 'CAPTURE_STREAM') {
       const { manifestUrl, item, sourcePage } = message as CaptureStreamMessage;
+      // Track the originating tab (unset for popup captures, whose sender.tab is
+      // undefined) so a CAPTURE_PROGRESS broadcast can be relayed to it below.
+      activeCaptureTabId = sender.tab?.id;
       // Everything after this fire lives in the background + offscreen doc — no
       // dependency on the popup, so the download completes even if it closes.
       void settingsReady.then(async () => {
@@ -689,6 +700,7 @@ chrome.runtime.onMessage.addListener(
             type: 'CAPTURE_RUN', manifestUrl, quality: HLS_TARGET_HEIGHT, maxBytes: HLS_MAX_BYTES,
           })) as CaptureRunResult | undefined;
           if (!result || !result.ok) {
+            activeCaptureTabId = undefined;
             sendResponse({ status: hlsErrorMessage(result?.ok === false ? result.code : 'unknown') });
             return;
           }
@@ -696,6 +708,7 @@ chrome.runtime.onMessage.addListener(
           chrome.downloads.download(
             { url: result.blobUrl, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
             (downloadId) => {
+              activeCaptureTabId = undefined;
               const err = chrome.runtime.lastError;
               const audioNote = result.muxedAudio ? ' (video + audio)' : '';
               const status = err || downloadId === undefined
@@ -705,10 +718,25 @@ chrome.runtime.onMessage.addListener(
             },
           );
         } catch {
+          activeCaptureTabId = undefined;
           sendResponse({ status: 'Couldn’t capture the stream.' });
         }
       });
       return true; // response sent asynchronously
+    }
+
+    if (typeof message === 'object' && message.type === 'CAPTURE_PROGRESS') {
+      // The offscreen doc broadcasts progress via runtime.sendMessage, which does
+      // not reach content-script contexts. Relay it to the capturing tab so the
+      // on-page bubble's progress listener receives it (the popup, an extension
+      // page, already gets the broadcast directly). tabId is unset for popup
+      // captures (sender.tab is undefined there), so nothing is forwarded then.
+      if (activeCaptureTabId != null) {
+        void chrome.tabs.sendMessage(activeCaptureTabId, message).catch(() => {
+          /* tab closed / no receiver */
+        });
+      }
+      return false; // not for this context to answer
     }
 
     // Unmatched messages (e.g. the content script's DEEP_SCAN_PROGRESS broadcast)

@@ -297,7 +297,8 @@ export type ChromeMessage =
   | AddFavouriteMessage
   | RemoveFavouriteMessage
   | ClearFavouritesMessage
-  | CaptureStreamMessage;
+  | CaptureStreamMessage
+  | CaptureProgressMessage;
 
 export interface AppState {
   status: string;

@@ -42,7 +42,7 @@ global.chrome = {
         query: jest.fn().mockResolvedValue([]),
         get: jest.fn(),
         create: jest.fn(),
-        sendMessage: jest.fn(),
+        sendMessage: jest.fn().mockResolvedValue(undefined),
         onActivated: {
             addListener: jest.fn(),
         },

@@ -860,4 +860,51 @@ describe('CAPTURE_STREAM', () => {
     expect(chrome.downloads.download).not.toHaveBeenCalled();
     expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringMatching(/1 GB/) });
   });
+
+  // The offscreen doc broadcasts CAPTURE_PROGRESS via chrome.runtime.sendMessage,
+  // which never reaches content-script contexts (the on-page bubble). The
+  // background relays it via chrome.tabs.sendMessage to the tab that started the
+  // capture, recovered from CAPTURE_STREAM's sender.tab.id.
+  describe('CAPTURE_PROGRESS relay', () => {
+    beforeEach(() => {
+      (chrome.tabs.sendMessage as jest.Mock).mockReset().mockResolvedValue(undefined);
+    });
+
+    it('forwards progress to the tab that started the capture', async () => {
+      (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+        ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 1, muxedAudio: false,
+      } as CaptureRunResult);
+      (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(1));
+
+      messageHandler(
+        { type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage },
+        { tab: { id: 42 } },
+        jest.fn(),
+      );
+      messageHandler({ type: 'CAPTURE_PROGRESS', done: 3, total: 10 }, {}, jest.fn());
+
+      expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(42, expect.objectContaining({ type: 'CAPTURE_PROGRESS' }));
+
+      // Let the capture finish so activeCaptureTabId clears and no state leaks
+      // into other tests.
+      await new Promise((r) => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    it('does not forward when no capture is active (popup capture, whose sender.tab is undefined)', async () => {
+      (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+        ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 1, muxedAudio: false,
+      } as CaptureRunResult);
+      (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(1));
+
+      // Popup capture: sender.tab is undefined, so activeCaptureTabId stays unset.
+      messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage }, {}, jest.fn());
+      await new Promise((r) => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
+
+      messageHandler({ type: 'CAPTURE_PROGRESS', done: 1, total: 10 }, {}, jest.fn());
+
+      expect(chrome.tabs.sendMessage).not.toHaveBeenCalled();
+    });
+  });
 });
