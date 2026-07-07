@@ -556,6 +556,10 @@ describe('App Component', () => {
         entry: expect.objectContaining({ value: 'https://cdn.ads.com/a.png', kind: 'url', time: expect.any(Number) }),
       }),
     );
+    // Excluding the shown image closes the preview (deterministic) rather than
+    // silently reindexing it to a neighbour — the exclude control lived only in
+    // the modal, so its disappearance proves the modal closed.
+    await waitFor(() => expect(screen.queryByTitle('Exclude source')).toBeNull());
   });
 
   it('per-item "Exclude host …" dispatches ADD_EXCLUDED with kind host and the host value', async () => {
