@@ -93,6 +93,7 @@ export interface BackupData {
   settings: SettingsData;
   favourites: FavouriteEntry[];
   history: HistoryEntry[];
+  excluded: ExcludedEntry[];
 }
 
 export interface DownloadResponse {
@@ -252,6 +253,7 @@ export interface RestoreDataMessage {
   type: 'RESTORE_DATA';
   favourites: FavouriteEntry[];
   history: HistoryEntry[];
+  excluded: ExcludedEntry[];
 }
 
 /** Popup → background: capture this stream. Background owns the offscreen doc,

@@ -1,4 +1,4 @@
-import { BackupData, FavouriteEntry, HistoryEntry, SettingsData } from '@/types';
+import { BackupData, ExcludedEntry, FavouriteEntry, HistoryEntry, SettingsData } from '@/types';
 import { withDefaults } from './settings';
 
 /**
@@ -22,9 +22,10 @@ export function buildBackup(
   settings: SettingsData,
   favourites: FavouriteEntry[],
   history: HistoryEntry[],
+  excluded: ExcludedEntry[],
   exportedAt: string,
 ): BackupData {
-  return { app: BACKUP_APP, version: BACKUP_VERSION, exportedAt, settings, favourites, history };
+  return { app: BACKUP_APP, version: BACKUP_VERSION, exportedAt, settings, favourites, history, excluded };
 }
 
 /**
@@ -50,5 +51,8 @@ export function parseBackup(json: string): BackupData | null {
     settings: withDefaults((obj.settings ?? {}) as Partial<SettingsData>),
     favourites: Array.isArray(obj.favourites) ? (obj.favourites.filter(hasStringSrc) as FavouriteEntry[]) : [],
     history: Array.isArray(obj.history) ? (obj.history.filter(hasStringSrc) as HistoryEntry[]) : [],
+    excluded: Array.isArray(obj.excluded)
+      ? (obj.excluded.filter((e): e is ExcludedEntry => !!e && typeof e === 'object' && typeof (e as ExcludedEntry).value === 'string') as ExcludedEntry[])
+      : [],
   };
 }

@@ -690,6 +690,7 @@ describe('DOWNLOAD_TEXT + RESTORE_DATA routers', () => {
         type: 'RESTORE_DATA',
         favourites: [{ src: 'https://f', kind: 'image', type: 'jpeg', sourcePageUrl: 'p', time: 1 }],
         history: [{ src: 'https://h', filename: 'h.jpg', kind: 'image', type: 'jpeg', sourcePageUrl: 'p', time: 2 }],
+        excluded: [],
       },
       {},
       jest.fn(),

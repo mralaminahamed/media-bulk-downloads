@@ -5,6 +5,7 @@ import { expandPathTemplate, todayISO } from '@/extension/shared/collection/path
 import { buildBackup, parseBackup } from '@/extension/shared/storage/backup';
 import { loadFavourites } from '@/extension/shared/storage/favourites';
 import { loadHistory } from '@/extension/shared/storage/history';
+import { loadExcluded } from '@/extension/shared/storage/excluded';
 import { downloadText, sendRuntimeMessage } from '../utils';
 import { useDialog } from '../hooks/useDialog';
 import { TextField } from './fields/TextField';
@@ -82,8 +83,8 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
   const [backupNote, setBackupNote] = useState('');
 
   const handleExportBackup = async () => {
-    const [favourites, history] = await Promise.all([loadFavourites(), loadHistory()]);
-    const backup = buildBackup(settings, favourites, history, new Date().toISOString());
+    const [favourites, history, excluded] = await Promise.all([loadFavourites(), loadHistory(), loadExcluded()]);
+    const backup = buildBackup(settings, favourites, history, excluded, new Date().toISOString());
     downloadText(`media-bulk-downloads-backup-${todayISO()}.json`, JSON.stringify(backup, null, 2), 'application/json');
     setBackupNote('Backup exported.');
   };
@@ -101,7 +102,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
     // background (single-writer).
     setSettings(backup.settings);
     onSettingsChange(backup.settings);
-    sendRuntimeMessage({ type: 'RESTORE_DATA', favourites: backup.favourites, history: backup.history });
+    sendRuntimeMessage({ type: 'RESTORE_DATA', favourites: backup.favourites, history: backup.history, excluded: backup.excluded });
     setBackupNote(`Imported settings, ${backup.favourites.length} favourites, and ${backup.history.length} history entries.`);
   };
 

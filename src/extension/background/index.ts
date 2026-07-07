@@ -42,7 +42,7 @@ import { resolveOriginal, NetDeps } from '../shared/resolvers/network';
 import { mediaIdFromPoster, pinTwimgUrl } from '../shared/resolvers/x-media-sniff';
 import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk } from '../shared/storage/history';
 import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } from '../shared/storage/favourites';
-import { addExcluded, removeExcluded, clearExcluded, excludedMatchers, EXCLUDED_KEY } from '../shared/storage/excluded';
+import { addExcluded, removeExcluded, clearExcluded, restoreExcluded, excludedMatchers, EXCLUDED_KEY } from '../shared/storage/excluded';
 import { HLS_MAX_BYTES, HLS_TARGET_HEIGHT } from '../shared/download/capture-constants';
 import { hlsErrorMessage } from '../shared/download/hls-error-message';
 
@@ -612,10 +612,11 @@ chrome.runtime.onMessage.addListener(
     }
 
     if (typeof message === 'object' && message.type === 'RESTORE_DATA') {
-      // Replace favourites + history from an imported backup, in the single-writer realm.
-      const { favourites, history } = message as RestoreDataMessage;
+      // Replace favourites + history + excluded from an imported backup, in the single-writer realm.
+      const { favourites, history, excluded } = message as RestoreDataMessage;
       void restoreFavourites(favourites);
       void restoreHistory(history);
+      void restoreExcluded(excluded);
       return; // fire-and-forget
     }
 
