@@ -20,6 +20,7 @@ export function isEmojiUrl(src: string): boolean {
     (host === 's.w.org' && path.startsWith('/images/core/emoji/')) ||
     host === 'twemoji.maxcdn.com' ||
     (host === 'cdn.jsdelivr.net' && path.includes('/twemoji')) ||
-    (host.endsWith('githubassets.com') && path.includes('/images/icons/emoji/'))
+    ((host === 'githubassets.com' || host.endsWith('.githubassets.com')) &&
+      path.includes('/images/icons/emoji/'))
   );
 }

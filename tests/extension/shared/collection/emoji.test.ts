@@ -13,5 +13,9 @@ describe('isEmojiUrl', () => {
     expect(isEmojiUrl('https://example.com/logo.svg')).toBe(false);
     expect(isEmojiUrl('https://example.com/1f600.svg')).toBe(false); // hex name, wrong host
     expect(isEmojiUrl('not a url')).toBe(false);
+    expect(isEmojiUrl('https://abs.twimg.com/media/x.jpg')).toBe(false); // twitter, non-emoji path
+    expect(isEmojiUrl('https://s.w.org/images/core/other.svg')).toBe(false); // wordpress, non-emoji path
+    expect(isEmojiUrl('https://cdn.jsdelivr.net/gh/foo/bar/x.svg')).toBe(false); // jsdelivr, non-twemoji path
+    expect(isEmojiUrl('https://fakegithubassets.com/images/icons/emoji/1f600.png')).toBe(false); // look-alike host
   });
 });
