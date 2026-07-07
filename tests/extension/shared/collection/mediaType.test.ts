@@ -18,6 +18,10 @@ describe('imageExtFromUrl', () => {
     expect(imageExtFromUrl('https://images.unsplash.com/photo-123')).toBeNull();
     expect(imageExtFromUrl('data:image/png;base64,AAAA')).toBeNull();
   });
+  it('reads the bluesky @<fmt> path suffix as an image extension', () => {
+    expect(imageExtFromUrl('https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:x/bafy123@jpeg')).toBe('jpeg');
+    expect(imageExtFromUrl('https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:x/bafy123@png')).toBe('png');
+  });
 });
 
 describe('detectAvType', () => {

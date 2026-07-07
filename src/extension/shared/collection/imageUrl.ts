@@ -48,9 +48,13 @@ export function detectType(url: string): string {
   const byExt = getImageType(url);
   if (byExt !== 'unknown') return byExt;
   try {
-    const params = new URL(url).searchParams;
-    const fmt = params.get('format') ?? params.get('fm');
+    const u = new URL(url);
+    const fmt = u.searchParams.get('format') ?? u.searchParams.get('fm');
     if (fmt) return normalizeFormat(fmt);
+    // Bluesky / atproto CDN encodes the format as an `@<fmt>` path suffix
+    // (…/bafy…@jpeg) instead of a file extension. Read it when present.
+    const at = /@([a-z0-9]+)$/i.exec(u.pathname);
+    if (at) return normalizeFormat(at[1]);
   } catch {
     /* fall through */
   }
@@ -58,7 +62,7 @@ export function detectType(url: string): string {
 }
 
 /** Known media CDN hostnames (used by looksLikeMediaUrl + the gallery-link rule). */
-const MEDIA_HOSTS = /(?:^|\.)(?:pbs\.twimg\.com|cdn\.shopify\.com|images\.unsplash\.com|plus\.unsplash\.com|i\.pinimg\.com|i\.ytimg\.com|img\.youtube\.com|i\.redd\.it|preview\.redd\.it|miro\.medium\.com|lh\d\.googleusercontent\.com|googleusercontent\.com|ggpht\.com|media-amazon\.com|ssl-images-amazon\.com|wp\.com|imgix\.net)$/i;
+const MEDIA_HOSTS = /(?:^|\.)(?:pbs\.twimg\.com|cdn\.shopify\.com|images\.unsplash\.com|plus\.unsplash\.com|i\.pinimg\.com|i\.ytimg\.com|img\.youtube\.com|i\.redd\.it|preview\.redd\.it|miro\.medium\.com|lh\d\.googleusercontent\.com|googleusercontent\.com|ggpht\.com|media-amazon\.com|ssl-images-amazon\.com|wp\.com|imgix\.net|cdn\.bsky\.app)$/i;
 
 const MEDIA_EXT = /\.(?:jpe?g|jfif|png|gif|webp|avif|bmp|ico|svg|mp4|m4v|webm|ogv|mov|mp3|wav|ogg|oga|m4a|aac|flac|opus)(?:$|[?#])/i;
 
@@ -514,6 +518,44 @@ const RULES: CdnRule[] = [
     // captcha-gated, so this was not live-injected. See #141.
     match: (u) => u.hostname === 'img.kwcdn.com' && /imageView2/i.test(u.search),
     rewrite: (u) => { u.search = ''; },
+  },
+  {
+    // Squarespace image CDN (images.squarespace-cdn.com): ?format=<N>w renders a
+    // width variant off a fixed ladder that tops out at 2500w, served by every
+    // image and clamped to the source when the source is smaller. Force 2500w for
+    // the largest served rendition. `format=original` is account-toggleable and
+    // often just returns the same 2500w, so the ladder max is targeted instead.
+    // Verified 100w=3 KB -> 2500w=1.18 MB.
+    match: (u) => u.hostname === 'images.squarespace-cdn.com',
+    rewrite: (u) => { u.searchParams.set('format', '2500w'); },
+  },
+  {
+    // Wix (static.wixstatic.com): the uploaded original lives at
+    // /media/<id>~mv2.<ext>; a displayed thumbnail appends a
+    // /v1/<transform>/w_..,h_..,.../<filename> render segment. The base media
+    // file is the source regardless of the transform kind, so strip everything
+    // from /v1/ onward. Verified base=200 (70 KB original).
+    match: (u) => u.hostname === 'static.wixstatic.com' && /\/media\/[^/]+\/v1\//.test(u.pathname),
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/(\/media\/[^/]+)\/v1\/.*$/i, '$1');
+    },
+  },
+  {
+    // Bluesky (cdn.bsky.app): feed images serve a downscaled /feed_thumbnail/
+    // rendition and a larger /feed_fullsize/ one from the same DID/CID path. Swap
+    // thumbnail -> fullsize (the largest publicly served variant). Verified
+    // thumb=90 KB -> fullsize=201 KB.
+    match: (u) => u.hostname === 'cdn.bsky.app' && u.pathname.includes('/feed_thumbnail/'),
+    rewrite: (u) => { u.pathname = u.pathname.replace('/feed_thumbnail/', '/feed_fullsize/'); },
+  },
+  {
+    // Bandcamp (f4.bcbits.com): album/track art is /img/a<id>_<code>.<ext> where
+    // the trailing _<code> is a size preset and _0 is the full-resolution JPEG
+    // original. Swap any numeric size code to _0. Scoped to the a<digits> art
+    // prefix — band/bio images use other prefixes without a guaranteed _0.
+    // Verified _10=335 KB -> _0=1.33 MB.
+    match: (u) => u.hostname === 'f4.bcbits.com' && /\/img\/a\d+_\d+\.[a-z0-9]+$/i.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/(\/img\/a\d+)_\d+(\.[a-z0-9]+)$/i, '$1_0$2'); },
   },
   {
     // Self-hosted WordPress: any host serving /wp-content/uploads/ with a resize
