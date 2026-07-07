@@ -793,8 +793,51 @@ describe('CAPTURE_STREAM', () => {
 
     expect(chrome.offscreen.createDocument).toHaveBeenCalledTimes(1);
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'CAPTURE_RUN', manifestUrl: item.hlsManifest, quality: 720, maxBytes: 1024 * 1024 * 1024 }));
-    expect(chrome.downloads.download).toHaveBeenCalledWith(expect.objectContaining({ url: 'blob:cap', conflictAction: 'uniquify' }), expect.any(Function));
+    expect(chrome.downloads.download).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'blob:cap', conflictAction: 'uniquify', filename: expect.stringMatching(/\.mp4$/) }),
+      expect.any(Function),
+    );
     expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringContaining('9 segments') });
+    expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringContaining('(video + audio)') });
+  });
+
+  it('tolerates the concurrent-create race: createDocument rejects but a document now exists, so capture still proceeds', async () => {
+    (chrome.offscreen.hasDocument as jest.Mock).mockReset()
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+    (chrome.offscreen.createDocument as jest.Mock).mockReset()
+      .mockRejectedValue(new Error('Only a single offscreen document may be created'));
+    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+      ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 9, muxedAudio: true,
+    } as CaptureRunResult);
+    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(123));
+    const sendResponse = jest.fn();
+
+    messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(chrome.offscreen.createDocument).toHaveBeenCalledTimes(1);
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'CAPTURE_RUN' }));
+    expect(chrome.downloads.download).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'blob:cap', conflictAction: 'uniquify' }),
+      expect.any(Function),
+    );
+    expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringContaining('9 segments') });
+  });
+
+  it('reports a capture failure (not a throw) when createDocument keeps rejecting and no document ever appears', async () => {
+    (chrome.offscreen.hasDocument as jest.Mock).mockReset().mockResolvedValue(false);
+    (chrome.offscreen.createDocument as jest.Mock).mockReset()
+      .mockRejectedValue(new Error('Only a single offscreen document may be created'));
+    const sendResponse = jest.fn();
+
+    messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(sendResponse).toHaveBeenCalledWith({ status: 'Couldn’t capture the stream.' });
+    expect(chrome.downloads.download).not.toHaveBeenCalled();
   });
 
   it('does not re-create the offscreen doc when one already exists', async () => {

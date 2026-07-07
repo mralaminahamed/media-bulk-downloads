@@ -68,8 +68,9 @@ export function originalNameFromUrl(url: string): string | null {
 
 /** The file extension a downloaded item should carry (image or a/v). */
 export function downloadExtension(image: ImageInfo): string {
+  if (image.ext) return image.ext;
   return image.kind === 'image'
-    ? image.ext || extensionForType(image.type)
+    ? extensionForType(image.type)
     : avExtensionForType(image.type) ??
         extensionFromUrl(image.src) ??
         (image.kind === 'video' ? 'mp4' : 'mp3');
