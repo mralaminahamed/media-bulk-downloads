@@ -544,8 +544,10 @@ export function collectMedia(): MediaItem[] {
 
   // og:video: some pages (news, product, embeds) expose a direct downloadable
   // mp4 in <meta property="og:video"> that never appears as a <video> element.
-  // collectAv drops streaming manifests (.m3u8/.mpd) and blob: URLs, so only real
-  // files pass through. og:video:type supplies the mime; og:image is its poster.
+  // collectAv surfaces streaming manifests (.m3u8/.mpd) as capturable stream
+  // items routed to the HLS/DASH engines; only blob: URLs and other
+  // undownloadable media are dropped. og:video:type supplies the mime;
+  // og:image is its poster.
   const ogVideoType = document.querySelector('meta[property="og:video:type"]')?.getAttribute('content') || undefined;
   const ogPoster = document
     .querySelector('meta[property="og:image"], meta[property="og:image:secure_url"]')
