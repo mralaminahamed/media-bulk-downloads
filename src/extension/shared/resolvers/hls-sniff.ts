@@ -1,17 +1,18 @@
 /**
- * In-content store of HLS manifest URLs seen by the MAIN-world `hls-sniffer`
- * (which wraps the page's fetch/XHR to catch `.m3u8` requests hls.js and native
- * players make). The sniffer can't use `chrome.*`, so it postMessages the URLs to
- * the isolated content script, which feeds them here; `collectMedia()` then reads
- * `sniffedHlsManifests()` and surfaces each as a capturable stream.
+ * In-content store of HLS/DASH manifest URLs seen by the MAIN-world `hls-sniffer`
+ * (which wraps the page's fetch/XHR to catch `.m3u8`/`.mpd` requests hls.js,
+ * dash.js, and native players make). The sniffer can't use `chrome.*`, so it
+ * postMessages the URLs to the isolated content script, which feeds them here;
+ * `collectMedia()` then reads `sniffedHlsManifests()` and surfaces each as a
+ * capturable stream.
  *
  * The payload crosses the MAIN→isolated postMessage boundary, so it is UNTRUSTED:
- * any page can forge the envelope. Re-validate here — only http(s) `.m3u8` URLs
- * are stored (the same class the DOM path already surfaces on user click), capped
- * to bound memory on long-lived SPA sessions.
+ * any page can forge the envelope. Re-validate here — only http(s) `.m3u8`/`.mpd`
+ * URLs are stored (the same class the DOM path already surfaces on user click),
+ * capped to bound memory on long-lived SPA sessions.
  */
 
-import { isHlsManifest } from '../collection/mediaType';
+import { isHlsManifest, isDashManifest } from '../collection/mediaType';
 
 const CAP = 500;
 const manifests = new Set<string>();
@@ -21,7 +22,7 @@ export function ingestSniffedHls(urls: unknown): void {
   if (!Array.isArray(urls)) return;
   for (const raw of urls) {
     if (typeof raw !== 'string') continue;
-    if (!/^https?:\/\//i.test(raw) || !isHlsManifest(raw)) continue;
+    if (!/^https?:\/\//i.test(raw) || !(isHlsManifest(raw) || isDashManifest(raw))) continue;
     // Re-inserting refreshes recency (Set keeps first-insert order, so delete first).
     if (manifests.has(raw)) manifests.delete(raw);
     manifests.add(raw);
