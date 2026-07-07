@@ -7,6 +7,7 @@
 import { ImageInfo, SettingsData, FilterOptions, SizeBucket, SortKey, SortDir } from '@/types';
 import { originalNameFromUrl } from './download-name';
 import { isEmojiUrl } from './emoji';
+import { hostFromUrl } from './paths';
 
 /**
  * Whether an image passes the global user settings (minimum size + base64
@@ -89,6 +90,24 @@ function compareBy(a: ImageInfo, b: ImageInfo, key: SortKey, dir: SortDir): numb
   if (va === 0) return 1; // unknown always after known
   if (vb === 0) return -1;
   return sign * (va - vb);
+}
+
+export interface ExcludedMatchers {
+  urls: Set<string>;
+  hosts: Set<string>;
+}
+
+/** Whether a media src is on the user's exclusion blocklist (exact URL or host). */
+export function isExcluded(src: string, m: ExcludedMatchers): boolean {
+  if (m.urls.has(src)) return true;
+  const host = hostFromUrl(src);
+  return host !== '' && m.hosts.has(host);
+}
+
+/** Removes excluded items from a list. */
+export function filterExcluded(items: ImageInfo[], m: ExcludedMatchers): ImageInfo[] {
+  if (m.urls.size === 0 && m.hosts.size === 0) return items;
+  return items.filter((i) => !isExcluded(i.src, m));
 }
 
 /**

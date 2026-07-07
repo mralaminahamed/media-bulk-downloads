@@ -1,4 +1,4 @@
-import { passesSettingsFilters, filterImagesBySettings, applyToolbarFilters } from '@/extension/shared/collection/filters';
+import { passesSettingsFilters, filterImagesBySettings, applyToolbarFilters, isExcluded, filterExcluded, ExcludedMatchers } from '@/extension/shared/collection/filters';
 import { ImageInfo, SettingsData, FilterOptions } from '@/types';
 
 const base: SettingsData = {
@@ -187,5 +187,26 @@ describe('applyToolbarFilters — sort', () => {
     const input = [...items];
     applyToolbarFilters(input, F({ sortBy: 'name', sortDir: 'asc' }));
     expect(input.map((i) => i.src)).toEqual(['https://cdn/b.jpg', 'https://cdn/a.jpg', 'https://cdn/c.jpg']);
+  });
+});
+
+describe('isExcluded / filterExcluded', () => {
+  const m: ExcludedMatchers = { urls: new Set(['https://x/a.png']), hosts: new Set(['cdn.ads.com']) };
+  it('matches an exact url', () => {
+    expect(isExcluded('https://x/a.png', m)).toBe(true);
+  });
+  it('matches by host', () => {
+    expect(isExcluded('https://cdn.ads.com/banner.gif', m)).toBe(true);
+  });
+  it('does not match an unrelated src', () => {
+    expect(isExcluded('https://x/keep.png', m)).toBe(false);
+  });
+  it('is safe for a hostless (data:) src', () => {
+    expect(isExcluded('data:image/png;base64,AAAA', m)).toBe(false);
+  });
+  it('filterExcluded drops only excluded items', () => {
+    const img = (src: string) => ({ src, alt: '', width: 0, height: 0, type: 'png', fileSize: 0, isBase64: false, kind: 'image' as const });
+    const items = [img('https://x/a.png'), img('https://cdn.ads.com/b.gif'), img('https://x/keep.png')];
+    expect(filterExcluded(items, m).map((i) => i.src)).toEqual(['https://x/keep.png']);
   });
 });
