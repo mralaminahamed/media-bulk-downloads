@@ -21,6 +21,9 @@ import {
   SettingsData,
   ShowDownloadMessage,
   XMediaSeenMessage,
+  CaptureRunResult,
+  CaptureStreamMessage,
+  CaptureStreamResponse,
 } from '@/types';
 import { filterImagesBySettings } from '../shared/collection/filters';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
@@ -37,6 +40,8 @@ import { resolveOriginal, NetDeps } from '../shared/resolvers/network';
 import { mediaIdFromPoster, pinTwimgUrl } from '../shared/resolvers/x-media-sniff';
 import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk } from '../shared/storage/history';
 import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } from '../shared/storage/favourites';
+import { HLS_MAX_BYTES, HLS_TARGET_HEIGHT } from '../shared/download/capture-constants';
+import { hlsErrorMessage } from '../shared/download/hls-error-message';
 
 // Re-exported for the background test suite, which imports them from here.
 export { DEFAULT_SETTINGS, sanitizePathSegment, buildDownloadFilename, extensionForType, originalNameFromUrl };
@@ -481,11 +486,32 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
+const OFFSCREEN_URL = 'offscreen.html';
+
+/**
+ * Ensure the single offscreen document exists (creating it on first capture and
+ * reusing it after). Tolerates the concurrent-create race: two rapid captures can
+ * both see no document, and the second createDocument throws — if a document now
+ * exists, that is fine.
+ */
+async function ensureOffscreen(): Promise<void> {
+  if (await chrome.offscreen.hasDocument()) return;
+  try {
+    await chrome.offscreen.createDocument({
+      url: OFFSCREEN_URL,
+      reasons: [chrome.offscreen.Reason.BLOBS],
+      justification: 'Assemble HLS/DASH stream segments into a downloadable video file.',
+    });
+  } catch (e) {
+    if (!(await chrome.offscreen.hasDocument())) throw e;
+  }
+}
+
 chrome.runtime.onMessage.addListener(
   (
     message: ChromeMessage,
     sender: chrome.runtime.MessageSender,
-    sendResponse: (response: DownloadResponse | ResolveOriginalsResponse | string[]) => void,
+    sendResponse: (response: DownloadResponse | ResolveOriginalsResponse | string[] | CaptureStreamResponse) => void,
   ) => {
     if (typeof message === 'object' && message.type === 'X_MEDIA_SEEN') {
       // Passive sniffer feed from the x.com content script (per tab). Fire-and-forget.
@@ -650,6 +676,39 @@ chrome.runtime.onMessage.addListener(
       if (sender.tab?.id != null) run(sender.tab.id);
       else chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => run(tabs[0]?.id));
       return true; // async
+    }
+
+    if (typeof message === 'object' && message.type === 'CAPTURE_STREAM') {
+      const { manifestUrl, item, sourcePage } = message as CaptureStreamMessage;
+      // Everything after this fire lives in the background + offscreen doc — no
+      // dependency on the popup, so the download completes even if it closes.
+      void settingsReady.then(async () => {
+        try {
+          await ensureOffscreen();
+          const result = (await chrome.runtime.sendMessage({
+            type: 'CAPTURE_RUN', manifestUrl, quality: HLS_TARGET_HEIGHT, maxBytes: HLS_MAX_BYTES,
+          })) as CaptureRunResult | undefined;
+          if (!result || !result.ok) {
+            sendResponse({ status: hlsErrorMessage(result?.ok === false ? result.code : 'unknown') });
+            return;
+          }
+          const filename = buildDownloadFilename({ ...item, ext: result.ext }, 0, currentSettings, sourcePage.url);
+          chrome.downloads.download(
+            { url: result.blobUrl, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
+            (downloadId) => {
+              const err = chrome.runtime.lastError;
+              const audioNote = result.muxedAudio ? ' (video + audio)' : '';
+              const status = err || downloadId === undefined
+                ? `Couldn’t save ${filename}.`
+                : `Captured ${filename} — ${result.segmentCount} segments${audioNote}.`;
+              sendResponse({ status });
+            },
+          );
+        } catch {
+          sendResponse({ status: 'Couldn’t capture the stream.' });
+        }
+      });
+      return true; // response sent asynchronously
     }
 
     // Unmatched messages (e.g. the content script's DEEP_SCAN_PROGRESS broadcast)

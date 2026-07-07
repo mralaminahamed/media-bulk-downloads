@@ -12,7 +12,7 @@ import {
   setupContextMenus,
   mediaFromContext,
 } from '@/extension/background';
-import { ImageInfo, SettingsData } from '@/types';
+import { CaptureRunResult, ImageInfo, SettingsData } from '@/types';
 
 // The runtime.onMessage handler is registered against the setupTests chrome
 // mock at import time; capture it before any describe swaps global.chrome.
@@ -765,5 +765,56 @@ describe('DOWNLOAD_BYTES router', () => {
     expect(arg.filename).toBe('cat.png');
     expect(arg.url).toBe('data:image/png;base64,UEsDBA==');
     expect(arg.conflictAction).toBe('uniquify');
+  });
+});
+
+describe('CAPTURE_STREAM', () => {
+  const item = { src: 'https://x/m.m3u8', hlsManifest: 'https://x/m.m3u8', type: 'm3u8', kind: 'video', width: 0, height: 0, fileSize: 0, isBase64: false, alt: '' };
+  const sourcePage = { url: 'https://x/watch', title: 'X' };
+
+  beforeEach(() => {
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({}));
+    loadSettings(); // resolve the settingsReady gate with defaults
+    (chrome.offscreen.hasDocument as jest.Mock).mockResolvedValue(false);
+    (chrome.offscreen.createDocument as jest.Mock).mockReset().mockResolvedValue(undefined);
+    (chrome.downloads.download as jest.Mock).mockReset();
+  });
+
+  it('ensures the offscreen doc, downloads the returned blob, and responds with a status', async () => {
+    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+      ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 9, muxedAudio: true,
+    } as CaptureRunResult);
+    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(123));
+    const sendResponse = jest.fn();
+
+    messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(chrome.offscreen.createDocument).toHaveBeenCalledTimes(1);
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'CAPTURE_RUN', manifestUrl: item.hlsManifest, quality: 720, maxBytes: 1024 * 1024 * 1024 }));
+    expect(chrome.downloads.download).toHaveBeenCalledWith(expect.objectContaining({ url: 'blob:cap', conflictAction: 'uniquify' }), expect.any(Function));
+    expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringContaining('9 segments') });
+  });
+
+  it('does not re-create the offscreen doc when one already exists', async () => {
+    (chrome.offscreen.hasDocument as jest.Mock).mockResolvedValue(true);
+    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({ ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 1, muxedAudio: false } as CaptureRunResult);
+    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(1));
+
+    messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage }, {}, jest.fn());
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(chrome.offscreen.createDocument).not.toHaveBeenCalled();
+  });
+
+  it('responds with the mapped error and does not download when the engine fails', async () => {
+    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({ ok: false, code: 'too-large' } as CaptureRunResult);
+    const sendResponse = jest.fn();
+    messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(chrome.downloads.download).not.toHaveBeenCalled();
+    expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringMatching(/1 GB/) });
   });
 });
