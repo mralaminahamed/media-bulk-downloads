@@ -829,7 +829,7 @@ describe('CAPTURE_STREAM', () => {
     (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(123));
     const sendResponse = jest.fn();
 
-    messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
+    messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
 
@@ -851,7 +851,7 @@ describe('CAPTURE_STREAM', () => {
     const dashItem = { ...item, type: 'mpd' };
     const sendResponse = jest.fn();
 
-    messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: dashItem.hlsManifest, item: dashItem, sourcePage }, {}, sendResponse);
+    messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: dashItem.hlsManifest, item: dashItem, sourcePage }, {}, sendResponse);
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
 
@@ -865,7 +865,7 @@ describe('CAPTURE_STREAM', () => {
     (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(123));
     const sendResponse = jest.fn();
 
-    messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
+    messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
 
@@ -884,7 +884,7 @@ describe('CAPTURE_STREAM', () => {
     (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(123));
     const sendResponse = jest.fn();
 
-    messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
+    messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
 
@@ -903,7 +903,7 @@ describe('CAPTURE_STREAM', () => {
       .mockRejectedValue(new Error('Only a single offscreen document may be created'));
     const sendResponse = jest.fn();
 
-    messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
+    messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
 
@@ -916,7 +916,7 @@ describe('CAPTURE_STREAM', () => {
     (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({ ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 1, muxedAudio: false } as CaptureRunResult);
     (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(1));
 
-    messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage }, {}, jest.fn());
+    messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, jest.fn());
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
     expect(chrome.offscreen.createDocument).not.toHaveBeenCalled();
@@ -925,7 +925,7 @@ describe('CAPTURE_STREAM', () => {
   it('responds with the mapped error and does not download when the engine fails', async () => {
     (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({ ok: false, code: 'too-large' } as CaptureRunResult);
     const sendResponse = jest.fn();
-    messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
+    messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
     expect(chrome.downloads.download).not.toHaveBeenCalled();
@@ -948,16 +948,38 @@ describe('CAPTURE_STREAM', () => {
       (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(1));
 
       messageHandler(
-        { type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage },
+        { type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage },
         { tab: { id: 42 } },
         jest.fn(),
       );
-      messageHandler({ type: 'CAPTURE_PROGRESS', done: 3, total: 10 }, {}, jest.fn());
+      messageHandler({ type: 'CAPTURE_PROGRESS', runId: 'run-x', done: 3, total: 10 }, {}, jest.fn());
 
       expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(42, expect.objectContaining({ type: 'CAPTURE_PROGRESS' }));
 
-      // Let the capture finish so activeCaptureTabId clears and no state leaks
-      // into other tests.
+      // Let the capture finish so its captureRunTabs entry is deleted and no
+      // state leaks into other tests.
+      await new Promise((r) => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    it('routes each concurrent capture\'s progress to its own tab (no cross-talk)', async () => {
+      (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+        ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 1, muxedAudio: false,
+      } as CaptureRunResult);
+      (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(1));
+
+      // Two captures in the shared offscreen doc, from different tabs.
+      messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-A', manifestUrl: item.hlsManifest, item, sourcePage }, { tab: { id: 11 } }, jest.fn());
+      messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-B', manifestUrl: item.hlsManifest, item, sourcePage }, { tab: { id: 22 } }, jest.fn());
+      // Relay is looked up off the runId→tab map (synchronous, before the captures'
+      // async completion clears their entries), so each tab gets only its own run.
+      messageHandler({ type: 'CAPTURE_PROGRESS', runId: 'run-B', done: 1, total: 2 }, {}, jest.fn());
+      messageHandler({ type: 'CAPTURE_PROGRESS', runId: 'run-A', done: 2, total: 2 }, {}, jest.fn());
+
+      expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(22, expect.objectContaining({ runId: 'run-B' }));
+      expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(11, expect.objectContaining({ runId: 'run-A' }));
+      expect(chrome.tabs.sendMessage).not.toHaveBeenCalledWith(11, expect.objectContaining({ runId: 'run-B' }));
+
       await new Promise((r) => setTimeout(r, 0));
       await new Promise((r) => setTimeout(r, 0));
     });
@@ -968,8 +990,8 @@ describe('CAPTURE_STREAM', () => {
       } as CaptureRunResult);
       (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(1));
 
-      // Popup capture: sender.tab is undefined, so activeCaptureTabId stays unset.
-      messageHandler({ type: 'CAPTURE_STREAM', manifestUrl: item.hlsManifest, item, sourcePage }, {}, jest.fn());
+      // Popup capture: sender.tab is undefined, so no captureRunTabs entry is set.
+      messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, jest.fn());
       await new Promise((r) => setTimeout(r, 0));
       await new Promise((r) => setTimeout(r, 0));
 

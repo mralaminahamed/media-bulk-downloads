@@ -23,6 +23,7 @@ import {
   SettingsData,
   ShowDownloadMessage,
   XMediaSeenMessage,
+  CaptureProgressMessage,
   CaptureRunResult,
   CaptureStreamMessage,
   CaptureStreamResponse,
@@ -45,6 +46,7 @@ import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } fro
 import { addExcluded, removeExcluded, clearExcluded, restoreExcluded, excludedMatchers, EXCLUDED_KEY } from '../shared/storage/excluded';
 import { HLS_MAX_BYTES, HLS_TARGET_HEIGHT } from '../shared/download/capture-constants';
 import { streamErrorMessage } from '../shared/download/stream-error-message';
+import { newCaptureRunId } from '../shared/active-tab/capture-stream-active';
 
 // Re-exported for the background test suite, which imports them from here.
 export { DEFAULT_SETTINGS, sanitizePathSegment, buildDownloadFilename, extensionForType, originalNameFromUrl };
@@ -62,12 +64,15 @@ reloadExcluded();
 const BADGE_COLOR = '#4F46E5';
 
 /**
- * Tab id the in-flight capture originated from, so CAPTURE_PROGRESS broadcasts
- * from the offscreen doc (which content scripts never receive via
- * runtime.sendMessage) can be relayed to that tab's bubble. Unset for popup
- * captures (sender.tab is undefined there) and cleared once the capture ends.
+ * Per-capture tab id, keyed by the capture's runId, so a CAPTURE_PROGRESS
+ * broadcast from the offscreen doc (which content scripts never receive via
+ * runtime.sendMessage) is relayed to the RIGHT tab's bubble even when several
+ * captures run concurrently in the shared offscreen doc. An entry is added when a
+ * capture starts and removed when it ends; a runId with no entry (a popup
+ * capture, whose sender.tab is undefined) simply relays nowhere — the popup gets
+ * the broadcast directly and filters by runId itself.
  */
-let activeCaptureTabId: number | undefined;
+const captureRunTabs = new Map<string, number>();
 
 // The service worker is ephemeral: a message can wake it and be handled before
 // the async settings read completes. `settingsReady` resolves once settings have
@@ -250,6 +255,7 @@ export async function downloadAndRecord(
 async function captureStreamToFile(
   item: ImageInfo,
   sourcePage: { url: string; title?: string } | undefined,
+  runId: string,
 ): Promise<
   | { ok: true; filename: string; saved: boolean; segmentCount: number; muxedAudio: boolean }
   | { ok: false; code: string }
@@ -257,6 +263,7 @@ async function captureStreamToFile(
   await ensureOffscreen();
   const result = (await chrome.runtime.sendMessage({
     type: 'CAPTURE_RUN',
+    runId,
     manifestUrl: item.hlsManifest,
     engine: item.type === 'mpd' ? 'dash' : 'hls',
     quality: HLS_TARGET_HEIGHT,
@@ -426,8 +433,9 @@ export function mediaFromContext(info: chrome.contextMenus.OnClickData): ImageIn
  */
 export function downloadAllForTab(tab?: chrome.tabs.Tab): void {
   if (tab?.id == null) return; // narrows `tab` to defined + `tab.id` to a number
+  const tabId = tab.id; // a const keeps the narrowing inside the nested callbacks below
   const sourcePage = tab.url ? { url: tab.url, title: tab.title } : undefined;
-  chrome.tabs.sendMessage(tab.id, 'GET_IMAGES', (images: ImageInfo[]) => {
+  chrome.tabs.sendMessage(tabId, 'GET_IMAGES', (images: ImageInfo[]) => {
     if (chrome.runtime.lastError || !Array.isArray(images)) return;
     void settingsReady.then(() => {
       const eligible = filterExcluded(filterImagesBySettings(images, currentSettings), excludedCache);
@@ -437,7 +445,15 @@ export function downloadAllForTab(tab?: chrome.tabs.Tab): void {
       const streams = eligible.filter((i) => i.hlsManifest);
       const regular = eligible.filter((i) => !i.hlsManifest);
       if (regular.length) void downloadAndRecord(regular, sourcePage);
-      for (const s of streams) void captureStreamToFile(s, sourcePage).catch(() => {});
+      for (const s of streams) {
+        // Register the capturing tab under this run's id so its progress relays
+        // to this tab's bubble (and no other concurrent capture's).
+        const runId = newCaptureRunId();
+        captureRunTabs.set(runId, tabId);
+        void captureStreamToFile(s, sourcePage, runId)
+          .catch(() => {})
+          .finally(() => captureRunTabs.delete(runId));
+      }
     });
   });
 }
@@ -761,16 +777,17 @@ chrome.runtime.onMessage.addListener(
     }
 
     if (typeof message === 'object' && message.type === 'CAPTURE_STREAM') {
-      const { item, sourcePage } = message as CaptureStreamMessage;
-      // Track the originating tab (unset for popup captures, whose sender.tab is
-      // undefined) so a CAPTURE_PROGRESS broadcast can be relayed to it below.
-      activeCaptureTabId = sender.tab?.id;
+      const { runId, item, sourcePage } = message as CaptureStreamMessage;
+      // Track the originating tab under this run's id (unset for popup captures,
+      // whose sender.tab is undefined) so a CAPTURE_PROGRESS broadcast is relayed
+      // to it — and only it — even while other captures run concurrently.
+      if (sender.tab?.id != null) captureRunTabs.set(runId, sender.tab.id);
       // Everything after this fire lives in the background + offscreen doc — no
       // dependency on the popup, so the download completes even if it closes.
       void settingsReady.then(async () => {
         try {
-          const cap = await captureStreamToFile(item, sourcePage);
-          activeCaptureTabId = undefined;
+          const cap = await captureStreamToFile(item, sourcePage, runId);
+          captureRunTabs.delete(runId);
           if (!cap.ok) {
             sendResponse({ status: streamErrorMessage(cap.code) });
             return;
@@ -782,7 +799,7 @@ chrome.runtime.onMessage.addListener(
               : `Couldn’t save ${cap.filename}.`,
           });
         } catch {
-          activeCaptureTabId = undefined;
+          captureRunTabs.delete(runId);
           sendResponse({ status: 'Couldn’t capture the stream.' });
         }
       });
@@ -791,12 +808,14 @@ chrome.runtime.onMessage.addListener(
 
     if (typeof message === 'object' && message.type === 'CAPTURE_PROGRESS') {
       // The offscreen doc broadcasts progress via runtime.sendMessage, which does
-      // not reach content-script contexts. Relay it to the capturing tab so the
-      // on-page bubble's progress listener receives it (the popup, an extension
-      // page, already gets the broadcast directly). tabId is unset for popup
-      // captures (sender.tab is undefined there), so nothing is forwarded then.
-      if (activeCaptureTabId != null) {
-        void chrome.tabs.sendMessage(activeCaptureTabId, message).catch(() => {
+      // not reach content-script contexts. Relay it to the capture's originating
+      // tab (looked up by runId) so that tab's bubble progress listener receives
+      // it — the popup, an extension page, already gets the broadcast directly and
+      // filters by runId. A runId with no mapped tab (a popup capture) relays
+      // nowhere.
+      const tabId = captureRunTabs.get((message as CaptureProgressMessage).runId);
+      if (tabId != null) {
+        void chrome.tabs.sendMessage(tabId, message).catch(() => {
           /* tab closed / no receiver */
         });
       }
