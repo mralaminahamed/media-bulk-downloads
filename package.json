@@ -1,7 +1,7 @@
 {
   "name": "@mralaminahamed/media-bulk-downloads",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Cross-browser (Chrome, Firefox, Edge) Manifest V3 extension to bulk-download media from any web page — images (srcset, <picture>, CSS backgrounds) plus direct-file video and audio — with smart type filters, instant preview, and original-quality saves. Network-free collection.",
   "type": "module",
   "license": "MIT",
