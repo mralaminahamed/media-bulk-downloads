@@ -48,6 +48,20 @@ describe('bestMp4', () => {
     expect(bestMp4(null)).toBeNull();
     expect(bestMp4([{ content_type: 'application/x-mpegURL', url: 'https://video.twimg.com/a/pl.m3u8' }])).toBeNull();
   });
+  it('treats an mp4 variant with no bitrate as bitrate 0 (still selectable when it is the only mp4)', () => {
+    // A variant missing `bitrate` must coerce to 0, not NaN — otherwise it could
+    // never be chosen and comparisons would misbehave.
+    expect(bestMp4([{ content_type: 'video/mp4', url: 'https://video.twimg.com/a/nobitrate.mp4' }])).toBe(
+      'https://video.twimg.com/a/nobitrate.mp4',
+    );
+    // And a real (higher-bitrate) mp4 still wins over the bitrate-less one.
+    expect(
+      bestMp4([
+        { content_type: 'video/mp4', url: 'https://video.twimg.com/a/nobitrate.mp4' },
+        { content_type: 'video/mp4', bitrate: 5, url: 'https://video.twimg.com/a/best.mp4' },
+      ]),
+    ).toBe('https://video.twimg.com/a/best.mp4');
+  });
 });
 
 describe('bestHls', () => {
@@ -137,5 +151,29 @@ describe('extractVideoPairs', () => {
     const pairs = extractVideoPairs(json);
     expect(pairs).toHaveLength(1);
     expect(pairs[0][0]).toBe('1');
+  });
+
+  it('skips a media object that carries video_info.variants but no resolvable media id', () => {
+    // No id_str, no media_id_str, and no media_url_https to parse an id from — the
+    // `media_url_https ? parse : null` ternary yields null, so nothing is emitted.
+    const json = { data: { m: { video_info: { variants: [{ bitrate: 1, content_type: 'video/mp4', url: 'https://video.twimg.com/x.mp4' }] } } } };
+    expect(extractVideoPairs(json)).toEqual([]);
+  });
+
+  it('skips a media object whose variants have neither an mp4 nor an HLS rendition', () => {
+    // A media id is present but bestMp4 and bestHls both return null (e.g. a webm-only
+    // or off-host set) — media is null, so the pair is not emitted.
+    const json = { data: { m: { id_str: '42', video_info: { variants: [{ content_type: 'video/webm', url: 'https://video.twimg.com/42.webm' }] } } } };
+    expect(extractVideoPairs(json)).toEqual([]);
+  });
+
+  it('drops a media object whose only mp4/HLS urls are off-host (security host-pin)', () => {
+    // id present, variants present, but every url is off the twimg CDN — pinned out,
+    // leaving no usable media, so nothing is surfaced.
+    const json = { data: { m: { id_str: '77', video_info: { variants: [
+      { content_type: 'video/mp4', bitrate: 9, url: 'https://evil.example/77.mp4' },
+      { content_type: 'application/x-mpegURL', url: 'https://evil.example/77.m3u8' },
+    ] } } } };
+    expect(extractVideoPairs(json)).toEqual([]);
   });
 });

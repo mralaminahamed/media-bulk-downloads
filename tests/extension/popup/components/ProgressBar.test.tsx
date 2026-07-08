@@ -24,4 +24,12 @@ describe('ProgressBar', () => {
     const bar = screen.getByRole('progressbar');
     expect(bar).not.toHaveAttribute('aria-valuenow');
   });
+
+  it('defaults done and total to 0 (indeterminate) when only a label is given', () => {
+    render(<ProgressBar label="Working" />);
+    expect(screen.getByText('Working…')).toBeInTheDocument();
+    const bar = screen.getByRole('progressbar');
+    expect(bar).not.toHaveAttribute('aria-valuenow');
+    expect(bar).not.toHaveAttribute('aria-valuemax');
+  });
 });

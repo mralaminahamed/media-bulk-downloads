@@ -98,6 +98,25 @@ describe('buildZip', () => {
     expect(keysOf(bytes)).toEqual(['pics/photo (2).jpg', 'pics/photo.jpg']);
   });
 
+  it('uniquifies a three-way name collision, incrementing past (2)', async () => {
+    // Three items colliding on the same original name must become photo.jpg,
+    // photo (2).jpg, photo (3).jpg — exercising the increment loop beyond (2).
+    const settings: SettingsData = { ...DEFAULT_SETTINGS, namingMode: 'original' };
+    const images = [
+      img('https://a.com/d1/photo.jpg'),
+      img('https://b.com/d2/photo.jpg'),
+      img('https://c.com/d3/photo.jpg'),
+    ];
+    const fetch = makeFetch({
+      'https://a.com/d1/photo.jpg': [1],
+      'https://b.com/d2/photo.jpg': [2],
+      'https://c.com/d3/photo.jpg': [3],
+    });
+    const { bytes, ok } = await buildZip(images, settings, undefined, { fetch });
+    expect(ok).toBe(3);
+    expect(keysOf(bytes)).toEqual(['photo (2).jpg', 'photo (3).jpg', 'photo.jpg']);
+  });
+
   it('reports progress once per item', async () => {
     const images = [img('https://cdn/a.jpg'), img('https://cdn/b.jpg')];
     const fetch = makeFetch({ 'https://cdn/a.jpg': [1], 'https://cdn/b.jpg': [2] });

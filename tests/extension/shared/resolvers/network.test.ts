@@ -64,6 +64,48 @@ describe('resolveOriginal — twitter', () => {
     ] } }] };
     return expect(resolveOriginal({ platform: 'twitter', id: '1' }, { fetch: mockFetch(bad) })).resolves.toBeNull();
   });
+  it('returns null for an ok response with no mediaDetails at all', async () => {
+    // Missing `mediaDetails` (e.g. a text-only tweet) coerces to [] — no variants,
+    // no mp4, no HLS, so null.
+    expect(await resolveOriginal({ platform: 'twitter', id: '1' }, { fetch: mockFetch({}) })).toBeNull();
+  });
+  it('tolerates a mediaDetails entry with no video_info/variants (still resolves the mp4 from a sibling)', async () => {
+    // A photo detail (no video_info) sits next to a real video detail; the `?? []`
+    // guards keep the loop from throwing and the video still resolves.
+    const mixed = { mediaDetails: [
+      {},
+      { video_info: { variants: [{ content_type: 'video/mp4', bitrate: 5, url: 'https://video.twimg.com/only.mp4' }] } },
+    ] };
+    expect(await resolveOriginal({ platform: 'twitter', id: '1' }, { fetch: mockFetch(mixed) }))
+      .toEqual({ url: 'https://video.twimg.com/only.mp4' });
+  });
+  it('keeps the first, higher-bitrate mp4 when a later variant is lower-bitrate (descending order)', async () => {
+    // Exercises the `bitrate > best.bitrate` comparison being false for the 2nd mp4.
+    const desc = { mediaDetails: [{ video_info: { variants: [
+      { content_type: 'video/mp4', bitrate: 2176000, url: 'https://video.twimg.com/hi.mp4' },
+      { content_type: 'video/mp4', bitrate: 632000, url: 'https://video.twimg.com/lo.mp4' },
+    ] } }] };
+    expect(await resolveOriginal({ platform: 'twitter', id: '1' }, { fetch: mockFetch(desc) }))
+      .toEqual({ url: 'https://video.twimg.com/hi.mp4' });
+  });
+  it('treats an mp4 variant with no bitrate as 0 and still returns it when it is the only mp4', async () => {
+    const noBitrate = { mediaDetails: [{ video_info: { variants: [
+      { content_type: 'video/mp4', url: 'https://video.twimg.com/nobitrate.mp4' },
+    ] } }] };
+    expect(await resolveOriginal({ platform: 'twitter', id: '1' }, { fetch: mockFetch(noBitrate) }))
+      .toEqual({ url: 'https://video.twimg.com/nobitrate.mp4' });
+  });
+  it('falls back to a sibling HLS master, tolerating a video_info-less detail in the HLS loop', async () => {
+    // No mp4 anywhere, so the HLS fallback loop runs; the first (photo) detail has no
+    // video_info (its `?? []` guard keeps the loop safe), and the live-video detail
+    // supplies the x-mpegURL master.
+    const mixed = { mediaDetails: [
+      {},
+      { video_info: { variants: [{ content_type: 'application/x-mpegURL', url: 'https://video.twimg.com/live/pl.m3u8' }] } },
+    ] };
+    expect(await resolveOriginal({ platform: 'twitter', id: '1' }, { fetch: mockFetch(mixed) }))
+      .toEqual({ url: 'https://video.twimg.com/live/pl.m3u8', hls: true });
+  });
 });
 
 describe('resolveOriginal — wallhaven', () => {
@@ -110,6 +152,26 @@ describe('resolveOriginal — vimeo', () => {
 
   it('returns null when there is no progressive rendition (HLS/DASH-only)', async () => {
     expect(await resolveOriginal({ platform: 'vimeo', id: '1' }, { fetch: mockFetch(config([])) })).toBeNull();
+  });
+
+  it('returns null when the config has no progressive key at all (and no HLS)', async () => {
+    // `files.progressive` absent → the `?? []` guard yields an empty loop, not a throw.
+    expect(await resolveOriginal({ platform: 'vimeo', id: '1' }, { fetch: mockFetch({ request: { files: {} } }) })).toBeNull();
+  });
+
+  it('skips a progressive entry that has no url and picks the next valid one', async () => {
+    const payload = config([
+      { height: 1080 }, // no url — must be skipped, not treated as best
+      { height: 720, url: 'https://vod-progressive-ak.vimeocdn.com/a/720.mp4' },
+    ]);
+    expect(await resolveOriginal({ platform: 'vimeo', id: '1' }, { fetch: mockFetch(payload) }))
+      .toEqual({ url: 'https://vod-progressive-ak.vimeocdn.com/a/720.mp4' });
+  });
+
+  it('treats a progressive entry with a url but no height as height 0 (still selectable when alone)', async () => {
+    const payload = config([{ url: 'https://vod-progressive-ak.vimeocdn.com/a/noheight.mp4' }]);
+    expect(await resolveOriginal({ platform: 'vimeo', id: '1' }, { fetch: mockFetch(payload) }))
+      .toEqual({ url: 'https://vod-progressive-ak.vimeocdn.com/a/noheight.mp4' });
   });
 
   it('rejects a progressive URL that is not https vimeocdn.com (untrusted JSON URL)', async () => {
