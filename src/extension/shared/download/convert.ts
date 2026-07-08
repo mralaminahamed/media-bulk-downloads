@@ -1,4 +1,5 @@
 import { ImageInfo } from '@/types';
+import { extractMetadata, injectMetadata, ImageMetadata } from './metadata';
 
 /**
  * Client-side image format conversion, run in the popup/bubble. The source image
@@ -85,16 +86,30 @@ const defaultDeps: ConvertDeps = {
   makeCanvas: (w, h) => new OffscreenCanvas(w, h),
 };
 
+export interface ConvertOptions {
+  /** Copy the source's EXIF/XMP into the converted output (issue #199). Canvas
+   *  re-encoding otherwise strips all metadata. */
+  preserveMetadata?: boolean;
+  /** Injected canvas primitives (the real ones aren't present under jsdom). */
+  deps?: ConvertDeps;
+}
+
 /**
  * Decode `blob` and re-encode it as `target`. Returns null on any failure (an
  * undecodable image, a missing 2D context) so the caller can fall back to a plain
  * download. JPEG has no alpha, so a white background is painted first.
+ *
+ * With `preserveMetadata`, the source's EXIF/XMP is read before decode and copied
+ * into the output. If it can't be re-injected (e.g. too large for a JPEG APP1),
+ * convertImage returns null so the caller downloads the original untouched —
+ * never a worse result than today's silent strip.
  */
 export async function convertImage(
   blob: Blob,
   target: ConvertTarget,
-  deps: ConvertDeps = defaultDeps,
+  opts: ConvertOptions = {},
 ): Promise<ConvertedImage | null> {
+  const deps = opts.deps ?? defaultDeps;
   try {
     // Preserve animation: an animated webp/avif/apng would lose every frame but
     // the first through the canvas re-encode, so bail and let the caller download
@@ -102,6 +117,8 @@ export async function convertImage(
     // covers an APNG's acTL chunk even when ancillary chunks precede it.
     const header = new Uint8Array(await blob.slice(0, 4096).arrayBuffer());
     if (isAnimatedImage(header)) return null;
+    // Read the source metadata before decode — the canvas re-encode discards it.
+    const meta: ImageMetadata = opts.preserveMetadata ? await extractMetadata(blob) : {};
     const bitmap = await deps.createImageBitmap(blob);
     const canvas = deps.makeCanvas(bitmap.width, bitmap.height);
     const ctx = canvas.getContext('2d');
@@ -116,7 +133,13 @@ export async function convertImage(
       type: TARGET_MIME[target],
       quality: target === 'jpeg' ? 0.92 : undefined,
     });
-    return { bytes: new Uint8Array(await out.arrayBuffer()), ext: TARGET_EXT[target], mime: TARGET_MIME[target] };
+    let bytes = new Uint8Array(await out.arrayBuffer());
+    if (meta.exif || meta.xmp) {
+      const injected = injectMetadata(bytes, target, meta);
+      if (!injected) return null; // couldn't re-inject → caller keeps the original
+      bytes = injected;
+    }
+    return { bytes, ext: TARGET_EXT[target], mime: TARGET_MIME[target] };
   } catch {
     return null;
   }
