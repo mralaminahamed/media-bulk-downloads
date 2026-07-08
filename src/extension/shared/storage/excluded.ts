@@ -1,4 +1,5 @@
 import { ExcludedEntry, ExcludedKind } from '@/types';
+import { canonicalSrcKey, SrcKeySet } from '../collection/canonical';
 
 /**
  * Blocklist of excluded sources — exact media URLs and hosts — that the
@@ -11,7 +12,9 @@ export const EXCLUDED_KEY = 'excluded';
 export const EXCLUDED_CAP = 500;
 export const EXCLUDED_MAX_BYTES = 2_000_000;
 
-const keyOf = (e: ExcludedEntry): string => `${e.kind} ${e.value}`;
+// URL entries dedup by canonical src key (so query/host-variant re-adds collapse);
+// host entries by their exact value.
+const keyOf = (e: ExcludedEntry): string => `${e.kind} ${e.kind === 'url' ? canonicalSrcKey(e.value) : e.value}`;
 
 function withinByteBudget(entries: ExcludedEntry[], maxBytes: number): ExcludedEntry[] {
   let total = 0;
@@ -62,7 +65,9 @@ export async function addExcluded(entry: ExcludedEntry): Promise<void> {
 
 export async function removeExcluded(kind: ExcludedKind, value: string): Promise<void> {
   return serialize(async () => {
-    const next = (await loadExcluded()).filter((e) => !(e.kind === kind && e.value === value));
+    const next = (await loadExcluded()).filter(
+      (e) => !(e.kind === kind && (kind === 'url' ? canonicalSrcKey(e.value) === canonicalSrcKey(value) : e.value === value)),
+    );
     await chrome.storage.local.set({ [EXCLUDED_KEY]: next });
   });
 }
@@ -79,11 +84,13 @@ export async function clearExcluded(): Promise<void> {
   });
 }
 
-/** The url + host match sets for O(1) exclusion checks. */
-export async function excludedMatchers(): Promise<{ urls: Set<string>; hosts: Set<string> }> {
+/** The url + host match sets for O(1) exclusion checks. URL entries are keyed by
+ *  their canonical src key so an excluded image stays excluded across volatile
+ *  CDN query/host changes (see canonicalSrcKey). */
+export async function excludedMatchers(): Promise<{ urls: SrcKeySet; hosts: Set<string> }> {
   const all = await loadExcluded();
   return {
-    urls: new Set(all.filter((e) => e.kind === 'url').map((e) => e.value)),
+    urls: SrcKeySet.from(all.filter((e) => e.kind === 'url').map((e) => e.value)),
     hosts: new Set(all.filter((e) => e.kind === 'host').map((e) => e.value)),
   };
 }
