@@ -93,6 +93,35 @@ describe('parseMpd', () => {
     expect(m.audio[0]).toMatchObject({ id: 'a0', bandwidth: 128000, contentType: 'audio' });
   });
 
+  it('preserves startNumber="0" (a legitimate 0, not coerced to 1)', () => {
+    const mpd = `<?xml version="1.0"?>
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" mediaPresentationDuration="PT6S">
+  <Period><AdaptationSet mimeType="video/mp4">
+    <Representation id="v" bandwidth="1" width="640" height="360">
+      <SegmentTemplate initialization="i.m4v" media="s$Number$.m4v" startNumber="0" timescale="1" duration="6"/>
+    </Representation>
+  </AdaptationSet></Period>
+</MPD>`;
+    expect(parseMpd(mpd, 'https://cdn.test/m.mpd').video[0].template.startNumber).toBe(0);
+  });
+
+  it('uses Period 0 duration (not the whole presentation) for a multi-period MPD', () => {
+    const mpd = `<?xml version="1.0"?>
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" mediaPresentationDuration="PT60S">
+  <Period duration="PT10S"><AdaptationSet mimeType="video/mp4">
+    <Representation id="v" bandwidth="1" width="640" height="360">
+      <SegmentTemplate initialization="i.m4v" media="s$Number$.m4v" startNumber="1" timescale="1" duration="6"/>
+    </Representation>
+  </AdaptationSet></Period>
+  <Period start="PT10S"><AdaptationSet mimeType="video/mp4">
+    <Representation id="v2" bandwidth="1"><SegmentTemplate media="x$Number$.m4v" duration="6"/></Representation>
+  </AdaptationSet></Period>
+</MPD>`;
+    const m = parseMpd(mpd, 'https://cdn.test/m.mpd');
+    expect(m.durationSec).toBe(10); // Period 0's duration, not the 60s presentation
+    expect(m.video).toHaveLength(1); // only Period 0 captured (documented limit)
+  });
+
   it('flags a dynamic manifest as live', () => {
     const live = VOD_MPD.replace('type="static"', 'type="dynamic"');
     expect(parseMpd(live, 'https://cdn.test/m.mpd').isLive).toBe(true);
