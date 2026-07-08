@@ -9,8 +9,9 @@
     "useDefineForClassFields": true,
     "isolatedModules": true,
     // WXT's base leaves `types` unset (which pulls in every @types package).
-    // Pin it: chrome for the extension APIs, the rest for the Jest suite.
-    "types": ["chrome", "node", "jest", "@testing-library/jest-dom"]
+    // Pin it: chrome for the extension APIs, the rest for the Vitest suite
+    // (`vitest/globals` provides the ambient describe/it/expect/vi).
+    "types": ["chrome", "node", "vitest/globals", "@testing-library/jest-dom"]
   },
   "include": ["src", "tests", "wxt.config.ts", "web-ext.config.ts", ".wxt/wxt.d.ts"]
 }

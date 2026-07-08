@@ -7,7 +7,7 @@ import { SettingsData } from '@/types';
 import { DEFAULT_SETTINGS } from '@/extension/shared/storage/settings';
 
 describe('FilterToolbar Component', () => {
-  const mockOnFilterChange = jest.fn();
+  const mockOnFilterChange = vi.fn();
   const settings: SettingsData = {
     downloadPath: '',
     fileNamePrefix: 'image_',
@@ -163,7 +163,7 @@ describe('FilterToolbar Component', () => {
   });
 
   it('switches format options when the media kind changes', async () => {
-    const onFilterChange = jest.fn();
+    const onFilterChange = vi.fn();
     render(<FilterToolbar onFilterChange={onFilterChange} extensionSettings={DEFAULT_SETTINGS} />);
     const typeSelect = screen.getByLabelText('Media format');
     // image formats by default

@@ -12,7 +12,7 @@ describe('ClearAllButton', () => {
   });
 
   it('is disabled and never fires when disabled', () => {
-    const onClear = jest.fn();
+    const onClear = vi.fn();
     render(<ClearAllButton onClear={onClear} disabled />);
     const btn = screen.getByRole('button', { name: /clear all/i });
     expect(btn).toBeDisabled();
@@ -21,7 +21,7 @@ describe('ClearAllButton', () => {
   });
 
   it('requires two clicks: first arms, second confirms', async () => {
-    const onClear = jest.fn();
+    const onClear = vi.fn();
     const user = userEvent.setup();
     render(<ClearAllButton onClear={onClear} />);
     const btn = screen.getByRole('button', { name: /clear all/i });
@@ -38,7 +38,7 @@ describe('ClearAllButton', () => {
   });
 
   it('disarms on blur without firing', async () => {
-    const onClear = jest.fn();
+    const onClear = vi.fn();
     const user = userEvent.setup();
     render(
       <>
@@ -56,19 +56,19 @@ describe('ClearAllButton', () => {
   });
 
   it('auto-disarms after the timeout without firing', () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     try {
-      const onClear = jest.fn();
+      const onClear = vi.fn();
       render(<ClearAllButton onClear={onClear} />);
       const btn = screen.getByRole('button', { name: /clear all/i });
       fireEvent.click(btn); // arm
       expect(btn).toHaveTextContent('Confirm?');
 
-      act(() => { jest.advanceTimersByTime(3000); });
+      act(() => { vi.advanceTimersByTime(3000); });
       expect(btn).toHaveTextContent('Clear all');
       expect(onClear).not.toHaveBeenCalled();
     } finally {
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
   });
 });

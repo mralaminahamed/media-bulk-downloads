@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -12,46 +13,45 @@ import { FAVOURITES_KEY } from '@/extension/shared/storage/favourites';
 import { buildZip } from '@/extension/shared/download/zip';
 import { convertImage } from '@/extension/shared/download/convert';
 
-jest.mock('@/extension/shared/active-tab/deep-scan-active-tab', () => ({
-  deepScanActiveTab: jest.fn(async (onProgress) => {
+vi.mock('@/extension/shared/active-tab/deep-scan-active-tab', () => ({
+  deepScanActiveTab: vi.fn(async (onProgress) => {
     onProgress({ type: 'DEEP_SCAN_PROGRESS', found: 2, scrolls: 1, elapsedMs: 100 });
     return [
       { src: 'https://cdn.com/a.jpg', alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' },
       { src: 'https://cdn.com/deep.jpg', alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' },
     ];
   }),
-  abortDeepScanActiveTab: jest.fn(),
+  abortDeepScanActiveTab: vi.fn(),
 }));
 
-jest.mock('@/extension/shared/active-tab/resolve-originals-active', () => ({
-  requestResolveOriginals: jest.fn(async () => ({ 'poster.jpg': { url: 'https://video.twimg.com/hi.mp4' } })),
+vi.mock('@/extension/shared/active-tab/resolve-originals-active', () => ({
+  requestResolveOriginals: vi.fn(async () => ({ 'poster.jpg': { url: 'https://video.twimg.com/hi.mp4' } })),
 }));
 
-jest.mock('@/extension/shared/storage/excluded', () => {
+vi.mock('@/extension/shared/storage/excluded', async () => {
   // urls must be a real SrcKeySet — the optimistic exclude path calls withAdded().
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.mock factories are hoisted above imports.
-  const { SrcKeySet: KeySet } = require('@/extension/shared/collection/canonical');
+  const { SrcKeySet: KeySet } = await vi.importActual<typeof import('@/extension/shared/collection/canonical')>('@/extension/shared/collection/canonical');
   return {
-    excludedMatchers: jest.fn(async () => ({ urls: new KeySet(), hosts: new Set() })),
+    excludedMatchers: vi.fn(async () => ({ urls: new KeySet(), hosts: new Set() })),
     // ExcludedPanel (opened from the header) loads the raw list; keep it empty.
-    loadExcluded: jest.fn(async () => []),
+    loadExcluded: vi.fn(async () => []),
     EXCLUDED_KEY: 'excluded',
   };
 });
 
 // ZIP is built in the popup context — mock so tests drive the ok/partial/total-fail
 // branches without hitting the network. zipFileName is deterministic here.
-jest.mock('@/extension/shared/download/zip', () => ({
-  buildZip: jest.fn(),
-  zipFileName: jest.fn(() => 'example.com-media-2026-07-07.zip'),
+vi.mock('@/extension/shared/download/zip', () => ({
+  buildZip: vi.fn(),
+  zipFileName: vi.fn(() => 'example.com-media-2026-07-07.zip'),
 }));
 
 // Keep the real isConvertible (a pure classifier the download path branches on) so
 // the passthrough/convert split is exercised for real; only the canvas-backed
 // convertImage (unavailable under jsdom) is mocked.
-jest.mock('@/extension/shared/download/convert', () => ({
-  ...jest.requireActual('@/extension/shared/download/convert'),
-  convertImage: jest.fn(),
+vi.mock('@/extension/shared/download/convert', async () => ({
+  ...(await vi.importActual<typeof import('@/extension/shared/download/convert')>('@/extension/shared/download/convert')),
+  convertImage: vi.fn(),
 }));
 
 const image = (over: Partial<ImageInfo>): ImageInfo => ({
@@ -65,12 +65,12 @@ const pendingVideo = image({
 
 describe('App Component', () => {
   beforeEach(() => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({}));
-    (chrome.storage.sync.set as jest.Mock).mockClear();
-    (chrome.runtime.sendMessage as jest.Mock).mockReset();
-    (buildZip as jest.Mock).mockReset();
-    (convertImage as jest.Mock).mockReset();
-    global.fetch = jest.fn().mockRejectedValue(new Error('no')) as unknown as typeof fetch;
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({}));
+    (chrome.storage.sync.set as Mock).mockClear();
+    (chrome.runtime.sendMessage as Mock).mockReset();
+    (buildZip as Mock).mockReset();
+    (convertImage as Mock).mockReset();
+    global.fetch = vi.fn().mockRejectedValue(new Error('no')) as unknown as typeof fetch;
   });
 
   it('renders the brand header', () => {
@@ -121,7 +121,7 @@ describe('App Component', () => {
   });
 
   it('sends a bulk download request and reflects the response', async () => {
-    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((_m, cb) =>
+    (chrome.runtime.sendMessage as Mock).mockImplementation((_m, cb) =>
       cb({ status: 'success', message: 'Downloaded 2 files.' }),
     );
     render(<App collect={async () => [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })]} />);
@@ -139,7 +139,7 @@ describe('App Component', () => {
   });
 
   it('selects one item and downloads only the selection', async () => {
-    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((_m, cb) =>
+    (chrome.runtime.sendMessage as Mock).mockImplementation((_m, cb) =>
       cb({ status: 'success', message: 'Downloaded 1 file.' }),
     );
     render(<App collect={async () => [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })]} />);
@@ -194,7 +194,7 @@ describe('App Component', () => {
   });
 
   it('lazily enriches remote image sizes after load', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       headers: { get: () => '2048' },
     }) as unknown as typeof fetch;
 
@@ -206,7 +206,7 @@ describe('App Component', () => {
   });
 
   it('reports a download error from the background', async () => {
-    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((_m, cb) => {
+    (chrome.runtime.sendMessage as Mock).mockImplementation((_m, cb) => {
       (chrome.runtime as { lastError?: unknown }).lastError = { message: 'boom' };
       cb(undefined);
       (chrome.runtime as { lastError?: unknown }).lastError = undefined;
@@ -235,7 +235,7 @@ describe('App Component', () => {
   it('persists the Bubble Corner + Panel Position dropdowns, keeping the drag-only offsets', async () => {
     // Stored state carries a dragged button offset (x/y) and a freeform panel
     // point — neither has a Settings control, so both must survive a form save.
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) =>
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) =>
       cb({ settings: { bubblePosition: { corner: 'bottom-right', x: 99, y: 88 }, bubblePanelPoint: { x: 77, y: 66 } } }));
     render(<App collect={async () => [image({})]} />);
     await screen.findByText('Filters');
@@ -249,7 +249,7 @@ describe('App Component', () => {
     // The popup sends a patch with the form-owned fields but WITHOUT the drag-only
     // ones (bubblePosition.x/y, bubblePanelPoint) — the background's serialized
     // merge preserves those from storage, so a concurrent bubble drag isn't lost.
-    const call = (chrome.runtime.sendMessage as jest.Mock).mock.calls.find((c) => c[0]?.type === 'SET_SETTINGS');
+    const call = (chrome.runtime.sendMessage as Mock).mock.calls.find((c) => c[0]?.type === 'SET_SETTINGS');
     expect(call?.[0].patch).toEqual(expect.objectContaining({
       bubbleEnabled: true,
       bubblePosition: { corner: 'top-left' },
@@ -260,9 +260,9 @@ describe('App Component', () => {
   });
 
   it('does not clobber a bubble resize made while the popup is open', async () => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) =>
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) =>
       cb({ settings: { bubbleEnabled: true, bubbleWidth: 440, bubbleHeight: 560 } }));
-    const addListener = chrome.storage.onChanged.addListener as jest.Mock;
+    const addListener = chrome.storage.onChanged.addListener as Mock;
     const before = addListener.mock.calls.length;
     render(<App collect={async () => [image({})]} />);
     await screen.findByText('Filters');
@@ -280,7 +280,7 @@ describe('App Component', () => {
     fireEvent.click(screen.getByTitle('Settings'));
     fireEvent.click(screen.getByRole('switch', { name: /show image count/i }));
     fireEvent.click(screen.getByText('Save'));
-    const call = (chrome.runtime.sendMessage as jest.Mock).mock.calls.find((c) => c[0]?.type === 'SET_SETTINGS');
+    const call = (chrome.runtime.sendMessage as Mock).mock.calls.find((c) => c[0]?.type === 'SET_SETTINGS');
     expect(call?.[0].patch).toEqual(expect.objectContaining({ bubbleWidth: 600, bubbleHeight: 700 }));
   });
 
@@ -359,7 +359,7 @@ describe('App Component', () => {
   });
 
   it('live-removes excluded sources from the grid on a storage change', async () => {
-    const matchersMock = excludedMatchers as jest.Mock;
+    const matchersMock = excludedMatchers as Mock;
     matchersMock.mockResolvedValueOnce({ urls: new SrcKeySet(), hosts: new Set() }); // initial load: nothing excluded yet
 
     const { container } = render(
@@ -385,7 +385,7 @@ describe('App Component', () => {
     // call is this render's — pick that one rather than every accumulated
     // call across the whole suite (which would re-consume the queued
     // mockResolvedValueOnce on a stale, already-unmounted listener).
-    const addListenerMock = chrome.storage.onChanged.addListener as jest.Mock;
+    const addListenerMock = chrome.storage.onChanged.addListener as Mock;
     const excludedListener = addListenerMock.mock.calls[addListenerMock.mock.calls.length - 1][0];
     await act(async () => {
       excludedListener({ [EXCLUDED_KEY]: { newValue: [] } }, 'local');
@@ -398,7 +398,7 @@ describe('App Component', () => {
   });
 
   it('shows a pending Twitter video (but never resolves it) when resolveOriginals is off', async () => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: false } }));
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: false } }));
 
     const { container } = render(
       <App
@@ -419,8 +419,8 @@ describe('App Component', () => {
   });
 
   it('"Get all videos" resolves every pending video in one batch and makes them downloadable', async () => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: false } }));
-    const resolveMock = requestResolveOriginals as jest.Mock;
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: false } }));
+    const resolveMock = requestResolveOriginals as Mock;
     resolveMock.mockClear(); // shared across tests; reset call count without touching the default impl
     resolveMock.mockResolvedValueOnce({
       'poster1.jpg': { url: 'https://video.twimg.com/a.mp4' },
@@ -457,8 +457,8 @@ describe('App Component', () => {
   });
 
   it('includes the source page in the download message', async () => {
-    (chrome.tabs.query as jest.Mock).mockResolvedValue([{ url: 'https://page', title: 'Pg' }]);
-    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((_m, cb) =>
+    (chrome.tabs.query as Mock).mockResolvedValue([{ url: 'https://page', title: 'Pg' }]);
+    (chrome.runtime.sendMessage as Mock).mockImplementation((_m, cb) =>
       cb({ status: 'success', message: 'Downloaded 1 file.' }),
     );
     render(<App collect={async () => [image({})]} />);
@@ -483,7 +483,7 @@ describe('App Component', () => {
     // so the setting only takes effect starting with the next scan — trigger
     // a rescan (as a real user would after changing this option) to exercise
     // the gate with the loaded `resolveOriginals: true`.
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: true } }));
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: true } }));
 
     const { container } = render(
       <App
@@ -514,9 +514,9 @@ describe('App Component', () => {
     // Regression: a pending video must not flicker in and then be dropped when
     // resolution returns nothing — it stays shown (as a pending poster, still
     // excluded from downloads), leaving the rest of the grid intact.
-    const resolveMock = requestResolveOriginals as jest.Mock;
+    const resolveMock = requestResolveOriginals as Mock;
     resolveMock.mockResolvedValue({}); // nothing resolves for this test
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: true } }));
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: true } }));
 
     const { container } = render(
       <App
@@ -559,7 +559,7 @@ describe('App Component', () => {
   });
 
   it('fetches a single video on demand even when resolveOriginals is off', async () => {
-    (requestResolveOriginals as jest.Mock).mockResolvedValueOnce({ 'poster.jpg': { url: 'https://video.twimg.com/hi.mp4' } });
+    (requestResolveOriginals as Mock).mockResolvedValueOnce({ 'poster.jpg': { url: 'https://video.twimg.com/hi.mp4' } });
     render(<App collect={async () => [pendingVideo]} />);
     fireEvent.click(await screen.findByTitle('Get video'));
     await waitFor(() =>
@@ -570,15 +570,15 @@ describe('App Component', () => {
   });
 
   it('marks a video failed when resolution returns nothing', async () => {
-    (requestResolveOriginals as jest.Mock).mockResolvedValueOnce({});
+    (requestResolveOriginals as Mock).mockResolvedValueOnce({});
     render(<App collect={async () => [pendingVideo]} />);
     fireEvent.click(await screen.findByTitle('Get video'));
     expect(await screen.findByText(/couldn't fetch/i)).toBeInTheDocument();
   });
 
   it('captures an HLS stream via the background and shows the returned status', async () => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { captureHlsStreams: true } }));
-    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((msg, cb) => {
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { captureHlsStreams: true } }));
+    (chrome.runtime.sendMessage as Mock).mockImplementation((msg, cb) => {
       if (msg?.type === 'CAPTURE_STREAM' && cb) cb({ status: 'Captured clip.mp4 — 8 segments (video + audio).' });
     });
 
@@ -605,7 +605,7 @@ describe('App Component', () => {
     // (e.g. minimumImageSize) would revert the just-resolved video back to a
     // pending tile. handleFetchVideo now mirrors the swap into rawImagesRef
     // too, so the upgrade survives the re-filter below.
-    (requestResolveOriginals as jest.Mock).mockResolvedValueOnce({ 'poster.jpg': { url: 'https://video.twimg.com/hi.mp4' } });
+    (requestResolveOriginals as Mock).mockResolvedValueOnce({ 'poster.jpg': { url: 'https://video.twimg.com/hi.mp4' } });
     render(<App collect={async () => [pendingVideo]} />);
 
     fireEvent.click(await screen.findByTitle('Get video'));
@@ -697,17 +697,17 @@ describe('App Component', () => {
       }),
     );
     expect(
-      (chrome.runtime.sendMessage as jest.Mock).mock.calls.filter((c) => c[0]?.type === 'ADD_EXCLUDED'),
+      (chrome.runtime.sendMessage as Mock).mock.calls.filter((c) => c[0]?.type === 'ADD_EXCLUDED'),
     ).toHaveLength(2);
   });
 
   // ── Convert-on-download ────────────────────────────────────────────────────
   it('converts raster images to PNG and passes svg/video through untouched', async () => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) =>
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) =>
       cb({ settings: { convertImagesTo: 'png' } }));
-    (convertImage as jest.Mock).mockResolvedValue({ bytes: new Uint8Array([1, 2, 3]), ext: 'png', mime: 'image/png' });
-    global.fetch = jest.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['x']) }) as unknown as typeof fetch;
-    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((msg, cb) => { if (cb) cb({ status: 'success', message: 'ok' }); });
+    (convertImage as Mock).mockResolvedValue({ bytes: new Uint8Array([1, 2, 3]), ext: 'png', mime: 'image/png' });
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['x']) }) as unknown as typeof fetch;
+    (chrome.runtime.sendMessage as Mock).mockImplementation((msg, cb) => { if (cb) cb({ status: 'success', message: 'ok' }); });
 
     render(
       <App
@@ -741,10 +741,10 @@ describe('App Component', () => {
   });
 
   it('converts to JPEG when the target format is jpeg', async () => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) =>
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) =>
       cb({ settings: { convertImagesTo: 'jpeg' } }));
-    (convertImage as jest.Mock).mockResolvedValue({ bytes: new Uint8Array([9]), ext: 'jpg', mime: 'image/jpeg' });
-    global.fetch = jest.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['x']) }) as unknown as typeof fetch;
+    (convertImage as Mock).mockResolvedValue({ bytes: new Uint8Array([9]), ext: 'jpg', mime: 'image/jpeg' });
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['x']) }) as unknown as typeof fetch;
 
     render(<App collect={async () => [image({ src: 'shot.png', type: 'png', kind: 'image' })]} />);
     await screen.findByText('Filters');
@@ -760,10 +760,10 @@ describe('App Component', () => {
   });
 
   it('falls back to the original file when a per-item convert fails', async () => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) =>
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) =>
       cb({ settings: { convertImagesTo: 'png' } }));
-    (convertImage as jest.Mock).mockResolvedValue(null); // decode/encode failure
-    global.fetch = jest.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['x']) }) as unknown as typeof fetch;
+    (convertImage as Mock).mockResolvedValue(null); // decode/encode failure
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['x']) }) as unknown as typeof fetch;
 
     render(<App collect={async () => [image({ src: 'broken.jpg', type: 'jpeg', kind: 'image' })]} />);
     await screen.findByText('Filters');
@@ -781,7 +781,7 @@ describe('App Component', () => {
     );
     // …and no DOWNLOAD_BYTES was ever sent for it.
     expect(
-      (chrome.runtime.sendMessage as jest.Mock).mock.calls.filter((c) => c[0]?.type === 'DOWNLOAD_BYTES'),
+      (chrome.runtime.sendMessage as Mock).mock.calls.filter((c) => c[0]?.type === 'DOWNLOAD_BYTES'),
     ).toHaveLength(0);
     expect(await screen.findByText(/couldn't convert/i)).toBeInTheDocument();
   });
@@ -793,8 +793,8 @@ describe('App Component', () => {
   };
 
   it('zips everything and dispatches DOWNLOAD_ZIP when every fetch succeeds', async () => {
-    (buildZip as jest.Mock).mockResolvedValue({ bytes: new Uint8Array([1, 2, 3]), ok: 2, failed: [], results: [] });
-    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((msg, cb) => {
+    (buildZip as Mock).mockResolvedValue({ bytes: new Uint8Array([1, 2, 3]), ok: 2, failed: [], results: [] });
+    (chrome.runtime.sendMessage as Mock).mockImplementation((msg, cb) => {
       if (msg?.type === 'DOWNLOAD_ZIP' && cb) cb({ status: 'success', message: 'Saved ZIP archive.' });
     });
     render(<App collect={async () => [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })]} />);
@@ -818,11 +818,11 @@ describe('App Component', () => {
   });
 
   it('falls back to individual downloads when the ZIP fetched nothing (ok === 0)', async () => {
-    (buildZip as jest.Mock).mockResolvedValue({
+    (buildZip as Mock).mockResolvedValue({
       bytes: new Uint8Array(0), ok: 0,
       failed: [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })], results: [],
     });
-    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((msg, cb) => {
+    (chrome.runtime.sendMessage as Mock).mockImplementation((msg, cb) => {
       if (msg?.type === 'DOWNLOAD_IMAGES' && cb) cb({ status: 'success', message: 'Downloaded 2 files.' });
     });
     render(<App collect={async () => [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })]} />);
@@ -839,20 +839,20 @@ describe('App Component', () => {
     );
     // …and never dispatches a DOWNLOAD_ZIP for an empty archive.
     expect(
-      (chrome.runtime.sendMessage as jest.Mock).mock.calls.filter((c) => c[0]?.type === 'DOWNLOAD_ZIP'),
+      (chrome.runtime.sendMessage as Mock).mock.calls.filter((c) => c[0]?.type === 'DOWNLOAD_ZIP'),
     ).toHaveLength(0);
   });
 
   it('the ZIP fallback archives originals — convert-on does not convert the un-fetchable items', async () => {
     // Convert-on-download applies only to "As separate files". The ZIP action
     // archives originals, so even its all-fetch-failed fallback must NOT convert.
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) =>
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) =>
       cb({ settings: { convertImagesTo: 'png' } }));
-    (buildZip as jest.Mock).mockResolvedValue({
+    (buildZip as Mock).mockResolvedValue({
       bytes: new Uint8Array(0), ok: 0,
       failed: [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })], results: [],
     });
-    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((msg, cb) => {
+    (chrome.runtime.sendMessage as Mock).mockImplementation((msg, cb) => {
       if (msg?.type === 'DOWNLOAD_IMAGES' && cb) cb({ status: 'success', message: 'Downloaded 2 files.' });
     });
     render(<App collect={async () => [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })]} />);
@@ -870,16 +870,16 @@ describe('App Component', () => {
     // …and never converts: no convertImage call, no DOWNLOAD_BYTES dispatched.
     expect(convertImage).not.toHaveBeenCalled();
     expect(
-      (chrome.runtime.sendMessage as jest.Mock).mock.calls.filter((c) => c[0]?.type === 'DOWNLOAD_BYTES'),
+      (chrome.runtime.sendMessage as Mock).mock.calls.filter((c) => c[0]?.type === 'DOWNLOAD_BYTES'),
     ).toHaveLength(0);
   });
 
   it('zips the fetched items and downloads the un-fetchable ones individually', async () => {
-    (buildZip as jest.Mock).mockResolvedValue({
+    (buildZip as Mock).mockResolvedValue({
       bytes: new Uint8Array([1, 2, 3]), ok: 1,
       failed: [image({ src: 'b.jpg' })], results: [],
     });
-    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((msg, cb) => {
+    (chrome.runtime.sendMessage as Mock).mockImplementation((msg, cb) => {
       if (msg?.type === 'DOWNLOAD_ZIP' && cb) cb({ status: 'success', message: 'Saved 1 file to ZIP.' });
     });
     render(<App collect={async () => [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })]} />);
@@ -905,7 +905,7 @@ describe('App Component', () => {
 
   // ── Copy / export links ────────────────────────────────────────────────────
   it('copies the shown media links to the clipboard', async () => {
-    const writeText = jest.fn().mockResolvedValue(undefined);
+    const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     render(<App collect={async () => [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })]} />);
     await screen.findByText('Filters');
@@ -943,8 +943,8 @@ describe('App Component', () => {
   });
 
   it('zips only the ticked set when a selection is active', async () => {
-    (buildZip as jest.Mock).mockResolvedValue({ bytes: new Uint8Array([1]), ok: 1, failed: [], results: [] });
-    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((msg, cb) => {
+    (buildZip as Mock).mockResolvedValue({ bytes: new Uint8Array([1]), ok: 1, failed: [], results: [] });
+    (chrome.runtime.sendMessage as Mock).mockImplementation((msg, cb) => {
       if (msg?.type === 'DOWNLOAD_ZIP' && cb) cb({ status: 'success', message: 'Saved ZIP archive.' });
     });
     render(<App collect={async () => [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })]} />);
@@ -1014,7 +1014,7 @@ describe('App Component', () => {
   });
 
   it('keeps a Clear affordance beside a sticky status line while a selection is live', async () => {
-    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((msg, cb) => {
+    (chrome.runtime.sendMessage as Mock).mockImplementation((msg, cb) => {
       if (msg?.type === 'DOWNLOAD_IMAGES' && cb) cb({ status: 'success', message: 'Downloaded 1 file.' });
     });
     render(<App collect={async () => [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })]} />);
@@ -1030,7 +1030,7 @@ describe('App Component', () => {
 
   // ── Deep scan failure ──────────────────────────────────────────────────────
   it('surfaces a deep scan failure as a status message', async () => {
-    (deepScanActiveTab as jest.Mock).mockRejectedValueOnce(new Error('scan crashed'));
+    (deepScanActiveTab as Mock).mockRejectedValueOnce(new Error('scan crashed'));
     render(<App collect={async () => [image({ src: 'a.jpg' })]} />);
     await screen.findByText('Filters');
 
@@ -1041,7 +1041,7 @@ describe('App Component', () => {
 
   // ── Deep-scan cap notices ──────────────────────────────────────────────────
   it('notes remaining media when a deep scan stops at the time limit', async () => {
-    (deepScanActiveTab as jest.Mock).mockImplementationOnce(async (onProgress) => {
+    (deepScanActiveTab as Mock).mockImplementationOnce(async (onProgress) => {
       onProgress({ type: 'DEEP_SCAN_PROGRESS', found: 1, scrolls: 1, elapsedMs: 100, reason: 'max-time' });
       return [image({ src: 'https://cdn.com/deep.jpg' })];
     });
@@ -1054,7 +1054,7 @@ describe('App Component', () => {
   });
 
   it('notes remaining media when a deep scan stops at the scroll limit', async () => {
-    (deepScanActiveTab as jest.Mock).mockImplementationOnce(async (onProgress) => {
+    (deepScanActiveTab as Mock).mockImplementationOnce(async (onProgress) => {
       onProgress({ type: 'DEEP_SCAN_PROGRESS', found: 1, scrolls: 40, elapsedMs: 100, reason: 'max-scrolls' });
       return [image({ src: 'https://cdn.com/deep.jpg' })];
     });
@@ -1071,10 +1071,10 @@ describe('App Component', () => {
     // The on-disk set is asked for over the background (GET_DOWNLOADED_SRCS); it
     // starts empty and gains the item after the "download" writes a history entry.
     let disk: string[] = [];
-    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((msg, cb) => {
+    (chrome.runtime.sendMessage as Mock).mockImplementation((msg, cb) => {
       if (msg?.type === 'GET_DOWNLOADED_SRCS' && cb) cb(disk);
     });
-    const addListener = chrome.storage.onChanged.addListener as jest.Mock;
+    const addListener = chrome.storage.onChanged.addListener as Mock;
     const before = addListener.mock.calls.length;
 
     render(<App collect={async () => [image({ src: 'https://c/a.jpg' })]} />);
@@ -1096,7 +1096,7 @@ describe('App Component', () => {
   });
 
   it('reflects a favourite added elsewhere via a storage change (badge appears)', async () => {
-    const addListener = chrome.storage.onChanged.addListener as jest.Mock;
+    const addListener = chrome.storage.onChanged.addListener as Mock;
     const before = addListener.mock.calls.length;
 
     render(<App collect={async () => [image({ src: 'https://c/fav.jpg' })]} />);
@@ -1115,7 +1115,7 @@ describe('App Component', () => {
   });
 
   it('removes the favourite badge when the stored favourites are cleared', async () => {
-    const addListener = chrome.storage.onChanged.addListener as jest.Mock;
+    const addListener = chrome.storage.onChanged.addListener as Mock;
     const before = addListener.mock.calls.length;
     render(<App collect={async () => [image({ src: 'https://c/fav.jpg' })]} />);
     await screen.findByText('Filters');
@@ -1154,8 +1154,8 @@ describe('App Component', () => {
 
   // ── Convert-on-download: passthrough-only ──────────────────────────────────
   it('reports a plain send when conversion is on but nothing is convertible', async () => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { convertImagesTo: 'png' } }));
-    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((_m, cb) => { if (cb) cb({ status: 'success', message: 'ok' }); });
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { convertImagesTo: 'png' } }));
+    (chrome.runtime.sendMessage as Mock).mockImplementation((_m, cb) => { if (cb) cb({ status: 'success', message: 'ok' }); });
 
     render(
       <App
@@ -1187,15 +1187,15 @@ describe('App Component', () => {
 
   // ── ZIP: the popup-supplied fetch + progress relay ─────────────────────────
   it('drives the ZIP builder with a working fetch and a live progress relay', async () => {
-    const fetchSpy = jest.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['x']) });
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['x']) });
     global.fetch = fetchSpy as unknown as typeof fetch;
-    (buildZip as jest.Mock).mockImplementation(async (_imgs, _s, _url, opts) => {
+    (buildZip as Mock).mockImplementation(async (_imgs, _s, _url, opts) => {
       // Exercise exactly the fetch + onProgress the popup wires into buildZip.
       await opts.fetch('https://c/a.jpg');
       opts.onProgress(1, 2);
       return { bytes: new Uint8Array([1]), ok: 1, failed: [], results: [] };
     });
-    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((msg, cb) => {
+    (chrome.runtime.sendMessage as Mock).mockImplementation((msg, cb) => {
       if (msg?.type === 'DOWNLOAD_ZIP' && cb) cb({ status: 'success', message: 'Saved ZIP archive.' });
     });
 
@@ -1211,8 +1211,8 @@ describe('App Component', () => {
   });
 
   it('surfaces a ZIP save error returned by the background', async () => {
-    (buildZip as jest.Mock).mockResolvedValue({ bytes: new Uint8Array([1]), ok: 2, failed: [], results: [] });
-    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((msg, cb) => {
+    (buildZip as Mock).mockResolvedValue({ bytes: new Uint8Array([1]), ok: 2, failed: [], results: [] });
+    (chrome.runtime.sendMessage as Mock).mockImplementation((msg, cb) => {
       if (msg?.type === 'DOWNLOAD_ZIP' && cb) {
         (chrome.runtime as { lastError?: unknown }).lastError = { message: 'disk full' };
         cb(undefined);
@@ -1245,7 +1245,7 @@ describe('App Component', () => {
 
   // ── Copy / export links for the SELECTED set ───────────────────────────────
   it('copies only the selected media links', async () => {
-    const writeText = jest.fn().mockResolvedValue(undefined);
+    const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     render(<App collect={async () => [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })]} />);
     await screen.findByText('Filters');
@@ -1276,12 +1276,12 @@ describe('App Component', () => {
 
   // ── HLS capture progress relay ─────────────────────────────────────────────
   it('relays HLS capture progress into the footer while the stream is captured', async () => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { captureHlsStreams: true } }));
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { captureHlsStreams: true } }));
     // Intercept CAPTURE_STREAM: keep its runId + callback so the test can stream a
     // progress event first, then complete the capture.
     let captureCb: ((r: { status: string }) => void) | undefined;
     let runId: string | undefined;
-    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((msg, cb) => {
+    (chrome.runtime.sendMessage as Mock).mockImplementation((msg, cb) => {
       if (msg?.type === 'CAPTURE_STREAM') { runId = msg.runId; captureCb = cb; }
     });
 
@@ -1296,7 +1296,7 @@ describe('App Component', () => {
 
     // requestCaptureStream has sent CAPTURE_STREAM and registered its progress listener.
     await waitFor(() => expect(runId).toBeDefined());
-    const onMessageCalls = (chrome.runtime.onMessage.addListener as jest.Mock).mock.calls;
+    const onMessageCalls = (chrome.runtime.onMessage.addListener as Mock).mock.calls;
     const progressListener = onMessageCalls[onMessageCalls.length - 1][0];
 
     // The background broadcasts progress for this run → the footer shows 3/8.
@@ -1324,7 +1324,7 @@ describe('App Component', () => {
   });
 
   it('shows "deep scan failed" when the scan rejects with a non-Error', async () => {
-    (deepScanActiveTab as jest.Mock).mockRejectedValueOnce('nope-string');
+    (deepScanActiveTab as Mock).mockRejectedValueOnce('nope-string');
     render(<App collect={async () => [image({ src: 'a.jpg' })]} />);
     await screen.findByText('Filters');
     fireEvent.click(screen.getByRole('button', { name: /deep scan/i }));
@@ -1333,7 +1333,7 @@ describe('App Component', () => {
 
   // ── Storage listeners ignore irrelevant changes ────────────────────────────
   it('ignores storage changes for the wrong area or key', async () => {
-    const addListener = chrome.storage.onChanged.addListener as jest.Mock;
+    const addListener = chrome.storage.onChanged.addListener as Mock;
     const before = addListener.mock.calls.length;
     render(<App collect={async () => [image({ src: 'https://c/a.jpg' })]} />);
     await screen.findByText('Filters');
@@ -1354,9 +1354,9 @@ describe('App Component', () => {
 
   // ── HLS-gated single-video resolution ──────────────────────────────────────
   it('leaves a video pending (not failed) when it resolves to an HLS stream but capture is off', async () => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) =>
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) =>
       cb({ settings: { resolveOriginals: false, captureHlsStreams: false } }));
-    (requestResolveOriginals as jest.Mock).mockResolvedValueOnce({ 'poster.jpg': { url: 'https://x/s.m3u8', hls: true } });
+    (requestResolveOriginals as Mock).mockResolvedValueOnce({ 'poster.jpg': { url: 'https://x/s.m3u8', hls: true } });
 
     render(<App collect={async () => [pendingVideo]} />);
     fireEvent.click(await screen.findByTitle('Get video'));
@@ -1388,13 +1388,13 @@ describe('App Component', () => {
 
   // ── Bubble surface uses the current page as the download source ─────────────
   it('uses the current page URL as the download source in the bubble surface', async () => {
-    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((_m, cb) => {
+    (chrome.runtime.sendMessage as Mock).mockImplementation((_m, cb) => {
       if (cb) cb({ status: 'success', message: 'Downloaded 1 file.' });
     });
     render(<App surface="bubble" collect={async () => [image({ src: 'a.jpg' })]} />);
     await screen.findByText('Filters');
 
-    (chrome.tabs.query as jest.Mock).mockClear(); // shared mock accumulates across the suite
+    (chrome.tabs.query as Mock).mockClear(); // shared mock accumulates across the suite
     fireEvent.click(screen.getByRole('button', { name: /download 1/i }));
 
     // In the bubble, the source is location.href — chrome.tabs is never queried.
@@ -1409,7 +1409,7 @@ describe('App Component', () => {
 
   // ── Download error with no message → "unknown error" ───────────────────────
   it('falls back to "unknown error" when a download error carries no message', async () => {
-    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((_m, cb) => {
+    (chrome.runtime.sendMessage as Mock).mockImplementation((_m, cb) => {
       (chrome.runtime as { lastError?: unknown }).lastError = {}; // present but message-less
       cb(undefined);
       (chrome.runtime as { lastError?: unknown }).lastError = undefined;
@@ -1423,8 +1423,8 @@ describe('App Component', () => {
 
   // ── "Get all videos": partial failure ──────────────────────────────────────
   it('flags only the videos that fail during a batch "Get all videos"', async () => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: false } }));
-    const resolveMock = requestResolveOriginals as jest.Mock;
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: false } }));
+    const resolveMock = requestResolveOriginals as Mock;
     resolveMock.mockResolvedValueOnce({ 'poster1.jpg': { url: 'https://video.twimg.com/a.mp4' } }); // poster2 unresolved
 
     render(
@@ -1446,8 +1446,8 @@ describe('App Component', () => {
 
   // ── Convert: source fetch fails → original saved ───────────────────────────
   it('downloads the original when the source fetch is not ok during conversion', async () => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { convertImagesTo: 'png' } }));
-    global.fetch = jest.fn().mockResolvedValue({ ok: false }) as unknown as typeof fetch;
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { convertImagesTo: 'png' } }));
+    global.fetch = vi.fn().mockResolvedValue({ ok: false }) as unknown as typeof fetch;
 
     render(<App collect={async () => [image({ src: 'x.jpg', type: 'jpeg', kind: 'image' })]} />);
     await screen.findByText('Filters');
@@ -1466,7 +1466,7 @@ describe('App Component', () => {
 
   // ── Favourite entry carries poster thumbnail + page title ──────────────────
   it('records a favourite with its poster thumbnail and the source page title', async () => {
-    (chrome.tabs.query as jest.Mock).mockResolvedValue([{ url: 'https://pg', title: 'My Page' }]);
+    (chrome.tabs.query as Mock).mockResolvedValue([{ url: 'https://pg', title: 'My Page' }]);
     render(<App collect={async () => [image({ src: 'v.mp4', kind: 'video', poster: 'https://c/p.jpg' })]} />);
     await screen.findByText('Filters');
 
@@ -1484,7 +1484,7 @@ describe('App Component', () => {
 
   // ── Size enrichment leaves already-known sizes untouched ───────────────────
   it('enriches only the remote image lacking a size, leaving the known one intact', async () => {
-    global.fetch = jest.fn().mockResolvedValue({ headers: { get: () => '4096' } }) as unknown as typeof fetch;
+    global.fetch = vi.fn().mockResolvedValue({ headers: { get: () => '4096' } }) as unknown as typeof fetch;
     render(<App collect={async () => [image({ src: 'known.jpg', fileSize: 1024 }), image({ src: 'remote.jpg', fileSize: 0 })]} />);
     await screen.findByText('Filters');
 

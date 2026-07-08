@@ -1,6 +1,7 @@
-jest.mock('@/extension/shared/collection/deepScan', () => {
-  const actual = jest.requireActual('@/extension/shared/collection/deepScan');
-  return { __esModule: true, ...actual, runDeepScan: jest.fn(() => Promise.resolve([])) };
+import type { Mock } from 'vitest';
+vi.mock('@/extension/shared/collection/deepScan', async () => {
+  const actual = await vi.importActual<typeof import('@/extension/shared/collection/deepScan')>('@/extension/shared/collection/deepScan');
+  return { __esModule: true, ...actual, runDeepScan: vi.fn(() => Promise.resolve([])) };
 });
 
 import { buildDeepScanDeps, nestedScrollables, startDeepScan, findLoadMoreButtons } from '@/extension/content/deepScanRunner';
@@ -60,7 +61,7 @@ describe('buildDeepScanDeps', () => {
       subtree?: boolean;
       attributeFilter?: string[];
     }
-    const observeSpy = jest.fn();
+    const observeSpy = vi.fn();
     const OrigMO = global.MutationObserver;
     class StubMO {
       observe = observeSpy;
@@ -88,7 +89,7 @@ describe('buildDeepScanDeps', () => {
 });
 
 describe('startDeepScan config', () => {
-  const mockRun = runDeepScan as jest.Mock;
+  const mockRun = runDeepScan as Mock;
   beforeEach(() => mockRun.mockClear());
 
   it('forwards only the caps that are set, keeping defaults for the rest', async () => {
@@ -140,7 +141,7 @@ describe('scrollStep load-more clicking', () => {
 
   it('clicks load-more buttons only when opted in', () => {
     document.body.innerHTML = '<button id="lm">Load more</button>';
-    const clicks = jest.fn();
+    const clicks = vi.fn();
     document.getElementById('lm')!.addEventListener('click', clicks);
     buildDeepScanDeps(() => {}, { clickLoadMore: true }).deps.scrollStep();
     expect(clicks).toHaveBeenCalledTimes(1);
@@ -148,7 +149,7 @@ describe('scrollStep load-more clicking', () => {
 
   it('does not click when the option is off (default)', () => {
     document.body.innerHTML = '<button id="lm">Load more</button>';
-    const clicks = jest.fn();
+    const clicks = vi.fn();
     document.getElementById('lm')!.addEventListener('click', clicks);
     buildDeepScanDeps(() => {}).deps.scrollStep();
     expect(clicks).not.toHaveBeenCalled();

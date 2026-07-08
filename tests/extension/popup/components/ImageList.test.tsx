@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -13,14 +14,14 @@ const mockImages: ImageInfo[] = [
 
 describe('ImageList Component', () => {
   it('renders images correctly', () => {
-    render(<ImageList images={mockImages} onImageDownload={jest.fn()} />);
+    render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
     expect(screen.getAllByRole('img')).toHaveLength(2);
     expect(screen.getByAltText('Test Image 1')).toBeInTheDocument();
     expect(screen.getByAltText('Test Image 2')).toBeInTheDocument();
   });
 
   it('calls onImageDownload when download button is clicked', () => {
-    const mockDownload = jest.fn();
+    const mockDownload = vi.fn();
     render(<ImageList images={mockImages} onImageDownload={mockDownload} />);
     const downloadButtons = screen.getAllByTitle('Download');
     fireEvent.click(downloadButtons[0]);
@@ -28,14 +29,14 @@ describe('ImageList Component', () => {
   });
 
   it('opens image details modal when view button is clicked', () => {
-    render(<ImageList images={mockImages} onImageDownload={jest.fn()} />);
+    render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
     const viewButtons = screen.getAllByTitle('View Details');
     fireEvent.click(viewButtons[0]);
     expect(screen.getByText('Preview')).toBeInTheDocument();
   });
 
   it('downloads from within the preview modal', () => {
-    const onDownload = jest.fn();
+    const onDownload = vi.fn();
     render(<ImageList images={mockImages} onImageDownload={onDownload} />);
     fireEvent.click(screen.getAllByTitle('View Details')[0]);
     // The modal's download button is the only one with visible text.
@@ -44,7 +45,7 @@ describe('ImageList Component', () => {
   });
 
   it('keeps the previewed item when the list reorders underneath it (tracks by src)', () => {
-    const onDownload = jest.fn();
+    const onDownload = vi.fn();
     const { rerender } = render(<ImageList images={mockImages} onImageDownload={onDownload} />);
     fireEvent.click(screen.getAllByTitle('View Details')[0]); // preview mockImages[0]
     // The list re-sorts async (e.g. streamed sizes): mockImages[0] moves to the end.
@@ -55,11 +56,11 @@ describe('ImageList Component', () => {
   });
 
   it('closes the preview when the previewed item drops out of the list', () => {
-    const { rerender } = render(<ImageList images={mockImages} onImageDownload={jest.fn()} />);
+    const { rerender } = render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
     fireEvent.click(screen.getAllByTitle('View Details')[0]);
     expect(screen.getByText('Preview')).toBeInTheDocument();
     // A re-filter removes mockImages[0]; the modal must not linger on a gone item.
-    rerender(<ImageList images={[mockImages[1]]} onImageDownload={jest.fn()} />);
+    rerender(<ImageList images={[mockImages[1]]} onImageDownload={vi.fn()} />);
     expect(screen.queryByText('Preview')).not.toBeInTheDocument();
   });
 
@@ -68,8 +69,8 @@ describe('ImageList Component', () => {
       src: 'poster.jpg', alt: 'v', width: 0, height: 0, type: 'mp4', fileSize: 0, isBase64: false,
       kind: 'video', unresolvedVideo: true, poster: 'poster.jpg', resolveHint: { platform: 'twitter', id: '9' },
     };
-    const onFetchVideo = jest.fn();
-    const { rerender } = render(<ImageList images={[pending]} onImageDownload={jest.fn()} onFetchVideo={onFetchVideo} />);
+    const onFetchVideo = vi.fn();
+    const { rerender } = render(<ImageList images={[pending]} onImageDownload={vi.fn()} onFetchVideo={onFetchVideo} />);
     fireEvent.click(screen.getByTitle('View Details'));
 
     // Idle: the modal offers "Get video" and wires the per-item fetch.
@@ -78,7 +79,7 @@ describe('ImageList Component', () => {
 
     // In flight (e.g. during a bulk "Get all videos"): the modal shows Fetching….
     rerender(
-      <ImageList images={[pending]} onImageDownload={jest.fn()} onFetchVideo={onFetchVideo} fetchingSrcs={new Set(['poster.jpg'])} />,
+      <ImageList images={[pending]} onImageDownload={vi.fn()} onFetchVideo={onFetchVideo} fetchingSrcs={new Set(['poster.jpg'])} />,
     );
     expect(screen.getByText('Fetching…')).toBeInTheDocument();
     expect(screen.queryByText('Get video')).not.toBeInTheDocument();
@@ -90,7 +91,7 @@ describe('ImageList Component', () => {
       type: 'mp4', fileSize: 0, isBase64: false, kind: 'video', unresolvedVideo: true,
       poster: 'https://scontent-del2-3.cdninstagram.com/RL_cover_n.jpg',
     };
-    render(<ImageList images={[reel]} onImageDownload={jest.fn()} />);
+    render(<ImageList images={[reel]} onImageDownload={vi.fn()} />);
     expect(screen.getByText('play to fetch')).toBeInTheDocument();
     expect(screen.queryByText("can't fetch")).not.toBeInTheDocument();
     // No download / Get-video button on a pending reel (no resolveHint).
@@ -103,13 +104,13 @@ describe('ImageList Component', () => {
       src: 'https://pbs.twimg.com/x.jpg', alt: '', width: 0, height: 0, type: 'mp4', fileSize: 0,
       isBase64: false, kind: 'video', unresolvedVideo: true, poster: 'https://pbs.twimg.com/x.jpg',
     };
-    render(<ImageList images={[gif]} onImageDownload={jest.fn()} />);
+    render(<ImageList images={[gif]} onImageDownload={vi.fn()} />);
     expect(screen.getByText("can't fetch")).toBeInTheDocument();
     expect(screen.queryByText('play to fetch')).not.toBeInTheDocument();
   });
 
   it('closes the preview modal', () => {
-    render(<ImageList images={mockImages} onImageDownload={jest.fn()} />);
+    render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
     fireEvent.click(screen.getAllByTitle('View Details')[0]);
     expect(screen.getByText('Preview')).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Close'));
@@ -117,7 +118,7 @@ describe('ImageList Component', () => {
   });
 
   it('opens the preview as a labelled modal dialog and closes it on Escape', async () => {
-    render(<ImageList images={mockImages} onImageDownload={jest.fn()} />);
+    render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
     await userEvent.click(screen.getAllByTitle('View Details')[0]);
     expect(screen.getByRole('dialog', { name: /preview/i })).toHaveAttribute('aria-modal', 'true');
     await userEvent.keyboard('{Escape}');
@@ -125,7 +126,7 @@ describe('ImageList Component', () => {
   });
 
   it('renders empty grid without crashing', () => {
-    render(<ImageList images={[]} onImageDownload={jest.fn()} />);
+    render(<ImageList images={[]} onImageDownload={vi.fn()} />);
     expect(screen.queryAllByRole('img')).toHaveLength(0);
   });
 
@@ -169,7 +170,7 @@ describe('ImageList Component', () => {
     };
 
     it('renders a favourite toggle and calls onToggleFavourite', async () => {
-      const onToggleFavourite = jest.fn();
+      const onToggleFavourite = vi.fn();
       render(
         <ImageList images={[favImg]} onImageDownload={() => {}}
           onToggleFavourite={onToggleFavourite} favouriteSrcs={new SrcKeySet()} />,
@@ -195,37 +196,37 @@ describe('ImageList Component', () => {
     };
 
     it('renders a Get video action and calls onFetchVideo; no plain Download button', () => {
-      const onFetchVideo = jest.fn();
-      render(<ImageList images={[pendingVideo]} onImageDownload={jest.fn()} onFetchVideo={onFetchVideo} />);
+      const onFetchVideo = vi.fn();
+      render(<ImageList images={[pendingVideo]} onImageDownload={vi.fn()} onFetchVideo={onFetchVideo} />);
       fireEvent.click(screen.getByTitle('Get video'));
       expect(onFetchVideo).toHaveBeenCalledWith(pendingVideo);
       expect(screen.queryByTitle('Download')).toBeNull();
     });
 
     it('shows a failed state for a src in resolveFailedSrcs', () => {
-      render(<ImageList images={[pendingVideo]} onImageDownload={jest.fn()} onFetchVideo={jest.fn()} resolveFailedSrcs={new Set(['poster.jpg'])} />);
+      render(<ImageList images={[pendingVideo]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} resolveFailedSrcs={new Set(['poster.jpg'])} />);
       expect(screen.getByText(/couldn't fetch/i)).toBeInTheDocument();
     });
 
     it('shows a can\'t-fetch state (no button) for a pending video with no resolveHint', () => {
-      render(<ImageList images={[{ ...pendingVideo, resolveHint: undefined }]} onImageDownload={jest.fn()} onFetchVideo={jest.fn()} />);
+      render(<ImageList images={[{ ...pendingVideo, resolveHint: undefined }]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} />);
       expect(screen.queryByTitle('Get video')).toBeNull();
       expect(screen.getByText(/can't fetch/i)).toBeInTheDocument();
     });
 
     it('a resolved video (not pending) still shows a normal Download button', () => {
       const resolved: ImageInfo = { ...pendingVideo, src: 'https://video.twimg.com/hi.mp4', unresolvedVideo: false, resolveHint: undefined };
-      render(<ImageList images={[resolved]} onImageDownload={jest.fn()} onFetchVideo={jest.fn()} />);
+      render(<ImageList images={[resolved]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} />);
       expect(screen.getByTitle('Download')).toBeInTheDocument();
     });
   });
 
   describe('ImageList — selection', () => {
     it('toggles a single item, then shift-clicks to select the range to it', () => {
-      const onToggleSelect = jest.fn();
-      const onSelectRange = jest.fn();
+      const onToggleSelect = vi.fn();
+      const onSelectRange = vi.fn();
       render(
-        <ImageList images={mockImages} onImageDownload={jest.fn()} onToggleSelect={onToggleSelect} onSelectRange={onSelectRange} />,
+        <ImageList images={mockImages} onImageDownload={vi.fn()} onToggleSelect={onToggleSelect} onSelectRange={onSelectRange} />,
       );
       const boxes = screen.getAllByRole('checkbox');
       expect(boxes).toHaveLength(2);
@@ -241,15 +242,15 @@ describe('ImageList Component', () => {
 
     it('renders no selection checkbox on an HLS/DASH stream tile (captured individually)', () => {
       const hls = { src: 'https://x/live.m3u8', alt: '', width: 0, height: 0, type: 'm3u8', fileSize: 0, isBase64: false, kind: 'video' as const, hlsManifest: 'https://x/live.m3u8' };
-      render(<ImageList images={[hls]} onImageDownload={jest.fn()} onToggleSelect={jest.fn()} />);
+      render(<ImageList images={[hls]} onImageDownload={vi.fn()} onToggleSelect={vi.fn()} />);
       // The App selection guards skip hlsManifest, so an inert checkbox must not render.
       expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     });
 
     it('normalises a shift-click that runs upward from the anchor', () => {
-      const onSelectRange = jest.fn();
+      const onSelectRange = vi.fn();
       render(
-        <ImageList images={mockImages} onImageDownload={jest.fn()} onToggleSelect={jest.fn()} onSelectRange={onSelectRange} />,
+        <ImageList images={mockImages} onImageDownload={vi.fn()} onToggleSelect={vi.fn()} onSelectRange={onSelectRange} />,
       );
       const boxes = screen.getAllByRole('checkbox');
       fireEvent.click(boxes[1]); // anchor = 1
@@ -258,8 +259,8 @@ describe('ImageList Component', () => {
     });
 
     it('falls back to a single toggle when shift-clicking without a range handler', () => {
-      const onToggleSelect = jest.fn();
-      render(<ImageList images={mockImages} onImageDownload={jest.fn()} onToggleSelect={onToggleSelect} />);
+      const onToggleSelect = vi.fn();
+      render(<ImageList images={mockImages} onImageDownload={vi.fn()} onToggleSelect={onToggleSelect} />);
       const boxes = screen.getAllByRole('checkbox');
       fireEvent.click(boxes[0]);
       fireEvent.click(boxes[1], { shiftKey: true });
@@ -269,7 +270,7 @@ describe('ImageList Component', () => {
 
   describe('ImageList — modal paging + favourite', () => {
     it('pages through images with the arrow keys inside the modal', () => {
-      render(<ImageList images={mockImages} onImageDownload={jest.fn()} />);
+      render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
       fireEvent.click(screen.getAllByTitle('View Details')[0]);
       expect(screen.getByText('1 / 2')).toBeInTheDocument();
 
@@ -285,7 +286,7 @@ describe('ImageList Component', () => {
     });
 
     it('pages with the on-screen prev/next buttons', () => {
-      render(<ImageList images={mockImages} onImageDownload={jest.fn()} />);
+      render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
       fireEvent.click(screen.getAllByTitle('View Details')[0]);
       fireEvent.click(screen.getByRole('button', { name: 'Next image' }));
       expect(screen.getByText('2 / 2')).toBeInTheDocument();
@@ -294,7 +295,7 @@ describe('ImageList Component', () => {
     });
 
     it('clamps arrow paging at the last image', () => {
-      render(<ImageList images={mockImages} onImageDownload={jest.fn()} />);
+      render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
       fireEvent.click(screen.getAllByTitle('View Details')[1]); // open on the last image
       expect(screen.getByText('2 / 2')).toBeInTheDocument();
       fireEvent.keyDown(window, { key: 'ArrowRight' }); // no-op past the end
@@ -302,9 +303,9 @@ describe('ImageList Component', () => {
     });
 
     it('toggles favourite from the modal header (add and remove labels)', () => {
-      const onToggleFavourite = jest.fn();
+      const onToggleFavourite = vi.fn();
       const { rerender } = render(
-        <ImageList images={mockImages} onImageDownload={jest.fn()} onToggleFavourite={onToggleFavourite} favouriteSrcs={new SrcKeySet()} />,
+        <ImageList images={mockImages} onImageDownload={vi.fn()} onToggleFavourite={onToggleFavourite} favouriteSrcs={new SrcKeySet()} />,
       );
       fireEvent.click(screen.getAllByTitle('View Details')[0]);
       fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /add favourite/i }));
@@ -312,7 +313,7 @@ describe('ImageList Component', () => {
 
       // When already saved, the same header control reads "Remove favourite".
       rerender(
-        <ImageList images={mockImages} onImageDownload={jest.fn()} onToggleFavourite={onToggleFavourite} favouriteSrcs={SrcKeySet.from([mockImages[0].src])} />,
+        <ImageList images={mockImages} onImageDownload={vi.fn()} onToggleFavourite={onToggleFavourite} favouriteSrcs={SrcKeySet.from([mockImages[0].src])} />,
       );
       expect(within(screen.getByRole('dialog')).getByRole('button', { name: /remove favourite/i })).toBeInTheDocument();
     });
@@ -324,15 +325,15 @@ describe('ImageList Component', () => {
       type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image',
     };
 
-    const openMenu = (onExclude: jest.Mock): void => {
-      render(<ImageList images={[httpImg]} onImageDownload={jest.fn()} onExclude={onExclude} />);
+    const openMenu = (onExclude: Mock): void => {
+      render(<ImageList images={[httpImg]} onImageDownload={vi.fn()} onExclude={onExclude} />);
       fireEvent.click(screen.getByTitle('View Details'));
       fireEvent.click(screen.getByRole('button', { name: 'Exclude source' }));
       expect(screen.getByRole('menu')).toBeInTheDocument();
     };
 
     it('excludes just this image (url scope) and closes the modal', () => {
-      const onExclude = jest.fn();
+      const onExclude = vi.fn();
       openMenu(onExclude);
       fireEvent.click(screen.getByRole('menuitem', { name: 'Exclude this image' }));
       expect(onExclude).toHaveBeenCalledWith(httpImg, 'url');
@@ -340,7 +341,7 @@ describe('ImageList Component', () => {
     });
 
     it('excludes the whole host and closes the modal', () => {
-      const onExclude = jest.fn();
+      const onExclude = vi.fn();
       openMenu(onExclude);
       // The site item is a two-line label: "Exclude site" + the registrable
       // domain on a muted second line, so the accessible name is
@@ -353,14 +354,14 @@ describe('ImageList Component', () => {
     });
 
     it('closes the menu on an outside click, leaving the modal open', () => {
-      openMenu(jest.fn());
+      openMenu(vi.fn());
       fireEvent.mouseDown(document.body);
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
       expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
 
     it('closes only the exclude menu on Escape, keeping the modal open', () => {
-      openMenu(jest.fn());
+      openMenu(vi.fn());
       // Escape is handled on a capture-phase document listener that stops
       // propagation, so the dialog's own Escape-to-close never fires.
       fireEvent.keyDown(screen.getByRole('button', { name: 'Exclude source' }), { key: 'Escape' });
@@ -369,13 +370,13 @@ describe('ImageList Component', () => {
     });
 
     it('keeps the menu open on a non-Escape key', () => {
-      openMenu(jest.fn());
+      openMenu(vi.fn());
       fireEvent.keyDown(screen.getByRole('button', { name: 'Exclude source' }), { key: 'a' });
       expect(screen.getByRole('menu')).toBeInTheDocument();
     });
 
     it('omits the site option when the source has no parseable host', () => {
-      render(<ImageList images={mockImages} onImageDownload={jest.fn()} onExclude={jest.fn()} />);
+      render(<ImageList images={mockImages} onImageDownload={vi.fn()} onExclude={vi.fn()} />);
       fireEvent.click(screen.getAllByTitle('View Details')[0]);
       fireEvent.click(screen.getByRole('button', { name: 'Exclude source' }));
       expect(screen.getByRole('menuitem', { name: 'Exclude this image' })).toBeInTheDocument();
@@ -389,7 +390,7 @@ describe('ImageList Component', () => {
         src: 'data:image/png;base64,iVBORw0K', alt: 'inline', width: 0, height: 0,
         type: 'png', fileSize: 0, isBase64: true, kind: 'image',
       };
-      render(<ImageList images={[b64]} onImageDownload={jest.fn()} />);
+      render(<ImageList images={[b64]} onImageDownload={vi.fn()} />);
       // Tile type tag reads B64 rather than the raw type.
       expect(screen.getByText('B64')).toBeInTheDocument();
 
@@ -405,7 +406,7 @@ describe('ImageList Component', () => {
         src: 'https://ex.com/v.mp4', alt: '', width: 0, height: 0, type: 'mp4',
         fileSize: 4096, isBase64: false, kind: 'video', poster: 'https://ex.com/p.jpg',
       };
-      render(<ImageList images={[clip]} onImageDownload={jest.fn()} />);
+      render(<ImageList images={[clip]} onImageDownload={vi.fn()} />);
       await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
       // Videos carry no pixel dimensions → the Size row leads with an em dash.
       expect(within(screen.getByRole('dialog')).getByText(/—\s*·\s*4 KB/)).toBeInTheDocument();
@@ -414,7 +415,7 @@ describe('ImageList Component', () => {
     it('defaults the favourite toggle to unpressed when no favourites set is provided', async () => {
       // App always passes favouriteSrcs, but the prop is optional — the `?? false`
       // default must hold on both the grid tile and the modal header.
-      render(<ImageList images={[mockImages[0]]} onImageDownload={jest.fn()} onToggleFavourite={jest.fn()} />);
+      render(<ImageList images={[mockImages[0]]} onImageDownload={vi.fn()} onToggleFavourite={vi.fn()} />);
       expect(screen.getByRole('button', { name: /add favourite/i })).toHaveAttribute('aria-pressed', 'false');
       await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
       expect(
@@ -423,12 +424,12 @@ describe('ImageList Component', () => {
     });
 
     it('closes the preview when the shown image is removed from the list underneath it', () => {
-      const { rerender } = render(<ImageList images={mockImages} onImageDownload={jest.fn()} />);
+      const { rerender } = render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
       fireEvent.click(screen.getAllByTitle('View Details')[1]); // open on the last (index 1) image
       expect(screen.getByRole('dialog')).toBeInTheDocument();
       // The list shrinks to one item (the previewed one got excluded/filtered) →
       // images[1] is now undefined → selectedImage falls back to null → modal closes.
-      rerender(<ImageList images={[mockImages[0]]} onImageDownload={jest.fn()} />);
+      rerender(<ImageList images={[mockImages[0]]} onImageDownload={vi.fn()} />);
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
   });
@@ -440,7 +441,7 @@ describe('ImageList Component', () => {
         isBase64: false, kind: 'video', unresolvedVideo: true, poster: 'poster.jpg',
         resolveHint: { platform: 'twitter', id: '1' },
       };
-      render(<ImageList images={[pending]} onImageDownload={jest.fn()} onFetchVideo={jest.fn()} />);
+      render(<ImageList images={[pending]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} />);
       await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
       const dialog = screen.getByRole('dialog');
       expect(within(dialog).getByRole('img', { name: 'clip' })).toHaveAttribute('src', 'poster.jpg');
@@ -453,7 +454,7 @@ describe('ImageList Component', () => {
         src: 'https://pbs.twimg.com/x.jpg', alt: 'v', width: 0, height: 0, type: 'mp4',
         fileSize: 0, isBase64: false, kind: 'video', unresolvedVideo: true,
       };
-      render(<ImageList images={[noPoster]} onImageDownload={jest.fn()} onFetchVideo={jest.fn()} />);
+      render(<ImageList images={[noPoster]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} />);
       // Tile label resolves to "can't fetch" (not an IG reel, no resolve path).
       expect(screen.getByText("can't fetch")).toBeInTheDocument();
 
@@ -473,7 +474,7 @@ describe('ImageList Component', () => {
         resolveHint: { platform: 'twitter', id: '1' },
       };
       render(
-        <ImageList images={[pending]} onImageDownload={jest.fn()} onFetchVideo={jest.fn()}
+        <ImageList images={[pending]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()}
           resolveFailedSrcs={new Set(['poster.jpg'])} />,
       );
       await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
@@ -486,7 +487,7 @@ describe('ImageList Component', () => {
         type: 'mp4', fileSize: 0, isBase64: false, kind: 'video', unresolvedVideo: true,
         poster: 'https://scontent.cdninstagram.com/cover.jpg',
       };
-      render(<ImageList images={[reel]} onImageDownload={jest.fn()} onFetchVideo={jest.fn()} />);
+      render(<ImageList images={[reel]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} />);
       await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
       expect(within(screen.getByRole('dialog')).getByText(/Play this reel on Instagram/i)).toBeInTheDocument();
     });
@@ -497,7 +498,7 @@ describe('ImageList Component', () => {
         fileSize: 0, isBase64: false, kind: 'video', hlsManifest: 'https://x/master.m3u8',
         poster: 'https://x/poster.jpg',
       };
-      const onDownload = jest.fn();
+      const onDownload = vi.fn();
       render(<ImageList images={[hls]} onImageDownload={onDownload} />);
       expect(screen.getByText(/HLS · capture/i)).toBeInTheDocument();
 
@@ -515,7 +516,7 @@ describe('ImageList Component', () => {
         src: 'https://x/master.m3u8', alt: '', width: 0, height: 0, type: 'm3u8', fileSize: 0,
         isBase64: false, kind: 'video', hlsManifest: 'https://x/master.m3u8',
       };
-      render(<ImageList images={[hls]} onImageDownload={jest.fn()} />);
+      render(<ImageList images={[hls]} onImageDownload={vi.fn()} />);
       await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
       const dialog = screen.getByRole('dialog');
       // No poster → no preview <img>; a film glyph renders instead.

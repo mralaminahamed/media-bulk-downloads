@@ -1,11 +1,12 @@
-// `sniffedHlsManifests` is wrapped in a jest.fn so the DASH sniffed-case test can
+import type { Mock } from 'vitest';
+// `sniffedHlsManifests` is wrapped in a vi.fn so the DASH sniffed-case test can
 // override its return value for one call (a real .mpd can never reach the actual
 // store — ingestSniffedHls only accepts .m3u8, see hls-sniff.ts). Every other test
 // keeps the real behavior: ingestSniffedHls/resetSniffedHls are spread through
 // untouched, and the default implementation just delegates to the actual function.
-jest.mock('@/extension/shared/resolvers/sniffers/hls-sniff', () => {
-  const actual = jest.requireActual('@/extension/shared/resolvers/sniffers/hls-sniff');
-  return { __esModule: true, ...actual, sniffedHlsManifests: jest.fn(actual.sniffedHlsManifests) };
+vi.mock('@/extension/shared/resolvers/sniffers/hls-sniff', async () => {
+  const actual = await vi.importActual<typeof import('@/extension/shared/resolvers/sniffers/hls-sniff')>('@/extension/shared/resolvers/sniffers/hls-sniff');
+  return { __esModule: true, ...actual, sniffedHlsManifests: vi.fn(actual.sniffedHlsManifests) };
 });
 
 import { collectMedia, backgroundImageUrls } from '@/extension/content/collect';
@@ -197,7 +198,7 @@ describe('collectMedia — DASH streams', () => {
   });
 
   it('surfaces a sniffer-caught .mpd manifest as a DASH capture item', () => {
-    (sniffedHlsManifests as jest.Mock).mockReturnValueOnce(['https://cdn.com/sniffed/movie.mpd']);
+    (sniffedHlsManifests as Mock).mockReturnValueOnce(['https://cdn.com/sniffed/movie.mpd']);
     const item = collectMedia().find((i) => (i as { hlsManifest?: string }).hlsManifest === 'https://cdn.com/sniffed/movie.mpd');
     expect(item).toMatchObject({ kind: 'video', type: 'mpd', hlsManifest: 'https://cdn.com/sniffed/movie.mpd' });
   });

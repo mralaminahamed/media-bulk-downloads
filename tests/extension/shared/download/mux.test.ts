@@ -3,6 +3,15 @@ import { join } from 'path';
 import * as MP4Box from 'mp4box';
 import { muxTracks } from '@/extension/shared/download/mux';
 
+// mp4box is a CJS module whose ESM namespace is frozen under Vite (can't assign
+// `createFile`). Mock it so `createFile` is a swappable spy that DELEGATES to the
+// real implementation by default — real parsing (tracksOf, the main describe)
+// keeps working; only the fallback tests override it per-case.
+vi.mock('mp4box', async () => {
+  const actual = await vi.importActual<typeof import('mp4box')>('mp4box');
+  return { ...actual, createFile: vi.fn(actual.createFile) };
+});
+
 // Real fragmented-MP4 tracks (Big Buck Bunny, lowest rendition): a demuxed
 // video-only .m4v and audio-only .m4a init + one segment each. Muxing these is
 // exactly the DASH/demuxed-HLS case.
@@ -54,12 +63,13 @@ describe('muxTracks', () => {
  * byteLength). Faked via a minimal mp4box stand-in, real mp4box restored after.
  */
 describe('muxTracks — dimension + buffer fallbacks', () => {
-  // `import * as MP4Box` is a wrapper of non-configurable getters (can't spyOn),
-  // but those getters read live from the raw CJS module, whose createFile IS
-  // writable — swap it there so mux.ts's MP4Box.createFile() sees the fake.
-  const rawMp4box = jest.requireActual('mp4box') as { createFile: () => unknown };
-  const originalCreateFile = rawMp4box.createFile;
-  afterEach(() => { rawMp4box.createFile = originalCreateFile; });
+  // Swap the mocked createFile spy per-test, restoring the real delegate after.
+  let realCreateFile: typeof MP4Box.createFile;
+  beforeAll(async () => {
+    realCreateFile = (await vi.importActual<typeof import('mp4box')>('mp4box')).createFile;
+    vi.mocked(MP4Box.createFile).mockImplementation(realCreateFile);
+  });
+  afterEach(() => { vi.mocked(MP4Box.createFile).mockImplementation(realCreateFile); });
 
   // A minimal mp4box stand-in whose onReady delivers `info`, whose stsd entry is
   // `entry`, and whose getBuffer exposes only `.buffer` (no byteLength/position).
@@ -93,7 +103,7 @@ describe('muxTracks — dimension + buffer fallbacks', () => {
     // entry.width falsy AND info.video falsy → dimensions come from track_width/height.
     const info = { id: 1, timescale: 600, track_width: 320, track_height: 240 };
     const entry = { type: 'avc1', boxes: [] };
-    rawMp4box.createFile = fakeFileFactory(info, entry);
+    vi.mocked(MP4Box.createFile).mockImplementation(fakeFileFactory(info, entry) as unknown as typeof MP4Box.createFile);
 
     const out = muxTracks({ init: new Uint8Array([1]), segments: [new Uint8Array([2])] });
     expect(out).toBeInstanceOf(Uint8Array);
@@ -104,7 +114,7 @@ describe('muxTracks — dimension + buffer fallbacks', () => {
     // entry.width falsy but info.video present → the middle `||` branch is used.
     const info = { id: 1, timescale: 600, video: { width: 128, height: 96 } };
     const entry = { type: 'avc1', boxes: [] };
-    rawMp4box.createFile = fakeFileFactory(info, entry);
+    vi.mocked(MP4Box.createFile).mockImplementation(fakeFileFactory(info, entry) as unknown as typeof MP4Box.createFile);
 
     const out = muxTracks({ init: new Uint8Array([1]), segments: [new Uint8Array([2])] });
     expect(out).toBeInstanceOf(Uint8Array);

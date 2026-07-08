@@ -1,15 +1,16 @@
+import type { Mock } from 'vitest';
 /**
  * Verifies the content script mounts/unmounts the bubble from storage-driven
  * settings. The heavy bubble module is mocked so we don't load React here.
  */
-jest.mock('@/extension/bubble/mount', () => ({
-  mountBubble: jest.fn(() => ({ unmount: jest.fn() })),
+vi.mock('@/extension/bubble/mount', () => ({
+  mountBubble: vi.fn(() => ({ unmount: vi.fn() })),
 }));
 
 import { mountBubble } from '@/extension/bubble/mount';
 import '@/extension/content';
 
-const onChanged = (chrome.storage.onChanged.addListener as jest.Mock).mock.calls[0][0];
+const onChanged = (chrome.storage.onChanged.addListener as Mock).mock.calls[0][0];
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
 const settings = (bubbleEnabled: boolean) => ({
@@ -21,7 +22,7 @@ describe('content bubble lifecycle', () => {
     // Reset to unmounted between tests (module state persists).
     onChanged(settings(false), 'sync');
     await flush();
-    (mountBubble as jest.Mock).mockClear();
+    (mountBubble as Mock).mockClear();
   });
 
   it('mounts the bubble when enabled', async () => {
@@ -41,7 +42,7 @@ describe('content bubble lifecycle', () => {
   it('unmounts the bubble when disabled', async () => {
     onChanged(settings(true), 'sync');
     await flush();
-    const controller = (mountBubble as jest.Mock).mock.results[0].value;
+    const controller = (mountBubble as Mock).mock.results[0].value;
 
     onChanged(settings(false), 'sync');
     await flush();

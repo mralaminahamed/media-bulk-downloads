@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import HistoryPanel from '@/extension/popup/components/HistoryPanel';
@@ -12,16 +13,16 @@ const entry = {
 // can drive a storage-change event through it.
 type ChangeListener = (changes: Record<string, chrome.storage.StorageChange>, area: string) => void;
 const lastStorageListener = (): ChangeListener => {
-  const calls = (chrome.storage.onChanged.addListener as jest.Mock).mock.calls;
+  const calls = (chrome.storage.onChanged.addListener as Mock).mock.calls;
   return calls[calls.length - 1][0] as ChangeListener;
 };
 
 describe('HistoryPanel', () => {
   beforeEach(() => {
-    jest.spyOn(history, 'loadHistory').mockResolvedValue([entry]);
-    (chrome.runtime.sendMessage as jest.Mock).mockClear();
+    vi.spyOn(history, 'loadHistory').mockResolvedValue([entry]);
+    (chrome.runtime.sendMessage as Mock).mockClear();
   });
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it('lists entries and clears all via the background after a two-step confirm', async () => {
     render(<HistoryPanel onClose={() => {}} />);
@@ -50,7 +51,7 @@ describe('HistoryPanel', () => {
   });
 
   it('shows an empty state', async () => {
-    (history.loadHistory as jest.Mock).mockResolvedValue([]);
+    (history.loadHistory as Mock).mockResolvedValue([]);
     render(<HistoryPanel onClose={() => {}} />);
     await waitFor(() => expect(screen.getByText(/no downloads yet/i)).toBeInTheDocument());
   });
@@ -67,7 +68,7 @@ describe('HistoryPanel', () => {
   });
 
   it('hides file/folder actions for entries with no downloadId (legacy)', async () => {
-    (history.loadHistory as jest.Mock).mockResolvedValue([{ ...entry, downloadId: undefined }]);
+    (history.loadHistory as Mock).mockResolvedValue([{ ...entry, downloadId: undefined }]);
     render(<HistoryPanel onClose={() => {}} />);
     await screen.findByText('a.jpg');
     // The Open-file / Show-in-folder buttons are the ONLY callers of openFile /
@@ -82,7 +83,7 @@ describe('HistoryPanel', () => {
   });
 
   it('is a labelled modal dialog that closes on Escape', async () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     render(<HistoryPanel onClose={onClose} />);
     expect(screen.getByRole('dialog', { name: 'Download History' })).toHaveAttribute('aria-modal', 'true');
     await userEvent.keyboard('{Escape}');
@@ -90,21 +91,21 @@ describe('HistoryPanel', () => {
   });
 
   it('shows the raw sourcePageUrl as host text when it is malformed', async () => {
-    (history.loadHistory as jest.Mock).mockResolvedValue([{ ...entry, sourcePageUrl: 'not a url' }]);
+    (history.loadHistory as Mock).mockResolvedValue([{ ...entry, sourcePageUrl: 'not a url' }]);
     render(<HistoryPanel onClose={() => {}} />);
     await screen.findByText('a.jpg');
     expect(screen.getByRole('link', { name: 'not a url' })).toHaveAttribute('href', 'not a url');
   });
 
   it('omits the source link when there is no sourcePageUrl', async () => {
-    (history.loadHistory as jest.Mock).mockResolvedValue([{ ...entry, sourcePageUrl: '' }]);
+    (history.loadHistory as Mock).mockResolvedValue([{ ...entry, sourcePageUrl: '' }]);
     render(<HistoryPanel onClose={() => {}} />);
     await screen.findByText('a.jpg');
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('sorts entries newest-first', async () => {
-    (history.loadHistory as jest.Mock).mockResolvedValue([
+    (history.loadHistory as Mock).mockResolvedValue([
       { ...entry, src: 'https://c/old.jpg', filename: 'old.jpg', time: 1000 },
       { ...entry, src: 'https://c/new.jpg', filename: 'new.jpg', time: 2000 },
     ]);
@@ -115,7 +116,7 @@ describe('HistoryPanel', () => {
   });
 
   it('renders the thumbnail when present and includes it in the re-download payload', async () => {
-    (history.loadHistory as jest.Mock).mockResolvedValue([{ ...entry, thumbnailSrc: 'https://c/thumb.jpg' }]);
+    (history.loadHistory as Mock).mockResolvedValue([{ ...entry, thumbnailSrc: 'https://c/thumb.jpg' }]);
     render(<HistoryPanel onClose={() => {}} />);
     const img = await screen.findByAltText('a.jpg');
     expect(img).toHaveAttribute('src', 'https://c/thumb.jpg');
@@ -130,7 +131,7 @@ describe('HistoryPanel', () => {
     render(<HistoryPanel onClose={() => {}} />);
     await screen.findByText('a.jpg');
     const listener = lastStorageListener();
-    (history.loadHistory as jest.Mock).mockResolvedValue([{ ...entry, src: 'https://c/b.jpg', filename: 'b.jpg' }]);
+    (history.loadHistory as Mock).mockResolvedValue([{ ...entry, src: 'https://c/b.jpg', filename: 'b.jpg' }]);
 
     // Wrong area and wrong key are both ignored — no reload.
     await act(async () => { listener({ [history.HISTORY_KEY]: {} }, 'sync'); });

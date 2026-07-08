@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import {
   mergeExcluded, loadExcluded, addExcluded, removeExcluded, clearExcluded, restoreExcluded,
   excludedMatchers, EXCLUDED_KEY, EXCLUDED_CAP,
@@ -101,7 +102,7 @@ describe('storage round-trips', () => {
     expect(await loadExcluded()).toEqual([]);
   });
   it('recovers the write chain after a rejected write, so a later write still applies', async () => {
-    (chrome.storage.local.set as jest.Mock).mockImplementationOnce(() => Promise.reject(new Error('quota exceeded')));
+    (chrome.storage.local.set as Mock).mockImplementationOnce(() => Promise.reject(new Error('quota exceeded')));
     await expect(addExcluded(e('will-fail', 'url', 1))).rejects.toThrow('quota exceeded');
     // The failed write must not leave writeChain permanently rejected — this
     // write, chained after it, has to still go through.

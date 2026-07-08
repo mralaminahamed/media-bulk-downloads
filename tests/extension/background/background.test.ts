@@ -1,11 +1,11 @@
-jest.mock('@/extension/shared/storage/excluded', () => ({
-  ...jest.requireActual('@/extension/shared/storage/excluded'),
-  addExcluded: jest.fn().mockResolvedValue(undefined),
-  removeExcluded: jest.fn().mockResolvedValue(undefined),
-  clearExcluded: jest.fn().mockResolvedValue(undefined),
+import type { Mock } from 'vitest';
+vi.mock('@/extension/shared/storage/excluded', async () => ({
+  ...(await vi.importActual<typeof import('@/extension/shared/storage/excluded')>('@/extension/shared/storage/excluded')),
+  addExcluded: vi.fn().mockResolvedValue(undefined),
+  removeExcluded: vi.fn().mockResolvedValue(undefined),
+  clearExcluded: vi.fn().mockResolvedValue(undefined),
 }));
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const excludedMod = require('@/extension/shared/storage/excluded');
+import * as excludedMod from '@/extension/shared/storage/excluded';
 
 import {
   updateTabBadge,
@@ -25,12 +25,12 @@ import { CaptureRunResult, ImageInfo, SettingsData } from '@/types';
 
 // The runtime.onMessage handler is registered against the setupTests chrome
 // mock at import time; capture it before any describe swaps global.chrome.
-const messageHandler = (global.chrome.runtime.onMessage.addListener as jest.Mock).mock.calls[0][0];
-const contextMenuHandler = (global.chrome.contextMenus.onClicked.addListener as jest.Mock).mock.calls[0][0];
-const commandHandler = (global.chrome.commands.onCommand.addListener as jest.Mock).mock.calls[0][0];
+const messageHandler = (global.chrome.runtime.onMessage.addListener as Mock).mock.calls[0][0];
+const contextMenuHandler = (global.chrome.contextMenus.onClicked.addListener as Mock).mock.calls[0][0];
+const commandHandler = (global.chrome.commands.onCommand.addListener as Mock).mock.calls[0][0];
 // Same rationale: captures the listener that refreshes the module's live
 // `excludedCache` on `chrome.storage.onChanged` (namespace 'local', EXCLUDED_KEY).
-const storageChangedHandler = (global.chrome.storage.onChanged.addListener as jest.Mock).mock.calls[0][0];
+const storageChangedHandler = (global.chrome.storage.onChanged.addListener as Mock).mock.calls[0][0];
 
 describe('Background Script', () => {
   let mockChrome: any;
@@ -39,23 +39,23 @@ describe('Background Script', () => {
   beforeEach(() => {
     mockChrome = {
       storage: {
-        sync: { get: jest.fn(), set: jest.fn() },
-        onChanged: { addListener: jest.fn() },
+        sync: { get: vi.fn(), set: vi.fn() },
+        onChanged: { addListener: vi.fn() },
       },
       tabs: {
-        query: jest.fn(),
-        sendMessage: jest.fn(),
+        query: vi.fn(),
+        sendMessage: vi.fn(),
       },
       action: {
-        setBadgeText: jest.fn(),
-        setBadgeBackgroundColor: jest.fn(),
-        setPopup: jest.fn(),
-        onClicked: { addListener: jest.fn() },
+        setBadgeText: vi.fn(),
+        setBadgeBackgroundColor: vi.fn(),
+        setPopup: vi.fn(),
+        onClicked: { addListener: vi.fn() },
       },
       runtime: {
         lastError: null,
-        onInstalled: { addListener: jest.fn() },
-        onMessage: { addListener: jest.fn() },
+        onInstalled: { addListener: vi.fn() },
+        onMessage: { addListener: vi.fn() },
       },
     };
     global.chrome = mockChrome;
@@ -385,7 +385,7 @@ describe('resolveOriginalsBatch', () => {
   });
 
   it('prefers a sniffed mp4 over the network for a twitter video poster', async () => {
-    const fetchMock = jest.fn();
+    const fetchMock = vi.fn();
     const sniffed = new Map([['999', { url: 'https://video.twimg.com/orig.mp4' }]]);
     const src = 'https://pbs.twimg.com/amplify_video_thumb/999/img/x.jpg';
     const out = await resolveOriginalsBatch(
@@ -417,11 +417,11 @@ describe('X_MEDIA_SEEN sniffer store + resolve wiring', () => {
     messageHandler(
       { type: 'X_MEDIA_SEEN', pairs: [['777', { url: 'https://video.twimg.com/good.mp4' }], ['888', { url: 'https://evil.com/bad.mp4' }]] },
       { tab: { id: 7 } },
-      jest.fn(),
+      vi.fn(),
     );
 
     const src = 'https://pbs.twimg.com/amplify_video_thumb/777/img/a.jpg';
-    const sendResponse = jest.fn();
+    const sendResponse = vi.fn();
     messageHandler(
       { type: 'RESOLVE_ORIGINALS', hints: [{ src, hint: { platform: 'twitter', id: '1' } }] },
       { tab: { id: 7 } }, // same tab → uses its sniffed map
@@ -435,10 +435,10 @@ describe('X_MEDIA_SEEN sniffer store + resolve wiring', () => {
     messageHandler(
       { type: 'X_MEDIA_SEEN', pairs: [['654', { url: 'https://video.twimg.com/654/pl.m3u8', hls: true }]] },
       { tab: { id: 9 } },
-      jest.fn(),
+      vi.fn(),
     );
     const src = 'https://pbs.twimg.com/amplify_video_thumb/654/img/a.jpg';
-    const sendResponse = jest.fn();
+    const sendResponse = vi.fn();
     messageHandler(
       { type: 'RESOLVE_ORIGINALS', hints: [{ src, hint: { platform: 'twitter', id: '1' } }] },
       { tab: { id: 9 } },
@@ -454,27 +454,27 @@ describe('sniffer cap eviction + no-sender-tab resolve fallback', () => {
 
   afterEach(() => {
     // Restore the benign default so a callback-form query left here never leaks.
-    (chrome.tabs.query as jest.Mock).mockReset().mockResolvedValue([]);
+    (chrome.tabs.query as Mock).mockReset().mockResolvedValue([]);
   });
 
   it('evicts the oldest sniffed entry once the per-tab cap (800) is exceeded, and falls back to the network for it', async () => {
     const TAB = 700;
     // Fill the per-tab cap with valid twimg mp4s (media ids '1'..'800').
     const pairs = Array.from({ length: 800 }, (_, i) => [String(i + 1), { url: `https://video.twimg.com/${i + 1}.mp4` }]);
-    messageHandler({ type: 'X_MEDIA_SEEN', pairs }, { tab: { id: TAB } }, jest.fn());
+    messageHandler({ type: 'X_MEDIA_SEEN', pairs }, { tab: { id: TAB } }, vi.fn());
     // One MORE new id past the cap evicts the OLDEST ('1'); the newest ('801') stays.
-    messageHandler({ type: 'X_MEDIA_SEEN', pairs: [['801', { url: 'https://video.twimg.com/801.mp4' }]] }, { tab: { id: TAB } }, jest.fn());
+    messageHandler({ type: 'X_MEDIA_SEEN', pairs: [['801', { url: 'https://video.twimg.com/801.mp4' }]] }, { tab: { id: TAB } }, vi.fn());
 
     // The evicted id misses the sniffer, so RESOLVE_ORIGINALS falls through to the
     // DEFAULT fetch dep (resolveOriginalsBatch's `deps` default). Stub global.fetch
     // so no real request fires and we can prove the fall-through happened.
-    const fetchSpy = jest.fn().mockResolvedValue({ ok: false, json: async () => ({}) });
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) });
     const realFetch = (global as unknown as { fetch: typeof fetch }).fetch;
     (global as unknown as { fetch: unknown }).fetch = fetchSpy;
 
     const kept = 'https://pbs.twimg.com/amplify_video_thumb/801/img/a.jpg';
     const evicted = 'https://pbs.twimg.com/amplify_video_thumb/1/img/a.jpg';
-    const sendResponse = jest.fn();
+    const sendResponse = vi.fn();
     messageHandler(
       {
         type: 'RESOLVE_ORIGINALS',
@@ -497,12 +497,12 @@ describe('sniffer cap eviction + no-sender-tab resolve fallback', () => {
 
   it('resolves against the ACTIVE tab\'s sniffed media when the request carries no sender tab (popup)', async () => {
     // Seed tab 5's sniffer.
-    messageHandler({ type: 'X_MEDIA_SEEN', pairs: [['321', { url: 'https://video.twimg.com/active.mp4' }]] }, { tab: { id: 5 } }, jest.fn());
+    messageHandler({ type: 'X_MEDIA_SEEN', pairs: [['321', { url: 'https://video.twimg.com/active.mp4' }]] }, { tab: { id: 5 } }, vi.fn());
     // A popup request has no sender.tab, so the handler queries the active tab.
-    (chrome.tabs.query as jest.Mock).mockReset().mockImplementation((_q, cb: (t: Array<{ id: number }>) => void) => cb([{ id: 5 }]));
+    (chrome.tabs.query as Mock).mockReset().mockImplementation((_q, cb: (t: Array<{ id: number }>) => void) => cb([{ id: 5 }]));
 
     const src = 'https://pbs.twimg.com/amplify_video_thumb/321/img/a.jpg';
-    const sendResponse = jest.fn();
+    const sendResponse = vi.fn();
     messageHandler({ type: 'RESOLVE_ORIGINALS', hints: [{ src, hint: { platform: 'twitter', id: '1' } }] }, {}, sendResponse);
     await flush();
 
@@ -511,9 +511,9 @@ describe('sniffer cap eviction + no-sender-tab resolve fallback', () => {
   });
 
   it('dedups repeated srcs in a RESOLVE_ORIGINALS batch (one resolved entry per unique src)', async () => {
-    messageHandler({ type: 'X_MEDIA_SEEN', pairs: [['246', { url: 'https://video.twimg.com/dup.mp4' }]] }, { tab: { id: 61 } }, jest.fn());
+    messageHandler({ type: 'X_MEDIA_SEEN', pairs: [['246', { url: 'https://video.twimg.com/dup.mp4' }]] }, { tab: { id: 61 } }, vi.fn());
     const src = 'https://pbs.twimg.com/amplify_video_thumb/246/img/a.jpg';
-    const sendResponse = jest.fn();
+    const sendResponse = vi.fn();
     messageHandler(
       {
         type: 'RESOLVE_ORIGINALS',
@@ -534,17 +534,17 @@ describe('sniffer cap eviction + no-sender-tab resolve fallback', () => {
 
 describe('GET_DOWNLOADED_SRCS handler', () => {
   it('responds with only the srcs whose downloaded file still exists on disk', async () => {
-    (chrome.storage.local.get as jest.Mock).mockReset().mockResolvedValue({
+    (chrome.storage.local.get as Mock).mockReset().mockResolvedValue({
       downloadHistory: [
         { src: 'https://c/keep.jpg', time: 2, downloadId: 10, filename: 'k', kind: 'image', type: 'jpeg', sourcePageUrl: 'p' },
         { src: 'https://c/gone.jpg', time: 1, downloadId: 20, filename: 'g', kind: 'image', type: 'jpeg', sourcePageUrl: 'p' },
       ],
     });
-    (chrome.downloads.search as jest.Mock).mockReset().mockResolvedValue([
+    (chrome.downloads.search as Mock).mockReset().mockResolvedValue([
       { id: 10, exists: true },
       { id: 20, exists: false }, // deleted/moved since download
     ]);
-    const sendResponse = jest.fn();
+    const sendResponse = vi.fn();
     const async = messageHandler({ type: 'GET_DOWNLOADED_SRCS' }, {}, sendResponse);
     expect(async).toBe(true); // keeps the message channel open for the async reply
     await new Promise((r) => setTimeout(r, 0));
@@ -552,8 +552,8 @@ describe('GET_DOWNLOADED_SRCS handler', () => {
   });
 
   it('responds with [] (never leaves the port open) when history/search rejects', async () => {
-    (chrome.storage.local.get as jest.Mock).mockReset().mockRejectedValue(new Error('storage error'));
-    const sendResponse = jest.fn();
+    (chrome.storage.local.get as Mock).mockReset().mockRejectedValue(new Error('storage error'));
+    const sendResponse = vi.fn();
     const async = messageHandler({ type: 'GET_DOWNLOADED_SRCS' }, {}, sendResponse);
     expect(async).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
@@ -563,17 +563,17 @@ describe('GET_DOWNLOADED_SRCS handler', () => {
 
 describe('downloadAndRecord', () => {
   beforeEach(() => {
-    (chrome.downloads.download as jest.Mock).mockReset();
-    (chrome.storage.local.get as jest.Mock).mockReset().mockResolvedValue({ downloadHistory: [] });
-    (chrome.storage.local.set as jest.Mock).mockReset().mockResolvedValue(undefined);
+    (chrome.downloads.download as Mock).mockReset();
+    (chrome.storage.local.get as Mock).mockReset().mockResolvedValue({ downloadHistory: [] });
+    (chrome.storage.local.set as Mock).mockReset().mockResolvedValue(undefined);
   });
   const img = (src: string) =>
     ({ src, alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' as const });
 
   it('records one entry per successful download with the source page', async () => {
-    (chrome.downloads.download as jest.Mock).mockImplementation((_opts, cb) => cb(42));
+    (chrome.downloads.download as Mock).mockImplementation((_opts, cb) => cb(42));
     await downloadAndRecord([img('https://c/a.jpg')], { url: 'https://page', title: 'T' });
-    const written = (chrome.storage.local.set as jest.Mock).mock.calls[0][0].downloadHistory;
+    const written = (chrome.storage.local.set as Mock).mock.calls[0][0].downloadHistory;
     expect(written).toHaveLength(1);
     expect(written[0]).toMatchObject({ src: 'https://c/a.jpg', kind: 'image', sourcePageUrl: 'https://page', sourcePageTitle: 'T', downloadId: 42 });
   });
@@ -581,7 +581,7 @@ describe('downloadAndRecord', () => {
   it('passes the settings-derived filename, saveAs, and conflictAction to chrome.downloads', async () => {
     // Proves the Downloads settings actually reach the download call (default
     // settings: prefix "image_", 1-indexed, no subfolder, saveAs off).
-    (chrome.downloads.download as jest.Mock).mockImplementation((_opts, cb) => cb(1));
+    (chrome.downloads.download as Mock).mockImplementation((_opts, cb) => cb(1));
     await downloadAndRecord([img('https://c/a.jpg')], undefined);
     expect(chrome.downloads.download).toHaveBeenCalledWith(
       expect.objectContaining({ url: 'https://c/a.jpg', filename: 'image_1.jpg', saveAs: false, conflictAction: 'uniquify' }),
@@ -590,23 +590,23 @@ describe('downloadAndRecord', () => {
   });
 
   it('does not record a failed download', async () => {
-    (chrome.downloads.download as jest.Mock).mockImplementation((_opts, cb) => {
+    (chrome.downloads.download as Mock).mockImplementation((_opts, cb) => {
       (chrome.runtime as unknown as { lastError?: unknown }).lastError = { message: 'x' };
       cb(undefined);
       (chrome.runtime as unknown as { lastError?: unknown }).lastError = undefined;
     });
     await downloadAndRecord([img('https://c/b.jpg')], undefined);
-    expect(chrome.storage.local.set as jest.Mock).not.toHaveBeenCalled();
+    expect(chrome.storage.local.set as Mock).not.toHaveBeenCalled();
   });
 });
 
 describe('runtime message router — history actions', () => {
-  const dispatch = (msg: unknown) => messageHandler(msg, {}, jest.fn());
+  const dispatch = (msg: unknown) => messageHandler(msg, {}, vi.fn());
 
   beforeEach(() => {
-    (chrome.downloads.open as jest.Mock).mockReset();
-    (chrome.downloads.show as jest.Mock).mockReset();
-    (chrome.tabs.create as jest.Mock).mockReset();
+    (chrome.downloads.open as Mock).mockReset();
+    (chrome.downloads.show as Mock).mockReset();
+    (chrome.tabs.create as Mock).mockReset();
   });
 
   it('opens a downloaded file by id', () => {
@@ -631,17 +631,17 @@ describe('runtime message router — history actions', () => {
   });
 
   it('clears history in the background on CLEAR_HISTORY', async () => {
-    (chrome.storage.local.set as jest.Mock).mockClear().mockResolvedValue(undefined);
+    (chrome.storage.local.set as Mock).mockClear().mockResolvedValue(undefined);
     dispatch({ type: 'CLEAR_HISTORY' });
     await new Promise((r) => setTimeout(r, 0));
     expect(chrome.storage.local.set).toHaveBeenCalledWith({ downloadHistory: [] });
   });
 
   it('removes one entry in the background on REMOVE_HISTORY_ENTRY', async () => {
-    (chrome.storage.local.get as jest.Mock).mockResolvedValue({
+    (chrome.storage.local.get as Mock).mockResolvedValue({
       downloadHistory: [{ src: 'a', time: 1 }, { src: 'b', time: 2 }],
     });
-    (chrome.storage.local.set as jest.Mock).mockClear().mockResolvedValue(undefined);
+    (chrome.storage.local.set as Mock).mockClear().mockResolvedValue(undefined);
     dispatch({ type: 'REMOVE_HISTORY_ENTRY', src: 'a' });
     await new Promise((r) => setTimeout(r, 0));
     expect(chrome.storage.local.set).toHaveBeenCalledWith({ downloadHistory: [{ src: 'b', time: 2 }] });
@@ -654,16 +654,16 @@ describe('DOWNLOAD_IMAGES — settings gate (no ephemeral-worker default-setting
 
   it('waits for settings to load, then downloads into the user subfolder', async () => {
     // Load real settings (a subfolder), which resolves the settingsReady gate.
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_keys, cb) => cb({ settings: { downloadPath: 'Pics' } }));
+    (chrome.storage.sync.get as Mock).mockImplementation((_keys, cb) => cb({ settings: { downloadPath: 'Pics' } }));
     loadSettings();
-    (chrome.downloads.download as jest.Mock).mockReset().mockImplementation((_o, cb) => cb(1));
-    (chrome.storage.local.get as jest.Mock).mockResolvedValue({ downloadHistory: [] });
-    (chrome.storage.local.set as jest.Mock).mockResolvedValue(undefined);
+    (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb(1));
+    (chrome.storage.local.get as Mock).mockResolvedValue({ downloadHistory: [] });
+    (chrome.storage.local.set as Mock).mockResolvedValue(undefined);
 
     messageHandler(
       { type: 'DOWNLOAD_IMAGES', images: [img('https://c/a.jpg')], sourcePage: undefined },
       {},
-      jest.fn(),
+      vi.fn(),
     );
     await new Promise((r) => setTimeout(r, 0)); // flush settingsReady.then → downloadAndRecord
 
@@ -677,14 +677,14 @@ describe('DOWNLOAD_IMAGES — settings gate (no ephemeral-worker default-setting
 describe('DOWNLOAD_ZIP — archive bytes → data URL → chrome.downloads', () => {
   beforeEach(() => {
     // Resolve the settingsReady gate with defaults (saveAs off).
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_keys, cb) => cb({}));
+    (chrome.storage.sync.get as Mock).mockImplementation((_keys, cb) => cb({}));
     loadSettings();
-    (chrome.downloads.download as jest.Mock).mockReset();
+    (chrome.downloads.download as Mock).mockReset();
   });
 
   it('downloads a base64 data: URL with the given filename, saveAs, and uniquify', async () => {
-    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(5));
-    const sendResponse = jest.fn();
+    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(5));
+    const sendResponse = vi.fn();
     const b64 = 'UEsDBA=='; // base64 of the ZIP magic bytes 50 4b 03 04
 
     const handled = messageHandler(
@@ -708,12 +708,12 @@ describe('DOWNLOAD_ZIP — archive bytes → data URL → chrome.downloads', () 
   });
 
   it('reports an error when chrome cannot start the download', async () => {
-    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => {
+    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => {
       (chrome.runtime as unknown as { lastError?: unknown }).lastError = { message: 'boom' };
       cb(undefined);
       (chrome.runtime as unknown as { lastError?: unknown }).lastError = undefined;
     });
-    const sendResponse = jest.fn();
+    const sendResponse = vi.fn();
     messageHandler({ type: 'DOWNLOAD_ZIP', b64: 'AQ==', filename: 'x.zip' }, {}, sendResponse);
     await new Promise((r) => setTimeout(r, 0));
     expect(sendResponse).toHaveBeenCalledWith({ status: 'error', message: "Couldn't save x.zip." });
@@ -722,12 +722,12 @@ describe('DOWNLOAD_ZIP — archive bytes → data URL → chrome.downloads', () 
 
 describe('SET_SETTINGS (serialized settings writer)', () => {
   it('deep-merges a partial bubblePosition patch, preserving the stored drag-only x/y + panelPoint', async () => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) =>
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) =>
       cb({ settings: { bubblePosition: { corner: 'bottom-right', x: 99, y: 88 }, bubblePanelPoint: { x: 77, y: 66 } } }));
     let written: Record<string, unknown> | undefined;
-    (chrome.storage.sync.set as jest.Mock).mockReset().mockImplementation((obj, cb) => { written = obj.settings; cb?.(); });
+    (chrome.storage.sync.set as Mock).mockReset().mockImplementation((obj, cb) => { written = obj.settings; cb?.(); });
 
-    messageHandler({ type: 'SET_SETTINGS', patch: { bubblePosition: { corner: 'top-left' }, bubblePanelPlacement: 'center' } }, {}, jest.fn());
+    messageHandler({ type: 'SET_SETTINGS', patch: { bubblePosition: { corner: 'top-left' }, bubblePanelPlacement: 'center' } }, {}, vi.fn());
     await new Promise((r) => setTimeout(r, 0));
 
     expect(written?.bubblePosition).toEqual({ corner: 'top-left', x: 99, y: 88 }); // x/y preserved from storage
@@ -736,12 +736,12 @@ describe('SET_SETTINGS (serialized settings writer)', () => {
   });
 
   it('applies a full bubblePosition patch (a bubble FAB drag) replacing x/y', async () => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) =>
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) =>
       cb({ settings: { bubblePosition: { corner: 'bottom-right', x: 99, y: 88 } } }));
     let written: Record<string, unknown> | undefined;
-    (chrome.storage.sync.set as jest.Mock).mockReset().mockImplementation((obj, cb) => { written = obj.settings; cb?.(); });
+    (chrome.storage.sync.set as Mock).mockReset().mockImplementation((obj, cb) => { written = obj.settings; cb?.(); });
 
-    messageHandler({ type: 'SET_SETTINGS', patch: { bubblePosition: { corner: 'bottom-right', x: 5, y: 6 } } }, {}, jest.fn());
+    messageHandler({ type: 'SET_SETTINGS', patch: { bubblePosition: { corner: 'bottom-right', x: 5, y: 6 } } }, {}, vi.fn());
     await new Promise((r) => setTimeout(r, 0));
 
     expect(written?.bubblePosition).toEqual({ corner: 'bottom-right', x: 5, y: 6 });
@@ -754,19 +754,19 @@ describe('context menu', () => {
   const tab = (over: Partial<chrome.tabs.Tab>): chrome.tabs.Tab => (over as unknown as chrome.tabs.Tab);
 
   beforeEach(() => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({}));
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({}));
     loadSettings(); // resolve the settingsReady gate with defaults
-    (chrome.downloads.download as jest.Mock).mockReset().mockImplementation((_o, cb) => cb(1));
-    (chrome.storage.local.get as jest.Mock).mockReset().mockResolvedValue({ downloadHistory: [], favourites: [] });
-    (chrome.storage.local.set as jest.Mock).mockReset().mockResolvedValue(undefined);
-    (chrome.tabs.sendMessage as jest.Mock).mockReset();
+    (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb(1));
+    (chrome.storage.local.get as Mock).mockReset().mockResolvedValue({ downloadHistory: [], favourites: [] });
+    (chrome.storage.local.set as Mock).mockReset().mockResolvedValue(undefined);
+    (chrome.tabs.sendMessage as Mock).mockReset();
   });
 
   it('creates the four menu items on setup', () => {
-    (chrome.contextMenus.create as jest.Mock).mockClear();
-    (chrome.contextMenus.removeAll as jest.Mock).mockImplementation((cb?: () => void) => cb?.());
+    (chrome.contextMenus.create as Mock).mockClear();
+    (chrome.contextMenus.removeAll as Mock).mockImplementation((cb?: () => void) => cb?.());
     setupContextMenus();
-    const ids = (chrome.contextMenus.create as jest.Mock).mock.calls.map((c) => c[0].id);
+    const ids = (chrome.contextMenus.create as Mock).mock.calls.map((c) => c[0].id);
     expect(ids).toEqual(['mbd-download-all', 'mbd-download-image', 'mbd-favourite-image', 'mbd-download-media']);
   });
 
@@ -786,7 +786,7 @@ describe('context menu', () => {
   });
 
   it('download-all collects from the tab and downloads the eligible set', async () => {
-    (chrome.tabs.sendMessage as jest.Mock).mockImplementation((_id, _msg, cb) =>
+    (chrome.tabs.sendMessage as Mock).mockImplementation((_id, _msg, cb) =>
       cb([{ src: 'https://c/a.jpg', kind: 'image', type: 'jpeg', width: 0, height: 0, fileSize: 0, isBase64: false, alt: '' }]));
     contextMenuHandler(info({ menuItemId: 'mbd-download-all' }), tab({ id: 9, url: 'https://page', title: 'T' }));
     await new Promise((r) => setTimeout(r, 0));
@@ -796,15 +796,15 @@ describe('context menu', () => {
 
   it('download-all captures HLS/DASH stream items instead of downloading the manifest URL', async () => {
     // Streams only survive filterImagesBySettings when capture is enabled.
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { captureHlsStreams: true } }));
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { captureHlsStreams: true } }));
     loadSettings();
     await new Promise((r) => setTimeout(r, 0));
-    (chrome.offscreen.hasDocument as jest.Mock).mockResolvedValue(false);
-    (chrome.offscreen.createDocument as jest.Mock).mockReset().mockResolvedValue(undefined);
-    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+    (chrome.offscreen.hasDocument as Mock).mockResolvedValue(false);
+    (chrome.offscreen.createDocument as Mock).mockReset().mockResolvedValue(undefined);
+    (chrome.runtime.sendMessage as Mock).mockResolvedValue({
       ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 5, muxedAudio: false,
     } as CaptureRunResult);
-    (chrome.tabs.sendMessage as jest.Mock).mockImplementation((_id, _msg, cb) =>
+    (chrome.tabs.sendMessage as Mock).mockImplementation((_id, _msg, cb) =>
       cb([
         { src: 'https://c/a.jpg', kind: 'image', type: 'jpeg', width: 0, height: 0, fileSize: 0, isBase64: false, alt: '' },
         { src: 'https://x/m.m3u8', hlsManifest: 'https://x/m.m3u8', type: 'm3u8', kind: 'video', width: 0, height: 0, fileSize: 0, isBase64: false, alt: '' },
@@ -817,7 +817,7 @@ describe('context menu', () => {
       expect.objectContaining({ type: 'CAPTURE_RUN', manifestUrl: 'https://x/m.m3u8', engine: 'hls' }),
     );
     // …and its manifest URL is NEVER handed to chrome.downloads (only the captured blob + the jpg).
-    const dlUrls = (chrome.downloads.download as jest.Mock).mock.calls.map((c) => c[0].url);
+    const dlUrls = (chrome.downloads.download as Mock).mock.calls.map((c) => c[0].url);
     expect(dlUrls).toContain('blob:cap');
     expect(dlUrls).not.toContain('https://x/m.m3u8');
   });
@@ -825,24 +825,24 @@ describe('context menu', () => {
   it('adds the right-clicked image to favourites', async () => {
     contextMenuHandler(info({ menuItemId: 'mbd-favourite-image', srcUrl: 'https://cdn/pic.jpg', mediaType: 'image' }), tab({ url: 'https://page', title: 'T' }));
     await new Promise((r) => setTimeout(r, 0));
-    const set = (chrome.storage.local.set as jest.Mock).mock.calls.at(-1)?.[0];
+    const set = (chrome.storage.local.set as Mock).mock.calls.at(-1)?.[0];
     expect(set.favourites[0]).toMatchObject({ src: expect.stringContaining('pic.jpg'), kind: 'image', sourcePageUrl: 'https://page' });
   });
 });
 
 describe('DOWNLOAD_TEXT + RESTORE_DATA routers', () => {
   beforeEach(() => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({}));
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({}));
     loadSettings(); // resolve settingsReady with defaults (saveAs off)
-    (chrome.downloads.download as jest.Mock).mockReset().mockImplementation((_o, cb) => cb?.(1));
-    (chrome.storage.local.get as jest.Mock).mockReset().mockResolvedValue({ downloadHistory: [], favourites: [] });
-    (chrome.storage.local.set as jest.Mock).mockReset().mockResolvedValue(undefined);
+    (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb?.(1));
+    (chrome.storage.local.get as Mock).mockReset().mockResolvedValue({ downloadHistory: [], favourites: [] });
+    (chrome.storage.local.set as Mock).mockReset().mockResolvedValue(undefined);
   });
 
   it('DOWNLOAD_TEXT saves a base64 data URL of the text with the given filename + mime', async () => {
-    messageHandler({ type: 'DOWNLOAD_TEXT', filename: 'links.txt', text: 'https://a\nhttps://b', mime: 'text/plain' }, {}, jest.fn());
+    messageHandler({ type: 'DOWNLOAD_TEXT', filename: 'links.txt', text: 'https://a\nhttps://b', mime: 'text/plain' }, {}, vi.fn());
     await new Promise((r) => setTimeout(r, 0));
-    const arg = (chrome.downloads.download as jest.Mock).mock.calls.at(-1)[0];
+    const arg = (chrome.downloads.download as Mock).mock.calls.at(-1)![0];
     expect(arg.filename).toBe('links.txt');
     expect(arg.url.startsWith('data:text/plain;base64,')).toBe(true);
     const decoded = Buffer.from(arg.url.split(',')[1], 'base64').toString('utf8');
@@ -858,10 +858,10 @@ describe('DOWNLOAD_TEXT + RESTORE_DATA routers', () => {
         excluded: [],
       },
       {},
-      jest.fn(),
+      vi.fn(),
     );
     await new Promise((r) => setTimeout(r, 0));
-    const sets = (chrome.storage.local.set as jest.Mock).mock.calls.map((c) => c[0]);
+    const sets = (chrome.storage.local.set as Mock).mock.calls.map((c) => c[0]);
     expect(sets.find((s) => 'favourites' in s).favourites[0].src).toBe('https://f');
     expect(sets.find((s) => 'downloadHistory' in s).downloadHistory[0].src).toBe('https://h');
   });
@@ -869,18 +869,18 @@ describe('DOWNLOAD_TEXT + RESTORE_DATA routers', () => {
 
 describe('keyboard commands', () => {
   beforeEach(() => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({}));
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({}));
     loadSettings();
-    (chrome.downloads.download as jest.Mock).mockReset().mockImplementation((_o, cb) => cb?.(1));
-    (chrome.storage.local.get as jest.Mock).mockReset().mockResolvedValue({ downloadHistory: [] });
-    (chrome.storage.local.set as jest.Mock).mockReset().mockResolvedValue(undefined);
-    (chrome.tabs.query as jest.Mock).mockReset();
-    (chrome.tabs.sendMessage as jest.Mock).mockReset();
+    (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb?.(1));
+    (chrome.storage.local.get as Mock).mockReset().mockResolvedValue({ downloadHistory: [] });
+    (chrome.storage.local.set as Mock).mockReset().mockResolvedValue(undefined);
+    (chrome.tabs.query as Mock).mockReset();
+    (chrome.tabs.sendMessage as Mock).mockReset();
   });
 
   it('download-all-media queries the active tab and downloads its media', async () => {
-    (chrome.tabs.query as jest.Mock).mockImplementation((_q, cb) => cb([{ id: 3, url: 'https://page', title: 'T' }]));
-    (chrome.tabs.sendMessage as jest.Mock).mockImplementation((_id, _msg, cb) =>
+    (chrome.tabs.query as Mock).mockImplementation((_q, cb) => cb([{ id: 3, url: 'https://page', title: 'T' }]));
+    (chrome.tabs.sendMessage as Mock).mockImplementation((_id, _msg, cb) =>
       cb([{ src: 'https://c/a.jpg', kind: 'image', type: 'jpeg', width: 0, height: 0, fileSize: 0, isBase64: false, alt: '' }]));
     commandHandler('download-all-media');
     await new Promise((r) => setTimeout(r, 0));
@@ -899,14 +899,14 @@ describe('completion notification', () => {
     ({ src, alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' });
 
   beforeEach(() => {
-    (chrome.downloads.download as jest.Mock).mockReset().mockImplementation((_o, cb) => cb(1));
-    (chrome.storage.local.get as jest.Mock).mockReset().mockResolvedValue({ downloadHistory: [] });
-    (chrome.storage.local.set as jest.Mock).mockReset().mockResolvedValue(undefined);
-    (chrome.notifications.create as jest.Mock).mockReset();
+    (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb(1));
+    (chrome.storage.local.get as Mock).mockReset().mockResolvedValue({ downloadHistory: [] });
+    (chrome.storage.local.set as Mock).mockReset().mockResolvedValue(undefined);
+    (chrome.notifications.create as Mock).mockReset();
   });
 
   it('fires a toast after a batch when notifyOnComplete is on', async () => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { notifyOnComplete: true } }));
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { notifyOnComplete: true } }));
     loadSettings();
     await downloadAndRecord([img('https://c/a.jpg')], undefined);
     expect(chrome.notifications.create).toHaveBeenCalledWith(
@@ -916,18 +916,18 @@ describe('completion notification', () => {
   });
 
   it('stays silent when notifyOnComplete is off', async () => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { notifyOnComplete: false } }));
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { notifyOnComplete: false } }));
     loadSettings();
     await downloadAndRecord([img('https://c/a.jpg')], undefined);
     expect(chrome.notifications.create).not.toHaveBeenCalled();
   });
 
   it('swallows a lastError in the notification callback (notifications permission not granted)', async () => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { notifyOnComplete: true } }));
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { notifyOnComplete: true } }));
     loadSettings();
     // The create() callback runs with a lastError set (optional `notifications`
     // permission missing); it must read+discard it without throwing.
-    (chrome.notifications.create as jest.Mock).mockImplementation((_opts, cb: () => void) => {
+    (chrome.notifications.create as Mock).mockImplementation((_opts, cb: () => void) => {
       (chrome.runtime as unknown as { lastError?: unknown }).lastError = { message: 'notifications permission not granted' };
       cb();
       (chrome.runtime as unknown as { lastError?: unknown }).lastError = null;
@@ -942,19 +942,19 @@ describe('completion notification', () => {
 
 describe('DOWNLOAD_BYTES router', () => {
   beforeEach(() => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({}));
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({}));
     loadSettings();
-    (chrome.downloads.download as jest.Mock).mockReset().mockImplementation((_o, cb) => cb?.(1));
+    (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb?.(1));
   });
 
   it('saves a base64 data URL with the given mime and filename', async () => {
     messageHandler(
       { type: 'DOWNLOAD_BYTES', filename: 'cat.png', b64: 'UEsDBA==', mime: 'image/png' },
       {},
-      jest.fn(),
+      vi.fn(),
     );
     await new Promise((r) => setTimeout(r, 0));
-    const arg = (chrome.downloads.download as jest.Mock).mock.calls.at(-1)[0];
+    const arg = (chrome.downloads.download as Mock).mock.calls.at(-1)![0];
     expect(arg.filename).toBe('cat.png');
     expect(arg.url).toBe('data:image/png;base64,UEsDBA==');
     expect(arg.conflictAction).toBe('uniquify');
@@ -966,19 +966,19 @@ describe('CAPTURE_STREAM', () => {
   const sourcePage = { url: 'https://x/watch', title: 'X' };
 
   beforeEach(() => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({}));
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({}));
     loadSettings(); // resolve the settingsReady gate with defaults
-    (chrome.offscreen.hasDocument as jest.Mock).mockResolvedValue(false);
-    (chrome.offscreen.createDocument as jest.Mock).mockReset().mockResolvedValue(undefined);
-    (chrome.downloads.download as jest.Mock).mockReset();
+    (chrome.offscreen.hasDocument as Mock).mockResolvedValue(false);
+    (chrome.offscreen.createDocument as Mock).mockReset().mockResolvedValue(undefined);
+    (chrome.downloads.download as Mock).mockReset();
   });
 
   it('ensures the offscreen doc, downloads the returned blob, and responds with a status', async () => {
-    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+    (chrome.runtime.sendMessage as Mock).mockResolvedValue({
       ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 9, muxedAudio: true,
     } as CaptureRunResult);
-    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(123));
-    const sendResponse = jest.fn();
+    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(123));
+    const sendResponse = vi.fn();
 
     messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
     await new Promise((r) => setTimeout(r, 0));
@@ -995,31 +995,31 @@ describe('CAPTURE_STREAM', () => {
   });
 
   it('records the captured stream to history (downloaded mark + dedup, previously skipped)', async () => {
-    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+    (chrome.runtime.sendMessage as Mock).mockResolvedValue({
       ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 3, muxedAudio: false,
     } as CaptureRunResult);
-    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(321));
-    (chrome.storage.local.get as jest.Mock).mockResolvedValue({ downloadHistory: [] });
-    (chrome.storage.local.set as jest.Mock).mockReset().mockResolvedValue(undefined);
+    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(321));
+    (chrome.storage.local.get as Mock).mockResolvedValue({ downloadHistory: [] });
+    (chrome.storage.local.set as Mock).mockReset().mockResolvedValue(undefined);
 
-    messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, jest.fn());
+    messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, vi.fn());
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
 
-    const written = (chrome.storage.local.set as jest.Mock).mock.calls.at(-1)?.[0]?.downloadHistory;
+    const written = (chrome.storage.local.set as Mock).mock.calls.at(-1)?.[0]?.downloadHistory;
     expect(written).toEqual(expect.arrayContaining([
       expect.objectContaining({ src: 'https://x/m.m3u8', downloadId: 321, kind: 'video' }),
     ]));
   });
 
   it('forwards CAPTURE_RUN with engine:dash for an mpd item', async () => {
-    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+    (chrome.runtime.sendMessage as Mock).mockResolvedValue({
       ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 4, muxedAudio: true,
     } as CaptureRunResult);
-    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(123));
+    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(123));
     const dashItem = { ...item, type: 'mpd' };
-    const sendResponse = jest.fn();
+    const sendResponse = vi.fn();
 
     messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: dashItem.hlsManifest, item: dashItem, sourcePage }, {}, sendResponse);
     await new Promise((r) => setTimeout(r, 0));
@@ -1029,11 +1029,11 @@ describe('CAPTURE_STREAM', () => {
   });
 
   it('forwards CAPTURE_RUN with engine:hls for an m3u8 item', async () => {
-    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+    (chrome.runtime.sendMessage as Mock).mockResolvedValue({
       ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 9, muxedAudio: true,
     } as CaptureRunResult);
-    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(123));
-    const sendResponse = jest.fn();
+    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(123));
+    const sendResponse = vi.fn();
 
     messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
     await new Promise((r) => setTimeout(r, 0));
@@ -1043,16 +1043,16 @@ describe('CAPTURE_STREAM', () => {
   });
 
   it('tolerates the concurrent-create race: createDocument rejects but a document now exists, so capture still proceeds', async () => {
-    (chrome.offscreen.hasDocument as jest.Mock).mockReset()
+    (chrome.offscreen.hasDocument as Mock).mockReset()
       .mockResolvedValueOnce(false)
       .mockResolvedValueOnce(true);
-    (chrome.offscreen.createDocument as jest.Mock).mockReset()
+    (chrome.offscreen.createDocument as Mock).mockReset()
       .mockRejectedValue(new Error('Only a single offscreen document may be created'));
-    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+    (chrome.runtime.sendMessage as Mock).mockResolvedValue({
       ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 9, muxedAudio: true,
     } as CaptureRunResult);
-    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(123));
-    const sendResponse = jest.fn();
+    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(123));
+    const sendResponse = vi.fn();
 
     messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
     await new Promise((r) => setTimeout(r, 0));
@@ -1068,10 +1068,10 @@ describe('CAPTURE_STREAM', () => {
   });
 
   it('reports a capture failure (not a throw) when createDocument keeps rejecting and no document ever appears', async () => {
-    (chrome.offscreen.hasDocument as jest.Mock).mockReset().mockResolvedValue(false);
-    (chrome.offscreen.createDocument as jest.Mock).mockReset()
+    (chrome.offscreen.hasDocument as Mock).mockReset().mockResolvedValue(false);
+    (chrome.offscreen.createDocument as Mock).mockReset()
       .mockRejectedValue(new Error('Only a single offscreen document may be created'));
-    const sendResponse = jest.fn();
+    const sendResponse = vi.fn();
 
     messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
     await new Promise((r) => setTimeout(r, 0));
@@ -1082,19 +1082,19 @@ describe('CAPTURE_STREAM', () => {
   });
 
   it('does not re-create the offscreen doc when one already exists', async () => {
-    (chrome.offscreen.hasDocument as jest.Mock).mockResolvedValue(true);
-    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({ ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 1, muxedAudio: false } as CaptureRunResult);
-    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(1));
+    (chrome.offscreen.hasDocument as Mock).mockResolvedValue(true);
+    (chrome.runtime.sendMessage as Mock).mockResolvedValue({ ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 1, muxedAudio: false } as CaptureRunResult);
+    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(1));
 
-    messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, jest.fn());
+    messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, vi.fn());
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
     expect(chrome.offscreen.createDocument).not.toHaveBeenCalled();
   });
 
   it('responds with the mapped error and does not download when the engine fails', async () => {
-    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({ ok: false, code: 'too-large' } as CaptureRunResult);
-    const sendResponse = jest.fn();
+    (chrome.runtime.sendMessage as Mock).mockResolvedValue({ ok: false, code: 'too-large' } as CaptureRunResult);
+    const sendResponse = vi.fn();
     messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, sendResponse);
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
@@ -1108,21 +1108,21 @@ describe('CAPTURE_STREAM', () => {
   // capture, recovered from CAPTURE_STREAM's sender.tab.id.
   describe('CAPTURE_PROGRESS relay', () => {
     beforeEach(() => {
-      (chrome.tabs.sendMessage as jest.Mock).mockReset().mockResolvedValue(undefined);
+      (chrome.tabs.sendMessage as Mock).mockReset().mockResolvedValue(undefined);
     });
 
     it('forwards progress to the tab that started the capture', async () => {
-      (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+      (chrome.runtime.sendMessage as Mock).mockResolvedValue({
         ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 1, muxedAudio: false,
       } as CaptureRunResult);
-      (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(1));
+      (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(1));
 
       messageHandler(
         { type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage },
         { tab: { id: 42 } },
-        jest.fn(),
+        vi.fn(),
       );
-      messageHandler({ type: 'CAPTURE_PROGRESS', runId: 'run-x', done: 3, total: 10 }, {}, jest.fn());
+      messageHandler({ type: 'CAPTURE_PROGRESS', runId: 'run-x', done: 3, total: 10 }, {}, vi.fn());
 
       expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(42, expect.objectContaining({ type: 'CAPTURE_PROGRESS' }));
 
@@ -1133,18 +1133,18 @@ describe('CAPTURE_STREAM', () => {
     });
 
     it('routes each concurrent capture\'s progress to its own tab (no cross-talk)', async () => {
-      (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+      (chrome.runtime.sendMessage as Mock).mockResolvedValue({
         ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 1, muxedAudio: false,
       } as CaptureRunResult);
-      (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(1));
+      (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(1));
 
       // Two captures in the shared offscreen doc, from different tabs.
-      messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-A', manifestUrl: item.hlsManifest, item, sourcePage }, { tab: { id: 11 } }, jest.fn());
-      messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-B', manifestUrl: item.hlsManifest, item, sourcePage }, { tab: { id: 22 } }, jest.fn());
+      messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-A', manifestUrl: item.hlsManifest, item, sourcePage }, { tab: { id: 11 } }, vi.fn());
+      messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-B', manifestUrl: item.hlsManifest, item, sourcePage }, { tab: { id: 22 } }, vi.fn());
       // Relay is looked up off the runId→tab map (synchronous, before the captures'
       // async completion clears their entries), so each tab gets only its own run.
-      messageHandler({ type: 'CAPTURE_PROGRESS', runId: 'run-B', done: 1, total: 2 }, {}, jest.fn());
-      messageHandler({ type: 'CAPTURE_PROGRESS', runId: 'run-A', done: 2, total: 2 }, {}, jest.fn());
+      messageHandler({ type: 'CAPTURE_PROGRESS', runId: 'run-B', done: 1, total: 2 }, {}, vi.fn());
+      messageHandler({ type: 'CAPTURE_PROGRESS', runId: 'run-A', done: 2, total: 2 }, {}, vi.fn());
 
       expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(22, expect.objectContaining({ runId: 'run-B' }));
       expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(11, expect.objectContaining({ runId: 'run-A' }));
@@ -1155,17 +1155,17 @@ describe('CAPTURE_STREAM', () => {
     });
 
     it('does not forward when no capture is active (popup capture, whose sender.tab is undefined)', async () => {
-      (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+      (chrome.runtime.sendMessage as Mock).mockResolvedValue({
         ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 1, muxedAudio: false,
       } as CaptureRunResult);
-      (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(1));
+      (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(1));
 
       // Popup capture: sender.tab is undefined, so no captureRunTabs entry is set.
-      messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, jest.fn());
+      messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, vi.fn());
       await new Promise((r) => setTimeout(r, 0));
       await new Promise((r) => setTimeout(r, 0));
 
-      messageHandler({ type: 'CAPTURE_PROGRESS', done: 1, total: 10 }, {}, jest.fn());
+      messageHandler({ type: 'CAPTURE_PROGRESS', done: 1, total: 10 }, {}, vi.fn());
 
       expect(chrome.tabs.sendMessage).not.toHaveBeenCalled();
     });
@@ -1174,15 +1174,15 @@ describe('CAPTURE_STREAM', () => {
 
 describe('EXCLUDED routing', () => {
   it('ADD_EXCLUDED calls addExcluded', () => {
-    messageHandler({ type: 'ADD_EXCLUDED', entry: { value: 'https://x/a.png', kind: 'url', time: 1 } }, {}, jest.fn());
+    messageHandler({ type: 'ADD_EXCLUDED', entry: { value: 'https://x/a.png', kind: 'url', time: 1 } }, {}, vi.fn());
     expect(excludedMod.addExcluded).toHaveBeenCalledWith({ value: 'https://x/a.png', kind: 'url', time: 1 });
   });
   it('REMOVE_EXCLUDED calls removeExcluded with kind+value', () => {
-    messageHandler({ type: 'REMOVE_EXCLUDED', kind: 'host', value: 'cdn.ads.com' }, {}, jest.fn());
+    messageHandler({ type: 'REMOVE_EXCLUDED', kind: 'host', value: 'cdn.ads.com' }, {}, vi.fn());
     expect(excludedMod.removeExcluded).toHaveBeenCalledWith('host', 'cdn.ads.com');
   });
   it('CLEAR_EXCLUDED calls clearExcluded', () => {
-    messageHandler({ type: 'CLEAR_EXCLUDED' }, {}, jest.fn());
+    messageHandler({ type: 'CLEAR_EXCLUDED' }, {}, vi.fn());
     expect(excludedMod.clearExcluded).toHaveBeenCalled();
   });
 });
@@ -1200,7 +1200,7 @@ describe('excluded blocklist reaches the background download paths', () => {
 
   beforeEach(() => {
     localStore = {};
-    (chrome.storage.local.get as jest.Mock).mockReset().mockImplementation(
+    (chrome.storage.local.get as Mock).mockReset().mockImplementation(
       (keys?: string | string[] | Record<string, unknown> | null) => {
         if (keys == null) return Promise.resolve({ ...localStore });
         if (typeof keys === 'string') return Promise.resolve(keys in localStore ? { [keys]: localStore[keys] } : {});
@@ -1215,15 +1215,15 @@ describe('excluded blocklist reaches the background download paths', () => {
         return Promise.resolve(out);
       },
     );
-    (chrome.storage.local.set as jest.Mock).mockReset().mockImplementation((items: Record<string, unknown>) => {
+    (chrome.storage.local.set as Mock).mockReset().mockImplementation((items: Record<string, unknown>) => {
       Object.assign(localStore, items);
       return Promise.resolve(undefined);
     });
 
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({}));
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({}));
     loadSettings(); // resolve the settingsReady gate with defaults
-    (chrome.downloads.download as jest.Mock).mockReset().mockImplementation((_o, cb) => cb(1));
-    (chrome.tabs.sendMessage as jest.Mock).mockReset();
+    (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb(1));
+    (chrome.tabs.sendMessage as Mock).mockReset();
   });
 
   afterEach(async () => {
@@ -1243,7 +1243,7 @@ describe('excluded blocklist reaches the background download paths', () => {
 
   it('"download all media on this page" (context menu) skips a blocklisted host but downloads the rest', async () => {
     await seedExcludedHost('cdn.ads.com');
-    (chrome.tabs.sendMessage as jest.Mock).mockImplementation((_id, _msg, cb) => cb([adImage, goodImage]));
+    (chrome.tabs.sendMessage as Mock).mockImplementation((_id, _msg, cb) => cb([adImage, goodImage]));
 
     contextMenuHandler(
       { menuItemId: 'mbd-download-all', editable: false, pageUrl: 'https://page' },
@@ -1265,7 +1265,7 @@ describe('excluded blocklist reaches the background download paths', () => {
   it('DOWNLOAD_IMAGES message handler also skips a blocklisted host (defense in depth)', async () => {
     await seedExcludedHost('cdn.ads.com');
 
-    messageHandler({ type: 'DOWNLOAD_IMAGES', images: [adImage, goodImage], sourcePage: undefined }, {}, jest.fn());
+    messageHandler({ type: 'DOWNLOAD_IMAGES', images: [adImage, goodImage], sourcePage: undefined }, {}, vi.fn());
     await new Promise((r) => setTimeout(r, 0));
 
     expect(chrome.downloads.download).toHaveBeenCalledTimes(1);

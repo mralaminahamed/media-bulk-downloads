@@ -1,19 +1,20 @@
+import type { Mock, MockInstance } from 'vitest';
 // The relay listeners forward sniffer payloads into these resolver functions.
 // Spy on just those two entry points (keep the rest of each module real so the
 // collectMedia tests, which pull sniffedHlsManifests / instagramPageMedia from
 // the same modules, are unaffected).
-jest.mock('@/extension/shared/resolvers/sites/instagram', () => ({
-  ...jest.requireActual('@/extension/shared/resolvers/sites/instagram'),
-  ingestSniffedIgMedia: jest.fn(),
+vi.mock('@/extension/shared/resolvers/sites/instagram', async () => ({
+  ...(await vi.importActual<typeof import('@/extension/shared/resolvers/sites/instagram')>('@/extension/shared/resolvers/sites/instagram')),
+  ingestSniffedIgMedia: vi.fn(),
 }));
-jest.mock('@/extension/shared/resolvers/sniffers/hls-sniff', () => ({
-  ...jest.requireActual('@/extension/shared/resolvers/sniffers/hls-sniff'),
-  ingestSniffedHls: jest.fn(),
+vi.mock('@/extension/shared/resolvers/sniffers/hls-sniff', async () => ({
+  ...(await vi.importActual<typeof import('@/extension/shared/resolvers/sniffers/hls-sniff')>('@/extension/shared/resolvers/sniffers/hls-sniff')),
+  ingestSniffedHls: vi.fn(),
 }));
 // The deep-scan runner is a heavy DOM-scrolling driver; the content script only
 // wires its lifecycle (start / abort / respond), so stub the runner itself.
-jest.mock('@/extension/content/deepScanRunner', () => ({
-  startDeepScan: jest.fn(),
+vi.mock('@/extension/content/deepScanRunner', () => ({
+  startDeepScan: vi.fn(),
 }));
 
 import {
@@ -46,14 +47,14 @@ describe('Content Script', () => {
   });
 
   describe('isBase64Image', () => {
-    it('correctly identifies base64 images', () => {
+    it('correctly identifies base64 images', async () => {
       expect(isBase64Image('data:image/png;base64,abc123')).toBe(true);
       expect(isBase64Image('https://example.com/image.png')).toBe(false);
     });
   });
 
   describe('getBase64ImageType', () => {
-    it('extracts correct image type from base64 string', () => {
+    it('extracts correct image type from base64 string', async () => {
       expect(getBase64ImageType('data:image/png;base64,abc123')).toBe('png');
       expect(getBase64ImageType('data:image/jpeg;base64,abc123')).toBe('jpeg');
       // svg+xml is normalised to the 'svg' that getImageType emits for .svg files,
@@ -67,16 +68,16 @@ describe('Content Script', () => {
   });
 
   describe('getBase64ImageSize', () => {
-    it('calculates correct size for base64 image', () => {
+    it('calculates correct size for base64 image', async () => {
       // "YWJjZGVmZ2g=" decodes to "abcdefgh" (8 bytes).
       expect(getBase64ImageSize('data:image/png;base64,YWJjZGVmZ2g=')).toBe(8);
     });
 
-    it('returns 0 for a data URI with no payload', () => {
+    it('returns 0 for a data URI with no payload', async () => {
       expect(getBase64ImageSize('data:image/png;base64,')).toBe(0);
     });
 
-    it('returns 0 for a URL-encoded (non-base64) data URI with commas in its payload', () => {
+    it('returns 0 for a URL-encoded (non-base64) data URI with commas in its payload', async () => {
       // Not base64: split(',')[1] would be the truncated "0" and the length
       // formula meaningless. The `;base64` guard must reject it.
       expect(getBase64ImageSize('data:image/svg+xml,<svg viewBox="0,0,8,8"></svg>')).toBe(0);
@@ -85,14 +86,14 @@ describe('Content Script', () => {
   });
 
   describe('getImageDimensions', () => {
-    it('returns correct dimensions for an image', () => {
+    it('returns correct dimensions for an image', async () => {
       const img = document.querySelector('img') as HTMLImageElement;
       expect(getImageDimensions(img)).toEqual({ width: 100, height: 100 });
     });
   });
 
   describe('getImageType', () => {
-    it('determines correct image type from URL', () => {
+    it('determines correct image type from URL', async () => {
       expect(getImageType('image.jpg')).toBe('jpeg');
       expect(getImageType('icon.png')).toBe('png');
       expect(getImageType('animation.gif')).toBe('gif');
@@ -102,46 +103,46 @@ describe('Content Script', () => {
       expect(getImageType('file.txt')).toBe('unknown');
     });
 
-    it('ignores query strings and fragments', () => {
+    it('ignores query strings and fragments', async () => {
       expect(getImageType('https://cdn.example.com/photo.jpg?w=800&h=600')).toBe('jpeg');
       expect(getImageType('https://cdn.example.com/photo.png#frag')).toBe('png');
     });
 
-    it('returns "unknown" for extensionless URLs', () => {
+    it('returns "unknown" for extensionless URLs', async () => {
       expect(getImageType('https://example.com/image')).toBe('unknown');
       expect(getImageType('https://example.com/')).toBe('unknown');
     });
   });
 
   describe('resolveUrl', () => {
-    it('resolves relative URLs against the document base', () => {
+    it('resolves relative URLs against the document base', async () => {
       expect(resolveUrl('foo/bar.png')).toBe(abs('foo/bar.png'));
     });
 
-    it('leaves data URIs unchanged', () => {
+    it('leaves data URIs unchanged', async () => {
       expect(resolveUrl('data:image/png;base64,AAAA')).toBe('data:image/png;base64,AAAA');
     });
   });
 
   describe('parseSrcset', () => {
-    it('correctly parses a descriptor srcset string', () => {
+    it('correctly parses a descriptor srcset string', async () => {
       const srcset = 'image-1x.png 1x, image-2x.png 2x, image-3x.png 3x';
       expect(parseSrcset(srcset)).toEqual(['image-1x.png', 'image-2x.png', 'image-3x.png']);
     });
 
-    it('keeps commas inside a data: URI intact', () => {
+    it('keeps commas inside a data: URI intact', async () => {
       const srcset = 'data:image/png;base64,AAAA 1x, real.png 2x';
       expect(parseSrcset(srcset)).toEqual(['data:image/png;base64,AAAA', 'real.png']);
     });
 
-    it('keeps commas inside a query string intact', () => {
+    it('keeps commas inside a query string intact', async () => {
       const srcset = 'photo.jpg?a=1,2 1x, other.jpg 2x';
       expect(parseSrcset(srcset)).toEqual(['photo.jpg?a=1,2', 'other.jpg']);
     });
   });
 
   describe('collectMedia', () => {
-    it('collects all images including srcset and background images', () => {
+    it('collects all images including srcset and background images', async () => {
       const images = collectMedia();
 
       // 5 unique <img>/<picture> sources + 2 srcset + 2 picture source srcset + 1 background
@@ -154,14 +155,14 @@ describe('Content Script', () => {
       expect(bySrc[abs('test4.gif')]).toMatchObject({ type: 'gif' });
     });
 
-    it('reports remote file sizes as unknown (0) — no network requests', () => {
+    it('reports remote file sizes as unknown (0) — no network requests', async () => {
       const images = collectMedia();
       const remote = images.filter((i) => !i.isBase64);
       expect(remote.length).toBeGreaterThan(0);
       remote.forEach((img) => expect(img.fileSize).toBe(0));
     });
 
-    it('computes base64 image sizes locally', () => {
+    it('computes base64 image sizes locally', async () => {
       const images = collectMedia();
       const base64 = images.find((i) => i.isBase64);
       expect(base64).toBeDefined();
@@ -169,13 +170,13 @@ describe('Content Script', () => {
       expect(base64?.type).toBe('png');
     });
 
-    it('resolves relative sources to absolute URLs', () => {
+    it('resolves relative sources to absolute URLs', async () => {
       const images = collectMedia();
       expect(images.find((i) => i.src === abs('test1.jpg'))).toBeDefined();
       expect(images.find((i) => i.src === abs('test2-small.png'))).toBeDefined();
     });
 
-    it('does not collect duplicate images', () => {
+    it('does not collect duplicate images', async () => {
       document.body.innerHTML += `<img src="test1.jpg" alt="Duplicate Test 1">`;
       const images = collectMedia();
       expect(images.filter((img) => img.src === abs('test1.jpg'))).toHaveLength(1);
@@ -183,9 +184,9 @@ describe('Content Script', () => {
   });
 
   describe('Message Handling', () => {
-    it('responds with collected images when GET_IMAGES message is received', () => {
-      const sendResponse = jest.fn();
-      const messageListener = (chrome.runtime.onMessage.addListener as jest.Mock).mock.calls[0][0];
+    it('responds with collected images when GET_IMAGES message is received', async () => {
+      const sendResponse = vi.fn();
+      const messageListener = (chrome.runtime.onMessage.addListener as Mock).mock.calls[0][0];
 
       messageListener('GET_IMAGES', {}, sendResponse);
 
@@ -199,9 +200,9 @@ describe('Content Script', () => {
       );
     });
 
-    it('does not respond to unknown message types', () => {
-      const sendResponse = jest.fn();
-      const messageListener = (chrome.runtime.onMessage.addListener as jest.Mock).mock.calls[0][0];
+    it('does not respond to unknown message types', async () => {
+      const sendResponse = vi.fn();
+      const messageListener = (chrome.runtime.onMessage.addListener as Mock).mock.calls[0][0];
 
       messageListener('UNKNOWN_MESSAGE', {}, sendResponse);
 
@@ -210,7 +211,7 @@ describe('Content Script', () => {
   });
 
   describe('Edge Cases', () => {
-    it('handles invalid base64 data gracefully', () => {
+    it('handles invalid base64 data gracefully', async () => {
       document.body.innerHTML += `<img src="data:image/png;base64,invalid" alt="Invalid Base64">`;
       const images = collectMedia();
       const invalid = images.find((img) => img.alt === 'Invalid Base64');
@@ -219,7 +220,7 @@ describe('Content Script', () => {
       expect(invalid?.fileSize).toBeGreaterThanOrEqual(0);
     });
 
-    it('handles images with query parameters in URL', () => {
+    it('handles images with query parameters in URL', async () => {
       document.body.innerHTML += `<img src="image.jpg?width=100&height=100" alt="Image with query params">`;
       const images = collectMedia();
       const withParams = images.find((img) => img.src.includes('image.jpg?width=100'));
@@ -227,7 +228,7 @@ describe('Content Script', () => {
       expect(withParams?.type).toBe('jpeg');
     });
 
-    it('drops non-image data URIs (not media, and a data:text/* is a scheme risk)', () => {
+    it('drops non-image data URIs (not media, and a data:text/* is a scheme risk)', async () => {
       document.body.innerHTML += `<img src="data:text/plain;base64,SGVsbG8gV29ybGQ=" alt="Non-image data URI">`;
       const images = collectMedia();
       expect(images.find((img) => img.alt === 'Non-image data URI')).toBeUndefined();
@@ -235,7 +236,7 @@ describe('Content Script', () => {
   });
 
   describe('CSS Background Images', () => {
-    it('captures single and multiple background images', () => {
+    it('captures single and multiple background images', async () => {
       document.body.innerHTML += `<div style="background-image: url('bg1.png'), url('bg2.png');"></div>`;
       const images = collectMedia();
       expect(images.find((i) => i.src === abs('test4.gif'))).toBeDefined();
@@ -245,7 +246,7 @@ describe('Content Script', () => {
   });
 
   describe('Accessibility', () => {
-    it('captures alt text, and defaults to empty string when absent', () => {
+    it('captures alt text, and defaults to empty string when absent', async () => {
       document.body.innerHTML += `<img src="no-alt.jpg">`;
       const images = collectMedia();
       expect(images.find((i) => i.src === abs('test1.jpg'))?.alt).toBe('Test 1');
@@ -254,66 +255,66 @@ describe('Content Script', () => {
   });
 
   describe('parseSrcset edge cases', () => {
-    it('returns an empty array for empty or whitespace input', () => {
+    it('returns an empty array for empty or whitespace input', async () => {
       expect(parseSrcset('')).toEqual([]);
       expect(parseSrcset('   ')).toEqual([]);
     });
 
-    it('tolerates a trailing comma', () => {
+    it('tolerates a trailing comma', async () => {
       expect(parseSrcset('a.jpg 1x,')).toEqual(['a.jpg']);
     });
 
-    it('handles protocol-relative URLs', () => {
+    it('handles protocol-relative URLs', async () => {
       expect(parseSrcset('//cdn.example.com/x.jpg 2x, b.jpg')).toEqual([
         '//cdn.example.com/x.jpg',
         'b.jpg',
       ]);
     });
 
-    it('collapses extra whitespace between url and descriptor', () => {
+    it('collapses extra whitespace between url and descriptor', async () => {
       expect(parseSrcset('a.jpg    2x')).toEqual(['a.jpg']);
     });
   });
 
   describe('getImageType edge cases', () => {
-    it('is case-insensitive', () => {
+    it('is case-insensitive', async () => {
       expect(getImageType('PHOTO.JPG')).toBe('jpeg');
       expect(getImageType('https://x/A.JPEG?y=1')).toBe('jpeg');
     });
 
-    it('uses only the final extension', () => {
+    it('uses only the final extension', async () => {
       expect(getImageType('archive.tar.gz')).toBe('unknown');
       expect(getImageType('sprite.png')).toBe('png');
     });
   });
 
   describe('getBase64ImageType / size edge cases', () => {
-    it('extracts a compound mime subtype and normalises svg+xml to svg', () => {
+    it('extracts a compound mime subtype and normalises svg+xml to svg', async () => {
       expect(getBase64ImageType('data:image/svg+xml;charset=utf-8;base64,PD8=')).toBe('svg');
     });
 
-    it('sizes a single-byte payload with padding', () => {
+    it('sizes a single-byte payload with padding', async () => {
       expect(getBase64ImageSize('data:image/png;base64,YQ==')).toBe(1);
     });
 
-    it('returns 0 when there is no comma-separated payload', () => {
+    it('returns 0 when there is no comma-separated payload', async () => {
       expect(getBase64ImageSize('not-a-data-uri')).toBe(0);
     });
   });
 
   describe('resolveUrl edge cases', () => {
-    it('resolves protocol-relative URLs using the document scheme', () => {
+    it('resolves protocol-relative URLs using the document scheme', async () => {
       expect(resolveUrl('//cdn.example.com/x.png')).toBe('http://cdn.example.com/x.png');
     });
 
-    it('returns the input unchanged when it cannot be parsed', () => {
+    it('returns the input unchanged when it cannot be parsed', async () => {
       // Absolute URL with an invalid host — throws even with a base.
       expect(resolveUrl('http://[')).toBe('http://[');
     });
   });
 
   describe('collectMedia edge cases', () => {
-    it('parses single, double, and unquoted background-image URLs', () => {
+    it('parses single, double, and unquoted background-image URLs', async () => {
       document.body.innerHTML =
         `<div style="background-image: url(&quot;q.png&quot;), url('r.png'), url(s.png);"></div>`;
       const srcs = collectMedia().map((i) => i.src);
@@ -322,23 +323,23 @@ describe('Content Script', () => {
       );
     });
 
-    it('ignores background-image: none', () => {
+    it('ignores background-image: none', async () => {
       document.body.innerHTML = '<div style="background-image: none"></div>';
       expect(collectMedia()).toHaveLength(0);
     });
 
-    it('deduplicates the same resolved URL across <img> and background', () => {
+    it('deduplicates the same resolved URL across <img> and background', async () => {
       document.body.innerHTML =
         '<img src="shared.png"><div style="background-image: url(shared.png)"></div>';
       expect(collectMedia().filter((i) => i.src === abs('shared.png'))).toHaveLength(1);
     });
 
-    it('drops blob: image URLs (not fetchable by chrome.downloads from the extension)', () => {
+    it('drops blob: image URLs (not fetchable by chrome.downloads from the extension)', async () => {
       document.body.innerHTML = '<img src="blob:https://example.com/abc-123">';
       expect(collectMedia().some((i) => i.src.startsWith('blob:'))).toBe(false);
     });
 
-    it('tolerates an iframe whose contentDocument access throws (cross-origin) and still collects the rest', () => {
+    it('tolerates an iframe whose contentDocument access throws (cross-origin) and still collects the rest', async () => {
       document.body.innerHTML = '<img src="visible.jpg"><iframe id="f"></iframe>';
       const iframe = document.getElementById('f') as HTMLIFrameElement;
       // A cross-origin frame throws on contentDocument access; the walk must catch
@@ -350,7 +351,7 @@ describe('Content Script', () => {
       // jsdom's own getComputedStyle → selector matcher reads iframe.contentDocument
       // (focusability check); stub it so the ONLY access is collect's explicit,
       // guarded one — which is the branch under test.
-      const styleSpy = jest
+      const styleSpy = vi
         .spyOn(window, 'getComputedStyle')
         .mockReturnValue({ getPropertyValue: () => 'none' } as unknown as CSSStyleDeclaration);
       try {
@@ -363,10 +364,13 @@ describe('Content Script', () => {
   });
 
   describe('Performance', () => {
-    it('handles a large number of images efficiently', () => {
-      for (let i = 0; i < 1000; i++) {
-        document.body.innerHTML += `<img src="test${i}.jpg" alt="Test ${i}">`;
-      }
+    it('handles a large number of images efficiently', async () => {
+      // Build the markup once and parse it in a single innerHTML assignment;
+      // `+=` in a loop re-parses the whole body each pass (O(n²) — seconds under
+      // jsdom) and isn't what this test measures.
+      let html = '';
+      for (let i = 0; i < 1000; i++) html += `<img src="test${i}.jpg" alt="Test ${i}">`;
+      document.body.innerHTML += html; // append once (keeps the beforeEach fixture imgs)
       const start = performance.now();
       const images = collectMedia();
       const elapsed = performance.now() - start;
@@ -385,22 +389,20 @@ describe('Deep scan message handling', () => {
 
   interface Wired {
     handler: (msg: unknown, sender: unknown, sendResponse: (r: unknown) => void) => unknown;
-    startDeepScan: jest.Mock;
+    startDeepScan: Mock;
   }
 
-  const wire = (): Wired => {
-    jest.resetModules();
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const startDeepScan = require('@/extension/content/deepScanRunner').startDeepScan as jest.Mock;
+  const wire = async (): Promise<Wired> => {
+    vi.resetModules();
+    const startDeepScan = (await import('@/extension/content/deepScanRunner')).startDeepScan as unknown as Mock;
     startDeepScan.mockReset();
-    (chrome.storage.sync.get as jest.Mock).mockImplementation(
+    (chrome.storage.sync.get as Mock).mockImplementation(
       (_keys: unknown, cb: (r: { settings: unknown }) => void) => cb({ settings: {} }),
     );
-    const addListener = chrome.runtime.onMessage.addListener as jest.Mock;
+    const addListener = chrome.runtime.onMessage.addListener as Mock;
     addListener.mockClear();
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('@/extension/content');
+    await import('@/extension/content');
 
     // index.ts registers GET_IMAGES first, then the deep-scan listener second.
     const handler = addListener.mock.calls[1][0] as Wired['handler'];
@@ -408,20 +410,20 @@ describe('Deep scan message handling', () => {
   };
 
   afterEach(() => {
-    (chrome.storage.sync.get as jest.Mock).mockReset();
+    (chrome.storage.sync.get as Mock).mockReset();
   });
 
   afterAll(() => {
-    (chrome.runtime.onMessage.addListener as jest.Mock).mockClear();
-    jest.resetModules();
+    (chrome.runtime.onMessage.addListener as Mock).mockClear();
+    vi.resetModules();
   });
 
   it('starts a deep scan and responds with the resolved media', async () => {
-    const { handler, startDeepScan } = wire();
+    const { handler, startDeepScan } = await wire();
     const media = [{ src: 'https://ex.com/a.jpg' }];
     startDeepScan.mockResolvedValue(media);
 
-    const sendResponse = jest.fn();
+    const sendResponse = vi.fn();
     const ret = handler('DEEP_SCAN', {}, sendResponse);
     expect(ret).toBe(true); // keeps the message channel open for the async reply
     await flush();
@@ -431,10 +433,10 @@ describe('Deep scan message handling', () => {
   });
 
   it('responds with an empty list when the scan rejects', async () => {
-    const { handler, startDeepScan } = wire();
+    const { handler, startDeepScan } = await wire();
     startDeepScan.mockRejectedValue(new Error('boom'));
 
-    const sendResponse = jest.fn();
+    const sendResponse = vi.fn();
     handler('DEEP_SCAN', {}, sendResponse);
     await flush();
 
@@ -442,8 +444,8 @@ describe('Deep scan message handling', () => {
   });
 
   it('streams progress to the popup, including the stop reason', async () => {
-    const { handler, startDeepScan } = wire();
-    (chrome.runtime.sendMessage as jest.Mock).mockReset().mockResolvedValue(undefined);
+    const { handler, startDeepScan } = await wire();
+    (chrome.runtime.sendMessage as Mock).mockReset().mockResolvedValue(undefined);
     // The runner reports progress via the onProgress callback the content script
     // supplies; that callback forwards a DEEP_SCAN_PROGRESS message to the popup.
     startDeepScan.mockImplementation((onProgress: (f: number, s: number, e: number, r?: string) => void) => {
@@ -451,7 +453,7 @@ describe('Deep scan message handling', () => {
       return Promise.resolve([]);
     });
 
-    handler('DEEP_SCAN', {}, jest.fn());
+    handler('DEEP_SCAN', {}, vi.fn());
     await flush();
 
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
@@ -460,14 +462,14 @@ describe('Deep scan message handling', () => {
   });
 
   it('omits the reason field from an interim progress message', async () => {
-    const { handler, startDeepScan } = wire();
-    (chrome.runtime.sendMessage as jest.Mock).mockReset().mockResolvedValue(undefined);
+    const { handler, startDeepScan } = await wire();
+    (chrome.runtime.sendMessage as Mock).mockReset().mockResolvedValue(undefined);
     startDeepScan.mockImplementation((onProgress: (f: number, s: number, e: number, r?: string) => void) => {
       onProgress(5, 1, 100); // no stop reason yet
       return Promise.resolve([]);
     });
 
-    handler('DEEP_SCAN', {}, jest.fn());
+    handler('DEEP_SCAN', {}, vi.fn());
     await flush();
 
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
@@ -475,17 +477,17 @@ describe('Deep scan message handling', () => {
     });
   });
 
-  it('acknowledges a DEEP_SCAN_ABORT synchronously', () => {
-    const { handler } = wire();
-    const sendResponse = jest.fn();
+  it('acknowledges a DEEP_SCAN_ABORT synchronously', async () => {
+    const { handler } = await wire();
+    const sendResponse = vi.fn();
     const ret = handler('DEEP_SCAN_ABORT', {}, sendResponse);
     expect(sendResponse).toHaveBeenCalledWith(true);
     expect(ret).toBeUndefined(); // synchronous — channel not held open
   });
 
-  it('ignores unrelated messages on the deep-scan listener', () => {
-    const { handler, startDeepScan } = wire();
-    const sendResponse = jest.fn();
+  it('ignores unrelated messages on the deep-scan listener', async () => {
+    const { handler, startDeepScan } = await wire();
+    const sendResponse = vi.fn();
     const ret = handler('SOMETHING_ELSE', {}, sendResponse);
     expect(ret).toBeUndefined();
     expect(startDeepScan).not.toHaveBeenCalled();
@@ -502,47 +504,49 @@ describe('Deep scan message handling', () => {
 // jsdom's window.location is `[LegacyUnforgeable]` (immutable at runtime — it
 // can neither be redefined nor reassigned to another origin), so the on-host X
 // and IG relays are covered in sibling files that pin the location per file via
-// `@jest-environment-options` (relay-x.test.ts, relay-ig.test.ts).
+// `@vitest-environment-options` (relay-x.test.ts, relay-ig.test.ts).
 describe('Sniffer relay listeners (generic host)', () => {
   type Handler = (event: unknown) => void;
 
   interface Loaded {
     messageHandlers: Handler[];
-    postSpy: jest.SpyInstance;
-    ingestSniffedIgMedia: jest.Mock;
-    ingestSniffedHls: jest.Mock;
+    postSpy: MockInstance;
+    ingestSniffedIgMedia: Mock;
+    ingestSniffedHls: Mock;
   }
 
-  let postSpy: jest.SpyInstance | undefined;
+  let postSpy: MockInstance | undefined;
 
   // Re-import the content module fresh and capture the exact window 'message'
   // handlers it registers, so assertions never depend on listeners left on
   // `window` by an earlier import (each handler is driven directly).
-  const loadContent = (): Loaded => {
-    jest.resetModules();
-    const addSpy = jest.spyOn(window, 'addEventListener');
-    postSpy = jest.spyOn(window, 'postMessage').mockImplementation(() => {});
-    const sendMessage = chrome.runtime.sendMessage as jest.Mock;
+  const loadContent = async (): Promise<Loaded> => {
+    vi.resetModules();
+    const addSpy = vi.spyOn(window, 'addEventListener');
+    postSpy = vi.spyOn(window, 'postMessage').mockImplementation(() => {});
+    const sendMessage = chrome.runtime.sendMessage as Mock;
     sendMessage.mockReset();
     sendMessage.mockReturnValue(Promise.resolve(undefined));
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('@/extension/content');
+    await import('@/extension/content');
 
     const messageHandlers = addSpy.mock.calls
       .filter((c) => c[0] === 'message')
       .map((c) => c[1] as Handler);
     addSpy.mockRestore();
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const igMod = require('@/extension/shared/resolvers/sites/instagram');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const hlsMod = require('@/extension/shared/resolvers/sniffers/hls-sniff');
+    const igMod = await import('@/extension/shared/resolvers/sites/instagram');
+    const hlsMod = await import('@/extension/shared/resolvers/sniffers/hls-sniff');
+    // vi.resetModules() re-imports the module graph but reuses the vi.mock
+    // factory's fns (unlike jest.resetModules, which rebuilds them), so their
+    // call history persists across loadContent() calls. Clear it per load.
+    (igMod.ingestSniffedIgMedia as unknown as Mock).mockClear();
+    (hlsMod.ingestSniffedHls as unknown as Mock).mockClear();
     return {
       messageHandlers,
       postSpy,
-      ingestSniffedIgMedia: igMod.ingestSniffedIgMedia,
-      ingestSniffedHls: hlsMod.ingestSniffedHls,
+      ingestSniffedIgMedia: igMod.ingestSniffedIgMedia as unknown as Mock,
+      ingestSniffedHls: hlsMod.ingestSniffedHls as unknown as Mock,
     };
   };
 
@@ -562,20 +566,20 @@ describe('Sniffer relay listeners (generic host)', () => {
   });
 
   afterAll(() => {
-    (chrome.runtime.sendMessage as jest.Mock).mockReset();
-    jest.resetModules();
+    (chrome.runtime.sendMessage as Mock).mockReset();
+    vi.resetModules();
   });
 
   describe('HLS relay', () => {
-    it('feeds a valid ibd-hls envelope to ingestSniffedHls', () => {
-      const { messageHandlers, ingestSniffedHls } = loadContent();
+    it('feeds a valid ibd-hls envelope to ingestSniffedHls', async () => {
+      const { messageHandlers, ingestSniffedHls } = await loadContent();
       const urls = ['https://cdn.example.com/live/index.m3u8'];
       fire(messageHandlers, message({ source: 'ibd-hls', urls }));
       expect(ingestSniffedHls).toHaveBeenCalledWith(urls);
     });
 
-    it('ignores a foreign window source, a foreign origin, a wrong tag, and a non-array urls', () => {
-      const { messageHandlers, ingestSniffedHls } = loadContent();
+    it('ignores a foreign window source, a foreign origin, a wrong tag, and a non-array urls', async () => {
+      const { messageHandlers, ingestSniffedHls } = await loadContent();
       fire(messageHandlers, message({ source: 'ibd-hls', urls: [] }, { source: {} }));
       fire(messageHandlers, message({ source: 'ibd-hls', urls: [] }, { origin: 'https://evil.example' }));
       fire(messageHandlers, message({ source: 'ibd-not-hls', urls: [] }));
@@ -584,25 +588,25 @@ describe('Sniffer relay listeners (generic host)', () => {
       expect(ingestSniffedHls).not.toHaveBeenCalled();
     });
 
-    it('posts ibd-hls-ready on registration so the sniffer replays earlier manifests', () => {
-      const { postSpy: spy } = loadContent();
+    it('posts ibd-hls-ready on registration so the sniffer replays earlier manifests', async () => {
+      const { postSpy: spy } = await loadContent();
       expect(spy).toHaveBeenCalledWith({ source: 'ibd-hls-ready' }, window.location.origin);
     });
   });
 
   describe('host gating (neither X nor Instagram)', () => {
-    it('wires only the HLS relay on a generic host', () => {
-      expect(loadContent().messageHandlers).toHaveLength(1);
+    it('wires only the HLS relay on a generic host', async () => {
+      expect((await loadContent()).messageHandlers).toHaveLength(1);
     });
 
-    it('does not forward a valid X envelope (X relay not wired here)', () => {
-      const { messageHandlers } = loadContent();
+    it('does not forward a valid X envelope (X relay not wired here)', async () => {
+      const { messageHandlers } = await loadContent();
       fire(messageHandlers, message({ source: 'ibd-x-media', pairs: [{ url: 'https://video.twimg.com/z.mp4' }] }));
       expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
     });
 
-    it('does not forward a valid IG envelope (IG relay not wired here)', () => {
-      const { messageHandlers, ingestSniffedIgMedia } = loadContent();
+    it('does not forward a valid IG envelope (IG relay not wired here)', async () => {
+      const { messageHandlers, ingestSniffedIgMedia } = await loadContent();
       fire(messageHandlers, message({ source: 'ibd-ig-media', entries: [{ code: 'ABC', kind: 'image', url: 'u' }] }));
       expect(ingestSniffedIgMedia).not.toHaveBeenCalled();
     });

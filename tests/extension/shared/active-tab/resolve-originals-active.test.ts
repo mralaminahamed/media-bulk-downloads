@@ -1,6 +1,7 @@
+import type { Mock } from 'vitest';
 import { requestResolveOriginals } from '@/extension/shared/active-tab/resolve-originals-active';
 
-const send = chrome.runtime.sendMessage as jest.Mock;
+const send = chrome.runtime.sendMessage as Mock;
 
 describe('requestResolveOriginals', () => {
   beforeEach(() => {

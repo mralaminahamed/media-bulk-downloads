@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import FavouritesPanel from '@/extension/popup/components/FavouritesPanel';
@@ -12,16 +13,16 @@ const entry = {
 // can drive a storage-change event through it.
 type ChangeListener = (changes: Record<string, chrome.storage.StorageChange>, area: string) => void;
 const lastStorageListener = (): ChangeListener => {
-  const calls = (chrome.storage.onChanged.addListener as jest.Mock).mock.calls;
+  const calls = (chrome.storage.onChanged.addListener as Mock).mock.calls;
   return calls[calls.length - 1][0] as ChangeListener;
 };
 
 describe('FavouritesPanel', () => {
   beforeEach(() => {
-    jest.spyOn(favourites, 'loadFavourites').mockResolvedValue([entry]);
-    (chrome.runtime.sendMessage as jest.Mock).mockClear();
+    vi.spyOn(favourites, 'loadFavourites').mockResolvedValue([entry]);
+    (chrome.runtime.sendMessage as Mock).mockClear();
   });
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it('lists entries and clears all via the background after a two-step confirm', async () => {
     render(<FavouritesPanel onClose={() => {}} />);
@@ -51,7 +52,7 @@ describe('FavouritesPanel', () => {
   });
 
   it('labels a base64 (data:) favourite readably, not with the raw payload', async () => {
-    jest.spyOn(favourites, 'loadFavourites').mockResolvedValue([
+    vi.spyOn(favourites, 'loadFavourites').mockResolvedValue([
       { ...entry, src: 'data:image/png;base64,AAAABBBBCCCCDDDD' },
     ]);
     render(<FavouritesPanel onClose={() => {}} />);
@@ -66,7 +67,7 @@ describe('FavouritesPanel', () => {
   });
 
   it('falls back to the media src and shows no source link when sourcePageUrl is absent', async () => {
-    jest.spyOn(favourites, 'loadFavourites').mockResolvedValue([{ ...entry, sourcePageUrl: '' }]);
+    vi.spyOn(favourites, 'loadFavourites').mockResolvedValue([{ ...entry, sourcePageUrl: '' }]);
     render(<FavouritesPanel onClose={() => {}} />);
     await screen.findByText('a.jpg');
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
@@ -75,20 +76,20 @@ describe('FavouritesPanel', () => {
   });
 
   it('labels a favourite whose src is not a URL with the raw string', async () => {
-    jest.spyOn(favourites, 'loadFavourites').mockResolvedValue([{ ...entry, src: 'not a url', sourcePageUrl: '' }]);
+    vi.spyOn(favourites, 'loadFavourites').mockResolvedValue([{ ...entry, src: 'not a url', sourcePageUrl: '' }]);
     render(<FavouritesPanel onClose={() => {}} />);
     expect(await screen.findByText('not a url')).toBeInTheDocument();
   });
 
   it('shows the raw sourcePageUrl as host text when it is malformed', async () => {
-    jest.spyOn(favourites, 'loadFavourites').mockResolvedValue([{ ...entry, sourcePageUrl: 'not a url' }]);
+    vi.spyOn(favourites, 'loadFavourites').mockResolvedValue([{ ...entry, sourcePageUrl: 'not a url' }]);
     render(<FavouritesPanel onClose={() => {}} />);
     await screen.findByText('a.jpg');
     expect(screen.getByRole('link', { name: 'not a url' })).toHaveAttribute('href', 'not a url');
   });
 
   it('renders the thumbnail when present and includes it in the download payload', async () => {
-    jest.spyOn(favourites, 'loadFavourites').mockResolvedValue([{ ...entry, thumbnailSrc: 'https://c/thumb.jpg' }]);
+    vi.spyOn(favourites, 'loadFavourites').mockResolvedValue([{ ...entry, thumbnailSrc: 'https://c/thumb.jpg' }]);
     render(<FavouritesPanel onClose={() => {}} />);
     const img = await screen.findByAltText('a.jpg');
     expect(img).toHaveAttribute('src', 'https://c/thumb.jpg');
@@ -103,7 +104,7 @@ describe('FavouritesPanel', () => {
     render(<FavouritesPanel onClose={() => {}} />);
     await screen.findByText('a.jpg');
     const listener = lastStorageListener();
-    (favourites.loadFavourites as jest.Mock).mockResolvedValue([{ ...entry, src: 'https://c/b.jpg' }]);
+    (favourites.loadFavourites as Mock).mockResolvedValue([{ ...entry, src: 'https://c/b.jpg' }]);
 
     // Wrong area and wrong key are both ignored — no reload.
     await act(async () => { listener({ [favourites.FAVOURITES_KEY]: {} }, 'sync'); });
@@ -118,13 +119,13 @@ describe('FavouritesPanel', () => {
   });
 
   it('shows an empty state when there are no favourites', async () => {
-    jest.spyOn(favourites, 'loadFavourites').mockResolvedValue([]);
+    vi.spyOn(favourites, 'loadFavourites').mockResolvedValue([]);
     render(<FavouritesPanel onClose={() => {}} />);
     expect(await screen.findByText('No favourites yet')).toBeInTheDocument();
   });
 
   it('sorts entries newest-first and falls back to host, then raw src, for the label', async () => {
-    jest.spyOn(favourites, 'loadFavourites').mockResolvedValue([
+    vi.spyOn(favourites, 'loadFavourites').mockResolvedValue([
       { ...entry, src: 'https://host.example/', sourcePageUrl: '', time: 2000 },
       { ...entry, src: 'file:///', sourcePageUrl: '', time: 1000 },
     ]);

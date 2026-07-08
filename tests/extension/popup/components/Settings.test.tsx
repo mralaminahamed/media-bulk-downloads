@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -6,8 +7,8 @@ import { DEFAULT_SETTINGS } from '@/extension/shared/storage/settings';
 import { SettingsData } from '@/types';
 
 describe('Settings Component', () => {
-  const mockOnClose = jest.fn();
-  const mockOnSettingsChange = jest.fn();
+  const mockOnClose = vi.fn();
+  const mockOnSettingsChange = vi.fn();
   const initialSettings: SettingsData = {
     downloadPath: 'downloads',
     fileNamePrefix: 'image_',
@@ -38,7 +39,7 @@ describe('Settings Component', () => {
     deepScanClickLoadMore: false,
   };
 
-  // jsdom (jsdom 26 under jest-environment-jsdom) does not implement
+  // jsdom does not implement
   // Blob/File.prototype.text, which handleImportBackup relies on. Polyfill it via
   // FileReader (which jsdom does implement) so uploaded backup files can be read.
   beforeAll(() => {
@@ -58,9 +59,9 @@ describe('Settings Component', () => {
     mockOnClose.mockClear();
     mockOnSettingsChange.mockClear();
     // These global chrome mocks are shared across the suite and are not
-    // auto-reset by jest config; clear them so per-test assertions are precise.
-    (chrome.runtime.sendMessage as jest.Mock).mockClear();
-    (chrome.permissions.request as jest.Mock).mockReset();
+    // auto-reset between tests; clear them so per-test assertions are precise.
+    (chrome.runtime.sendMessage as Mock).mockClear();
+    (chrome.permissions.request as Mock).mockReset();
   });
 
   it('renders correctly with initial settings', () => {
@@ -215,7 +216,7 @@ describe('Settings Component', () => {
   });
 
   it('toggles resolveOriginals', async () => {
-    const onSettingsChange = jest.fn();
+    const onSettingsChange = vi.fn();
     render(<Settings settings={{ ...DEFAULT_SETTINGS }} onClose={() => {}} onSettingsChange={onSettingsChange} />);
     await userEvent.click(screen.getByRole('switch', { name: /resolve exact originals/i }));
     fireEvent.click(screen.getByText('Save'));
@@ -450,7 +451,7 @@ describe('Settings Component', () => {
   });
 
   it('keeps notifications on when the permission is granted', () => {
-    (chrome.permissions.request as jest.Mock).mockImplementation(
+    (chrome.permissions.request as Mock).mockImplementation(
       (_perms: chrome.permissions.Permissions, cb: (granted: boolean) => void) => cb(true),
     );
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
@@ -466,7 +467,7 @@ describe('Settings Component', () => {
   });
 
   it('reverts notifications off when the permission is denied', () => {
-    (chrome.permissions.request as jest.Mock).mockImplementation(
+    (chrome.permissions.request as Mock).mockImplementation(
       (_perms: chrome.permissions.Permissions, cb: (granted: boolean) => void) => cb(false),
     );
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
@@ -488,7 +489,7 @@ describe('Settings Component', () => {
     fireEvent.click(screen.getByRole('button', { name: /export backup/i }));
 
     expect(await screen.findByText('Backup exported.')).toBeInTheDocument();
-    const download = (chrome.runtime.sendMessage as jest.Mock).mock.calls
+    const download = (chrome.runtime.sendMessage as Mock).mock.calls
       .map((c) => c[0])
       .find((m) => m && m.type === 'DOWNLOAD_TEXT');
     expect(download).toBeTruthy();
