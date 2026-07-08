@@ -26,7 +26,12 @@ export function mergeHistory(existing: HistoryEntry[], added: HistoryEntry[]): H
   // Keyed by canonical src so re-downloading the same image with a fresh CDN
   // query signature updates its entry rather than duplicating it.
   const map = new Map<string, HistoryEntry>();
-  for (const entry of added) map.set(canonicalSrcKey(entry.src), entry);
+  // Newest-wins for duplicate keys within `added` too (not array-order-last).
+  for (const entry of added) {
+    const k = canonicalSrcKey(entry.src);
+    const prev = map.get(k);
+    if (!prev || entry.time > prev.time) map.set(k, entry);
+  }
   for (const entry of existing) if (!map.has(canonicalSrcKey(entry.src))) map.set(canonicalSrcKey(entry.src), entry);
   const ranked = [...map.values()].sort((a, b) => b.time - a.time).slice(0, HISTORY_CAP);
   return withinByteBudget(ranked, HISTORY_MAX_BYTES);

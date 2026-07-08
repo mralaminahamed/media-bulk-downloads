@@ -76,6 +76,25 @@ describe('parseBackup', () => {
     expect(b?.favourites[0].src).toBe('ok');
   });
 
+  it('drops an excluded entry with a valid value but missing/invalid kind', () => {
+    // Such an entry would restore into storage yet be filtered out of every read
+    // (loadExcluded requires kind) — invisible in the panel and undeletable.
+    const b = parseBackup(JSON.stringify({
+      app: BACKUP_APP,
+      excluded: [
+        { value: 'cdn.ok.com', kind: 'host', time: 1 },
+        { value: 'cdn.nokind.com', time: 2 },
+        { value: 'cdn.badkind.com', kind: 'nope', time: 3 },
+      ],
+    }));
+    expect(b?.excluded).toEqual([{ value: 'cdn.ok.com', kind: 'host', time: 1 }]);
+  });
+
+  it('coerces a non-numeric entry time to 0 (matching loadX)', () => {
+    const b = parseBackup(JSON.stringify({ app: BACKUP_APP, favourites: [{ src: 'https://a', time: 'oops' }] }));
+    expect(b?.favourites[0].time).toBe(0);
+  });
+
   it('coerces missing settings/arrays through defaults', () => {
     const b = parseBackup(JSON.stringify({ app: BACKUP_APP }));
     expect(b?.favourites).toEqual([]);

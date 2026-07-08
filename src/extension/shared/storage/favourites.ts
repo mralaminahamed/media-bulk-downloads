@@ -29,7 +29,13 @@ export function mergeFavourites(
   // Keyed by canonical src so re-adding the same image with a fresh CDN query
   // signature doesn't create a duplicate favourite.
   const map = new Map<string, FavouriteEntry>();
-  for (const entry of added) map.set(canonicalSrcKey(entry.src), entry);
+  // Newest-wins even for duplicate keys WITHIN `added` (e.g. a re-assembled or
+  // hand-edited backup), not just array-order-last.
+  for (const entry of added) {
+    const k = canonicalSrcKey(entry.src);
+    const prev = map.get(k);
+    if (!prev || entry.time > prev.time) map.set(k, entry);
+  }
   for (const entry of existing) if (!map.has(canonicalSrcKey(entry.src))) map.set(canonicalSrcKey(entry.src), entry);
   const ranked = [...map.values()].sort((a, b) => b.time - a.time).slice(0, FAVOURITES_CAP);
   return withinByteBudget(ranked, FAVOURITES_MAX_BYTES);

@@ -43,6 +43,11 @@ describe('mergeFavourites', () => {
     const newer = f('https://cdn.example.com/img/a.jpg?sig=2', 5);
     expect(mergeFavourites([older], [newer])).toEqual([newer]);
   });
+  it('within the added batch, newest time wins for a duplicate key (not array order)', () => {
+    const out = mergeFavourites([], [f('a', 1), f('a', 9), f('a', 3)]);
+    expect(out).toHaveLength(1);
+    expect(out[0].time).toBe(9); // 9, not the array-order-last 3
+  });
   it('keeps only the first entry when it alone exceeds the byte budget, drops later overflow', () => {
     // Regression guard for withinByteBudget's `total > maxBytes && out.length` gate:
     // out.length is 0 while budgeting the very first entry (e.g. a huge base64 data

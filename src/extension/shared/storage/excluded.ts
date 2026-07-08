@@ -31,7 +31,12 @@ function withinByteBudget(entries: ExcludedEntry[], maxBytes: number): ExcludedE
  *  newest-first, capped by count then serialized size. Pure. */
 export function mergeExcluded(existing: ExcludedEntry[], added: ExcludedEntry[]): ExcludedEntry[] {
   const map = new Map<string, ExcludedEntry>();
-  for (const entry of added) map.set(keyOf(entry), entry);
+  // Newest-wins for duplicate keys within `added` too (not array-order-last).
+  for (const entry of added) {
+    const k = keyOf(entry);
+    const prev = map.get(k);
+    if (!prev || entry.time > prev.time) map.set(k, entry);
+  }
   for (const entry of existing) if (!map.has(keyOf(entry))) map.set(keyOf(entry), entry);
   const ranked = [...map.values()].sort((a, b) => b.time - a.time).slice(0, EXCLUDED_CAP);
   return withinByteBudget(ranked, EXCLUDED_MAX_BYTES);
