@@ -28,4 +28,19 @@ describe('resolve — generic fallback', () => {
     expect(ids).toContain('behance');
     expect(ids.indexOf('behance')).toBeLessThan(ids.indexOf('generic'));
   });
+
+  it('includes bskyResolver before genericResolver', () => {
+    const ids = REGISTRY.map((r) => r.id);
+    expect(ids).toContain('bsky');
+    expect(ids.indexOf('bsky')).toBeLessThan(ids.indexOf('generic'));
+  });
+
+  it('routes a cdn.bsky.app thumbnail through the bsky resolver, not the generic one', () => {
+    const [c] = resolve('https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:abc/bafcid@jpeg', ctx);
+    expect(c).toMatchObject({
+      kind: 'image',
+      url: 'https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:abc/bafcid@jpeg',
+      resolveHint: { platform: 'bsky', id: 'blob did:plc:abc bafcid' },
+    });
+  });
 });
