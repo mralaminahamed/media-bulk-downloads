@@ -34,6 +34,8 @@ tests/e2e/
     facebook.html         # same fbcdn photo across edge PoPs + signed queries
     web.html              # srcset / <picture> / lazy / CSS bg / wikipedia /
                           #   shopify / gallery <a href>
+    streams.html          # <video> .m3u8 source + a .mpd link (HLS/DASH)
+    lazyscroll.html       # appends an image on scroll (deep-scan reveal)
   server/
     serve.mjs             # zero-dependency static server for pages/, run by webServer
   specs/
@@ -49,6 +51,10 @@ tests/e2e/
                           #   backup export, apply-on-rescan (draft + Save model)
     backup.spec.ts        # import restores favourites/excluded/settings; rejects
                           #   malformed / wrong-app backups
+    history.spec.ts       # a recorded entry's actions (re-download, open-file,
+                          #   reveal, open-source); remove empties the history
+    streams.spec.ts       # HLS/DASH manifests collected as video items when
+                          #   capture is enabled (and hidden when it is off)
     links.spec.ts         # Copy links puts the shown URLs on the clipboard
     bubble.spec.ts        # launcher toggles the panel; Escape closes; reopen scans
     drag.spec.ts          # drag the launcher, drag the panel header, resize grip,

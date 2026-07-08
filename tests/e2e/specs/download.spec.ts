@@ -62,4 +62,5 @@ test.describe('download flow', () => {
     await panel.getByRole('button', { name: /confirm/i }).click();
     await expect(panel.getByText(/no downloads yet/i)).toBeVisible();
   });
+
 });

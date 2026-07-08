@@ -36,4 +36,17 @@ test.describe('preview modal', () => {
     await page.keyboard.press('Escape');
     await expect(modal(page)).toHaveCount(0);
   });
+
+  test('Next then Previous returns to the first item', async ({ context }) => {
+    const page = await openBubblePage(context, '/media.html');
+    await openPanel(page);
+    await page.locator('figure').first().getByRole('button', { name: 'View Details' }).click();
+
+    const img = modal(page).locator('img').first();
+    const first = await img.getAttribute('src');
+    await modal(page).getByRole('button', { name: /next image/i }).click();
+    await expect(img).not.toHaveAttribute('src', first ?? '');
+    await modal(page).getByRole('button', { name: /previous image/i }).click();
+    await expect(img).toHaveAttribute('src', first ?? '');
+  });
 });
