@@ -315,7 +315,11 @@ describe('ImageList Component', () => {
     it('excludes the whole host and closes the modal', () => {
       const onExclude = jest.fn();
       openMenu(onExclude);
-      fireEvent.click(screen.getByRole('menuitem', { name: /Exclude host \(cdn\.example\.com\)/ }));
+      // The host item is a two-line label: "Exclude host" + the host on a muted
+      // second line, so the accessible name is "Exclude host cdn.example.com".
+      const hostItem = screen.getByRole('menuitem', { name: /exclude host/i });
+      expect(hostItem).toHaveTextContent('cdn.example.com');
+      fireEvent.click(hostItem);
       expect(onExclude).toHaveBeenCalledWith(httpImg, 'host');
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });

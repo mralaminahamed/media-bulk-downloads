@@ -11,6 +11,7 @@ import {
   StarIcon,
   ArrowPathIcon,
   NoSymbolIcon,
+  GlobeAltIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { PlayBadge } from './icons/PlayBadge';
@@ -353,25 +354,31 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                     {excludeMenuOpen && (
                       <div
                         role="menu"
-                        className="absolute right-0 top-full z-20 mt-1.5 w-48 overflow-hidden rounded-(--radius-sm) border hairline bg-(--panel) py-1 text-left shadow-lg"
+                        className="absolute right-0 top-full z-20 mt-1.5 w-60 overflow-hidden rounded-(--radius-sm) border hairline bg-(--panel) py-1 text-left shadow-lg"
                       >
+                        <p className="eyebrow px-3 pb-1 pt-0.5 text-(--ink-3)">Add to blocklist</p>
                         <button
                           role="menuitem"
                           // Close the preview after excluding — the shown image is about to be
                           // filtered out of `images`, so closing is deterministic; leaving the
                           // modal open would silently reindex it to a neighbour.
                           onClick={() => { onExclude(selectedImage, 'url'); close(); }}
-                          className="flex w-full items-center px-3 py-1.5 text-[12px] text-(--ink) hover:bg-(--panel-2)"
+                          className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-(--ink) hover:bg-(--panel-2) focus:bg-(--panel-2) focus:outline-none"
                         >
-                          Exclude this image
+                          <NoSymbolIcon className="h-4 w-4 shrink-0 text-(--ink-2)" />
+                          <span>Exclude this image</span>
                         </button>
                         {hostFromUrl(selectedImage.src) !== '' && (
                           <button
                             role="menuitem"
                             onClick={() => { onExclude(selectedImage, 'host'); close(); }}
-                            className="flex w-full items-center px-3 py-1.5 text-[12px] text-(--ink) hover:bg-(--panel-2)"
+                            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-(--ink) hover:bg-(--panel-2) focus:bg-(--panel-2) focus:outline-none"
                           >
-                            Exclude host ({hostFromUrl(selectedImage.src)})
+                            <GlobeAltIcon className="h-4 w-4 shrink-0 text-(--ink-2)" />
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-[13px] leading-tight">Exclude host</span>
+                              <span className="block truncate text-[11px] leading-tight text-(--ink-3)">{hostFromUrl(selectedImage.src)}</span>
+                            </span>
                           </button>
                         )}
                       </div>

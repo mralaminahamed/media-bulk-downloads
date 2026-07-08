@@ -622,7 +622,7 @@ describe('App Component', () => {
     const detailButtons = await screen.findAllByRole('button', { name: 'View Details' });
     await userEvent.click(detailButtons[0]); // the sole/target seeded item
     await userEvent.click(screen.getByTitle('Exclude source'));
-    await userEvent.click(await screen.findByText(/Exclude host.*cdn\.ads\.com/));
+    await userEvent.click(await screen.findByRole('menuitem', { name: /exclude host/i }));
 
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
       expect.objectContaining({
