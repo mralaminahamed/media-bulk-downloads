@@ -430,7 +430,17 @@ const App: React.FC<AppProps> = ({
         const converted = await convertImage(await res.blob(), target);
         if (!converted) throw new Error('convert');
         const filename = buildDownloadFilename({ ...img, ext: converted.ext }, index, settings, sourcePage.url);
-        const msg: DownloadBytesMessage = { type: 'DOWNLOAD_BYTES', filename, bytes: converted.bytes, mime: converted.mime };
+        const msg: DownloadBytesMessage = {
+          type: 'DOWNLOAD_BYTES', filename, bytes: converted.bytes, mime: converted.mime,
+          // Carry the original identity so the background records it to history
+          // (the "already downloaded" mark + dedup), like a plain download.
+          source: {
+            src: img.src, kind: img.kind, type: img.type,
+            ...(img.thumbnailSrc ?? img.poster ? { thumbnailSrc: img.thumbnailSrc ?? img.poster } : {}),
+            sourcePageUrl: sourcePage.url,
+            ...(sourcePage.title ? { sourcePageTitle: sourcePage.title } : {}),
+          },
+        };
         chrome.runtime.sendMessage(msg);
       } catch {
         failed.push(img);

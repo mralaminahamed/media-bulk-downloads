@@ -244,6 +244,17 @@ export interface DownloadBytesMessage {
   filename: string;
   bytes: Uint8Array;
   mime: string;
+  /** Original media identity so a converted image is recorded to history (the
+   *  "already downloaded" mark + dedup) like a plain download. Absent → not
+   *  recorded. */
+  source?: {
+    src: string;
+    kind: ImageInfo['kind'];
+    type: string;
+    thumbnailSrc?: string;
+    sourcePageUrl: string;
+    sourcePageTitle?: string;
+  };
 }
 
 /**

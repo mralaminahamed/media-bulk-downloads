@@ -350,3 +350,33 @@ describe('background tab lifecycle listeners', () => {
     expect(chrome.action.setBadgeText).not.toHaveBeenCalled();
   });
 });
+
+describe('background DOWNLOAD_BYTES handler — converted-image history', () => {
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+  beforeEach(() => {
+    setSettings({});
+    (chrome.downloads.download as jest.Mock).mockReset().mockImplementation((_o, cb) => cb(55));
+    (chrome.storage.local.get as jest.Mock).mockResolvedValue({ downloadHistory: [] });
+    (chrome.storage.local.set as jest.Mock).mockReset().mockResolvedValue(undefined);
+  });
+
+  it('records the ORIGINAL src to history so a converted image gets the downloaded mark', async () => {
+    onMessage({
+      type: 'DOWNLOAD_BYTES', filename: 'image_1.png', bytes: new Uint8Array([1, 2, 3]), mime: 'image/png',
+      source: { src: 'https://c/orig.jpg', kind: 'image', type: 'jpeg', sourcePageUrl: 'https://p' },
+    }, {}, jest.fn());
+    await flush();
+    await flush();
+    const written = (chrome.storage.local.set as jest.Mock).mock.calls.at(-1)?.[0]?.downloadHistory;
+    expect(written).toEqual(expect.arrayContaining([
+      expect.objectContaining({ src: 'https://c/orig.jpg', downloadId: 55, filename: 'image_1.png' }),
+    ]));
+  });
+
+  it('does not record when no source is provided (a non-media byte payload)', async () => {
+    onMessage({ type: 'DOWNLOAD_BYTES', filename: 'x.png', bytes: new Uint8Array([1]), mime: 'image/png' }, {}, jest.fn());
+    await flush();
+    await flush();
+    expect(chrome.storage.local.set).not.toHaveBeenCalled();
+  });
+});

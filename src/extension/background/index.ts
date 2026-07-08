@@ -255,12 +255,30 @@ async function captureStreamToFile(
   })) as CaptureRunResult | undefined;
   if (!result || !result.ok) return { ok: false, code: result?.ok === false ? result.code : 'unknown' };
   const filename = buildDownloadFilename({ ...item, ext: result.ext }, 0, currentSettings, sourcePage?.url);
-  const saved = await new Promise<boolean>((resolve) =>
+  const downloadId = await new Promise<number | undefined>((resolve) =>
     chrome.downloads.download(
       { url: result.blobUrl, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
-      (id) => resolve(!chrome.runtime.lastError && id !== undefined),
+      (id) => resolve(chrome.runtime.lastError ? undefined : id),
     ),
   );
+  const saved = downloadId !== undefined;
+  // A capture can finish after the popup closes, so record history + notify HERE
+  // — both were previously skipped for the entire capture path (no "already
+  // downloaded" mark / dedup, and no finish notification for its stated use case).
+  if (downloadId !== undefined) {
+    void recordDownloads([{
+      src: item.src,
+      filename: filename.split('/').pop() ?? filename,
+      kind: item.kind,
+      type: result.ext ?? item.type,
+      thumbnailSrc: item.thumbnailSrc ?? item.poster ?? item.src,
+      sourcePageUrl: sourcePage?.url ?? '',
+      sourcePageTitle: sourcePage?.title,
+      time: Date.now(),
+      downloadId,
+    }]);
+  }
+  notifyBatchDone({ total: 1, succeeded: saved ? 1 : 0, failed: saved ? 0 : 1 });
   return { ok: true, filename, saved, segmentCount: result.segmentCount, muxedAudio: result.muxedAudio };
 }
 
@@ -669,12 +687,28 @@ const messageRouter: MessageRouter = {
   },
 
   DOWNLOAD_BYTES: (message) => {
-    const { filename, bytes, mime } = message;
+    const { filename, bytes, mime, source } = message;
     void settingsReady.then(() => {
       const url = `data:${mime};base64,${u8ToBase64(bytes)}`;
       chrome.downloads.download(
         { url, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
-        () => void chrome.runtime.lastError,
+        (downloadId) => {
+          // Record the ORIGINAL src so a converted image gets the "already
+          // downloaded" mark + dedup like a plain download (history was silently
+          // skipped for the whole convert-on-download path).
+          if (chrome.runtime.lastError || downloadId === undefined || !source) return;
+          void recordDownloads([{
+            src: source.src,
+            filename: filename.split('/').pop() ?? filename,
+            kind: source.kind,
+            type: source.type,
+            thumbnailSrc: source.thumbnailSrc ?? source.src,
+            sourcePageUrl: source.sourcePageUrl,
+            sourcePageTitle: source.sourcePageTitle,
+            time: Date.now(),
+            downloadId,
+          }]);
+        },
       );
     });
   },

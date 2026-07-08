@@ -952,6 +952,25 @@ describe('CAPTURE_STREAM', () => {
     expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringContaining('(video + audio)') });
   });
 
+  it('records the captured stream to history (downloaded mark + dedup, previously skipped)', async () => {
+    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+      ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 3, muxedAudio: false,
+    } as CaptureRunResult);
+    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(321));
+    (chrome.storage.local.get as jest.Mock).mockResolvedValue({ downloadHistory: [] });
+    (chrome.storage.local.set as jest.Mock).mockReset().mockResolvedValue(undefined);
+
+    messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, jest.fn());
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    const written = (chrome.storage.local.set as jest.Mock).mock.calls.at(-1)?.[0]?.downloadHistory;
+    expect(written).toEqual(expect.arrayContaining([
+      expect.objectContaining({ src: 'https://x/m.m3u8', downloadId: 321, kind: 'video' }),
+    ]));
+  });
+
   it('forwards CAPTURE_RUN with engine:dash for an mpd item', async () => {
     (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
       ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 4, muxedAudio: true,
