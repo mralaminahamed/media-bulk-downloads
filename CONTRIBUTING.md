@@ -34,7 +34,7 @@ Run the same gate CI runs:
 ```bash
 yarn type-check   # wxt prepare + tsc --noEmit
 yarn lint         # eslint
-yarn test         # jest + coverage
+yarn test         # vitest + coverage
 yarn build        # wxt build → .output/chrome-mv3
 ```
 

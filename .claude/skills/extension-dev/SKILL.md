@@ -17,7 +17,7 @@ yarn build          # .output/chrome-mv3       (also :firefox, :edge, :all)
 yarn zip            # store zip in .output/     (also :firefox, :edge, :all)
 yarn type-check     # wxt prepare + tsc --noEmit   ← run before trusting tsc
 yarn lint           # eslint
-yarn test           # jest + coverage
+yarn test           # vitest + coverage
 ```
 
 Zips: `.output/media-bulk-downloads-<version>-<browser>.zip` (Firefox also emits
