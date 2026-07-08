@@ -399,11 +399,24 @@ async function fetchTrack(
   onSegment: () => void,
   budget: FetchBudget,
 ): Promise<{ init?: Uint8Array; segments: Uint8Array[] }> {
+  // Map a raw fetch rejection (network/HTTP error from deps.fetchBytes) to the
+  // declared 'fetch-failed' code, so a mid-download segment/key 404 surfaces as
+  // "part of the stream couldn't be downloaded" rather than a generic 'unknown'.
+  // Mirrors captureDash, which already wraps its fetch loop.
+  const fetchBytesOrFail = async (uri: string, range?: HlsByteRange): Promise<Uint8Array> => {
+    try {
+      return await deps.fetchBytes(uri, range);
+    } catch (e) {
+      if (e instanceof HlsError) throw e;
+      throw new HlsError('fetch-failed', e instanceof Error ? e.message : `Could not fetch ${uri}.`);
+    }
+  };
+
   const keyCache = new Map<string, Promise<Uint8Array>>();
   const getKey = (keyUri: string): Promise<Uint8Array> => {
     let p = keyCache.get(keyUri);
     if (!p) {
-      p = deps.fetchBytes(keyUri).then((b) => {
+      p = fetchBytesOrFail(keyUri).then((b) => {
         if (b.length !== 16) throw new HlsError('fetch-failed', 'AES-128 key was not 16 bytes.');
         return b;
       });
@@ -417,7 +430,7 @@ async function fetchTrack(
   let cursor = 0;
 
   const fetchSegment = async (seg: HlsSegment): Promise<Uint8Array> => {
-    const raw = await deps.fetchBytes(seg.uri, seg.byteRange);
+    const raw = await fetchBytesOrFail(seg.uri, seg.byteRange);
     if (!seg.key || seg.key.method !== 'AES-128' || !seg.key.uri) return raw;
     const key = await getKey(seg.key.uri);
     const iv = seg.key.iv ?? ivFromSequence(seg.seq);
@@ -440,7 +453,7 @@ async function fetchTrack(
   const limit = Math.max(1, deps.concurrency ?? 6);
   await Promise.all(Array.from({ length: Math.min(limit, total) }, worker));
 
-  const init = playlist.initUri ? await deps.fetchBytes(playlist.initUri, playlist.initByteRange) : undefined;
+  const init = playlist.initUri ? await fetchBytesOrFail(playlist.initUri, playlist.initByteRange) : undefined;
   return { init, segments: parts };
 }
 

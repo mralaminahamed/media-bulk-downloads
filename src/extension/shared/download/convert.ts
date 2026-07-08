@@ -12,8 +12,39 @@ const TARGET_EXT: Record<ConvertTarget, string> = { png: 'png', jpeg: 'jpg' };
 const TARGET_MIME: Record<ConvertTarget, string> = { png: 'image/png', jpeg: 'image/jpeg' };
 
 /** Raster types we can decode and re-encode. Excludes svg (vector) and ico, and
- *  gif (converting would silently drop animation). */
+ *  gif (converting would silently drop animation). Animated webp/avif also carry
+ *  animation, but can't be told apart by type alone — convertImage sniffs the
+ *  header and skips them at runtime (see isAnimatedImage). */
 const CONVERTIBLE = /^(png|jpeg|jpg|webp|avif|bmp)$/i;
+
+/**
+ * Detects an animated WebP/AVIF from its container header, so the canvas
+ * re-encode (which keeps only the first frame) doesn't silently strip the
+ * animation — the caller falls back to a plain download of the original instead,
+ * the same rationale as excluding gif. Bounds-checked; safe on short buffers.
+ */
+export function isAnimatedImage(header: Uint8Array): boolean {
+  const fourCC = (o: number, s: string): boolean =>
+    header.length >= o + 4 &&
+    String.fromCharCode(header[o], header[o + 1], header[o + 2], header[o + 3]) === s;
+  // Animated WebP: RIFF/WEBP with an extended 'VP8X' chunk whose flags byte
+  // (offset 20) has the animation bit (0x02) set.
+  if (fourCC(0, 'RIFF') && fourCC(8, 'WEBP') && fourCC(12, 'VP8X')) {
+    return header.length > 20 && (header[20] & 0x02) !== 0;
+  }
+  // Animated AVIF: an image sequence declares the 'avis' brand in its ftyp box
+  // (as the major brand or any compatible brand).
+  if (fourCC(4, 'ftyp')) {
+    const boxSize = Math.min(
+      (header[0] << 24) | (header[1] << 16) | (header[2] << 8) | header[3],
+      header.length,
+    );
+    for (let o = 8; o + 4 <= boxSize; o += 4) {
+      if (fourCC(o, 'avis')) return true;
+    }
+  }
+  return false;
+}
 
 /** Whether an item should be converted to `target` (raster image, not already it). */
 export function isConvertible(image: ImageInfo, target: ConvertTarget): boolean {
@@ -52,6 +83,11 @@ export async function convertImage(
   deps: ConvertDeps = defaultDeps,
 ): Promise<ConvertedImage | null> {
   try {
+    // Preserve animation: an animated webp/avif would lose every frame but the
+    // first through the canvas re-encode, so bail and let the caller download the
+    // original untouched (null = "couldn't convert, download as-is").
+    const header = new Uint8Array(await blob.slice(0, 64).arrayBuffer());
+    if (isAnimatedImage(header)) return null;
     const bitmap = await deps.createImageBitmap(blob);
     const canvas = deps.makeCanvas(bitmap.width, bitmap.height);
     const ctx = canvas.getContext('2d');
