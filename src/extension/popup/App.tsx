@@ -187,11 +187,18 @@ const App: React.FC<AppProps> = ({
       // settings-change re-filter re-derives from rawImagesRef WITHOUT wiping the
       // enriched sizes and re-firing a fresh round of HEAD requests.
       rawImagesRef.current = apply(rawImagesRef.current);
-      setState((prev) => ({
-        ...prev,
-        images: apply(prev.images),
-        filteredImages: apply(prev.filteredImages),
-      }));
+      setState((prev) => {
+        const nextImages = apply(prev.images);
+        // Re-derive the filtered view (not a plain map) so a newly-known size is
+        // re-sorted (sort-by-size) and re-gated (Min KB) — otherwise the grid
+        // order/visibility disagrees with the sizes it just showed.
+        const eligible = filterExcluded(filterImagesBySettings(nextImages, settingsRef.current), excludedRef.current);
+        return {
+          ...prev,
+          images: nextImages,
+          filteredImages: applyToolbarFilters(eligible, filtersRef.current),
+        };
+      });
     });
   }, []);
 

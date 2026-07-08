@@ -264,6 +264,19 @@ describe('Bubble', () => {
     expect(screen.getByRole('heading', { name: 'Media Bulk Downloads' })).toBeInTheDocument();
   });
 
+  it('Escape from a focused text field does not collapse the panel (clears the field instead)', async () => {
+    render(<Bubble initialSettings={settings} />);
+    dispatchToggle();
+    await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
+    // Escape originating from a text input (e.g. the search box) must not close
+    // the whole panel — the capture handler bails when the target is editable.
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(screen.getByRole('heading', { name: 'Media Bulk Downloads' })).toBeInTheDocument();
+    input.remove();
+  });
+
   it('aborts a running deep scan when the panel closes', async () => {
     render(<Bubble initialSettings={settings} />);
     dispatchToggle();

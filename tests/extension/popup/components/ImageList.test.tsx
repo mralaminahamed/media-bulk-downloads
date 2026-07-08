@@ -219,6 +219,13 @@ describe('ImageList Component', () => {
       expect(onSelectRange).toHaveBeenCalledWith(mockImages);
     });
 
+    it('renders no selection checkbox on an HLS/DASH stream tile (captured individually)', () => {
+      const hls = { src: 'https://x/live.m3u8', alt: '', width: 0, height: 0, type: 'm3u8', fileSize: 0, isBase64: false, kind: 'video' as const, hlsManifest: 'https://x/live.m3u8' };
+      render(<ImageList images={[hls]} onImageDownload={jest.fn()} onToggleSelect={jest.fn()} />);
+      // The App selection guards skip hlsManifest, so an inert checkbox must not render.
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    });
+
     it('normalises a shift-click that runs upward from the anchor', () => {
       const onSelectRange = jest.fn();
       render(

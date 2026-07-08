@@ -143,8 +143,10 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
       >
         {images.map((image, index) => {
           const isSelected = selectedSrcs?.has(image.src) ?? false;
-          // Only downloadable items are selectable — a pending video has no file.
-          const selectable = !!onToggleSelect && !isPendingVideo(image);
+          // Only downloadable items are selectable — a pending video has no file,
+          // and an HLS/DASH stream is captured individually (not bulk-selectable),
+          // so it must match the selection guards in App (which skip hlsManifest).
+          const selectable = !!onToggleSelect && !isPendingVideo(image) && !isHlsStream(image);
           const boxUp = selectable && (selectionActive || isSelected);
           return (
           <figure

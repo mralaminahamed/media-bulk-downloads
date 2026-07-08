@@ -197,7 +197,12 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      if (panelRef.current?.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      // Let a sub-surface handle Escape first instead of collapsing the whole
+      // panel: an open modal (preview/side panels), an open dropdown menu (the
+      // download options), or a focused text field (clear the search box).
+      if (panelRef.current?.querySelector('[role="dialog"][aria-modal="true"], [role="menu"]')) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
       setOpen(false);
     };
     window.addEventListener('keydown', onKey, true);
