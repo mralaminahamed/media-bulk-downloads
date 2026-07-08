@@ -187,6 +187,27 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
               Videos, audio, SVGs, and GIFs are always saved as-is.
             </p>
 
+            {settings.convertImagesTo !== 'off' && (
+              <>
+                <SelectField
+                  id="set-convert-metadata"
+                  name="convertMetadata"
+                  label="Metadata when converting:"
+                  value={settings.convertMetadata}
+                  onChange={(e) =>
+                    setSettings((prev) => ({ ...prev, convertMetadata: e.target.value as SettingsData['convertMetadata'] }))
+                  }
+                >
+                  <option value="preserve">Preserve (copy EXIF/XMP)</option>
+                  <option value="strip">Strip (remove all metadata)</option>
+                </SelectField>
+                <p className="text-[11px] leading-relaxed text-(--ink-3)">
+                  Preserve copies embedded EXIF/XMP (copyright, author, capture info) across the
+                  re-encode. Strip removes it — useful for clearing GPS/location before sharing.
+                </p>
+              </>
+            )}
+
             <div>
               <span id="naming-label" className="mb-1 block text-[12px] text-(--ink-2)">
                 File naming:

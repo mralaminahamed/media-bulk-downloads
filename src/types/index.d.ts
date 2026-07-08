@@ -418,6 +418,9 @@ export interface SettingsData {
   /** Convert raster images to this format on download. `off` keeps the original
    *  (and the fast direct-URL download path). */
   convertImagesTo: 'off' | 'png' | 'jpeg';
+  /** When converting, `preserve` copies the source's EXIF/XMP into the output;
+   *  `strip` re-encodes without metadata (the old, now-explicit behaviour). */
+  convertMetadata: 'preserve' | 'strip';
   /** How downloaded files are named: from the URL's original name, or a sequential prefix. */
   namingMode: 'original' | 'prefixed';
   /** Fixed thumbnail edge (px) in the image grid; the grid reflows columns. */
