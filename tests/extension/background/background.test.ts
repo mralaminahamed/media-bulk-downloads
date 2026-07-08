@@ -706,6 +706,34 @@ describe('DOWNLOAD_ZIP — archive bytes → data URL → chrome.downloads', () 
   });
 });
 
+describe('SET_SETTINGS (serialized settings writer)', () => {
+  it('deep-merges a partial bubblePosition patch, preserving the stored drag-only x/y + panelPoint', async () => {
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) =>
+      cb({ settings: { bubblePosition: { corner: 'bottom-right', x: 99, y: 88 }, bubblePanelPoint: { x: 77, y: 66 } } }));
+    let written: Record<string, unknown> | undefined;
+    (chrome.storage.sync.set as jest.Mock).mockReset().mockImplementation((obj, cb) => { written = obj.settings; cb?.(); });
+
+    messageHandler({ type: 'SET_SETTINGS', patch: { bubblePosition: { corner: 'top-left' }, bubblePanelPlacement: 'center' } }, {}, jest.fn());
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(written?.bubblePosition).toEqual({ corner: 'top-left', x: 99, y: 88 }); // x/y preserved from storage
+    expect(written?.bubblePanelPoint).toEqual({ x: 77, y: 66 }); // preserved (not in the patch)
+    expect(written?.bubblePanelPlacement).toBe('center'); // patch applied
+  });
+
+  it('applies a full bubblePosition patch (a bubble FAB drag) replacing x/y', async () => {
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) =>
+      cb({ settings: { bubblePosition: { corner: 'bottom-right', x: 99, y: 88 } } }));
+    let written: Record<string, unknown> | undefined;
+    (chrome.storage.sync.set as jest.Mock).mockReset().mockImplementation((obj, cb) => { written = obj.settings; cb?.(); });
+
+    messageHandler({ type: 'SET_SETTINGS', patch: { bubblePosition: { corner: 'bottom-right', x: 5, y: 6 } } }, {}, jest.fn());
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(written?.bubblePosition).toEqual({ corner: 'bottom-right', x: 5, y: 6 });
+  });
+});
+
 describe('context menu', () => {
   const info = (over: Partial<chrome.contextMenus.OnClickData>): chrome.contextMenus.OnClickData =>
     ({ menuItemId: '', editable: false, pageUrl: 'https://page', ...over }) as unknown as chrome.contextMenus.OnClickData;

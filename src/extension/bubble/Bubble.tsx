@@ -217,10 +217,9 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
   }, [open]);
 
   const persist = useCallback((patch: Partial<SettingsData>) => {
-    chrome.storage.sync.get(['settings'], (result) => {
-      const merged = withDefaults(result.settings as Partial<SettingsData>);
-      chrome.storage.sync.set({ settings: { ...merged, ...patch } });
-    });
+    // Route through the background's single serialized settings writer so a drag
+    // here and a Settings save in the popup can't clobber each other.
+    chrome.runtime.sendMessage({ type: 'SET_SETTINGS', patch });
   }, []);
 
   const onPointerDown = (e: React.PointerEvent) => {

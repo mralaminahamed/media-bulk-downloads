@@ -220,9 +220,10 @@ describe('App Component', () => {
     fireEvent.click(screen.getByRole('switch', { name: /show image count/i }));
     fireEvent.click(screen.getByText('Save'));
 
-    expect(chrome.storage.sync.set).toHaveBeenCalledWith({
-      settings: expect.objectContaining({ showImageCount: false }),
-    });
+    // Settings persist through the background's single serialized writer.
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'SET_SETTINGS', patch: expect.objectContaining({ showImageCount: false }) }),
+    );
   });
 
   it('persists the Bubble Corner + Panel Position dropdowns, keeping the drag-only offsets', async () => {
@@ -239,16 +240,17 @@ describe('App Component', () => {
     fireEvent.change(screen.getByLabelText('Panel Position:'), { target: { value: 'center' } });
     fireEvent.click(screen.getByText('Save'));
 
-    expect(chrome.storage.sync.set).toHaveBeenCalledWith({
-      settings: expect.objectContaining({
-        bubbleEnabled: true,
-        // form-owned: the dropdown edits persist
-        bubblePosition: { corner: 'top-left', x: 99, y: 88 },
-        bubblePanelPlacement: 'center',
-        // drag-only: preserved from storage
-        bubblePanelPoint: { x: 77, y: 66 },
-      }),
-    });
+    // The popup sends a patch with the form-owned fields but WITHOUT the drag-only
+    // ones (bubblePosition.x/y, bubblePanelPoint) — the background's serialized
+    // merge preserves those from storage, so a concurrent bubble drag isn't lost.
+    const call = (chrome.runtime.sendMessage as jest.Mock).mock.calls.find((c) => c[0]?.type === 'SET_SETTINGS');
+    expect(call?.[0].patch).toEqual(expect.objectContaining({
+      bubbleEnabled: true,
+      bubblePosition: { corner: 'top-left' },
+      bubblePanelPlacement: 'center',
+    }));
+    expect(call?.[0].patch.bubblePosition).not.toHaveProperty('x');
+    expect(call?.[0].patch).not.toHaveProperty('bubblePanelPoint');
   });
 
   it('runs deep scan and merges new media into the list', async () => {

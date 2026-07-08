@@ -699,23 +699,18 @@ const App: React.FC<AppProps> = ({
     setSelectedSrcs(new Set());
   };
 
-  // Single source of truth for the form's fields: the popup owns writing settings.
+  // The popup owns the form's fields. Persist through the background's single
+  // serialized writer (SET_SETTINGS) so a concurrent on-page-bubble drag can't
+  // clobber this save. Send a patch WITHOUT the drag-only bubble fields (the
+  // button's x/y offset and the freeform panel point, which have no Settings
+  // control) so the background's deep-merge preserves them.
   const handleSettingsChange = (newSettings: SettingsData) => {
     setSettings(newSettings);
-    // Read-modify-write so a full-object save keeps only the bubble fields the user
-    // sets by DRAG — which have NO Settings control: the button's x/y offset from
-    // its corner, and the freeform panel point. Everything the form does edit
-    // (Bubble Corner, Panel Position, width/height) persists normally; the on-page
-    // bubble picks those up live via chrome.storage.onChanged.
-    chrome.storage.sync.get(['settings'], (result) => {
-      const stored = withDefaults(result.settings);
-      chrome.storage.sync.set({
-        settings: {
-          ...newSettings,
-          bubblePosition: { corner: newSettings.bubblePosition.corner, x: stored.bubblePosition.x, y: stored.bubblePosition.y },
-          bubblePanelPoint: stored.bubblePanelPoint,
-        },
-      });
+    const { bubblePosition, bubblePanelPoint, ...rest } = newSettings;
+    void bubblePanelPoint; // drag-only; not sent so the stored value is preserved
+    sendRuntimeMessage({
+      type: 'SET_SETTINGS',
+      patch: { ...rest, bubblePosition: { corner: bubblePosition.corner } },
     });
   };
 

@@ -39,6 +39,13 @@ const settings: SettingsData = {
   deepScanClickLoadMore: false,
 };
 
+// Persist now routes through the SET_SETTINGS message (single serialized writer
+// in the background), not a direct storage.sync.set — assert the sent patches.
+const settingsPatches = (): Array<Record<string, unknown>> =>
+  (chrome.runtime.sendMessage as jest.Mock).mock.calls
+    .filter((c) => c[0]?.type === 'SET_SETTINGS')
+    .map((c) => c[0].patch as Record<string, unknown>);
+
 // jsdom leaves clientX/clientY unset on PointerEvent inits, so build the native
 // event by hand and attach the coordinates React reads through the synthetic event.
 const pointer = (type: string, clientX: number, clientY: number) => {
@@ -128,9 +135,7 @@ describe('Bubble', () => {
     fireEvent(launcher, pointer('pointerup', 400, 300));
 
     expect(launcher.getAttribute('style')).not.toBe(before);
-    expect(set).toHaveBeenCalledWith(
-      expect.objectContaining({ settings: expect.objectContaining({ bubblePosition: expect.any(Object) }) }),
-    );
+    expect(settingsPatches()).toContainEqual(expect.objectContaining({ bubblePosition: expect.any(Object) }));
     // A drag must not toggle the panel open.
     expect(screen.queryByRole('heading', { name: 'Media Bulk Downloads' })).not.toBeInTheDocument();
   });
@@ -161,14 +166,10 @@ describe('Bubble', () => {
     expect(panel.style.left).not.toBe('');
     expect(panel.style.top).not.toBe('');
     expect(panel.style.bottom).toBe('');
-    expect(set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        settings: expect.objectContaining({
-          bubblePanelPlacement: 'free',
-          bubblePanelPoint: expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
-        }),
-      }),
-    );
+    expect(settingsPatches()).toContainEqual(expect.objectContaining({
+      bubblePanelPlacement: 'free',
+      bubblePanelPoint: expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+    }));
   });
 
   // NOTE: onHeaderPointerDown's `if (!rect) return;` guard (Bubble.tsx:258) is
@@ -209,11 +210,7 @@ describe('Bubble', () => {
     fireEvent(grip, pointer('pointermove', 200, 200));
     fireEvent(grip, pointer('pointerup', 200, 200));
 
-    expect(set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        settings: expect.objectContaining({ bubbleWidth: 540, bubbleHeight: 660 }),
-      }),
-    );
+    expect(settingsPatches()).toContainEqual(expect.objectContaining({ bubbleWidth: 540, bubbleHeight: 660 }));
   });
 
   it('pins the panel to a corner independent of the launcher corner', async () => {
@@ -380,11 +377,7 @@ describe('Bubble', () => {
 
     const maxX = window.innerWidth - 48 - 8; // vw - FAB - EDGE
     const maxY = window.innerHeight - 48 - 8;
-    expect(set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        settings: expect.objectContaining({ bubblePosition: { corner: 'top-left', x: maxX, y: maxY } }),
-      }),
-    );
+    expect(settingsPatches()).toContainEqual(expect.objectContaining({ bubblePosition: { corner: 'top-left', x: maxX, y: maxY } }));
     // The launcher itself is clamped (anchored via top/left for a top-left corner).
     expect(launcher.style.left).toBe(`${maxX}px`);
     expect(launcher.style.top).toBe(`${maxY}px`);
@@ -408,14 +401,10 @@ describe('Bubble', () => {
 
     const maxX = window.innerWidth - 8; // vw - w(0) - EDGE
     const maxY = window.innerHeight - 8;
-    expect(set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        settings: expect.objectContaining({
-          bubblePanelPlacement: 'free',
-          bubblePanelPoint: { x: maxX, y: maxY },
-        }),
-      }),
-    );
+    expect(settingsPatches()).toContainEqual(expect.objectContaining({
+      bubblePanelPlacement: 'free',
+      bubblePanelPoint: { x: maxX, y: maxY },
+    }));
     const panel = document.querySelector('.sheet-in') as HTMLElement;
     expect(panel.style.left).toBe(`${maxX}px`);
     expect(panel.style.top).toBe(`${maxY}px`);
@@ -438,11 +427,7 @@ describe('Bubble', () => {
     fireEvent(grip, pointer('pointermove', 500, 450));
     fireEvent(grip, pointer('pointerup', 500, 450));
 
-    expect(set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        settings: expect.objectContaining({ bubbleWidth: 640, bubbleHeight: 710 }),
-      }),
-    );
+    expect(settingsPatches()).toContainEqual(expect.objectContaining({ bubbleWidth: 640, bubbleHeight: 710 }));
   });
 
   it('clamps a resize to the minimum panel size', async () => {
@@ -460,11 +445,7 @@ describe('Bubble', () => {
     fireEvent(grip, pointer('pointermove', 900, 900));
     fireEvent(grip, pointer('pointerup', 900, 900));
 
-    expect(set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        settings: expect.objectContaining({ bubbleWidth: 320, bubbleHeight: 360 }),
-      }),
-    );
+    expect(settingsPatches()).toContainEqual(expect.objectContaining({ bubbleWidth: 320, bubbleHeight: 360 }));
   });
 
   // --- Live-sync from popup settings (storage.onChanged) ---------------------
@@ -602,11 +583,7 @@ describe('Bubble', () => {
     fireEvent(grip, pointer('pointermove', 520, 440));
     fireEvent(grip, pointer('pointerup', 520, 440));
 
-    expect(set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        settings: expect.objectContaining({ bubbleWidth: 660, bubbleHeight: 700 }),
-      }),
-    );
+    expect(settingsPatches()).toContainEqual(expect.objectContaining({ bubbleWidth: 660, bubbleHeight: 700 }));
   });
 
   it('resizes a corner-pinned panel toward its free edges', async () => {
@@ -623,11 +600,7 @@ describe('Bubble', () => {
     fireEvent(grip, pointer('pointermove', 400, 380));
     fireEvent(grip, pointer('pointerup', 400, 380));
 
-    expect(set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        settings: expect.objectContaining({ bubbleWidth: 540, bubbleHeight: 640 }),
-      }),
-    );
+    expect(settingsPatches()).toContainEqual(expect.objectContaining({ bubbleWidth: 540, bubbleHeight: 640 }));
   });
 
   // --- Defensive guards: stray pointer events with no active gesture ----------

@@ -318,8 +318,25 @@ export interface CaptureStreamResponse {
   status: string;
 }
 
+/**
+ * Persist a settings patch through the background's single serialized writer.
+ * Both the popup and the on-page bubble write settings; routing them through one
+ * ordered writer (instead of each doing a bare storage.sync get→set) stops a
+ * concurrent write from clobbering the other's fields. The two nested objects the
+ * bubble drags (bubblePosition, bubblePanelPoint) are deep-merged, so a partial
+ * patch (e.g. only the corner) preserves the drag-set x/y.
+ */
+export interface SetSettingsMessage {
+  type: 'SET_SETTINGS';
+  patch: Partial<Omit<SettingsData, 'bubblePosition' | 'bubblePanelPoint'>> & {
+    bubblePosition?: Partial<BubblePosition>;
+    bubblePanelPoint?: SettingsData['bubblePanelPoint'];
+  };
+}
+
 export type ChromeMessage =
   | DownloadMessage
+  | SetSettingsMessage
   | DownloadZipMessage
   | DownloadTextMessage
   | DownloadBytesMessage

@@ -8,6 +8,7 @@ import {
   ResolvedMedia,
   ResolveOriginalsResponse,
   SettingsData,
+  SetSettingsMessage,
   CaptureRunResult,
   CaptureStreamResponse,
 } from '@/types';
@@ -44,6 +45,28 @@ function reloadExcluded(): void {
   excludedReady = excludedMatchers().then((m) => { excludedCache = m; });
 }
 reloadExcluded();
+
+/** Serialized settings writer. The popup and the on-page bubble both persist
+ *  settings; funnelling every write through this one ordered read-modify-write
+ *  (instead of each doing a bare storage.sync get→set) stops a concurrent write
+ *  from clobbering the other's fields. */
+let settingsWriteChain: Promise<void> = Promise.resolve();
+function writeSettingsPatch(patch: SetSettingsMessage['patch']): void {
+  const run = settingsWriteChain.then(() => new Promise<void>((resolve) => {
+    chrome.storage.sync.get(['settings'], (result) => {
+      const stored = withDefaults(result.settings);
+      const { bubblePosition: bp, bubblePanelPoint: bpp, ...top } = patch;
+      const merged: SettingsData = {
+        ...stored,
+        ...top,
+        bubblePosition: { ...stored.bubblePosition, ...(bp ?? {}) },
+        ...(bpp !== undefined ? { bubblePanelPoint: bpp } : {}),
+      };
+      chrome.storage.sync.set({ settings: merged }, () => resolve());
+    });
+  }));
+  settingsWriteChain = run.catch(() => undefined);
+}
 
 const BADGE_COLOR = '#4F46E5';
 
@@ -706,6 +729,12 @@ const messageRouter: MessageRouter = {
         },
       );
     });
+  },
+
+  // Persist a settings patch through the single serialized writer (see
+  // writeSettingsPatch) so popup + bubble writes never clobber each other.
+  SET_SETTINGS: (message) => {
+    writeSettingsPatch(message.patch);
   },
 
   // Replace favourites + history + excluded from an imported backup, in the single-writer realm.
