@@ -362,7 +362,7 @@ describe('background DOWNLOAD_BYTES handler — converted-image history', () => 
 
   it('records the ORIGINAL src to history so a converted image gets the downloaded mark', async () => {
     onMessage({
-      type: 'DOWNLOAD_BYTES', filename: 'image_1.png', bytes: new Uint8Array([1, 2, 3]), mime: 'image/png',
+      type: 'DOWNLOAD_BYTES', filename: 'image_1.png', b64: 'AQID', mime: 'image/png',
       source: { src: 'https://c/orig.jpg', kind: 'image', type: 'jpeg', sourcePageUrl: 'https://p' },
     }, {}, jest.fn());
     await flush();
@@ -374,7 +374,7 @@ describe('background DOWNLOAD_BYTES handler — converted-image history', () => 
   });
 
   it('does not record when no source is provided (a non-media byte payload)', async () => {
-    onMessage({ type: 'DOWNLOAD_BYTES', filename: 'x.png', bytes: new Uint8Array([1]), mime: 'image/png' }, {}, jest.fn());
+    onMessage({ type: 'DOWNLOAD_BYTES', filename: 'x.png', b64: 'AQ==', mime: 'image/png' }, {}, jest.fn());
     await flush();
     await flush();
     expect(chrome.storage.local.set).not.toHaveBeenCalled();

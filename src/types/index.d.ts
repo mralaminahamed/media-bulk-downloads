@@ -217,7 +217,10 @@ export interface ClearExcludedMessage { type: 'CLEAR_EXCLUDED' }
  */
 export interface DownloadZipMessage {
   type: 'DOWNLOAD_ZIP';
-  bytes: Uint8Array;
+  /** Base64 of the archive bytes. Sent as a string, not a Uint8Array: Chrome
+   *  JSON-serializes runtime messages, which turns a typed array into a plain
+   *  indexed object (losing .length) — a base64 string always round-trips. */
+  b64: string;
   filename: string;
 }
 
@@ -242,7 +245,9 @@ export interface DownloadTextMessage {
 export interface DownloadBytesMessage {
   type: 'DOWNLOAD_BYTES';
   filename: string;
-  bytes: Uint8Array;
+  /** Base64 of the file bytes — a string so it survives Chrome's JSON message
+   *  serialization (a Uint8Array would arrive as an indexed object). */
+  b64: string;
   mime: string;
   /** Original media identity so a converted image is recorded to history (the
    *  "already downloaded" mark + dedup) like a plain download. Absent → not

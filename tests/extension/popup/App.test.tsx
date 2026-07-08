@@ -769,7 +769,9 @@ describe('App Component', () => {
 
     await waitFor(() =>
       expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'DOWNLOAD_ZIP', filename: 'example.com-media-2026-07-07.zip' }),
+        // b64 is a STRING, not a Uint8Array — a typed array wouldn't survive
+        // Chrome's JSON message serialization (would arrive with no .length).
+        expect.objectContaining({ type: 'DOWNLOAD_ZIP', filename: 'example.com-media-2026-07-07.zip', b64: expect.any(String) }),
         expect.any(Function),
       ),
     );

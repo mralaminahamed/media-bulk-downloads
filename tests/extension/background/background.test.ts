@@ -671,10 +671,10 @@ describe('DOWNLOAD_ZIP — archive bytes → data URL → chrome.downloads', () 
   it('downloads a base64 data: URL with the given filename, saveAs, and uniquify', async () => {
     (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(5));
     const sendResponse = jest.fn();
-    const bytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04]); // ZIP magic
+    const b64 = 'UEsDBA=='; // base64 of the ZIP magic bytes 50 4b 03 04
 
     const handled = messageHandler(
-      { type: 'DOWNLOAD_ZIP', bytes, filename: 'example.com-media-2026-07-06.zip' },
+      { type: 'DOWNLOAD_ZIP', b64, filename: 'example.com-media-2026-07-06.zip' },
       {},
       sendResponse,
     );
@@ -700,7 +700,7 @@ describe('DOWNLOAD_ZIP — archive bytes → data URL → chrome.downloads', () 
       (chrome.runtime as unknown as { lastError?: unknown }).lastError = undefined;
     });
     const sendResponse = jest.fn();
-    messageHandler({ type: 'DOWNLOAD_ZIP', bytes: new Uint8Array([1]), filename: 'x.zip' }, {}, sendResponse);
+    messageHandler({ type: 'DOWNLOAD_ZIP', b64: 'AQ==', filename: 'x.zip' }, {}, sendResponse);
     await new Promise((r) => setTimeout(r, 0));
     expect(sendResponse).toHaveBeenCalledWith({ status: 'error', message: "Couldn't save x.zip." });
   });
@@ -907,7 +907,7 @@ describe('DOWNLOAD_BYTES router', () => {
 
   it('saves a base64 data URL with the given mime and filename', async () => {
     messageHandler(
-      { type: 'DOWNLOAD_BYTES', filename: 'cat.png', bytes: new Uint8Array([0x50, 0x4b, 0x03, 0x04]), mime: 'image/png' },
+      { type: 'DOWNLOAD_BYTES', filename: 'cat.png', b64: 'UEsDBA==', mime: 'image/png' },
       {},
       jest.fn(),
     );

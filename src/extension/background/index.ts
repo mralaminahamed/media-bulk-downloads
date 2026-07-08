@@ -16,7 +16,7 @@ import { SrcKeySet } from '../shared/collection/canonical';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
 import { sanitizePathSegment } from '../shared/collection/paths';
 import { buildDownloadFilename, extensionForType, originalNameFromUrl } from '../shared/collection/download-name';
-import { u8ToBase64, textToBase64 } from '../shared/download/base64';
+import { textToBase64 } from '../shared/download/base64';
 import { upgradeToOriginal, detectType } from '../shared/collection/imageUrl';
 import { extensionFromUrl } from '../shared/collection/mediaType';
 import { resolveOriginal, NetDeps } from '../shared/resolvers/network';
@@ -645,30 +645,25 @@ const messageRouter: MessageRouter = {
   },
 
   DOWNLOAD_ZIP: (message, _sender, respond) => {
-    const { bytes, filename } = message;
+    const { b64, filename } = message;
     // Wait for settings so `saveAs` reflects the user's real preference even
     // when this message woke the worker. Service workers have no
     // URL.createObjectURL, so a base64 data URL is the only in-SW way to give
-    // chrome.downloads the archive bytes.
+    // chrome.downloads the archive bytes; the popup base64-encodes them (a string
+    // survives message serialization; a Uint8Array would not).
     void settingsReady.then(() => {
-      try {
-        const url = `data:application/zip;base64,${u8ToBase64(bytes)}`;
-        chrome.downloads.download(
-          { url, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
-          (downloadId) => {
-            const err = chrome.runtime.lastError;
-            if (err || downloadId === undefined) {
-              respond({ status: 'error', message: `Couldn't save ${filename}.` });
-            } else {
-              respond({ status: 'success', message: `Saved ${filename}.` });
-            }
-          },
-        );
-      } catch {
-        // u8ToBase64 can throw (RangeError) on a very large archive — respond so
-        // the popup shows a failure instead of hanging on a leaked port.
-        respond({ status: 'error', message: `Couldn't build ${filename} — archive too large.` });
-      }
+      const url = `data:application/zip;base64,${b64}`;
+      chrome.downloads.download(
+        { url, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
+        (downloadId) => {
+          const err = chrome.runtime.lastError;
+          if (err || downloadId === undefined) {
+            respond({ status: 'error', message: `Couldn't save ${filename}.` });
+          } else {
+            respond({ status: 'success', message: `Saved ${filename}.` });
+          }
+        },
+      );
     });
     return true; // response sent asynchronously after the download dispatches
   },
@@ -687,9 +682,9 @@ const messageRouter: MessageRouter = {
   },
 
   DOWNLOAD_BYTES: (message) => {
-    const { filename, bytes, mime, source } = message;
+    const { filename, b64, mime, source } = message;
     void settingsReady.then(() => {
-      const url = `data:${mime};base64,${u8ToBase64(bytes)}`;
+      const url = `data:${mime};base64,${b64}`;
       chrome.downloads.download(
         { url, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
         (downloadId) => {

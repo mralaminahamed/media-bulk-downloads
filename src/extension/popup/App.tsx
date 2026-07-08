@@ -25,6 +25,7 @@ import { favouriteSrcSet, FAVOURITES_KEY } from '../shared/storage/favourites';
 import { excludedMatchers, EXCLUDED_KEY } from '../shared/storage/excluded';
 import { buildZip, zipFileName } from '../shared/download/zip';
 import { convertImage, isConvertible } from '../shared/download/convert';
+import { u8ToBase64 } from '../shared/download/base64';
 import { buildDownloadFilename } from '../shared/collection/download-name';
 import { hostFromUrl, registrableDomain, todayISO } from '../shared/collection/paths';
 import { requestCaptureStream } from '../shared/active-tab/capture-stream-active';
@@ -431,7 +432,7 @@ const App: React.FC<AppProps> = ({
         if (!converted) throw new Error('convert');
         const filename = buildDownloadFilename({ ...img, ext: converted.ext }, index, settings, sourcePage.url);
         const msg: DownloadBytesMessage = {
-          type: 'DOWNLOAD_BYTES', filename, bytes: converted.bytes, mime: converted.mime,
+          type: 'DOWNLOAD_BYTES', filename, b64: u8ToBase64(converted.bytes), mime: converted.mime,
           // Carry the original identity so the background records it to history
           // (the "already downloaded" mark + dedup), like a plain download.
           source: {
@@ -529,7 +530,7 @@ const App: React.FC<AppProps> = ({
     }
 
     const filename = zipFileName(sourcePage.url);
-    const message: DownloadZipMessage = { type: 'DOWNLOAD_ZIP', bytes, filename };
+    const message: DownloadZipMessage = { type: 'DOWNLOAD_ZIP', b64: u8ToBase64(bytes), filename };
     chrome.runtime.sendMessage(message, (response: DownloadResponse) => {
       const error = chrome.runtime.lastError;
       const base = error ? `Error: ${error.message || 'unknown error'}` : response.message;
