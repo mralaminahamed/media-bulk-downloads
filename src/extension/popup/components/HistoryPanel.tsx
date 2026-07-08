@@ -88,6 +88,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
         },
       ],
       sourcePage: { url: entry.sourcePageUrl, title: entry.sourcePageTitle },
+      explicit: true, // user picked this history item — never silently drop it via the blocklist
     });
   };
 

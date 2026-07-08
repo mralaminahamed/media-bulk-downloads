@@ -1,6 +1,6 @@
 import { MediaCandidate, Resolver, ResolveContext } from '../types';
 
-const FULL_SRC = /w\.wallhaven\.cc\/full\/[a-z0-9]{2}\/wallhaven-[a-z0-9]+\.(jpg|png|gif)/i;
+const FULL_SRC = /w\.wallhaven\.cc\/full\/[a-z0-9]{2}\/wallhaven-([a-z0-9]+)\.(jpg|png|gif)/i;
 const THUMB_TIER = /^(https?:\/\/th\.wallhaven\.cc)\/(small|lg|orig)\/([a-z0-9]{2}\/[a-z0-9]+\.jpg)$/i;
 const TIER_RANK = { small: 0, lg: 1, orig: 2 } as const;
 
@@ -35,18 +35,25 @@ function idFrom(u: URL, ctx: ResolveContext): string | null {
   return hm ? hm[1] : null;
 }
 
-/** Reads the real full-file extension from the DOM only (never guesses jpg). */
-function extFrom(ctx: ResolveContext): 'jpg' | 'png' | 'gif' | null {
+/** Reads the real full-file extension from the DOM only (never guesses jpg).
+ *  Every full-<img> source is verified to carry THIS wallpaper's id, so a
+ *  different wallpaper's full image elsewhere in the DOM (a grid hover/preview
+ *  modal) can't leak its extension onto this thumb and build a 404 URL. */
+function extFrom(ctx: ResolveContext, id: string): 'jpg' | 'png' | 'gif' | null {
   const el = ctx.el;
   if (!el) return null;
+  const idMatches = (m: RegExpMatchArray | null | undefined): 'jpg' | 'png' | 'gif' | null =>
+    m && m[1].toLowerCase() === id.toLowerCase() ? (m[2].toLowerCase() as 'jpg' | 'png' | 'gif') : null;
 
-  // (1) A full <img> reachable from the element (the /w/<id> detail page).
-  const full = (el.getAttribute?.('src') || '') + ' ' + (el.getAttribute?.('data-src') || '');
-  const dm = full.match(FULL_SRC);
-  if (dm) return dm[1].toLowerCase() as 'jpg' | 'png' | 'gif';
-  const pageImg = el.ownerDocument?.querySelector('#wallpaper[src], img[src*="w.wallhaven.cc/full/"]');
-  const pm = pageImg?.getAttribute('src')?.match(FULL_SRC);
-  if (pm) return pm[1].toLowerCase() as 'jpg' | 'png' | 'gif';
+  // (1) A full <img> carrying this id — the element itself, or the /w/<id> detail
+  //     page's unique #wallpaper. Id-scoped, so a sibling wallpaper's full <img>
+  //     can't leak. (The old document-wide `img[src*=/full/]` selector did leak.)
+  const own = ((el.getAttribute?.('src') || '') + ' ' + (el.getAttribute?.('data-src') || '')).match(FULL_SRC);
+  const byOwn = idMatches(own);
+  if (byOwn) return byOwn;
+  const main = el.ownerDocument?.querySelector('#wallpaper[src]')?.getAttribute('src')?.match(FULL_SRC);
+  const byMain = idMatches(main);
+  if (byMain) return byMain;
 
   // (2) The PNG/GIF badge on grid figures (`span.png` / `span.gif`, confirmed live);
   //     Wallhaven only badges non-jpg, so an unbadged figure is genuinely jpg.
@@ -78,7 +85,7 @@ export const wallhavenResolver: Resolver = {
     const id = idFrom(u, ctx);
     if (!id) return [];
     const dims = dimsFrom(ctx);
-    const ext = extFrom(ctx);
+    const ext = extFrom(ctx, id);
     // Sharper-but-lightweight grid preview: a tiny /small/ thumb bumps up to /lg/.
     const thumbnailSrc = upgradeThumb(u.href, 'lg');
     if (!ext) {

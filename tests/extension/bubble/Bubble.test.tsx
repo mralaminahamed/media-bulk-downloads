@@ -124,7 +124,6 @@ describe('Bubble', () => {
   });
 
   it('repositions and persists on an intentional drag', () => {
-    const set = chrome.storage.sync.set as jest.Mock;
     (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings }));
     render(<Bubble initialSettings={settings} />);
     const launcher = screen.getByRole('button', { name: 'Media Bulk Downloads' });
@@ -151,7 +150,6 @@ describe('Bubble', () => {
   });
 
   it('drags the panel to a free point via its header and persists it', async () => {
-    const set = chrome.storage.sync.set as jest.Mock;
     (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings }));
     render(<Bubble initialSettings={settings} />);
     dispatchToggle();

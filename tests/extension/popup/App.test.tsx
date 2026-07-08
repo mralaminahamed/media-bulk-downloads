@@ -1077,26 +1077,35 @@ describe('App Component', () => {
     await screen.findByText('Filters');
     expect(screen.queryByLabelText('Favourited')).toBeNull();
 
-    // The favourites listener is the 2nd registered on this mount.
+    // The favourites listener is the 2nd registered on this mount. It re-reads the
+    // committed store (not the event's newValue), so seed storage before firing.
     const favListener = addListener.mock.calls[before + 1][0];
     await act(async () => {
+      await chrome.storage.local.set({ [FAVOURITES_KEY]: [{ src: 'https://c/fav.jpg' }] });
       favListener({ [FAVOURITES_KEY]: { newValue: [{ src: 'https://c/fav.jpg' }] } }, 'local');
     });
 
     expect(await screen.findByLabelText('Favourited')).toBeInTheDocument();
   });
 
-  it('treats a favourites clear (newValue undefined) as an empty set', async () => {
+  it('removes the favourite badge when the stored favourites are cleared', async () => {
     const addListener = chrome.storage.onChanged.addListener as jest.Mock;
     const before = addListener.mock.calls.length;
     render(<App collect={async () => [image({ src: 'https://c/fav.jpg' })]} />);
     await screen.findByText('Filters');
 
+    // The listener re-reads the committed store on any FAVOURITES_KEY change, so
+    // drive it by mutating storage: first add the favourite, then clear it.
     const favListener = addListener.mock.calls[before + 1][0];
-    // First add the favourite, then simulate a store-wide clear with no newValue.
-    await act(async () => favListener({ [FAVOURITES_KEY]: { newValue: [{ src: 'https://c/fav.jpg' }] } }, 'local'));
+    await act(async () => {
+      await chrome.storage.local.set({ [FAVOURITES_KEY]: [{ src: 'https://c/fav.jpg' }] });
+      favListener({ [FAVOURITES_KEY]: { newValue: [{ src: 'https://c/fav.jpg' }] } }, 'local');
+    });
     expect(await screen.findByLabelText('Favourited')).toBeInTheDocument();
-    await act(async () => favListener({ [FAVOURITES_KEY]: {} }, 'local')); // newValue undefined → []
+    await act(async () => {
+      await chrome.storage.local.set({ [FAVOURITES_KEY]: [] });
+      favListener({ [FAVOURITES_KEY]: {} }, 'local');
+    });
     await waitFor(() => expect(screen.queryByLabelText('Favourited')).toBeNull());
   });
 

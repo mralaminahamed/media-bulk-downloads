@@ -182,19 +182,24 @@ function updateAllTabsBadges(): void {
  * Update the badge text for the given tab.
  */
 function updateTabBadge(tabId: number): void {
-  chrome.tabs.sendMessage(tabId, 'GET_IMAGES', (images: ImageInfo[]) => {
-    // Tabs without a content script (chrome://, the web store, etc.) surface a
-    // lastError; ignore them.
-    if (chrome.runtime.lastError) {
-      return;
-    }
+  // Await the settings + blocklist caches so a cold-started worker (woken by a
+  // tab switch/update) doesn't count against an empty excludedCache and briefly
+  // over-count blocklisted items — the same gate the download paths use.
+  void Promise.all([settingsReady, excludedReady]).then(() => {
+    chrome.tabs.sendMessage(tabId, 'GET_IMAGES', (images: ImageInfo[]) => {
+      // Tabs without a content script (chrome://, the web store, etc.) surface a
+      // lastError; ignore them.
+      if (chrome.runtime.lastError) {
+        return;
+      }
 
-    if (images) {
-      const eligible = filterExcluded(filterImagesBySettings(images, currentSettings), excludedCache);
-      const badgeText = eligible.length.toString();
-      chrome.action.setBadgeText({ text: badgeText, tabId });
-      chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR, tabId });
-    }
+      if (images) {
+        const eligible = filterExcluded(filterImagesBySettings(images, currentSettings), excludedCache);
+        const badgeText = eligible.length.toString();
+        chrome.action.setBadgeText({ text: badgeText, tabId });
+        chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR, tabId });
+      }
+    });
   });
 }
 
@@ -547,9 +552,11 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     markSettingsLoaded = undefined;
   } else if (namespace === 'local' && changes[EXCLUDED_KEY]) {
     // The blocklist lives in storage.local (see excluded.ts). Refresh the live
-    // matcher cache so the badge count reflects the change; the next natural
-    // badge refresh (tab switch/reload) picks up the new cache.
+    // matcher cache, then recompute every tab's badge once it loads so the
+    // toolbar count matches the popup grid immediately (they otherwise drift
+    // until the next tab switch/reload).
     reloadExcluded();
+    if (currentSettings.showImageCount) void excludedReady.then(() => updateAllTabsBadges());
   }
 });
 
@@ -657,7 +664,13 @@ const messageRouter: MessageRouter = {
     // never-updated "Downloading…".
     void Promise.all([settingsReady, excludedReady]).then(async () => {
       try {
-        const eligible = filterExcluded(filterImagesBySettings(images, currentSettings), excludedCache);
+        // An explicit re-download (Favourites/History panel) bypasses the
+        // collection filters — the user picked these exact items, so a later
+        // size/blocklist change must not silently drop them (as the context-menu
+        // single download already does). Grid downloads re-filter as before.
+        const eligible = message.explicit
+          ? images
+          : filterExcluded(filterImagesBySettings(images, currentSettings), excludedCache);
         const result = await downloadAndRecord(eligible, sourcePage);
         respond({
           status: result.failed > 0 && result.succeeded === 0 ? 'error' : 'success',
@@ -768,7 +781,11 @@ const messageRouter: MessageRouter = {
     void (async () => {
       try {
         const history = await loadHistory();
-        const items = await chrome.downloads.search({});
+        // limit:0 = no row cap. The default (1000, most-recent browser-wide) would
+        // drop a heavy downloader's older extension entries out of the window, so
+        // srcsStillOnDisk would treat those still-on-disk files as deleted and
+        // re-offer them for download.
+        const items = await chrome.downloads.search({ limit: 0 });
         const existsById = new Map(items.map((it) => [it.id, it.exists]));
         respond(srcsStillOnDisk(history, (id) => existsById.get(id) === true));
       } catch {

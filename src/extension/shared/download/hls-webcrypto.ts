@@ -33,7 +33,15 @@ export function browserHlsDeps(onProgress?: (done: number, total: number) => voi
         : undefined;
       const res = await fetch(url, init);
       if (!res.ok && res.status !== 206) throw new Error(`Segment fetch failed (${res.status}).`);
-      return new Uint8Array(await res.arrayBuffer());
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      // A server may ignore the Range header and answer 200 with the WHOLE file.
+      // Without this, every EXT-X-BYTERANGE "segment" would be the entire file →
+      // the concatenated output is N copies of it, corrupt and oversized. Slice
+      // out the requested window ourselves when we clearly got more than asked.
+      if (range && res.status !== 206 && bytes.length > range.length) {
+        return bytes.subarray(range.offset, range.offset + range.length);
+      }
+      return bytes;
     },
     decrypt: webcryptoDecrypt,
     concurrency: 6,

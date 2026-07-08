@@ -142,10 +142,10 @@ const App: React.FC<AppProps> = ({
   useEffect(() => {
     void favouriteSrcSet().then(setFavouriteSrcs);
     const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
-      if (area === 'local' && changes[FAVOURITES_KEY]) {
-        const next = (changes[FAVOURITES_KEY].newValue as { src: string }[] | undefined) ?? [];
-        setFavouriteSrcs(SrcKeySet.from(next.map((e) => e.src)));
-      }
+      // Reload through favouriteSrcSet() (which normalizes via loadFavourites and
+      // drops corrupt entries) rather than trusting the raw newValue — matches the
+      // initial load, the History path, and the excluded path below.
+      if (area === 'local' && changes[FAVOURITES_KEY]) void favouriteSrcSet().then(setFavouriteSrcs);
     };
     chrome.storage.onChanged.addListener(onChanged);
     return () => chrome.storage.onChanged.removeListener(onChanged);
@@ -618,10 +618,18 @@ const App: React.FC<AppProps> = ({
       return;
     }
     const swap = (list: ImageInfo[]) => list.map((i) => (i.src === src ? swapped : i));
-    setState((prev) => ({ ...prev, images: swap(prev.images), filteredImages: swap(prev.filteredImages) }));
     // Mirror into the raw set too, so a later settings-change re-filter doesn't
     // revert this item back to a pending tile.
     rawImagesRef.current = swap(rawImagesRef.current);
+    // Re-derive the filtered view (not an in-place swap) so the resolved item is
+    // re-sorted + re-gated by the active toolbar filter — matching the auto
+    // resolveOriginals path (enrichOriginals). An in-place swap left the item in
+    // its old poster-name sort slot, out of order with the active sort.
+    setState((prev) => {
+      const images = swap(prev.images);
+      const eligible = filterExcluded(filterImagesBySettings(images, settingsRef.current), excludedRef.current);
+      return { ...prev, images, filteredImages: applyToolbarFilters(eligible, filtersRef.current) };
+    });
   };
 
   /**
@@ -666,7 +674,13 @@ const App: React.FC<AppProps> = ({
     if (!byOldSrc.size) return;
     const swap = (list: ImageInfo[]) => list.map((i) => byOldSrc.get(i.src) ?? i);
     rawImagesRef.current = swap(rawImagesRef.current);
-    setState((prev) => ({ ...prev, images: swap(prev.images), filteredImages: swap(prev.filteredImages) }));
+    // Re-derive the filtered view so every swapped video is re-sorted + re-gated
+    // by the active toolbar filter, matching the auto resolveOriginals path.
+    setState((prev) => {
+      const images = swap(prev.images);
+      const eligible = filterExcluded(filterImagesBySettings(images, settingsRef.current), excludedRef.current);
+      return { ...prev, images, filteredImages: applyToolbarFilters(eligible, filtersRef.current) };
+    });
   };
 
   const handleToggleFavourite = async (image: ImageInfo): Promise<void> => {

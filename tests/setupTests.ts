@@ -1,5 +1,18 @@
 import '@testing-library/jest-dom';
 
+// jsdom does not implement Blob.prototype.arrayBuffer; some download/convert
+// code sniffs a blob's header bytes, so provide a FileReader-backed polyfill.
+if (!(Blob.prototype as { arrayBuffer?: unknown }).arrayBuffer) {
+    (Blob.prototype as { arrayBuffer: () => Promise<ArrayBuffer> }).arrayBuffer = function (this: Blob) {
+        return new Promise<ArrayBuffer>((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onload = () => resolve(fr.result as ArrayBuffer);
+            fr.onerror = () => reject(fr.error);
+            fr.readAsArrayBuffer(this);
+        });
+    };
+}
+
 // Backing store for the chrome.storage.local mock below.
 const localStorageStore: Record<string, unknown> = {};
 

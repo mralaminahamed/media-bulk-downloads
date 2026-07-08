@@ -8,15 +8,42 @@ import { getImageType } from '@/extension/content/collect';
 /**
  * Splits a srcset into raw candidate strings (each `URL [descriptor]`), the single
  * source of truth for candidate splitting shared by parseSrcset and bestSrcsetUrl.
- * Only splits on commas that separate candidates — commas inside data: URIs or
- * query strings are preserved by the lookahead.
+ *
+ * Follows the HTML srcset grammar rather than a comma regex: a candidate's URL is
+ * a run of non-whitespace characters, so a comma is a candidate separator ONLY
+ * when it terminates that run (a trailing comma) or comes after the descriptor.
+ * Commas *inside* the URL — data: payloads, imgix query lists (`?w=1,2`), and
+ * Cloudinary path transforms (`.../c_fill,w_800/img.jpg`) — stay part of the URL.
+ * The old regex split inside `c_fill,w_800/`, breaking the URL and losing the image.
  */
 export function splitSrcsetCandidates(srcset: string): string[] {
-  return srcset
-    .trim()
-    .split(/,(?=\s*(?:https?:|data:|blob:|\/|\.{1,2}\/|[\w-]+[./]))/i)
-    .map((c) => c.trim())
-    .filter(Boolean);
+  const isWs = (c: string): boolean => c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '\f';
+  const out: string[] = [];
+  const s = srcset;
+  const n = s.length;
+  let i = 0;
+  while (i < n) {
+    // Skip leading whitespace and stray commas between candidates.
+    while (i < n && (isWs(s[i]) || s[i] === ',')) i++;
+    if (i >= n) break;
+    // The URL is the next run of non-whitespace characters (commas included).
+    const urlStart = i;
+    while (i < n && !isWs(s[i])) i++;
+    let url = s.slice(urlStart, i);
+    // Trailing commas on the URL run are separators, not part of the URL.
+    let hadTrailingComma = false;
+    while (url.endsWith(',')) { url = url.slice(0, -1); hadTrailingComma = true; }
+    if (!url) continue;
+    if (hadTrailingComma) { out.push(url); continue; }
+    // Otherwise collect the (optional) descriptor up to the next comma.
+    while (i < n && isWs(s[i])) i++;
+    const descStart = i;
+    while (i < n && s[i] !== ',') i++;
+    const desc = s.slice(descStart, i).trim();
+    out.push(desc ? `${url} ${desc}` : url);
+    if (i < n && s[i] === ',') i++; // consume the separating comma
+  }
+  return out;
 }
 
 /** Normalizes a raw format token (extension or query value) to our type vocab. */
