@@ -305,6 +305,28 @@ describe('resolveOriginal — bsky (getBlob)', () => {
   });
 });
 
+describe('resolveOriginal — bsky (video)', () => {
+  it('builds the video.bsky.app HLS playlist from a video hint, without fetching', async () => {
+    let called = false;
+    const spy = (async () => { called = true; return { ok: true, json: async () => ({}) }; }) as unknown as typeof fetch;
+    const out = await resolveOriginal({ platform: 'bsky', id: 'video did:plc:z72i7hd bafvideocid' }, { fetch: spy });
+    expect(out).toEqual({
+      url: 'https://video.bsky.app/watch/did%3Aplc%3Az72i7hd/bafvideocid/playlist.m3u8',
+      hls: true,
+    });
+    expect(called).toBe(false); // deterministic — no network for video
+  });
+
+  it('encodes a did:web account id in the playlist path', async () => {
+    const spy = (async () => ({ ok: true, json: async () => ({}) })) as unknown as typeof fetch;
+    const out = await resolveOriginal({ platform: 'bsky', id: 'video did:web:example.com bafvideocid' }, { fetch: spy });
+    expect(out).toEqual({
+      url: 'https://video.bsky.app/watch/did%3Aweb%3Aexample.com/bafvideocid/playlist.m3u8',
+      hls: true,
+    });
+  });
+});
+
 describe('resolveOriginal — unknown platform', () => {
   it('returns null for a platform with no resolver (default case), without fetching', async () => {
     let called = false;

@@ -185,13 +185,20 @@ async function resolvePdsHost(did: string, deps: NetDeps): Promise<string | null
 /**
  * Bluesky. The hint id is a space-delimited `'<kind> <did> <cid>'` triple built
  * by bskyResolver (did/cid never contain spaces). `blob` resolves the account's
- * PDS from its DID and returns the true uploaded original via getBlob.
+ * PDS from its DID and returns the true uploaded original via getBlob; `video`
+ * deterministically builds the HLS master on video.bsky.app (no fetch).
  */
 async function bsky(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
   try {
     const parts = id.split(' ');
     if (parts.length !== 3) return null;
     const [kind, did, cid] = parts;
+    if (kind === 'video') {
+      // The AppView serves video at video.bsky.app/watch/<did>/<cid>/playlist.m3u8
+      // with the DID percent-encoded — exactly what encodeURIComponent produces.
+      const url = `https://video.bsky.app/watch/${encodeURIComponent(did)}/${encodeURIComponent(cid)}/playlist.m3u8`;
+      return pinnedUrl(url, 'bsky.app') ? { url, hls: true } : null;
+    }
     if (kind !== 'blob') return null;
     const pds = await resolvePdsHost(did, deps);
     if (!pds) return null;
