@@ -76,6 +76,35 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
   // a single boolean + one wrapper ref back the outside-click / Escape close.
   const [excludeMenuOpen, setExcludeMenuOpen] = useState(false);
   const excludeMenuRef = useRef<HTMLDivElement>(null);
+  const excludeMenuListRef = useRef<HTMLDivElement>(null);
+
+  // When the menu opens, move focus to its first item so it is fully
+  // keyboard-operable (WAI-ARIA menu button pattern); arrow keys then move
+  // between items. Without this, a keyboard user lands nowhere on open.
+  useEffect(() => {
+    if (!excludeMenuOpen) return;
+    excludeMenuListRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+  }, [excludeMenuOpen]);
+
+  // Arrow/Home/End move focus among the menu items (wrapping). Enter/Space
+  // activate the focused item natively (they are <button>s). Works in both the
+  // popup (document) and the on-page bubble (shadow root) via getRootNode().
+  const onExcludeMenuKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+    const items = Array.from(excludeMenuListRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+    if (!items.length) return;
+    const root = excludeMenuListRef.current?.getRootNode() as unknown as DocumentOrShadowRoot | undefined;
+    const current = items.indexOf(root?.activeElement as HTMLElement);
+    let next: number;
+    switch (e.key) {
+      case 'ArrowDown': next = (current + 1) % items.length; break;
+      case 'ArrowUp': next = (current - 1 + items.length) % items.length; break;
+      case 'Home': next = 0; break;
+      case 'End': next = items.length - 1; break;
+      default: return;
+    }
+    e.preventDefault();
+    items[next]?.focus();
+  };
 
   useEffect(() => {
     if (!excludeMenuOpen) return;
@@ -368,7 +397,10 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                     </button>
                     {excludeMenuOpen && (
                       <div
+                        ref={excludeMenuListRef}
                         role="menu"
+                        aria-orientation="vertical"
+                        onKeyDown={onExcludeMenuKeyDown}
                         className="absolute right-0 top-full z-20 mt-1.5 w-60 overflow-hidden rounded-(--radius-sm) border hairline bg-(--panel) py-1 text-left shadow-lg"
                       >
                         <p className="eyebrow px-3 pb-1 pt-0.5 text-(--ink-3)">Add to blocklist</p>

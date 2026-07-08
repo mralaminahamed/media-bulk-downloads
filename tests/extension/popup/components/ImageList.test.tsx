@@ -353,6 +353,30 @@ describe('ImageList Component', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
+    it('focuses the first menuitem when the menu opens (keyboard operable)', () => {
+      openMenu(vi.fn());
+      expect(screen.getByRole('menuitem', { name: 'Exclude this image' })).toHaveFocus();
+    });
+
+    it('moves focus between items with ArrowDown/ArrowUp/Home/End (wrapping)', () => {
+      openMenu(vi.fn());
+      const menu = screen.getByRole('menu');
+      const url = screen.getByRole('menuitem', { name: 'Exclude this image' });
+      const host = screen.getByRole('menuitem', { name: /exclude site/i });
+      expect(url).toHaveFocus();
+
+      fireEvent.keyDown(menu, { key: 'ArrowDown' });
+      expect(host).toHaveFocus();
+      fireEvent.keyDown(menu, { key: 'ArrowDown' }); // wraps to first
+      expect(url).toHaveFocus();
+      fireEvent.keyDown(menu, { key: 'ArrowUp' }); // wraps to last
+      expect(host).toHaveFocus();
+      fireEvent.keyDown(menu, { key: 'Home' });
+      expect(url).toHaveFocus();
+      fireEvent.keyDown(menu, { key: 'End' });
+      expect(host).toHaveFocus();
+    });
+
     it('closes the menu on an outside click, leaving the modal open', () => {
       openMenu(vi.fn());
       fireEvent.mouseDown(document.body);
