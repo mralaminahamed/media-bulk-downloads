@@ -536,6 +536,15 @@ describe('GET_DOWNLOADED_SRCS handler', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(sendResponse).toHaveBeenCalledWith(['https://c/keep.jpg']);
   });
+
+  it('responds with [] (never leaves the port open) when history/search rejects', async () => {
+    (chrome.storage.local.get as jest.Mock).mockReset().mockRejectedValue(new Error('storage error'));
+    const sendResponse = jest.fn();
+    const async = messageHandler({ type: 'GET_DOWNLOADED_SRCS' }, {}, sendResponse);
+    expect(async).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sendResponse).toHaveBeenCalledWith([]);
+  });
 });
 
 describe('downloadAndRecord', () => {

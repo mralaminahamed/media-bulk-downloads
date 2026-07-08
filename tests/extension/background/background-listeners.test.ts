@@ -29,6 +29,10 @@ describe('background DOWNLOAD_IMAGES handler', () => {
     // awaits every download before it reports the final status, so the mock must
     // invoke the callback — a bare jest.fn() would leave the response pending.
     (chrome.downloads.download as jest.Mock).mockReset().mockImplementation((_o, cb) => cb(1));
+    // Reset storage each test so a per-test reject (the port-leak case) can't bleed
+    // into a sibling test's recordDownloads.
+    (chrome.storage.local.get as jest.Mock).mockResolvedValue({ downloadHistory: [] });
+    (chrome.storage.local.set as jest.Mock).mockReset().mockResolvedValue(undefined);
     setSettings({}); // reset to defaults
   });
 
@@ -64,6 +68,19 @@ describe('background DOWNLOAD_IMAGES handler', () => {
       expect.any(Function),
     );
     expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloaded 2 files.' });
+  });
+
+  it('responds with an error instead of hanging when the history write rejects', async () => {
+    // recordDownloads → storage.local.set rejecting (e.g. QUOTA_BYTES near the
+    // ~5MB local quota) must still respond — otherwise the port stays open and the
+    // popup hangs on "Sending…" forever.
+    (chrome.storage.local.get as jest.Mock).mockResolvedValue({ downloadHistory: [] });
+    (chrome.storage.local.set as jest.Mock).mockReset().mockRejectedValue(new Error('QUOTA_BYTES'));
+    const sendResponse = jest.fn();
+    onMessage({ type: 'DOWNLOAD_IMAGES', images: [img({ src: 'a.jpg' })] }, {}, sendResponse);
+    await flush();
+    await flush();
+    expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({ status: 'error' }));
   });
 
   it('applies the download path and prefix from settings', async () => {

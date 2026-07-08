@@ -36,8 +36,12 @@ let currentSettings: SettingsData = { ...DEFAULT_SETTINGS };
 /** Live cache of the blocklist match sets, kept fresh via chrome.storage.onChanged
  *  so the badge count (a synchronous filter) never has to await storage. */
 let excludedCache: ExcludedMatchers = { urls: new SrcKeySet(), hosts: new Set() };
+/** Resolves once the blocklist has loaded. Download paths await this (like
+ *  settingsReady) so a cold worker woken by the keyboard/context-menu download
+ *  never filters against an empty cache and lets a blocklisted item through. */
+let excludedReady: Promise<void> = Promise.resolve();
 function reloadExcluded(): void {
-  void excludedMatchers().then((m) => { excludedCache = m; });
+  excludedReady = excludedMatchers().then((m) => { excludedCache = m; });
 }
 reloadExcluded();
 
@@ -417,7 +421,7 @@ export function downloadAllForTab(tab?: chrome.tabs.Tab): void {
   const sourcePage = tab.url ? { url: tab.url, title: tab.title } : undefined;
   chrome.tabs.sendMessage(tabId, 'GET_IMAGES', (images: ImageInfo[]) => {
     if (chrome.runtime.lastError || !Array.isArray(images)) return;
-    void settingsReady.then(() => {
+    void Promise.all([settingsReady, excludedReady]).then(() => {
       const eligible = filterExcluded(filterImagesBySettings(images, currentSettings), excludedCache);
       // HLS/DASH streams must be CAPTURED (fetch + mux segments), never handed to
       // chrome.downloads as a manifest URL — that saves the raw .m3u8/.mpd text as
@@ -605,13 +609,19 @@ const messageRouter: MessageRouter = {
     // the status only after the downloads are dispatched, so the popup shows
     // the real outcome (how many started / failed) rather than a premature,
     // never-updated "Downloading…".
-    void settingsReady.then(async () => {
-      const eligible = filterExcluded(filterImagesBySettings(images, currentSettings), excludedCache);
-      const result = await downloadAndRecord(eligible, sourcePage);
-      respond({
-        status: result.failed > 0 && result.succeeded === 0 ? 'error' : 'success',
-        message: downloadStatusMessage(result),
-      });
+    void Promise.all([settingsReady, excludedReady]).then(async () => {
+      try {
+        const eligible = filterExcluded(filterImagesBySettings(images, currentSettings), excludedCache);
+        const result = await downloadAndRecord(eligible, sourcePage);
+        respond({
+          status: result.failed > 0 && result.succeeded === 0 ? 'error' : 'success',
+          message: downloadStatusMessage(result),
+        });
+      } catch (e) {
+        // Without this the port stays open and the popup hangs on "Sending…"
+        // forever if recordDownloads (a storage write near quota) rejects.
+        respond({ status: 'error', message: `Download failed: ${e instanceof Error ? e.message : 'unknown error'}` });
+      }
     });
     return true; // response is sent asynchronously after the downloads dispatch
   },
@@ -623,18 +633,24 @@ const messageRouter: MessageRouter = {
     // URL.createObjectURL, so a base64 data URL is the only in-SW way to give
     // chrome.downloads the archive bytes.
     void settingsReady.then(() => {
-      const url = `data:application/zip;base64,${u8ToBase64(bytes)}`;
-      chrome.downloads.download(
-        { url, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
-        (downloadId) => {
-          const err = chrome.runtime.lastError;
-          if (err || downloadId === undefined) {
-            respond({ status: 'error', message: `Couldn't save ${filename}.` });
-          } else {
-            respond({ status: 'success', message: `Saved ${filename}.` });
-          }
-        },
-      );
+      try {
+        const url = `data:application/zip;base64,${u8ToBase64(bytes)}`;
+        chrome.downloads.download(
+          { url, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
+          (downloadId) => {
+            const err = chrome.runtime.lastError;
+            if (err || downloadId === undefined) {
+              respond({ status: 'error', message: `Couldn't save ${filename}.` });
+            } else {
+              respond({ status: 'success', message: `Saved ${filename}.` });
+            }
+          },
+        );
+      } catch {
+        // u8ToBase64 can throw (RangeError) on a very large archive — respond so
+        // the popup shows a failure instead of hanging on a leaked port.
+        respond({ status: 'error', message: `Couldn't build ${filename} — archive too large.` });
+      }
     });
     return true; // response sent asynchronously after the download dispatches
   },
@@ -687,10 +703,15 @@ const messageRouter: MessageRouter = {
   // history entry — then the pure filter decides what's still present.
   GET_DOWNLOADED_SRCS: (_message, _sender, respond) => {
     void (async () => {
-      const history = await loadHistory();
-      const items = await chrome.downloads.search({});
-      const existsById = new Map(items.map((it) => [it.id, it.exists]));
-      respond(srcsStillOnDisk(history, (id) => existsById.get(id) === true));
+      try {
+        const history = await loadHistory();
+        const items = await chrome.downloads.search({});
+        const existsById = new Map(items.map((it) => [it.id, it.exists]));
+        respond(srcsStillOnDisk(history, (id) => existsById.get(id) === true));
+      } catch {
+        // Degrade to "nothing known downloaded" rather than leave the port open.
+        respond([]);
+      }
     })();
     return true; // response is sent asynchronously
   },
