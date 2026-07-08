@@ -19,6 +19,15 @@ if (!(Blob.prototype as { arrayBuffer?: unknown }).arrayBuffer) {
     };
 }
 
+// jsdom does not implement window.scrollTo/scrollBy — it logs a noisy
+// "Not implemented: Window's scrollTo() method" to the virtual console for every
+// call. The deep-scan runner drives the page by scrolling, so stub them as no-ops.
+// Guarded: some suites opt into the node environment, where `window` is undefined.
+if (typeof window !== 'undefined') {
+    window.scrollTo = (() => {}) as typeof window.scrollTo;
+    window.scrollBy = (() => {}) as typeof window.scrollBy;
+}
+
 // Backing store for the chrome.storage.local mock below.
 const localStorageStore: Record<string, unknown> = {};
 
