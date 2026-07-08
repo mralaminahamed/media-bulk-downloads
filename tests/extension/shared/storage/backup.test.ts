@@ -102,4 +102,51 @@ describe('parseBackup', () => {
     expect(b?.settings).toMatchObject({ namingMode: 'prefixed', minimumImageSize: 0 });
     expect(b?.version).toBe(0); // unknown version tolerated
   });
+
+  it('does not let a hostile __proto__ payload pollute Object.prototype', () => {
+    const b = parseBackup(
+      '{"app":"media-bulk-downloads",' +
+        '"__proto__":{"polluted":"yes"},' +
+        '"favourites":[{"src":"https://a","__proto__":{"polluted2":"yes"}}]}',
+    );
+    expect(b).not.toBeNull();
+    // The malicious keys must not reach the global prototype.
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    expect(({} as Record<string, unknown>).polluted2).toBeUndefined();
+    expect(Object.prototype.hasOwnProperty.call(Object.prototype, 'polluted')).toBe(false);
+  });
+
+  it('drops a dangerous sourcePageUrl scheme from favourites and history (the panel <a href> sink)', () => {
+    const b = parseBackup(JSON.stringify({
+      app: BACKUP_APP,
+      favourites: [{ src: 'https://a', sourcePageUrl: 'javascript:alert(1)', time: 1 }],
+      history: [{ src: 'https://h', filename: 'x', sourcePageUrl: 'data:text/html,<script>', time: 2 }],
+    }));
+    expect(b?.favourites[0].sourcePageUrl).toBe('');
+    expect(b?.history[0].sourcePageUrl).toBe('');
+  });
+
+  it('keeps an http(s) sourcePageUrl and a scheme-less/relative one (shown as raw text)', () => {
+    const b = parseBackup(JSON.stringify({
+      app: BACKUP_APP,
+      favourites: [
+        { src: 'https://a', sourcePageUrl: 'https://page.example/post', time: 1 },
+        { src: 'https://b', sourcePageUrl: 'not a url', time: 2 },
+      ],
+    }));
+    expect(b?.favourites[0].sourcePageUrl).toBe('https://page.example/post');
+    expect(b?.favourites[1].sourcePageUrl).toBe('not a url');
+  });
+
+  it('strips control chars/whitespace that try to hide a javascript: scheme', () => {
+    const b = parseBackup(JSON.stringify({
+      app: BACKUP_APP,
+      favourites: [
+        { src: 'https://a', sourcePageUrl: 'java\tscript:alert(1)', time: 1 },
+        { src: 'https://b', sourcePageUrl: '  javascript:alert(1)', time: 2 },
+      ],
+    }));
+    expect(b?.favourites[0].sourcePageUrl).toBe('');
+    expect(b?.favourites[1].sourcePageUrl).toBe('');
+  });
 });

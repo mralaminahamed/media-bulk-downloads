@@ -469,7 +469,28 @@ describe('captureDash — e2e mux', () => {
       fetchText: async () => videoOnly,
       fetchBytes: async () => new Uint8Array([1, 2, 3, 4]),
     };
-    await expect(captureDash('https://cdn.test/manifest.mpd', garbage)).rejects.toMatchObject({ code: 'unsupported' });
+    // mp4box logs its own BoxParser/ISOFile parse failure to console.error while
+    // rejecting the undecodable bytes — expected on this path (we assert the
+    // rejection), so mute it to keep the test output clean.
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await expect(captureDash('https://cdn.test/manifest.mpd', garbage)).rejects.toMatchObject({ code: 'unsupported' });
+    } finally {
+      errSpy.mockRestore();
+    }
+  });
+
+  it('refuses segments a BaseURL aims at an internal host, without fetching them (SSRF guard)', async () => {
+    const fetched: string[] = [];
+    // An MPD-level absolute <BaseURL> relocates every segment/init URL to a
+    // link-local host — the classic SSRF target. The guard must block the fetch.
+    const internal = VOD_MPD.replace('<Period>', '<BaseURL>http://169.254.169.254/</BaseURL><Period>');
+    const d: DashDeps = {
+      fetchText: async () => internal,
+      fetchBytes: async (u: string) => { fetched.push(u); return fx(u.split('/').pop()!); },
+    };
+    await expect(captureDash('https://cdn.test/manifest.mpd', d)).rejects.toBeInstanceOf(DashError);
+    expect(fetched.some((u) => u.includes('169.254.169.254'))).toBe(false);
   });
 
   it('rejects unsupported when the SegmentTemplate has no initialization segment', () => {

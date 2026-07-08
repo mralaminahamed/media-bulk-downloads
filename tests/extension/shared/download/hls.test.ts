@@ -56,6 +56,63 @@ function fakeDeps(overrides: Partial<HlsDeps> = {}, texts: Record<string, string
   };
 }
 
+describe('captureHls — SSRF guard', () => {
+  // A page-controlled manifest must not be able to drive the offscreen fetcher
+  // (which holds <all_urls>) at an internal host. Each case asserts the capture
+  // rejects AND the injected fetcher was never actually called with the URL.
+  it('refuses a segment URL that targets the link-local metadata host, without fetching it', async () => {
+    const fetched: string[] = [];
+    const MEDIA = `#EXTM3U
+#EXT-X-TARGETDURATION:6
+#EXT-X-MEDIA-SEQUENCE:0
+#EXTINF:6.0,
+http://169.254.169.254/latest/seg0.ts
+#EXT-X-ENDLIST
+`;
+    const deps = fakeDeps(
+      { fetchBytes: async (u) => { fetched.push(u); return bytesOf('x'); } },
+      { 'index.m3u8': MEDIA },
+    );
+    await expect(captureHls('https://cdn.test/v/index.m3u8', deps)).rejects.toBeInstanceOf(HlsError);
+    expect(fetched).not.toContain('http://169.254.169.254/latest/seg0.ts');
+  });
+
+  it('refuses an EXT-X-KEY URI that targets loopback, without fetching the key', async () => {
+    const fetched: string[] = [];
+    const MEDIA = `#EXTM3U
+#EXT-X-TARGETDURATION:6
+#EXT-X-MEDIA-SEQUENCE:0
+#EXT-X-KEY:METHOD=AES-128,URI="http://127.0.0.1:9200/key.bin"
+#EXTINF:6.0,
+seg0.ts
+#EXT-X-ENDLIST
+`;
+    const deps = fakeDeps(
+      { fetchBytes: async (u) => { fetched.push(u); return bytesOf('x'); } },
+      { 'index.m3u8': MEDIA },
+    );
+    await expect(captureHls('https://cdn.test/v/index.m3u8', deps)).rejects.toBeInstanceOf(HlsError);
+    expect(fetched).not.toContain('http://127.0.0.1:9200/key.bin');
+  });
+
+  it('refuses a master whose selected variant points at localhost, without fetching it', async () => {
+    const texts: string[] = [];
+    const MASTER_INTERNAL = `#EXTM3U
+#EXT-X-STREAM-INF:BANDWIDTH=1000000
+http://localhost:8080/media.m3u8
+`;
+    const deps = fakeDeps({
+      fetchText: async (u) => {
+        texts.push(u);
+        if (u.endsWith('master.m3u8')) return MASTER_INTERNAL;
+        throw new Error(`no canned text for ${u}`);
+      },
+    });
+    await expect(captureHls('https://cdn.test/master.m3u8', deps)).rejects.toThrow(/disallowed host/i);
+    expect(texts).not.toContain('http://localhost:8080/media.m3u8');
+  });
+});
+
 describe('isMasterPlaylist / parseMaster / selectVariant', () => {
   it('detects a master vs a media playlist', () => {
     expect(isMasterPlaylist(MASTER)).toBe(true);
@@ -617,9 +674,17 @@ bad_seg.m4a
         return name.startsWith('bad_') ? new Uint8Array([1, 2, 3, 4]) : fx(name);
       },
     };
-    await expect(captureHls('https://cdn.test/master.m3u8', d)).rejects.toMatchObject({
-      code: 'demuxed-unsupported',
-    });
+    // mp4box logs its own BoxParser/ISOFile parse failure to console.error while
+    // rejecting the undecodable bytes — expected on this path (we assert the
+    // rejection), so mute it to keep the test output clean.
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await expect(captureHls('https://cdn.test/master.m3u8', d)).rejects.toMatchObject({
+        code: 'demuxed-unsupported',
+      });
+    } finally {
+      errSpy.mockRestore();
+    }
   });
 
   it('throws empty when the demuxed muxer returns zero bytes', async () => {

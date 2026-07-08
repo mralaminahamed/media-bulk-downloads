@@ -15,6 +15,7 @@
  */
 
 import { muxTracks } from './mux';
+import { assertSafeCaptureUrl } from './ssrf-guard';
 
 /** ISO-8601 media duration (`PT1H2M3.5S`) → seconds. 0 for anything unparseable.
  *  Only the `PT…` (hours/minutes/seconds) form is handled — the only form MPD
@@ -332,7 +333,16 @@ async function fetchDashTrack(
  * and muxes the two fMP4 tracks together.
  */
 export async function captureDash(url: string, deps: DashDeps, opts: DashCaptureOptions = {}): Promise<DashCaptureResult> {
-  const xml = await deps.fetchText(url);
+  // The MPD is page-controlled and every segment/init URL is resolved from it
+  // (incl. its BaseURL). Route all fetches through the SSRF guard so a hostile
+  // manifest cannot aim them at an internal/loopback/link-local host (the
+  // offscreen fetcher has <all_urls>).
+  const gd: DashDeps = {
+    ...deps,
+    fetchText: (u) => (assertSafeCaptureUrl(u), deps.fetchText(u)),
+    fetchBytes: (u) => (assertSafeCaptureUrl(u), deps.fetchBytes(u)),
+  };
+  const xml = await gd.fetchText(url);
   const manifest = parseMpd(xml, url);
   assertDownloadable(manifest);
 
@@ -350,8 +360,8 @@ export async function captureDash(url: string, deps: DashDeps, opts: DashCapture
   let videoTrack: { init?: Uint8Array; segments: Uint8Array[] };
   let audioTrack: { init?: Uint8Array; segments: Uint8Array[] } | undefined;
   try {
-    videoTrack = await fetchDashTrack(vExp, deps, onSegment, budget);
-    audioTrack = aExp ? await fetchDashTrack(aExp, deps, onSegment, budget) : undefined;
+    videoTrack = await fetchDashTrack(vExp, gd, onSegment, budget);
+    audioTrack = aExp ? await fetchDashTrack(aExp, gd, onSegment, budget) : undefined;
   } catch (e) {
     if (e instanceof DashError) throw e;
     throw new DashError('fetch-failed', 'A segment could not be fetched.');

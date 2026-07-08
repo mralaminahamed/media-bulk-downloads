@@ -56,10 +56,17 @@ const pointer = (type: string, clientX: number, clientY: number) => {
   return e;
 };
 
-const dispatchToggle = () => {
-  (chrome.runtime.onMessage.addListener as Mock).mock.calls
-    .map((c) => c[0])
-    .forEach((fn) => fn('TOGGLE_BUBBLE'));
+// Delivering the TOGGLE_BUBBLE runtime message drives Bubble's setOpen. There is
+// no DOM event to route through RTL, so invoke the registered onMessage listener
+// directly, wrapped in `await act(async () => {})` — React's recommended form (the
+// sync variant is being deprecated) so the state update and its effects flush
+// inside act. See https://react.dev/reference/react/act.
+const dispatchToggle = async () => {
+  await act(async () => {
+    (chrome.runtime.onMessage.addListener as Mock).mock.calls
+      .map((c) => c[0])
+      .forEach((fn) => fn('TOGGLE_BUBBLE'));
+  });
 };
 
 // The most recently registered chrome.storage.onChanged listener — i.e. the one
@@ -96,7 +103,7 @@ describe('Bubble', () => {
     expect(await screen.findByRole('heading', { name: 'Media Bulk Downloads' })).toBeInTheDocument();
   });
 
-  it('does not move or persist on a jittery click (sub-threshold travel)', () => {
+  it('does not move or persist on a jittery click (sub-threshold travel)', async () => {
     const set = chrome.storage.sync.set as Mock;
     render(<Bubble initialSettings={settings} />);
     const launcher = screen.getByRole('button', { name: 'Media Bulk Downloads' });
@@ -109,6 +116,9 @@ describe('Bubble', () => {
 
     expect(launcher.getAttribute('style')).toBe(before);
     expect(set).not.toHaveBeenCalled();
+    // A sub-threshold jitter is still a click, so the panel opens and mounts
+    // <App>; let its async mount scan settle inside act so it doesn't warn.
+    await screen.findByText(/on this page/i);
   });
 
   it('keeps the launcher fixed in place when the panel opens', async () => {
@@ -143,7 +153,7 @@ describe('Bubble', () => {
 
   it('centers the panel when the placement is "center"', async () => {
     render(<Bubble initialSettings={{ ...settings, bubblePanelPlacement: 'center' }} />);
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
     const panel = document.querySelector('.sheet-in') as HTMLElement;
     expect(panel.style.transform).toBe('translate(-50%, -50%)');
@@ -154,7 +164,7 @@ describe('Bubble', () => {
   it('drags the panel to a free point via its header and persists it', async () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings }));
     render(<Bubble initialSettings={settings} />);
-    dispatchToggle();
+    await dispatchToggle();
     const heading = await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
     const header = heading.closest('header') as HTMLElement;
 
@@ -179,7 +189,7 @@ describe('Bubble', () => {
   it('does not start a header drag when a header control is pressed', async () => {
     const set = chrome.storage.sync.set as Mock;
     render(<Bubble initialSettings={settings} />);
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
     const settingsBtn = screen.getByRole('button', { name: 'Settings' });
     set.mockClear();
@@ -198,7 +208,7 @@ describe('Bubble', () => {
     const set = chrome.storage.sync.set as Mock;
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings }));
     render(<Bubble initialSettings={settings} />);
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
     const grip = screen.getByRole('button', { name: 'Resize panel' });
     set.mockClear();
@@ -216,7 +226,7 @@ describe('Bubble', () => {
   it('pins the panel to a corner independent of the launcher corner', async () => {
     // Button anchored bottom-right; panel pinned top-left.
     render(<Bubble initialSettings={{ ...settings, bubblePanelPlacement: 'top-left' }} />);
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
     const panel = document.querySelector('.sheet-in') as HTMLElement;
     expect(panel.style.top).toBe('16px');
@@ -227,9 +237,9 @@ describe('Bubble', () => {
 
   it('toggles open/closed on a TOGGLE_BUBBLE message', async () => {
     render(<Bubble initialSettings={settings} />);
-    dispatchToggle();
+    await dispatchToggle();
     expect(await screen.findByRole('heading', { name: 'Media Bulk Downloads' })).toBeInTheDocument();
-    dispatchToggle();
+    await dispatchToggle();
     await waitFor(() =>
       expect(screen.queryByRole('heading', { name: 'Media Bulk Downloads' })).not.toBeInTheDocument(),
     );
@@ -237,7 +247,7 @@ describe('Bubble', () => {
 
   it('closes on Escape', async () => {
     render(<Bubble initialSettings={settings} />);
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
     fireEvent.keyDown(window, { key: 'Escape' });
     await waitFor(() =>
@@ -247,7 +257,7 @@ describe('Bubble', () => {
 
   it('Escape closes an open sub-dialog, keeping the panel open', async () => {
     render(<Bubble initialSettings={settings} />);
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
@@ -263,7 +273,7 @@ describe('Bubble', () => {
 
   it('Escape from a focused text field does not collapse the panel (clears the field instead)', async () => {
     render(<Bubble initialSettings={settings} />);
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
     // Escape originating from a text input (e.g. the search box) must not close
     // the whole panel — the capture handler bails when the target is editable.
@@ -276,20 +286,20 @@ describe('Bubble', () => {
 
   it('aborts a running deep scan when the panel closes', async () => {
     render(<Bubble initialSettings={settings} />);
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Deep scan' }));
     const signal = (startDeepScan as Mock).mock.calls[0][1] as AbortSignal;
     expect(signal.aborted).toBe(false);
 
-    dispatchToggle(); // close the panel
+    await dispatchToggle(); // close the panel
     await waitFor(() => expect(signal.aborted).toBe(true));
   });
 
   it('dims the page behind the panel without blocking it (visual-only)', async () => {
     render(<Bubble initialSettings={settings} />);
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
 
     const scrim = document.querySelector('.ibd-bubble-scrim') as HTMLElement;
@@ -306,7 +316,7 @@ describe('Bubble', () => {
   it('anchors the panel beside the launcher (anchored placement)', async () => {
     // Default: anchored, corner bottom-right, button at {x:20, y:20}.
     render(<Bubble initialSettings={settings} />);
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
     const panel = document.querySelector('.sheet-in') as HTMLElement;
     // Sits beside the button reserving its footprint: bottom = y + FAB(48) + GAP(10)
@@ -325,7 +335,7 @@ describe('Bubble', () => {
     'pins the panel to the %s corner with the grip on its free corner',
     async (placement, edges, cursor, grip) => {
       render(<Bubble initialSettings={{ ...settings, bubblePanelPlacement: placement }} />);
-      dispatchToggle();
+      await dispatchToggle();
       await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
 
       const panel = document.querySelector('.sheet-in') as HTMLElement;
@@ -351,7 +361,7 @@ describe('Bubble', () => {
         initialSettings={{ ...settings, bubblePanelPlacement: 'free', bubblePanelPoint: { x: 123, y: 77 } }}
       />,
     );
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
     const panel = document.querySelector('.sheet-in') as HTMLElement;
     expect(panel.style.left).toBe('123px');
@@ -388,7 +398,7 @@ describe('Bubble', () => {
   it('clamps a header-dragged panel to the viewport (freePoint bounds)', async () => {
     const set = chrome.storage.sync.set as Mock;
     render(<Bubble initialSettings={settings} />);
-    dispatchToggle();
+    await dispatchToggle();
     const heading = await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
     const header = heading.closest('header') as HTMLElement;
     set.mockClear();
@@ -415,7 +425,7 @@ describe('Bubble', () => {
   it('resizes a centered panel from its bottom-right grip (both edges free)', async () => {
     const set = chrome.storage.sync.set as Mock;
     render(<Bubble initialSettings={{ ...settings, bubblePanelPlacement: 'center' }} />);
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
     const grip = screen.getByRole('button', { name: 'Resize panel' });
     set.mockClear();
@@ -433,7 +443,7 @@ describe('Bubble', () => {
   it('clamps a resize to the minimum panel size', async () => {
     const set = chrome.storage.sync.set as Mock;
     render(<Bubble initialSettings={settings} />); // anchored bottom-right: free edges top/left
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
     const grip = screen.getByRole('button', { name: 'Resize panel' });
     set.mockClear();
@@ -453,7 +463,7 @@ describe('Bubble', () => {
   it('live-syncs corner/pos/size/placement/point from a popup settings change', async () => {
     render(<Bubble initialSettings={settings} />);
     const listener = lastStorageListener();
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
 
     // Starts anchored to bottom-right (bottom set, left unset).
@@ -462,7 +472,7 @@ describe('Bubble', () => {
     expect(panel.style.left).toBe('');
 
     // The popup writes new settings: pin the panel top-left and move the button.
-    act(() => {
+    await act(async () => {
       listener(
         {
           settings: {
@@ -493,13 +503,13 @@ describe('Bubble', () => {
     expect(launcher.style.left).toBe('30px');
   });
 
-  it('ignores storage changes from another area or without settings', () => {
+  it('ignores storage changes from another area or without settings', async () => {
     render(<Bubble initialSettings={settings} />);
     const listener = lastStorageListener();
     const launcher = screen.getByRole('button', { name: 'Media Bulk Downloads' });
     const before = launcher.getAttribute('style');
 
-    act(() => {
+    await act(async () => {
       // Wrong area — must be ignored even though `settings` changed.
       listener(
         { settings: { newValue: { ...settings, bubblePosition: { corner: 'top-left', x: 1, y: 1 } } } } as {
@@ -525,7 +535,7 @@ describe('Bubble', () => {
       return Promise.resolve([]);
     });
     render(<Bubble initialSettings={settings} />);
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Deep scan' }));
@@ -536,7 +546,7 @@ describe('Bubble', () => {
 
   it('aborts an in-flight deep scan when the Stop button is pressed', async () => {
     render(<Bubble initialSettings={settings} />);
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Deep scan' }));
@@ -554,7 +564,7 @@ describe('Bubble', () => {
 
   it('closes the panel via the header Close button', async () => {
     render(<Bubble initialSettings={settings} />);
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
@@ -572,7 +582,7 @@ describe('Bubble', () => {
         initialSettings={{ ...settings, bubblePanelPlacement: 'free', bubblePanelPoint: { x: 100, y: 100 } }}
       />,
     );
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
     const grip = screen.getByRole('button', { name: 'Resize panel' });
     set.mockClear();
@@ -590,7 +600,7 @@ describe('Bubble', () => {
     const set = chrome.storage.sync.set as Mock;
     // Pinned top-left → free edges are right/bottom; reserves PANEL_MARGIN.
     render(<Bubble initialSettings={{ ...settings, bubblePanelPlacement: 'top-left' }} />);
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
     const grip = screen.getByRole('button', { name: 'Resize panel' });
     set.mockClear();
@@ -622,7 +632,7 @@ describe('Bubble', () => {
   it('ignores resize grip move/up when no resize is in progress', async () => {
     const set = chrome.storage.sync.set as Mock;
     render(<Bubble initialSettings={settings} />);
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
     const grip = screen.getByRole('button', { name: 'Resize panel' });
     set.mockClear();
@@ -636,7 +646,7 @@ describe('Bubble', () => {
   it('does not free-place the panel on a sub-threshold header nudge', async () => {
     const set = chrome.storage.sync.set as Mock;
     render(<Bubble initialSettings={settings} />);
-    dispatchToggle();
+    await dispatchToggle();
     const heading = await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
     const header = heading.closest('header') as HTMLElement;
     set.mockClear();
@@ -653,19 +663,19 @@ describe('Bubble', () => {
 
   it('leaves the open panel untouched on a non-Escape key', async () => {
     render(<Bubble initialSettings={settings} />);
-    dispatchToggle();
+    await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
 
     fireEvent.keyDown(window, { key: 'a' });
     expect(screen.getByRole('heading', { name: 'Media Bulk Downloads' })).toBeInTheDocument();
   });
 
-  it('ignores runtime messages other than TOGGLE_BUBBLE', () => {
+  it('ignores runtime messages other than TOGGLE_BUBBLE', async () => {
     render(<Bubble initialSettings={settings} />);
     const calls = (chrome.runtime.onMessage.addListener as Mock).mock.calls;
     const listener = calls[calls.length - 1][0] as (m: unknown) => void;
 
-    act(() => listener('SOME_OTHER_MESSAGE'));
+    await act(async () => listener('SOME_OTHER_MESSAGE'));
 
     expect(screen.queryByRole('heading', { name: 'Media Bulk Downloads' })).not.toBeInTheDocument();
   });

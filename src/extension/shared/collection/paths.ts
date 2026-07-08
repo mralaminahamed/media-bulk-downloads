@@ -6,6 +6,21 @@
 /** Windows reserved device names (also reserved with any extension, e.g. CON.jpg). */
 const RESERVED_NAME = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i;
 
+/** Common filesystems cap a single name near 255 bytes; stay well under it and
+ *  leave room for prefixes/numbering the download-name layer may still add. */
+const MAX_SEGMENT_LEN = 200;
+
+/** Truncate an over-long name, preserving a short trailing extension. */
+function capLength(part: string): string {
+  if (part.length <= MAX_SEGMENT_LEN) return part;
+  const dot = part.lastIndexOf('.');
+  if (dot > 0 && part.length - dot <= 12) {
+    const ext = part.slice(dot);
+    return part.slice(0, MAX_SEGMENT_LEN - ext.length) + ext;
+  }
+  return part.slice(0, MAX_SEGMENT_LEN);
+}
+
 export function sanitizePathSegment(segment: string): string {
   return segment
     // Control chars are intentionally part of the illegal-filename set.
@@ -19,6 +34,8 @@ export function sanitizePathSegment(segment: string): string {
     .filter((part) => part && part !== '.' && part !== '..')
     // Prefix reserved device names so they become ordinary files, not devices.
     .map((part) => (RESERVED_NAME.test(part) ? `_${part}` : part))
+    // Bound each segment's length so a crafted 10-KB filename can't break the download.
+    .map(capLength)
     .join('/');
 }
 

@@ -30,6 +30,7 @@
  */
 
 import { muxTracks } from './mux';
+import { assertSafeCaptureUrl } from './ssrf-guard';
 
 export type HlsErrorCode =
   | 'no-variants' // master playlist had no usable EXT-X-STREAM-INF
@@ -475,7 +476,16 @@ export async function captureHls(
   deps: HlsDeps,
   opts: HlsCaptureOptions = {},
 ): Promise<HlsCaptureResult> {
-  const rootText = await deps.fetchText(url);
+  // A manifest is page-controlled, and every URL below (master, media playlist,
+  // audio rendition, segments, init, EXT-X-KEY) is resolved from it. Route all
+  // fetches through the SSRF guard so a hostile manifest cannot aim them at an
+  // internal/loopback/link-local host (the offscreen fetcher has <all_urls>).
+  const gd: HlsDeps = {
+    ...deps,
+    fetchText: (u) => (assertSafeCaptureUrl(u), deps.fetchText(u)),
+    fetchBytes: (u, r) => (assertSafeCaptureUrl(u), deps.fetchBytes(u, r)),
+  };
+  const rootText = await gd.fetchText(url);
 
   let mediaUrl = url;
   let variant: HlsVariant | undefined;
@@ -486,7 +496,7 @@ export async function captureHls(
     audioRendition = selectAudioRendition(parseAudioRenditions(rootText, url), variant);
   }
 
-  const mediaText = mediaUrl === url && !variant ? rootText : await deps.fetchText(mediaUrl);
+  const mediaText = mediaUrl === url && !variant ? rootText : await gd.fetchText(mediaUrl);
   const playlist = parseMediaPlaylist(mediaText, mediaUrl);
   assertDownloadable(playlist);
 
@@ -500,7 +510,7 @@ export async function captureHls(
   // this engine has always produced for such input. Not something we can fix
   // without the manifest telling us the audio exists.
   if (audioRendition?.uri) {
-    const audioText = await deps.fetchText(audioRendition.uri);
+    const audioText = await gd.fetchText(audioRendition.uri);
     const audioPlaylist = parseMediaPlaylist(audioText, audioRendition.uri);
     assertDownloadable(audioPlaylist);
 
@@ -516,8 +526,8 @@ export async function captureHls(
     const onSegment = (): void => deps.onProgress?.(++doneSegs, totalSegs);
     const budget: FetchBudget = { used: 0, max: opts.maxBytes };
 
-    const videoTrack = await fetchTrack(playlist, deps, onSegment, budget);
-    const audioTrack = await fetchTrack(audioPlaylist, deps, onSegment, budget);
+    const videoTrack = await fetchTrack(playlist, gd, onSegment, budget);
+    const audioTrack = await fetchTrack(audioPlaylist, gd, onSegment, budget);
 
     let muxed: Uint8Array;
     try {
@@ -547,7 +557,7 @@ export async function captureHls(
   const onSegment = (): void => deps.onProgress?.(++done, total);
   const budget: FetchBudget = { used: 0, max: opts.maxBytes };
 
-  const track = await fetchTrack(playlist, deps, onSegment, budget);
+  const track = await fetchTrack(playlist, gd, onSegment, budget);
   const chunks: Uint8Array[] = [];
   if (track.init) chunks.push(track.init);
   chunks.push(...track.segments);

@@ -73,14 +73,19 @@ describe('App Component', () => {
     global.fetch = vi.fn().mockRejectedValue(new Error('no')) as unknown as typeof fetch;
   });
 
-  it('renders the brand header', () => {
+  it('renders the brand header', async () => {
     render(<App collect={async () => []} />);
     expect(screen.getByText('Media Bulk Downloads')).toBeInTheDocument();
+    // Let the async mount (collect + settings/favourites/excluded loads) settle
+    // inside act so its state updates don't leak past the test.
+    await screen.findByText('No media here');
   });
 
-  it('shows the scanning state initially', () => {
+  it('shows the scanning state initially', async () => {
     render(<App collect={() => new Promise(() => {})} />);
     expect(screen.getByText('scanning this page')).toBeInTheDocument();
+    // collect never resolves, but the storage loads do — flush them inside act.
+    await act(async () => {});
   });
 
   it('shows filters and a download button once images load', async () => {
@@ -1300,13 +1305,13 @@ describe('App Component', () => {
     const progressListener = onMessageCalls[onMessageCalls.length - 1][0];
 
     // The background broadcasts progress for this run → the footer shows 3/8.
-    act(() => progressListener({ type: 'CAPTURE_PROGRESS', runId, done: 3, total: 8 }));
+    await act(async () => progressListener({ type: 'CAPTURE_PROGRESS', runId, done: 3, total: 8 }));
     const bar = await screen.findByRole('progressbar', { name: 'Capturing stream' });
     expect(bar).toHaveAttribute('aria-valuenow', '3');
     expect(bar).toHaveAttribute('aria-valuemax', '8');
 
     // Completing the capture replaces the progress line with the returned status.
-    act(() => captureCb!({ status: 'Captured clip.mp4 — 8 segments.' }));
+    await act(async () => captureCb!({ status: 'Captured clip.mp4 — 8 segments.' }));
     expect(await screen.findByText(/Captured clip\.mp4 — 8 segments/)).toBeInTheDocument();
   });
 

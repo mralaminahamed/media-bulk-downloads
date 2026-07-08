@@ -95,4 +95,28 @@ describe('sanitizePathSegment (regression)', () => {
     expect(sanitizePathSegment('../../etc/passwd')).toBe('etc/passwd');
     expect(sanitizePathSegment('bad:name?.txt')).toBe('badname.txt');
   });
+
+  it('strips ASCII control characters (NUL, TAB, newline, ESC …)', () => {
+    expect(sanitizePathSegment('na\x00me.jpg')).toBe('name.jpg'); // embedded NUL
+    expect(sanitizePathSegment('a\tb\nc\r.png')).toBe('abc.png'); // TAB/LF/CR
+    expect(sanitizePathSegment('x\x1by.gif')).toBe('xy.gif'); // ESC
+    // A whitespace-only name trims to nothing usable.
+    expect(sanitizePathSegment(' ')).toBe('');
+  });
+
+  it('truncates an over-long segment while preserving its extension', () => {
+    const long = 'a'.repeat(5000) + '.jpg';
+    const out = sanitizePathSegment(long);
+    expect(out.length).toBeLessThanOrEqual(200);
+    expect(out.endsWith('.jpg')).toBe(true);
+  });
+
+  it('truncates an over-long extensionless segment', () => {
+    const out = sanitizePathSegment('b'.repeat(5000));
+    expect(out.length).toBe(200);
+  });
+
+  it('leaves a normal-length name untouched', () => {
+    expect(sanitizePathSegment('photo-2026.jpg')).toBe('photo-2026.jpg');
+  });
 });
