@@ -1,10 +1,12 @@
 import type { ReactNode, ChangeEvent, FocusEvent, MouseEvent, CSSProperties, HTMLAttributes } from 'react';
 import type { SrcKeySet } from '../extension/shared/collection/canonical';
 
-export type ResolvePlatform = 'twitter' | 'wallhaven' | 'unsplash' | 'vimeo';
+export type ResolvePlatform = 'twitter' | 'wallhaven' | 'unsplash' | 'vimeo' | 'bsky';
 export interface ResolveHint {
   platform: ResolvePlatform;
-  id: string; // statusId | wallpaper id | photo shortid
+  /** Opaque per-platform id: statusId | wallpaper id | photo shortid | for
+   *  bsky, a space-delimited `'<blob|video> <did> <cid>'` triple. */
+  id: string;
 }
 
 /** A resolved media target. `hls` marks `url` as an HLS `.m3u8` master to CAPTURE

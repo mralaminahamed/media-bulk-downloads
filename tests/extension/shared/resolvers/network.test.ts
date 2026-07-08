@@ -229,6 +229,104 @@ describe('resolveOriginal — vimeo', () => {
   });
 });
 
+describe('resolveOriginal — bsky (getBlob)', () => {
+  const pdsDoc = {
+    service: [
+      { id: '#atproto_label', type: 'AtprotoLabeler', serviceEndpoint: 'https://labeler.example' },
+      { id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: 'https://puffball.us-east.host.bsky.network' },
+    ],
+  };
+  // A fetch that records the URL it was called with and returns `payload`.
+  const capturingFetch = (payload: unknown, ok = true) => {
+    const calls: string[] = [];
+    const fn = (async (u: string) => { calls.push(String(u)); return { ok, json: async () => payload }; }) as unknown as typeof fetch;
+    return Object.assign(fn, { calls });
+  };
+
+  it('did:plc — resolves the PDS via plc.directory and builds the getBlob URL', async () => {
+    const fetch = capturingFetch(pdsDoc);
+    const out = await resolveOriginal({ platform: 'bsky', id: 'blob did:plc:z72i7hd bafblobcid' }, { fetch });
+    expect(fetch.calls).toEqual(['https://plc.directory/did%3Aplc%3Az72i7hd']);
+    expect(out).toEqual({
+      url: 'https://puffball.us-east.host.bsky.network/xrpc/com.atproto.sync.getBlob?did=did%3Aplc%3Az72i7hd&cid=bafblobcid',
+    });
+  });
+
+  it('did:web — resolves the PDS via /.well-known/did.json', async () => {
+    const fetch = capturingFetch(pdsDoc);
+    const out = await resolveOriginal({ platform: 'bsky', id: 'blob did:web:example.com bafblobcid' }, { fetch });
+    expect(fetch.calls).toEqual(['https://example.com/.well-known/did.json']);
+    expect(out).toEqual({
+      url: 'https://puffball.us-east.host.bsky.network/xrpc/com.atproto.sync.getBlob?did=did%3Aweb%3Aexample.com&cid=bafblobcid',
+    });
+  });
+
+  it('picks the PDS entry among multiple services (by type / #atproto_pds id)', async () => {
+    const fetch = capturingFetch(pdsDoc);
+    const out = await resolveOriginal({ platform: 'bsky', id: 'blob did:plc:abc cid' }, { fetch });
+    expect(out?.url).toContain('https://puffball.us-east.host.bsky.network/xrpc/com.atproto.sync.getBlob');
+  });
+
+  it('rejects a non-https PDS serviceEndpoint', async () => {
+    const doc = { service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: 'http://insecure.example' }] };
+    expect(await resolveOriginal({ platform: 'bsky', id: 'blob did:plc:abc cid' }, { fetch: mockFetch(doc) })).toBeNull();
+  });
+
+  it('returns null when the DID doc has no PDS service', async () => {
+    const doc = { service: [{ id: '#atproto_label', type: 'AtprotoLabeler', serviceEndpoint: 'https://labeler.example' }] };
+    expect(await resolveOriginal({ platform: 'bsky', id: 'blob did:plc:abc cid' }, { fetch: mockFetch(doc) })).toBeNull();
+  });
+
+  it('returns null on a non-ok DID-doc response', async () => {
+    expect(await resolveOriginal({ platform: 'bsky', id: 'blob did:plc:abc cid' }, { fetch: mockFetch({}, false) })).toBeNull();
+  });
+
+  it('returns null when fetch throws', async () => {
+    const throwing = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
+    expect(await resolveOriginal({ platform: 'bsky', id: 'blob did:plc:abc cid' }, { fetch: throwing })).toBeNull();
+  });
+
+  it('returns null for an unsupported DID method, without fetching', async () => {
+    const fetch = capturingFetch(pdsDoc);
+    expect(await resolveOriginal({ platform: 'bsky', id: 'blob did:key:zabc cid' }, { fetch })).toBeNull();
+    expect(fetch.calls).toEqual([]);
+  });
+
+  it('returns null for a did:web with a non-bare host (port/path), without fetching', async () => {
+    const fetch = capturingFetch(pdsDoc);
+    expect(await resolveOriginal({ platform: 'bsky', id: 'blob did:web:evil.example:1234 cid' }, { fetch })).toBeNull();
+    expect(fetch.calls).toEqual([]);
+  });
+
+  it('returns null for a malformed hint id (wrong part count), without fetching', async () => {
+    const fetch = capturingFetch(pdsDoc);
+    expect(await resolveOriginal({ platform: 'bsky', id: 'blob did:plc:abc' }, { fetch })).toBeNull();
+    expect(fetch.calls).toEqual([]);
+  });
+});
+
+describe('resolveOriginal — bsky (video)', () => {
+  it('builds the video.bsky.app HLS playlist from a video hint, without fetching', async () => {
+    let called = false;
+    const spy = (async () => { called = true; return { ok: true, json: async () => ({}) }; }) as unknown as typeof fetch;
+    const out = await resolveOriginal({ platform: 'bsky', id: 'video did:plc:z72i7hd bafvideocid' }, { fetch: spy });
+    expect(out).toEqual({
+      url: 'https://video.bsky.app/watch/did%3Aplc%3Az72i7hd/bafvideocid/playlist.m3u8',
+      hls: true,
+    });
+    expect(called).toBe(false); // deterministic — no network for video
+  });
+
+  it('encodes a did:web account id in the playlist path', async () => {
+    const spy = (async () => ({ ok: true, json: async () => ({}) })) as unknown as typeof fetch;
+    const out = await resolveOriginal({ platform: 'bsky', id: 'video did:web:example.com bafvideocid' }, { fetch: spy });
+    expect(out).toEqual({
+      url: 'https://video.bsky.app/watch/did%3Aweb%3Aexample.com/bafvideocid/playlist.m3u8',
+      hls: true,
+    });
+  });
+});
+
 describe('resolveOriginal — unknown platform', () => {
   it('returns null for a platform with no resolver (default case), without fetching', async () => {
     let called = false;
