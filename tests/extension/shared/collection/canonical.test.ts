@@ -54,6 +54,25 @@ describe('canonicalSrcKey', () => {
     expect(canonicalSrcKey('https://site.com/render?a=1&b=2')).toBe(canonicalSrcKey('https://site.com/render?b=2&a=1'));
   });
 
+  it('collapses size/transform variants of the same dynamic image (universal, any host)', () => {
+    // Gravatar: the avatar hash in the path is the identity; ?s= only picks a
+    // size, so every size of the same avatar must key identically — the fix that
+    // makes exclude/dedup work on any host, not just the fbcdn special case.
+    const s52 = canonicalSrcKey('https://secure.gravatar.com/avatar/d8e25969?s=52&d=mm&r=g');
+    const s96 = canonicalSrcKey('https://secure.gravatar.com/avatar/d8e25969?s=96&d=mm&r=g');
+    expect(s52).toBe(s96);
+    // a generic sized CDN endpoint collapses across w/h/quality too
+    expect(canonicalSrcKey('https://img.site.com/render?id=7&w=200&h=200&q=80'))
+      .toBe(canonicalSrcKey('https://img.site.com/render?id=7&w=1600&h=1600&q=40'));
+  });
+
+  it('keeps genuinely different dynamic images distinct despite the transform strip', () => {
+    // Only size/format params are stripped — a differing identity param (id) must
+    // still split the key, so two different avatars/renditions never merge.
+    expect(canonicalSrcKey('https://img.site.com/render?id=7&w=200'))
+      .not.toBe(canonicalSrcKey('https://img.site.com/render?id=8&w=200'));
+  });
+
   it('returns the raw src for an unparseable input', () => {
     expect(canonicalSrcKey('not a url')).toBe('not a url');
   });

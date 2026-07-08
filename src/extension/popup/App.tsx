@@ -689,13 +689,32 @@ const App: React.FC<AppProps> = ({
     setFavouriteSrcs((prev) => prev.withAdded(image.src));
   };
 
+  // Hide excluded media from the grid immediately, before the background's write
+  // round-trips back through storage.onChanged (which reconciles to the same
+  // state). Mirrors the optimistic favourite update above. A 'url' exclusion is
+  // keyed by the src's canonical key; a 'host' exclusion by its registrable domain.
+  const applyExcludedOptimistic = (updates: { kind: ExcludedKind; value: string; src: string }[]): void => {
+    let urls = excludedRef.current.urls;
+    const hosts = new Set(excludedRef.current.hosts);
+    for (const u of updates) {
+      if (u.kind === 'url') urls = urls.withAdded(u.src);
+      else hosts.add(u.value);
+    }
+    const next = { urls, hosts };
+    excludedRef.current = next;
+    setExcludedMatch(next);
+  };
+
   const excludeItem = (image: ImageInfo, kind: ExcludedKind): void => {
-    const value = kind === 'host' ? hostFromUrl(image.src) : image.src;
+    const value = kind === 'host' ? registrableDomain(hostFromUrl(image.src)) : image.src;
     if (!value) return;
     sendRuntimeMessage({ type: 'ADD_EXCLUDED', entry: { value, kind, time: Date.now() } });
+    applyExcludedOptimistic([{ kind, value, src: image.src }]);
   };
   const excludeSelected = (): void => {
-    for (const i of selectedDownloadable()) sendRuntimeMessage({ type: 'ADD_EXCLUDED', entry: { value: i.src, kind: 'url', time: Date.now() } });
+    const items = selectedDownloadable();
+    for (const i of items) sendRuntimeMessage({ type: 'ADD_EXCLUDED', entry: { value: i.src, kind: 'url', time: Date.now() } });
+    applyExcludedOptimistic(items.map((i) => ({ kind: 'url' as const, value: i.src, src: i.src })));
     setSelectedSrcs(new Set());
   };
 

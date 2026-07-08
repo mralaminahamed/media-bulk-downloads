@@ -1,5 +1,6 @@
 import { ExcludedEntry, ExcludedKind } from '@/types';
 import { canonicalSrcKey, SrcKeySet } from '../collection/canonical';
+import { registrableDomain } from '../collection/paths';
 
 /**
  * Blocklist of excluded sources — exact media URLs and hosts — that the
@@ -91,11 +92,13 @@ export async function clearExcluded(): Promise<void> {
 
 /** The url + host match sets for O(1) exclusion checks. URL entries are keyed by
  *  their canonical src key so an excluded image stays excluded across volatile
- *  CDN query/host changes (see canonicalSrcKey). */
+ *  CDN query/host changes (see canonicalSrcKey). Host entries are reduced to their
+ *  registrable domain so the exclusion covers the whole site and survives rotating
+ *  CDN edge PoPs (fbcdn/cdninstagram) — and legacy exact-host entries still match. */
 export async function excludedMatchers(): Promise<{ urls: SrcKeySet; hosts: Set<string> }> {
   const all = await loadExcluded();
   return {
     urls: SrcKeySet.from(all.filter((e) => e.kind === 'url').map((e) => e.value)),
-    hosts: new Set(all.filter((e) => e.kind === 'host').map((e) => e.value)),
+    hosts: new Set(all.filter((e) => e.kind === 'host').map((e) => registrableDomain(e.value))),
   };
 }

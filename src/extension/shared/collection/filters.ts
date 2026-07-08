@@ -8,7 +8,7 @@ import { ImageInfo, SettingsData, FilterOptions, SizeBucket, SortKey, SortDir } 
 import { originalNameFromUrl } from './download-name';
 import { isEmojiUrl } from './emoji';
 import { SrcKeySet } from './canonical';
-import { hostFromUrl } from './paths';
+import { hostFromUrl, registrableDomain } from './paths';
 
 /**
  * Whether an image passes the global user settings (minimum size + base64
@@ -97,14 +97,19 @@ export interface ExcludedMatchers {
   /** Canonical-keyed set: a re-signed / re-sized CDN variant of an excluded image
    *  still matches (see SrcKeySet / canonicalSrcKey). */
   urls: SrcKeySet;
+  /** Registrable domains (not exact hosts). A "host" exclusion is scoped to the
+   *  whole site so it survives rotating edge PoPs — the same image served from
+   *  `scontent-del3-1.xx.fbcdn.net` then `scontent-lhr8-2.xx.fbcdn.net` both
+   *  reduce to `fbcdn.net`. Build with `registrableDomain` on both sides. */
   hosts: Set<string>;
 }
 
-/** Whether a media src is on the user's exclusion blocklist (canonical URL, or exact host). */
+/** Whether a media src is on the user's exclusion blocklist (canonical URL, or
+ *  the src's registrable domain — so a host exclusion covers rotating CDN edges). */
 export function isExcluded(src: string, m: ExcludedMatchers): boolean {
   if (m.urls.has(src)) return true;
-  const host = hostFromUrl(src);
-  return host !== '' && m.hosts.has(host);
+  const domain = registrableDomain(hostFromUrl(src));
+  return domain !== '' && m.hosts.has(domain);
 }
 
 /** Removes excluded items from a list. */
