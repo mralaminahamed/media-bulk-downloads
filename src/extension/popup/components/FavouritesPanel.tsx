@@ -89,6 +89,7 @@ const FavouritesPanel: React.FC<FavouritesPanelProps> = ({ onClose }) => {
         },
       ],
       sourcePage: { url: entry.sourcePageUrl, title: entry.sourcePageTitle },
+      explicit: true, // user picked this saved item — never silently drop it via the blocklist
     });
   };
 
