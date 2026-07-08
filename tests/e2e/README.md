@@ -42,6 +42,11 @@ tests/e2e/
     download.spec.ts      # download -> Download History; split-menu; Clear all
     favourites.spec.ts    # add / add-many / remove / grid-toggle / Clear all
     filters.spec.ts       # kind filters + search + empty state
+    preview.spec.ts       # preview modal: image shown, Next cycles, Close/Escape
+    settings.spec.ts      # Settings panel controls, a switch toggles, Escape
+    bubble.spec.ts        # launcher toggles the panel; Escape closes; reopen scans
+    drag.spec.ts          # drag the launcher, drag the panel header, resize grip,
+                          #   sub-threshold nudge is a click (not a drag)
     deep-scan.spec.ts     # deep scan runs without dropping the grid
     sites.spec.ts         # realistic X / Instagram / Facebook / generic-web pages:
                           #   resolver upgrades, canonical collapse, per-site flows
