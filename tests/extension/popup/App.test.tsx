@@ -258,6 +258,31 @@ describe('App Component', () => {
     expect(call?.[0].patch).not.toHaveProperty('bubblePanelPoint');
   });
 
+  it('does not clobber a bubble resize made while the popup is open', async () => {
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) =>
+      cb({ settings: { bubbleEnabled: true, bubbleWidth: 440, bubbleHeight: 560 } }));
+    const addListener = chrome.storage.onChanged.addListener as jest.Mock;
+    const before = addListener.mock.calls.length;
+    render(<App collect={async () => [image({})]} />);
+    await screen.findByText('Filters');
+
+    // The on-page bubble is resized elsewhere → storage.sync 'settings' changes.
+    // Fire the change on every listener this mount registered; only the popup's
+    // sync listener reacts (the local-key listeners ignore area 'sync').
+    const mountListeners = addListener.mock.calls.slice(before).map((c) => c[0]);
+    await act(async () => {
+      mountListeners.forEach((fn) =>
+        fn({ settings: { newValue: { bubbleEnabled: true, bubbleWidth: 600, bubbleHeight: 700 } } }, 'sync'));
+    });
+
+    // Saving an unrelated Setting must carry the fresh 600/700, not the stale snapshot.
+    fireEvent.click(screen.getByTitle('Settings'));
+    fireEvent.click(screen.getByRole('switch', { name: /show image count/i }));
+    fireEvent.click(screen.getByText('Save'));
+    const call = (chrome.runtime.sendMessage as jest.Mock).mock.calls.find((c) => c[0]?.type === 'SET_SETTINGS');
+    expect(call?.[0].patch).toEqual(expect.objectContaining({ bubbleWidth: 600, bubbleHeight: 700 }));
+  });
+
   it('runs deep scan and merges new media into the list', async () => {
     const { container } = render(<App collect={async () => [image({ src: 'https://cdn.com/a.jpg' })]} />);
     await screen.findByText('Filters');

@@ -152,6 +152,22 @@ const App: React.FC<AppProps> = ({
   }, []);
 
   useEffect(() => {
+    // Keep settings live while the popup is open. The on-page bubble persists
+    // bubbleWidth/height/placement on resize/drag; without this the popup's
+    // one-time snapshot would clobber those the next time the user saves Settings.
+    // Mirrors the bubble's own sync listener. Registered between the favourites
+    // and excluded local listeners so both keep their positional order in tests.
+    const listener = (changes: { [k: string]: chrome.storage.StorageChange }, area: string) => {
+      if (area !== 'sync' || !changes.settings) return;
+      const next = withDefaults(changes.settings.newValue as Partial<SettingsData>);
+      settingsRef.current = next;
+      setSettings(next);
+    };
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
+  }, []);
+
+  useEffect(() => {
     const load = () => void excludedMatchers().then((m) => { excludedRef.current = m; setExcludedMatch(m); });
     load();
     const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
