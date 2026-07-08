@@ -806,6 +806,37 @@ describe('App Component', () => {
     ).toHaveLength(0);
   });
 
+  it('the ZIP fallback archives originals — convert-on does not convert the un-fetchable items', async () => {
+    // Convert-on-download applies only to "As separate files". The ZIP action
+    // archives originals, so even its all-fetch-failed fallback must NOT convert.
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) =>
+      cb({ settings: { convertImagesTo: 'png' } }));
+    (buildZip as jest.Mock).mockResolvedValue({
+      bytes: new Uint8Array(0), ok: 0,
+      failed: [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })], results: [],
+    });
+    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((msg, cb) => {
+      if (msg?.type === 'DOWNLOAD_IMAGES' && cb) cb({ status: 'success', message: 'Downloaded 2 files.' });
+    });
+    render(<App collect={async () => [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })]} />);
+    await screen.findByText('Filters');
+
+    await openMenuAndChoose(/as zip archive/i);
+
+    // Fallback dispatches a plain DOWNLOAD_IMAGES…
+    await waitFor(() =>
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'DOWNLOAD_IMAGES' }),
+        expect.any(Function),
+      ),
+    );
+    // …and never converts: no convertImage call, no DOWNLOAD_BYTES dispatched.
+    expect(convertImage).not.toHaveBeenCalled();
+    expect(
+      (chrome.runtime.sendMessage as jest.Mock).mock.calls.filter((c) => c[0]?.type === 'DOWNLOAD_BYTES'),
+    ).toHaveLength(0);
+  });
+
   it('zips the fetched items and downloads the un-fetchable ones individually', async () => {
     (buildZip as jest.Mock).mockResolvedValue({
       bytes: new Uint8Array([1, 2, 3]), ok: 1,

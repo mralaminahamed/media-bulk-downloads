@@ -502,9 +502,12 @@ const App: React.FC<AppProps> = ({
     setProgress(null); // fetch phase done; the download itself is near-instant
 
     // Nothing could be fetched (every host blocked the hotlink / offline) — fall
-    // back to individual downloads, which go through the browser's own fetch.
+    // back to individual downloads via the browser's own fetch. Use the plain
+    // path, not handleDownload: the ZIP action archives originals, so its
+    // fallback must not convert either (convert-on-download applies only to the
+    // separate-files action). `images` is already the downloadable set (no HLS).
     if (ok === 0) {
-      void handleDownload(images);
+      void sendPlainDownload(images);
       return;
     }
 
