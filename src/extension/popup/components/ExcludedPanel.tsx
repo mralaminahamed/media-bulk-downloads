@@ -4,6 +4,7 @@ import { ExcludedEntry } from '@/types';
 import { loadExcluded, EXCLUDED_KEY } from '@/extension/shared/storage/excluded';
 import { sendRuntimeMessage } from '../utils';
 import { useDialog } from '../hooks/useDialog';
+import { ClearAllButton } from './fields/ClearAllButton';
 
 export interface ExcludedPanelProps {
   onClose: () => void;
@@ -69,9 +70,7 @@ const ExcludedPanel: React.FC<ExcludedPanelProps> = ({ onClose }) => {
             <p className="eyebrow mt-0.5">Blocklist</p>
           </div>
           <div className="flex items-center gap-0.5">
-            <button onClick={handleClearAll} className="btn btn-sm btn-ghost">
-              Clear all
-            </button>
+            <ClearAllButton onClear={handleClearAll} disabled={sorted.length === 0} />
             <button onClick={onClose} className="iconbtn" title="Close" aria-label="Close">
               <XMarkIcon className="h-4.5 w-4.5" />
             </button>

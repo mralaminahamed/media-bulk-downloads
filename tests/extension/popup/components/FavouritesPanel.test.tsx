@@ -23,10 +23,13 @@ describe('FavouritesPanel', () => {
   });
   afterEach(() => jest.restoreAllMocks());
 
-  it('lists entries and clears all via the background', async () => {
+  it('lists entries and clears all via the background after a two-step confirm', async () => {
     render(<FavouritesPanel onClose={() => {}} />);
     expect(await screen.findByText('a.jpg')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /clear all/i }));
+    const clearBtn = screen.getByRole('button', { name: /clear all/i });
+    await userEvent.click(clearBtn); // arms only
+    expect(chrome.runtime.sendMessage).not.toHaveBeenCalledWith({ type: 'CLEAR_FAVOURITES' });
+    await userEvent.click(clearBtn); // confirms
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'CLEAR_FAVOURITES' });
   });
 

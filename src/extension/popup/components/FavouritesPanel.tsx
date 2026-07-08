@@ -10,6 +10,7 @@ import { loadFavourites, FAVOURITES_KEY } from '@/extension/shared/storage/favou
 import { relativeTime, sendRuntimeMessage } from '../utils';
 import { LoadingImage } from './LoadingImage';
 import { useDialog } from '../hooks/useDialog';
+import { ClearAllButton } from './fields/ClearAllButton';
 
 export interface FavouritesPanelProps {
   onClose: () => void;
@@ -108,9 +109,7 @@ const FavouritesPanel: React.FC<FavouritesPanelProps> = ({ onClose }) => {
             <p className="eyebrow mt-0.5">Saved media</p>
           </div>
           <div className="flex items-center gap-0.5">
-            <button onClick={handleClearAll} className="btn btn-sm btn-ghost">
-              Clear all
-            </button>
+            <ClearAllButton onClear={handleClearAll} disabled={sorted.length === 0} />
             <button onClick={onClose} className="iconbtn" title="Close" aria-label="Close">
               <XMarkIcon className="h-4.5 w-4.5" />
             </button>

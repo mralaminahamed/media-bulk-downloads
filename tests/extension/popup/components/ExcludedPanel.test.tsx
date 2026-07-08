@@ -38,10 +38,13 @@ describe('ExcludedPanel', () => {
     );
   });
 
-  it('clears all via the background', async () => {
+  it('clears all via the background after a two-step confirm', async () => {
     render(<ExcludedPanel onClose={() => {}} />);
     await screen.findByText('cdn.ads.com');
-    await userEvent.click(screen.getByRole('button', { name: /clear all/i }));
+    const clearBtn = screen.getByRole('button', { name: /clear all/i });
+    await userEvent.click(clearBtn); // first click only arms — nothing cleared yet
+    expect(chrome.runtime.sendMessage).not.toHaveBeenCalledWith({ type: 'CLEAR_EXCLUDED' });
+    await userEvent.click(clearBtn); // second click confirms
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'CLEAR_EXCLUDED' });
   });
 
