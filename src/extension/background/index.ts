@@ -577,6 +577,11 @@ chrome.action.onClicked.addListener((tab) => {
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  // A same-tab navigation invalidates that tab's sniffed media (it belongs to the
+  // previous page); drop it so a new page can't be served a stale mediaId. (The
+  // map is also dropped on tab close; this covers long-lived tabs that navigate.)
+  if (changeInfo.url) snifferByTab.delete(tabId);
+
   if (changeInfo.status === 'complete' || changeInfo.url) {
     updateTabActionMode(tabId, tab.url);
   }
