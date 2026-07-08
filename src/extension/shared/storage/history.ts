@@ -85,10 +85,6 @@ export async function restoreHistory(entries: HistoryEntry[]): Promise<void> {
   });
 }
 
-export async function downloadedSrcSet(): Promise<Set<string>> {
-  return new Set((await loadHistory()).map((e) => e.src));
-}
-
 /**
  * The srcs from history whose downloaded file still exists on disk, given a
  * predicate that reports on-disk existence by `chrome.downloads` id (the caller

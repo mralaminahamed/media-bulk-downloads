@@ -17,7 +17,6 @@ export const newCaptureRunId = (): string =>
  * closes before this resolves. Mirrors deep-scan-active-tab's listener pattern.
  */
 export function requestCaptureStream(
-  manifestUrl: string,
   item: ImageInfo,
   sourcePage: { url: string; title?: string },
   onProgress: (done: number, total: number) => void,
@@ -31,7 +30,7 @@ export function requestCaptureStream(
       if (p && p.type === 'CAPTURE_PROGRESS' && p.runId === runId) onProgress(p.done, p.total);
     };
     chrome.runtime.onMessage.addListener(listener);
-    const message: CaptureStreamMessage = { type: 'CAPTURE_STREAM', runId, manifestUrl, item, sourcePage };
+    const message: CaptureStreamMessage = { type: 'CAPTURE_STREAM', runId, item, sourcePage };
     chrome.runtime.sendMessage(message, (response?: CaptureStreamResponse) => {
       chrome.runtime.onMessage.removeListener(listener);
       void chrome.runtime.lastError;

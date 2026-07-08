@@ -1,5 +1,5 @@
 import type { Mock } from 'vitest';
-import { mergeHistory, recordDownloads, removeEntry, clearHistory, restoreHistory, downloadedSrcSet, srcsStillOnDisk, loadHistory, HISTORY_CAP, HISTORY_MAX_BYTES } from '@/extension/shared/storage/history';
+import { mergeHistory, recordDownloads, removeEntry, clearHistory, restoreHistory, srcsStillOnDisk, loadHistory, HISTORY_CAP, HISTORY_MAX_BYTES } from '@/extension/shared/storage/history';
 import { HistoryEntry } from '@/types';
 
 describe('loadHistory — corrupt storage', () => {
@@ -57,9 +57,6 @@ describe('storage helpers', () => {
   it('clearHistory writes an empty array', async () => {
     await clearHistory();
     expect((chrome.storage.local.set as Mock).mock.calls[0][0].downloadHistory).toEqual([]);
-  });
-  it('downloadedSrcSet returns the unique srcs', async () => {
-    expect(await downloadedSrcSet()).toEqual(new Set(['a']));
   });
   it('serializes concurrent recordDownloads without dropping entries', async () => {
     let store: HistoryEntry[] = [];

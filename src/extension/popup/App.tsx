@@ -402,7 +402,6 @@ const App: React.FC<AppProps> = ({
     setProgress({ label: 'Capturing stream', done: 0, total: 0 });
     try {
       const status = await requestCaptureStream(
-        item.hlsManifest!,
         item,
         sourcePage,
         (done, total) => setProgress({ label: 'Capturing stream', done, total }),
