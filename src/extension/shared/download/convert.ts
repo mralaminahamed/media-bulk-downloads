@@ -43,6 +43,19 @@ export function isAnimatedImage(header: Uint8Array): boolean {
       if (fourCC(o, 'avis')) return true;
     }
   }
+  // Animated PNG (APNG): the PNG signature followed by an 'acTL' control chunk
+  // appearing before the first 'IDAT'. Walk the length-prefixed chunk list.
+  const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (header.length >= 8 && PNG_SIG.every((b, i) => header[i] === b)) {
+    let o = 8;
+    while (o + 8 <= header.length) {
+      if (fourCC(o + 4, 'acTL')) return true;
+      if (fourCC(o + 4, 'IDAT')) return false; // first frame data, no acTL seen → static
+      const len = (header[o] << 24) | (header[o + 1] << 16) | (header[o + 2] << 8) | header[o + 3];
+      if (len < 0) break; // corrupt/oversized length — stop rather than loop
+      o += 12 + len; // 4 (length) + 4 (type) + len (data) + 4 (CRC)
+    }
+  }
   return false;
 }
 
@@ -83,10 +96,11 @@ export async function convertImage(
   deps: ConvertDeps = defaultDeps,
 ): Promise<ConvertedImage | null> {
   try {
-    // Preserve animation: an animated webp/avif would lose every frame but the
-    // first through the canvas re-encode, so bail and let the caller download the
-    // original untouched (null = "couldn't convert, download as-is").
-    const header = new Uint8Array(await blob.slice(0, 64).arrayBuffer());
+    // Preserve animation: an animated webp/avif/apng would lose every frame but
+    // the first through the canvas re-encode, so bail and let the caller download
+    // the original untouched (null = "couldn't convert, download as-is"). 4 KiB
+    // covers an APNG's acTL chunk even when ancillary chunks precede it.
+    const header = new Uint8Array(await blob.slice(0, 4096).arrayBuffer());
     if (isAnimatedImage(header)) return null;
     const bitmap = await deps.createImageBitmap(blob);
     const canvas = deps.makeCanvas(bitmap.width, bitmap.height);

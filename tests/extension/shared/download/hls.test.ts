@@ -287,6 +287,16 @@ describe('assertDownloadable — policy guards', () => {
       expect((e as HlsError).message).toMatch(/AES-256/);
     }
   });
+  it('refuses AES-128 with no key URI (would otherwise save encrypted garbage)', () => {
+    const s = { segments: [seg({ method: 'AES-128', uri: undefined })], isLive: false } as never;
+    expect(() => assertDownloadable(s)).toThrow(HlsError);
+    try {
+      assertDownloadable(s);
+    } catch (e) {
+      expect((e as HlsError).code).toBe('unsupported-key');
+      expect((e as HlsError).message).toMatch(/key URI/i);
+    }
+  });
   it('accepts plain AES-128 and clear content', () => {
     expect(() => assertDownloadable(pl({}))).not.toThrow();
     const aes = { segments: [seg({ method: 'AES-128', uri: 'k' })], isLive: false } as never;

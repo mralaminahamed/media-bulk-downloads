@@ -1,4 +1,4 @@
-import { isConvertible, convertImage, ConvertDeps } from '@/extension/shared/download/convert';
+import { isConvertible, convertImage, isAnimatedImage, ConvertDeps } from '@/extension/shared/download/convert';
 import { ImageInfo } from '@/types';
 
 const img = (o: Partial<ImageInfo>): ImageInfo =>
@@ -94,5 +94,33 @@ describe('convertImage', () => {
       g.createImageBitmap = origBitmap;
       g.OffscreenCanvas = origCanvas;
     }
+  });
+});
+
+describe('isAnimatedImage', () => {
+  const u32 = (n: number) => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
+  const cc = (s: string) => [...s].map((c) => c.charCodeAt(0));
+  // A PNG chunk: 4-byte length + 4-byte type + `dataLen` data bytes + 4-byte CRC.
+  const chunk = (type: string, dataLen = 0) => [...u32(dataLen), ...cc(type), ...Array(dataLen).fill(0), ...u32(0)];
+  const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  const png = (...chunks: number[][]) => new Uint8Array([...PNG_SIG, ...chunks.flat()]);
+
+  it('flags an APNG (acTL before IDAT) as animated', () => {
+    expect(isAnimatedImage(png(chunk('IHDR', 13), chunk('acTL', 8), chunk('IDAT', 10)))).toBe(true);
+  });
+  it('treats a static PNG (IDAT, no acTL) as not animated', () => {
+    expect(isAnimatedImage(png(chunk('IHDR', 13), chunk('IDAT', 10)))).toBe(false);
+  });
+  it('still flags an animated WebP (VP8X animation bit set)', () => {
+    const webp = new Uint8Array([...cc('RIFF'), ...u32(0), ...cc('WEBP'), ...cc('VP8X'), ...u32(10), 0x02, ...Array(11).fill(0)]);
+    expect(isAnimatedImage(webp)).toBe(true);
+  });
+  it('does not flag a static WebP (VP8X animation bit clear)', () => {
+    const webp = new Uint8Array([...cc('RIFF'), ...u32(0), ...cc('WEBP'), ...cc('VP8X'), ...u32(10), 0x00, ...Array(11).fill(0)]);
+    expect(isAnimatedImage(webp)).toBe(false);
+  });
+  it('is safe on a short/empty buffer', () => {
+    expect(isAnimatedImage(new Uint8Array([]))).toBe(false);
+    expect(isAnimatedImage(new Uint8Array([0x89, 0x50]))).toBe(false);
   });
 });
