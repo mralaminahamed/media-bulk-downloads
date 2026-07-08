@@ -7,6 +7,7 @@
 import { ImageInfo, SettingsData, FilterOptions, SizeBucket, SortKey, SortDir } from '@/types';
 import { originalNameFromUrl } from './download-name';
 import { isEmojiUrl } from './emoji';
+import { SrcKeySet } from './canonical';
 import { hostFromUrl } from './paths';
 
 /**
@@ -93,11 +94,13 @@ function compareBy(a: ImageInfo, b: ImageInfo, key: SortKey, dir: SortDir): numb
 }
 
 export interface ExcludedMatchers {
-  urls: Set<string>;
+  /** Canonical-keyed set: a re-signed / re-sized CDN variant of an excluded image
+   *  still matches (see SrcKeySet / canonicalSrcKey). */
+  urls: SrcKeySet;
   hosts: Set<string>;
 }
 
-/** Whether a media src is on the user's exclusion blocklist (exact URL or host). */
+/** Whether a media src is on the user's exclusion blocklist (canonical URL, or exact host). */
 export function isExcluded(src: string, m: ExcludedMatchers): boolean {
   if (m.urls.has(src)) return true;
   const host = hostFromUrl(src);

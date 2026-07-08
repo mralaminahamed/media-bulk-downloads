@@ -1,4 +1,5 @@
 import { FavouriteEntry } from '@/types';
+import { canonicalSrcKey, SrcKeySet } from '../collection/canonical';
 
 export const FAVOURITES_KEY = 'favourites';
 export const FAVOURITES_CAP = 500;
@@ -25,9 +26,11 @@ export function mergeFavourites(
   existing: FavouriteEntry[],
   added: FavouriteEntry[],
 ): FavouriteEntry[] {
+  // Keyed by canonical src so re-adding the same image with a fresh CDN query
+  // signature doesn't create a duplicate favourite.
   const map = new Map<string, FavouriteEntry>();
-  for (const entry of added) map.set(entry.src, entry);
-  for (const entry of existing) if (!map.has(entry.src)) map.set(entry.src, entry);
+  for (const entry of added) map.set(canonicalSrcKey(entry.src), entry);
+  for (const entry of existing) if (!map.has(canonicalSrcKey(entry.src))) map.set(canonicalSrcKey(entry.src), entry);
   const ranked = [...map.values()].sort((a, b) => b.time - a.time).slice(0, FAVOURITES_CAP);
   return withinByteBudget(ranked, FAVOURITES_MAX_BYTES);
 }
@@ -62,7 +65,7 @@ export async function addFavourite(entry: FavouriteEntry): Promise<void> {
 
 export async function removeFavourite(src: string): Promise<void> {
   return serialize(async () => {
-    const next = (await loadFavourites()).filter((e) => e.src !== src);
+    const next = (await loadFavourites()).filter((e) => canonicalSrcKey(e.src) !== canonicalSrcKey(src));
     await chrome.storage.local.set({ [FAVOURITES_KEY]: next });
   });
 }
@@ -80,6 +83,6 @@ export async function clearFavourites(): Promise<void> {
   });
 }
 
-export async function favouriteSrcSet(): Promise<Set<string>> {
-  return new Set((await loadFavourites()).map((e) => e.src));
+export async function favouriteSrcSet(): Promise<SrcKeySet> {
+  return SrcKeySet.from((await loadFavourites()).map((e) => e.src));
 }

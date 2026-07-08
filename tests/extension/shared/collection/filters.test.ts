@@ -1,5 +1,6 @@
 import { passesSettingsFilters, filterImagesBySettings, applyToolbarFilters, isExcluded, filterExcluded, ExcludedMatchers } from '@/extension/shared/collection/filters';
 import { ImageInfo, SettingsData, FilterOptions } from '@/types';
+import { SrcKeySet } from '@/extension/shared/collection/canonical';
 
 const base: SettingsData = {
   downloadPath: '',
@@ -192,6 +193,53 @@ describe('applyToolbarFilters — search', () => {
   it('an empty/whitespace query keeps everything', () => {
     expect(applyToolbarFilters(items, F({ search: '   ' }))).toHaveLength(3);
   });
+
+  it('treats an item with no alt as an empty alt (nullish-coalesce fallback)', () => {
+    // alt is undefined: the `(item.alt ?? '')` branch must yield '' rather than
+    // throwing, and the match still succeeds via the type field.
+    const noAlt = item({ src: 'https://cdn/pic.jpg', alt: undefined, type: 'png' });
+    expect(applyToolbarFilters([noAlt], F({ search: 'png' })).map((i) => i.src)).toEqual(['https://cdn/pic.jpg']);
+    // A query that matches nothing on that same item still returns nothing.
+    expect(applyToolbarFilters([noAlt], F({ search: 'nomatch' }))).toHaveLength(0);
+  });
+
+  it('treats an undefined search filter as "no query" (keeps everything)', () => {
+    // filters.search omitted entirely -> `filters.search ?? ''` yields '' -> match-all.
+    const noSearch = { ...F({}), search: undefined } as unknown as FilterOptions;
+    expect(applyToolbarFilters(items, noSearch)).toHaveLength(3);
+  });
+});
+
+describe('applyToolbarFilters — min-size (bytes) + base64', () => {
+  const sizedItems = [
+    item({ src: 'big', fileSize: 500 * 1024 }),    // 500 KB
+    item({ src: 'small', fileSize: 10 * 1024 }),   // 10 KB — below a 100 KB floor
+    item({ src: 'unknown', fileSize: 0 }),          // unknown size never dropped by min-size
+  ];
+  it('drops items below the KB min-size, keeping unknown-size items', () => {
+    expect(applyToolbarFilters(sizedItems, F({ minSize: 100 })).map((i) => i.src)).toEqual(['big', 'unknown']);
+  });
+  it('a zero min-size disables the byte floor entirely', () => {
+    expect(applyToolbarFilters(sizedItems, F({ minSize: 0 })).map((i) => i.src)).toEqual(['big', 'small', 'unknown']);
+  });
+  it('a non-finite min-size is treated as 0 (no floor) rather than NaN*1024', () => {
+    // Number.isFinite(Infinity) is false -> the `: 0` branch -> minBytes 0 -> no drop.
+    const noFloor = { ...F({}), minSize: Infinity } as FilterOptions;
+    expect(applyToolbarFilters(sizedItems, noFloor)).toHaveLength(3);
+    const nanFloor = { ...F({}), minSize: NaN } as FilterOptions;
+    expect(applyToolbarFilters(sizedItems, nanFloor)).toHaveLength(3);
+  });
+
+  const base64Items = [
+    item({ src: 'raster', isBase64: false }),
+    item({ src: 'inlined', isBase64: true }),
+  ];
+  it('hides base64 items when includeBase64 is off', () => {
+    expect(applyToolbarFilters(base64Items, F({ includeBase64: false })).map((i) => i.src)).toEqual(['raster']);
+  });
+  it('keeps base64 items when includeBase64 is on', () => {
+    expect(applyToolbarFilters(base64Items, F({ includeBase64: true })).map((i) => i.src)).toEqual(['raster', 'inlined']);
+  });
 });
 
 describe('applyToolbarFilters — sort', () => {
@@ -225,10 +273,53 @@ describe('applyToolbarFilters — sort', () => {
     applyToolbarFilters(input, F({ sortBy: 'name', sortDir: 'asc' }));
     expect(input.map((i) => i.src)).toEqual(['https://cdn/b.jpg', 'https://cdn/a.jpg', 'https://cdn/c.jpg']);
   });
+
+  it('sorts by type, breaking ties on the filename', () => {
+    // Two gif items in different name order + one jpeg: the type comparison
+    // orders gif before jpeg, and within the gifs the localeCompare(name)
+    // tiebreak (right side of the `||`) settles their order.
+    const typed = [
+      item({ src: 'https://cdn/zebra.gif', type: 'gif' }),
+      item({ src: 'https://cdn/apple.jpeg', type: 'jpeg' }),
+      item({ src: 'https://cdn/alpha.gif', type: 'gif' }),
+    ];
+    expect(applyToolbarFilters(typed, F({ sortBy: 'type', sortDir: 'asc' })).map((i) => i.src)).toEqual([
+      'https://cdn/alpha.gif', 'https://cdn/zebra.gif', 'https://cdn/apple.jpeg',
+    ]);
+  });
+
+  it('sorts by name using the raw src when a name cannot be derived (data: URI)', () => {
+    // originalNameFromUrl returns null for a data: URI, so itemName falls back to
+    // the raw src — exercising the `?? item.src` branch inside the comparator.
+    const named = [
+      item({ src: 'data:image/png;base64,ZZZ' }),
+      item({ src: 'https://cdn/aaa.jpg' }),
+    ];
+    // itemName('https://cdn/aaa.jpg') derives 'aaa'; the data: URI has no derivable
+    // name so itemName falls back to the raw 'data:image/png;base64,ZZZ'. Ascending
+    // locale order puts 'aaa' before 'data...'.
+    expect(applyToolbarFilters(named, F({ sortBy: 'name', sortDir: 'asc' })).map((i) => i.src)).toEqual([
+      'https://cdn/aaa.jpg', 'data:image/png;base64,ZZZ',
+    ]);
+  });
+
+  it('keeps every unknown-size item last and stable when several sizes are 0', () => {
+    // Two knowns + two unknowns: forces every comparator branch — both-zero
+    // (returns 0, stable), va-zero (unknown sinks), and vb-zero (known rises).
+    const mixed = [
+      item({ src: 'k300', fileSize: 300 }),
+      item({ src: 'u0a', fileSize: 0 }),
+      item({ src: 'k100', fileSize: 100 }),
+      item({ src: 'u0b', fileSize: 0 }),
+    ];
+    expect(applyToolbarFilters(mixed, F({ sortBy: 'size', sortDir: 'desc' })).map((i) => i.src)).toEqual([
+      'k300', 'k100', 'u0a', 'u0b',
+    ]);
+  });
 });
 
 describe('isExcluded / filterExcluded', () => {
-  const m: ExcludedMatchers = { urls: new Set(['https://x/a.png']), hosts: new Set(['cdn.ads.com']) };
+  const m: ExcludedMatchers = { urls: SrcKeySet.from(['https://x/a.png']), hosts: new Set(['cdn.ads.com']) };
   it('matches an exact url', () => {
     expect(isExcluded('https://x/a.png', m)).toBe(true);
   });
@@ -245,5 +336,34 @@ describe('isExcluded / filterExcluded', () => {
     const img = (src: string) => ({ src, alt: '', width: 0, height: 0, type: 'png', fileSize: 0, isBase64: false, kind: 'image' as const });
     const items = [img('https://x/a.png'), img('https://cdn.ads.com/b.gif'), img('https://x/keep.png')];
     expect(filterExcluded(items, m).map((i) => i.src)).toEqual(['https://x/keep.png']);
+  });
+
+  it('filterExcluded returns the list untouched (same reference) when no matchers are set', () => {
+    // Both sets empty -> the fast-path guard returns `items` without filtering.
+    const empty: ExcludedMatchers = { urls: SrcKeySet.from([]), hosts: new Set() };
+    const img = (src: string) => ({ src, alt: '', width: 0, height: 0, type: 'png', fileSize: 0, isBase64: false, kind: 'image' as const });
+    const items = [img('https://x/a.png'), img('https://cdn.ads.com/b.gif')];
+    expect(filterExcluded(items, empty)).toBe(items);
+  });
+
+  it('filterExcluded still filters when only the host set is populated (urls empty)', () => {
+    // Guards against the `&&` short-circuit: urls.size === 0 but hosts is not,
+    // so the fast-path must NOT trigger and host exclusion must still apply.
+    const hostsOnly: ExcludedMatchers = { urls: SrcKeySet.from([]), hosts: new Set(['cdn.ads.com']) };
+    const img = (src: string) => ({ src, alt: '', width: 0, height: 0, type: 'png', fileSize: 0, isBase64: false, kind: 'image' as const });
+    const items = [img('https://cdn.ads.com/b.gif'), img('https://x/keep.png')];
+    expect(filterExcluded(items, hostsOnly).map((i) => i.src)).toEqual(['https://x/keep.png']);
+  });
+
+  it('matches a re-signed / resized CDN variant of an excluded image via its canonical key', () => {
+    // An fbcdn image is excluded once; a different edge host + fresh signed query
+    // for the SAME path must still be recognized (canonicalSrcKey collapses host
+    // and drops the query — see SRC_KEY_RULES).
+    const excluded = 'https://scontent-del1-1.xx.fbcdn.net/v/t39/photo_123.jpg?oh=AAA&oe=BBB';
+    const variant = 'https://scontent-bom2-3.xx.fbcdn.net/v/t39/photo_123.jpg?oh=CCC&oe=DDD';
+    const fbMatchers: ExcludedMatchers = { urls: SrcKeySet.from([excluded]), hosts: new Set() };
+    expect(isExcluded(variant, fbMatchers)).toBe(true);
+    // A different path on the same CDN is NOT excluded.
+    expect(isExcluded('https://scontent-bom2-3.xx.fbcdn.net/v/t39/other_999.jpg?oh=X', fbMatchers)).toBe(false);
   });
 });

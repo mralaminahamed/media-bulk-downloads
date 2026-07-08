@@ -1,4 +1,5 @@
 import type { ReactNode, ChangeEvent, FocusEvent, MouseEvent, CSSProperties, HTMLAttributes } from 'react';
+import type { SrcKeySet } from '../extension/shared/collection/canonical';
 
 export type ResolvePlatform = 'twitter' | 'wallhaven' | 'unsplash' | 'vimeo';
 export interface ResolveHint {
@@ -452,10 +453,10 @@ export interface ImageListProps {
   thumbnailSize?: number;
   /** Fixed size (px) of the preview modal and its image box. */
   previewSize?: number;
-  /** Set of image srcs already downloaded; renders a ✓ badge on matching tiles. */
-  downloadedSrcs?: Set<string>;
-  /** Set of srcs already favourited; renders a ★ badge + fills the star toggle. */
-  favouriteSrcs?: Set<string>;
+  /** Canonical-keyed set of already-downloaded srcs; renders a ✓ badge on matching tiles. */
+  downloadedSrcs?: SrcKeySet;
+  /** Canonical-keyed set of favourited srcs; renders a ★ badge + fills the star toggle. */
+  favouriteSrcs?: SrcKeySet;
   /** Toggle an item's favourite state (add if absent, remove if present). */
   onToggleFavourite?: (image: ImageInfo) => void;
   /** Add an item's URL (or its host) to the exclusion list. */
