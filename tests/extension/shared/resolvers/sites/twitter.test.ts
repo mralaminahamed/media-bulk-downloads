@@ -21,6 +21,14 @@ describe('twitterResolver — images', () => {
     expect(one('https://pbs.twimg.com/media/ABC?format=webp&name=medium').url)
       .toBe('https://pbs.twimg.com/media/ABC?format=jpg&name=orig');
   });
+  it('a spoofed format falls back to jpg (never echoed into url or ext)', () => {
+    const r = one('https://pbs.twimg.com/media/ABC?format=phtml&name=orig');
+    expect(r.url).toBe('https://pbs.twimg.com/media/ABC?format=jpg&name=orig');
+    expect(r.ext).toBe('jpg');
+  });
+  it('a spoofed path extension falls back to jpg', () => {
+    expect(one('https://pbs.twimg.com/media/ABC.svg').ext).toBe('jpg');
+  });
   it('avatar strips size modifier', () => {
     expect(one('https://pbs.twimg.com/profile_images/1/avatar_400x400.jpg').url)
       .toBe('https://pbs.twimg.com/profile_images/1/avatar.jpg');

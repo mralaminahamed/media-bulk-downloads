@@ -68,8 +68,12 @@ export const twitterResolver: Resolver = {
       const m = path.match(/^\/media\/([^./]+)(?:\.(\w+))?$/);
       if (!m) return [];
       const id = m[1];
-      let fmt = u.searchParams.get('format') || m[2] || 'jpg';
-      if (fmt.toLowerCase() === 'webp') fmt = 'jpg';
+      // twimg only serves these formats. Anything else (a spoofed ?format=phtml
+      // or a `.svg` path ext) must not reach the fetched URL or the download
+      // filename — echoing it back yields a 404 and an odd extension, so fall to jpg.
+      const raw = (u.searchParams.get('format') || m[2] || 'jpg').toLowerCase();
+      let fmt = /^(jpg|jpeg|png|gif|webp)$/.test(raw) ? raw : 'jpg';
+      if (fmt === 'jpeg' || fmt === 'webp') fmt = 'jpg';
       const out = new URL(u.href);
       out.pathname = `/media/${id}`;
       out.search = '';

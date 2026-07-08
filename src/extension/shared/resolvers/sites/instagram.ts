@@ -29,6 +29,11 @@ let sniffed: IgMediaEntry[] = [];
 // re-running collectMedia every scroll round never re-parses the same blocks.
 let parsed: IgMediaEntry[] = [];
 let parsedScripts = new WeakSet<Element>();
+// Monotonic version of `parsed`'s content, bumped on every append. `parsed.length`
+// can't be the cache key: once it pins at SNIFF_CAP each append slices back to the
+// same length, so the key would stop changing while the content rotated (stale
+// cache → freshly-opened posts silently resolve to nothing).
+let parsedVersion = 0;
 
 // `parsed` + `sniffed` grouped by shortcode. Regrouped only when either grows.
 let cache: { key: string; byCode: Map<string, IgMediaEntry[]> } | null = null;
@@ -90,7 +95,9 @@ function buildByCode(): Map<string, IgMediaEntry[]> {
     // Cheap guard: only parse blocks that could carry media.
     if (text.indexOf('image_versions2') === -1 && text.indexOf('video_versions') === -1) return;
     try {
+      const before = parsed.length;
       parsed.push(...extractIgMedia(JSON.parse(text)));
+      if (parsed.length !== before) parsedVersion++;
     } catch {
       /* not JSON / not ours — ignore */
     }
@@ -99,7 +106,7 @@ function buildByCode(): Map<string, IgMediaEntry[]> {
   // hydration blocks and would otherwise grow this list without limit (newest wins).
   if (parsed.length > SNIFF_CAP) parsed = parsed.slice(parsed.length - SNIFF_CAP);
 
-  const key = `${parsed.length}|${sniffed.length}`;
+  const key = `${parsedVersion}|${sniffed.length}`;
   if (cache && cache.key === key) return cache.byCode;
 
   const byCode = new Map<string, IgMediaEntry[]>();
