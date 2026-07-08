@@ -113,6 +113,22 @@ describe('collectMedia — video & audio', () => {
     document.body.innerHTML = `<video src="blob:https://ex.com/abc"></video>`;
     expect(collectMedia().some((m) => m.kind === 'video')).toBe(false);
   });
+
+  it('surfaces an <audio> HLS manifest as a capturable stream (not silently dropped)', () => {
+    document.body.innerHTML = `<audio src="https://ex.com/radio/live.m3u8"></audio>`;
+    const hls = collectMedia().find((m) => m.src === 'https://ex.com/radio/live.m3u8');
+    expect(hls).toMatchObject({ hlsManifest: 'https://ex.com/radio/live.m3u8', type: 'm3u8' });
+  });
+});
+
+describe('collectMedia — canonical dedup', () => {
+  it('dedups the same image served from two rotating CDN edge hosts into one item', () => {
+    document.body.innerHTML = `
+      <img src="https://scontent-a.xx.fbcdn.net/v/t1/photo_n.jpg?oh=A&oe=1">
+      <img src="https://scontent-b.xx.fbcdn.net/v/t1/photo_n.jpg?oh=B&oe=2">`;
+    const fb = collectMedia().filter((m) => m.src.includes('/v/t1/photo_n.jpg'));
+    expect(fb).toHaveLength(1);
+  });
 });
 
 describe('collectMedia — HLS streams', () => {

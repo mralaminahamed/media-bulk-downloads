@@ -14,6 +14,7 @@ import { ImageInfo, MediaItem } from '@/types';
 import { detectType, parseUrlDimensions, splitSrcsetCandidates } from '@/extension/shared/collection/imageUrl';
 import { detectAvType, isUndownloadableMedia, isHlsManifest, isDashManifest } from '@/extension/shared/collection/mediaType';
 import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates, bestSrcsetUrl } from '@/extension/shared/collection/extract';
+import { canonicalSrcKey } from '@/extension/shared/collection/canonical';
 import { resolve, MediaCandidate } from '@/extension/shared/resolvers';
 import { twitterGifCandidate, twitterVideoPending } from '@/extension/shared/resolvers/sites/twitter';
 import { instagramPageMedia } from '@/extension/shared/resolvers/sites/instagram';
@@ -165,7 +166,13 @@ export function backgroundImageUrls(bgImage: string): string[] {
 /** Collects information about all media (images, video, audio) on the page. */
 export function collectMedia(): MediaItem[] {
   const media: MediaItem[] = [];
-  const seenSources = new Set<string>();
+  // Dedup by CANONICAL src key, not the raw URL, so the same image served from
+  // two rotating CDN edge hosts / signed queries in one scan yields one tile.
+  const seenKeys = new Set<string>();
+  const seenSources = {
+    has: (url: string): boolean => seenKeys.has(canonicalSrcKey(url)),
+    add: (url: string): void => { seenKeys.add(canonicalSrcKey(url)); },
+  };
   const pageUrl = location.href;
 
   // Maps a resolved candidate to a MediaItem/ImageInfo, preserving the dimension
@@ -313,11 +320,14 @@ export function collectMedia(): MediaItem[] {
   ): void => {
     if (!rawSrc) return;
     const resolved = resolveUrl(rawSrc);
-    if (kind === 'video' && isHlsManifest(resolved) && /^https?:\/\//i.test(resolved)) {
+    // HLS/DASH capture applies to <audio> manifests too (audio-only .m3u8/.mpd,
+    // e.g. live radio) — not just <video>. Without this they fall through to
+    // isUndownloadableMedia and are silently dropped regardless of the setting.
+    if (isHlsManifest(resolved) && /^https?:\/\//i.test(resolved)) {
       pushHls(resolved, alt, posterUrl);
       return;
     }
-    if (kind === 'video' && isDashManifest(resolved) && /^https?:\/\//i.test(resolved)) {
+    if (isDashManifest(resolved) && /^https?:\/\//i.test(resolved)) {
       pushDash(resolved, alt, posterUrl);
       return;
     }

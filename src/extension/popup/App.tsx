@@ -14,7 +14,7 @@ import { EmptyState } from './components/states/EmptyState';
 import { ErrorState } from './components/states/ErrorState';
 import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, DownloadZipMessage, DownloadBytesMessage, ExcludedKind, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
 import { filterImagesBySettings, applyToolbarFilters, filterExcluded, ExcludedMatchers } from '../shared/collection/filters';
-import { SrcKeySet } from '../shared/collection/canonical';
+import { SrcKeySet, canonicalSrcKey } from '../shared/collection/canonical';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
 import { collectFromActiveTab } from '../shared/active-tab/collect-active-tab';
 import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/active-tab/deep-scan-active-tab';
@@ -320,9 +320,12 @@ const App: React.FC<AppProps> = ({
         if (p.reason) stopReason = p.reason;
         setDeepProgress(p);
       });
-      const bySrc = new Map(rawImagesRef.current.map((m) => [m.src, m]));
+      // Merge deep-scan results into the existing set by CANONICAL src key, so a
+      // rotating CDN edge host doesn't re-add an image already collected.
+      const bySrc = new Map(rawImagesRef.current.map((m) => [canonicalSrcKey(m.src), m]));
       found.forEach((m) => {
-        if (!bySrc.has(m.src)) bySrc.set(m.src, m);
+        const key = canonicalSrcKey(m.src);
+        if (!bySrc.has(key)) bySrc.set(key, m);
       });
       const merged = [...bySrc.values()];
       rawImagesRef.current = merged;
