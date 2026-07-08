@@ -197,7 +197,12 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      if (panelRef.current?.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      // Let a sub-surface handle Escape first instead of collapsing the whole
+      // panel: an open modal (preview/side panels), an open dropdown menu (the
+      // download options), or a focused text field (clear the search box).
+      if (panelRef.current?.querySelector('[role="dialog"][aria-modal="true"], [role="menu"]')) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
       setOpen(false);
     };
     window.addEventListener('keydown', onKey, true);
@@ -212,10 +217,9 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
   }, [open]);
 
   const persist = useCallback((patch: Partial<SettingsData>) => {
-    chrome.storage.sync.get(['settings'], (result) => {
-      const merged = withDefaults(result.settings as Partial<SettingsData>);
-      chrome.storage.sync.set({ settings: { ...merged, ...patch } });
-    });
+    // Route through the background's single serialized settings writer so a drag
+    // here and a Settings save in the popup can't clobber each other.
+    chrome.runtime.sendMessage({ type: 'SET_SETTINGS', patch });
   }, []);
 
   const onPointerDown = (e: React.PointerEvent) => {

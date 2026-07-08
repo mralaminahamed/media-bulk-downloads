@@ -14,6 +14,10 @@ describe('bestSrcsetUrl', () => {
   it('picks the density-carrying candidate over an undescribed one', () => {
     expect(bestSrcsetUrl('a.jpg, b.jpg 2x')).toBe('b.jpg');
   });
+  it('returns null for an empty or whitespace-only srcset (no candidates to split)', () => {
+    expect(bestSrcsetUrl('')).toBeNull();
+    expect(bestSrcsetUrl('   ')).toBeNull();
+  });
 });
 
 describe('imageUrlsFromElement', () => {
@@ -46,6 +50,57 @@ describe('imageUrlsFromElement', () => {
       expect.arrayContaining(['https://cdn.com/large.jpg', 'https://cdn.com/actual.jpg', 'https://cdn.com/echo.jpg']),
     );
   });
+
+  it('dedupes a URL that appears via two different lazy attributes', () => {
+    // data-orig-file and src happen to carry the identical URL — the `push`
+    // helper's `!out.includes(u)` guard must keep it in the list exactly once,
+    // not twice, so downstream candidate ranking isn't skewed by a duplicate.
+    const img = document.createElement('img');
+    const same = 'https://cdn.com/same.jpg';
+    img.setAttribute('data-orig-file', same);
+    img.setAttribute('src', same);
+    const urls = imageUrlsFromElement(img);
+    expect(urls.filter((u) => u === same)).toHaveLength(1);
+  });
+
+  it('falls back to the src attribute on a non-<img> element with no currentSrc property', () => {
+    // <source> (as inside <picture>) has no `currentSrc`, so the cast yields
+    // `undefined` and the code must fall back to the plain `src` attribute.
+    const source = document.createElement('source');
+    source.setAttribute('src', 'https://cdn.com/fallback.jpg');
+    expect(imageUrlsFromElement(source)).toContain('https://cdn.com/fallback.jpg');
+  });
+
+  it('reads a plain srcset attribute and a data-lazy-srcset attribute', () => {
+    const img = document.createElement('img');
+    img.setAttribute('srcset', 'plain-320.jpg 320w, plain-900.jpg 900w');
+    expect(imageUrlsFromElement(img)).toEqual(
+      expect.arrayContaining(['plain-900.jpg', 'plain-320.jpg']),
+    );
+
+    const lazy = document.createElement('img');
+    lazy.setAttribute('data-lazy-srcset', 'lazy-320.jpg 320w, lazy-900.jpg 900w');
+    expect(imageUrlsFromElement(lazy)).toEqual(
+      expect.arrayContaining(['lazy-900.jpg', 'lazy-320.jpg']),
+    );
+  });
+
+  it('a real <picture> with two <source>s and a fallback <img> yields correct per-element candidates', () => {
+    // Complex, realistic DOM: each element is extracted independently (the
+    // module never walks siblings/parents), so a nested picture only ever
+    // contributes whichever element the caller hands to imageUrlsFromElement.
+    const picture = document.createElement('picture');
+    picture.innerHTML = `
+      <source type="image/avif" srcset="hero-avif-480.avif 480w, hero-avif-1200.avif 1200w">
+      <source type="image/webp" srcset="hero-webp-480.webp 480w, hero-webp-1200.webp 1200w">
+      <img src="https://cdn.com/hero-fallback.jpg" data-src="https://cdn.com/hero-lazy.jpg">
+    `;
+    const [avifSource, webpSource, img] = Array.from(picture.children) as [HTMLSourceElement, HTMLSourceElement, HTMLImageElement];
+    expect(imageUrlsFromElement(avifSource)).toEqual(['hero-avif-1200.avif', 'hero-avif-480.avif']);
+    expect(imageUrlsFromElement(webpSource)).toEqual(['hero-webp-1200.webp', 'hero-webp-480.webp']);
+    // data-src (lazy attr) is ordered ahead of the resized src, same as the WP case.
+    expect(imageUrlsFromElement(img)).toEqual(['https://cdn.com/hero-lazy.jpg', 'https://cdn.com/hero-fallback.jpg']);
+  });
 });
 
 describe('imageUrlsFromElement — CSS background lazy attrs', () => {
@@ -58,6 +113,16 @@ describe('imageUrlsFromElement — CSS background lazy attrs', () => {
     const el = document.createElement('div');
     el.setAttribute('data-background', 'https://cdn.com/plain-bg.png');
     expect(imageUrlsFromElement(el)).toContain('https://cdn.com/plain-bg.png');
+  });
+  it('extracts an unquoted url(...) value', () => {
+    const el = document.createElement('div');
+    el.setAttribute('data-bg', 'url(https://cdn.com/no-quotes.jpg)');
+    expect(imageUrlsFromElement(el)).toContain('https://cdn.com/no-quotes.jpg');
+  });
+  it('reads the data-background-image attribute', () => {
+    const el = document.createElement('div');
+    el.setAttribute('data-background-image', "url('https://cdn.com/bg-image-attr.jpg')");
+    expect(imageUrlsFromElement(el)).toContain('https://cdn.com/bg-image-attr.jpg');
   });
 });
 
@@ -84,6 +149,26 @@ describe('galleryLinkCandidate', () => {
     a.setAttribute('href', 'http://[');
     expect(galleryLinkCandidate(a)).toBeNull();
   });
+  it('returns null when there is no href attribute at all', () => {
+    const a = document.createElement('a');
+    a.appendChild(document.createElement('img'));
+    expect(galleryLinkCandidate(a)).toBeNull();
+  });
+  it('omits thumbnailSrc when the anchor has no inner <img>', () => {
+    const a = document.createElement('a');
+    a.href = 'https://cdn.com/full-no-thumb.jpg';
+    const result = galleryLinkCandidate(a);
+    expect(result).toEqual({ url: 'https://cdn.com/full-no-thumb.jpg' });
+    expect(result).not.toHaveProperty('thumbnailSrc');
+  });
+  it('omits thumbnailSrc when the inner <img> carries no src/currentSrc', () => {
+    const a = document.createElement('a');
+    a.href = 'https://cdn.com/full-empty-img.jpg';
+    a.appendChild(document.createElement('img')); // no src attribute set
+    const result = galleryLinkCandidate(a);
+    expect(result).toEqual({ url: 'https://cdn.com/full-empty-img.jpg' });
+    expect(result).not.toHaveProperty('thumbnailSrc');
+  });
 });
 
 describe('noscriptImageCandidates', () => {
@@ -107,6 +192,39 @@ describe('noscriptImageCandidates', () => {
     const ns = document.createElement('noscript');
     ns.textContent = 'just some plain text, no image here';
     expect(noscriptImageCandidates(ns)).toEqual([]);
+  });
+
+  it('returns [] for an empty noscript block (falsy textContent)', () => {
+    const ns = document.createElement('noscript');
+    expect(noscriptImageCandidates(ns)).toEqual([]);
+  });
+
+  it('unescapes singly-escaped entities before scanning for <img> markup', () => {
+    // Simulates a scripting-enabled parse of <noscript>, where textContent
+    // returns the source un-decoded (see the function's doc comment).
+    const ns = document.createElement('noscript');
+    ns.textContent = '&lt;img src=&quot;https://cdn.com/escaped.jpg&quot; alt=&#39;x&#39;&gt;';
+    expect(noscriptImageCandidates(ns)).toEqual([{ url: 'https://cdn.com/escaped.jpg' }]);
+  });
+
+  it('returns [] when escaped text decodes to something with no <img> markup', () => {
+    // Contains `&lt;` (triggers the unescape attempt) but decodes to plain text,
+    // not an <img> tag — must still fall through to the no-markup empty result.
+    const ns = document.createElement('noscript');
+    ns.textContent = 'price &lt; $5 and nothing else';
+    expect(noscriptImageCandidates(ns)).toEqual([]);
+  });
+
+  it('extracts from multiple <img>s, skipping a missing src and a blank srcset', () => {
+    const ns = document.createElement('noscript');
+    ns.textContent =
+      '<img src="https://cdn.com/one.jpg">' +
+      '<img srcset="   ">' + // whitespace-only srcset -> bestSrcsetUrl returns null, nothing pushed
+      '<img srcset="https://cdn.com/two-lo.jpg 320w, https://cdn.com/two-hi.jpg 900w">'; // no src attr at all
+    expect(noscriptImageCandidates(ns)).toEqual([
+      { url: 'https://cdn.com/one.jpg' },
+      { url: 'https://cdn.com/two-hi.jpg' },
+    ]);
   });
 
   it('returns [] (not a crash) when the HTML parser throws', () => {

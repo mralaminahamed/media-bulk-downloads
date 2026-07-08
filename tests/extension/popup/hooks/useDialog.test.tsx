@@ -22,6 +22,17 @@ const Trap: React.FC<{ onClose: () => void; active?: boolean }> = ({ onClose, ac
   );
 };
 
+// A dialog with no focusable descendants (only static text) — exercises the
+// Tab trap's empty-focusables guard.
+const Empty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const ref = useDialog(onClose);
+  return (
+    <div ref={ref} role="dialog" aria-modal tabIndex={-1}>
+      nothing to focus here
+    </div>
+  );
+};
+
 describe('useDialog', () => {
   it('does not re-focus the panel when the parent re-renders with a fresh onClose', () => {
     const focusSpy = jest.spyOn(HTMLDivElement.prototype, 'focus');
@@ -89,6 +100,16 @@ describe('useDialog', () => {
     render(<Trap onClose={onClose} />);
     fireEvent.keyDown(document, { key: 'a' });
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('makes Tab a no-op in a dialog with no focusable children (no wrap, no crash)', () => {
+    const onClose = jest.fn();
+    render(<Empty onClose={onClose} />);
+    // querySelectorAll finds no focusables → the handler returns early: no wrap,
+    // no error, dialog stays open, onClose untouched.
+    expect(() => fireEvent.keyDown(document, { key: 'Tab' })).not.toThrow();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
   it('restores focus to the previously focused element on unmount', () => {

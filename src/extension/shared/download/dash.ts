@@ -133,7 +133,11 @@ function parseSegmentTemplate(el: Element | undefined): DashSegmentTemplate {
   return {
     initialization: el.getAttribute('initialization') || undefined,
     media: el.getAttribute('media') || undefined,
-    startNumber: num('startNumber') || 1,
+    // `?? 1` not `|| 1`: startNumber="0" is legitimate (segments start at 0), so a
+    // present 0 must survive; only an absent attribute defaults to 1.
+    startNumber: num('startNumber') ?? 1,
+    // timescale is a divisor, so 0 is invalid — coercing an absent-or-zero value
+    // to 1 is intentional (avoids a divide-by-zero downstream).
     timescale: num('timescale') || 1,
     duration: num('duration'),
     timeline,
@@ -150,9 +154,23 @@ export function parseMpd(xml: string, baseUrl: string): DashManifest {
   const hasDrm = Array.from(doc.getElementsByTagName('*')).some((e) => e.localName === 'ContentProtection');
   let durationSec = parseIso8601Duration(mpd.getAttribute('mediaPresentationDuration') || '');
 
-  const period = kids(mpd, 'Period')[0];
+  // Single-period capture: only the first Period is captured — later periods
+  // (ad breaks, chaptered content) are NOT concatenated. Documented limitation.
+  const periods = kids(mpd, 'Period');
+  const period = periods[0];
   if (!period) return { isLive, hasDrm, video: [], audio: [], durationSec };
-  if (!durationSec) durationSec = parseIso8601Duration(period.getAttribute('duration') || '');
+  const periodDuration = parseIso8601Duration(period.getAttribute('duration') || '');
+  // When the manifest has multiple periods, `mediaPresentationDuration` spans ALL
+  // of them, so applying it to Period 0's SegmentTemplate would over-count its
+  // segments. Prefer Period 0's own duration (its `duration` attr, else the gap
+  // to Period 1's `start`) in that case; single-period keeps the presentation one.
+  if (periods.length > 1) {
+    const nextStart = parseIso8601Duration(periods[1].getAttribute('start') || '');
+    const thisStart = parseIso8601Duration(period.getAttribute('start') || '');
+    durationSec = periodDuration || (nextStart ? nextStart - thisStart : durationSec);
+  } else if (!durationSec) {
+    durationSec = periodDuration;
+  }
 
   const mpdBase = resolveBase(baseUrl, mpd);
   const periodBase = resolveBase(mpdBase, period);

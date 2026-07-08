@@ -45,6 +45,8 @@ describe('parseUrlDimensions', () => {
   it('parses w/h query params, defaulting the missing axis to 0', () => {
     expect(parseUrlDimensions('https://img.test/a?w=1200')).toEqual({ width: 1200, height: 0 });
     expect(parseUrlDimensions('https://img.test/a?w=1200&h=800')).toEqual({ width: 1200, height: 800 });
+    // h-only: the width falls back to 0 via `Number.isFinite(w) ? w : 0` (w is NaN).
+    expect(parseUrlDimensions('https://img.test/a?h=800')).toEqual({ width: 0, height: 800 });
   });
 
   it('returns null for named sizes and size-free urls', () => {
@@ -157,6 +159,15 @@ describe('upgradeToOriginal', () => {
     }
   });
 
+  it('leaves a pbs.twimg.com URL unchanged when it carries no name param to rewrite', () => {
+    // The Twitter rule matches on host, but its rewrite only fires when a `name`
+    // param exists. With none present the rewrite is a no-op, so upgradeToOriginal
+    // returns the input untouched and emits no thumbnail.
+    const r = upgradeToOriginal('https://pbs.twimg.com/media/ABC?format=jpg');
+    expect(r.original).toBe('https://pbs.twimg.com/media/ABC?format=jpg');
+    expect(r.thumbnail).toBeUndefined();
+  });
+
   it('passes through an unknown host with no thumbnail', () => {
     const r = upgradeToOriginal('https://example.com/pics/photo.jpg');
     expect(r).toEqual({ original: 'https://example.com/pics/photo.jpg' });
@@ -267,6 +278,31 @@ describe('deproxy', () => {
       .toBe('https://cdn.com/a%ZZ.png');
     expect(deproxy('https://p.com/proxy?src=https%3A%2F%2Fcdn.com%2Fa%ZZ.png'))
       .toBe('https://cdn.com/a%ZZ.png');
+  });
+
+  it('returns null for a Cloudinary /image/fetch/ whose inner path has no scheme', () => {
+    // After stripping the `w_200/` transform the inner is a bare relative path with
+    // no `http(s)://` — the ternary yields null, so the fetch branch produces
+    // nothing and the URL is not treated as a proxy.
+    expect(deproxy('https://res.cloudinary.com/demo/image/fetch/w_200/relative-no-scheme.jpg'))
+      .toBeNull();
+  });
+
+  it('returns null for a weserv URL that carries no ?url= param', () => {
+    // The `if (raw)` guard is false, so the weserv branch is skipped entirely.
+    expect(deproxy('https://images.weserv.nl/?foo=bar')).toBeNull();
+  });
+
+  it('returns null for a weserv URL whose ?url= target is not media', () => {
+    // The decoded inner (`https://example.com/page`) is not a media URL, so the
+    // `looksLikeMediaUrl(abs)` guard fails and the branch yields nothing.
+    expect(deproxy('https://images.weserv.nl/?url=example.com/page')).toBeNull();
+  });
+
+  it('returns null for a generic proxy param that is neither absolute nor root-relative', () => {
+    // `relative-thing` has no scheme and no leading `/`, so both branches of the
+    // inner resolution are skipped and `abs` stays null.
+    expect(deproxy('https://p.com/proxy?url=relative-thing')).toBeNull();
   });
 });
 

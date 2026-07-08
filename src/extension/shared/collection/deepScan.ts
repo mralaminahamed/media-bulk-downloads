@@ -5,6 +5,7 @@
  * asks the page to scroll and re-reads the DOM.
  */
 import { MediaItem, DeepScanStopReason } from '@/types';
+import { canonicalSrcKey } from './canonical';
 
 export interface DeepScanDeps {
   collect: () => MediaItem[];
@@ -43,8 +44,11 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
       // return far more than maxItems, and the between-rounds guard alone would
       // let `found` blow past the documented cap.
       if (found.size >= opts.maxItems) break;
-      if (!found.has(m.src)) {
-        found.set(m.src, m);
+      // Key by canonical src so a rotating CDN edge host between rounds doesn't
+      // re-add the same media as a new item (double-counting + wasted budget).
+      const key = canonicalSrcKey(m.src);
+      if (!found.has(key)) {
+        found.set(key, m);
         added++;
       }
     }

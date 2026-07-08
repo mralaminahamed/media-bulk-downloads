@@ -49,10 +49,25 @@ export function parseBackup(json: string): BackupData | null {
     version: typeof obj.version === 'number' ? obj.version : 0,
     exportedAt: typeof obj.exportedAt === 'string' ? obj.exportedAt : '',
     settings: withDefaults((obj.settings ?? {}) as Partial<SettingsData>),
-    favourites: Array.isArray(obj.favourites) ? (obj.favourites.filter(hasStringSrc) as FavouriteEntry[]) : [],
-    history: Array.isArray(obj.history) ? (obj.history.filter(hasStringSrc) as HistoryEntry[]) : [],
+    // Coerce time (like loadX does) so a bad/missing timestamp can't feed NaN into
+    // the newest-first sort + cap on restore.
+    favourites: Array.isArray(obj.favourites)
+      ? (obj.favourites.filter(hasStringSrc).map((e) => ({ ...e, time: Number((e as FavouriteEntry).time) || 0 })) as FavouriteEntry[])
+      : [],
+    history: Array.isArray(obj.history)
+      ? (obj.history.filter(hasStringSrc).map((e) => ({ ...e, time: Number((e as HistoryEntry).time) || 0 })) as HistoryEntry[])
+      : [],
+    // Require a valid kind (matching loadExcluded) — an entry with a valid value
+    // but missing/invalid kind would restore into storage yet be filtered out of
+    // every read: invisible in the panel, matching nothing, undeletable, and
+    // permanently consuming a cap/byte-budget slot.
     excluded: Array.isArray(obj.excluded)
-      ? (obj.excluded.filter((e): e is ExcludedEntry => !!e && typeof e === 'object' && typeof (e as ExcludedEntry).value === 'string') as ExcludedEntry[])
+      ? (obj.excluded
+          .filter((e): e is ExcludedEntry =>
+            !!e && typeof e === 'object' &&
+            typeof (e as ExcludedEntry).value === 'string' &&
+            ((e as ExcludedEntry).kind === 'url' || (e as ExcludedEntry).kind === 'host'))
+          .map((e) => ({ ...e, time: Number(e.time) || 0 })) as ExcludedEntry[])
       : [],
   };
 }

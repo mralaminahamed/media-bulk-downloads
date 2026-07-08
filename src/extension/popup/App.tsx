@@ -14,6 +14,7 @@ import { EmptyState } from './components/states/EmptyState';
 import { ErrorState } from './components/states/ErrorState';
 import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, DownloadZipMessage, DownloadBytesMessage, ExcludedKind, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
 import { filterImagesBySettings, applyToolbarFilters, filterExcluded, ExcludedMatchers } from '../shared/collection/filters';
+import { SrcKeySet, canonicalSrcKey } from '../shared/collection/canonical';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
 import { collectFromActiveTab } from '../shared/active-tab/collect-active-tab';
 import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/active-tab/deep-scan-active-tab';
@@ -24,6 +25,7 @@ import { favouriteSrcSet, FAVOURITES_KEY } from '../shared/storage/favourites';
 import { excludedMatchers, EXCLUDED_KEY } from '../shared/storage/excluded';
 import { buildZip, zipFileName } from '../shared/download/zip';
 import { convertImage, isConvertible } from '../shared/download/convert';
+import { u8ToBase64 } from '../shared/download/base64';
 import { buildDownloadFilename } from '../shared/collection/download-name';
 import { hostFromUrl, registrableDomain, todayISO } from '../shared/collection/paths';
 import { requestCaptureStream } from '../shared/active-tab/capture-stream-active';
@@ -75,12 +77,12 @@ const App: React.FC<AppProps> = ({
   const [settings, setSettings] = useState<SettingsData>(DEFAULT_SETTINGS);
   const [deepScanning, setDeepScanning] = useState(false);
   const [deepProgress, setDeepProgress] = useState<DeepScanProgress | null>(null);
-  const [downloadedSrcs, setDownloadedSrcs] = useState<Set<string>>(new Set());
+  const [downloadedSrcs, setDownloadedSrcs] = useState<SrcKeySet>(new SrcKeySet());
   const [showFavourites, setShowFavourites] = useState(false);
   const [showExcluded, setShowExcluded] = useState(false);
-  const [favouriteSrcs, setFavouriteSrcs] = useState<Set<string>>(new Set());
-  const [excludedMatch, setExcludedMatch] = useState<ExcludedMatchers>({ urls: new Set(), hosts: new Set() });
-  const excludedRef = useRef<ExcludedMatchers>({ urls: new Set(), hosts: new Set() });
+  const [favouriteSrcs, setFavouriteSrcs] = useState<SrcKeySet>(new SrcKeySet());
+  const [excludedMatch, setExcludedMatch] = useState<ExcludedMatchers>({ urls: new SrcKeySet(), hosts: new Set() });
+  const excludedRef = useRef<ExcludedMatchers>({ urls: new SrcKeySet(), hosts: new Set() });
   const [resolveFailedSrcs, setResolveFailedSrcs] = useState<Set<string>>(new Set());
   const [fetchingSrcs, setFetchingSrcs] = useState<Set<string>>(new Set());
   // Whether a batch "Get all videos" run is in flight (distinct from a single
@@ -128,7 +130,7 @@ const App: React.FC<AppProps> = ({
     // records — so an item the user deleted becomes re-downloadable (not a
     // duplicate). chrome.downloads lives in the background, so this asks it, and
     // re-asks whenever history changes (a new download, or a cleared entry).
-    const refresh = (): void => void fetchDownloadedOnDisk().then(setDownloadedSrcs);
+    const refresh = (): void => void fetchDownloadedOnDisk().then((s) => setDownloadedSrcs(SrcKeySet.from(s)));
     refresh();
     const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       if (area === 'local' && changes[HISTORY_KEY]) refresh();
@@ -142,7 +144,7 @@ const App: React.FC<AppProps> = ({
     const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       if (area === 'local' && changes[FAVOURITES_KEY]) {
         const next = (changes[FAVOURITES_KEY].newValue as { src: string }[] | undefined) ?? [];
-        setFavouriteSrcs(new Set(next.map((e) => e.src)));
+        setFavouriteSrcs(SrcKeySet.from(next.map((e) => e.src)));
       }
     };
     chrome.storage.onChanged.addListener(onChanged);
@@ -185,11 +187,18 @@ const App: React.FC<AppProps> = ({
       // settings-change re-filter re-derives from rawImagesRef WITHOUT wiping the
       // enriched sizes and re-firing a fresh round of HEAD requests.
       rawImagesRef.current = apply(rawImagesRef.current);
-      setState((prev) => ({
-        ...prev,
-        images: apply(prev.images),
-        filteredImages: apply(prev.filteredImages),
-      }));
+      setState((prev) => {
+        const nextImages = apply(prev.images);
+        // Re-derive the filtered view (not a plain map) so a newly-known size is
+        // re-sorted (sort-by-size) and re-gated (Min KB) — otherwise the grid
+        // order/visibility disagrees with the sizes it just showed.
+        const eligible = filterExcluded(filterImagesBySettings(nextImages, settingsRef.current), excludedRef.current);
+        return {
+          ...prev,
+          images: nextImages,
+          filteredImages: applyToolbarFilters(eligible, filtersRef.current),
+        };
+      });
     });
   }, []);
 
@@ -318,9 +327,12 @@ const App: React.FC<AppProps> = ({
         if (p.reason) stopReason = p.reason;
         setDeepProgress(p);
       });
-      const bySrc = new Map(rawImagesRef.current.map((m) => [m.src, m]));
+      // Merge deep-scan results into the existing set by CANONICAL src key, so a
+      // rotating CDN edge host doesn't re-add an image already collected.
+      const bySrc = new Map(rawImagesRef.current.map((m) => [canonicalSrcKey(m.src), m]));
       found.forEach((m) => {
-        if (!bySrc.has(m.src)) bySrc.set(m.src, m);
+        const key = canonicalSrcKey(m.src);
+        if (!bySrc.has(key)) bySrc.set(key, m);
       });
       const merged = [...bySrc.values()];
       rawImagesRef.current = merged;
@@ -429,7 +441,17 @@ const App: React.FC<AppProps> = ({
         const converted = await convertImage(await res.blob(), target);
         if (!converted) throw new Error('convert');
         const filename = buildDownloadFilename({ ...img, ext: converted.ext }, index, settings, sourcePage.url);
-        const msg: DownloadBytesMessage = { type: 'DOWNLOAD_BYTES', filename, bytes: converted.bytes, mime: converted.mime };
+        const msg: DownloadBytesMessage = {
+          type: 'DOWNLOAD_BYTES', filename, b64: u8ToBase64(converted.bytes), mime: converted.mime,
+          // Carry the original identity so the background records it to history
+          // (the "already downloaded" mark + dedup), like a plain download.
+          source: {
+            src: img.src, kind: img.kind, type: img.type,
+            ...(img.thumbnailSrc ?? img.poster ? { thumbnailSrc: img.thumbnailSrc ?? img.poster } : {}),
+            sourcePageUrl: sourcePage.url,
+            ...(sourcePage.title ? { sourcePageTitle: sourcePage.title } : {}),
+          },
+        };
         chrome.runtime.sendMessage(msg);
       } catch {
         failed.push(img);
@@ -501,9 +523,12 @@ const App: React.FC<AppProps> = ({
     setProgress(null); // fetch phase done; the download itself is near-instant
 
     // Nothing could be fetched (every host blocked the hotlink / offline) — fall
-    // back to individual downloads, which go through the browser's own fetch.
+    // back to individual downloads via the browser's own fetch. Use the plain
+    // path, not handleDownload: the ZIP action archives originals, so its
+    // fallback must not convert either (convert-on-download applies only to the
+    // separate-files action). `images` is already the downloadable set (no HLS).
     if (ok === 0) {
-      void handleDownload(images);
+      void sendPlainDownload(images);
       return;
     }
 
@@ -515,7 +540,7 @@ const App: React.FC<AppProps> = ({
     }
 
     const filename = zipFileName(sourcePage.url);
-    const message: DownloadZipMessage = { type: 'DOWNLOAD_ZIP', bytes, filename };
+    const message: DownloadZipMessage = { type: 'DOWNLOAD_ZIP', b64: u8ToBase64(bytes), filename };
     chrome.runtime.sendMessage(message, (response: DownloadResponse) => {
       const error = chrome.runtime.lastError;
       const base = error ? `Error: ${error.message || 'unknown error'}` : response.message;
@@ -647,11 +672,7 @@ const App: React.FC<AppProps> = ({
   const handleToggleFavourite = async (image: ImageInfo): Promise<void> => {
     if (favouriteSrcs.has(image.src)) {
       sendRuntimeMessage({ type: 'REMOVE_FAVOURITE', src: image.src });
-      setFavouriteSrcs((prev) => {
-        const next = new Set(prev);
-        next.delete(image.src);
-        return next;
-      });
+      setFavouriteSrcs((prev) => prev.withoutSrc(image.src));
       return;
     }
     const sourcePage = await currentSourcePage();
@@ -665,7 +686,7 @@ const App: React.FC<AppProps> = ({
       ...(sourcePage.title ? { sourcePageTitle: sourcePage.title } : {}),
     };
     sendRuntimeMessage({ type: 'ADD_FAVOURITE', entry });
-    setFavouriteSrcs((prev) => new Set(prev).add(image.src));
+    setFavouriteSrcs((prev) => prev.withAdded(image.src));
   };
 
   const excludeItem = (image: ImageInfo, kind: ExcludedKind): void => {
@@ -678,22 +699,18 @@ const App: React.FC<AppProps> = ({
     setSelectedSrcs(new Set());
   };
 
-  // Single source of truth for the form's fields: the popup owns writing settings.
+  // The popup owns the form's fields. Persist through the background's single
+  // serialized writer (SET_SETTINGS) so a concurrent on-page-bubble drag can't
+  // clobber this save. Send a patch WITHOUT the drag-only bubble fields (the
+  // button's x/y offset and the freeform panel point, which have no Settings
+  // control) so the background's deep-merge preserves them.
   const handleSettingsChange = (newSettings: SettingsData) => {
     setSettings(newSettings);
-    // Read-modify-write so a blind full-object save can't clobber the drag-owned
-    // bubble fields (position/placement/point) that the on-page bubble persists out
-    // of band — the settings form never edits those, so keep whatever's stored.
-    chrome.storage.sync.get(['settings'], (result) => {
-      const stored = withDefaults(result.settings);
-      chrome.storage.sync.set({
-        settings: {
-          ...newSettings,
-          bubblePosition: stored.bubblePosition,
-          bubblePanelPlacement: stored.bubblePanelPlacement,
-          bubblePanelPoint: stored.bubblePanelPoint,
-        },
-      });
+    const { bubblePosition, bubblePanelPoint, ...rest } = newSettings;
+    void bubblePanelPoint; // drag-only; not sent so the stored value is preserved
+    sendRuntimeMessage({
+      type: 'SET_SETTINGS',
+      patch: { ...rest, bubblePosition: { corner: bubblePosition.corner } },
     });
   };
 

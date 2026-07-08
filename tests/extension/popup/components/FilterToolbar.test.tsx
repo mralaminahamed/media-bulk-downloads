@@ -117,6 +117,50 @@ describe('FilterToolbar Component', () => {
     );
   });
 
+  it('filters by a free-text search query as the user types', () => {
+    renderToolbar();
+    fireEvent.change(screen.getByRole('searchbox', { name: /search media/i }), { target: { value: 'sunset' } });
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'sunset' }));
+  });
+
+  it('changes the sort field via the Sort dropdown', () => {
+    renderToolbar();
+    fireEvent.change(screen.getByLabelText('Sort order'), { target: { value: 'size' } });
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ sortBy: 'size' }));
+  });
+
+  it('flips sort direction, but only once a sort field is chosen', () => {
+    renderToolbar();
+    const dir = screen.getByRole('button', { name: /sort direction/i });
+    // Nothing to order under "Sort: Default", so the direction toggle is inert.
+    expect(dir).toBeDisabled();
+
+    // Choosing a field enables the toggle; default direction is descending.
+    fireEvent.change(screen.getByLabelText('Sort order'), { target: { value: 'name' } });
+    expect(dir).toBeEnabled();
+    expect(dir).toHaveAccessibleName(/descending/i);
+
+    // First click → ascending; the label and the emitted filter both flip.
+    fireEvent.click(dir);
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ sortDir: 'asc' }));
+    expect(dir).toHaveAccessibleName(/ascending/i);
+
+    // Second click flips back to descending.
+    fireEvent.click(dir);
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ sortDir: 'desc' }));
+  });
+
+  it('counts search + sort toward the active-filter Clear-all affordance', () => {
+    renderToolbar();
+    expect(screen.queryByText('Clear all')).not.toBeInTheDocument();
+    // A search term alone is an active filter → Clear all appears.
+    fireEvent.change(screen.getByRole('searchbox', { name: /search media/i }), { target: { value: 'cat' } });
+    expect(screen.getByText('Clear all')).toBeInTheDocument();
+    // Clearing resets search back to empty.
+    fireEvent.click(screen.getByText('Clear all'));
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ search: '', sortBy: 'default' }));
+  });
+
   it('switches format options when the media kind changes', async () => {
     const onFilterChange = jest.fn();
     render(<FilterToolbar onFilterChange={onFilterChange} extensionSettings={DEFAULT_SETTINGS} />);
@@ -131,5 +175,25 @@ describe('FilterToolbar Component', () => {
     expect(onFilterChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ mediaKind: 'video', imageType: 'all' }),
     );
+  });
+
+  it('offers audio codec options when the Audio kind is selected', async () => {
+    renderToolbar();
+    await userEvent.click(screen.getByRole('button', { name: 'Audio' }));
+    const typeSelect = screen.getByLabelText('Media format');
+    expect(within(typeSelect).getByRole('option', { name: 'MP3' })).toBeInTheDocument();
+    expect(within(typeSelect).getByRole('option', { name: 'FLAC' })).toBeInTheDocument();
+    expect(within(typeSelect).queryByRole('option', { name: 'JPEG' })).not.toBeInTheDocument();
+  });
+
+  it('coerces a cleared minimum-size field back to 0', () => {
+    renderToolbar();
+    openMore();
+    const min = screen.getByRole('spinbutton');
+    fireEvent.change(min, { target: { value: '100' } });
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ minSize: 100 }));
+    // Clearing the field yields '' → parseInt('' ) is NaN → falls back to 0.
+    fireEvent.change(min, { target: { value: '' } });
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ minSize: 0 }));
   });
 });

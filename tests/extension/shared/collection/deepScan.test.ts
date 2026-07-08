@@ -27,6 +27,14 @@ function makeDeps(rounds: MediaItem[][], collectFn?: (i: number) => MediaItem[])
   };
 }
 
+it('dedups the same image across rounds by canonical key (rotating CDN edge host)', async () => {
+  const fbA = item('https://scontent-a.xx.fbcdn.net/v/t1/x_n.jpg?oh=A&oe=1');
+  const fbB = item('https://scontent-b.xx.fbcdn.net/v/t1/x_n.jpg?oh=B&oe=2'); // same image, new host + query
+  const { deps } = makeDeps([[fbA], [fbB], []]);
+  const out = await runDeepScan(deps, { ...DEEP_SCAN_DEFAULTS, idleRounds: 2, signal: new AbortController().signal });
+  expect(out).toHaveLength(1);
+});
+
 it('stops after idleRounds with no new media and restores scroll', async () => {
   const { deps, state } = makeDeps([[item('a')], [item('a')], [item('a')], [item('a')]]);
   const out = await runDeepScan(deps, { ...DEEP_SCAN_DEFAULTS, idleRounds: 2, signal: new AbortController().signal });

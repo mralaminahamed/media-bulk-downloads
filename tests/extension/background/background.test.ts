@@ -435,6 +435,89 @@ describe('X_MEDIA_SEEN sniffer store + resolve wiring', () => {
   });
 });
 
+describe('sniffer cap eviction + no-sender-tab resolve fallback', () => {
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+
+  afterEach(() => {
+    // Restore the benign default so a callback-form query left here never leaks.
+    (chrome.tabs.query as jest.Mock).mockReset().mockResolvedValue([]);
+  });
+
+  it('evicts the oldest sniffed entry once the per-tab cap (800) is exceeded, and falls back to the network for it', async () => {
+    const TAB = 700;
+    // Fill the per-tab cap with valid twimg mp4s (media ids '1'..'800').
+    const pairs = Array.from({ length: 800 }, (_, i) => [String(i + 1), { url: `https://video.twimg.com/${i + 1}.mp4` }]);
+    messageHandler({ type: 'X_MEDIA_SEEN', pairs }, { tab: { id: TAB } }, jest.fn());
+    // One MORE new id past the cap evicts the OLDEST ('1'); the newest ('801') stays.
+    messageHandler({ type: 'X_MEDIA_SEEN', pairs: [['801', { url: 'https://video.twimg.com/801.mp4' }]] }, { tab: { id: TAB } }, jest.fn());
+
+    // The evicted id misses the sniffer, so RESOLVE_ORIGINALS falls through to the
+    // DEFAULT fetch dep (resolveOriginalsBatch's `deps` default). Stub global.fetch
+    // so no real request fires and we can prove the fall-through happened.
+    const fetchSpy = jest.fn().mockResolvedValue({ ok: false, json: async () => ({}) });
+    const realFetch = (global as unknown as { fetch: typeof fetch }).fetch;
+    (global as unknown as { fetch: unknown }).fetch = fetchSpy;
+
+    const kept = 'https://pbs.twimg.com/amplify_video_thumb/801/img/a.jpg';
+    const evicted = 'https://pbs.twimg.com/amplify_video_thumb/1/img/a.jpg';
+    const sendResponse = jest.fn();
+    messageHandler(
+      {
+        type: 'RESOLVE_ORIGINALS',
+        hints: [
+          { src: kept, hint: { platform: 'twitter', id: 'k' } },
+          { src: evicted, hint: { platform: 'twitter', id: 'e' } },
+        ],
+      },
+      { tab: { id: TAB } },
+      sendResponse,
+    );
+    await flush();
+
+    const { resolved } = sendResponse.mock.calls[0][0];
+    expect(resolved[kept]).toEqual({ url: 'https://video.twimg.com/801.mp4' }); // most-recent kept
+    expect(resolved[evicted]).toBeUndefined(); // oldest evicted → not served from the sniffer
+    expect(fetchSpy).toHaveBeenCalled(); // the evicted id fell through to the (default) network dep
+    (global as unknown as { fetch: unknown }).fetch = realFetch;
+  });
+
+  it('resolves against the ACTIVE tab\'s sniffed media when the request carries no sender tab (popup)', async () => {
+    // Seed tab 5's sniffer.
+    messageHandler({ type: 'X_MEDIA_SEEN', pairs: [['321', { url: 'https://video.twimg.com/active.mp4' }]] }, { tab: { id: 5 } }, jest.fn());
+    // A popup request has no sender.tab, so the handler queries the active tab.
+    (chrome.tabs.query as jest.Mock).mockReset().mockImplementation((_q, cb: (t: Array<{ id: number }>) => void) => cb([{ id: 5 }]));
+
+    const src = 'https://pbs.twimg.com/amplify_video_thumb/321/img/a.jpg';
+    const sendResponse = jest.fn();
+    messageHandler({ type: 'RESOLVE_ORIGINALS', hints: [{ src, hint: { platform: 'twitter', id: '1' } }] }, {}, sendResponse);
+    await flush();
+
+    expect(chrome.tabs.query).toHaveBeenCalledWith({ active: true, currentWindow: true }, expect.any(Function));
+    expect(sendResponse).toHaveBeenCalledWith({ resolved: { [src]: { url: 'https://video.twimg.com/active.mp4' } } });
+  });
+
+  it('dedups repeated srcs in a RESOLVE_ORIGINALS batch (one resolved entry per unique src)', async () => {
+    messageHandler({ type: 'X_MEDIA_SEEN', pairs: [['246', { url: 'https://video.twimg.com/dup.mp4' }]] }, { tab: { id: 61 } }, jest.fn());
+    const src = 'https://pbs.twimg.com/amplify_video_thumb/246/img/a.jpg';
+    const sendResponse = jest.fn();
+    messageHandler(
+      {
+        type: 'RESOLVE_ORIGINALS',
+        hints: [
+          { src, hint: { platform: 'twitter', id: '1' } },
+          { src, hint: { platform: 'twitter', id: '1' } }, // duplicate src → filtered before resolving
+        ],
+      },
+      { tab: { id: 61 } },
+      sendResponse,
+    );
+    await flush();
+    const { resolved } = sendResponse.mock.calls[0][0];
+    expect(Object.keys(resolved)).toEqual([src]);
+    expect(resolved[src]).toEqual({ url: 'https://video.twimg.com/dup.mp4' });
+  });
+});
+
 describe('GET_DOWNLOADED_SRCS handler', () => {
   it('responds with only the srcs whose downloaded file still exists on disk', async () => {
     (chrome.storage.local.get as jest.Mock).mockReset().mockResolvedValue({
@@ -452,6 +535,15 @@ describe('GET_DOWNLOADED_SRCS handler', () => {
     expect(async).toBe(true); // keeps the message channel open for the async reply
     await new Promise((r) => setTimeout(r, 0));
     expect(sendResponse).toHaveBeenCalledWith(['https://c/keep.jpg']);
+  });
+
+  it('responds with [] (never leaves the port open) when history/search rejects', async () => {
+    (chrome.storage.local.get as jest.Mock).mockReset().mockRejectedValue(new Error('storage error'));
+    const sendResponse = jest.fn();
+    const async = messageHandler({ type: 'GET_DOWNLOADED_SRCS' }, {}, sendResponse);
+    expect(async).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sendResponse).toHaveBeenCalledWith([]);
   });
 });
 
@@ -579,10 +671,10 @@ describe('DOWNLOAD_ZIP — archive bytes → data URL → chrome.downloads', () 
   it('downloads a base64 data: URL with the given filename, saveAs, and uniquify', async () => {
     (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(5));
     const sendResponse = jest.fn();
-    const bytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04]); // ZIP magic
+    const b64 = 'UEsDBA=='; // base64 of the ZIP magic bytes 50 4b 03 04
 
     const handled = messageHandler(
-      { type: 'DOWNLOAD_ZIP', bytes, filename: 'example.com-media-2026-07-06.zip' },
+      { type: 'DOWNLOAD_ZIP', b64, filename: 'example.com-media-2026-07-06.zip' },
       {},
       sendResponse,
     );
@@ -608,9 +700,37 @@ describe('DOWNLOAD_ZIP — archive bytes → data URL → chrome.downloads', () 
       (chrome.runtime as unknown as { lastError?: unknown }).lastError = undefined;
     });
     const sendResponse = jest.fn();
-    messageHandler({ type: 'DOWNLOAD_ZIP', bytes: new Uint8Array([1]), filename: 'x.zip' }, {}, sendResponse);
+    messageHandler({ type: 'DOWNLOAD_ZIP', b64: 'AQ==', filename: 'x.zip' }, {}, sendResponse);
     await new Promise((r) => setTimeout(r, 0));
     expect(sendResponse).toHaveBeenCalledWith({ status: 'error', message: "Couldn't save x.zip." });
+  });
+});
+
+describe('SET_SETTINGS (serialized settings writer)', () => {
+  it('deep-merges a partial bubblePosition patch, preserving the stored drag-only x/y + panelPoint', async () => {
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) =>
+      cb({ settings: { bubblePosition: { corner: 'bottom-right', x: 99, y: 88 }, bubblePanelPoint: { x: 77, y: 66 } } }));
+    let written: Record<string, unknown> | undefined;
+    (chrome.storage.sync.set as jest.Mock).mockReset().mockImplementation((obj, cb) => { written = obj.settings; cb?.(); });
+
+    messageHandler({ type: 'SET_SETTINGS', patch: { bubblePosition: { corner: 'top-left' }, bubblePanelPlacement: 'center' } }, {}, jest.fn());
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(written?.bubblePosition).toEqual({ corner: 'top-left', x: 99, y: 88 }); // x/y preserved from storage
+    expect(written?.bubblePanelPoint).toEqual({ x: 77, y: 66 }); // preserved (not in the patch)
+    expect(written?.bubblePanelPlacement).toBe('center'); // patch applied
+  });
+
+  it('applies a full bubblePosition patch (a bubble FAB drag) replacing x/y', async () => {
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) =>
+      cb({ settings: { bubblePosition: { corner: 'bottom-right', x: 99, y: 88 } } }));
+    let written: Record<string, unknown> | undefined;
+    (chrome.storage.sync.set as jest.Mock).mockReset().mockImplementation((obj, cb) => { written = obj.settings; cb?.(); });
+
+    messageHandler({ type: 'SET_SETTINGS', patch: { bubblePosition: { corner: 'bottom-right', x: 5, y: 6 } } }, {}, jest.fn());
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(written?.bubblePosition).toEqual({ corner: 'bottom-right', x: 5, y: 6 });
   });
 });
 
@@ -787,6 +907,23 @@ describe('completion notification', () => {
     await downloadAndRecord([img('https://c/a.jpg')], undefined);
     expect(chrome.notifications.create).not.toHaveBeenCalled();
   });
+
+  it('swallows a lastError in the notification callback (notifications permission not granted)', async () => {
+    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings: { notifyOnComplete: true } }));
+    loadSettings();
+    // The create() callback runs with a lastError set (optional `notifications`
+    // permission missing); it must read+discard it without throwing.
+    (chrome.notifications.create as jest.Mock).mockImplementation((_opts, cb: () => void) => {
+      (chrome.runtime as unknown as { lastError?: unknown }).lastError = { message: 'notifications permission not granted' };
+      cb();
+      (chrome.runtime as unknown as { lastError?: unknown }).lastError = null;
+    });
+    await expect(downloadAndRecord([img('https://c/a.jpg')], undefined)).resolves.toMatchObject({ succeeded: 1 });
+    expect(chrome.notifications.create).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Downloaded 1 file.' }),
+      expect.any(Function),
+    );
+  });
 });
 
 describe('DOWNLOAD_BYTES router', () => {
@@ -798,7 +935,7 @@ describe('DOWNLOAD_BYTES router', () => {
 
   it('saves a base64 data URL with the given mime and filename', async () => {
     messageHandler(
-      { type: 'DOWNLOAD_BYTES', filename: 'cat.png', bytes: new Uint8Array([0x50, 0x4b, 0x03, 0x04]), mime: 'image/png' },
+      { type: 'DOWNLOAD_BYTES', filename: 'cat.png', b64: 'UEsDBA==', mime: 'image/png' },
       {},
       jest.fn(),
     );
@@ -841,6 +978,25 @@ describe('CAPTURE_STREAM', () => {
     );
     expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringContaining('9 segments') });
     expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringContaining('(video + audio)') });
+  });
+
+  it('records the captured stream to history (downloaded mark + dedup, previously skipped)', async () => {
+    (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue({
+      ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 3, muxedAudio: false,
+    } as CaptureRunResult);
+    (chrome.downloads.download as jest.Mock).mockImplementation((_o, cb) => cb(321));
+    (chrome.storage.local.get as jest.Mock).mockResolvedValue({ downloadHistory: [] });
+    (chrome.storage.local.set as jest.Mock).mockReset().mockResolvedValue(undefined);
+
+    messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, jest.fn());
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    const written = (chrome.storage.local.set as jest.Mock).mock.calls.at(-1)?.[0]?.downloadHistory;
+    expect(written).toEqual(expect.arrayContaining([
+      expect.objectContaining({ src: 'https://x/m.m3u8', downloadId: 321, kind: 'video' }),
+    ]));
   });
 
   it('forwards CAPTURE_RUN with engine:dash for an mpd item', async () => {

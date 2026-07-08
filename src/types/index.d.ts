@@ -1,4 +1,5 @@
 import type { ReactNode, ChangeEvent, FocusEvent, MouseEvent, CSSProperties, HTMLAttributes } from 'react';
+import type { SrcKeySet } from '../extension/shared/collection/canonical';
 
 export type ResolvePlatform = 'twitter' | 'wallhaven' | 'unsplash' | 'vimeo';
 export interface ResolveHint {
@@ -216,7 +217,10 @@ export interface ClearExcludedMessage { type: 'CLEAR_EXCLUDED' }
  */
 export interface DownloadZipMessage {
   type: 'DOWNLOAD_ZIP';
-  bytes: Uint8Array;
+  /** Base64 of the archive bytes. Sent as a string, not a Uint8Array: Chrome
+   *  JSON-serializes runtime messages, which turns a typed array into a plain
+   *  indexed object (losing .length) — a base64 string always round-trips. */
+  b64: string;
   filename: string;
 }
 
@@ -241,8 +245,21 @@ export interface DownloadTextMessage {
 export interface DownloadBytesMessage {
   type: 'DOWNLOAD_BYTES';
   filename: string;
-  bytes: Uint8Array;
+  /** Base64 of the file bytes — a string so it survives Chrome's JSON message
+   *  serialization (a Uint8Array would arrive as an indexed object). */
+  b64: string;
   mime: string;
+  /** Original media identity so a converted image is recorded to history (the
+   *  "already downloaded" mark + dedup) like a plain download. Absent → not
+   *  recorded. */
+  source?: {
+    src: string;
+    kind: ImageInfo['kind'];
+    type: string;
+    thumbnailSrc?: string;
+    sourcePageUrl: string;
+    sourcePageTitle?: string;
+  };
 }
 
 /**
@@ -301,8 +318,25 @@ export interface CaptureStreamResponse {
   status: string;
 }
 
+/**
+ * Persist a settings patch through the background's single serialized writer.
+ * Both the popup and the on-page bubble write settings; routing them through one
+ * ordered writer (instead of each doing a bare storage.sync get→set) stops a
+ * concurrent write from clobbering the other's fields. The two nested objects the
+ * bubble drags (bubblePosition, bubblePanelPoint) are deep-merged, so a partial
+ * patch (e.g. only the corner) preserves the drag-set x/y.
+ */
+export interface SetSettingsMessage {
+  type: 'SET_SETTINGS';
+  patch: Partial<Omit<SettingsData, 'bubblePosition' | 'bubblePanelPoint'>> & {
+    bubblePosition?: Partial<BubblePosition>;
+    bubblePanelPoint?: SettingsData['bubblePanelPoint'];
+  };
+}
+
 export type ChromeMessage =
   | DownloadMessage
+  | SetSettingsMessage
   | DownloadZipMessage
   | DownloadTextMessage
   | DownloadBytesMessage
@@ -394,9 +428,10 @@ export interface SettingsData {
   /** Custom panel top-left, used when the placement is `free`. */
   bubblePanelPoint: BubblePanelPoint;
   resolveOriginals: boolean;
-  /** Surface HLS (`.m3u8`) streams as capture items. Off by default — capturing a
-   *  stream fetches and assembles every segment (slow, memory-heavy), so it's an
-   *  explicit opt-in rather than something the grid shows unasked. */
+  /** Surface HLS (`.m3u8`) AND DASH (`.mpd`) streams as capture items (the gate
+   *  covers both). Off by default — capturing a stream fetches and assembles every
+   *  segment (slow, memory-heavy), so it's an explicit opt-in rather than something
+   *  the grid shows unasked. */
   captureHlsStreams: boolean;
   /** Deep-scan caps — the scan stops at whichever is reached first. */
   deepScanMaxItems: number;
@@ -452,10 +487,10 @@ export interface ImageListProps {
   thumbnailSize?: number;
   /** Fixed size (px) of the preview modal and its image box. */
   previewSize?: number;
-  /** Set of image srcs already downloaded; renders a ✓ badge on matching tiles. */
-  downloadedSrcs?: Set<string>;
-  /** Set of srcs already favourited; renders a ★ badge + fills the star toggle. */
-  favouriteSrcs?: Set<string>;
+  /** Canonical-keyed set of already-downloaded srcs; renders a ✓ badge on matching tiles. */
+  downloadedSrcs?: SrcKeySet;
+  /** Canonical-keyed set of favourited srcs; renders a ★ badge + fills the star toggle. */
+  favouriteSrcs?: SrcKeySet;
   /** Toggle an item's favourite state (add if absent, remove if present). */
   onToggleFavourite?: (image: ImageInfo) => void;
   /** Add an item's URL (or its host) to the exclusion list. */

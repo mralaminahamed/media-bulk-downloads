@@ -11,6 +11,7 @@ import {
   StarIcon,
   ArrowPathIcon,
   NoSymbolIcon,
+  GlobeAltIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { PlayBadge } from './icons/PlayBadge';
@@ -96,6 +97,11 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
 
   // Anchor for Shift-click range selection (index of the last checkbox toggled).
   const rangeAnchor = useRef<number | null>(null);
+  // Reset it when the shown COUNT changes (filter/search/rescan add or remove
+  // items) so a stale index can't select an unexpected span against the new,
+  // shorter array. Keyed on length, not identity, so a selection re-render (which
+  // hands down a fresh array of the same items) doesn't wipe an in-progress anchor.
+  useEffect(() => { rangeAnchor.current = null; }, [images.length]);
   const handleCheckbox = (e: React.MouseEvent, image: ImageInfo, index: number): void => {
     e.stopPropagation();
     if (e.shiftKey && rangeAnchor.current !== null && onSelectRange) {
@@ -124,9 +130,12 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
   useEffect(() => {
     if (selectedIndex === null) return;
     const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      // Paging changes the shown image, so close the exclude menu — otherwise its
+      // items would act on (and its host sublabel would show) a different image.
+      setExcludeMenuOpen(false);
       if (e.key === 'ArrowLeft') setSelectedIndex((i) => (i !== null && i > 0 ? i - 1 : i));
-      else if (e.key === 'ArrowRight')
-        setSelectedIndex((i) => (i !== null && i < images.length - 1 ? i + 1 : i));
+      else setSelectedIndex((i) => (i !== null && i < images.length - 1 ? i + 1 : i));
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -142,8 +151,10 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
       >
         {images.map((image, index) => {
           const isSelected = selectedSrcs?.has(image.src) ?? false;
-          // Only downloadable items are selectable — a pending video has no file.
-          const selectable = !!onToggleSelect && !isPendingVideo(image);
+          // Only downloadable items are selectable — a pending video has no file,
+          // and an HLS/DASH stream is captured individually (not bulk-selectable),
+          // so it must match the selection guards in App (which skip hlsManifest).
+          const selectable = !!onToggleSelect && !isPendingVideo(image) && !isHlsStream(image);
           const boxUp = selectable && (selectionActive || isSelected);
           return (
           <figure
@@ -353,25 +364,31 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                     {excludeMenuOpen && (
                       <div
                         role="menu"
-                        className="absolute right-0 top-full z-20 mt-1.5 w-48 overflow-hidden rounded-(--radius-sm) border hairline bg-(--panel) py-1 text-left shadow-lg"
+                        className="absolute right-0 top-full z-20 mt-1.5 w-60 overflow-hidden rounded-(--radius-sm) border hairline bg-(--panel) py-1 text-left shadow-lg"
                       >
+                        <p className="eyebrow px-3 pb-1 pt-0.5 text-(--ink-3)">Add to blocklist</p>
                         <button
                           role="menuitem"
                           // Close the preview after excluding — the shown image is about to be
                           // filtered out of `images`, so closing is deterministic; leaving the
                           // modal open would silently reindex it to a neighbour.
                           onClick={() => { onExclude(selectedImage, 'url'); close(); }}
-                          className="flex w-full items-center px-3 py-1.5 text-[12px] text-(--ink) hover:bg-(--panel-2)"
+                          className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-(--ink) hover:bg-(--panel-2) focus:bg-(--panel-2) focus:outline-none"
                         >
-                          Exclude this image
+                          <NoSymbolIcon className="h-4 w-4 shrink-0 text-(--ink-2)" />
+                          <span>Exclude this image</span>
                         </button>
                         {hostFromUrl(selectedImage.src) !== '' && (
                           <button
                             role="menuitem"
                             onClick={() => { onExclude(selectedImage, 'host'); close(); }}
-                            className="flex w-full items-center px-3 py-1.5 text-[12px] text-(--ink) hover:bg-(--panel-2)"
+                            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-(--ink) hover:bg-(--panel-2) focus:bg-(--panel-2) focus:outline-none"
                           >
-                            Exclude host ({hostFromUrl(selectedImage.src)})
+                            <GlobeAltIcon className="h-4 w-4 shrink-0 text-(--ink-2)" />
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-[13px] leading-tight">Exclude host</span>
+                              <span className="block truncate text-[11px] leading-tight text-(--ink-3)">{hostFromUrl(selectedImage.src)}</span>
+                            </span>
                           </button>
                         )}
                       </div>

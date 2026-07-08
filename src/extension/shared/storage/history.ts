@@ -1,4 +1,5 @@
 import { HistoryEntry } from '@/types';
+import { canonicalSrcKey } from '../collection/canonical';
 
 export const HISTORY_KEY = 'downloadHistory';
 export const HISTORY_CAP = 500;
@@ -22,9 +23,16 @@ function withinByteBudget<T>(entries: T[], maxBytes: number): T[] {
 /** Merge new entries into existing: dedup by src (newest wins, front), sorted
  *  newest-first, capped by count and by serialized size. Pure. */
 export function mergeHistory(existing: HistoryEntry[], added: HistoryEntry[]): HistoryEntry[] {
+  // Keyed by canonical src so re-downloading the same image with a fresh CDN
+  // query signature updates its entry rather than duplicating it.
   const map = new Map<string, HistoryEntry>();
-  for (const entry of added) map.set(entry.src, entry);
-  for (const entry of existing) if (!map.has(entry.src)) map.set(entry.src, entry);
+  // Newest-wins for duplicate keys within `added` too (not array-order-last).
+  for (const entry of added) {
+    const k = canonicalSrcKey(entry.src);
+    const prev = map.get(k);
+    if (!prev || entry.time > prev.time) map.set(k, entry);
+  }
+  for (const entry of existing) if (!map.has(canonicalSrcKey(entry.src))) map.set(canonicalSrcKey(entry.src), entry);
   const ranked = [...map.values()].sort((a, b) => b.time - a.time).slice(0, HISTORY_CAP);
   return withinByteBudget(ranked, HISTORY_MAX_BYTES);
 }
@@ -59,7 +67,7 @@ export async function recordDownloads(added: HistoryEntry[]): Promise<void> {
 
 export async function removeEntry(src: string): Promise<void> {
   return serialize(async () => {
-    const next = (await loadHistory()).filter((e) => e.src !== src);
+    const next = (await loadHistory()).filter((e) => canonicalSrcKey(e.src) !== canonicalSrcKey(src));
     await chrome.storage.local.set({ [HISTORY_KEY]: next });
   });
 }

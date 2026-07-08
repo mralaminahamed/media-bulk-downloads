@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import * as MP4Box from 'mp4box';
+import * as mux from '@/extension/shared/download/mux';
 import {
   captureHls,
   assertDownloadable,
@@ -87,6 +88,42 @@ describe('isMasterPlaylist / parseMaster / selectVariant', () => {
   it('throws no-variants for an empty master', () => {
     expect(() => selectVariant([])).toThrow(HlsError);
   });
+
+  it('skips comment/blank lines before a variant URI, prefers AVERAGE-BANDWIDTH, and tolerates missing attrs', () => {
+    const master = `#EXTM3U
+#EXT-X-STREAM-INF:AVERAGE-BANDWIDTH=500000,BANDWIDTH=600000,RESOLUTION=1280x720
+#a stray comment between the tag and its uri
+
+hi.m3u8
+#EXT-X-STREAM-INF:CODECS="mp4a.40.2"
+noband.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=200000`;
+    const vs = parseMaster(master, 'https://cdn.test/path/master.m3u8');
+    // The trailing STREAM-INF has no following URI line → dropped entirely.
+    expect(vs).toHaveLength(2);
+    // AVERAGE-BANDWIDTH is preferred over BANDWIDTH; URI resolved past the comment/blank.
+    expect(vs[0]).toMatchObject({ uri: 'https://cdn.test/path/hi.m3u8', bandwidth: 500000 });
+    expect(vs[0].resolution).toEqual({ width: 1280, height: 720 });
+    // No BANDWIDTH at all → 0; no RESOLUTION → undefined.
+    expect(vs[1]).toMatchObject({ uri: 'https://cdn.test/path/noband.m3u8', bandwidth: 0 });
+    expect(vs[1].resolution).toBeUndefined();
+  });
+
+  it('resolves a height tie toward the higher-bandwidth variant', () => {
+    const vs: HlsVariant[] = [
+      { uri: 'https://cdn.test/lo.m3u8', bandwidth: 100, resolution: { width: 800, height: 480 } },
+      { uri: 'https://cdn.test/hi.m3u8', bandwidth: 900, resolution: { width: 850, height: 480 } },
+    ];
+    expect(selectVariant(vs, 480).uri).toBe('https://cdn.test/hi.m3u8');
+  });
+
+  it('falls back to highest bandwidth for a numeric target when no variant has a resolution', () => {
+    const vs: HlsVariant[] = [
+      { uri: 'https://cdn.test/a.m3u8', bandwidth: 100 },
+      { uri: 'https://cdn.test/b.m3u8', bandwidth: 900 },
+    ];
+    expect(selectVariant(vs, 720).bandwidth).toBe(900);
+  });
 });
 
 describe('parseMediaPlaylist', () => {
@@ -153,6 +190,65 @@ media.ts
     const pl = parseMediaPlaylist(br, 'https://cdn.test/b/i.m3u8');
     expect(pl.segments[0].byteRange).toEqual({ length: 100, offset: 0 });
     expect(pl.segments[1].byteRange).toEqual({ length: 200, offset: 100 });
+  });
+
+  it('clears the carried-forward key when a later EXT-X-KEY:METHOD=NONE appears', () => {
+    // Real pattern: an encrypted run followed by clear segments. NONE must wipe
+    // the active key so following segments are treated as plaintext.
+    const mixed = `#EXTM3U
+#EXT-X-KEY:METHOD=AES-128,URI="enc.key"
+#EXTINF:6,
+a.ts
+#EXT-X-KEY:METHOD=NONE
+#EXTINF:6,
+b.ts
+#EXT-X-ENDLIST`;
+    const pl = parseMediaPlaylist(mixed, 'https://cdn.test/s/i.m3u8');
+    expect(pl.segments[0].key).toMatchObject({ method: 'AES-128' });
+    expect(pl.segments[1].key).toBeUndefined();
+  });
+
+  it('parses an EXT-X-KEY that carries no URI (uri left undefined)', () => {
+    const enc = `#EXTM3U
+#EXT-X-KEY:METHOD=AES-128
+#EXTINF:6,
+a.ts
+#EXT-X-ENDLIST`;
+    const pl = parseMediaPlaylist(enc, 'https://cdn.test/s/i.m3u8');
+    expect(pl.segments[0].key).toEqual({ method: 'AES-128', uri: undefined, iv: undefined, keyformat: undefined });
+  });
+
+  it('reads an EXT-X-MAP byte range alongside its URI', () => {
+    const fmp4 = `#EXTM3U
+#EXT-X-MAP:URI="init.mp4",BYTERANGE="800@0"
+#EXTINF:4,
+0.m4s
+#EXT-X-ENDLIST`;
+    const pl = parseMediaPlaylist(fmp4, 'https://cdn.test/f/i.m3u8');
+    expect(pl.initUri).toBe('https://cdn.test/f/init.mp4');
+    expect(pl.initByteRange).toEqual({ length: 800, offset: 0 });
+  });
+
+  it('reads an EXT-X-MAP byte range even when the tag omits a URI', () => {
+    // Defensive: a MAP without URI still yields its byte range; initUri stays undefined.
+    const fmp4 = `#EXTM3U
+#EXT-X-MAP:BYTERANGE="800@0"
+#EXTINF:4,
+0.m4s
+#EXT-X-ENDLIST`;
+    const pl = parseMediaPlaylist(fmp4, 'https://cdn.test/f/i.m3u8');
+    expect(pl.initUri).toBeUndefined();
+    expect(pl.initByteRange).toEqual({ length: 800, offset: 0 });
+  });
+
+  it('treats a segment with no preceding EXTINF as duration 0', () => {
+    const noExtinf = `#EXTM3U
+seg0.ts
+#EXT-X-ENDLIST`;
+    const pl = parseMediaPlaylist(noExtinf, 'https://cdn.test/v/i.m3u8');
+    expect(pl.segments).toHaveLength(1);
+    expect(pl.segments[0].duration).toBe(0);
+    expect(pl.totalDuration).toBe(0);
   });
 });
 
@@ -287,6 +383,48 @@ b.ts
     await expect(captureHls('https://cdn.test/v/index.m3u8', deps)).rejects.toMatchObject({ code: 'live' });
     expect(fetched).toBe(0);
   });
+
+  it('guesses .mp4 for fMP4 segments that have no EXT-X-MAP init', async () => {
+    // .m4s extension with no init segment → mp4 container by suffix, not ts.
+    const m4s = `#EXTM3U
+#EXTINF:4,
+0.m4s
+#EXT-X-ENDLIST`;
+    const deps = fakeDeps({}, { 'index.m3u8': m4s });
+    const res = await captureHls('https://cdn.test/f/index.m3u8', deps);
+    expect(res.ext).toBe('mp4');
+    expect(res.mime).toBe('video/mp4');
+    expect(strOf(res.bytes)).toBe('BODY:0.m4s'); // no init prefix
+  });
+
+  it('guesses .aac (audio/aac) for a raw AAC segment playlist', async () => {
+    const aac = `#EXTM3U
+#EXTINF:4,
+0.aac
+#EXT-X-ENDLIST`;
+    const deps = fakeDeps({}, { 'index.m3u8': aac });
+    const res = await captureHls('https://cdn.test/a/index.m3u8', deps);
+    expect(res.ext).toBe('aac');
+    expect(res.mime).toBe('audio/aac');
+  });
+
+  it('throws fetch-failed when the AES-128 key is not 16 bytes', async () => {
+    const enc = `#EXTM3U
+#EXT-X-KEY:METHOD=AES-128,URI="enc.key"
+#EXTINF:6,
+a.ts
+#EXT-X-ENDLIST`;
+    const deps = fakeDeps(
+      { fetchBytes: async (u) => (u.endsWith('enc.key') ? new Uint8Array(15) : bytesOf('x')) },
+      { 'index.m3u8': enc },
+    );
+    await expect(captureHls('https://cdn.test/s/index.m3u8', deps)).rejects.toMatchObject({ code: 'fetch-failed' });
+  });
+
+  it('throws empty when every segment fetches to zero bytes (concat path)', async () => {
+    const deps = fakeDeps({ fetchBytes: async () => new Uint8Array(0) }, { 'index.m3u8': MEDIA_TS });
+    await expect(captureHls('https://cdn.test/v/index.m3u8', deps)).rejects.toMatchObject({ code: 'empty' });
+  });
 });
 
 const MASTER_DEMUX = `#EXTM3U
@@ -311,6 +449,15 @@ describe('parseAudioRenditions', () => {
 
   it('returns an empty array for a master with no audio media', () => {
     expect(parseAudioRenditions(MASTER, 'https://cdn.test/master.m3u8')).toEqual([]);
+  });
+
+  it('defaults a missing GROUP-ID to "" and a missing NAME to undefined', () => {
+    const m = `#EXTM3U
+#EXT-X-MEDIA:TYPE=AUDIO,URI="a.m3u8"`;
+    const rs = parseAudioRenditions(m, 'https://cdn.test/path/master.m3u8');
+    expect(rs).toHaveLength(1);
+    expect(rs[0]).toMatchObject({ groupId: '', isDefault: false, uri: 'https://cdn.test/path/a.m3u8' });
+    expect(rs[0].name).toBeUndefined();
   });
 });
 
@@ -463,6 +610,18 @@ bad_seg.m4a
     await expect(captureHls('https://cdn.test/master.m3u8', d)).rejects.toMatchObject({
       code: 'demuxed-unsupported',
     });
+  });
+
+  it('throws empty when the demuxed muxer returns zero bytes', async () => {
+    // muxTracks succeeds without throwing but yields an empty file — the guard
+    // after the mux must surface `empty`, not a silent zero-byte download.
+    const spy = jest.spyOn(mux, 'muxTracks').mockReturnValueOnce(new Uint8Array(0));
+    try {
+      await expect(captureHls('https://cdn.test/master.m3u8', deps())).rejects.toMatchObject({ code: 'empty' });
+      expect(spy).toHaveBeenCalledTimes(1);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('keeps a muxed fMP4 (audio group present but no rendition URI) on the concat path', async () => {

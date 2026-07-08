@@ -45,10 +45,54 @@ describe('parseBackup', () => {
     expect(parseBackup(JSON.stringify({ app: 'some-other-tool', favourites: [], history: [] }))).toBeNull();
   });
 
+  it('returns null when the parsed JSON is not an object (null or a primitive)', () => {
+    expect(parseBackup('null')).toBeNull();
+    expect(parseBackup('42')).toBeNull();
+    expect(parseBackup('"just a string"')).toBeNull();
+    expect(parseBackup('true')).toBeNull();
+  });
+
+  it('round-trips a backup with a mix of valid and corrupt favourites/history/excluded entries', () => {
+    const json = JSON.stringify({
+      app: BACKUP_APP,
+      version: 2,
+      exportedAt: 't',
+      settings: { namingMode: 'plain' },
+      favourites: [{ src: 'https://a', kind: 'image', type: 'jpeg', sourcePageUrl: 'p', time: 1 }, { noSrc: true }, null],
+      history: [{ src: 'https://h', filename: 'x', kind: 'video', type: 'mp4', sourcePageUrl: 'p', time: 2 }, 'garbage', 7],
+      excluded: [{ value: 'cdn.bad.com', kind: 'host', time: 1 }, { kind: 'url' }, 42, null],
+    });
+    const b = parseBackup(json);
+    expect(b?.favourites).toEqual([{ src: 'https://a', kind: 'image', type: 'jpeg', sourcePageUrl: 'p', time: 1 }]);
+    expect(b?.history).toEqual([{ src: 'https://h', filename: 'x', kind: 'video', type: 'mp4', sourcePageUrl: 'p', time: 2 }]);
+    expect(b?.excluded).toEqual([{ value: 'cdn.bad.com', kind: 'host', time: 1 }]);
+    expect(b?.settings.namingMode).toBe('plain');
+    expect(b?.version).toBe(2);
+  });
+
   it('drops entries that have no string src', () => {
     const b = parseBackup(JSON.stringify({ app: BACKUP_APP, favourites: [{ src: 'ok' }, { nope: 1 }, null, 7], history: [] }));
     expect(b?.favourites).toHaveLength(1);
     expect(b?.favourites[0].src).toBe('ok');
+  });
+
+  it('drops an excluded entry with a valid value but missing/invalid kind', () => {
+    // Such an entry would restore into storage yet be filtered out of every read
+    // (loadExcluded requires kind) — invisible in the panel and undeletable.
+    const b = parseBackup(JSON.stringify({
+      app: BACKUP_APP,
+      excluded: [
+        { value: 'cdn.ok.com', kind: 'host', time: 1 },
+        { value: 'cdn.nokind.com', time: 2 },
+        { value: 'cdn.badkind.com', kind: 'nope', time: 3 },
+      ],
+    }));
+    expect(b?.excluded).toEqual([{ value: 'cdn.ok.com', kind: 'host', time: 1 }]);
+  });
+
+  it('coerces a non-numeric entry time to 0 (matching loadX)', () => {
+    const b = parseBackup(JSON.stringify({ app: BACKUP_APP, favourites: [{ src: 'https://a', time: 'oops' }] }));
+    expect(b?.favourites[0].time).toBe(0);
   });
 
   it('coerces missing settings/arrays through defaults', () => {

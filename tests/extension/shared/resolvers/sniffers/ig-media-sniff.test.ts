@@ -33,6 +33,13 @@ describe('shortcodeFromUrl', () => {
     expect(shortcodeFromUrl('https://www.instagram.com/')).toBeNull();
     expect(shortcodeFromUrl('not a url')).toBeNull();
   });
+  it('returns null for a non-string input without throwing', () => {
+    // Callers pass values pulled from untrusted page JSON; a non-string must not
+    // reach `.match` (which would throw) — it short-circuits to null.
+    expect(shortcodeFromUrl(undefined)).toBeNull();
+    expect(shortcodeFromUrl(null)).toBeNull();
+    expect(shortcodeFromUrl(1234)).toBeNull();
+  });
 });
 
 describe('extFromIgUrl', () => {
@@ -73,6 +80,15 @@ describe('bestIgImage', () => {
     expect(bestIgImage([])).toBeNull();
     expect(bestIgImage(null)).toBeNull();
     expect(bestIgImage([{ url: 'https://evil.com/x.jpg', width: 1, height: 1 }])).toBeNull();
+  });
+  it('defaults a candidate with missing width/height to 0/0 rather than NaN', () => {
+    // Some IG candidates ship a url but omit dimensions; Number(undefined) is NaN,
+    // which the `|| 0` coerces so the size stays a real number (and comparisons work).
+    expect(bestIgImage([{ url: 'https://x.cdninstagram.com/only_url_n.jpg' }])).toEqual({
+      url: 'https://x.cdninstagram.com/only_url_n.jpg',
+      width: 0,
+      height: 0,
+    });
   });
 });
 
@@ -169,6 +185,47 @@ describe('extractIgMedia', () => {
 
   it('skips media that has no code and no inheritable parent code', () => {
     expect(extractIgMedia({ media_type: 1, image_versions2: { candidates: [{ url: 'https://x.cdninstagram.com/x_n.jpg', width: 9, height: 9 }] } })).toEqual([]);
+  });
+
+  it('extracts a video that carries no poster (no image_versions2) — entry has no poster field', () => {
+    const out = extractIgMedia({
+      code: 'NOPOSTER',
+      media_type: 2,
+      video_versions: [{ url: 'https://x.cdninstagram.com/NP_720.mp4', width: 720, height: 1280, type: 101 }],
+    });
+    expect(out).toEqual([
+      { code: 'NOPOSTER', kind: 'video', url: 'https://x.cdninstagram.com/NP_720.mp4', ext: 'mp4', width: 720, height: 1280 },
+    ]);
+    expect(out[0]).not.toHaveProperty('poster');
+  });
+
+  it('rejects a video whose only video_versions url is off the IG CDN (security host-pin)', () => {
+    // The mp4 URL comes from untrusted page JSON — a non-IG host must not be surfaced.
+    const out = extractIgMedia({
+      code: 'EVIL',
+      media_type: 2,
+      video_versions: [{ url: 'https://evil.com/steal.mp4', width: 720, height: 1280, type: 101 }],
+    });
+    expect(out).toEqual([]);
+  });
+
+  it('emits a leaf with a media_type but neither video_versions nor image_versions2 as nothing', () => {
+    // A media object stripped of both version arrays (e.g. an ad/placeholder node)
+    // must not produce a bogus entry.
+    expect(extractIgMedia({ code: 'BARE', media_type: 1 })).toEqual([]);
+  });
+
+  it('dedups the same video url reached twice across carousel slides (first mp4 wins)', () => {
+    const dupUrl = 'https://x.cdninstagram.com/SHARED_720.mp4';
+    const out = extractIgMedia({
+      code: 'CARV',
+      media_type: 8,
+      carousel_media: [
+        { media_type: 2, video_versions: [{ url: dupUrl, width: 720, height: 1280, type: 101 }] },
+        { media_type: 2, video_versions: [{ url: dupUrl, width: 720, height: 1280, type: 101 }] },
+      ],
+    });
+    expect(out).toEqual([{ code: 'CARV', kind: 'video', url: dupUrl, ext: 'mp4', width: 720, height: 1280 }]);
   });
 
   it('is empty and never throws for junk', () => {

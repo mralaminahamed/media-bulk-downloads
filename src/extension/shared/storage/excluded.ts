@@ -1,4 +1,5 @@
 import { ExcludedEntry, ExcludedKind } from '@/types';
+import { canonicalSrcKey, SrcKeySet } from '../collection/canonical';
 
 /**
  * Blocklist of excluded sources — exact media URLs and hosts — that the
@@ -11,7 +12,9 @@ export const EXCLUDED_KEY = 'excluded';
 export const EXCLUDED_CAP = 500;
 export const EXCLUDED_MAX_BYTES = 2_000_000;
 
-const keyOf = (e: ExcludedEntry): string => `${e.kind} ${e.value}`;
+// URL entries dedup by canonical src key (so query/host-variant re-adds collapse);
+// host entries by their exact value.
+const keyOf = (e: ExcludedEntry): string => `${e.kind} ${e.kind === 'url' ? canonicalSrcKey(e.value) : e.value}`;
 
 function withinByteBudget(entries: ExcludedEntry[], maxBytes: number): ExcludedEntry[] {
   let total = 0;
@@ -28,7 +31,12 @@ function withinByteBudget(entries: ExcludedEntry[], maxBytes: number): ExcludedE
  *  newest-first, capped by count then serialized size. Pure. */
 export function mergeExcluded(existing: ExcludedEntry[], added: ExcludedEntry[]): ExcludedEntry[] {
   const map = new Map<string, ExcludedEntry>();
-  for (const entry of added) map.set(keyOf(entry), entry);
+  // Newest-wins for duplicate keys within `added` too (not array-order-last).
+  for (const entry of added) {
+    const k = keyOf(entry);
+    const prev = map.get(k);
+    if (!prev || entry.time > prev.time) map.set(k, entry);
+  }
   for (const entry of existing) if (!map.has(keyOf(entry))) map.set(keyOf(entry), entry);
   const ranked = [...map.values()].sort((a, b) => b.time - a.time).slice(0, EXCLUDED_CAP);
   return withinByteBudget(ranked, EXCLUDED_MAX_BYTES);
@@ -62,7 +70,9 @@ export async function addExcluded(entry: ExcludedEntry): Promise<void> {
 
 export async function removeExcluded(kind: ExcludedKind, value: string): Promise<void> {
   return serialize(async () => {
-    const next = (await loadExcluded()).filter((e) => !(e.kind === kind && e.value === value));
+    const next = (await loadExcluded()).filter(
+      (e) => !(e.kind === kind && (kind === 'url' ? canonicalSrcKey(e.value) === canonicalSrcKey(value) : e.value === value)),
+    );
     await chrome.storage.local.set({ [EXCLUDED_KEY]: next });
   });
 }
@@ -79,11 +89,13 @@ export async function clearExcluded(): Promise<void> {
   });
 }
 
-/** The url + host match sets for O(1) exclusion checks. */
-export async function excludedMatchers(): Promise<{ urls: Set<string>; hosts: Set<string> }> {
+/** The url + host match sets for O(1) exclusion checks. URL entries are keyed by
+ *  their canonical src key so an excluded image stays excluded across volatile
+ *  CDN query/host changes (see canonicalSrcKey). */
+export async function excludedMatchers(): Promise<{ urls: SrcKeySet; hosts: Set<string> }> {
   const all = await loadExcluded();
   return {
-    urls: new Set(all.filter((e) => e.kind === 'url').map((e) => e.value)),
+    urls: SrcKeySet.from(all.filter((e) => e.kind === 'url').map((e) => e.value)),
     hosts: new Set(all.filter((e) => e.kind === 'host').map((e) => e.value)),
   };
 }

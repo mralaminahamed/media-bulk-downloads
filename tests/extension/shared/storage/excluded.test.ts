@@ -19,6 +19,24 @@ describe('mergeExcluded', () => {
     const many = Array.from({ length: EXCLUDED_CAP + 10 }, (_, i) => e(`u${i}`, 'url', i));
     expect(mergeExcluded([], many)).toHaveLength(EXCLUDED_CAP);
   });
+  it('collapses url entries that canonicalize to the same key (CDN query variants), newest wins', () => {
+    // Same host+path (has an extension, so the query is volatile/dropped by canonicalSrcKey);
+    // a re-add under a fresh signed query must collapse onto the existing entry, not duplicate it.
+    const older = e('https://cdn.example.com/img/a.jpg?sig=1', 'url', 1);
+    const newer = e('https://cdn.example.com/img/a.jpg?sig=2', 'url', 5);
+    const out = mergeExcluded([older], [newer]);
+    expect(out).toEqual([newer]);
+  });
+  it('keeps only the first entry when it alone exceeds the byte budget, drops later overflow', () => {
+    // Regression guard for withinByteBudget's `total > maxBytes && out.length` gate:
+    // out.length is 0 while budgeting the very first entry, so a single oversized
+    // entry must never be dropped outright (there'd be nothing left to restore).
+    const big = 'x'.repeat(2_500_000);
+    const first = e(big, 'url', 2);
+    const second = e(big + 'y', 'url', 1); // distinct key so it doesn't just dedup away
+    const out = mergeExcluded([], [first, second]);
+    expect(out).toEqual([first]);
+  });
 });
 
 describe('storage round-trips', () => {
@@ -37,6 +55,17 @@ describe('storage round-trips', () => {
     const all = await loadExcluded();
     expect(all).toEqual([e('x', 'host', 1)]);
   });
+  it('remove of a host entry matches by exact value, not canonical key, and spares a url of the same string', async () => {
+    await addExcluded(e('cdn.ads.com', 'host', 1));
+    await addExcluded(e('cdn.ads.com', 'url', 2));
+    await removeExcluded('host', 'cdn.ads.com');
+    expect(await loadExcluded()).toEqual([e('cdn.ads.com', 'url', 2)]);
+  });
+  it('remove of a url entry matches by canonical key across query variants', async () => {
+    await addExcluded(e('https://cdn.example.com/img/a.jpg?token=abc', 'url', 1));
+    await removeExcluded('url', 'https://cdn.example.com/img/a.jpg?token=xyz');
+    expect(await loadExcluded()).toEqual([]);
+  });
   it('restore replaces', async () => {
     await addExcluded(e('old', 'url', 1));
     await restoreExcluded([e('new', 'host', 9)]);
@@ -50,8 +79,31 @@ describe('storage round-trips', () => {
     expect(m.hosts.has('cdn.ads.com')).toBe(true);
     expect(m.urls.has('cdn.ads.com')).toBe(false);
   });
-  it('loadExcluded drops corrupt entries and coerces time', async () => {
-    await chrome.storage.local.set({ [EXCLUDED_KEY]: [{ value: 'ok', kind: 'url', time: '5' }, { kind: 'url' }, { value: 'x', kind: 'nope' }, null] });
-    expect(await loadExcluded()).toEqual([{ value: 'ok', kind: 'url', time: 5 }]);
+  it('loadExcluded drops corrupt entries and coerces time (including a missing time field to 0)', async () => {
+    await chrome.storage.local.set({
+      [EXCLUDED_KEY]: [
+        { value: 'ok', kind: 'url', time: '5' },
+        { value: 'no-time', kind: 'host' }, // time absent -> Number(undefined) is NaN -> coerced to 0
+        { kind: 'url' },
+        { value: 'x', kind: 'nope' },
+        null,
+      ],
+    });
+    expect(await loadExcluded()).toEqual([
+      { value: 'ok', kind: 'url', time: 5 },
+      { value: 'no-time', kind: 'host', time: 0 },
+    ]);
+  });
+  it('loadExcluded treats a non-array stored value as no data', async () => {
+    await chrome.storage.local.set({ [EXCLUDED_KEY]: 'corrupted-not-an-array' });
+    expect(await loadExcluded()).toEqual([]);
+  });
+  it('recovers the write chain after a rejected write, so a later write still applies', async () => {
+    (chrome.storage.local.set as jest.Mock).mockImplementationOnce(() => Promise.reject(new Error('quota exceeded')));
+    await expect(addExcluded(e('will-fail', 'url', 1))).rejects.toThrow('quota exceeded');
+    // The failed write must not leave writeChain permanently rejected — this
+    // write, chained after it, has to still go through.
+    await addExcluded(e('after-failure', 'url', 2));
+    expect((await loadExcluded()).map((x) => x.value)).toEqual(['after-failure']);
   });
 });
