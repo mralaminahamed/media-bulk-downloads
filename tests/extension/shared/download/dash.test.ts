@@ -469,7 +469,15 @@ describe('captureDash — e2e mux', () => {
       fetchText: async () => videoOnly,
       fetchBytes: async () => new Uint8Array([1, 2, 3, 4]),
     };
-    await expect(captureDash('https://cdn.test/manifest.mpd', garbage)).rejects.toMatchObject({ code: 'unsupported' });
+    // mp4box logs its own BoxParser/ISOFile parse failure to console.error while
+    // rejecting the undecodable bytes — expected on this path (we assert the
+    // rejection), so mute it to keep the test output clean.
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await expect(captureDash('https://cdn.test/manifest.mpd', garbage)).rejects.toMatchObject({ code: 'unsupported' });
+    } finally {
+      errSpy.mockRestore();
+    }
   });
 
   it('rejects unsupported when the SegmentTemplate has no initialization segment', () => {

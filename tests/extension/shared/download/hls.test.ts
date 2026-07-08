@@ -617,9 +617,17 @@ bad_seg.m4a
         return name.startsWith('bad_') ? new Uint8Array([1, 2, 3, 4]) : fx(name);
       },
     };
-    await expect(captureHls('https://cdn.test/master.m3u8', d)).rejects.toMatchObject({
-      code: 'demuxed-unsupported',
-    });
+    // mp4box logs its own BoxParser/ISOFile parse failure to console.error while
+    // rejecting the undecodable bytes — expected on this path (we assert the
+    // rejection), so mute it to keep the test output clean.
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await expect(captureHls('https://cdn.test/master.m3u8', d)).rejects.toMatchObject({
+        code: 'demuxed-unsupported',
+      });
+    } finally {
+      errSpy.mockRestore();
+    }
   });
 
   it('throws empty when the demuxed muxer returns zero bytes', async () => {
