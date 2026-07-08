@@ -55,7 +55,7 @@ describe('ClearAllButton', () => {
     expect(onClear).not.toHaveBeenCalled();
   });
 
-  it('auto-disarms after the timeout without firing', () => {
+  it('auto-disarms after the timeout without firing', async () => {
     vi.useFakeTimers();
     try {
       const onClear = vi.fn();
@@ -64,7 +64,7 @@ describe('ClearAllButton', () => {
       fireEvent.click(btn); // arm
       expect(btn).toHaveTextContent('Confirm?');
 
-      act(() => { vi.advanceTimersByTime(3000); });
+      await act(async () => { vi.advanceTimersByTime(3000); });
       expect(btn).toHaveTextContent('Clear all');
       expect(onClear).not.toHaveBeenCalled();
     } finally {
