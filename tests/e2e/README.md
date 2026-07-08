@@ -34,6 +34,8 @@ tests/e2e/
     facebook.html         # same fbcdn photo across edge PoPs + signed queries
     web.html              # srcset / <picture> / lazy / CSS bg / wikipedia /
                           #   shopify / gallery <a href>
+    streams.html          # <video> .m3u8 source + a .mpd link (HLS/DASH)
+    lazyscroll.html       # appends an image on scroll (deep-scan reveal)
   server/
     serve.mjs             # zero-dependency static server for pages/, run by webServer
   specs/
@@ -41,7 +43,24 @@ tests/e2e/
                           #   persistence, remove-from-panel, Clear all
     download.spec.ts      # download -> Download History; split-menu; Clear all
     favourites.spec.ts    # add / add-many / remove / grid-toggle / Clear all
-    filters.spec.ts       # kind filters + search + empty state
+    filters.spec.ts       # kind filters, search, empty state, sort direction,
+                          #   format filter
+    preview.spec.ts       # preview modal: image shown, Next cycles, Close/Escape
+    settings.spec.ts      # exhaustive Settings: every switch/number/text/select +
+                          #   naming, clamping, Cancel/Escape discard, permission,
+                          #   backup export, apply-on-rescan (draft + Save model)
+    backup.spec.ts        # import restores favourites/excluded/settings; rejects
+                          #   malformed / wrong-app backups
+    history.spec.ts       # a recorded entry's actions (re-download, open-file,
+                          #   reveal, open-source); remove empties the history
+    streams.spec.ts       # HLS/DASH manifests collected as video items when
+                          #   capture is enabled (and hidden when it is off)
+    links.spec.ts         # Copy links puts the shown URLs on the clipboard
+    bubble.spec.ts        # launcher toggles the panel; Escape closes; reopen scans
+    drag.spec.ts          # drag the launcher, drag the panel header, resize grip,
+                          #   sub-threshold nudge is a click (not a drag)
+    persistence.spec.ts   # an exclusion / favourite carries to a freshly-opened
+                          #   page in the same profile
     deep-scan.spec.ts     # deep scan runs without dropping the grid
     sites.spec.ts         # realistic X / Instagram / Facebook / generic-web pages:
                           #   resolver upgrades, canonical collapse, per-site flows

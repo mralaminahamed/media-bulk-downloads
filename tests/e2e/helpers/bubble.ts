@@ -7,13 +7,18 @@ import { expect, serviceWorker } from '../fixtures/extension';
  * then open the fixture page and wait for the launcher. Returns the page with
  * the bubble ready. `withDefaults` in the content script fills every other field.
  */
-export async function openBubblePage(context: BrowserContext, url: string): Promise<Page> {
+export async function openBubblePage(
+  context: BrowserContext,
+  url: string,
+  extraSettings: Record<string, unknown> = {},
+): Promise<Page> {
   const worker = await serviceWorker(context);
   await worker.evaluate(
-    () =>
+    (extra) =>
       new Promise<void>((resolve) => {
-        chrome.storage.sync.set({ settings: { bubbleEnabled: true } }, () => resolve());
+        chrome.storage.sync.set({ settings: { bubbleEnabled: true, ...extra } }, () => resolve());
       }),
+    extraSettings,
   );
   const page = await context.newPage();
   await page.goto(url);
