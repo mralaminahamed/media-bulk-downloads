@@ -7,6 +7,20 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Metadata preservation for format conversion** (#199): converting an image
+  (WebP/AVIF/PNG/JPEG → PNG/JPEG) now copies the source's embedded **EXIF and
+  XMP** — copyright, author, capture settings, AI-provenance — into the output
+  instead of silently discarding it. The raw metadata segments are copied
+  verbatim (no re-parsing) from the source container and re-injected into the
+  converted JPEG (APP1) or PNG (`eXIf`/`iTXt`). A new **Settings → Downloads →
+  "Metadata when converting"** control offers **Preserve** (default) or
+  **Strip** (the previous behaviour, now explicit — for removing GPS/location
+  before sharing). If metadata can't be carried across, the original file is
+  downloaded untouched rather than a stripped conversion. Fully local; no new
+  permissions.
+
+  **Behaviour change:** conversion previously stripped all metadata silently;
+  the default is now to preserve it.
 - **Magnific** (magnific.com) stock-image resolver: the site serves one photo as
   a responsive `srcset` of five widths (up to 2000px), each carrying its own
   signed, width-bound token — so the same photo otherwise lands as up to five
