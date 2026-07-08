@@ -34,6 +34,9 @@ interface VimeoConfig {
   };
 }
 
+interface DidService { id?: string; type?: string; serviceEndpoint?: string }
+interface DidDoc { service?: DidService[] }
+
 /**
  * A URL taken from an API JSON response is untrusted: constrain it to https and
  * the expected host family before handing it back as a downloadable media URL.
@@ -146,6 +149,59 @@ async function vimeo(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
   }
 }
 
+/** The account's PDS origin (e.g. `https://x.host.bsky.network`) from its DID
+ *  service doc, or null. `did:plc` is resolved via the fixed plc.directory
+ *  mirror; `did:web` via the DID's own domain. Only an https PDS is accepted. */
+function pdsFromDoc(doc: DidDoc): string | null {
+  for (const s of doc?.service ?? []) {
+    const isPds = s?.type === 'AtprotoPersonalDataServer' || (typeof s?.id === 'string' && s.id.endsWith('#atproto_pds'));
+    if (isPds && typeof s?.serviceEndpoint === 'string') {
+      try {
+        const u = new URL(s.serviceEndpoint);
+        if (u.protocol === 'https:') return u.origin;
+      } catch { /* try the next service entry */ }
+    }
+  }
+  return null;
+}
+
+async function resolvePdsHost(did: string, deps: NetDeps): Promise<string | null> {
+  let docUrl: string | null = null;
+  if (/^did:plc:[a-z0-9]+$/i.test(did)) {
+    docUrl = `https://plc.directory/${encodeURIComponent(did)}`;
+  } else if (did.startsWith('did:web:')) {
+    const domain = did.slice('did:web:'.length);
+    // Bare hostname only — no ports/paths (a colon or slash would let the DID
+    // steer the fetch off a plain host). Out of scope by design.
+    if (!/^[a-z0-9.-]+$/i.test(domain)) return null;
+    docUrl = `https://${domain}/.well-known/did.json`;
+  }
+  if (!docUrl) return null;
+  const r = await deps.fetch(docUrl);
+  if (!r.ok) return null;
+  return pdsFromDoc((await r.json()) as DidDoc);
+}
+
+/**
+ * Bluesky. The hint id is a space-delimited `'<kind> <did> <cid>'` triple built
+ * by bskyResolver (did/cid never contain spaces). `blob` resolves the account's
+ * PDS from its DID and returns the true uploaded original via getBlob.
+ */
+async function bsky(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  try {
+    const parts = id.split(' ');
+    if (parts.length !== 3) return null;
+    const [kind, did, cid] = parts;
+    if (kind !== 'blob') return null;
+    const pds = await resolvePdsHost(did, deps);
+    if (!pds) return null;
+    const url = `${pds}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
+    return pinnedUrl(url, new URL(pds).hostname) ? { url } : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Resolve one hint to a final media target, or null on failure. Never throws. */
 export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise<ResolvedMedia | null> {
   switch (hint.platform) {
@@ -153,6 +209,7 @@ export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise
     case 'wallhaven': { const u = await wallhaven(hint.id, deps); return u ? { url: u } : null; }
     case 'unsplash': return { url: unsplash(hint.id) };
     case 'vimeo': return vimeo(hint.id, deps);
+    case 'bsky': return bsky(hint.id, deps);
     default: return null;
   }
 }
