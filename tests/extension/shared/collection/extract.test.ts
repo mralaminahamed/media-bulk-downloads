@@ -18,6 +18,11 @@ describe('bestSrcsetUrl', () => {
     expect(bestSrcsetUrl('')).toBeNull();
     expect(bestSrcsetUrl('   ')).toBeNull();
   });
+  it('does not let a malformed (NaN) descriptor lock out later higher-res candidates', () => {
+    // `1.2.3x` -> NaN; if it poisoned best.x, no later `x > best.x` could ever win.
+    expect(bestSrcsetUrl('a.jpg 1.2.3x, b.jpg 5x')).toBe('b.jpg');
+    expect(bestSrcsetUrl('a.jpg 1.2.3w, b.jpg 1024w')).toBe('b.jpg');
+  });
 });
 
 describe('imageUrlsFromElement', () => {

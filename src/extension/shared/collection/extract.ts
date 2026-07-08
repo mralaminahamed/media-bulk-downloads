@@ -36,13 +36,20 @@ const LAZY_BG_ATTRS = ['data-bg', 'data-background', 'data-background-image'];
 export function bestSrcsetUrl(srcset: string): string | null {
   const entries = splitSrcsetCandidates(srcset);
   if (!entries.length) return null;
+  // A malformed descriptor (e.g. `1.2.3x`) parses to NaN; left as-is it poisons
+  // best.w/x, and since every `NaN > best.w` comparison is false no later (valid,
+  // higher-res) candidate could ever win. Coerce non-finite values to 0.
+  const num = (s: string | undefined): number => {
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  };
   let best: { url: string; w: number; x: number } | null = null;
   for (const e of entries) {
     const parts = e.split(/\s+/);
     const url = parts[0];
     const descr = parts.slice(1).join(' ');
-    const w = Number(descr.match(/([\d.]+)w/)?.[1] ?? 0);
-    const x = Number(descr.match(/([\d.]+)x/)?.[1] ?? 0);
+    const w = num(descr.match(/([\d.]+)w/)?.[1]);
+    const x = num(descr.match(/([\d.]+)x/)?.[1]);
     if (!best || w > best.w || (w === best.w && x > best.x)) best = { url, w, x };
   }
   return best?.url ?? null;

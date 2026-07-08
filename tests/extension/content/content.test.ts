@@ -75,6 +75,13 @@ describe('Content Script', () => {
     it('returns 0 for a data URI with no payload', () => {
       expect(getBase64ImageSize('data:image/png;base64,')).toBe(0);
     });
+
+    it('returns 0 for a URL-encoded (non-base64) data URI with commas in its payload', () => {
+      // Not base64: split(',')[1] would be the truncated "0" and the length
+      // formula meaningless. The `;base64` guard must reject it.
+      expect(getBase64ImageSize('data:image/svg+xml,<svg viewBox="0,0,8,8"></svg>')).toBe(0);
+      expect(getBase64ImageSize('data:image/svg+xml;charset=utf-8,<svg></svg>')).toBe(0);
+    });
   });
 
   describe('getImageDimensions', () => {

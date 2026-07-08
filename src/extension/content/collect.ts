@@ -41,7 +41,13 @@ export function getBase64ImageType(src: string): string {
 
 /** Calculates the size of a base64-encoded image in bytes. */
 export function getBase64ImageSize(src: string): number {
-  const base64 = src.split(',')[1];
+  // Only a genuinely base64 data URI has a computable byte length here. A
+  // URL-encoded data URI (e.g. `data:image/svg+xml,<svg viewBox="0,0,8,8">…`)
+  // is not base64 and its payload can contain commas, so split(',')[1] would be
+  // a truncated fragment and the length formula pure nonsense — report 0 instead.
+  const comma = src.indexOf(',');
+  if (comma === -1 || !/;base64\s*$/i.test(src.slice(0, comma))) return 0;
+  const base64 = src.slice(comma + 1);
   if (!base64) return 0;
   const padding = base64.match(/=+$/)?.[0].length ?? 0;
   return Math.max(0, Math.floor((base64.length * 3) / 4) - padding);
