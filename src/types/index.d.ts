@@ -428,9 +428,10 @@ export interface SettingsData {
   /** Custom panel top-left, used when the placement is `free`. */
   bubblePanelPoint: BubblePanelPoint;
   resolveOriginals: boolean;
-  /** Surface HLS (`.m3u8`) streams as capture items. Off by default — capturing a
-   *  stream fetches and assembles every segment (slow, memory-heavy), so it's an
-   *  explicit opt-in rather than something the grid shows unasked. */
+  /** Surface HLS (`.m3u8`) AND DASH (`.mpd`) streams as capture items (the gate
+   *  covers both). Off by default — capturing a stream fetches and assembles every
+   *  segment (slow, memory-heavy), so it's an explicit opt-in rather than something
+   *  the grid shows unasked. */
   captureHlsStreams: boolean;
   /** Deep-scan caps — the scan stops at whichever is reached first. */
   deepScanMaxItems: number;

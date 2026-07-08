@@ -97,6 +97,11 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
 
   // Anchor for Shift-click range selection (index of the last checkbox toggled).
   const rangeAnchor = useRef<number | null>(null);
+  // Reset it when the shown COUNT changes (filter/search/rescan add or remove
+  // items) so a stale index can't select an unexpected span against the new,
+  // shorter array. Keyed on length, not identity, so a selection re-render (which
+  // hands down a fresh array of the same items) doesn't wipe an in-progress anchor.
+  useEffect(() => { rangeAnchor.current = null; }, [images.length]);
   const handleCheckbox = (e: React.MouseEvent, image: ImageInfo, index: number): void => {
     e.stopPropagation();
     if (e.shiftKey && rangeAnchor.current !== null && onSelectRange) {
@@ -125,9 +130,12 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
   useEffect(() => {
     if (selectedIndex === null) return;
     const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      // Paging changes the shown image, so close the exclude menu — otherwise its
+      // items would act on (and its host sublabel would show) a different image.
+      setExcludeMenuOpen(false);
       if (e.key === 'ArrowLeft') setSelectedIndex((i) => (i !== null && i > 0 ? i - 1 : i));
-      else if (e.key === 'ArrowRight')
-        setSelectedIndex((i) => (i !== null && i < images.length - 1 ? i + 1 : i));
+      else setSelectedIndex((i) => (i !== null && i < images.length - 1 ? i + 1 : i));
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
