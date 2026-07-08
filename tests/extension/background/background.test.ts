@@ -225,15 +225,22 @@ describe('Background Script', () => {
   });
 
   describe('updateTabBadge', () => {
-    it('updates badge with the eligible image count', () => {
+    it('updates badge with the eligible image count', async () => {
       const tabId = 1;
       const images: ImageInfo[] = [
         { src: 'a.jpg', width: 100, height: 100, alt: 'a', type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' },
         { src: 'b.jpg', width: 100, height: 100, alt: 'b', type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' },
       ];
+      // updateTabBadge now awaits the settings + blocklist caches before counting;
+      // resolve settingsReady via loadSettings so the deferred badge refresh runs.
+      mockChrome.storage.sync.get.mockImplementation((_k: string[], cb: (r: any) => void) =>
+        cb({ settings: { ...DEFAULT_SETTINGS } }),
+      );
+      loadSettings();
       mockChrome.tabs.sendMessage.mockImplementation((_id: number, _msg: string, cb: any) => cb(images));
 
       updateTabBadge(tabId);
+      await new Promise((r) => setTimeout(r, 0));
 
       expect(mockChrome.action.setBadgeText).toHaveBeenCalledWith({ text: '2', tabId });
       expect(mockChrome.action.setBadgeBackgroundColor).toHaveBeenCalledWith({ color: '#4F46E5', tabId });

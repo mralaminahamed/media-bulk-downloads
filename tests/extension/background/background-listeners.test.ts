@@ -286,11 +286,13 @@ describe('background tab lifecycle listeners', () => {
   });
 
   // ── onActivated: badge refresh + action-mode sync on tab switch ──────────────
-  it('refreshes the badge and the action mode when a tab is activated (count on)', () => {
+  it('refreshes the badge and the action mode when a tab is activated (count on)', async () => {
     setSettings({ showImageCount: true });
     (chrome.tabs.get as jest.Mock).mockImplementation((_id: number, cb: (t: unknown) => void) => cb({ id: 3, url: 'https://example.com' }));
 
     onActivated({ tabId: 3 });
+    // The badge refresh now awaits the settings + blocklist caches (a microtask).
+    await flush();
 
     // showImageCount on → the active tab's badge is recomputed (GET_IMAGES round-trip).
     expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(3, 'GET_IMAGES', expect.any(Function));
@@ -313,10 +315,12 @@ describe('background tab lifecycle listeners', () => {
   });
 
   // ── onUpdated: action-mode + badge transitions across load states ────────────
-  it('on load complete, syncs the action mode and refreshes the badge (count on)', () => {
+  it('on load complete, syncs the action mode and refreshes the badge (count on)', async () => {
     setSettings({ showImageCount: true });
 
     onUpdated(7, { status: 'complete' }, { url: 'https://example.com' });
+    // The badge refresh now awaits the settings + blocklist caches (a microtask).
+    await flush();
 
     expect(chrome.action.setPopup).toHaveBeenCalledWith({ tabId: 7, popup: 'popup.html' });
     expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(7, 'GET_IMAGES', expect.any(Function));

@@ -51,6 +51,12 @@ export interface DownloadMessage {
   type: 'DOWNLOAD_IMAGES';
   images: ImageInfo[];
   sourcePage?: { url: string; title?: string };
+  /** An explicit, user-picked re-download of specific items (e.g. from the
+   *  Favourites/History panels). Bypasses the collection size/base64 and exclude
+   *  filters — the user chose these exact items, mirroring the context-menu
+   *  single download. The grid's own downloads omit it (its items are already
+   *  eligible, so re-filtering is a no-op). */
+  explicit?: boolean;
 }
 
 export interface HistoryEntry {
