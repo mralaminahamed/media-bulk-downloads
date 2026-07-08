@@ -27,6 +27,9 @@ function hasStringSrc(entry: unknown): entry is { src: string } {
  */
 function safeSourceUrl(v: unknown): string {
   if (typeof v !== 'string') return '';
+  // Stripping the C0 control range + space is intentional (a scheme can't hide
+  // behind them); eslint flags the control chars in the character class.
+  // eslint-disable-next-line no-control-regex
   const scheme = v.replace(/[\u0000-\u0020]/g, '').match(/^([a-z][a-z0-9+.-]*):/i);
   if (scheme && scheme[1].toLowerCase() !== 'http' && scheme[1].toLowerCase() !== 'https') return '';
   return v;

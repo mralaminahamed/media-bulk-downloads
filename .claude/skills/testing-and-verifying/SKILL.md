@@ -7,13 +7,13 @@ description: Write Vitest tests for this extension (background worker, content s
 
 Stack: Vitest (WxtVitest plugin) + jsdom + Testing Library. Config:
 `vitest.config.ts` (`@/` → `src`; `globals: true`, so `vi`/`describe`/`it`/
-`expect` need no import). Global chrome mock: `tests/setupTests.ts` (wired via
+`expect` need no import). Global chrome mock: `tests/unit/setupTests.ts` (wired via
 `setupFiles`). Tests mirror `src/` under `tests/`. Run: `yarn test`
 (`vitest run --coverage`).
 
 ## Mocking chrome
 
-- `tests/setupTests.ts` provides a global `chrome` mock (storage, tabs, runtime,
+- `tests/unit/setupTests.ts` provides a global `chrome` mock (storage, tabs, runtime,
   downloads, action). Extend it there when you use a new API; override per-test
   with `(chrome.x.y as Mock).mockImplementation(...)` — cast with the Vitest
   type, `import type { Mock } from 'vitest'` (there is no `jest.Mock` global).
@@ -67,7 +67,7 @@ strings from any sample output (the safety filter blocks raw tokens). Record in
 
 ## References
 
-- Test config (this repo) — `vitest.config.ts`, `tests/setupTests.ts` (the chrome mock)
+- Test config (this repo) — `vitest.config.ts`, `tests/unit/setupTests.ts` (the chrome mock)
 - WXT unit testing — https://wxt.dev/guide/essentials/unit-testing
 - WXT e2e testing — https://wxt.dev/guide/essentials/e2e-testing
 - Vitest — https://vitest.dev/guide/ · mocking — https://vitest.dev/guide/mocking · `vi` API — https://vitest.dev/api/vi

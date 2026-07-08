@@ -32,7 +32,11 @@ export const DownloadButton: React.FC<DownloadButtonProps> = ({ label, count, di
   useEffect(() => {
     if (!open) return;
     const onPointer = (e: MouseEvent): void => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      // composedPath, not contains(e.target): in the on-page bubble's shadow root
+      // a document-level listener sees the event retargeted to the shadow host, so
+      // contains() would treat a click on a menu item as "outside" and close the
+      // menu before its onClick fires. composedPath includes shadow-internal nodes.
+      if (ref.current && !e.composedPath().includes(ref.current)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') setOpen(false);

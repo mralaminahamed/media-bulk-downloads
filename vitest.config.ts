@@ -15,12 +15,16 @@ import { WxtVitest } from 'wxt/testing';
 // registering ours from a plugin listed AFTER WxtVitest lands it last.
 const chromeMockSetupLast = {
   name: 'chrome-mock-setup-last',
-  config: () => ({ test: { setupFiles: ['./tests/setupTests.ts'] } }),
+  config: () => ({ test: { setupFiles: ['./tests/unit/setupTests.ts'] } }),
 };
 
 export default defineConfig({
   plugins: [WxtVitest(), chromeMockSetupLast],
   test: {
+    // Unit/integration suite lives under tests/unit; the Playwright e2e specs
+    // live under tests/e2e (run separately via `yarn test:e2e`). Scoping the
+    // include to tests/unit keeps Vitest from ever collecting the e2e specs.
+    include: ['tests/unit/**/*.test.{ts,tsx}'],
     environment: 'jsdom',
     globals: true,
     // Headroom for React async queries under v8 coverage instrumentation.
@@ -33,8 +37,9 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'lcov'],
-      // Report only files exercised by tests (Jest's implicit default).
-      all: false,
+      // Vitest v4 removed the `all` option; the v8 provider already reports only
+      // files executed during the run (the old `all: false` behavior), so no
+      // extra config is needed to keep untested files out of the report.
     },
   },
 });

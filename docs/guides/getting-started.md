@@ -125,7 +125,8 @@ src/
       Bubble.tsx                # launcher + drag/resize + panel placement
       mount.tsx                 # Shadow DOM host + React root mount/unmount
   styles/index.css              # Tailwind v4 + design tokens
-tests/                          # Vitest specs mirroring src/
+tests/unit/                     # Vitest specs mirroring src/
+tests/e2e/                      # Playwright e2e (real extension in Chromium)
 docs/guides/                    # you are here
 ```
 
