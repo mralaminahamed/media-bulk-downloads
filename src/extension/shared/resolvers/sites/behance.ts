@@ -2,12 +2,28 @@ import { imageExtFromUrl } from '@/extension/shared/collection/mediaType';
 import { MediaCandidate, Resolver, ResolveContext } from '../types';
 
 const HOST = 'mir-s3-cdn-cf.behance.net';
-const SOURCE_RE = new RegExp(`${HOST.replace(/\./g, '\\.')}/project_modules/(?:source|fs)/`);
+const SOURCE_PATH_RE = /^\/project_modules\/(?:source|fs)\//;
+
+/** Whether a page-supplied URL is a genuine max-size (source/fs) Behance CDN
+ *  URL. The hostname is PARSED and compared, not substring-matched: an off-host
+ *  attacker URL that merely embeds the CDN path (in a #fragment or its own path,
+ *  e.g. `https://evil.com/#mir-s3-cdn-cf.behance.net/project_modules/source/x`)
+ *  must never be returned as the download target. */
+function isMaxSizeSource(raw: string, base: string | undefined): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw, base);
+  } catch {
+    return false;
+  }
+  return parsed.hostname === HOST && SOURCE_PATH_RE.test(parsed.pathname);
+}
 
 /** A Behance CDN URL already at max size (source/fs) present in the element's
  *  own src/srcset (or a sibling <source>). Null when none. */
 function domSourceFrom(el: Element | undefined): string | null {
   if (!el) return null;
+  const base = el.ownerDocument?.baseURI;
   const urls: string[] = [];
   const grab = (v: string | null | undefined) => {
     if (v) urls.push(...v.split(',').map((c) => c.trim().split(/\s+/)[0]).filter(Boolean));
@@ -16,7 +32,7 @@ function domSourceFrom(el: Element | undefined): string | null {
   grab(el.getAttribute?.('srcset'));
   grab(el.getAttribute?.('data-src'));
   el.closest?.('picture')?.querySelectorAll('source').forEach((s) => grab(s.getAttribute('srcset')));
-  return urls.find((u) => SOURCE_RE.test(u)) ?? null;
+  return urls.find((u) => isMaxSizeSource(u, base)) ?? null;
 }
 
 export const behanceResolver: Resolver = {

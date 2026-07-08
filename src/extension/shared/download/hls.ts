@@ -375,6 +375,12 @@ export function assertDownloadable(pl: HlsMediaPlaylist): void {
     if (k.method !== 'AES-128') {
       throw new HlsError('unsupported-key', `Unsupported encryption method: ${k.method}.`);
     }
+    // An AES-128 declaration with no key URI can't be decrypted; without this,
+    // fetchSegment's `!seg.key.uri` branch treats it as clear and writes the
+    // still-encrypted bytes to disk as undecryptable garbage, with no error.
+    if (!k.uri) {
+      throw new HlsError('unsupported-key', 'AES-128 segment is missing its key URI.');
+    }
   }
 }
 

@@ -246,13 +246,19 @@ describe('Background Script', () => {
       expect(mockChrome.action.setBadgeBackgroundColor).toHaveBeenCalledWith({ color: '#4F46E5', tabId });
     });
 
-    it('does nothing when the tab has no content script (lastError set)', () => {
+    it('clears any stale badge when the tab has no content script (lastError set)', async () => {
+      mockChrome.storage.sync.get.mockImplementation((_k: string[], cb: (r: any) => void) =>
+        cb({ settings: { ...DEFAULT_SETTINGS } }),
+      );
+      loadSettings();
       mockChrome.runtime.lastError = { message: 'Receiving end does not exist' };
       mockChrome.tabs.sendMessage.mockImplementation((_id: number, _msg: string, cb: any) => cb(undefined));
 
       updateTabBadge(1);
+      await new Promise((r) => setTimeout(r, 0));
 
-      expect(mockChrome.action.setBadgeText).not.toHaveBeenCalled();
+      // The '...' placeholder (or a prior count) is cleared, and no colour is set.
+      expect(mockChrome.action.setBadgeText).toHaveBeenCalledWith({ text: '', tabId: 1 });
       expect(mockChrome.action.setBadgeBackgroundColor).not.toHaveBeenCalled();
       mockChrome.runtime.lastError = null;
     });

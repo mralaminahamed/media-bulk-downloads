@@ -20,6 +20,24 @@ describe('behanceResolver', () => {
     expect(run('https://mir-s3-cdn-cf.behance.net/project_modules/1400/abc123.jpg', img)[0].url)
       .toContain('/project_modules/source/');
   });
+  it('ignores an off-host URL that only embeds the CDN path (host bypass)', () => {
+    // An attacker-controlled srcset entry on evil.com whose #fragment embeds the
+    // behance CDN source path. The old substring match returned it as the download
+    // URL; host verification must reject it and fall back to the path upgrade.
+    const img = document.createElement('img');
+    img.setAttribute(
+      'srcset',
+      'https://evil.com/malware#https://mir-s3-cdn-cf.behance.net/project_modules/source/abc123.jpg 2x',
+    );
+    const [c] = run('https://mir-s3-cdn-cf.behance.net/project_modules/1400/abc123.jpg', img);
+    expect(c.url).toBe('https://mir-s3-cdn-cf.behance.net/project_modules/source/abc123.jpg');
+  });
+  it('ignores an off-host URL that embeds the CDN path in its own path', () => {
+    const img = document.createElement('img');
+    img.setAttribute('src', 'https://evil.com/mir-s3-cdn-cf.behance.net/project_modules/source/abc123.jpg');
+    const [c] = run('https://mir-s3-cdn-cf.behance.net/project_modules/1400/abc123.jpg', img);
+    expect(c.url).toBe('https://mir-s3-cdn-cf.behance.net/project_modules/source/abc123.jpg');
+  });
   it('returns [] when there is nothing to upgrade', () => {
     expect(run('https://mir-s3-cdn-cf.behance.net/project_modules/source/abc123.jpg')).toEqual([]);
   });
