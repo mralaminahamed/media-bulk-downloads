@@ -14,6 +14,7 @@ import { EmptyState } from './components/states/EmptyState';
 import { ErrorState } from './components/states/ErrorState';
 import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, DownloadZipMessage, DownloadBytesMessage, ExcludedKind, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
 import { filterImagesBySettings, applyToolbarFilters, filterExcluded, ExcludedMatchers } from '../shared/collection/filters';
+import { SrcKeySet } from '../shared/collection/canonical';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
 import { collectFromActiveTab } from '../shared/active-tab/collect-active-tab';
 import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/active-tab/deep-scan-active-tab';
@@ -75,12 +76,12 @@ const App: React.FC<AppProps> = ({
   const [settings, setSettings] = useState<SettingsData>(DEFAULT_SETTINGS);
   const [deepScanning, setDeepScanning] = useState(false);
   const [deepProgress, setDeepProgress] = useState<DeepScanProgress | null>(null);
-  const [downloadedSrcs, setDownloadedSrcs] = useState<Set<string>>(new Set());
+  const [downloadedSrcs, setDownloadedSrcs] = useState<SrcKeySet>(new SrcKeySet());
   const [showFavourites, setShowFavourites] = useState(false);
   const [showExcluded, setShowExcluded] = useState(false);
-  const [favouriteSrcs, setFavouriteSrcs] = useState<Set<string>>(new Set());
-  const [excludedMatch, setExcludedMatch] = useState<ExcludedMatchers>({ urls: new Set(), hosts: new Set() });
-  const excludedRef = useRef<ExcludedMatchers>({ urls: new Set(), hosts: new Set() });
+  const [favouriteSrcs, setFavouriteSrcs] = useState<SrcKeySet>(new SrcKeySet());
+  const [excludedMatch, setExcludedMatch] = useState<ExcludedMatchers>({ urls: new SrcKeySet(), hosts: new Set() });
+  const excludedRef = useRef<ExcludedMatchers>({ urls: new SrcKeySet(), hosts: new Set() });
   const [resolveFailedSrcs, setResolveFailedSrcs] = useState<Set<string>>(new Set());
   const [fetchingSrcs, setFetchingSrcs] = useState<Set<string>>(new Set());
   // Whether a batch "Get all videos" run is in flight (distinct from a single
@@ -128,7 +129,7 @@ const App: React.FC<AppProps> = ({
     // records — so an item the user deleted becomes re-downloadable (not a
     // duplicate). chrome.downloads lives in the background, so this asks it, and
     // re-asks whenever history changes (a new download, or a cleared entry).
-    const refresh = (): void => void fetchDownloadedOnDisk().then(setDownloadedSrcs);
+    const refresh = (): void => void fetchDownloadedOnDisk().then((s) => setDownloadedSrcs(SrcKeySet.from(s)));
     refresh();
     const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       if (area === 'local' && changes[HISTORY_KEY]) refresh();
@@ -142,7 +143,7 @@ const App: React.FC<AppProps> = ({
     const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       if (area === 'local' && changes[FAVOURITES_KEY]) {
         const next = (changes[FAVOURITES_KEY].newValue as { src: string }[] | undefined) ?? [];
-        setFavouriteSrcs(new Set(next.map((e) => e.src)));
+        setFavouriteSrcs(SrcKeySet.from(next.map((e) => e.src)));
       }
     };
     chrome.storage.onChanged.addListener(onChanged);
@@ -647,11 +648,7 @@ const App: React.FC<AppProps> = ({
   const handleToggleFavourite = async (image: ImageInfo): Promise<void> => {
     if (favouriteSrcs.has(image.src)) {
       sendRuntimeMessage({ type: 'REMOVE_FAVOURITE', src: image.src });
-      setFavouriteSrcs((prev) => {
-        const next = new Set(prev);
-        next.delete(image.src);
-        return next;
-      });
+      setFavouriteSrcs((prev) => prev.withoutSrc(image.src));
       return;
     }
     const sourcePage = await currentSourcePage();
@@ -665,7 +662,7 @@ const App: React.FC<AppProps> = ({
       ...(sourcePage.title ? { sourcePageTitle: sourcePage.title } : {}),
     };
     sendRuntimeMessage({ type: 'ADD_FAVOURITE', entry });
-    setFavouriteSrcs((prev) => new Set(prev).add(image.src));
+    setFavouriteSrcs((prev) => prev.withAdded(image.src));
   };
 
   const excludeItem = (image: ImageInfo, kind: ExcludedKind): void => {
@@ -681,16 +678,17 @@ const App: React.FC<AppProps> = ({
   // Single source of truth for the form's fields: the popup owns writing settings.
   const handleSettingsChange = (newSettings: SettingsData) => {
     setSettings(newSettings);
-    // Read-modify-write so a blind full-object save can't clobber the drag-owned
-    // bubble fields (position/placement/point) that the on-page bubble persists out
-    // of band — the settings form never edits those, so keep whatever's stored.
+    // Read-modify-write so a full-object save keeps only the bubble fields the user
+    // sets by DRAG — which have NO Settings control: the button's x/y offset from
+    // its corner, and the freeform panel point. Everything the form does edit
+    // (Bubble Corner, Panel Position, width/height) persists normally; the on-page
+    // bubble picks those up live via chrome.storage.onChanged.
     chrome.storage.sync.get(['settings'], (result) => {
       const stored = withDefaults(result.settings);
       chrome.storage.sync.set({
         settings: {
           ...newSettings,
-          bubblePosition: stored.bubblePosition,
-          bubblePanelPlacement: stored.bubblePanelPlacement,
+          bubblePosition: { corner: newSettings.bubblePosition.corner, x: stored.bubblePosition.x, y: stored.bubblePosition.y },
           bubblePanelPoint: stored.bubblePanelPoint,
         },
       });
