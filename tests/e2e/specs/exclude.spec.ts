@@ -1,4 +1,5 @@
-import { test, expect, openBubblePage, openPanel, itemCount } from './fixtures';
+import { test, expect } from '../fixtures/extension';
+import { openBubblePage, openPanel, itemCount } from '../helpers/bubble';
 import type { Page } from '@playwright/test';
 
 // The grid item (a <figure>) that shows the image with the given alt / src match.

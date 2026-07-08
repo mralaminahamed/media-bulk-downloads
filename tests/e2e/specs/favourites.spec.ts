@@ -1,4 +1,5 @@
-import { test, expect, openBubblePage, openPanel } from './fixtures';
+import { test, expect } from '../fixtures/extension';
+import { openBubblePage, openPanel } from '../helpers/bubble';
 import type { Page } from '@playwright/test';
 
 const item = (page: Page, alt: string) =>

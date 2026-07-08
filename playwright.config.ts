@@ -22,7 +22,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'node tests/e2e/serve.mjs',
+    command: 'node tests/e2e/server/serve.mjs',
     port: PORT,
     reuseExistingServer: !process.env.CI,
     stdout: 'ignore',

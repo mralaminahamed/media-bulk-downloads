@@ -1,4 +1,5 @@
-import { test, expect, openBubblePage, openPanel, itemCount } from './fixtures';
+import { test, expect } from '../fixtures/extension';
+import { openBubblePage, openPanel, itemCount } from '../helpers/bubble';
 
 test('runs a deep scan without dropping the collected grid', async ({ context }) => {
   const page = await openBubblePage(context, '/media.html');

@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, extname, normalize } from 'node:path';
 
-const pagesDir = join(dirname(fileURLToPath(import.meta.url)), 'pages');
+const pagesDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'pages');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css' };
 const port = Number(process.env.E2E_PORT) || 5199;
 
