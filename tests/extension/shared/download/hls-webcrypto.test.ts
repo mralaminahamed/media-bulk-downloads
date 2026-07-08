@@ -1,11 +1,11 @@
 import { createCipheriv, randomBytes, webcrypto } from 'crypto';
 import { browserHlsDeps, webcryptoDecrypt } from '@/extension/shared/download/hls-webcrypto';
 
-// The jsdom test env may not expose crypto.subtle; back it with Node's WebCrypto
-// so webcryptoDecrypt exercises the real AES-CBC path (not a mock).
-if (!(globalThis.crypto && globalThis.crypto.subtle)) {
-  Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true });
-}
+// Always back crypto with Node's WebCrypto. Some jsdom builds expose a
+// crypto.subtle whose importKey rejects Buffer/TypedArray inputs (the chronic
+// Node-20 CI failure) — a presence check alone wouldn't catch that — so override
+// unconditionally to exercise the real AES-CBC path on every runtime.
+Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true });
 
 /** AES-128-CBC + PKCS7 encrypt via node:crypto — the exact scheme HLS uses. */
 function aesCbcEncrypt(key: Uint8Array, iv: Uint8Array, plain: Uint8Array): Uint8Array {
@@ -50,14 +50,14 @@ describe('browserHlsDeps', () => {
   });
 
   it('fetchText returns the body and throws with the status on a non-ok response', async () => {
-    global.fetch = jest.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve('#EXTM3U') }) as unknown as typeof fetch;
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve('#EXTM3U') }) as unknown as typeof fetch;
     await expect(browserHlsDeps().fetchText('https://x/m.m3u8')).resolves.toBe('#EXTM3U');
-    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 404 }) as unknown as typeof fetch;
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 }) as unknown as typeof fetch;
     await expect(browserHlsDeps().fetchText('https://x/m.m3u8')).rejects.toThrow(/404/);
   });
 
   it('fetchBytes issues a Range header, accepts a 206, and returns the bytes', async () => {
-    const f = jest.fn().mockResolvedValue({ ok: false, status: 206, arrayBuffer: () => Promise.resolve(new Uint8Array([1, 2, 3]).buffer) });
+    const f = vi.fn().mockResolvedValue({ ok: false, status: 206, arrayBuffer: () => Promise.resolve(new Uint8Array([1, 2, 3]).buffer) });
     global.fetch = f as unknown as typeof fetch;
     const out = await browserHlsDeps().fetchBytes('https://x/seg', { offset: 100, length: 50 });
     expect(f).toHaveBeenCalledWith('https://x/seg', { headers: { Range: 'bytes=100-149' } });
@@ -65,16 +65,16 @@ describe('browserHlsDeps', () => {
   });
 
   it('fetchBytes without a range issues a plain GET and throws on a real error status', async () => {
-    const f = jest.fn().mockResolvedValue({ ok: true, arrayBuffer: () => Promise.resolve(new Uint8Array([9]).buffer) });
+    const f = vi.fn().mockResolvedValue({ ok: true, arrayBuffer: () => Promise.resolve(new Uint8Array([9]).buffer) });
     global.fetch = f as unknown as typeof fetch;
     expect(Array.from(await browserHlsDeps().fetchBytes('https://x/seg'))).toEqual([9]);
     expect(f).toHaveBeenCalledWith('https://x/seg', undefined);
-    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 500 }) as unknown as typeof fetch;
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 }) as unknown as typeof fetch;
     await expect(browserHlsDeps().fetchBytes('https://x/seg')).rejects.toThrow(/500/);
   });
 
   it('wires decrypt to webcryptoDecrypt and passes through concurrency + onProgress', () => {
-    const onProgress = jest.fn();
+    const onProgress = vi.fn();
     const deps = browserHlsDeps(onProgress);
     expect(deps.decrypt).toBe(webcryptoDecrypt);
     expect(deps.concurrency).toBe(6);

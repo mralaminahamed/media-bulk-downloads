@@ -1,9 +1,10 @@
+import type { Mock } from 'vitest';
 import { mergeHistory, recordDownloads, removeEntry, clearHistory, restoreHistory, downloadedSrcSet, srcsStillOnDisk, loadHistory, HISTORY_CAP, HISTORY_MAX_BYTES } from '@/extension/shared/storage/history';
 import { HistoryEntry } from '@/types';
 
 describe('loadHistory — corrupt storage', () => {
   it('drops entries without a string src and coerces a bad time to 0', async () => {
-    (chrome.storage.local.get as jest.Mock).mockResolvedValue({
+    (chrome.storage.local.get as Mock).mockResolvedValue({
       downloadHistory: [{ src: 'a', time: 5 }, { filename: 'no-src' }, { src: 'b' }, 'garbage', null],
     });
     const out = await loadHistory();
@@ -41,29 +42,29 @@ describe('mergeHistory', () => {
 
 describe('storage helpers', () => {
   beforeEach(() => {
-    (chrome.storage.local.get as jest.Mock).mockReset().mockResolvedValue({ downloadHistory: [e('a', 1)] });
-    (chrome.storage.local.set as jest.Mock).mockReset().mockResolvedValue(undefined);
+    (chrome.storage.local.get as Mock).mockReset().mockResolvedValue({ downloadHistory: [e('a', 1)] });
+    (chrome.storage.local.set as Mock).mockReset().mockResolvedValue(undefined);
   });
   it('recordDownloads merges and writes', async () => {
     await recordDownloads([e('b', 2)]);
-    const written = (chrome.storage.local.set as jest.Mock).mock.calls[0][0].downloadHistory;
+    const written = (chrome.storage.local.set as Mock).mock.calls[0][0].downloadHistory;
     expect(written.map((x: HistoryEntry) => x.src).sort()).toEqual(['a', 'b']);
   });
   it('removeEntry drops the matching src', async () => {
     await removeEntry('a');
-    expect((chrome.storage.local.set as jest.Mock).mock.calls[0][0].downloadHistory).toEqual([]);
+    expect((chrome.storage.local.set as Mock).mock.calls[0][0].downloadHistory).toEqual([]);
   });
   it('clearHistory writes an empty array', async () => {
     await clearHistory();
-    expect((chrome.storage.local.set as jest.Mock).mock.calls[0][0].downloadHistory).toEqual([]);
+    expect((chrome.storage.local.set as Mock).mock.calls[0][0].downloadHistory).toEqual([]);
   });
   it('downloadedSrcSet returns the unique srcs', async () => {
     expect(await downloadedSrcSet()).toEqual(new Set(['a']));
   });
   it('serializes concurrent recordDownloads without dropping entries', async () => {
     let store: HistoryEntry[] = [];
-    (chrome.storage.local.get as jest.Mock).mockReset().mockImplementation(async () => ({ downloadHistory: store }));
-    (chrome.storage.local.set as jest.Mock)
+    (chrome.storage.local.get as Mock).mockReset().mockImplementation(async () => ({ downloadHistory: store }));
+    (chrome.storage.local.set as Mock)
       .mockReset()
       .mockImplementation(async (obj: Record<string, HistoryEntry[]>) => {
         store = obj.downloadHistory;
@@ -76,7 +77,7 @@ describe('storage helpers', () => {
 describe('restoreHistory', () => {
   it('replaces history with the normalized imported list (dedup + newest-first)', async () => {
     let store: HistoryEntry[] = [];
-    (chrome.storage.local.set as jest.Mock).mockReset().mockImplementation(async (obj: Record<string, HistoryEntry[]>) => {
+    (chrome.storage.local.set as Mock).mockReset().mockImplementation(async (obj: Record<string, HistoryEntry[]>) => {
       store = obj.downloadHistory;
     });
     await restoreHistory([e('a', 1), e('b', 3), e('a', 9)]);

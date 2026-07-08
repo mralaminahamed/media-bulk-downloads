@@ -625,7 +625,7 @@ bad_seg.m4a
   it('throws empty when the demuxed muxer returns zero bytes', async () => {
     // muxTracks succeeds without throwing but yields an empty file — the guard
     // after the mux must surface `empty`, not a silent zero-byte download.
-    const spy = jest.spyOn(mux, 'muxTracks').mockReturnValueOnce(new Uint8Array(0));
+    const spy = vi.spyOn(mux, 'muxTracks').mockReturnValueOnce(new Uint8Array(0));
     try {
       await expect(captureHls('https://cdn.test/master.m3u8', deps())).rejects.toMatchObject({ code: 'empty' });
       expect(spy).toHaveBeenCalledTimes(1);

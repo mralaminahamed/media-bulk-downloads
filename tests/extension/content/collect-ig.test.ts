@@ -1,13 +1,13 @@
 /**
- * @jest-environment jsdom
- * @jest-environment-options {"url": "https://www.instagram.com/p/ABC123/"}
+ * @vitest-environment jsdom
+ * @vitest-environment-options { "url": "https://www.instagram.com/p/ABC123/" }
  *
  * collectMedia() surfaces the whole post a single-post/reel page is showing from
  * the IG resolver's in-memory store (media the virtualized/blob:-backed DOM
  * hides), keyed by the shortcode in the page URL. That branch only runs on an
  * instagram.com POST url, and jsdom's `location` is immutable at runtime
  * (LegacyUnforgeable), so — like relay-ig.test.ts — the host+path is pinned per
- * file via `@jest-environment-options`. Uses the REAL resolver (not mocked) so
+ * file via `@vitest-environment-options`. Uses the REAL resolver (not mocked) so
  * the seeded entry round-trips through instagramPageMedia() into the collection.
  */
 import { collectMedia } from '@/extension/content/collect';

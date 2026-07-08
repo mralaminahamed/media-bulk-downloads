@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
@@ -6,8 +7,8 @@ import { startDeepScan } from '@/extension/content/deepScanRunner';
 import { SettingsData } from '@/types';
 
 // Never-resolving deep scan so we can observe its abort signal on panel close.
-jest.mock('@/extension/content/deepScanRunner', () => ({
-  startDeepScan: jest.fn(() => new Promise(() => {})),
+vi.mock('@/extension/content/deepScanRunner', () => ({
+  startDeepScan: vi.fn(() => new Promise(() => {})),
 }));
 
 const settings: SettingsData = {
@@ -43,7 +44,7 @@ const settings: SettingsData = {
 // Persist now routes through the SET_SETTINGS message (single serialized writer
 // in the background), not a direct storage.sync.set — assert the sent patches.
 const settingsPatches = (): Array<Record<string, unknown>> =>
-  (chrome.runtime.sendMessage as jest.Mock).mock.calls
+  (chrome.runtime.sendMessage as Mock).mock.calls
     .filter((c) => c[0]?.type === 'SET_SETTINGS')
     .map((c) => c[0].patch as Record<string, unknown>);
 
@@ -56,7 +57,7 @@ const pointer = (type: string, clientX: number, clientY: number) => {
 };
 
 const dispatchToggle = () => {
-  (chrome.runtime.onMessage.addListener as jest.Mock).mock.calls
+  (chrome.runtime.onMessage.addListener as Mock).mock.calls
     .map((c) => c[0])
     .forEach((fn) => fn('TOGGLE_BUBBLE'));
 };
@@ -65,7 +66,7 @@ const dispatchToggle = () => {
 // the just-rendered Bubble installed on mount. Used to simulate the popup writing
 // new settings, which the bubble must live-sync into its own placement/position.
 const lastStorageListener = () => {
-  const calls = (chrome.storage.onChanged.addListener as jest.Mock).mock.calls;
+  const calls = (chrome.storage.onChanged.addListener as Mock).mock.calls;
   return calls[calls.length - 1][0] as (
     changes: { [k: string]: chrome.storage.StorageChange },
     area: string,
@@ -74,10 +75,10 @@ const lastStorageListener = () => {
 
 describe('Bubble', () => {
   beforeEach(() => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({}));
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({}));
     // Clear only the call log (not the never-resolving default impl from the
     // module mock) so each test's deep-scan call is reliably mock.calls[0].
-    (startDeepScan as jest.Mock).mockClear();
+    (startDeepScan as Mock).mockClear();
     document.body.innerHTML = '';
   });
 
@@ -96,7 +97,7 @@ describe('Bubble', () => {
   });
 
   it('does not move or persist on a jittery click (sub-threshold travel)', () => {
-    const set = chrome.storage.sync.set as jest.Mock;
+    const set = chrome.storage.sync.set as Mock;
     render(<Bubble initialSettings={settings} />);
     const launcher = screen.getByRole('button', { name: 'Media Bulk Downloads' });
     const before = launcher.getAttribute('style');
@@ -125,7 +126,7 @@ describe('Bubble', () => {
   });
 
   it('repositions and persists on an intentional drag', () => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings }));
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings }));
     render(<Bubble initialSettings={settings} />);
     const launcher = screen.getByRole('button', { name: 'Media Bulk Downloads' });
     const before = launcher.getAttribute('style');
@@ -151,7 +152,7 @@ describe('Bubble', () => {
   });
 
   it('drags the panel to a free point via its header and persists it', async () => {
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings }));
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings }));
     render(<Bubble initialSettings={settings} />);
     dispatchToggle();
     const heading = await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
@@ -176,7 +177,7 @@ describe('Bubble', () => {
   // panelRef.current is always mounted (jsdom returns a zero-size rect, never
   // null) whenever this handler fires. Left uncovered by design.
   it('does not start a header drag when a header control is pressed', async () => {
-    const set = chrome.storage.sync.set as jest.Mock;
+    const set = chrome.storage.sync.set as Mock;
     render(<Bubble initialSettings={settings} />);
     dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
@@ -194,8 +195,8 @@ describe('Bubble', () => {
   });
 
   it('resizes the panel via the corner grip and persists width/height', async () => {
-    const set = chrome.storage.sync.set as jest.Mock;
-    (chrome.storage.sync.get as jest.Mock).mockImplementation((_k, cb) => cb({ settings }));
+    const set = chrome.storage.sync.set as Mock;
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings }));
     render(<Bubble initialSettings={settings} />);
     dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
@@ -279,7 +280,7 @@ describe('Bubble', () => {
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Deep scan' }));
-    const signal = (startDeepScan as jest.Mock).mock.calls[0][1] as AbortSignal;
+    const signal = (startDeepScan as Mock).mock.calls[0][1] as AbortSignal;
     expect(signal.aborted).toBe(false);
 
     dispatchToggle(); // close the panel
@@ -362,7 +363,7 @@ describe('Bubble', () => {
   // --- Launcher drag: corner math + viewport clamping ------------------------
 
   it('clamps a dragged launcher to the viewport (top-left corner math)', () => {
-    const set = chrome.storage.sync.set as jest.Mock;
+    const set = chrome.storage.sync.set as Mock;
     render(<Bubble initialSettings={{ ...settings, bubblePosition: { corner: 'top-left', x: 8, y: 8 } }} />);
     const launcher = screen.getByRole('button', { name: 'Media Bulk Downloads' });
     set.mockClear();
@@ -385,7 +386,7 @@ describe('Bubble', () => {
   // --- Header drag: free-point clamping --------------------------------------
 
   it('clamps a header-dragged panel to the viewport (freePoint bounds)', async () => {
-    const set = chrome.storage.sync.set as jest.Mock;
+    const set = chrome.storage.sync.set as Mock;
     render(<Bubble initialSettings={settings} />);
     dispatchToggle();
     const heading = await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
@@ -412,7 +413,7 @@ describe('Bubble', () => {
   // --- Resize: free-corner growth + min clamp --------------------------------
 
   it('resizes a centered panel from its bottom-right grip (both edges free)', async () => {
-    const set = chrome.storage.sync.set as jest.Mock;
+    const set = chrome.storage.sync.set as Mock;
     render(<Bubble initialSettings={{ ...settings, bubblePanelPlacement: 'center' }} />);
     dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
@@ -430,7 +431,7 @@ describe('Bubble', () => {
   });
 
   it('clamps a resize to the minimum panel size', async () => {
-    const set = chrome.storage.sync.set as jest.Mock;
+    const set = chrome.storage.sync.set as Mock;
     render(<Bubble initialSettings={settings} />); // anchored bottom-right: free edges top/left
     dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
@@ -518,7 +519,7 @@ describe('Bubble', () => {
   it('streams deep-scan progress and surfaces the stop reason', async () => {
     // Report progress twice — once without a reason, once with a cap reason — so
     // the bubble's progress wrapper forwards both shapes to the panel.
-    (startDeepScan as jest.Mock).mockImplementationOnce((onProgress) => {
+    (startDeepScan as Mock).mockImplementationOnce((onProgress) => {
       onProgress(3, 1, 100); // no reason
       onProgress(7, 2, 200, 'max-items'); // capped
       return Promise.resolve([]);
@@ -539,7 +540,7 @@ describe('Bubble', () => {
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Deep scan' }));
-    const signal = (startDeepScan as jest.Mock).mock.calls[0][1] as AbortSignal;
+    const signal = (startDeepScan as Mock).mock.calls[0][1] as AbortSignal;
     expect(signal.aborted).toBe(false);
 
     // Pressing the (now) Stop control routes through abortDeepScan → the bubble's
@@ -565,7 +566,7 @@ describe('Bubble', () => {
   // --- More resize placements (maxPanelSize reserve branches) -----------------
 
   it('resizes a free-placed panel from its bottom-right grip', async () => {
-    const set = chrome.storage.sync.set as jest.Mock;
+    const set = chrome.storage.sync.set as Mock;
     render(
       <Bubble
         initialSettings={{ ...settings, bubblePanelPlacement: 'free', bubblePanelPoint: { x: 100, y: 100 } }}
@@ -586,7 +587,7 @@ describe('Bubble', () => {
   });
 
   it('resizes a corner-pinned panel toward its free edges', async () => {
-    const set = chrome.storage.sync.set as jest.Mock;
+    const set = chrome.storage.sync.set as Mock;
     // Pinned top-left → free edges are right/bottom; reserves PANEL_MARGIN.
     render(<Bubble initialSettings={{ ...settings, bubblePanelPlacement: 'top-left' }} />);
     dispatchToggle();
@@ -605,7 +606,7 @@ describe('Bubble', () => {
   // --- Defensive guards: stray pointer events with no active gesture ----------
 
   it('ignores launcher pointer move/up when no drag is in progress', () => {
-    const set = chrome.storage.sync.set as jest.Mock;
+    const set = chrome.storage.sync.set as Mock;
     render(<Bubble initialSettings={settings} />);
     const launcher = screen.getByRole('button', { name: 'Media Bulk Downloads' });
     set.mockClear();
@@ -619,7 +620,7 @@ describe('Bubble', () => {
   });
 
   it('ignores resize grip move/up when no resize is in progress', async () => {
-    const set = chrome.storage.sync.set as jest.Mock;
+    const set = chrome.storage.sync.set as Mock;
     render(<Bubble initialSettings={settings} />);
     dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
@@ -633,7 +634,7 @@ describe('Bubble', () => {
   });
 
   it('does not free-place the panel on a sub-threshold header nudge', async () => {
-    const set = chrome.storage.sync.set as jest.Mock;
+    const set = chrome.storage.sync.set as Mock;
     render(<Bubble initialSettings={settings} />);
     dispatchToggle();
     const heading = await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
@@ -661,7 +662,7 @@ describe('Bubble', () => {
 
   it('ignores runtime messages other than TOGGLE_BUBBLE', () => {
     render(<Bubble initialSettings={settings} />);
-    const calls = (chrome.runtime.onMessage.addListener as jest.Mock).mock.calls;
+    const calls = (chrome.runtime.onMessage.addListener as Mock).mock.calls;
     const listener = calls[calls.length - 1][0] as (m: unknown) => void;
 
     act(() => listener('SOME_OTHER_MESSAGE'));

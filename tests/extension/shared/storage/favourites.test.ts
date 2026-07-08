@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import {
   mergeFavourites, addFavourite, removeFavourite, clearFavourites, restoreFavourites,
   favouriteSrcSet, loadFavourites, FAVOURITES_CAP,
@@ -9,7 +10,7 @@ const f = (src: string, time: number): FavouriteEntry =>
 
 describe('loadFavourites — corrupt storage', () => {
   it('drops entries without a string src and coerces a bad time to 0', async () => {
-    (chrome.storage.local.get as jest.Mock).mockResolvedValue({
+    (chrome.storage.local.get as Mock).mockResolvedValue({
       favourites: [{ src: 'a', time: 5 }, { type: 'no-src' }, { src: 'b' }, 'garbage', null],
     });
     const out = await loadFavourites();
@@ -17,11 +18,11 @@ describe('loadFavourites — corrupt storage', () => {
     expect(out.find((x) => x.src === 'b')!.time).toBe(0);
   });
   it('treats a non-array stored value as no data', async () => {
-    (chrome.storage.local.get as jest.Mock).mockResolvedValue({ favourites: 'corrupted-not-an-array' });
+    (chrome.storage.local.get as Mock).mockResolvedValue({ favourites: 'corrupted-not-an-array' });
     expect(await loadFavourites()).toEqual([]);
   });
   it('treats a missing favourites key as no data', async () => {
-    (chrome.storage.local.get as jest.Mock).mockResolvedValue({});
+    (chrome.storage.local.get as Mock).mockResolvedValue({});
     expect(await loadFavourites()).toEqual([]);
   });
 });
@@ -61,21 +62,21 @@ describe('mergeFavourites', () => {
 
 describe('favourites storage helpers', () => {
   beforeEach(() => {
-    (chrome.storage.local.get as jest.Mock).mockReset().mockResolvedValue({ favourites: [f('a', 1)] });
-    (chrome.storage.local.set as jest.Mock).mockReset().mockResolvedValue(undefined);
+    (chrome.storage.local.get as Mock).mockReset().mockResolvedValue({ favourites: [f('a', 1)] });
+    (chrome.storage.local.set as Mock).mockReset().mockResolvedValue(undefined);
   });
   it('addFavourite merges and writes', async () => {
     await addFavourite(f('b', 2));
-    const written = (chrome.storage.local.set as jest.Mock).mock.calls[0][0].favourites;
+    const written = (chrome.storage.local.set as Mock).mock.calls[0][0].favourites;
     expect(written.map((x: FavouriteEntry) => x.src).sort()).toEqual(['a', 'b']);
   });
   it('removeFavourite drops the src', async () => {
     await removeFavourite('a');
-    expect((chrome.storage.local.set as jest.Mock).mock.calls[0][0].favourites).toEqual([]);
+    expect((chrome.storage.local.set as Mock).mock.calls[0][0].favourites).toEqual([]);
   });
   it('clearFavourites writes an empty array', async () => {
     await clearFavourites();
-    expect((chrome.storage.local.set as jest.Mock).mock.calls[0][0].favourites).toEqual([]);
+    expect((chrome.storage.local.set as Mock).mock.calls[0][0].favourites).toEqual([]);
   });
   it('favouriteSrcSet returns a SrcKeySet matching the stored srcs', async () => {
     const set = await favouriteSrcSet();
@@ -83,12 +84,12 @@ describe('favourites storage helpers', () => {
     expect(set.size).toBe(1);
   });
   it('recovers the write chain after a rejected write, so a later write still applies', async () => {
-    (chrome.storage.local.set as jest.Mock).mockImplementationOnce(() => Promise.reject(new Error('quota exceeded')));
+    (chrome.storage.local.set as Mock).mockImplementationOnce(() => Promise.reject(new Error('quota exceeded')));
     await expect(addFavourite(f('will-fail', 9))).rejects.toThrow('quota exceeded');
     // The failed write must not leave writeChain permanently rejected — this
     // write, chained after it, has to still go through against the base mock.
     await addFavourite(f('after-failure', 10));
-    const calls = (chrome.storage.local.set as jest.Mock).mock.calls;
+    const calls = (chrome.storage.local.set as Mock).mock.calls;
     const lastWritten = calls[calls.length - 1][0].favourites as FavouriteEntry[];
     expect(lastWritten.map((x) => x.src).sort()).toEqual(['a', 'after-failure']);
   });
@@ -97,7 +98,7 @@ describe('favourites storage helpers', () => {
 describe('restoreFavourites', () => {
   it('replaces favourites with the normalized imported list', async () => {
     let store: FavouriteEntry[] = [];
-    (chrome.storage.local.set as jest.Mock).mockReset().mockImplementation(async (obj: Record<string, FavouriteEntry[]>) => {
+    (chrome.storage.local.set as Mock).mockReset().mockImplementation(async (obj: Record<string, FavouriteEntry[]>) => {
       store = obj.favourites;
     });
     await restoreFavourites([f('a', 1), f('b', 3), f('a', 9)]);

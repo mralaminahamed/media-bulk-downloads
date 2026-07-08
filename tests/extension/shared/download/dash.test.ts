@@ -494,7 +494,7 @@ describe('captureDash — e2e mux', () => {
 
   it('rejects empty when the muxer returns zero bytes', async () => {
     // muxTracks succeeds (no throw) but yields an empty file — the final guard.
-    const spy = jest.spyOn(mux, 'muxTracks').mockReturnValueOnce(new Uint8Array(0));
+    const spy = vi.spyOn(mux, 'muxTracks').mockReturnValueOnce(new Uint8Array(0));
     try {
       const videoOnly = VOD_MPD.replace(/<AdaptationSet mimeType="audio\/mp4">[\s\S]*?<\/AdaptationSet>/, '');
       await expect(captureDash('https://cdn.test/manifest.mpd', deps(videoOnly))).rejects.toMatchObject({

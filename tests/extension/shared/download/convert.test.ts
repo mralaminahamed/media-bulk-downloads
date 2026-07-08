@@ -80,8 +80,8 @@ describe('convertImage', () => {
     };
     const origBitmap = g.createImageBitmap;
     const origCanvas = g.OffscreenCanvas;
-    const bitmap = jest.fn(async () => ({ width: 2, height: 2, close: () => undefined }) as unknown as ImageBitmap);
-    const canvasCtor = jest.fn(function (this: { getContext: () => null }) {
+    const bitmap = vi.fn(async () => ({ width: 2, height: 2, close: () => undefined }) as unknown as ImageBitmap);
+    const canvasCtor = vi.fn(function (this: { getContext: () => null }) {
       this.getContext = () => null;
     });
     g.createImageBitmap = bitmap;

@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import {
   getImageFileSize,
   mapWithConcurrency,
@@ -11,12 +12,12 @@ import {
 describe('utils', () => {
   describe('getImageFileSize', () => {
     afterEach(() => {
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     });
 
     it('returns the Content-Length reported by a HEAD request', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
-        headers: { get: jest.fn().mockReturnValue('2048') },
+      global.fetch = vi.fn().mockResolvedValue({
+        headers: { get: vi.fn().mockReturnValue('2048') },
       }) as unknown as typeof fetch;
 
       await expect(getImageFileSize('https://example.com/a.png')).resolves.toBe(2048);
@@ -24,30 +25,30 @@ describe('utils', () => {
     });
 
     it('returns 0 when Content-Length is missing', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
-        headers: { get: jest.fn().mockReturnValue(null) },
+      global.fetch = vi.fn().mockResolvedValue({
+        headers: { get: vi.fn().mockReturnValue(null) },
       }) as unknown as typeof fetch;
 
       await expect(getImageFileSize('https://example.com/a.png')).resolves.toBe(0);
     });
 
     it('returns 0 when the request fails', async () => {
-      global.fetch = jest.fn().mockRejectedValue(new Error('network')) as unknown as typeof fetch;
+      global.fetch = vi.fn().mockRejectedValue(new Error('network')) as unknown as typeof fetch;
 
       await expect(getImageFileSize('https://example.com/a.png')).resolves.toBe(0);
     });
 
     it('returns 0 when Content-Length is non-numeric', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
-        headers: { get: jest.fn().mockReturnValue('not-a-number') },
+      global.fetch = vi.fn().mockResolvedValue({
+        headers: { get: vi.fn().mockReturnValue('not-a-number') },
       }) as unknown as typeof fetch;
 
       await expect(getImageFileSize('https://example.com/a.png')).resolves.toBe(0);
     });
 
     it('parses a numeric Content-Length with surrounding whitespace', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
-        headers: { get: jest.fn().mockReturnValue('  4096  ') },
+      global.fetch = vi.fn().mockResolvedValue({
+        headers: { get: vi.fn().mockReturnValue('  4096  ') },
       }) as unknown as typeof fetch;
 
       await expect(getImageFileSize('https://example.com/a.png')).resolves.toBe(4096);
@@ -105,7 +106,7 @@ describe('utils', () => {
   });
 
   describe('sendRuntimeMessage', () => {
-    const send = chrome.runtime.sendMessage as jest.Mock;
+    const send = chrome.runtime.sendMessage as Mock;
     afterEach(() => send.mockReset());
 
     it('swallows a rejected promise (no receiver) without throwing', () => {
@@ -121,26 +122,26 @@ describe('utils', () => {
 
   describe('copyText', () => {
     it('returns true when the clipboard write succeeds', async () => {
-      Object.assign(navigator, { clipboard: { writeText: jest.fn().mockResolvedValue(undefined) } });
+      Object.assign(navigator, { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
       await expect(copyText('hi')).resolves.toBe(true);
     });
 
     it('returns false when the clipboard is blocked', async () => {
-      Object.assign(navigator, { clipboard: { writeText: jest.fn().mockRejectedValue(new Error('blocked')) } });
+      Object.assign(navigator, { clipboard: { writeText: vi.fn().mockRejectedValue(new Error('blocked')) } });
       await expect(copyText('hi')).resolves.toBe(false);
     });
   });
 
   describe('downloadText', () => {
     it('routes a DOWNLOAD_TEXT message through the background', () => {
-      const send = chrome.runtime.sendMessage as jest.Mock;
+      const send = chrome.runtime.sendMessage as Mock;
       send.mockReset().mockReturnValue(undefined);
       downloadText('links.txt', 'a\nb', 'text/plain');
       expect(send).toHaveBeenCalledWith({ type: 'DOWNLOAD_TEXT', filename: 'links.txt', text: 'a\nb', mime: 'text/plain' });
     });
 
     it('defaults the mime to text/plain', () => {
-      const send = chrome.runtime.sendMessage as jest.Mock;
+      const send = chrome.runtime.sendMessage as Mock;
       send.mockReset().mockReturnValue(undefined);
       downloadText('x.txt', 'y');
       expect(send).toHaveBeenCalledWith(expect.objectContaining({ mime: 'text/plain' }));
@@ -148,7 +149,7 @@ describe('utils', () => {
   });
 
   describe('fetchDownloadedOnDisk', () => {
-    const send = chrome.runtime.sendMessage as jest.Mock;
+    const send = chrome.runtime.sendMessage as Mock;
     beforeEach(() => {
       send.mockReset();
       (chrome.runtime as unknown as { lastError?: unknown }).lastError = undefined;

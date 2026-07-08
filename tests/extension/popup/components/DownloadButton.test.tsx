@@ -5,11 +5,11 @@ import '@testing-library/jest-dom';
 import { DownloadButton } from '@/extension/popup/components/DownloadButton';
 
 const handlers = () => ({
-  onDownload: jest.fn(),
-  onZip: jest.fn(),
-  onCopyLinks: jest.fn(),
-  onExportLinks: jest.fn(),
-  onExclude: jest.fn(),
+  onDownload: vi.fn(),
+  onZip: vi.fn(),
+  onCopyLinks: vi.fn(),
+  onExportLinks: vi.fn(),
+  onExclude: vi.fn(),
 });
 
 describe('DownloadButton', () => {
@@ -88,10 +88,10 @@ describe('DownloadButton', () => {
       <DownloadButton
         label="Download"
         count={2}
-        onDownload={jest.fn()}
-        onZip={jest.fn()}
-        onCopyLinks={jest.fn()}
-        onExportLinks={jest.fn()}
+        onDownload={vi.fn()}
+        onZip={vi.fn()}
+        onCopyLinks={vi.fn()}
+        onExportLinks={vi.fn()}
       />,
     );
     await userEvent.click(screen.getByRole('button', { name: 'More download options' }));
