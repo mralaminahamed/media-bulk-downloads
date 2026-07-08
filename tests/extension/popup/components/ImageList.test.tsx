@@ -43,6 +43,26 @@ describe('ImageList Component', () => {
     expect(onDownload).toHaveBeenCalledWith(mockImages[0]);
   });
 
+  it('keeps the previewed item when the list reorders underneath it (tracks by src)', () => {
+    const onDownload = jest.fn();
+    const { rerender } = render(<ImageList images={mockImages} onImageDownload={onDownload} />);
+    fireEvent.click(screen.getAllByTitle('View Details')[0]); // preview mockImages[0]
+    // The list re-sorts async (e.g. streamed sizes): mockImages[0] moves to the end.
+    rerender(<ImageList images={[mockImages[1], mockImages[0]]} onImageDownload={onDownload} />);
+    // The modal still acts on the originally-previewed item, not whatever is now index 0.
+    fireEvent.click(screen.getByText('Download'));
+    expect(onDownload).toHaveBeenCalledWith(mockImages[0]);
+  });
+
+  it('closes the preview when the previewed item drops out of the list', () => {
+    const { rerender } = render(<ImageList images={mockImages} onImageDownload={jest.fn()} />);
+    fireEvent.click(screen.getAllByTitle('View Details')[0]);
+    expect(screen.getByText('Preview')).toBeInTheDocument();
+    // A re-filter removes mockImages[0]; the modal must not linger on a gone item.
+    rerender(<ImageList images={[mockImages[1]]} onImageDownload={jest.fn()} />);
+    expect(screen.queryByText('Preview')).not.toBeInTheDocument();
+  });
+
   it('drives a pending video from the preview modal — Get video, then a Fetching… spinner', () => {
     const pending: ImageInfo = {
       src: 'poster.jpg', alt: 'v', width: 0, height: 0, type: 'mp4', fileSize: 0, isBase64: false,

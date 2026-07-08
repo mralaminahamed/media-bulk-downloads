@@ -65,9 +65,12 @@ const isPendingReel = (img: ImageInfo): boolean =>
   isPendingVideo(img) && !img.resolveHint && (isIgUrl(img.src) || isIgUrl(img.poster));
 
 const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnailSize = 120, previewSize = 360, downloadedSrcs, favouriteSrcs, onToggleFavourite, onExclude, onFetchVideo, resolveFailedSrcs, fetchingSrcs, selectedSrcs, selectionActive, onToggleSelect, onSelectRange }) => {
-  // Index-based selection so the modal can page through images without closing.
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const selectedImage = selectedIndex !== null ? images[selectedIndex] ?? null : null;
+  // Track the previewed item by identity (src), not position: `images` re-sorts
+  // and re-filters asynchronously (streaming sizes, resolved originals), so a
+  // bare index would swap the modal to a different item — or unmount it — mid-view.
+  const [selectedSrc, setSelectedSrc] = useState<string | null>(null);
+  const selectedIndex = selectedSrc !== null ? images.findIndex((i) => i.src === selectedSrc) : -1;
+  const selectedImage = selectedIndex >= 0 ? images[selectedIndex] : null;
 
   // The preview modal's exclude menu (open/closed). The modal shows one image, so
   // a single boolean + one wrapper ref back the outside-click / Escape close.
@@ -114,32 +117,41 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
   };
 
   const close = () => {
-    setSelectedIndex(null);
+    setSelectedSrc(null);
     setExcludeMenuOpen(false);
   };
-  const hasPrev = selectedIndex !== null && selectedIndex > 0;
-  const hasNext = selectedIndex !== null && selectedIndex < images.length - 1;
-  const goPrev = () => setSelectedIndex((i) => (i !== null && i > 0 ? i - 1 : i));
-  const goNext = () => setSelectedIndex((i) => (i !== null && i < images.length - 1 ? i + 1 : i));
+  const hasPrev = selectedIndex > 0;
+  const hasNext = selectedIndex >= 0 && selectedIndex < images.length - 1;
+  const goPrev = () => { if (selectedIndex > 0) setSelectedSrc(images[selectedIndex - 1].src); };
+  const goNext = () => { if (selectedIndex >= 0 && selectedIndex < images.length - 1) setSelectedSrc(images[selectedIndex + 1].src); };
 
   // Dialog wiring (focus, Tab trap, Escape-to-close, focus restore) while open.
-  const previewRef = useDialog(close, selectedIndex !== null);
+  const previewRef = useDialog(close, selectedImage !== null);
 
-  // Arrow keys page the modal. Bound only while open. Logic is inlined via
-  // functional updates so the effect needs no callback deps.
+  // If the previewed item leaves the list (dropped by a re-filter), close cleanly
+  // rather than leaving a dangling selection.
   useEffect(() => {
-    if (selectedIndex === null) return;
+    if (selectedSrc !== null && selectedIndex === -1) {
+      setSelectedSrc(null);
+      setExcludeMenuOpen(false);
+    }
+  }, [selectedSrc, selectedIndex]);
+
+  // Arrow keys page the modal. Bound only while open; each neighbour is resolved
+  // from the current list by position around the tracked item's live index.
+  useEffect(() => {
+    if (selectedImage === null) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
       // Paging changes the shown image, so close the exclude menu — otherwise its
       // items would act on (and its host sublabel would show) a different image.
       setExcludeMenuOpen(false);
-      if (e.key === 'ArrowLeft') setSelectedIndex((i) => (i !== null && i > 0 ? i - 1 : i));
-      else setSelectedIndex((i) => (i !== null && i < images.length - 1 ? i + 1 : i));
+      if (e.key === 'ArrowLeft') { if (selectedIndex > 0) setSelectedSrc(images[selectedIndex - 1].src); }
+      else if (selectedIndex >= 0 && selectedIndex < images.length - 1) setSelectedSrc(images[selectedIndex + 1].src);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedIndex, images.length]);
+  }, [selectedImage, selectedIndex, images]);
 
   return (
     <div>
@@ -250,7 +262,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                   the buttons aren't mouse-only. */}
               <div className="absolute inset-0 flex items-center justify-center gap-2 bg-transparent opacity-0 transition-all duration-150 group-hover:bg-(--scrim) group-hover:opacity-100 group-focus-within:bg-(--scrim) group-focus-within:opacity-100">
                 <button
-                  onClick={() => setSelectedIndex(index)}
+                  onClick={() => setSelectedSrc(image.src)}
                   title="View Details"
                   aria-label="View Details"
                   className="grid h-8 w-8 place-items-center rounded-full bg-(--panel) text-(--ink) ring-1 ring-(--ctl-ring) transition-transform hover:scale-105 active:scale-95"
