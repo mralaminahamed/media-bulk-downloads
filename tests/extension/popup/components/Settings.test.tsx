@@ -19,6 +19,7 @@ describe('Settings Component', () => {
     saveAs: false,
     notifyOnComplete: false,
     convertImagesTo: 'off',
+    convertMetadata: 'preserve',
     namingMode: 'prefixed' as const,
     thumbnailSize: 120,
     previewSize: 360,

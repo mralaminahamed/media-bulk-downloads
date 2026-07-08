@@ -133,7 +133,7 @@ export async function convertImage(
       type: TARGET_MIME[target],
       quality: target === 'jpeg' ? 0.92 : undefined,
     });
-    let bytes = new Uint8Array(await out.arrayBuffer());
+    let bytes: Uint8Array = new Uint8Array(await out.arrayBuffer());
     if (meta.exif || meta.xmp) {
       const injected = injectMetadata(bytes, target, meta);
       if (!injected) return null; // couldn't re-inject → caller keeps the original
