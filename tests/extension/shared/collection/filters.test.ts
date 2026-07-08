@@ -13,6 +13,7 @@ const base: SettingsData = {
   saveAs: false,
   notifyOnComplete: false,
   convertImagesTo: 'off',
+  convertMetadata: 'preserve',
   namingMode: 'prefixed',
   thumbnailSize: 120,
   previewSize: 360,

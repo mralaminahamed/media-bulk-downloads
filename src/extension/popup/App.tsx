@@ -454,7 +454,12 @@ const App: React.FC<AppProps> = ({
       try {
         const res = await fetch(img.src);
         if (!res.ok) throw new Error('fetch');
-        const converted = await convertImage(await res.blob(), target);
+        // preserve metadata unless the user explicitly chose to strip it. If the
+        // source's metadata can't be carried across, convertImage returns null and
+        // the item falls through to a plain download of the original (below).
+        const converted = await convertImage(await res.blob(), target, {
+          preserveMetadata: settings.convertMetadata !== 'strip',
+        });
         if (!converted) throw new Error('convert');
         const filename = buildDownloadFilename({ ...img, ext: converted.ext }, index, settings, sourcePage.url);
         const msg: DownloadBytesMessage = {

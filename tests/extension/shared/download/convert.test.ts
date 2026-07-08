@@ -1,4 +1,5 @@
 import { isConvertible, convertImage, isAnimatedImage, ConvertDeps } from '@/extension/shared/download/convert';
+import { extractMetadata } from '@/extension/shared/download/metadata';
 import { ImageInfo } from '@/types';
 
 const img = (o: Partial<ImageInfo>): ImageInfo =>
@@ -46,7 +47,7 @@ describe('convertImage', () => {
 
   it('encodes to png without a white fill', async () => {
     const rec: Rec = {};
-    const out = await convertImage(new Blob(), 'png', fakeDeps(rec));
+    const out = await convertImage(new Blob(), 'png', { deps: fakeDeps(rec) });
     expect(out).toEqual({ bytes: new Uint8Array([1, 2, 3]), ext: 'png', mime: 'image/png' });
     expect(rec.filled).toBeUndefined();
     expect(rec.drawn).toBe(true);
@@ -55,7 +56,7 @@ describe('convertImage', () => {
 
   it('paints a white background for jpeg (no alpha) and uses a .jpg extension', async () => {
     const rec: Rec = {};
-    const out = await convertImage(new Blob(), 'jpeg', fakeDeps(rec));
+    const out = await convertImage(new Blob(), 'jpeg', { deps: fakeDeps(rec) });
     expect(out?.ext).toBe('jpg');
     expect(out?.mime).toBe('image/jpeg');
     expect(rec.filled).toBe(true);
@@ -66,7 +67,7 @@ describe('convertImage', () => {
       createImageBitmap: async () => { throw new Error('undecodable'); },
       makeCanvas: () => ({}) as unknown as OffscreenCanvas,
     };
-    expect(await convertImage(new Blob(), 'png', deps)).toBeNull();
+    expect(await convertImage(new Blob(), 'png', { deps })).toBeNull();
   });
 
   it('uses the default (global) createImageBitmap + OffscreenCanvas deps when none are injected', async () => {
@@ -94,6 +95,49 @@ describe('convertImage', () => {
       g.createImageBitmap = origBitmap;
       g.OffscreenCanvas = origCanvas;
     }
+  });
+
+  it('with preserveMetadata, copies the source EXIF into the converted output', async () => {
+    // Source JPEG carrying an APP1 EXIF segment: FFD8, APP1(Exif\0\0 + TIFF), SOS, EOI.
+    const exif = new Uint8Array([0x49, 0x49, 0x2a, 0x00, 0xaa, 0xbb]);
+    const app1Len = 2 + 6 + exif.length; // length field + "Exif\0\0" + payload
+    const source = new Blob([
+      new Uint8Array([
+        0xff, 0xd8,
+        0xff, 0xe1, (app1Len >> 8) & 0xff, app1Len & 0xff, 0x45, 0x78, 0x69, 0x66, 0x00, 0x00, ...exif,
+        0xff, 0xda, 0x00, 0x02, 0xff, 0xd9,
+      ]) as unknown as BlobPart,
+    ]);
+    // Deps produce a minimal valid JPEG (SOI + SOS + EOI) that injection can target.
+    const deps: ConvertDeps = {
+      createImageBitmap: async () => ({ width: 2, height: 2, close: () => undefined }) as unknown as ImageBitmap,
+      makeCanvas: () =>
+        ({
+          getContext: () => ({ fillStyle: '', fillRect: () => undefined, drawImage: () => undefined }),
+          convertToBlob: async () =>
+            ({ arrayBuffer: async () => new Uint8Array([0xff, 0xd8, 0xff, 0xda, 0x00, 0x02, 0xff, 0xd9]).buffer }) as Blob,
+        }) as unknown as OffscreenCanvas,
+    };
+    const out = await convertImage(source, 'jpeg', { preserveMetadata: true, deps });
+    const back = await extractMetadata(new Blob([out!.bytes as unknown as BlobPart]));
+    expect(Array.from(back.exif ?? [])).toEqual(Array.from(exif));
+  });
+
+  it('without preserveMetadata, the converted output carries no metadata (strip)', async () => {
+    const source = new Blob([
+      new Uint8Array([0xff, 0xd8, 0xff, 0xe1, 0x00, 0x08, 0x45, 0x78, 0x69, 0x66, 0x00, 0x00, 0xff, 0xd9]) as unknown as BlobPart,
+    ]);
+    const deps: ConvertDeps = {
+      createImageBitmap: async () => ({ width: 2, height: 2, close: () => undefined }) as unknown as ImageBitmap,
+      makeCanvas: () =>
+        ({
+          getContext: () => ({ fillStyle: '', fillRect: () => undefined, drawImage: () => undefined }),
+          convertToBlob: async () =>
+            ({ arrayBuffer: async () => new Uint8Array([0xff, 0xd8, 0xff, 0xda, 0x00, 0x02, 0xff, 0xd9]).buffer }) as Blob,
+        }) as unknown as OffscreenCanvas,
+    };
+    const out = await convertImage(source, 'jpeg', { deps }); // preserve off
+    expect(await extractMetadata(new Blob([out!.bytes as unknown as BlobPart]))).toEqual({});
   });
 });
 
