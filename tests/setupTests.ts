@@ -1,4 +1,10 @@
-import '@testing-library/jest-dom';
+import '@testing-library/jest-dom/vitest';
+import { configure } from '@testing-library/react';
+
+// v8 coverage instrumentation + parallel workers can starve a worker's event
+// loop for seconds, so testing-library's 1000ms default for findBy* flakes.
+// Give async queries generous headroom (still under the per-test timeout).
+configure({ asyncUtilTimeout: 8000 });
 
 // jsdom does not implement Blob.prototype.arrayBuffer; some download/convert
 // code sniffs a blob's header bytes, so provide a FileReader-backed polyfill.
@@ -21,65 +27,65 @@ const localStorageStore: Record<string, unknown> = {};
 // tests override specific methods as needed.
 global.chrome = {
     runtime: {
-        sendMessage: jest.fn(),
+        sendMessage: vi.fn(),
         onInstalled: {
-            addListener: jest.fn(),
+            addListener: vi.fn(),
         },
         onMessage: {
-            addListener: jest.fn(),
-            removeListener: jest.fn(),
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
         },
         onStartup: {
-            addListener: jest.fn(),
+            addListener: vi.fn(),
         },
-        getURL: jest.fn((p: string) => `chrome-extension://test/${p}`),
+        getURL: vi.fn((p: string) => `chrome-extension://test/${p}`),
         lastError: undefined,
     },
     notifications: {
-        create: jest.fn(),
+        create: vi.fn(),
     },
     permissions: {
-        request: jest.fn(),
-        contains: jest.fn(),
+        request: vi.fn(),
+        contains: vi.fn(),
     },
     contextMenus: {
-        create: jest.fn(),
-        removeAll: jest.fn((cb?: () => void) => cb?.()),
+        create: vi.fn(),
+        removeAll: vi.fn((cb?: () => void) => cb?.()),
         onClicked: {
-            addListener: jest.fn(),
+            addListener: vi.fn(),
         },
     },
     commands: {
         onCommand: {
-            addListener: jest.fn(),
+            addListener: vi.fn(),
         },
     },
     tabs: {
-        query: jest.fn().mockResolvedValue([]),
-        get: jest.fn(),
-        create: jest.fn(),
-        sendMessage: jest.fn().mockResolvedValue(undefined),
+        query: vi.fn().mockResolvedValue([]),
+        get: vi.fn(),
+        create: vi.fn(),
+        sendMessage: vi.fn().mockResolvedValue(undefined),
         onActivated: {
-            addListener: jest.fn(),
+            addListener: vi.fn(),
         },
         onUpdated: {
-            addListener: jest.fn(),
+            addListener: vi.fn(),
         },
         onRemoved: {
-            addListener: jest.fn(),
+            addListener: vi.fn(),
         },
     },
     storage: {
         sync: {
-            get: jest.fn(),
-            set: jest.fn(),
+            get: vi.fn(),
+            set: vi.fn(),
         },
         // Backed by a real in-memory store so storage modules (favourites,
         // history, excluded, ...) round-trip across get/set within a test —
         // individual tests still override get/set with mockResolvedValue /
         // mockImplementation when they need a specific canned shape.
         local: {
-            get: jest.fn((keys?: string | string[] | Record<string, unknown> | null) => {
+            get: vi.fn((keys?: string | string[] | Record<string, unknown> | null) => {
                 if (keys == null) return Promise.resolve({ ...localStorageStore });
                 if (typeof keys === 'string') {
                     return Promise.resolve(keys in localStorageStore ? { [keys]: localStorageStore[keys] } : {});
@@ -96,38 +102,38 @@ global.chrome = {
                 });
                 return Promise.resolve(out);
             }),
-            set: jest.fn((items: Record<string, unknown>) => {
+            set: vi.fn((items: Record<string, unknown>) => {
                 Object.assign(localStorageStore, items);
                 return Promise.resolve(undefined);
             }),
         },
         onChanged: {
-            addListener: jest.fn(),
-            removeListener: jest.fn(),
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
         },
     },
     downloads: {
-        download: jest.fn(),
-        open: jest.fn(),
-        show: jest.fn(),
-        search: jest.fn().mockResolvedValue([]),
+        download: vi.fn(),
+        open: vi.fn(),
+        show: vi.fn(),
+        search: vi.fn().mockResolvedValue([]),
     },
     offscreen: {
         Reason: { BLOBS: 'BLOBS' },
-        hasDocument: jest.fn().mockResolvedValue(false),
-        createDocument: jest.fn().mockResolvedValue(undefined),
-        closeDocument: jest.fn().mockResolvedValue(undefined),
+        hasDocument: vi.fn().mockResolvedValue(false),
+        createDocument: vi.fn().mockResolvedValue(undefined),
+        closeDocument: vi.fn().mockResolvedValue(undefined),
     },
     action: {
-        setBadgeText: jest.fn(),
-        setBadgeBackgroundColor: jest.fn(),
-        setPopup: jest.fn(),
+        setBadgeText: vi.fn(),
+        setBadgeBackgroundColor: vi.fn(),
+        setPopup: vi.fn(),
         onClicked: {
-            addListener: jest.fn(),
+            addListener: vi.fn(),
         },
     },
     windows: {
-        getCurrent: jest.fn(),
+        getCurrent: vi.fn(),
     },
 } as unknown as typeof chrome;
 

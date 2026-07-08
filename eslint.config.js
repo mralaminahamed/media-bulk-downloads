@@ -50,13 +50,13 @@ export default [
     },
   },
   {
-    // Test files run under Jest, but exercise browser APIs (fetch, window, DOM)
+    // Test files run under Vitest, but exercise browser APIs (fetch, window, DOM)
     // under jsdom, so they need the browser globals too.
     files: ['tests/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
     languageOptions: {
       globals: {
         ...globals.browser,
-        ...globals.jest,
+        ...globals.vitest,
         ...globals.node,
       },
     },
