@@ -246,7 +246,9 @@ requests of its own.
 - **React 19** + **TypeScript** — type-safe UI
 - **Tailwind CSS v4** — utility-first styling on a small design-token system
 - **Vite** (via WXT) — fast bundling
-- **Vitest** + **Testing Library** — 73 unit/integration suites
+- **Vitest** + **Testing Library** — unit/integration suite (jsdom) under `tests/unit/`
+- **Playwright** — end-to-end tests under `tests/e2e/` that load the built
+  extension in real Chromium and drive the on-page bubble (`yarn test:e2e`)
 - **web-ext** — Firefox package validation
 
 ## Project structure
@@ -302,6 +304,14 @@ Before opening a PR, make sure the full gate passes:
 
 ```bash
 yarn type-check && yarn lint && yarn test && yarn build
+```
+
+The end-to-end suite runs separately (it builds and loads the extension in real
+Chromium):
+
+```bash
+yarn test:e2e          # headless
+yarn test:e2e:headed   # visible browser
 ```
 
 ## Security
