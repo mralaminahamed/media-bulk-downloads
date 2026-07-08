@@ -21,20 +21,41 @@ export interface SrcKeyRule {
 export const SRC_KEY_RULES: SrcKeyRule[] = [
   {
     // Facebook / Instagram / Messenger. The same image is served from whichever
-    // edge PoP is nearest (scontent-del3-1.xx, scontent-bom1-2.xx, …) with a
-    // per-request signed query (oh, oe, _nc_ohc, stp, …); the path (with the
-    // media id) is the identity. Collapse the host + drop the query.
-    match: (u) => u.hostname === 'fbcdn.net' || u.hostname.endsWith('.fbcdn.net'),
+    // edge PoP is nearest (scontent-del3-1.xx.fbcdn.net, scontent-x.cdninstagram.com,
+    // …) with a per-request signed query (oh, oe, _nc_ohc, stp, …); the path (with
+    // the media id) is the identity, and it's identical across BOTH CDN families.
+    // Collapse host (to one key for both) + drop the query.
+    match: (u) => /(?:^|\.)(?:fbcdn\.net|cdninstagram\.com)$/i.test(u.hostname),
     key: (u) => `fbcdn.net${u.pathname}`,
   },
 ];
 
 /**
+ * Real media file extensions. When a path ends in one, the path IS the identity,
+ * so the whole query (CDN transforms, signatures, cache-busters) is dropped. A
+ * path ending in a NON-media extension (`.php`, `.aspx`, `.ashx`, …) is a dynamic
+ * endpoint whose identity lives in the query, so it is treated like an
+ * extension-less path — otherwise two distinct images served by one script
+ * (`attachment.php?id=1` vs `?id=2`) would collapse to a single key.
+ */
+const MEDIA_EXT = /\.(?:jpe?g|png|gif|webp|avif|bmp|ico|svgz?|tiff?|hei[cf]|jfif|mp4|webm|mov|m4v|mkv|avi|m3u8|mpd|mp3|m4a|aac|ogg|opus|oga|wav|flac)$/i;
+
+/**
+ * Query params that are transport noise, not identity — dropped from a dynamic
+ * path's key so a rotating cache-buster / per-request token can't defeat dedup or
+ * the exclude blocklist. Identity-bearing params (`id`, `attachmentid`, …) survive.
+ */
+const VOLATILE_PARAMS = new Set([
+  'cb', 'cache', 'nocache', 'bust', 'cachebust', '_', 't', 'ts', 'time', 'timestamp',
+  'v', 'ver', 'version', 'rand', 'random', 'r', 'sig', 'signature', 'token', 'expires', 'exp', 'nonce',
+]);
+
+/**
  * The canonical identity key for a media src. A matching SRC_KEY_RULE decides;
- * otherwise the default: when the path names a file (has an extension), drop the
- * query — image CDNs put transforms/cache/signatures there, not identity — but
- * keep the query for an extension-less (dynamic `?id=`) path, where it may carry
- * the identity. Never throws; returns the raw src when unparseable.
+ * otherwise: a real media-file path drops its whole query (identity is the path);
+ * a dynamic (`.php` / extension-less) path keeps its query but with volatile
+ * transport params stripped, since identity lives there. Never throws; returns
+ * the raw src when unparseable.
  */
 export function canonicalSrcKey(src: string): string {
   let u: URL;
@@ -46,8 +67,14 @@ export function canonicalSrcKey(src: string): string {
   const rule = SRC_KEY_RULES.find((r) => r.match(u));
   if (rule) return rule.key(u);
   const host = u.hostname.toLowerCase();
-  const pathIsFile = /\.[a-z0-9]{2,5}$/i.test(u.pathname);
-  return pathIsFile ? `${host}${u.pathname}` : `${host}${u.pathname}${u.search}`;
+  if (MEDIA_EXT.test(u.pathname)) return `${host}${u.pathname}`;
+  const params = new URLSearchParams(u.search);
+  for (const k of [...params.keys()]) {
+    if (VOLATILE_PARAMS.has(k.toLowerCase())) params.delete(k);
+  }
+  params.sort(); // order-independent: ?a=1&b=2 and ?b=2&a=1 are the same identity
+  const q = params.toString();
+  return q ? `${host}${u.pathname}?${q}` : `${host}${u.pathname}`;
 }
 
 /**

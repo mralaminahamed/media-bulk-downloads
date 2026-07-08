@@ -29,6 +29,31 @@ describe('canonicalSrcKey', () => {
     expect(canonicalSrcKey('https://evilfbcdn.net/v/x.jpg?oh=1')).toBe('evilfbcdn.net/v/x.jpg');
   });
 
+  it('keys Instagram cdninstagram.com edge hosts the same as fbcdn.net (same media path)', () => {
+    const ig = 'https://scontent-lax3-1.cdninstagram.com/v/t51/id_n.jpg?oh=A&oe=B';
+    const fb = 'https://scontent-sea1-1.xx.fbcdn.net/v/t51/id_n.jpg?oh=C&oe=D';
+    expect(canonicalSrcKey(ig)).toBe('fbcdn.net/v/t51/id_n.jpg');
+    expect(canonicalSrcKey(ig)).toBe(canonicalSrcKey(fb));
+  });
+
+  it('keeps two images from the same dynamic script distinct (non-media extension keeps its query)', () => {
+    const a = canonicalSrcKey('https://forum.example.com/attachment.php?attachmentid=1');
+    const b = canonicalSrcKey('https://forum.example.com/attachment.php?attachmentid=2');
+    expect(a).not.toBe(b);
+    expect(a).toBe('forum.example.com/attachment.php?attachmentid=1');
+  });
+
+  it('strips a rotating cache-buster so an excluded dynamic image stays matched', () => {
+    const load1 = canonicalSrcKey('https://ads.example.com/serve?zone=7&cb=1699999999');
+    const load2 = canonicalSrcKey('https://ads.example.com/serve?zone=7&cb=1700000042');
+    expect(load1).toBe(load2);
+    expect(load1).toBe('ads.example.com/serve?zone=7');
+  });
+
+  it('is order-independent for identity query params', () => {
+    expect(canonicalSrcKey('https://site.com/render?a=1&b=2')).toBe(canonicalSrcKey('https://site.com/render?b=2&a=1'));
+  });
+
   it('returns the raw src for an unparseable input', () => {
     expect(canonicalSrcKey('not a url')).toBe('not a url');
   });
