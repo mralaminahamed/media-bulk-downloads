@@ -71,12 +71,14 @@ describe('storage round-trips', () => {
     await restoreExcluded([e('new', 'host', 9)]);
     expect(await loadExcluded()).toEqual([e('new', 'host', 9)]);
   });
-  it('excludedMatchers builds url + host sets', async () => {
+  it('excludedMatchers builds url + host sets, reducing hosts to the registrable domain', async () => {
     await addExcluded(e('https://x/a.png', 'url', 1));
     await addExcluded(e('cdn.ads.com', 'host', 2));
     const m = await excludedMatchers();
     expect(m.urls.has('https://x/a.png')).toBe(true);
-    expect(m.hosts.has('cdn.ads.com')).toBe(true);
+    // Host entries are scoped to the registrable domain so the exclusion covers
+    // sibling subdomains / rotating CDN edges (cdn.ads.com -> ads.com).
+    expect(m.hosts.has('ads.com')).toBe(true);
     expect(m.urls.has('cdn.ads.com')).toBe(false);
   });
   it('loadExcluded drops corrupt entries and coerces time (including a missing time field to 0)', async () => {

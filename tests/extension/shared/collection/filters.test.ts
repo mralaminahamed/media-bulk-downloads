@@ -319,12 +319,20 @@ describe('applyToolbarFilters — sort', () => {
 });
 
 describe('isExcluded / filterExcluded', () => {
-  const m: ExcludedMatchers = { urls: SrcKeySet.from(['https://x/a.png']), hosts: new Set(['cdn.ads.com']) };
+  // Host matchers hold registrable domains (see excludedMatchers / isExcluded).
+  const m: ExcludedMatchers = { urls: SrcKeySet.from(['https://x/a.png']), hosts: new Set(['ads.com']) };
   it('matches an exact url', () => {
     expect(isExcluded('https://x/a.png', m)).toBe(true);
   });
-  it('matches by host', () => {
+  it('matches by host (registrable-domain scoped)', () => {
     expect(isExcluded('https://cdn.ads.com/banner.gif', m)).toBe(true);
+  });
+  it('host exclusion covers sibling subdomains / rotating CDN edges', () => {
+    // Excluding the site (ads.com) matches every subdomain — the fix for host
+    // exclusions that never stuck on rotating edge PoPs.
+    expect(isExcluded('https://static.ads.com/x.png', m)).toBe(true);
+    expect(isExcluded('https://ads.com/y.png', m)).toBe(true);
+    expect(isExcluded('https://notads.com/z.png', m)).toBe(false);
   });
   it('does not match an unrelated src', () => {
     expect(isExcluded('https://x/keep.png', m)).toBe(false);
@@ -349,7 +357,7 @@ describe('isExcluded / filterExcluded', () => {
   it('filterExcluded still filters when only the host set is populated (urls empty)', () => {
     // Guards against the `&&` short-circuit: urls.size === 0 but hosts is not,
     // so the fast-path must NOT trigger and host exclusion must still apply.
-    const hostsOnly: ExcludedMatchers = { urls: SrcKeySet.from([]), hosts: new Set(['cdn.ads.com']) };
+    const hostsOnly: ExcludedMatchers = { urls: SrcKeySet.from([]), hosts: new Set(['ads.com']) };
     const img = (src: string) => ({ src, alt: '', width: 0, height: 0, type: 'png', fileSize: 0, isBase64: false, kind: 'image' as const });
     const items = [img('https://cdn.ads.com/b.gif'), img('https://x/keep.png')];
     expect(filterExcluded(items, hostsOnly).map((i) => i.src)).toEqual(['https://x/keep.png']);

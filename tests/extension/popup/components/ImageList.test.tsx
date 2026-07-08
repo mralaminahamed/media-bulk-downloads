@@ -322,10 +322,11 @@ describe('ImageList Component', () => {
     it('excludes the whole host and closes the modal', () => {
       const onExclude = jest.fn();
       openMenu(onExclude);
-      // The host item is a two-line label: "Exclude host" + the host on a muted
-      // second line, so the accessible name is "Exclude host cdn.example.com".
-      const hostItem = screen.getByRole('menuitem', { name: /exclude host/i });
-      expect(hostItem).toHaveTextContent('cdn.example.com');
+      // The site item is a two-line label: "Exclude site" + the registrable
+      // domain on a muted second line, so the accessible name is
+      // "Exclude site example.com" (cdn.example.com reduces to example.com).
+      const hostItem = screen.getByRole('menuitem', { name: /exclude site/i });
+      expect(hostItem).toHaveTextContent('example.com');
       fireEvent.click(hostItem);
       expect(onExclude).toHaveBeenCalledWith(httpImg, 'host');
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -353,12 +354,12 @@ describe('ImageList Component', () => {
       expect(screen.getByRole('menu')).toBeInTheDocument();
     });
 
-    it('omits the host option when the source has no parseable host', () => {
+    it('omits the site option when the source has no parseable host', () => {
       render(<ImageList images={mockImages} onImageDownload={jest.fn()} onExclude={jest.fn()} />);
       fireEvent.click(screen.getAllByTitle('View Details')[0]);
       fireEvent.click(screen.getByRole('button', { name: 'Exclude source' }));
       expect(screen.getByRole('menuitem', { name: 'Exclude this image' })).toBeInTheDocument();
-      expect(screen.queryByRole('menuitem', { name: /Exclude host/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: /Exclude site/ })).not.toBeInTheDocument();
     });
   });
 

@@ -6,6 +6,7 @@ import { ImageInfo } from '@/types';
 import { deepScanActiveTab } from '@/extension/shared/active-tab/deep-scan-active-tab';
 import { requestResolveOriginals } from '@/extension/shared/active-tab/resolve-originals-active';
 import { excludedMatchers, EXCLUDED_KEY } from '@/extension/shared/storage/excluded';
+import { SrcKeySet } from '@/extension/shared/collection/canonical';
 import { HISTORY_KEY } from '@/extension/shared/storage/history';
 import { FAVOURITES_KEY } from '@/extension/shared/storage/favourites';
 import { buildZip } from '@/extension/shared/download/zip';
@@ -26,12 +27,16 @@ jest.mock('@/extension/shared/active-tab/resolve-originals-active', () => ({
   requestResolveOriginals: jest.fn(async () => ({ 'poster.jpg': { url: 'https://video.twimg.com/hi.mp4' } })),
 }));
 
-jest.mock('@/extension/shared/storage/excluded', () => ({
-  excludedMatchers: jest.fn(async () => ({ urls: new Set(), hosts: new Set() })),
-  // ExcludedPanel (opened from the header) loads the raw list; keep it empty.
-  loadExcluded: jest.fn(async () => []),
-  EXCLUDED_KEY: 'excluded',
-}));
+jest.mock('@/extension/shared/storage/excluded', () => {
+  // urls must be a real SrcKeySet — the optimistic exclude path calls withAdded().
+  const { SrcKeySet: KeySet } = require('@/extension/shared/collection/canonical');
+  return {
+    excludedMatchers: jest.fn(async () => ({ urls: new KeySet(), hosts: new Set() })),
+    // ExcludedPanel (opened from the header) loads the raw list; keep it empty.
+    loadExcluded: jest.fn(async () => []),
+    EXCLUDED_KEY: 'excluded',
+  };
+});
 
 // ZIP is built in the popup context — mock so tests drive the ok/partial/total-fail
 // branches without hitting the network. zipFileName is deterministic here.
@@ -329,7 +334,7 @@ describe('App Component', () => {
 
   it('live-removes excluded sources from the grid on a storage change', async () => {
     const matchersMock = excludedMatchers as jest.Mock;
-    matchersMock.mockResolvedValueOnce({ urls: new Set(), hosts: new Set() }); // initial load: nothing excluded yet
+    matchersMock.mockResolvedValueOnce({ urls: new SrcKeySet(), hosts: new Set() }); // initial load: nothing excluded yet
 
     const { container } = render(
       <App
@@ -346,8 +351,8 @@ describe('App Component', () => {
     await waitFor(() => expect(headerCount()).toBe('2'));
 
     // Next call to excludedMatchers() (triggered by the storage change below)
-    // returns a host match for cdn.ads.com.
-    matchersMock.mockResolvedValueOnce({ urls: new Set(), hosts: new Set(['cdn.ads.com']) });
+    // returns a host match for the ads.com site (registrable-domain scoped).
+    matchersMock.mockResolvedValueOnce({ urls: new SrcKeySet(), hosts: new Set(['ads.com']) });
 
     // App registers its excluded-storage listener last (after history and
     // favourites) on every mount, so the most recently recorded addListener
@@ -616,7 +621,7 @@ describe('App Component', () => {
     await waitFor(() => expect(screen.queryByTitle('Exclude source')).toBeNull());
   });
 
-  it('per-item "Exclude host …" dispatches ADD_EXCLUDED with kind host and the host value', async () => {
+  it('per-item "Exclude site …" dispatches ADD_EXCLUDED with kind host and the registrable domain', async () => {
     render(<App collect={async () => [image({ src: 'https://cdn.ads.com/a.png' })]} />);
     await screen.findByText('Filters');
 
@@ -624,12 +629,14 @@ describe('App Component', () => {
     const detailButtons = await screen.findAllByRole('button', { name: 'View Details' });
     await userEvent.click(detailButtons[0]); // the sole/target seeded item
     await userEvent.click(screen.getByTitle('Exclude source'));
-    await userEvent.click(await screen.findByRole('menuitem', { name: /exclude host/i }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: /exclude site/i }));
 
+    // Host exclusions are scoped to the registrable domain (cdn.ads.com -> ads.com)
+    // so they cover sibling subdomains / rotating CDN edges.
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'ADD_EXCLUDED',
-        entry: expect.objectContaining({ value: 'cdn.ads.com', kind: 'host', time: expect.any(Number) }),
+        entry: expect.objectContaining({ value: 'ads.com', kind: 'host', time: expect.any(Number) }),
       }),
     );
   });

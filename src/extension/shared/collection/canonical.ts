@@ -51,11 +51,26 @@ const VOLATILE_PARAMS = new Set([
 ]);
 
 /**
+ * Query params that only pick a SIZE/FORMAT rendition of the same underlying
+ * image (not a different image). Stripped from a dynamic path's key so the same
+ * source excluded/deduped at one size stays matched at every other size — the
+ * universal equivalent of the fbcdn rule, for any host. e.g. Gravatar
+ * `…/avatar/<hash>?s=52` and `?s=96` collapse to one identity. Kept deliberately
+ * narrow (unambiguous dimensioning) so two genuinely different images sharing a
+ * dynamic endpoint are never merged.
+ */
+const TRANSFORM_PARAMS = new Set([
+  'w', 'h', 'width', 'height', 's', 'size', 'q', 'quality', 'dpr', 'fit', 'crop',
+  'resize', 'scale', 'zoom', 'fm', 'format', 'auto',
+]);
+
+/**
  * The canonical identity key for a media src. A matching SRC_KEY_RULE decides;
  * otherwise: a real media-file path drops its whole query (identity is the path);
  * a dynamic (`.php` / extension-less) path keeps its query but with volatile
- * transport params stripped, since identity lives there. Never throws; returns
- * the raw src when unparseable.
+ * transport params AND size/format transform params stripped, since identity
+ * lives in the remaining params. Never throws; returns the raw src when
+ * unparseable.
  */
 export function canonicalSrcKey(src: string): string {
   let u: URL;
@@ -70,7 +85,8 @@ export function canonicalSrcKey(src: string): string {
   if (MEDIA_EXT.test(u.pathname)) return `${host}${u.pathname}`;
   const params = new URLSearchParams(u.search);
   for (const k of [...params.keys()]) {
-    if (VOLATILE_PARAMS.has(k.toLowerCase())) params.delete(k);
+    const lk = k.toLowerCase();
+    if (VOLATILE_PARAMS.has(lk) || TRANSFORM_PARAMS.has(lk)) params.delete(k);
   }
   params.sort(); // order-independent: ?a=1&b=2 and ?b=2&a=1 are the same identity
   const q = params.toString();

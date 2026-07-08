@@ -19,7 +19,7 @@ import { FilmIcon } from './icons/FilmIcon';
 import { AudioIcon } from './icons/AudioIcon';
 import { LoadingImage } from './LoadingImage';
 import { SelectCheckbox } from './fields/SelectCheckbox';
-import { hostFromUrl } from '@/extension/shared/collection/paths';
+import { hostFromUrl, registrableDomain } from '@/extension/shared/collection/paths';
 
 const SIZE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
 
@@ -378,7 +378,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                           <NoSymbolIcon className="h-4 w-4 shrink-0 text-(--ink-2)" />
                           <span>Exclude this image</span>
                         </button>
-                        {hostFromUrl(selectedImage.src) !== '' && (
+                        {registrableDomain(hostFromUrl(selectedImage.src)) !== '' && (
                           <button
                             role="menuitem"
                             onClick={() => { onExclude(selectedImage, 'host'); close(); }}
@@ -386,8 +386,8 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                           >
                             <GlobeAltIcon className="h-4 w-4 shrink-0 text-(--ink-2)" />
                             <span className="min-w-0 flex-1">
-                              <span className="block text-[13px] leading-tight">Exclude host</span>
-                              <span className="block truncate text-[11px] leading-tight text-(--ink-3)">{hostFromUrl(selectedImage.src)}</span>
+                              <span className="block text-[13px] leading-tight">Exclude site</span>
+                              <span className="block truncate text-[11px] leading-tight text-(--ink-3)">{registrableDomain(hostFromUrl(selectedImage.src))}</span>
                             </span>
                           </button>
                         )}
