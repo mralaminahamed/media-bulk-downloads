@@ -6,7 +6,7 @@ fields, permission notes, the privacy disclosures, required assets, and — the
 part unique to Firefox — the **source-code submission and reproducible build
 instructions** reviewers require.
 
-Version at time of writing: **1.0.0** · Manifest **V3** (Firefox 109+). This is
+Version at time of writing: **1.1.0** · Manifest **V3** (Firefox 109+). This is
 the Firefox sibling of [CHROME_WEBSTORE.md](./CHROME_WEBSTORE.md) and
 [EDGE_ADDONS.md](./EDGE_ADDONS.md); the listing copy is intentionally identical
 so all three stores match.
@@ -30,7 +30,7 @@ so all three stores match.
 
 - [ ] **Firefox account** created and the AMO developer agreement accepted at [addons.mozilla.org/developers](https://addons.mozilla.org/developers/).
 - [ ] `wxt.config.ts` sets the Firefox `gecko.id`, `strict_min_version: '109.0'`, and `data_collection_permissions: { required: ['none'] }`. `yarn build:firefox` emits `.output/firefox-mv3/manifest.json`.
-- [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, host `<all_urls>`.
+- [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`; optional `notifications` (requested at runtime).
 - [ ] Icons 16/32/48/128 present (`src/public/icon/`) — ✅ already in the build; AMO uses the manifest icons (no separate store logo).
 - [ ] `yarn lint` and `wxt build -b firefox` pass clean (AMO runs its own validator on upload too).
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
@@ -126,12 +126,27 @@ content is transmitted.
 the page it came from, and (2) open a media item's source page in a new tab when
 the user asks. No browsing history is collected or sent.
 
+**contextMenus** — adds right-click menu items ("Download all media on this
+page"; on an image/video/audio element, "Download this media", "Download image
+(original quality)", "Add image to Favourites") so the user can act without
+opening the popup. Each triggers the same local download the popup performs.
+
+**offscreen** — runs an offscreen document to carry out media assembly the
+short-lived background script and the popup cannot hold open on their own — such
+as capturing a standard HLS (.m3u8) stream by fetching and joining its segments —
+entirely on the user's device. No page content is transmitted.
+
 **Host permissions — `<all_urls>`** — the extension must read the media elements
 on whatever page the user runs it on, which can be any site. It activates only
 when the user opens the popup or enables the on-page panel. When the optional
 "resolve originals" setting is on, it also fetches a higher-resolution version of
 a downloaded item directly from that media's own CDN. It does not read or
 transmit page content for any other purpose.
+
+**notifications (optional)** — off until the user enables it. Shows a desktop
+notification with the result of a download batch — the only feedback when the
+user downloads via a keyboard shortcut or the right-click menu with no popup
+open. Requested at runtime the first time it is enabled, never at install.
 
 ---
 

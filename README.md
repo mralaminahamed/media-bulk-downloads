@@ -177,6 +177,7 @@ an image for **Download image (original quality)** and **Add image to Favourites
 | `storage`        | Keep your settings and download history locally on your device            |
 | `tabs`           | Read the active tab's URL/title to label downloads and open a source page |
 | `contextMenus`   | Add right-click actions (download all / this image, add to favourites)    |
+| `offscreen`      | Assemble HLS/DASH video streams (fetch + join segments) in the background  |
 | `<all_urls>`     | Read media on whatever page you run the extension on                      |
 
 Optional (requested only when you turn the feature on, never at install):
@@ -212,6 +213,9 @@ upgrade rules for:
 | IKEA / StockSnap / Zillow          | Size query/token → largest preset                   |
 | Next.js / Vercel                   | De-proxy `/_next/image?url=` (absolute + relative)  |
 | Wallhaven                          | PNG/GIF detection → correct extension               |
+| Instagram                          | Post hydration + sniffed GraphQL → full-res image/video (signed CDN) |
+| Bluesky                            | `/img/<rendition>/` → largest CDN sibling / `getBlob` original |
+| Magnific                           | Collapse signed `srcset` widths → single largest rendition |
 
 …and 50+ more CDN families — see the live [coverage benchmark](./docs/BENCHMARK.md).
 
@@ -242,7 +246,7 @@ requests of its own.
 - **React 19** + **TypeScript** — type-safe UI
 - **Tailwind CSS v4** — utility-first styling on a small design-token system
 - **Vite** (via WXT) — fast bundling
-- **Jest** + **Testing Library** — 35 unit/integration suites
+- **Vitest** + **Testing Library** — 73 unit/integration suites
 - **web-ext** — Firefox package validation
 
 ## Project structure
@@ -270,7 +274,7 @@ media-bulk-downloads/
 │   └── types/                # Shared TypeScript types
 ├── assets/                   # Icon master (SVG) + store screenshots
 ├── docs/                     # Guides, benchmark, Chrome Web Store package
-├── tests/                    # Jest suites
+├── tests/                    # Vitest suites
 └── .output/                  # Per-browser build output + zips (generated)
 ```
 
