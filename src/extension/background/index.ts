@@ -42,7 +42,14 @@ let excludedCache: ExcludedMatchers = { urls: new SrcKeySet(), hosts: new Set() 
  *  never filters against an empty cache and lets a blocklisted item through. */
 let excludedReady: Promise<void> = Promise.resolve();
 function reloadExcluded(): void {
-  excludedReady = excludedMatchers().then((m) => { excludedCache = m; });
+  // Keep the last-known-good cache and always resolve on failure: every download
+  // and badge path awaits Promise.all([settingsReady, excludedReady]), so a
+  // rejected excludedReady (a transient storage.local error) would permanently
+  // skip their .then — hanging the popup and freezing every badge. settingsReady
+  // is likewise built to always resolve.
+  excludedReady = excludedMatchers()
+    .then((m) => { excludedCache = m; })
+    .catch(() => { /* retain the previous cache; never wedge the gate */ });
 }
 reloadExcluded();
 
@@ -188,8 +195,10 @@ function updateTabBadge(tabId: number): void {
   void Promise.all([settingsReady, excludedReady]).then(() => {
     chrome.tabs.sendMessage(tabId, 'GET_IMAGES', (images: ImageInfo[]) => {
       // Tabs without a content script (chrome://, the web store, etc.) surface a
-      // lastError; ignore them.
+      // lastError. Clear any stale badge — e.g. the '...' placeholder set while
+      // the tab was loading — instead of leaving it stuck on that tab.
       if (chrome.runtime.lastError) {
+        chrome.action.setBadgeText({ text: '', tabId });
         return;
       }
 
