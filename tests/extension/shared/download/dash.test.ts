@@ -480,6 +480,19 @@ describe('captureDash — e2e mux', () => {
     }
   });
 
+  it('refuses segments a BaseURL aims at an internal host, without fetching them (SSRF guard)', async () => {
+    const fetched: string[] = [];
+    // An MPD-level absolute <BaseURL> relocates every segment/init URL to a
+    // link-local host — the classic SSRF target. The guard must block the fetch.
+    const internal = VOD_MPD.replace('<Period>', '<BaseURL>http://169.254.169.254/</BaseURL><Period>');
+    const d: DashDeps = {
+      fetchText: async () => internal,
+      fetchBytes: async (u: string) => { fetched.push(u); return fx(u.split('/').pop()!); },
+    };
+    await expect(captureDash('https://cdn.test/manifest.mpd', d)).rejects.toBeInstanceOf(DashError);
+    expect(fetched.some((u) => u.includes('169.254.169.254'))).toBe(false);
+  });
+
   it('rejects unsupported when the SegmentTemplate has no initialization segment', () => {
     // media+duration expand fine, but with no @initialization the video track has
     // no init segment (initUri stays ''), which fMP4 muxing requires.
