@@ -126,16 +126,9 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
   const goNext = () => { if (selectedIndex >= 0 && selectedIndex < images.length - 1) setSelectedSrc(images[selectedIndex + 1].src); };
 
   // Dialog wiring (focus, Tab trap, Escape-to-close, focus restore) while open.
+  // Keyed off selectedImage (derived): if the tracked item leaves the list its
+  // index goes -1, selectedImage becomes null, and the modal simply unrenders.
   const previewRef = useDialog(close, selectedImage !== null);
-
-  // If the previewed item leaves the list (dropped by a re-filter), close cleanly
-  // rather than leaving a dangling selection.
-  useEffect(() => {
-    if (selectedSrc !== null && selectedIndex === -1) {
-      setSelectedSrc(null);
-      setExcludeMenuOpen(false);
-    }
-  }, [selectedSrc, selectedIndex]);
 
   // Arrow keys page the modal. Bound only while open; each neighbour is resolved
   // from the current list by position around the tracked item's live index.

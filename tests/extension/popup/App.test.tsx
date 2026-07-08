@@ -29,6 +29,7 @@ jest.mock('@/extension/shared/active-tab/resolve-originals-active', () => ({
 
 jest.mock('@/extension/shared/storage/excluded', () => {
   // urls must be a real SrcKeySet — the optimistic exclude path calls withAdded().
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.mock factories are hoisted above imports.
   const { SrcKeySet: KeySet } = require('@/extension/shared/collection/canonical');
   return {
     excludedMatchers: jest.fn(async () => ({ urls: new KeySet(), hosts: new Set() })),
