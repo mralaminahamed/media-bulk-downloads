@@ -50,16 +50,21 @@ export default [
     },
   },
   {
-    // Test files run under Jest.
+    // Test files run under Jest, but exercise browser APIs (fetch, window, DOM)
+    // under jsdom, so they need the browser globals too.
     files: ['tests/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
     languageOptions: {
       globals: {
+        ...globals.browser,
         ...globals.jest,
         ...globals.node,
       },
     },
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
+      // TypeScript already resolves identifiers, and no-undef false-positives on
+      // type-only DOM names (e.g. `as unknown as RequestInfo`), so turn it off here.
+      'no-undef': 'off',
     },
   },
 ];
