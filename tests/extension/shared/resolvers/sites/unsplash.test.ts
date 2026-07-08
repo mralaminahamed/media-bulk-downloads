@@ -8,9 +8,11 @@ describe('unsplashResolver', () => {
     expect(one('https://images.unsplash.com/photo-123?ixid=abc&w=400&q=80&fm=webp&auto=format&fit=crop').url)
       .toBe('https://images.unsplash.com/photo-123?ixid=abc');
   });
-  it('plus.unsplash.com keeps signature/q, drops only size keys', () => {
-    const r = one('https://plus.unsplash.com/premium_photo-9?w=400&dpr=2&q=80&s=SIGNATURE');
-    expect(r.url).toBe('https://plus.unsplash.com/premium_photo-9?q=80&s=SIGNATURE');
+  it('leaves a signed URL untouched — the imgix s= signature covers the whole query, so stripping size keys would 403', () => {
+    const input = 'https://plus.unsplash.com/premium_photo-9?w=400&dpr=2&q=80&s=SIGNATURE';
+    const r = one(input);
+    expect(r.url).toBe(input);
+    expect(r.thumbnailSrc).toBeUndefined(); // output == input, no smaller preview
   });
   it('reports ext:jpg (Unsplash originals are JPEG, URL has no path extension)', () => {
     expect(one('https://images.unsplash.com/photo-123?w=400&fm=webp').ext).toBe('jpg');

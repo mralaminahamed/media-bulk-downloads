@@ -50,10 +50,18 @@ export function shortcodeFromUrl(url: unknown): string | null {
   return url.match(/\/(?:p|reels?|tv)\/([A-Za-z0-9_-]+)/)?.[1] ?? null;
 }
 
-/** File extension from the CDN path (not the `stp` transform — `jpegr` is HDR, not an ext). */
+/** Real media extensions IG serves. A path ext outside this set (`.exe`, `.svg`,
+ *  `.html`, …) is a spoof smuggled through a page's hydration JSON, so it must
+ *  never reach the download filename — mirrors the EXT allowlist the sniffed path
+ *  enforces in instagram.ts. */
+const IG_EXT = /^(?:jpe?g|png|webp|gif|avif|heic|mp4|mov|webm|m4v)$/i;
+
+/** File extension from the CDN path (not the `stp` transform — `jpegr` is HDR, not an ext).
+ *  Falls back to `jpg` for anything not on the media-extension allowlist. */
 export function extFromIgUrl(url: string): string {
   try {
-    return new URL(url).pathname.match(/\.(\w+)$/)?.[1]?.toLowerCase() ?? 'jpg';
+    const ext = new URL(url).pathname.match(/\.(\w+)$/)?.[1]?.toLowerCase();
+    return ext && IG_EXT.test(ext) ? ext : 'jpg';
   } catch {
     return 'jpg';
   }
