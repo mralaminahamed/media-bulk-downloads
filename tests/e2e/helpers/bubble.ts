@@ -33,3 +33,9 @@ export async function openPanel(page: Page): Promise<void> {
 export async function itemCount(page: Page): Promise<number> {
   return page.getByRole('button', { name: 'View Details' }).count();
 }
+
+/** Assert the grid item count, polling — use after a mutation (exclude, filter)
+ *  whose re-filter is asynchronous, where a one-shot itemCount() would race. */
+export async function expectItemCount(page: Page, n: number): Promise<void> {
+  await expect(page.getByRole('button', { name: 'View Details' })).toHaveCount(n);
+}

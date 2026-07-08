@@ -25,16 +25,26 @@ tests/e2e/
   helpers/
     bubble.ts      # openBubblePage() (seeds bubbleEnabled + opens the launcher),
                    # openPanel(), itemCount()
-  pages/
-    media.html     # static fixture page with sample media (data: SVGs, two
-                   # fbcdn variants that collapse to one item, a distinct host)
+  pages/                  # static fixture pages served to the content script
+    media.html            # data: SVGs + two fbcdn variants that collapse + a host
+    mixed.html            # images + video + audio (kind filters)
+    empty.html            # no media (empty state)
+    twitter.html          # pbs.twimg markup: name= size collapse, profile, og
+    instagram.html        # cdninstagram + image_versions2 hydration JSON + a reel
+    facebook.html         # same fbcdn photo across edge PoPs + signed queries
+    web.html              # srcset / <picture> / lazy / CSS bg / wikipedia /
+                          #   shopify / gallery <a href>
   server/
-    serve.mjs      # zero-dependency static server for pages/, run by webServer
+    serve.mjs             # zero-dependency static server for pages/, run by webServer
   specs/
-    exclude.spec.ts       # exclude by URL + host, Excluded panel, Clear all
-    download.spec.ts      # download an item -> Download History records it
-    favourites.spec.ts    # add a favourite -> Favourites panel lists it
+    exclude.spec.ts       # URL/host/keyboard exclude, no-site-for-data, Escape,
+                          #   persistence, remove-from-panel, Clear all
+    download.spec.ts      # download -> Download History; split-menu; Clear all
+    favourites.spec.ts    # add / add-many / remove / grid-toggle / Clear all
+    filters.spec.ts       # kind filters + search + empty state
     deep-scan.spec.ts     # deep scan runs without dropping the grid
+    sites.spec.ts         # realistic X / Instagram / Facebook / generic-web pages:
+                          #   resolver upgrades, canonical collapse, per-site flows
 ```
 
 Config: `playwright.config.ts` (repo root) — `testDir: tests/e2e`, one worker
