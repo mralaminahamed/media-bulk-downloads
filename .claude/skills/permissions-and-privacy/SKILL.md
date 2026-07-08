@@ -14,7 +14,15 @@ the store justifications (`docs/store-submissions/CHROME_WEBSTORE.md` §4) in sy
 | `downloads.open` | Open a downloaded file from the in-app history (`chrome.downloads.open`) |
 | `storage` | Settings (`storage.sync`) + download history (`storage.local`), on-device |
 | `tabs` | Read the active tab's URL/title to label downloads and open a source URL |
+| `contextMenus` | Right-click actions (download all / this image, add to favourites) |
+| `offscreen` | Assemble HLS/DASH streams (fetch + join segments) in an offscreen document |
 | host `<all_urls>` | Read media on whatever page the user runs it on; opt-in original-resolution fetches to media CDNs |
+
+Optional (requested at runtime when the feature is enabled, never at install):
+
+| Permission | Why |
+|---|---|
+| `notifications` | Desktop toast when a download batch finishes (Settings → Downloads) |
 
 ## Least privilege — before adding a permission
 

@@ -43,7 +43,7 @@ See the per-store upload matrix in the [README](../../README.md#build--package).
 ```bash
 yarn type-check   # wxt prepare + tsc --noEmit
 yarn lint         # eslint (flat config)
-yarn test         # jest + Testing Library (jsdom), with coverage
+yarn test         # vitest + Testing Library (jsdom), with coverage
 yarn build        # production build
 ```
 
@@ -125,7 +125,7 @@ src/
       Bubble.tsx                # launcher + drag/resize + panel placement
       mount.tsx                 # Shadow DOM host + React root mount/unmount
   styles/index.css              # Tailwind v4 + design tokens
-tests/                          # Jest specs mirroring src/
+tests/                          # Vitest specs mirroring src/
 docs/guides/                    # you are here
 ```
 

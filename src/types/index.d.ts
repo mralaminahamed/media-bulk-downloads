@@ -42,8 +42,6 @@ export interface ImageInfo {
    *  assemble segments) rather than downloaded as a single file; `src` holds the
    *  manifest URL too, but it must never be handed to chrome.downloads directly. */
   hlsManifest?: string;
-  /** Approximate stream duration in seconds, when known from the manifest. */
-  durationSec?: number;
 }
 
 /** Preferred name for a collected media item (image, video, or audio). */
@@ -289,7 +287,6 @@ export interface CaptureStreamMessage {
   /** Caller-owned unique id scoping this capture's progress across contexts, so
    *  concurrent captures (e.g. two tabs) never cross-route their progress. */
   runId: string;
-  manifestUrl: string;
   item: ImageInfo;
   sourcePage: { url: string; title?: string };
 }

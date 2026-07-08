@@ -5,7 +5,7 @@ Add-ons store through [Partner Center](https://partner.microsoft.com/dashboard/m
 copy-paste listing fields, per-permission justifications, the privacy
 disclosures, required visual assets, and the packaging steps.
 
-Version at time of writing: **1.0.0** · Manifest **V3** (Chromium — same package
+Version at time of writing: **1.1.0** · Manifest **V3** (Chromium — same package
 family as the Chrome build). This is the Edge sibling of
 [CHROME_WEBSTORE.md](./CHROME_WEBSTORE.md); the listing copy is intentionally
 identical so both stores match.
@@ -22,7 +22,7 @@ identical so both stores match.
 
 - [ ] **Partner Center account** registered for the *Microsoft Edge* program (free — no registration fee).
 - [ ] `wxt.config.ts` name/description correct; version comes from `package.json`. `yarn build:edge` emits `.output/edge-mv3/manifest.json`.
-- [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, host `<all_urls>`.
+- [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`; optional `notifications` (requested at runtime).
 - [ ] Icons 16/32/48/128 present (`src/public/icon/`) — ✅ already in the build.
 - [ ] **Store logo 300×300 PNG** ready (Edge-specific, see §5) — this is the one asset the Chrome package doesn't already give you.
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
@@ -132,6 +132,22 @@ came from in the history, and (2) open a media item's source page in a new tab
 when the user asks. No browsing history is collected or sent.
 ```
 
+**contextMenus**
+```
+Adds right-click menu items — "Download all media on this page", and, on an
+image/video/audio element, "Download this media", "Download image (original
+quality)", and "Add image to Favourites" — so the user can act without opening
+the popup. The items only trigger the same local download the popup performs.
+```
+
+**offscreen**
+```
+Runs an offscreen document to carry out media assembly that the short-lived
+service worker and the popup cannot hold open on their own — such as capturing a
+standard HLS (.m3u8) video stream by fetching and joining its segments — entirely
+on the user's device. No page content is transmitted.
+```
+
 **Host permissions — `<all_urls>`**
 ```
 The extension must read the media elements on whatever page the user runs it on,
@@ -139,6 +155,14 @@ which can be any site. It activates only when the user opens the popup or enable
 the on-page panel. When the optional "resolve originals" setting is on, it also
 fetches a higher-resolution version of a downloaded item directly from that
 media's own CDN. It does not read or transmit page content for any other purpose.
+```
+
+**notifications (optional)**
+```
+Optional, off until the user turns it on. Shows a desktop notification reporting
+the result of a download batch — the only feedback available when the user
+downloads via a keyboard shortcut or the right-click menu with no popup open. It
+is requested at runtime the first time it is enabled, never at install.
 ```
 
 **Testing note for the reviewer**
@@ -273,7 +297,7 @@ CONDITIONAL / NON-OBVIOUS FEATURES
 - Download history: re-download, open file, or reveal in folder.
 
 PERMISSIONS
-downloads / downloads.open: save and reopen files. storage: local settings + history on the device. tabs: label a download with its source page and open that page on request. Host <all_urls>: read media on whatever page the user runs it on; activates only when the user opens the popup or the on-page panel.
+downloads / downloads.open: save and reopen files. storage: local settings + history on the device. tabs: label a download with its source page and open that page on request. contextMenus: right-click download / favourite actions. offscreen: assemble HLS/DASH streams (fetch + join segments) on-device. Host <all_urls>: read media on whatever page the user runs it on; activates only when the user opens the popup or the on-page panel. notifications (optional, runtime): desktop toast when a batch finishes.
 
 PRIVACY
 No data is collected or transmitted; no remote code is executed. Settings and history never leave the device.

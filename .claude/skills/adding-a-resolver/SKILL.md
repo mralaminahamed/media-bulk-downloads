@@ -69,5 +69,5 @@ interface MediaCandidate {
 - fetch() (network tier runs in the background worker) — https://developer.mozilla.org/en-US/docs/Web/API/fetch
 - Content scripts read the page DOM — https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts
 
-Related skill: `testing-and-verifying` (Jest patterns + the browser preview
+Related skill: `testing-and-verifying` (Vitest patterns + the browser preview
 harness) — optional; this skill stands on its own.

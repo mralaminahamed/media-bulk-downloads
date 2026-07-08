@@ -5,7 +5,7 @@ description: Debug this extension's runtime — the background service worker, c
 
 # Debugging the loaded extension
 
-Jest covers logic; runtime bugs need the loaded build. `yarn dev` auto-reloads on
+Vitest covers logic; runtime bugs need the loaded build. `yarn dev` auto-reloads on
 change; after a manual `yarn build`, hit **Reload ↻** on the extension card.
 
 ## Where to look
