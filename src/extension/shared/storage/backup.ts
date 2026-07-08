@@ -17,6 +17,21 @@ function hasStringSrc(entry: unknown): entry is { src: string } {
   return !!entry && typeof entry === 'object' && typeof (entry as { src?: unknown }).src === 'string';
 }
 
+/**
+ * `sourcePageUrl` is rendered as an `<a href>` in the History/Favourites panels,
+ * so a hostile backup could smuggle a `javascript:`/`data:` scheme into that
+ * sink. Drop any value carrying a non-http(s) scheme (leading control chars and
+ * whitespace stripped first so `java\tscript:` / ` javascript:` can't hide one);
+ * relative/scheme-less values — which the panel intentionally shows as raw
+ * text — are kept.
+ */
+function safeSourceUrl(v: unknown): string {
+  if (typeof v !== 'string') return '';
+  const scheme = v.replace(/[\u0000-\u0020]/g, '').match(/^([a-z][a-z0-9+.-]*):/i);
+  if (scheme && scheme[1].toLowerCase() !== 'http' && scheme[1].toLowerCase() !== 'https') return '';
+  return v;
+}
+
 /** Assemble a backup object. `exportedAt` is injected so callers stamp the time. */
 export function buildBackup(
   settings: SettingsData,
@@ -26,6 +41,13 @@ export function buildBackup(
   exportedAt: string,
 ): BackupData {
   return { app: BACKUP_APP, version: BACKUP_VERSION, exportedAt, settings, favourites, history, excluded };
+}
+
+/** Coerce a stored media entry: numeric time, and an href-safe sourcePageUrl. */
+function normalizeEntry<T extends { time?: unknown; sourcePageUrl?: unknown }>(e: T): T {
+  const out = { ...e, time: Number(e.time) || 0 } as T & { sourcePageUrl?: string };
+  if ('sourcePageUrl' in e) out.sourcePageUrl = safeSourceUrl(e.sourcePageUrl);
+  return out;
 }
 
 /**
@@ -50,12 +72,13 @@ export function parseBackup(json: string): BackupData | null {
     exportedAt: typeof obj.exportedAt === 'string' ? obj.exportedAt : '',
     settings: withDefaults((obj.settings ?? {}) as Partial<SettingsData>),
     // Coerce time (like loadX does) so a bad/missing timestamp can't feed NaN into
-    // the newest-first sort + cap on restore.
+    // the newest-first sort + cap on restore, and drop dangerous sourcePageUrl
+    // schemes before they reach the panel's <a href>.
     favourites: Array.isArray(obj.favourites)
-      ? (obj.favourites.filter(hasStringSrc).map((e) => ({ ...e, time: Number((e as FavouriteEntry).time) || 0 })) as FavouriteEntry[])
+      ? (obj.favourites.filter(hasStringSrc).map(normalizeEntry) as FavouriteEntry[])
       : [],
     history: Array.isArray(obj.history)
-      ? (obj.history.filter(hasStringSrc).map((e) => ({ ...e, time: Number((e as HistoryEntry).time) || 0 })) as HistoryEntry[])
+      ? (obj.history.filter(hasStringSrc).map(normalizeEntry) as HistoryEntry[])
       : [],
     // Require a valid kind (matching loadExcluded) — an entry with a valid value
     // but missing/invalid kind would restore into storage yet be filtered out of
