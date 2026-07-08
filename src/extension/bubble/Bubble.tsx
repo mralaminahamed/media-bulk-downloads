@@ -216,6 +216,12 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
     if (!open) deepScanAbortRef.current?.abort();
   }, [open]);
 
+  // Also abort on full unmount — e.g. the bubble is turned off in Settings while a
+  // scan is running. The [open] effect above only covers the panel-close
+  // transition; without this, root.unmount() leaves the page auto-scrolling with
+  // no UI left to stop it. Empty deps → the cleanup fires only on teardown.
+  useEffect(() => () => deepScanAbortRef.current?.abort(), []);
+
   const persist = useCallback((patch: Partial<SettingsData>) => {
     // Route through the background's single serialized settings writer so a drag
     // here and a Settings save in the popup can't clobber each other.
