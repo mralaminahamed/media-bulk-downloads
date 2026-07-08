@@ -1,5 +1,21 @@
 import { installReplayOnReady, installResponseSniffer, installUrlSniffer, makeSnifferEmit } from '@/extension/shared/resolvers/sniffers/response-sniffer';
 
+// jsdom does not implement `Request`, so `input instanceof Request` (the sniffers'
+// check for a Request-shaped fetch argument) would throw a bare ReferenceError —
+// silently swallowed by the sniffers' own defensive try/catch, which would hide
+// the real branch rather than exercise it. A minimal polyfill lets `instanceof`
+// evaluate for real, the same way it does against the browser's own `Request`.
+class FakeRequest {
+  constructor(public url: string) {}
+}
+const origGlobalRequest = (globalThis as { Request?: unknown }).Request;
+beforeAll(() => {
+  (globalThis as { Request?: unknown }).Request = FakeRequest;
+});
+afterAll(() => {
+  (globalThis as { Request?: unknown }).Request = origGlobalRequest;
+});
+
 describe('makeSnifferEmit', () => {
   let posted: unknown[];
   beforeEach(() => {
@@ -102,6 +118,92 @@ describe('installResponseSniffer (fetch path)', () => {
 
     expect(seen).toEqual([]);
   });
+
+  it('resolves the request URL from a Request instance argument (not just a string)', async () => {
+    const seen: string[] = [];
+    window.fetch = jest.fn().mockResolvedValue(jsonResponse('FROM-REQUEST')) as unknown as typeof fetch;
+    installResponseSniffer({ isApi: (u) => u.includes('/api/'), emit: (t) => seen.push(t), urlKey: '__k' });
+    await window.fetch(new FakeRequest('https://site/api/thing') as unknown as Request);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(seen).toEqual(['FROM-REQUEST']);
+  });
+
+  it('resolves the request URL via String() for an argument that is neither a string nor a Request (e.g. a URL object)', async () => {
+    const seen: string[] = [];
+    window.fetch = jest.fn().mockResolvedValue(jsonResponse('FROM-URL-OBJECT')) as unknown as typeof fetch;
+    installResponseSniffer({ isApi: (u) => u.includes('/api/'), emit: (t) => seen.push(t), urlKey: '__k' });
+    await window.fetch(new URL('https://site/api/thing') as unknown as RequestInfo);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(seen).toEqual(['FROM-URL-OBJECT']);
+  });
+
+  it('does not throw and reports nothing when fetch is called with no URL argument at all', async () => {
+    const seen: string[] = [];
+    window.fetch = jest.fn().mockResolvedValue(jsonResponse('X')) as unknown as typeof fetch;
+    installResponseSniffer({ isApi: (u) => u.includes('/api/'), emit: (t) => seen.push(t), urlKey: '__k' });
+    await expect(window.fetch(undefined as unknown as RequestInfo)).resolves.toBeDefined();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(seen).toEqual([]);
+  });
+
+  it('does not emit when the API response has no content-type header at all (missing field)', async () => {
+    const seen: string[] = [];
+    const headerless = { headers: { get: () => null }, clone: () => ({ text: () => Promise.resolve('BODY') }) } as unknown as Response;
+    window.fetch = jest.fn().mockResolvedValue(headerless) as unknown as typeof fetch;
+    installResponseSniffer({ isApi: (u) => u.includes('/api/'), emit: (t) => seen.push(t), urlKey: '__k' });
+    await window.fetch('https://site/api/thing');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(seen).toEqual([]);
+  });
+
+  it('swallows a failure reading the response body and never disturbs the original fetch', async () => {
+    const seen: string[] = [];
+    const brokenBody = {
+      headers: { get: () => 'application/json' },
+      clone: () => ({ text: () => Promise.reject(new Error('stream aborted')) }),
+    } as unknown as Response;
+    window.fetch = jest.fn().mockResolvedValue(brokenBody) as unknown as typeof fetch;
+    installResponseSniffer({ isApi: (u) => u.includes('/api/'), emit: (t) => seen.push(t), urlKey: '__k' });
+    await expect(window.fetch('https://site/api/thing')).resolves.toBe(brokenBody);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(seen).toEqual([]);
+  });
+
+  it('still propagates a fetch rejection to the caller (the page still sees its own network errors)', async () => {
+    const seen: string[] = [];
+    window.fetch = jest.fn().mockRejectedValue(new Error('network down')) as unknown as typeof fetch;
+    installResponseSniffer({ isApi: () => true, emit: (t) => seen.push(t), urlKey: '__k' });
+    await expect(window.fetch('https://site/api/thing')).rejects.toThrow('network down');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(seen).toEqual([]);
+  });
+
+  it('does not emit on load if send() fires without a prior open() call (url never captured)', () => {
+    XMLHttpRequest.prototype.send = jest.fn();
+    const seen: string[] = [];
+    installResponseSniffer({ isApi: (u) => u.includes('/api/'), emit: (t) => seen.push(t), urlKey: '__k' });
+
+    const xhr = new XMLHttpRequest(); // no .open() — the urlKey property was never set
+    Object.defineProperty(xhr, 'responseText', { value: '{"MEDIA":1}', configurable: true });
+    xhr.getResponseHeader = jest.fn().mockReturnValue('application/json');
+    xhr.send();
+    xhr.dispatchEvent(new Event('load'));
+    expect(seen).toEqual([]);
+  });
+
+  it('does not emit on load when the XHR response has no content-type header', () => {
+    XMLHttpRequest.prototype.send = jest.fn();
+    const seen: string[] = [];
+    installResponseSniffer({ isApi: (u) => u.includes('/api/'), emit: (t) => seen.push(t), urlKey: '__k' });
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', 'https://site/api/thing');
+    Object.defineProperty(xhr, 'responseText', { value: '{"MEDIA":1}', configurable: true });
+    xhr.getResponseHeader = jest.fn().mockReturnValue(null); // header missing
+    xhr.send();
+    xhr.dispatchEvent(new Event('load'));
+    expect(seen).toEqual([]);
+  });
 });
 
 describe('installUrlSniffer', () => {
@@ -138,6 +240,30 @@ describe('installUrlSniffer', () => {
     const xhr = new XMLHttpRequest();
     xhr.open('GET', 'https://cdn/x/stream.m3u8');
     expect(seen).toEqual(['https://cdn/x/stream.m3u8']);
+  });
+
+  it('resolves the reported URL from a Request instance argument (not just a string)', async () => {
+    const seen: string[] = [];
+    window.fetch = jest.fn().mockResolvedValue('ok') as unknown as typeof fetch;
+    installUrlSniffer({ isMatch: (u) => u.endsWith('.m3u8'), onUrl: (u) => seen.push(u) });
+    await window.fetch(new FakeRequest('https://cdn/from-request.m3u8') as unknown as Request);
+    expect(seen).toEqual(['https://cdn/from-request.m3u8']);
+  });
+
+  it('resolves the reported URL via String() for an argument that is neither a string nor a Request', async () => {
+    const seen: string[] = [];
+    window.fetch = jest.fn().mockResolvedValue('ok') as unknown as typeof fetch;
+    installUrlSniffer({ isMatch: (u) => u.endsWith('.m3u8'), onUrl: (u) => seen.push(u) });
+    await window.fetch(new URL('https://cdn/from-url-object.m3u8') as unknown as RequestInfo);
+    expect(seen).toEqual(['https://cdn/from-url-object.m3u8']);
+  });
+
+  it('does not throw and reports nothing when fetch is called with no URL argument at all', async () => {
+    const seen: string[] = [];
+    window.fetch = jest.fn().mockResolvedValue('ok') as unknown as typeof fetch;
+    installUrlSniffer({ isMatch: (u) => u.endsWith('.m3u8'), onUrl: (u) => seen.push(u) });
+    await expect(window.fetch(undefined as unknown as RequestInfo)).resolves.toBe('ok');
+    expect(seen).toEqual([]);
   });
 });
 

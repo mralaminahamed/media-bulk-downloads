@@ -62,6 +62,18 @@ describe('extensionFromUrl (edge)', () => {
     expect(extensionFromUrl('https://ex.com/file.name_here')).toBeNull(); // underscore
     expect(extensionFromUrl('https://ex.com/photo.jpeg2000')).toBeNull(); // 8 chars
   });
+
+  it('returns null for a leading-dot dotfile (dot at index 0 is not an extension boundary)', () => {
+    // The last path segment is `.gitignore` — the only dot is the first char, so
+    // `dot <= 0` holds and no extension is derived (would otherwise wrongly return
+    // 'gitignore').
+    expect(extensionFromUrl('https://ex.com/path/.gitignore')).toBeNull();
+    expect(extensionFromUrl('https://ex.com/.env')).toBeNull();
+  });
+
+  it('reads the last extension of a multi-dot filename, ignoring the query', () => {
+    expect(extensionFromUrl('https://ex.com/archive.tar.gz?dl=1')).toBe('gz');
+  });
 });
 
 describe('isHlsManifest', () => {

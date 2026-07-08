@@ -39,4 +39,14 @@ describe('collectFromActiveTab', () => {
 
     await expect(collectFromActiveTab()).rejects.toThrow('Receiving end does not exist');
   });
+
+  it('rejects with a fallback message when lastError carries no message', async () => {
+    (chrome.tabs.query as jest.Mock).mockResolvedValue([{ id: 7 }]);
+    (chrome.tabs.sendMessage as jest.Mock).mockImplementation((_id, _msg, cb) => {
+      (chrome.runtime as { lastError?: unknown }).lastError = {};
+      cb(undefined);
+    });
+
+    await expect(collectFromActiveTab()).rejects.toThrow('unknown error');
+  });
 });

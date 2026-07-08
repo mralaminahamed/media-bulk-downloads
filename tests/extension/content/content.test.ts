@@ -1,3 +1,21 @@
+// The relay listeners forward sniffer payloads into these resolver functions.
+// Spy on just those two entry points (keep the rest of each module real so the
+// collectMedia tests, which pull sniffedHlsManifests / instagramPageMedia from
+// the same modules, are unaffected).
+jest.mock('@/extension/shared/resolvers/sites/instagram', () => ({
+  ...jest.requireActual('@/extension/shared/resolvers/sites/instagram'),
+  ingestSniffedIgMedia: jest.fn(),
+}));
+jest.mock('@/extension/shared/resolvers/sniffers/hls-sniff', () => ({
+  ...jest.requireActual('@/extension/shared/resolvers/sniffers/hls-sniff'),
+  ingestSniffedHls: jest.fn(),
+}));
+// The deep-scan runner is a heavy DOM-scrolling driver; the content script only
+// wires its lifecycle (start / abort / respond), so stub the runner itself.
+jest.mock('@/extension/content/deepScanRunner', () => ({
+  startDeepScan: jest.fn(),
+}));
+
 import {
   isBase64Image,
   getBase64ImageType,
@@ -312,6 +330,29 @@ describe('Content Script', () => {
       document.body.innerHTML = '<img src="blob:https://example.com/abc-123">';
       expect(collectMedia().some((i) => i.src.startsWith('blob:'))).toBe(false);
     });
+
+    it('tolerates an iframe whose contentDocument access throws (cross-origin) and still collects the rest', () => {
+      document.body.innerHTML = '<img src="visible.jpg"><iframe id="f"></iframe>';
+      const iframe = document.getElementById('f') as HTMLIFrameElement;
+      // A cross-origin frame throws on contentDocument access; the walk must catch
+      // it, treat the frame as unreachable, and keep collecting the top document.
+      Object.defineProperty(iframe, 'contentDocument', {
+        configurable: true,
+        get() { throw new Error('cross-origin frame'); },
+      });
+      // jsdom's own getComputedStyle → selector matcher reads iframe.contentDocument
+      // (focusability check); stub it so the ONLY access is collect's explicit,
+      // guarded one — which is the branch under test.
+      const styleSpy = jest
+        .spyOn(window, 'getComputedStyle')
+        .mockReturnValue({ getPropertyValue: () => 'none' } as unknown as CSSStyleDeclaration);
+      try {
+        const srcs = collectMedia().map((i) => i.src);
+        expect(srcs).toContain(abs('visible.jpg'));
+      } finally {
+        styleSpy.mockRestore();
+      }
+    });
   });
 
   describe('Performance', () => {
@@ -324,6 +365,239 @@ describe('Content Script', () => {
       const elapsed = performance.now() - start;
       expect(images.length).toBeGreaterThan(1000);
       expect(elapsed).toBeLessThan(5000);
+    });
+  });
+});
+
+// ── Deep-scan lifecycle message handling ────────────────────────────────────
+// index.ts registers a second runtime.onMessage listener that starts/aborts the
+// deep scan and streams results back through sendResponse. Re-import fresh and
+// grab that listener (the second one registered — the first answers GET_IMAGES).
+describe('Deep scan message handling', () => {
+  const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+
+  interface Wired {
+    handler: (msg: unknown, sender: unknown, sendResponse: (r: unknown) => void) => unknown;
+    startDeepScan: jest.Mock;
+  }
+
+  const wire = (): Wired => {
+    jest.resetModules();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const startDeepScan = require('@/extension/content/deepScanRunner').startDeepScan as jest.Mock;
+    startDeepScan.mockReset();
+    (chrome.storage.sync.get as jest.Mock).mockImplementation(
+      (_keys: unknown, cb: (r: { settings: unknown }) => void) => cb({ settings: {} }),
+    );
+    const addListener = chrome.runtime.onMessage.addListener as jest.Mock;
+    addListener.mockClear();
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('@/extension/content');
+
+    // index.ts registers GET_IMAGES first, then the deep-scan listener second.
+    const handler = addListener.mock.calls[1][0] as Wired['handler'];
+    return { handler, startDeepScan };
+  };
+
+  afterEach(() => {
+    (chrome.storage.sync.get as jest.Mock).mockReset();
+  });
+
+  afterAll(() => {
+    (chrome.runtime.onMessage.addListener as jest.Mock).mockClear();
+    jest.resetModules();
+  });
+
+  it('starts a deep scan and responds with the resolved media', async () => {
+    const { handler, startDeepScan } = wire();
+    const media = [{ src: 'https://ex.com/a.jpg' }];
+    startDeepScan.mockResolvedValue(media);
+
+    const sendResponse = jest.fn();
+    const ret = handler('DEEP_SCAN', {}, sendResponse);
+    expect(ret).toBe(true); // keeps the message channel open for the async reply
+    await flush();
+
+    expect(startDeepScan).toHaveBeenCalled();
+    expect(sendResponse).toHaveBeenCalledWith(media);
+  });
+
+  it('responds with an empty list when the scan rejects', async () => {
+    const { handler, startDeepScan } = wire();
+    startDeepScan.mockRejectedValue(new Error('boom'));
+
+    const sendResponse = jest.fn();
+    handler('DEEP_SCAN', {}, sendResponse);
+    await flush();
+
+    expect(sendResponse).toHaveBeenCalledWith([]);
+  });
+
+  it('streams progress to the popup, including the stop reason', async () => {
+    const { handler, startDeepScan } = wire();
+    (chrome.runtime.sendMessage as jest.Mock).mockReset().mockResolvedValue(undefined);
+    // The runner reports progress via the onProgress callback the content script
+    // supplies; that callback forwards a DEEP_SCAN_PROGRESS message to the popup.
+    startDeepScan.mockImplementation((onProgress: (f: number, s: number, e: number, r?: string) => void) => {
+      onProgress(12, 3, 450, 'maxItems');
+      return Promise.resolve([]);
+    });
+
+    handler('DEEP_SCAN', {}, jest.fn());
+    await flush();
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+      type: 'DEEP_SCAN_PROGRESS', found: 12, scrolls: 3, elapsedMs: 450, reason: 'maxItems',
+    });
+  });
+
+  it('omits the reason field from an interim progress message', async () => {
+    const { handler, startDeepScan } = wire();
+    (chrome.runtime.sendMessage as jest.Mock).mockReset().mockResolvedValue(undefined);
+    startDeepScan.mockImplementation((onProgress: (f: number, s: number, e: number, r?: string) => void) => {
+      onProgress(5, 1, 100); // no stop reason yet
+      return Promise.resolve([]);
+    });
+
+    handler('DEEP_SCAN', {}, jest.fn());
+    await flush();
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+      type: 'DEEP_SCAN_PROGRESS', found: 5, scrolls: 1, elapsedMs: 100,
+    });
+  });
+
+  it('acknowledges a DEEP_SCAN_ABORT synchronously', () => {
+    const { handler } = wire();
+    const sendResponse = jest.fn();
+    const ret = handler('DEEP_SCAN_ABORT', {}, sendResponse);
+    expect(sendResponse).toHaveBeenCalledWith(true);
+    expect(ret).toBeUndefined(); // synchronous — channel not held open
+  });
+
+  it('ignores unrelated messages on the deep-scan listener', () => {
+    const { handler, startDeepScan } = wire();
+    const sendResponse = jest.fn();
+    const ret = handler('SOMETHING_ELSE', {}, sendResponse);
+    expect(ret).toBeUndefined();
+    expect(startDeepScan).not.toHaveBeenCalled();
+    expect(sendResponse).not.toHaveBeenCalled();
+  });
+});
+
+// ── MAIN-world sniffer relay listeners (generic host) ───────────────────────
+// index.ts registers its window 'message' relays at import time. The HLS relay
+// runs on every host, so it is exercised here at the jsdom default location
+// (localhost) — a host that is neither X nor Instagram, which also proves the
+// host-gated X/IG relays are NOT wired off their platforms.
+//
+// jsdom's window.location is `[LegacyUnforgeable]` (immutable at runtime — it
+// can neither be redefined nor reassigned to another origin), so the on-host X
+// and IG relays are covered in sibling files that pin the location per file via
+// `@jest-environment-options` (relay-x.test.ts, relay-ig.test.ts).
+describe('Sniffer relay listeners (generic host)', () => {
+  type Handler = (event: unknown) => void;
+
+  interface Loaded {
+    messageHandlers: Handler[];
+    postSpy: jest.SpyInstance;
+    ingestSniffedIgMedia: jest.Mock;
+    ingestSniffedHls: jest.Mock;
+  }
+
+  let postSpy: jest.SpyInstance | undefined;
+
+  // Re-import the content module fresh and capture the exact window 'message'
+  // handlers it registers, so assertions never depend on listeners left on
+  // `window` by an earlier import (each handler is driven directly).
+  const loadContent = (): Loaded => {
+    jest.resetModules();
+    const addSpy = jest.spyOn(window, 'addEventListener');
+    postSpy = jest.spyOn(window, 'postMessage').mockImplementation(() => {});
+    const sendMessage = chrome.runtime.sendMessage as jest.Mock;
+    sendMessage.mockReset();
+    sendMessage.mockReturnValue(Promise.resolve(undefined));
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('@/extension/content');
+
+    const messageHandlers = addSpy.mock.calls
+      .filter((c) => c[0] === 'message')
+      .map((c) => c[1] as Handler);
+    addSpy.mockRestore();
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const igMod = require('@/extension/shared/resolvers/sites/instagram');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const hlsMod = require('@/extension/shared/resolvers/sniffers/hls-sniff');
+    return {
+      messageHandlers,
+      postSpy,
+      ingestSniffedIgMedia: igMod.ingestSniffedIgMedia,
+      ingestSniffedHls: hlsMod.ingestSniffedHls,
+    };
+  };
+
+  const fire = (handlers: Handler[], event: unknown): void => handlers.forEach((h) => h(event));
+
+  // Build the fields the relay listeners read off a MessageEvent. Defaults to a
+  // same-window, same-origin envelope; `over` swaps in a foreign source/origin.
+  const message = (data: unknown, over: { source?: unknown; origin?: string } = {}): unknown => ({
+    source: 'source' in over ? over.source : window,
+    origin: 'origin' in over ? over.origin : window.location.origin,
+    data,
+  });
+
+  afterEach(() => {
+    postSpy?.mockRestore();
+    postSpy = undefined;
+  });
+
+  afterAll(() => {
+    (chrome.runtime.sendMessage as jest.Mock).mockReset();
+    jest.resetModules();
+  });
+
+  describe('HLS relay', () => {
+    it('feeds a valid ibd-hls envelope to ingestSniffedHls', () => {
+      const { messageHandlers, ingestSniffedHls } = loadContent();
+      const urls = ['https://cdn.example.com/live/index.m3u8'];
+      fire(messageHandlers, message({ source: 'ibd-hls', urls }));
+      expect(ingestSniffedHls).toHaveBeenCalledWith(urls);
+    });
+
+    it('ignores a foreign window source, a foreign origin, a wrong tag, and a non-array urls', () => {
+      const { messageHandlers, ingestSniffedHls } = loadContent();
+      fire(messageHandlers, message({ source: 'ibd-hls', urls: [] }, { source: {} }));
+      fire(messageHandlers, message({ source: 'ibd-hls', urls: [] }, { origin: 'https://evil.example' }));
+      fire(messageHandlers, message({ source: 'ibd-not-hls', urls: [] }));
+      fire(messageHandlers, message({ source: 'ibd-hls', urls: 5 }));
+      fire(messageHandlers, message(null));
+      expect(ingestSniffedHls).not.toHaveBeenCalled();
+    });
+
+    it('posts ibd-hls-ready on registration so the sniffer replays earlier manifests', () => {
+      const { postSpy: spy } = loadContent();
+      expect(spy).toHaveBeenCalledWith({ source: 'ibd-hls-ready' }, window.location.origin);
+    });
+  });
+
+  describe('host gating (neither X nor Instagram)', () => {
+    it('wires only the HLS relay on a generic host', () => {
+      expect(loadContent().messageHandlers).toHaveLength(1);
+    });
+
+    it('does not forward a valid X envelope (X relay not wired here)', () => {
+      const { messageHandlers } = loadContent();
+      fire(messageHandlers, message({ source: 'ibd-x-media', pairs: [{ url: 'https://video.twimg.com/z.mp4' }] }));
+      expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('does not forward a valid IG envelope (IG relay not wired here)', () => {
+      const { messageHandlers, ingestSniffedIgMedia } = loadContent();
+      fire(messageHandlers, message({ source: 'ibd-ig-media', entries: [{ code: 'ABC', kind: 'image', url: 'u' }] }));
+      expect(ingestSniffedIgMedia).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import * as MP4Box from 'mp4box';
+import * as mux from '@/extension/shared/download/mux';
 import {
   parseIso8601Duration,
   substituteTemplate,
@@ -53,6 +54,12 @@ describe('substituteTemplate', () => {
   });
   it('treats $$ as a literal $', () => {
     expect(substituteTemplate('a$$b', {})).toBe('a$b');
+  });
+  it('drops an identifier whose value is undefined (empty substitution)', () => {
+    // The token is well-formed but the var map has no value → it collapses to '',
+    // rather than being left in the URL as a literal `$Time$`.
+    expect(substituteTemplate('seg-$Time$.m4s', {})).toBe('seg-.m4s');
+    expect(substituteTemplate('$RepresentationID$/$Number$', { Number: 3 })).toBe('/3');
   });
 });
 
@@ -142,6 +149,116 @@ describe('parseMpd', () => {
       { t: undefined, d: 500, r: 0 },
     ]);
   });
+
+  it('parses a SegmentTimeline S with a missing d attribute as 0', () => {
+    // An <S> with only t → d/r default to 0 (Number(null)||0), not NaN.
+    const tl = VOD_MPD.replace(
+      '<SegmentTemplate initialization="v_init.m4v" media="v_seg$Number$.m4v" startNumber="1" timescale="1" duration="6"/>',
+      `<SegmentTemplate media="v_seg$Number$.m4v" timescale="1000">
+        <SegmentTimeline><S t="0"/></SegmentTimeline>
+      </SegmentTemplate>`,
+    );
+    expect(parseMpd(tl, 'https://cdn.test/manifest.mpd').video[0].template.timeline).toEqual([{ t: 0, d: 0, r: 0 }]);
+  });
+
+  it('throws unsupported for a non-MPD root element', () => {
+    try {
+      parseMpd('<NotMPD/>', 'https://cdn.test/m.mpd');
+      throw new Error('expected parseMpd to throw');
+    } catch (e) {
+      expect((e as DashError).code).toBe('unsupported');
+      expect((e as DashError).message).toMatch(/not an mpd/i);
+    }
+  });
+
+  it('throws unsupported for XML that does not parse (DOMParser error document)', () => {
+    // jsdom yields a <parsererror> root, whose localName is not "MPD".
+    expect(() => parseMpd('<<<not xml at all', 'https://cdn.test/m.mpd')).toThrow(/unsupported|not an mpd/i);
+  });
+
+  it('leaves durationSec 0 when neither the MPD nor the Period declares a duration', () => {
+    // No mediaPresentationDuration and no Period@duration → duration stays 0.
+    const xml = `<?xml version="1.0"?>
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011">
+  <Period><AdaptationSet mimeType="video/mp4"><Representation id="v" bandwidth="1">
+    <SegmentTemplate media="s$Number$.m4s" duration="6" timescale="1"/>
+  </Representation></AdaptationSet></Period>
+</MPD>`;
+    expect(parseMpd(xml, 'https://cdn.test/m.mpd').durationSec).toBe(0);
+  });
+
+  it('returns empty tracks (keeping duration) when the MPD has no Period', () => {
+    const m = parseMpd(
+      '<?xml version="1.0"?><MPD xmlns="urn:mpeg:dash:schema:mpd:2011" mediaPresentationDuration="PT5S"></MPD>',
+      'https://cdn.test/m.mpd',
+    );
+    expect(m.video).toEqual([]);
+    expect(m.audio).toEqual([]);
+    expect(m.durationSec).toBe(5);
+  });
+
+  it('fills SegmentTemplate defaults, inherits an AdaptationSet template + codecs, and reads Period@duration', () => {
+    // No @type (→ static/VOD), no mediaPresentationDuration (→ Period@duration),
+    // an AdaptationSet-level <SegmentTemplate> with only @media, and a bare
+    // <Representation> (no id/bandwidth/codecs/mimeType) classified by @contentType.
+    const xml = `<?xml version="1.0"?>
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011">
+  <Period duration="PT12S">
+    <AdaptationSet contentType="video" codecs="avc1.42c01e">
+      <SegmentTemplate media="seg-$Number$.m4s"/>
+      <Representation/>
+    </AdaptationSet>
+  </Period>
+</MPD>`;
+    const m = parseMpd(xml, 'https://cdn.test/m.mpd');
+    expect(m.isLive).toBe(false);
+    expect(m.durationSec).toBe(12);
+    expect(m.video).toHaveLength(1);
+    const r = m.video[0];
+    expect(r).toMatchObject({ id: '', bandwidth: 0, contentType: 'video', codecs: 'avc1.42c01e' });
+    // Defaults: no initialization, startNumber 1, timescale 1, no duration/timeline.
+    expect(r.template).toMatchObject({ media: 'seg-$Number$.m4s', startNumber: 1, timescale: 1 });
+    expect(r.template.initialization).toBeUndefined();
+    expect(r.template.duration).toBeUndefined();
+    expect(r.template.timeline).toBeUndefined();
+  });
+
+  it('returns default template + undefined codecs for a Representation with no SegmentTemplate anywhere', () => {
+    // Neither the Representation nor its AdaptationSet defines a SegmentTemplate,
+    // and neither carries @codecs → template defaults, codecs undefined.
+    const xml = `<?xml version="1.0"?>
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" mediaPresentationDuration="PT5S">
+  <Period><AdaptationSet mimeType="video/mp4"><Representation id="v"/></AdaptationSet></Period>
+</MPD>`;
+    const m = parseMpd(xml, 'https://cdn.test/m.mpd');
+    expect(m.video[0].template).toEqual({ startNumber: 1, timescale: 1 });
+    expect(m.video[0].codecs).toBeUndefined();
+  });
+
+  it('reads a SegmentTemplate with initialization but no media (media left undefined)', () => {
+    const xml = `<?xml version="1.0"?>
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" mediaPresentationDuration="PT5S">
+  <Period><AdaptationSet mimeType="video/mp4"><Representation id="v" bandwidth="1">
+    <SegmentTemplate initialization="v_init.m4s"/>
+  </Representation></AdaptationSet></Period>
+</MPD>`;
+    const m = parseMpd(xml, 'https://cdn.test/m.mpd');
+    expect(m.video[0].template.initialization).toBe('v_init.m4s');
+    expect(m.video[0].template.media).toBeUndefined();
+  });
+
+  it('parses ONLY the first Period — a multi-period MPD drops later periods', () => {
+    // LIMITATION (see report): captureDash reads Period[0] only, so a multi-period
+    // VOD loses every representation after the first period. This test pins the
+    // current behaviour so a future multi-period fix is a deliberate change.
+    const xml = `<?xml version="1.0"?>
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" mediaPresentationDuration="PT12S">
+  <Period id="p1"><AdaptationSet mimeType="video/mp4"><Representation id="v1" bandwidth="1"><SegmentTemplate media="a$Number$.m4s" duration="6" timescale="1"/></Representation></AdaptationSet></Period>
+  <Period id="p2"><AdaptationSet mimeType="video/mp4"><Representation id="v2" bandwidth="1"><SegmentTemplate media="b$Number$.m4s" duration="6" timescale="1"/></Representation></AdaptationSet></Period>
+</MPD>`;
+    const m = parseMpd(xml, 'https://cdn.test/m.mpd');
+    expect(m.video.map((v) => v.id)).toEqual(['v1']);
+  });
 });
 
 describe('expandSegments', () => {
@@ -210,6 +327,25 @@ describe('expandSegments', () => {
       'https://cdn.test/x/seg-3.m4s',
     ]);
   });
+
+  it('timeline mode: a first S without @t starts media-time at 0 and accumulates d', () => {
+    // No `t` on any S → time begins at 0 and advances by d. r=1 → 2 segs per S.
+    const out = expandSegments(rep({
+      media: 'seg-$Time$.m4s', timescale: 1, startNumber: 1,
+      timeline: [{ d: 100, r: 1 }],
+    }), 0);
+    expect(out.segmentUris).toEqual(['https://cdn.test/x/seg-0.m4s', 'https://cdn.test/x/seg-100.m4s']);
+  });
+
+  it('timeline mode: an r=-1 with d=0 yields exactly one segment (no divide-by-zero fill)', () => {
+    // s.r < 0 but s.d is not > 0, so the "fill to end" math is skipped and the
+    // S emits a single segment rather than looping forever.
+    const out = expandSegments(rep({
+      media: 'seg-$Number$.m4s', timescale: 1, startNumber: 1,
+      timeline: [{ t: 0, d: 0, r: -1 }],
+    }), 10);
+    expect(out.segmentUris).toEqual(['https://cdn.test/x/seg-1.m4s']);
+  });
 });
 
 describe('selectRepresentation', () => {
@@ -224,6 +360,15 @@ describe('selectRepresentation', () => {
   it('picks the representation closest to a target height', () => {
     const reps = [v('a', 100, 360), v('b', 900, 1080), v('c', 500, 720)];
     expect(selectRepresentation(reps, 720)?.id).toBe('c');
+  });
+  it('falls back to highest bandwidth for a numeric target when no rep carries a height', () => {
+    // A height target with no `height` metadata to match against → highest bw wins.
+    const reps = [v('a', 100), v('c', 900), v('b', 500)];
+    expect(selectRepresentation(reps, 720)?.id).toBe('c');
+  });
+  it('resolves ties on target height toward the higher bandwidth', () => {
+    const reps = [v('lo', 100, 480), v('hi', 900, 480)];
+    expect(selectRepresentation(reps, 480)?.id).toBe('hi');
   });
   it('returns undefined for an empty list', () => {
     expect(selectRepresentation([])).toBeUndefined();
@@ -296,5 +441,39 @@ describe('captureDash — e2e mux', () => {
       fetchBytes: async () => new Uint8Array([1, 2, 3, 4]),
     };
     await expect(captureDash('https://cdn.test/manifest.mpd', garbage)).rejects.toMatchObject({ code: 'unsupported' });
+  });
+
+  it('rejects unsupported when the SegmentTemplate has no initialization segment', () => {
+    // media+duration expand fine, but with no @initialization the video track has
+    // no init segment (initUri stays ''), which fMP4 muxing requires.
+    const NO_INIT_MPD = `<?xml version="1.0"?>
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" type="static" mediaPresentationDuration="PT6S">
+  <Period><AdaptationSet mimeType="video/mp4">
+    <Representation id="v0" bandwidth="1000000">
+      <SegmentTemplate media="v_seg$Number$.m4v" startNumber="1" timescale="1" duration="6"/>
+    </Representation>
+  </AdaptationSet></Period>
+</MPD>`;
+    return captureDash('https://cdn.test/manifest.mpd', deps(NO_INIT_MPD)).then(
+      () => { throw new Error('expected captureDash to reject'); },
+      (e) => {
+        expect((e as DashError).code).toBe('unsupported');
+        expect((e as DashError).message).toMatch(/initialization/i);
+      },
+    );
+  });
+
+  it('rejects empty when the muxer returns zero bytes', async () => {
+    // muxTracks succeeds (no throw) but yields an empty file — the final guard.
+    const spy = jest.spyOn(mux, 'muxTracks').mockReturnValueOnce(new Uint8Array(0));
+    try {
+      const videoOnly = VOD_MPD.replace(/<AdaptationSet mimeType="audio\/mp4">[\s\S]*?<\/AdaptationSet>/, '');
+      await expect(captureDash('https://cdn.test/manifest.mpd', deps(videoOnly))).rejects.toMatchObject({
+        code: 'empty',
+      });
+      expect(spy).toHaveBeenCalledTimes(1);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

@@ -23,6 +23,34 @@ describe('buildDeepScanDeps', () => {
     expect(deps.collect()).toEqual(expect.any(Array));
   });
 
+  it('exposes atBottom and now bindings that delegate to the scroller and the clock', () => {
+    const { deps } = buildDeepScanDeps(() => {});
+    // atBottom() runs the scroller's page-scroll math; now() reads the wall clock.
+    expect(typeof deps.atBottom()).toBe('boolean');
+    const before = Date.now();
+    const t = deps.now();
+    expect(typeof t).toBe('number');
+    expect(t).toBeGreaterThanOrEqual(before);
+  });
+
+  it('resets the quiet window when the DOM mutates (real MutationObserver drives the callback)', async () => {
+    const { deps } = buildDeepScanDeps(() => {});
+    const ctrl = new AbortController();
+    let settled = false;
+    const p = deps.waitForQuiet(ctrl.signal).then(() => { settled = true; });
+
+    // A DOM mutation fires the observer callback, which clears and re-arms the
+    // 400ms quiet timer — so the wait is still pending after only microtasks flush.
+    document.body.appendChild(document.createElement('div'));
+    await new Promise((r) => setTimeout(r, 0)); // deliver the MutationRecords
+    expect(settled).toBe(false);
+
+    // The abort path resolves waitForQuiet immediately.
+    ctrl.abort();
+    await p;
+    expect(settled).toBe(true);
+  });
+
   it('waitForQuiet observes attribute mutations so lazy src swaps reset the quiet window', () => {
     // Lazy loaders swap data-src → src on the same node; without attribute
     // observation the quiet timer never resets for those pages.

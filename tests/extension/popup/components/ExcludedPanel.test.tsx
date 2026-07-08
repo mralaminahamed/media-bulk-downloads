@@ -1,10 +1,18 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ExcludedPanel from '@/extension/popup/components/ExcludedPanel';
 import * as excluded from '@/extension/shared/storage/excluded';
 
 const urlEntry = { value: 'https://c/a.jpg', kind: 'url' as const, time: Date.now() };
 const hostEntry = { value: 'cdn.ads.com', kind: 'host' as const, time: Date.now() };
+
+// Grabs the storage.onChanged listener the panel registered on mount so a test
+// can drive a storage-change event through it.
+type ChangeListener = (changes: Record<string, chrome.storage.StorageChange>, area: string) => void;
+const lastStorageListener = (): ChangeListener => {
+  const calls = (chrome.storage.onChanged.addListener as jest.Mock).mock.calls;
+  return calls[calls.length - 1][0] as ChangeListener;
+};
 
 describe('ExcludedPanel', () => {
   beforeEach(() => {
@@ -41,5 +49,55 @@ describe('ExcludedPanel', () => {
     jest.spyOn(excluded, 'loadExcluded').mockResolvedValue([]);
     render(<ExcludedPanel onClose={() => {}} />);
     expect(await screen.findByText('No excluded sources.')).toBeInTheDocument();
+  });
+
+  it('removes a url entry via the background', async () => {
+    render(<ExcludedPanel onClose={() => {}} />);
+    await screen.findByText('a.jpg');
+    fireEvent.click(screen.getByRole('button', { name: /remove https:\/\/c\/a\.jpg/i }));
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'REMOVE_EXCLUDED', kind: 'url', value: 'https://c/a.jpg' }),
+    );
+  });
+
+  it('labels a url entry with a non-URL value using the raw string', async () => {
+    jest.spyOn(excluded, 'loadExcluded').mockResolvedValue([{ value: 'not a url', kind: 'url', time: Date.now() }]);
+    render(<ExcludedPanel onClose={() => {}} />);
+    expect(await screen.findByText('not a url')).toBeInTheDocument();
+  });
+
+  it('labels a data: url entry readably instead of the raw payload', async () => {
+    jest.spyOn(excluded, 'loadExcluded').mockResolvedValue([
+      { value: 'data:image/png;base64,AAAABBBBCCCC', kind: 'url', time: Date.now() },
+    ]);
+    render(<ExcludedPanel onClose={() => {}} />);
+    expect(await screen.findByText('Embedded image')).toBeInTheDocument();
+  });
+
+  it('labels a url entry by host when there is no basename, and by raw value when there is no host', async () => {
+    jest.spyOn(excluded, 'loadExcluded').mockResolvedValue([
+      { value: 'https://host.example/', kind: 'url', time: 2000 },
+      { value: 'file:///', kind: 'url', time: 1000 },
+    ]);
+    render(<ExcludedPanel onClose={() => {}} />);
+    expect(await screen.findByText('host.example')).toBeInTheDocument();
+    expect(screen.getByText('file:///')).toBeInTheDocument();
+  });
+
+  it('reloads on a relevant excluded storage change and ignores irrelevant ones', async () => {
+    render(<ExcludedPanel onClose={() => {}} />);
+    await screen.findByText('cdn.ads.com');
+    const listener = lastStorageListener();
+    (excluded.loadExcluded as jest.Mock).mockResolvedValue([{ value: 'evil.example', kind: 'host', time: Date.now() }]);
+
+    // Wrong area and wrong key are both ignored — no reload.
+    await act(async () => { listener({ [excluded.EXCLUDED_KEY]: {} }, 'sync'); });
+    await act(async () => { listener({ somethingElse: {} }, 'local'); });
+    expect(excluded.loadExcluded).toHaveBeenCalledTimes(1);
+
+    // A local change to the excluded key reloads and reflects the new data.
+    await act(async () => { listener({ [excluded.EXCLUDED_KEY]: {} }, 'local'); });
+    expect(await screen.findByText('evil.example')).toBeInTheDocument();
+    expect(excluded.loadExcluded).toHaveBeenCalledTimes(2);
   });
 });

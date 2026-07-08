@@ -1,5 +1,10 @@
-import { downloadExtension, originalNameFromUrl } from '@/extension/shared/collection/download-name';
-import { ImageInfo } from '@/types';
+import {
+  downloadExtension,
+  originalNameFromUrl,
+  extensionForType,
+  buildDownloadFilename,
+} from '@/extension/shared/collection/download-name';
+import { ImageInfo, SettingsData } from '@/types';
 
 describe('downloadExtension', () => {
   it('honors an explicit ext override on a video item even though the type maps to a different extension', () => {
@@ -110,5 +115,128 @@ describe('originalNameFromUrl', () => {
   it('returns null when sanitizing leaves nothing usable', () => {
     // A basename made entirely of illegal filename characters sanitizes to ''.
     expect(originalNameFromUrl('https://cdn.com/%3C%3E%7C.jpg')).toBeNull();
+  });
+});
+
+describe('extensionForType', () => {
+  it('maps jpeg to the conventional .jpg (matching URL-captured .jpg)', () => {
+    expect(extensionForType('jpeg')).toBe('jpg');
+  });
+  it('passes through the other known raster/vector formats verbatim', () => {
+    for (const t of ['png', 'gif', 'webp', 'svg', 'avif', 'bmp', 'ico']) {
+      expect(extensionForType(t)).toBe(t);
+    }
+  });
+  it('falls back to jpg for any unrecognized type', () => {
+    // The default branch: an unknown or non-image type should still yield a safe,
+    // openable extension rather than an empty or bogus one.
+    expect(extensionForType('unknown')).toBe('jpg');
+    expect(extensionForType('jfif')).toBe('jpg'); // canonicalizes to jpeg elsewhere, not in this table
+    expect(extensionForType('')).toBe('jpg');
+  });
+});
+
+describe('buildDownloadFilename', () => {
+  const settings: SettingsData = {
+    downloadPath: '',
+    fileNamePrefix: 'image_',
+    popupWidth: 400,
+    popupHeight: 600,
+    showImageCount: true,
+    minimumImageSize: 0,
+    excludeBase64Images: false,
+    excludeEmoji: false,
+    saveAs: false,
+    notifyOnComplete: false,
+    convertImagesTo: 'off',
+    namingMode: 'prefixed',
+    thumbnailSize: 120,
+    previewSize: 360,
+    bubbleEnabled: false,
+    bubblePosition: { corner: 'bottom-right', x: 20, y: 20 },
+    bubbleWidth: 440,
+    bubbleHeight: 560,
+    bubblePanelPlacement: 'anchored',
+    bubblePanelPoint: { x: 40, y: 40 },
+    resolveOriginals: false,
+    captureHlsStreams: false,
+    deepScanMaxItems: 1000,
+    deepScanMaxSeconds: 20,
+    deepScanMaxScrolls: 40,
+    deepScanClickLoadMore: false,
+  };
+  const image = (over: Partial<ImageInfo>): ImageInfo => ({
+    src: 'https://cdn.com/path/photo.jpg', alt: '', width: 0, height: 0,
+    type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image', ...over,
+  });
+
+  it('prefixed mode: builds <prefix><index+1>.<ext>, index is 1-based', () => {
+    // index 0 -> _1; the extension comes from the type (jpeg -> jpg).
+    expect(buildDownloadFilename(image({}), 0, settings)).toBe('image_1.jpg');
+    expect(buildDownloadFilename(image({}), 4, settings)).toBe('image_5.jpg');
+  });
+
+  it('prefixed mode: falls back to image_ when the configured prefix sanitizes to empty', () => {
+    // A prefix made only of illegal path chars sanitizes to '' -> the `|| 'image_'`
+    // fallback keeps the name well-formed.
+    expect(buildDownloadFilename(image({}), 0, { ...settings, fileNamePrefix: '<<<' })).toBe('image_1.jpg');
+    // A custom prefix is honored otherwise.
+    expect(buildDownloadFilename(image({}), 0, { ...settings, fileNamePrefix: 'shot-' })).toBe('shot-1.jpg');
+  });
+
+  it('original mode: uses the URL basename + detected extension', () => {
+    expect(buildDownloadFilename(image({ src: 'https://cdn.com/a/sunset.png', type: 'png' }), 2, { ...settings, namingMode: 'original' }))
+      .toBe('sunset.png');
+  });
+
+  it('original mode: falls back to the prefixed name when the URL yields no basename', () => {
+    // A data: URI has no derivable name (originalNameFromUrl -> null), so the
+    // prefixed sequential name is used instead.
+    expect(buildDownloadFilename(image({ src: 'data:image/png;base64,AAAA' }), 0, { ...settings, namingMode: 'original' }))
+      .toBe('image_1.jpg');
+  });
+
+  it('prepends the expanded download-path template as a folder', () => {
+    // {domain} and {kind} resolve against sourcePageUrl; date is omitted to keep
+    // the assertion deterministic.
+    const result = buildDownloadFilename(
+      image({ kind: 'image' }),
+      0,
+      { ...settings, downloadPath: 'Media/{domain}/{kind}' },
+      'https://www.example.com/gallery/page',
+    );
+    expect(result).toBe('Media/example.com/image/image_1.jpg');
+  });
+
+  it('collapses an empty {host} token segment but still returns dir/fileName', () => {
+    // No sourcePageUrl -> host '' -> the {host} segment collapses away, leaving a
+    // shorter (but non-empty) directory.
+    const result = buildDownloadFilename(
+      image({}),
+      0,
+      { ...settings, downloadPath: '{host}/pics' },
+    );
+    expect(result).toBe('pics/image_1.jpg');
+  });
+
+  it('returns just the filename when the template expands to an empty path', () => {
+    // downloadPath resolves to '' (all tokens empty) -> the `dir ? ... : fileName`
+    // false branch returns the bare filename with no leading slash.
+    const result = buildDownloadFilename(
+      image({}),
+      0,
+      { ...settings, downloadPath: '{host}' }, // no sourcePageUrl -> host '' -> dir ''
+    );
+    expect(result).toBe('image_1.jpg');
+  });
+
+  it('uses the item ext override in the built name (a/v capture)', () => {
+    // A captured HLS video muxed to mp4: ext override flows through downloadExtension.
+    const result = buildDownloadFilename(
+      image({ kind: 'video', type: 'm3u8', src: 'https://x/master.m3u8', ext: 'mp4' }),
+      0,
+      settings,
+    );
+    expect(result).toBe('image_1.mp4');
   });
 });

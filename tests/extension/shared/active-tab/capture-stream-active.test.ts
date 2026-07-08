@@ -49,4 +49,13 @@ describe('requestCaptureStream', () => {
     listener({ type: 'SOMETHING_ELSE' });
     expect(onProgress).not.toHaveBeenCalled();
   });
+
+  it('resolves to a fallback status when the background sends no response (e.g. disconnected)', async () => {
+    (chrome.runtime.sendMessage as jest.Mock).mockImplementation((_msg, cb) => cb(undefined));
+
+    const promise = requestCaptureStream('https://x/m.m3u8', item, { url: 'https://x/watch' }, jest.fn());
+
+    await expect(promise).resolves.toBe('Couldn’t capture the stream.');
+    expect(chrome.runtime.onMessage.removeListener).toHaveBeenCalled();
+  });
 });
