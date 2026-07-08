@@ -1,11 +1,13 @@
-import { createCipheriv, randomBytes, webcrypto } from 'crypto';
+// @vitest-environment node
+import { createCipheriv, randomBytes } from 'crypto';
 import { browserHlsDeps, webcryptoDecrypt } from '@/extension/shared/download/hls-webcrypto';
 
-// Always back crypto with Node's WebCrypto. Some jsdom builds expose a
-// crypto.subtle whose importKey rejects Buffer/TypedArray inputs (the chronic
-// Node-20 CI failure) — a presence check alone wouldn't catch that — so override
-// unconditionally to exercise the real AES-CBC path on every runtime.
-Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true });
+// Runs in the node environment (not jsdom): jsdom is a separate JS realm, and
+// Node 20's webcrypto rejects a cross-realm typed array (ERR_INVALID_ARG_TYPE)
+// handed to importKey. Under node env the typed arrays are Node-realm and
+// globalThis.crypto is Node's real WebCrypto, so the AES-CBC path runs on every
+// supported Node version. This file exercises only crypto + global fetch (no
+// DOM), so it needs nothing jsdom provides.
 
 /** AES-128-CBC + PKCS7 encrypt via node:crypto — the exact scheme HLS uses. */
 function aesCbcEncrypt(key: Uint8Array, iv: Uint8Array, plain: Uint8Array): Uint8Array {
