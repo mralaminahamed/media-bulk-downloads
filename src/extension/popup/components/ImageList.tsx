@@ -92,7 +92,9 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
   const onExcludeMenuKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
     const items = Array.from(excludeMenuListRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
     if (!items.length) return;
-    const root = excludeMenuListRef.current?.getRootNode() as unknown as DocumentOrShadowRoot | undefined;
+    // getRootNode() is Document in the popup and ShadowRoot in the bubble; both
+    // expose activeElement. Type it structurally to avoid a lib-global name.
+    const root = excludeMenuListRef.current?.getRootNode() as unknown as { activeElement: Element | null } | undefined;
     const current = items.indexOf(root?.activeElement as HTMLElement);
     let next: number;
     switch (e.key) {
@@ -109,7 +111,12 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
   useEffect(() => {
     if (!excludeMenuOpen) return;
     const onPointer = (e: MouseEvent): void => {
-      if (excludeMenuRef.current && !excludeMenuRef.current.contains(e.target as Node)) setExcludeMenuOpen(false);
+      // Use composedPath, not `contains(e.target)`: on the on-page bubble this
+      // component lives in a shadow root, and a document-level listener sees the
+      // event RETARGETED to the shadow host — so `contains` would report every
+      // click (even one on a menu item) as "outside" and close the menu before
+      // the item's onClick fires. composedPath includes the shadow-internal nodes.
+      if (excludeMenuRef.current && !e.composedPath().includes(excludeMenuRef.current)) setExcludeMenuOpen(false);
     };
     // Capture phase + stopPropagation so Escape closes ONLY the menu — useDialog's
     // bubble-phase Escape (which closes the whole modal) never receives the event.
