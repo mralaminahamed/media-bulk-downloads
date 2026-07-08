@@ -233,6 +233,21 @@ describe('Content Script', () => {
       const images = collectMedia();
       expect(images.find((img) => img.alt === 'Non-image data URI')).toBeUndefined();
     });
+
+    it('drops <img> whose src carries a dangerous or non-http scheme (javascript:/file:)', async () => {
+      // Only http(s) and data:image ever become candidates. A javascript: src can
+      // never be a media file, and file: would read the local disk — neither must
+      // survive into MediaItem.src (which flows to <a href> / chrome.downloads).
+      document.body.innerHTML += `
+        <img src="javascript:alert(1)" alt="js-scheme">
+        <img src="file:///etc/passwd" alt="file-scheme">
+      `;
+      const images = collectMedia();
+      expect(images.some((i) => i.alt === 'js-scheme')).toBe(false);
+      expect(images.some((i) => i.alt === 'file-scheme')).toBe(false);
+      expect(images.some((i) => i.src.startsWith('javascript:'))).toBe(false);
+      expect(images.some((i) => i.src.startsWith('file:'))).toBe(false);
+    });
   });
 
   describe('CSS Background Images', () => {

@@ -337,3 +337,42 @@ describe('resolveOriginal — unknown platform', () => {
     expect(called).toBe(false);
   });
 });
+
+describe('resolveOriginal — id injection is neutralized', () => {
+  // A resolver id ultimately comes from the page. Even though extraction regexes
+  // constrain it, network.ts percent-encodes every id before splicing it into an
+  // API URL — so a hostile id can't add path segments, extra query params, or a
+  // different host. These assert that defense directly.
+  const capture = () => {
+    const urls: string[] = [];
+    const fetch = (async (u: string) => {
+      urls.push(u);
+      return { ok: true, json: async () => ({}) };
+    }) as unknown as typeof globalThis.fetch;
+    return { urls, fetch };
+  };
+
+  it('percent-encodes a hostile twitter id into the syndication query (no path/host/param escape)', async () => {
+    const { urls, fetch } = capture();
+    const hostile = '123/../../evil?token=leak&x';
+    await resolveOriginal({ platform: 'twitter', id: hostile }, { fetch });
+    expect(new URL(urls[0]).hostname).toBe('cdn.syndication.twimg.com');
+    expect(urls[0]).toContain(`id=${encodeURIComponent(hostile)}`);
+    expect(urls[0]).not.toContain('123/../../evil');
+  });
+
+  it('percent-encodes a hostile wallhaven id into the API path', async () => {
+    const { urls, fetch } = capture();
+    await resolveOriginal({ platform: 'wallhaven', id: '../../secret' }, { fetch });
+    expect(new URL(urls[0]).hostname).toBe('wallhaven.cc');
+    expect(urls[0]).toContain(encodeURIComponent('../../secret'));
+    expect(urls[0]).not.toContain('/w/../../secret');
+  });
+
+  it('percent-encodes a hostile unsplash id into the download path', async () => {
+    const spy = (async () => ({ ok: true, json: async () => ({}) })) as unknown as typeof fetch;
+    const res = await resolveOriginal({ platform: 'unsplash', id: '../../@evil' }, { fetch: spy });
+    expect(res).toEqual({ url: `https://unsplash.com/photos/${encodeURIComponent('../../@evil')}/download` });
+    expect((res as { url: string }).url).not.toContain('/photos/../../');
+  });
+});
