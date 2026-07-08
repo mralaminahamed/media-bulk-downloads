@@ -274,7 +274,8 @@ media-bulk-downloads/
 │   └── types/                # Shared TypeScript types
 ├── assets/                   # Icon master (SVG) + store screenshots
 ├── docs/                     # Guides, benchmark, Chrome Web Store package
-├── tests/                    # Vitest suites
+├── tests/unit/               # Vitest unit/integration suites
+├── tests/e2e/                # Playwright e2e (loads the built extension)
 └── .output/                  # Per-browser build output + zips (generated)
 ```
 

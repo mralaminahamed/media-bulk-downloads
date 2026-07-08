@@ -2,7 +2,7 @@ import type { Mock } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import Settings from './../../../../src/extension/popup/components/Settings';
+import Settings from '@/extension/popup/components/Settings';
 import { DEFAULT_SETTINGS } from '@/extension/shared/storage/settings';
 import { SettingsData } from '@/types';
 

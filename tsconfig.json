@@ -13,5 +13,5 @@
     // (`vitest/globals` provides the ambient describe/it/expect/vi).
     "types": ["chrome", "node", "vitest/globals", "@testing-library/jest-dom"]
   },
-  "include": ["src", "tests", "wxt.config.ts", "web-ext.config.ts", ".wxt/wxt.d.ts"]
+  "include": ["src", "tests", "wxt.config.ts", "web-ext.config.ts", "vitest.config.ts", "playwright.config.ts", ".wxt/wxt.d.ts"]
 }

@@ -67,4 +67,20 @@ export default [
       'no-undef': 'off',
     },
   },
+  {
+    // Playwright e2e: specs + fixtures + the static fixture server. Node globals
+    // (the server, process) plus browser globals (page.evaluate bodies run in the
+    // page). Playwright's fixture signature `async ({}, use)` trips React's
+    // rules-of-hooks (on `use`) and no-empty-pattern — neither applies to e2e.
+    files: ['tests/e2e/**/*.{ts,mjs}'],
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.node },
+    },
+    plugins: { 'react-hooks': reactHooks },
+    rules: {
+      'no-undef': 'off',
+      'no-empty-pattern': 'off',
+      'react-hooks/rules-of-hooks': 'off',
+    },
+  },
 ];
