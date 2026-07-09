@@ -28,6 +28,11 @@ import { addExcluded, removeExcluded, clearExcluded, restoreExcluded, excludedMa
 import { STREAM_MAX_BYTES, STREAM_TARGET_HEIGHT } from '../shared/download/capture-constants';
 import { streamErrorMessage } from '../shared/download/stream-error-message';
 import { newCaptureRunId } from '../shared/active-tab/capture-stream-active';
+import {
+  initQueueDispatcher, enqueueDownloads, reconcileQueue,
+  pauseQueue, resumeQueue, cancelQueue, retryQueueItem, getQueueSnapshot,
+} from './download-queue';
+import type { HistoryDraft, QueueState } from '../shared/storage/download-queue';
 
 // Re-exported for the background test suite, which imports them from here.
 export { DEFAULT_SETTINGS, sanitizePathSegment, buildDownloadFilename, extensionForType, originalNameFromUrl };
@@ -551,6 +556,19 @@ if (chrome.storage?.sync) {
   loadSettings();
 }
 
+// Wire the persistent download queue (#196). Concurrency + saveAs are read
+// lazily so a queue item dispatched later always uses the current settings, even
+// if the worker woke before settings finished loading. On startup, reconcile any
+// downloads left mid-flight when the worker died, then resume pending items.
+initQueueDispatcher({
+  getConcurrency: () => currentSettings.downloadConcurrency,
+  getSaveAs: () => currentSettings.saveAs,
+});
+chrome.runtime.onStartup?.addListener(() => {
+  void reconcileQueue();
+});
+void settingsReady.then(() => reconcileQueue()).catch(() => {});
+
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'sync' && changes.settings) {
     currentSettings = withDefaults(changes.settings.newValue as Partial<SettingsData>);
@@ -636,7 +654,9 @@ async function ensureOffscreen(): Promise<void> {
 }
 
 /** Response callback shape for the background message router. */
-type SendResponse = (response: DownloadResponse | ResolveOriginalsResponse | string[] | CaptureStreamResponse) => void;
+type SendResponse = (
+  response: DownloadResponse | ResolveOriginalsResponse | string[] | CaptureStreamResponse | QueueState,
+) => void;
 
 /**
  * One handler per message `type`. A handler returns `true` to keep the
@@ -667,10 +687,11 @@ const messageRouter: MessageRouter = {
   DOWNLOAD_IMAGES: (message, _sender, respond) => {
     const { images, sourcePage } = message;
     // Wait for settings so the filter and the built filenames use the user's
-    // real settings, not defaults, when this message woke the worker. Report
-    // the status only after the downloads are dispatched, so the popup shows
-    // the real outcome (how many started / failed) rather than a premature,
-    // never-updated "Downloading…".
+    // real settings, not defaults, when this message woke the worker. The popup
+    // bulk-download path hands items to the persistent queue (retry/resume/
+    // concurrency + real per-file success tracking, #196) rather than firing
+    // chrome.downloads directly; history is recorded on actual completion, not
+    // on dispatch. The response reports how many were queued.
     void Promise.all([settingsReady, excludedReady]).then(async () => {
       try {
         // An explicit re-download (Favourites/History panel) bypasses the
@@ -680,18 +701,51 @@ const messageRouter: MessageRouter = {
         const eligible = message.explicit
           ? images
           : filterExcluded(filterImagesBySettings(images, currentSettings), excludedCache);
-        const result = await downloadAndRecord(eligible, sourcePage);
+        const entries = eligible.map((image, index) => {
+          const filename = buildDownloadFilename(image, index, currentSettings, sourcePage?.url);
+          const history: HistoryDraft = {
+            src: image.src,
+            filename: filename.split('/').pop() ?? filename,
+            kind: image.kind,
+            type: image.type,
+            thumbnailSrc: image.thumbnailSrc ?? image.poster ?? image.src,
+            sourcePageUrl: sourcePage?.url ?? '',
+            sourcePageTitle: sourcePage?.title,
+          };
+          return { url: image.src, filename, history };
+        });
+        const queued = await enqueueDownloads(entries);
         respond({
-          status: result.failed > 0 && result.succeeded === 0 ? 'error' : 'success',
-          message: downloadStatusMessage(result),
+          status: 'success',
+          message: queued === 0 ? 'No files to download.' : `Queued ${queued} download${queued === 1 ? '' : 's'}.`,
         });
       } catch (e) {
         // Without this the port stays open and the popup hangs on "Sending…"
-        // forever if recordDownloads (a storage write near quota) rejects.
-        respond({ status: 'error', message: `Download failed: ${e instanceof Error ? e.message : 'unknown error'}` });
+        // forever if the queue write (a storage.local set near quota) rejects.
+        respond({ status: 'error', message: `Queue failed: ${e instanceof Error ? e.message : 'unknown error'}` });
       }
     });
-    return true; // response is sent asynchronously after the downloads dispatch
+    return true; // response is sent asynchronously after the items are enqueued
+  },
+  QUEUE_PAUSE: (_message, _sender, respond) => {
+    void pauseQueue().then(() => respond({ status: 'success', message: 'Paused' }));
+    return true;
+  },
+  QUEUE_RESUME: (_message, _sender, respond) => {
+    void resumeQueue().then(() => respond({ status: 'success', message: 'Resumed' }));
+    return true;
+  },
+  QUEUE_CANCEL: (message, _sender, respond) => {
+    void cancelQueue(message.id ?? 'all').then(() => respond({ status: 'success', message: 'Cancelled' }));
+    return true;
+  },
+  QUEUE_RETRY: (message, _sender, respond) => {
+    void retryQueueItem(message.id).then(() => respond({ status: 'success', message: 'Retrying' }));
+    return true;
+  },
+  QUEUE_GET: (_message, _sender, respond) => {
+    void getQueueSnapshot().then((snap) => respond(snap));
+    return true;
   },
 
   DOWNLOAD_ZIP: (message, _sender, respond) => {

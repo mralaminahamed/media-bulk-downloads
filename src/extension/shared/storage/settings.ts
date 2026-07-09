@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS: SettingsData = {
   bubblePanelPoint: { x: 40, y: 40 },
   resolveOriginals: false,
   captureHlsStreams: false,
+  downloadConcurrency: 5,
   deepScanMaxItems: 1000,
   deepScanMaxSeconds: 20,
   deepScanMaxScrolls: 40,

@@ -26,19 +26,26 @@ const setSettings = (patch: Partial<SettingsData>) =>
 
 describe('background DOWNLOAD_IMAGES handler', () => {
   beforeEach(() => {
-    // Each download succeeds (chrome hands back a numeric downloadId). The handler
-    // awaits every download before it reports the final status, so the mock must
-    // invoke the callback — a bare vi.fn() would leave the response pending.
+    // Each download succeeds (chrome hands back a numeric downloadId). The queue
+    // dispatcher invokes chrome.downloads.download per item — the mock must call
+    // the callback so startDownload resolves.
     (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb(1));
-    // Reset storage each test so a per-test reject (the port-leak case) can't bleed
-    // into a sibling test's recordDownloads.
-    (chrome.storage.local.get as Mock).mockResolvedValue({ downloadHistory: [] });
-    (chrome.storage.local.set as Mock).mockReset().mockResolvedValue(undefined);
-    setSettings({}); // reset to defaults
+    // The persistent queue round-trips through storage.local, so give each test a
+    // fresh, string-key-aware in-memory store (the enqueue write must be visible to
+    // pump's read). A static mockResolvedValue would make pump always read empty.
+    const local: Record<string, unknown> = {};
+    (chrome.storage.local.get as Mock).mockReset().mockImplementation(
+      async (k: string) => (typeof k === 'string' && k in local ? { [k]: local[k] } : {}),
+    );
+    (chrome.storage.local.set as Mock).mockReset().mockImplementation(
+      async (o: Record<string, unknown>) => { Object.assign(local, o); },
+    );
+    setSettings({}); // reset to defaults (concurrency 5)
   });
 
   // The handler waits for the settings gate (resolved by setSettings above), then
-  // dispatches and awaits the downloads, so assertions run after a microtask flush.
+  // enqueues and the dispatcher pumps downloads; a single macrotask drains the
+  // whole withState microtask chain up to each download() call.
   const flush = () => new Promise((r) => setTimeout(r, 0));
 
   it('downloads every eligible image with a prefixed, 1-indexed name', async () => {
@@ -68,7 +75,7 @@ describe('background DOWNLOAD_IMAGES handler', () => {
       },
       expect.any(Function),
     );
-    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloaded 2 files.' });
+    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Queued 2 downloads.' });
   });
 
   it('responds with an error instead of hanging when the history write rejects', async () => {
@@ -119,12 +126,13 @@ describe('background DOWNLOAD_IMAGES handler', () => {
       expect.objectContaining({ url: 'big.jpg' }),
       expect.any(Function),
     );
-    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloaded 1 file.' });
+    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Queued 1 download.' });
   });
 
-  it('reports the real outcome when some downloads fail to start', async () => {
-    // Second download fails (no id + lastError); the status must reflect it,
-    // not a blanket "success".
+  it('acknowledges the queued count even when a download fails to start (queue retries)', async () => {
+    // The response now reports how many items were ENQUEUED — the queue owns the
+    // per-file outcome and retries a failed start with backoff, rather than the
+    // old synchronous "N failed" report.
     let n = 0;
     (chrome.downloads.download as Mock).mockImplementation((_o, cb) => {
       n += 1;
@@ -140,10 +148,13 @@ describe('background DOWNLOAD_IMAGES handler', () => {
     onMessage({ type: 'DOWNLOAD_IMAGES', images: [img({ src: 'a.jpg' }), img({ src: 'b.jpg' })] }, {}, sendResponse);
     await flush();
 
-    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Downloaded 1 of 2 files — 1 failed.' });
+    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Queued 2 downloads.' });
   });
 
-  it('reports a failure when no download starts', async () => {
+  it('does not report failure on a failed start — the item is left for retry, not dropped', async () => {
+    // A start that returns no id (transient error) used to be a hard failure; the
+    // queue instead requeues it with a backoff (attempts incremented), so the user
+    // never silently loses a file.
     (chrome.downloads.download as Mock).mockImplementation((_o, cb) => {
       (chrome.runtime as unknown as { lastError?: unknown }).lastError = { message: 'x' };
       cb(undefined);
@@ -153,7 +164,7 @@ describe('background DOWNLOAD_IMAGES handler', () => {
     onMessage({ type: 'DOWNLOAD_IMAGES', images: [img({ src: 'a.jpg' })] }, {}, sendResponse);
     await flush();
 
-    expect(sendResponse).toHaveBeenCalledWith({ status: 'error', message: "Couldn't download 1 file." });
+    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Queued 1 download.' });
   });
 
   it('ignores unrelated messages and returns false so the port closes (no channel leak)', () => {

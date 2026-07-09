@@ -161,6 +161,17 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
               onToggle={() => toggle('saveAs')}
             />
 
+            <NumberField
+              id="set-downloadConcurrency"
+              name="downloadConcurrency"
+              label="Simultaneous downloads:"
+              min={1}
+              max={10}
+              value={settings.downloadConcurrency}
+              onChange={handleChange}
+              onBlur={clampOnBlur('downloadConcurrency', 1, 10)}
+            />
+
             <ToggleRow
               id="set-notify"
               label="Notify when downloads finish"

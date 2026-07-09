@@ -339,9 +339,27 @@ export interface SetSettingsMessage {
   };
 }
 
+export type QueuePauseMessage = { type: 'QUEUE_PAUSE' };
+export type QueueResumeMessage = { type: 'QUEUE_RESUME' };
+export interface QueueCancelMessage {
+  type: 'QUEUE_CANCEL';
+  /** Omit to cancel all still-live (queued/active) items. */
+  id?: string;
+}
+export interface QueueRetryMessage {
+  type: 'QUEUE_RETRY';
+  id: string;
+}
+export type QueueGetMessage = { type: 'QUEUE_GET' };
+
 export type ChromeMessage =
   | DownloadMessage
   | SetSettingsMessage
+  | QueuePauseMessage
+  | QueueResumeMessage
+  | QueueCancelMessage
+  | QueueRetryMessage
+  | QueueGetMessage
   | DownloadZipMessage
   | DownloadTextMessage
   | DownloadBytesMessage
@@ -441,6 +459,8 @@ export interface SettingsData {
    *  segment (slow, memory-heavy), so it's an explicit opt-in rather than something
    *  the grid shows unasked. */
   captureHlsStreams: boolean;
+  /** Max simultaneous file downloads the queue dispatches (1–10). */
+  downloadConcurrency: number;
   /** Deep-scan caps — the scan stops at whichever is reached first. */
   deepScanMaxItems: number;
   deepScanMaxSeconds: number;
