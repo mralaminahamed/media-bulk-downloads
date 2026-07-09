@@ -174,6 +174,36 @@ describe('upgradeToOriginal', () => {
       'https://example.com/cdn-cgi/image/width=800/uploads/hero.jpg',
       'https://example.com/uploads/hero.jpg',
     ],
+    [
+      'Met swaps web-large -> original (CC0 master)',
+      'https://images.metmuseum.org/CRDImages/ep/web-large/DT1234.jpg',
+      'https://images.metmuseum.org/CRDImages/ep/original/DT1234.jpg',
+    ],
+    [
+      'NASA swaps ~medium -> ~orig',
+      'https://images-assets.nasa.gov/image/PIA12345/PIA12345~medium.jpg',
+      'https://images-assets.nasa.gov/image/PIA12345/PIA12345~orig.jpg',
+    ],
+    [
+      'NatGeo strips ?w&h to the master',
+      'https://i.natgeofe.com/n/abc-uuid-1234/photo.jpg?w=760&h=500',
+      'https://i.natgeofe.com/n/abc-uuid-1234/photo.jpg',
+    ],
+    [
+      'Nike replaces the Cloudinary transform with w_2000,c_limit,f_auto',
+      'https://static.nike.com/a/images/c_limit,w_592,f_auto,q_auto:eco/hash-uuid/air.png',
+      'https://static.nike.com/a/images/w_2000,c_limit,f_auto/hash-uuid/air.png',
+    ],
+    [
+      'adidas raises w_600 -> w_1920',
+      'https://assets.adidas.com/images/w_600,f_auto,q_auto/abc123/shoe.jpg',
+      'https://assets.adidas.com/images/w_1920,f_auto,q_auto/abc123/shoe.jpg',
+    ],
+    [
+      'adidas brand subdomain also matches',
+      'https://brand.assets.adidas.com/images/w_500,f_auto/x/y.jpg',
+      'https://brand.assets.adidas.com/images/w_1920,f_auto/x/y.jpg',
+    ],
   ];
 
   it.each(cases)('%s', (_name, input, expected) => {
@@ -316,6 +346,33 @@ describe('upgradeToOriginal', () => {
       expect(r.original).toBe(url);
       expect(r.thumbnail).toBeUndefined();
     }
+  });
+
+  it('leaves Met/NASA URLs already at the master size unchanged', () => {
+    for (const url of [
+      'https://images.metmuseum.org/CRDImages/ep/original/DT1234.jpg', // already /original/
+      'https://images-assets.nasa.gov/image/PIA12345/PIA12345~orig.jpg', // already ~orig
+    ]) {
+      const r = upgradeToOriginal(url);
+      expect(r.original).toBe(url);
+      expect(r.thumbnail).toBeUndefined();
+    }
+  });
+
+  it('does not touch a Nike path whose first segment is not a Cloudinary transform', () => {
+    // A bare original (no transform segment before the hash) must be left alone —
+    // isCloudinaryTransform gates the swap so the hash is never mistaken for one.
+    const url = 'https://static.nike.com/a/images/abcdef123456/air.png';
+    const r = upgradeToOriginal(url);
+    expect(r.original).toBe(url);
+    expect(r.thumbnail).toBeUndefined();
+  });
+
+  it('adidas never downgrades a width already >= 1920', () => {
+    const url = 'https://assets.adidas.com/images/w_2500,f_auto/abc/shoe.jpg';
+    const r = upgradeToOriginal(url);
+    expect(r.original).toBe(url);
+    expect(r.thumbnail).toBeUndefined();
   });
 
   it('discards a wikimedia rewrite that would empty the path', () => {

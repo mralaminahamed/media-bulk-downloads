@@ -418,6 +418,56 @@ const RULES: CdnRule[] = [
     },
   },
   // ──────────────────────────────────────────────────────────────────────────
+  // ── Tier-3 content / museum / retail (#225 → #226) ────────────────────────
+  {
+    // The Met (images.metmuseum.org): the CRDImages path carries a size folder
+    // (web-large, mobile-large, …). Swap web-large -> original for the full CC0
+    // master. Verified 272 KB -> 8.3 MB. See #226.
+    match: (u) => u.hostname === 'images.metmuseum.org',
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/\/web-large\//, '/original/');
+    },
+  },
+  {
+    // NASA image library (images-assets.nasa.gov): /<id>/<id>~<size>.<ext> where
+    // <size> is thumb/small/medium/orig. Swap to ~orig for the public-domain
+    // master. Verified 176 KB -> 1.4 MB. See #226.
+    match: (u) => u.hostname === 'images-assets.nasa.gov',
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/~(?:thumb|small|medium)(?=\.[a-z0-9]+$)/i, '~orig');
+    },
+  },
+  {
+    // National Geographic (i.natgeofe.com): ?w=&h= dynamic resizer; the bare path
+    // is the in-page master (no watermark/paywall). Verified 17 KB -> 546 KB. #226
+    match: (u) => u.hostname === 'i.natgeofe.com',
+    rewrite: (u) => dropParams(u, ['w', 'h']),
+  },
+  {
+    // Nike (static.nike.com): custom-domain Cloudinary at /a/images/<transform>/
+    // <hash>/<file>. The res.cloudinary.com rule below does NOT match this host,
+    // so Nike gets its own: replace the leading transform segment with
+    // w_2000,c_limit,f_auto (c_limit clamps at source — never upscales). Guarded
+    // by isCloudinaryTransform so a URL that is already the bare original (no
+    // transform segment) is left untouched. Verified 1 KB -> 485 KB. See #226.
+    match: (u) => u.hostname === 'static.nike.com' && u.pathname.startsWith('/a/images/'),
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/(\/a\/images\/)([^/]+)(\/)/, (whole, pre, seg, post) =>
+        isCloudinaryTransform(seg) ? `${pre}w_2000,c_limit,f_auto${post}` : whole);
+    },
+  },
+  {
+    // adidas (assets.adidas.com, brand.assets.adidas.com): custom-domain
+    // Cloudinary with a w_<N> width param. Raise it to w_1920 (adidas clamps via
+    // if_w_gt_1920, so 1920 never upscales past source); only RAISE — a larger
+    // requested width is left as-is, never downgraded. See #226.
+    match: (u) => /(?:^|\.)assets\.adidas\.com$/i.test(u.hostname),
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/(^|[/,])w_(\d+)(?=[,/])/gi, (m, pre, n) =>
+        parseInt(n, 10) < 1920 ? `${pre}w_1920` : m);
+    },
+  },
+  // ──────────────────────────────────────────────────────────────────────────
   {
     // Cloudinary: strip the leading transformation segment(s) right after
     // /upload/. A transform segment is a comma-list of `<key>_<value>` params

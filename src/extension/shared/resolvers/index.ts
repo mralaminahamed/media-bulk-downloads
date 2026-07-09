@@ -1,4 +1,5 @@
 import { MediaCandidate, Resolver, ResolveContext } from './types';
+import { arcxpResolver } from './sites/arcxp';
 import { artstationResolver } from './sites/artstation';
 import { behanceResolver } from './sites/behance';
 import { bskyResolver } from './sites/bsky';
@@ -14,7 +15,7 @@ import { unsplashResolver } from './sites/unsplash';
 import { wallhavenResolver } from './sites/wallhaven';
 import { youtubeResolver } from './sites/youtube';
 
-export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, facebookResolver, unsplashResolver, wallhavenResolver, behanceResolver, bskyResolver, pinterestResolver, redditResolver, flickrResolver, artstationResolver, magnificResolver, youtubeResolver, genericResolver];
+export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, facebookResolver, unsplashResolver, wallhavenResolver, behanceResolver, bskyResolver, pinterestResolver, redditResolver, flickrResolver, artstationResolver, magnificResolver, arcxpResolver, youtubeResolver, genericResolver];
 
 export function resolve(rawUrl: string, ctx: ResolveContext): MediaCandidate[] {
   let u: URL;
