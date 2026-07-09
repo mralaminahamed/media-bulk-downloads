@@ -62,13 +62,15 @@ describe('App — Facebook original-capture control', () => {
     expect(captureOriginals).not.toHaveBeenCalled();
   });
 
-  it('merges captured originals into the collection by canonical src key', async () => {
+  it('replaces the collection with the captured snapshot — the upgraded photo does not duplicate the low-res tile', async () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { fbCaptureOriginals: true } }));
+    // captureOriginals resolves a COMPLETE fresh snapshot of the page (not a delta) —
+    // here, the same photo upgraded to a different (full-res) CDN path.
     const captureOriginals = vi.fn(async () => [
-      image({ src: 'https://cdn.com/new.jpg' }),
+      image({ src: 'https://x.fbcdn.net/hires/a_n.jpg' }),
     ]) as never;
     const { container } = render(
-      <App collect={async () => [image({ src: 'https://cdn.com/a.jpg' })]} captureOriginals={captureOriginals} />,
+      <App collect={async () => [image({ src: 'https://x.fbcdn.net/lowres/a_n.jpg' })]} captureOriginals={captureOriginals} />,
     );
     await screen.findByText('Filters');
     const headerCount = () => container.querySelector('header .num')?.textContent;
@@ -77,6 +79,27 @@ describe('App — Facebook original-capture control', () => {
     fireEvent.click(await screen.findByRole('button', { name: /full-res originals/i }));
     fireEvent.click(await screen.findByRole('button', { name: /continue/i }));
 
-    await waitFor(() => expect(headerCount()).toBe('2'));
+    // Still exactly one item — no duplicate row for the same photo.
+    await waitFor(() => expect(headerCount()).toBe('1'));
+    expect(screen.getByRole('img', { name: 'Test' })).toHaveAttribute('src', 'https://x.fbcdn.net/hires/a_n.jpg');
+  });
+
+  it('never wipes the collection on an empty/failed capture', async () => {
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { fbCaptureOriginals: true } }));
+    const captureOriginals = vi.fn(async () => []) as never;
+    const { container } = render(
+      <App collect={async () => [image({ src: 'https://x.fbcdn.net/lowres/a_n.jpg' })]} captureOriginals={captureOriginals} />,
+    );
+    await screen.findByText('Filters');
+    const headerCount = () => container.querySelector('header .num')?.textContent;
+    expect(headerCount()).toBe('1');
+
+    fireEvent.click(await screen.findByRole('button', { name: /full-res originals/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /continue/i }));
+
+    await waitFor(() => expect(captureOriginals).toHaveBeenCalled());
+    // Collection unchanged — still the original low-res item, not wiped.
+    expect(headerCount()).toBe('1');
+    expect(screen.getByRole('img', { name: 'Test' })).toHaveAttribute('src', 'https://x.fbcdn.net/lowres/a_n.jpg');
   });
 });

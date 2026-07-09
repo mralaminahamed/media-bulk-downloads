@@ -391,17 +391,18 @@ const App: React.FC<AppProps> = ({
     setCaptureProgress(null);
     try {
       const found = await captureOriginals((p) => setCaptureProgress(p));
-      // Merge into the existing set by CANONICAL src key, same as deep scan —
-      // a captured original replacing/joining a lower-res tile shouldn't duplicate.
-      const bySrc = new Map(rawImagesRef.current.map((m) => [canonicalSrcKey(m.src), m]));
-      found.forEach((m) => {
-        const key = canonicalSrcKey(m.src);
-        if (!bySrc.has(key)) bySrc.set(key, m);
-      });
-      const merged = [...bySrc.values()];
-      rawImagesRef.current = merged;
-      const eligible = filterExcluded(filterImagesBySettings(merged, settings), excludedRef.current);
-      applyResolution(eligible, settings);
+      // Capture UPGRADES existing photos to a new full-res URL, so an additive merge
+      // (as in handleDeepScan) would leave both the low-res and full-res rows. `found`
+      // is a complete fresh collectMedia() snapshot of the page (all tiles, upgraded),
+      // so replace the collection with it — but never on an empty/failed capture,
+      // which would wipe what the user already had.
+      if (found.length) {
+        rawImagesRef.current = found;
+        const eligible = filterExcluded(filterImagesBySettings(found, settings), excludedRef.current);
+        applyResolution(eligible, settings);
+      } else {
+        setState((prev) => ({ ...prev, status: 'No originals captured.' }));
+      }
     } catch (e) {
       setState((prev) => ({ ...prev, status: e instanceof Error ? e.message : 'capture failed' }));
     } finally {
