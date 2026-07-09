@@ -73,7 +73,7 @@ recording.
 `downloadedSrcSet`), `src/extension/background/index.ts` (`downloadAndRecord`, and
 the `CLEAR_HISTORY` / `REMOVE_HISTORY_ENTRY` / `OPEN_DOWNLOAD_FILE` /
 `SHOW_DOWNLOAD` message handlers), and
-`src/extension/popup/components/HistoryPanel.tsx`.
+`src/extension/popup/components/panels/HistoryPanel.tsx`.
 
 See also: [Download](./download.md) · [Favourites](./favourites.md) ·
 [Architecture](./architecture.md).

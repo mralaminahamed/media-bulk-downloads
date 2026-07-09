@@ -10,7 +10,7 @@ import { textToBase64 } from '../shared/download/base64';
 import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk } from '../shared/storage/history';
 import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } from '../shared/storage/favourites';
 import { addExcluded, removeExcluded, clearExcluded, restoreExcluded } from '../shared/storage/excluded';
-import { streamErrorMessage } from '../shared/download/stream-error-message';
+import { streamErrorMessage } from '../shared/download/stream/stream-error-message';
 import {
   enqueueDownloads, pauseQueue, resumeQueue, cancelQueue, retryQueueItem, getQueueSnapshot,
 } from './download-queue';

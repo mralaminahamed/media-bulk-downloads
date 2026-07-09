@@ -84,8 +84,8 @@ readability.
 | `shared/resolvers/network.ts`                      | The opt-in resolver: actual `fetch()` calls (Twitter syndication API, Wallhaven API, Unsplash download endpoint)                             |
 | `shared/resolvers/types.ts`                        | `Resolver` / `MediaCandidate` / `ResolveContext` contracts shared by the registry                                                            |
 | `popup/`                                           | Popup React app                                                                                                                              |
-| `popup/components/HistoryPanel.tsx`                | Download History panel UI — list, re-download, open file, reveal in folder, remove, clear all                                                |
-| `popup/components/FavouritesPanel.tsx`             | Favourites panel UI — list, download, open source, remove, clear all                                                                         |
+| `popup/components/panels/HistoryPanel.tsx`                | Download History panel UI — list, re-download, open file, reveal in folder, remove, clear all                                                |
+| `popup/components/panels/FavouritesPanel.tsx`             | Favourites panel UI — list, download, open source, remove, clear all                                                                         |
 | `extension/components/BrandMark.tsx`               | Shared brand-icon SVG — single source of truth for the popup header and bubble launcher icon                                                 |
 | `bubble/`                                          | In-page bubble React app (isolated Shadow DOM)                                                                                               |
 

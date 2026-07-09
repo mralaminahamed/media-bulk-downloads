@@ -1,7 +1,7 @@
-import { captureHls, HlsError } from '@/extension/shared/download/hls';
-import { captureDash, DashError } from '@/extension/shared/download/dash';
-import { browserHlsDeps } from '@/extension/shared/download/hls-webcrypto';
-import { browserDashDeps } from '@/extension/shared/download/dash-fetch';
+import { captureHls, HlsError } from '@/extension/shared/download/stream/hls';
+import { captureDash, DashError } from '@/extension/shared/download/stream/dash';
+import { browserHlsDeps } from '@/extension/shared/download/stream/hls-webcrypto';
+import { browserDashDeps } from '@/extension/shared/download/stream/dash-fetch';
 import { CaptureRunMessage, CaptureRunResult } from '@/types';
 
 /**

@@ -7,10 +7,10 @@ import {
 } from '@heroicons/react/24/outline';
 import { FavouriteEntry } from '@/types';
 import { loadFavourites, FAVOURITES_KEY } from '@/extension/shared/storage/favourites';
-import { relativeTime, sendRuntimeMessage } from '../utils';
-import { LoadingImage } from './LoadingImage';
-import { useDialog } from '../hooks/useDialog';
-import { ClearAllButton } from './fields/ClearAllButton';
+import { relativeTime, sendRuntimeMessage } from '../../utils';
+import { LoadingImage } from '../LoadingImage';
+import { useDialog } from '../../hooks/useDialog';
+import { ClearAllButton } from '../fields/ClearAllButton';
 
 export interface FavouritesPanelProps {
   onClose: () => void;

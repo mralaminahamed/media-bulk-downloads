@@ -1,4 +1,4 @@
-import { streamErrorMessage } from '@/extension/shared/download/stream-error-message';
+import { streamErrorMessage } from '@/extension/shared/download/stream/stream-error-message';
 
 describe('streamErrorMessage', () => {
   it('maps each known code to a specific message', () => {

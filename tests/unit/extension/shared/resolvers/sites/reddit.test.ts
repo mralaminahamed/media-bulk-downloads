@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { redditResolver } from '@/extension/shared/resolvers/sites/reddit';
-import { parseMaster, parseAudioRenditions, selectVariant, selectAudioRendition, isMasterPlaylist } from '@/extension/shared/download/hls';
+import { parseMaster, parseAudioRenditions, selectVariant, selectAudioRendition, isMasterPlaylist } from '@/extension/shared/download/stream/hls';
 
 const resolve = (href: string) => redditResolver.resolve(new URL(href), { allowNetwork: false });
 const m = (href: string) => redditResolver.match(new URL(href), { allowNetwork: false });

@@ -1,5 +1,5 @@
-import { isConvertible, convertImage, isAnimatedImage, ConvertDeps } from '@/extension/shared/download/convert';
-import { extractMetadata } from '@/extension/shared/download/metadata';
+import { isConvertible, convertImage, isAnimatedImage, ConvertDeps } from '@/extension/shared/download/convert/convert';
+import { extractMetadata } from '@/extension/shared/download/convert/metadata';
 import { ImageInfo } from '@/types';
 
 const img = (o: Partial<ImageInfo>): ImageInfo =>
