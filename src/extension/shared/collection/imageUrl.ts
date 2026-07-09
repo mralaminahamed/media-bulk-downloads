@@ -279,6 +279,27 @@ function isCloudinaryTransform(seg: string): boolean {
   });
 }
 
+// IIIF Image API canonical URL tail: /{region}/{size}/{rotation}/{quality}.{format}
+// (https://iiif.io/api/image/). Matching the tail *shape* alone is too loose — a
+// plain path like /2020/03/15/default.jpg would look like it — so region and size
+// are each validated against the IIIF grammar. Only then is it an IIIF URL.
+const IIIF_TAIL =
+  /\/([^/]+)\/([^/]+)\/(!?\d+(?:\.\d+)?)\/(default|color|gray|bitonal)\.(jpe?g|tiff?|png|gif|jp2|pdf|webp)$/i;
+/** region: full | square | x,y,w,h | pct:x,y,w,h */
+const IIIF_REGION = /^(?:full|square|\d+,\d+,\d+,\d+|pct:[\d.]+,[\d.]+,[\d.]+,[\d.]+)$/i;
+// size: full | max | pct:n | w, | ,h | w,h | !w,h. The 3.x `^` upscale prefix is
+// deliberately unhandled — it percent-encodes to `%5E` in a real URL path, so an
+// upscale request simply fails this test and passes through unchanged (safe: we
+// only ever downscale a size to `full`, never synthesize an upscale).
+const IIIF_SIZE = /^(?:full|max|pct:\d+(?:\.\d+)?|!?(?:\d+,\d*|,\d+))$/i;
+
+/** Returns the IIIF tail match iff region+size are valid IIIF tokens; else null. */
+function iiifTail(pathname: string): RegExpExecArray | null {
+  const m = IIIF_TAIL.exec(pathname);
+  if (!m || !IIIF_REGION.test(m[1]) || !IIIF_SIZE.test(m[2])) return null;
+  return m;
+}
+
 const RULES: CdnRule[] = [
   {
     // Twitter/X: name=<size> -> name=orig, keep format.
@@ -309,9 +330,14 @@ const RULES: CdnRule[] = [
     },
   },
   {
-    // Unsplash (images + plus) + Imgix: query-param resizers.
+    // Unsplash (images + plus) + Imgix: query-param resizers. images.rawpixel.com
+    // is an imgix *vanity* host (it does NOT end in .imgix.net, so the .imgix.net
+    // test misses it) serving CC0/public-domain masters — stripping the resize
+    // params reaches the origin. See #224.
     match: (u) =>
-      /(?:^|\.)(?:images|plus)\.unsplash\.com$/.test(u.hostname) || /\.imgix\.net$/.test(u.hostname),
+      /(?:^|\.)(?:images|plus)\.unsplash\.com$/.test(u.hostname) ||
+      /\.imgix\.net$/.test(u.hostname) ||
+      u.hostname === 'images.rawpixel.com',
     rewrite: (u) => dropParams(u, RESIZE_PARAMS),
   },
   {
@@ -341,6 +367,25 @@ const RULES: CdnRule[] = [
     match: (u) => u.pathname.includes('/thumb/') && /\/[^/]*px-[^/]+$/i.test(u.pathname),
     rewrite: (u) => {
       u.pathname = u.pathname.replace(/\/thumb\//, '/').replace(/\/[^/]*px-[^/]+$/i, '');
+    },
+  },
+  {
+    // IIIF Image API — a spec, not a host (like the MediaWiki /thumb/ rule above).
+    // The canonical URL ends /{region}/{size}/{rotation}/{quality}.{format}; the
+    // {size} segment carries the rendition width, so rewrite it to `full` (the
+    // 2.x max, also honored by most 3.x servers) and every size variant of one
+    // image collapses to a single origin URL. region/rotation/quality/format are
+    // preserved untouched. A size already at its largest (`full`/`max`, incl. the
+    // 3.x `^` upscale prefix) is left as-is — nothing to upgrade. This single rule
+    // covers Met, Library of Congress, Rijksmuseum, Smithsonian, Harvard, Yale,
+    // Vatican and most open-access library/museum programs. See #224.
+    match: (u) => iiifTail(u.pathname) !== null,
+    rewrite: (u) => {
+      const m = iiifTail(u.pathname);
+      if (!m) return;
+      const [, region, size, rot, quality, ext] = m;
+      if (/^(?:full|max)$/i.test(size)) return; // already the largest rendition
+      u.pathname = u.pathname.slice(0, m.index) + `/${region}/full/${rot}/${quality}.${ext}`;
     },
   },
   {

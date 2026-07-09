@@ -114,6 +114,21 @@ describe('upgradeToOriginal', () => {
       'https://f4.bcbits.com/img/a3164574832_10.jpg',
       'https://f4.bcbits.com/img/a3164574832_0.jpg',
     ],
+    [
+      'IIIF size segment -> full (LoC)',
+      'https://tile.loc.gov/image-services/iiif/service:pnp:abc/full/pct:50/0/default.jpg',
+      'https://tile.loc.gov/image-services/iiif/service:pnp:abc/full/full/0/default.jpg',
+    ],
+    [
+      'IIIF upgrades size while preserving an explicit crop region',
+      'https://iiif.example.org/ark:/12345/id/125,15,120,140/!300,300/0/default.jpg',
+      'https://iiif.example.org/ark:/12345/id/125,15,120,140/full/0/default.jpg',
+    ],
+    [
+      'rawpixel drops resize params (imgix vanity host)',
+      'https://images.rawpixel.com/image_1300/cHJpdmF0ZS9sci9pbWFnZXM.jpg?w=1300&h=800&q=80',
+      'https://images.rawpixel.com/image_1300/cHJpdmF0ZS9sci9pbWFnZXM.jpg',
+    ],
   ];
 
   it.each(cases)('%s', (_name, input, expected) => {
@@ -186,6 +201,44 @@ describe('upgradeToOriginal', () => {
   it('preserves the signature param on a signed imgix url', () => {
     const r = upgradeToOriginal('https://acme.imgix.net/a.jpg?w=200&s=abc123');
     expect(new URL(r.original).searchParams.get('s')).toBe('abc123');
+  });
+
+  it('IIIF collapses every size variant of one image to a single origin URL', () => {
+    // Different {size} renditions of the same identifier all upgrade to /full/, so
+    // they dedup to one output URL downstream.
+    const base = 'https://iiif.example.org/id/full';
+    const outputs = ['pct:50', '800,', ',600', '!400,400'].map(
+      (size) => upgradeToOriginal(`${base}/${size}/0/default.jpg`).original,
+    );
+    expect(new Set(outputs)).toEqual(new Set([`${base}/full/0/default.jpg`]));
+  });
+
+  it('IIIF preserves rotation, quality and format while upgrading the size', () => {
+    const r = upgradeToOriginal('https://iiif.example.org/id/full/800,/90/color.png');
+    expect(r.original).toBe('https://iiif.example.org/id/full/full/90/color.png');
+    expect(r.thumbnail).toBe('https://iiif.example.org/id/full/800,/90/color.png');
+  });
+
+  it('IIIF leaves an already-largest size (full or max) unchanged', () => {
+    for (const size of ['full', 'max']) {
+      const url = `https://iiif.example.org/id/full/${size}/0/default.jpg`;
+      const r = upgradeToOriginal(url);
+      expect(r.original).toBe(url);
+      expect(r.thumbnail).toBeUndefined();
+    }
+  });
+
+  it('IIIF does not match a non-IIIF path with a coincidental default.jpg tail', () => {
+    // region "2020" / size "03" are not valid IIIF tokens, so the tail shape alone
+    // must not trigger a rewrite (that would 404 a plain dated gallery path).
+    for (const url of [
+      'https://cdn.example.com/gallery/2020/03/15/default.jpg', // dated path, not IIIF
+      'https://cdn.example.com/assets/full/logo.png', // coincidental /full/, no IIIF tail
+    ]) {
+      const r = upgradeToOriginal(url);
+      expect(r.original).toBe(url);
+      expect(r.thumbnail).toBeUndefined();
+    }
   });
 
   it('discards a wikimedia rewrite that would empty the path', () => {

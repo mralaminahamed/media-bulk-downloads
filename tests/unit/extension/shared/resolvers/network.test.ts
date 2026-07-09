@@ -1,21 +1,26 @@
+import { readFileSync } from 'node:fs';
 import { resolveOriginal } from '@/extension/shared/resolvers/network';
+import pinWidget from '../../../fixtures/pinterest/pin-video-widget.json';
+import asProject from '../../../fixtures/artstation/project.json';
+import tweetResultVideo from '../../../fixtures/twitter/tweet-result-video.json';
+import wallhavenWallpaper from '../../../fixtures/wallhaven/wallpaper.json';
+import bskyDidDoc from '../../../fixtures/bsky/did-plc-doc.json';
+import vimeoConfig from '../../../fixtures/vimeo/player-config.json';
+import redditVideo from '../../../fixtures/reddit/reddit-video.json';
+
+// Vitest cwd is the project root; jsdom's import.meta.url is an http URL, so read
+// the captured HTML fixtures from cwd rather than the module URL.
+const flickrSizesHtml = readFileSync('tests/unit/fixtures/flickr/sizes-6k.html', 'utf8');
+const asEmbed = readFileSync('tests/unit/fixtures/artstation/embed.html', 'utf8');
 
 const mockFetch = (payload: unknown, ok = true) =>
   (async () => ({ ok, json: async () => payload })) as unknown as typeof fetch;
 
 describe('resolveOriginal — twitter', () => {
-  const tweetJson = {
-    mediaDetails: [{
-      video_info: { variants: [
-        { content_type: 'application/x-mpegURL', url: 'https://video.twimg.com/x.m3u8' },
-        { content_type: 'video/mp4', bitrate: 832000, url: 'https://video.twimg.com/lo.mp4' },
-        { content_type: 'video/mp4', bitrate: 2176000, url: 'https://video.twimg.com/hi.mp4' },
-      ] },
-    }],
-  };
-  it('picks the highest-bitrate mp4', async () => {
-    const url = await resolveOriginal({ platform: 'twitter', id: '123' }, { fetch: mockFetch(tweetJson) });
-    expect(url).toEqual({ url: 'https://video.twimg.com/hi.mp4' });
+  it('picks the highest-bitrate mp4 from a real syndication response (fixture)', async () => {
+    // The captured tweet has 1 HLS + 3 mp4 variants (256k/832k/2176k); the 2176k wins.
+    const url = await resolveOriginal({ platform: 'twitter', id: '123' }, { fetch: mockFetch(tweetResultVideo) });
+    expect(url).toEqual({ url: 'https://video.twimg.com/amplify_video/2074974762711785472/vid/avc1/720x708/ENlI2GicSM30_PC_.mp4' });
   });
   it('resolves an HLS-only tweet to its x-mpegURL master (twimg-pinned)', async () => {
     const hls = { mediaDetails: [{ video_info: { variants: [{ content_type: 'application/x-mpegURL', url: 'https://video.twimg.com/x.m3u8' }] } }] };
@@ -109,10 +114,9 @@ describe('resolveOriginal — twitter', () => {
 });
 
 describe('resolveOriginal — wallhaven', () => {
-  it('returns data.path', async () => {
-    const wh = { data: { path: 'https://w.wallhaven.cc/full/ab/wallhaven-abcdef.png', file_type: 'image/png' } };
-    expect(await resolveOriginal({ platform: 'wallhaven', id: 'abcdef' }, { fetch: mockFetch(wh) }))
-      .toEqual({ url: 'https://w.wallhaven.cc/full/ab/wallhaven-abcdef.png' });
+  it('returns data.path from a real wallhaven API response (fixture)', async () => {
+    expect(await resolveOriginal({ platform: 'wallhaven', id: 'gwm2z3' }, { fetch: mockFetch(wallhavenWallpaper) }))
+      .toEqual({ url: 'https://w.wallhaven.cc/full/gw/wallhaven-gwm2z3.jpg' });
   });
   it('returns null on 401 (nsfw/unlisted)', async () => {
     expect(await resolveOriginal({ platform: 'wallhaven', id: 'x' }, { fetch: mockFetch({}, false) })).toBeNull();
@@ -140,14 +144,10 @@ describe('resolveOriginal — unsplash', () => {
 describe('resolveOriginal — vimeo', () => {
   const config = (progressive: unknown[]) => ({ request: { files: { progressive } } });
 
-  it('returns the highest progressive mp4, pinned to vimeocdn.com', async () => {
-    const payload = config([
-      { height: 360, url: 'https://vod-progressive-ak.vimeocdn.com/a/360.mp4' },
-      { height: 720, url: 'https://vod-progressive-ak.vimeocdn.com/a/720.mp4' },
-      { height: 540, url: 'https://vod-progressive-ak.vimeocdn.com/a/540.mp4' },
-    ]);
-    expect(await resolveOriginal({ platform: 'vimeo', id: '76979871' }, { fetch: mockFetch(payload) }))
-      .toEqual({ url: 'https://vod-progressive-ak.vimeocdn.com/a/720.mp4' });
+  it('returns the highest progressive mp4 from a real player config (fixture), pinned to vimeocdn.com', async () => {
+    // The captured config has 360/270/720/540 progressive renditions; the 720p wins.
+    expect(await resolveOriginal({ platform: 'vimeo', id: '76979871' }, { fetch: mockFetch(vimeoConfig) }))
+      .toEqual({ url: 'https://vod-progressive-ak.vimeocdn.com/exp=SIG~acl=SIG~hmac=SIG/vimeo-prod/720p.mp4' });
   });
 
   it('returns null when there is no progressive rendition (HLS/DASH-only)', async () => {
@@ -243,8 +243,8 @@ describe('resolveOriginal — bsky (getBlob)', () => {
     return Object.assign(fn, { calls });
   };
 
-  it('did:plc — resolves the PDS via plc.directory and builds the getBlob URL', async () => {
-    const fetch = capturingFetch(pdsDoc);
+  it('did:plc — resolves the PDS via plc.directory and builds the getBlob URL (real DID doc fixture)', async () => {
+    const fetch = capturingFetch(bskyDidDoc);
     const out = await resolveOriginal({ platform: 'bsky', id: 'blob did:plc:z72i7hd bafblobcid' }, { fetch });
     expect(fetch.calls).toEqual(['https://plc.directory/did%3Aplc%3Az72i7hd']);
     expect(out).toEqual({
@@ -374,5 +374,220 @@ describe('resolveOriginal — id injection is neutralized', () => {
     const res = await resolveOriginal({ platform: 'unsplash', id: '../../@evil' }, { fetch: spy });
     expect(res).toEqual({ url: `https://unsplash.com/photos/${encodeURIComponent('../../@evil')}/download` });
     expect((res as { url: string }).url).not.toContain('/photos/../../');
+  });
+});
+
+describe('resolveOriginal — flickr (keyless /sizes/ scrape)', () => {
+  const ID = '55379291849';
+  const CANON = `https://www.flickr.com/photos/31779113@N06/${ID}/`;
+  // Two-hop mock: photo.gne resolves to `canonical`, the /sizes/ fetch resolves to
+  // `sizesUrl` with `body`. Records the URLs it was asked to fetch.
+  const flickrFetch = (o: { gneOk?: boolean; canonical?: string; sizesOk?: boolean; sizesUrl?: string; body?: string } = {}) => {
+    const calls: string[] = [];
+    const fn = (async (u: string) => {
+      calls.push(String(u));
+      if (String(u).includes('photo.gne')) return { ok: o.gneOk ?? true, url: o.canonical ?? CANON };
+      return { ok: o.sizesOk ?? true, url: o.sizesUrl ?? `${CANON}sizes/6k/`, text: async () => o.body ?? flickrSizesHtml };
+    }) as unknown as typeof fetch;
+    return Object.assign(fn, { calls });
+  };
+
+  it('recovers the largest (6k) URL — with its different secret — from the real /sizes/ page', async () => {
+    const fetch = flickrFetch();
+    const out = await resolveOriginal({ platform: 'flickr', id: ID }, { fetch });
+    expect(out).toEqual({ url: `https://live.staticflickr.com/65535/${ID}_3d3e638f8b_6k.jpg` });
+    expect(fetch.calls[0]).toBe(`https://www.flickr.com/photo.gne?id=${ID}`);
+    expect(fetch.calls[1]).toBe(`https://www.flickr.com/photos/31779113@N06/${ID}/sizes/`);
+  });
+
+  it('returns null for a non-numeric id without fetching', async () => {
+    const fetch = flickrFetch();
+    expect(await resolveOriginal({ platform: 'flickr', id: '../evil' }, { fetch })).toBeNull();
+    expect(fetch.calls).toEqual([]);
+  });
+
+  it('rejects a photo.gne redirect to a non-flickr host (open-redirect guard)', async () => {
+    const fetch = flickrFetch({ canonical: `https://evil.example/photos/x/${ID}/` });
+    expect(await resolveOriginal({ platform: 'flickr', id: ID }, { fetch })).toBeNull();
+  });
+
+  it('rejects a canonical whose path is not this photo id', async () => {
+    const fetch = flickrFetch({ canonical: 'https://www.flickr.com/photos/x/99999/' });
+    expect(await resolveOriginal({ platform: 'flickr', id: ID }, { fetch })).toBeNull();
+  });
+
+  it('returns null when the /sizes/ final URL has no size code', async () => {
+    const fetch = flickrFetch({ sizesUrl: CANON });
+    expect(await resolveOriginal({ platform: 'flickr', id: ID }, { fetch })).toBeNull();
+  });
+
+  it('returns null when the page has no matching staticflickr URL for that size', async () => {
+    const fetch = flickrFetch({ body: '<div>no image here</div>' });
+    expect(await resolveOriginal({ platform: 'flickr', id: ID }, { fetch })).toBeNull();
+  });
+
+  it('returns null on a non-ok photo.gne response', async () => {
+    const fetch = flickrFetch({ gneOk: false });
+    expect(await resolveOriginal({ platform: 'flickr', id: ID }, { fetch })).toBeNull();
+  });
+
+  it('returns null when fetch throws', async () => {
+    const throwing = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
+    expect(await resolveOriginal({ platform: 'flickr', id: ID }, { fetch: throwing })).toBeNull();
+  });
+});
+
+describe('resolveOriginal — reddit (deterministic HLS master)', () => {
+  // A fetch that fails the test if it is ever called: reddit resolution is derived
+  // from the id alone, with no network round-trip.
+  const noFetch = (async () => { throw new Error('reddit must not fetch'); }) as unknown as typeof fetch;
+
+  it('builds the signature-free v.redd.it HLS master from the id, without fetching', async () => {
+    const out = await resolveOriginal({ platform: 'reddit', id: '8tnc0d8mu3ch1' }, { fetch: noFetch });
+    expect(out).toEqual({ url: 'https://v.redd.it/8tnc0d8mu3ch1/HLSPlaylist.m3u8', hls: true });
+  });
+
+  it('derives the v.redd.it id from a real media.reddit_video shape (fixture) and yields its audio-muxable master', async () => {
+    // The captured reddit_video fallback_url is the video-only CMAF mp4; the resolver
+    // takes the v.redd.it id from its path and returns the audio-bearing HLS master.
+    const id = redditVideo.media.reddit_video.fallback_url.match(/v\.redd\.it\/([a-z0-9]+)\//i)?.[1] ?? '';
+    expect(id).toBe('8tnc0d8mu3ch1');
+    expect(await resolveOriginal({ platform: 'reddit', id }, { fetch: noFetch }))
+      .toEqual({ url: 'https://v.redd.it/8tnc0d8mu3ch1/HLSPlaylist.m3u8', hls: true });
+  });
+
+  it('rejects an id with non [a-z0-9] characters (path-injection guard)', async () => {
+    expect(await resolveOriginal({ platform: 'reddit', id: '../evil' }, { fetch: noFetch })).toBeNull();
+    expect(await resolveOriginal({ platform: 'reddit', id: 'a/b' }, { fetch: noFetch })).toBeNull();
+    expect(await resolveOriginal({ platform: 'reddit', id: '' }, { fetch: noFetch })).toBeNull();
+  });
+});
+
+describe('resolveOriginal — pinterest (pin-widget)', () => {
+  // A fetch that records the URL it was called with and returns `payload`.
+  const capturingFetch = (payload: unknown, ok = true) => {
+    const calls: string[] = [];
+    const fn = (async (u: string) => { calls.push(String(u)); return { ok, json: async () => payload }; }) as unknown as typeof fetch;
+    return Object.assign(fn, { calls });
+  };
+  const listOnly = (video_list: Record<string, { url: string }>) => ({ data: [{ videos: { video_list } }] });
+
+  it('queries the public widget endpoint with the pin id', async () => {
+    const fetch = capturingFetch(pinWidget);
+    await resolveOriginal({ platform: 'pinterest', id: '84301824269690044' }, { fetch });
+    expect(fetch.calls).toEqual(['https://widgets.pinterest.com/v3/pidgets/pins/info/?pin_ids=84301824269690044']);
+  });
+
+  it('prefers the progressive V_720P mp4 over the HLS renditions (real fixture)', async () => {
+    const out = await resolveOriginal({ platform: 'pinterest', id: '84301824269690044' }, { fetch: mockFetch(pinWidget) });
+    expect(out).toEqual({ url: 'https://v1.pinimg.com/videos/iht/720p/62/b7/a5/62b7a5ecc1b483e99a3456ef9c2f7861.mp4' });
+  });
+
+  it('falls back to the V_HLSV4 master when there is no progressive mp4', async () => {
+    const payload = listOnly({ V_HLSV4: { url: 'https://v1.pinimg.com/videos/iht/hls/aa/bb/cc/deadbeef.m3u8' } });
+    const out = await resolveOriginal({ platform: 'pinterest', id: '123' }, { fetch: mockFetch(payload) });
+    expect(out).toEqual({ url: 'https://v1.pinimg.com/videos/iht/hls/aa/bb/cc/deadbeef.m3u8', hls: true });
+  });
+
+  it('falls back to V_HLSV3_MOBILE when it is the only rendition', async () => {
+    const payload = listOnly({ V_HLSV3_MOBILE: { url: 'https://v1.pinimg.com/videos/iht/hls/aa/bb/cc/deadbeef.m3u8' } });
+    const out = await resolveOriginal({ platform: 'pinterest', id: '123' }, { fetch: mockFetch(payload) });
+    expect(out).toEqual({ url: 'https://v1.pinimg.com/videos/iht/hls/aa/bb/cc/deadbeef.m3u8', hls: true });
+  });
+
+  it('rejects a video url that is not on the pinimg.com host family', async () => {
+    const payload = listOnly({ V_720P: { url: 'https://evil.example/x.mp4' } });
+    expect(await resolveOriginal({ platform: 'pinterest', id: '123' }, { fetch: mockFetch(payload) })).toBeNull();
+  });
+
+  it('returns null for a still pin (no video_list)', async () => {
+    expect(await resolveOriginal({ platform: 'pinterest', id: '123' }, { fetch: mockFetch({ data: [{}] }) })).toBeNull();
+  });
+
+  it('returns null on an empty data array (private / deleted pin)', async () => {
+    expect(await resolveOriginal({ platform: 'pinterest', id: '123' }, { fetch: mockFetch({ data: [] }) })).toBeNull();
+  });
+
+  it('returns null on a non-ok response', async () => {
+    expect(await resolveOriginal({ platform: 'pinterest', id: '123' }, { fetch: mockFetch({}, false) })).toBeNull();
+  });
+
+  it('returns null when fetch throws', async () => {
+    const throwing = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
+    expect(await resolveOriginal({ platform: 'pinterest', id: '123' }, { fetch: throwing })).toBeNull();
+  });
+
+  it('returns null for a non-numeric pin id, without fetching', async () => {
+    const fetch = capturingFetch(pinWidget);
+    expect(await resolveOriginal({ platform: 'pinterest', id: '../evil' }, { fetch })).toBeNull();
+    expect(fetch.calls).toEqual([]);
+  });
+});
+
+describe('resolveOriginal — artstation (keyless /4k/ + video)', () => {
+  const LARGE = 'https://cdna.artstation.com/p/assets/images/images/100/627/266/large/x.jpg';
+  const headers = (ct: string | null) => ({ get: (h: string) => (h.toLowerCase() === 'content-type' ? ct : null) });
+  // Dispatches by URL: /projects/ → the project JSON, embed.html → the clip HTML,
+  // anything else → the /4k/ image probe. Records the URLs fetched.
+  const asFetch = (o: { imgOk?: boolean; imgCt?: string | null; projOk?: boolean; proj?: unknown; embedOk?: boolean; embed?: string } = {}) => {
+    const calls: string[] = [];
+    const fn = (async (u: string) => {
+      const s = String(u); calls.push(s);
+      if (s.includes('/projects/')) return { ok: o.projOk ?? true, json: async () => o.proj ?? asProject };
+      if (s.includes('embed.html')) return { ok: o.embedOk ?? true, text: async () => o.embed ?? asEmbed };
+      return { ok: o.imgOk ?? true, headers: headers(o.imgCt ?? 'image/jpeg') };
+    }) as unknown as typeof fetch;
+    return Object.assign(fn, { calls });
+  };
+
+  it('img: probes the /4k/ sibling and returns it on an ok image response', async () => {
+    const fetch = asFetch();
+    const out = await resolveOriginal({ platform: 'artstation', id: `img ${LARGE}` }, { fetch });
+    expect(out).toEqual({ url: LARGE.replace('/large/', '/4k/') });
+    expect(fetch.calls[0]).toBe(LARGE.replace('/large/', '/4k/'));
+  });
+
+  it('img: returns null when /4k/ 404s (asset has no 4k) so the /large/ image stands', async () => {
+    expect(await resolveOriginal({ platform: 'artstation', id: `img ${LARGE}` }, { fetch: asFetch({ imgOk: false }) })).toBeNull();
+  });
+
+  it('img: returns null when the /4k/ response is not an image (an HTML error page)', async () => {
+    expect(await resolveOriginal({ platform: 'artstation', id: `img ${LARGE}` }, { fetch: asFetch({ imgCt: 'text/html' }) })).toBeNull();
+  });
+
+  it('img: rejects a /large/ URL that is not on the artstation.com host family', async () => {
+    const evil = 'https://evil.example/p/assets/images/images/1/2/3/large/x.jpg';
+    expect(await resolveOriginal({ platform: 'artstation', id: `img ${evil}` }, { fetch: asFetch() })).toBeNull();
+  });
+
+  it('vid: reads the project JSON, follows the clip embed, and returns the largest mp4 (real fixtures)', async () => {
+    const fetch = asFetch();
+    const out = await resolveOriginal({ platform: 'artstation', id: 'vid V25orP' }, { fetch });
+    expect(out).toEqual({ url: 'https://cdn.artstation.com/p/video_sources/003/353/339/v03-1.mp4' });
+    expect(fetch.calls[0]).toBe('https://www.artstation.com/projects/V25orP.json');
+  });
+
+  it('vid: returns null for a project with no video_clip asset', async () => {
+    const proj = { assets: [{ asset_type: 'image', player_embedded: '' }] };
+    expect(await resolveOriginal({ platform: 'artstation', id: 'vid V25orP' }, { fetch: asFetch({ proj }) })).toBeNull();
+  });
+
+  it('vid: returns null for a hash with unexpected characters, without fetching', async () => {
+    const fetch = asFetch();
+    expect(await resolveOriginal({ platform: 'artstation', id: 'vid ../evil' }, { fetch })).toBeNull();
+    expect(fetch.calls).toEqual([]);
+  });
+
+  it('vid: returns null on a non-ok project response', async () => {
+    expect(await resolveOriginal({ platform: 'artstation', id: 'vid V25orP' }, { fetch: asFetch({ projOk: false }) })).toBeNull();
+  });
+
+  it('vid: returns null when the embed has no mp4 source', async () => {
+    expect(await resolveOriginal({ platform: 'artstation', id: 'vid V25orP' }, { fetch: asFetch({ embed: '<video></video>' }) })).toBeNull();
+  });
+
+  it('returns null when fetch throws', async () => {
+    const throwing = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
+    expect(await resolveOriginal({ platform: 'artstation', id: `img ${LARGE}` }, { fetch: throwing })).toBeNull();
   });
 });

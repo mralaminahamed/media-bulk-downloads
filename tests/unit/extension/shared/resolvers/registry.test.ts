@@ -43,4 +43,58 @@ describe('resolve — generic fallback', () => {
       resolveHint: { platform: 'bsky', id: 'blob did:plc:abc bafcid' },
     });
   });
+
+  it('includes flickrResolver before genericResolver', () => {
+    const ids = REGISTRY.map((r) => r.id);
+    expect(ids).toContain('flickr');
+    expect(ids.indexOf('flickr')).toBeLessThan(ids.indexOf('generic'));
+  });
+
+  it('routes a staticflickr photo through the flickr resolver (with a flickr hint)', () => {
+    const [c] = resolve('https://live.staticflickr.com/65535/55379291849_42e9ef501b_n.jpg', ctx);
+    expect(c).toMatchObject({
+      kind: 'image',
+      url: 'https://live.staticflickr.com/65535/55379291849_42e9ef501b_b.jpg',
+      resolveHint: { platform: 'flickr', id: '55379291849' },
+    });
+  });
+
+  it('includes redditResolver before genericResolver', () => {
+    const ids = REGISTRY.map((r) => r.id);
+    expect(ids).toContain('reddit');
+    expect(ids.indexOf('reddit')).toBeLessThan(ids.indexOf('generic'));
+  });
+
+  it('routes a preview.redd.it URL through the reddit resolver to the i.redd.it original', () => {
+    const [c] = resolve('https://preview.redd.it/abc123.jpeg?width=640&s=deadbeef', ctx);
+    expect(c).toMatchObject({ kind: 'image', url: 'https://i.redd.it/abc123.jpeg' });
+    expect(c.thumbnailSrc).toBe('https://preview.redd.it/abc123.jpeg?width=640&s=deadbeef');
+  });
+
+  it('includes pinterestResolver before genericResolver', () => {
+    const ids = REGISTRY.map((r) => r.id);
+    expect(ids).toContain('pinterest');
+    expect(ids.indexOf('pinterest')).toBeLessThan(ids.indexOf('generic'));
+  });
+
+  it('routes an i.pinimg.com size folder through the pinterest resolver to /originals/', () => {
+    const [c] = resolve('https://i.pinimg.com/564x/aa/bb/cc/deadbeef.jpg', ctx);
+    expect(c).toMatchObject({ kind: 'image', url: 'https://i.pinimg.com/originals/aa/bb/cc/deadbeef.jpg' });
+    expect(c.thumbnailSrc).toBe('https://i.pinimg.com/564x/aa/bb/cc/deadbeef.jpg');
+  });
+
+  it('includes artstationResolver before genericResolver', () => {
+    const ids = REGISTRY.map((r) => r.id);
+    expect(ids).toContain('artstation');
+    expect(ids.indexOf('artstation')).toBeLessThan(ids.indexOf('generic'));
+  });
+
+  it('routes an ArtStation asset through the artstation resolver (small -> /large/ + hint)', () => {
+    const [c] = resolve('https://cdna.artstation.com/p/assets/images/images/1/2/3/small/x.jpg', ctx);
+    expect(c).toMatchObject({
+      kind: 'image',
+      url: 'https://cdna.artstation.com/p/assets/images/images/1/2/3/large/x.jpg',
+      resolveHint: { platform: 'artstation', id: 'img https://cdna.artstation.com/p/assets/images/images/1/2/3/large/x.jpg' },
+    });
+  });
 });

@@ -1,0 +1,18 @@
+{
+  "_source": "www.artstation.com/projects/V25orP.json (public) — captured 2026-07-09, trimmed; embed signature redacted to <sig>. A video_clip asset whose player_embedded iframe points at the signed embed.html.",
+  "hash_id": "V25orP",
+  "assets": [
+    {
+      "asset_type": "cover",
+      "has_embedded_player": false,
+      "player_embedded": "",
+      "image_url": "https://cdnb.artstation.com/p/assets/covers/images/100/600/391/large/cover.jpg"
+    },
+    {
+      "asset_type": "video_clip",
+      "has_embedded_player": true,
+      "player_embedded": "<iframe src='https://www.artstation.com/api/v2/animation/video_clips/270e0e78-f9fc-4685-9a74-0e4f4c7b36d0/embed.html?s=<sig>' frameborder='0' allowfullscreen></iframe>",
+      "image_url": "https://cdna.artstation.com/p/assets/images/images/100/627/300/large/poster.jpg"
+    }
+  ]
+}

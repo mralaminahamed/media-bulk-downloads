@@ -37,6 +37,13 @@ interface VimeoConfig {
 interface DidService { id?: string; type?: string; serviceEndpoint?: string }
 interface DidDoc { service?: DidService[] }
 
+interface PinterestVideoEntry { url?: string }
+interface PinterestPin { videos?: { video_list?: Record<string, PinterestVideoEntry> } }
+interface PinterestWidgetResponse { data?: PinterestPin[] }
+
+interface ArtStationAsset { asset_type?: string; player_embedded?: string }
+interface ArtStationProject { assets?: ArtStationAsset[] }
+
 /**
  * A URL taken from an API JSON response is untrusted: constrain it to https and
  * the expected host family before handing it back as a downloadable media URL.
@@ -209,6 +216,135 @@ async function bsky(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
   }
 }
 
+/**
+ * Flickr (keyless). Sizes larger than `_b` are served under a different secret than
+ * the thumbnail, so they can't be built offline. Recover the largest via two public,
+ * unauthenticated hops: `photo.gne?id=<id>` → the canonical photo page, then its
+ * `/sizes/` page → `/sizes/<largest>/`, whose HTML carries the correct-secret URL.
+ * The canonical is host-pinned to flickr.com (open-redirect guard) and the result to
+ * staticflickr.com. Any failed hop / shifted markup → null (the `_b` image stands).
+ */
+async function flickr(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  try {
+    if (!/^\d+$/.test(id)) return null;
+    const g = await deps.fetch(`https://www.flickr.com/photo.gne?id=${encodeURIComponent(id)}`);
+    if (!g.ok) return null;
+    let canonical: URL;
+    try { canonical = new URL(g.url); } catch { return null; }
+    const flickrHost = canonical.protocol === 'https:' && (canonical.hostname === 'flickr.com' || canonical.hostname === 'www.flickr.com');
+    if (!flickrHost || !new RegExp(`^/photos/[^/]+/${id}(?:/|$)`).test(canonical.pathname)) return null;
+
+    const r = await deps.fetch(`${canonical.origin}${canonical.pathname.replace(/\/$/, '')}/sizes/`);
+    if (!r.ok) return null;
+    const code = new URL(r.url).pathname.match(/\/sizes\/([a-z0-9]+)\//i)?.[1];
+    if (!code) return null;
+    const body = await r.text();
+    const m = body.match(new RegExp(`(?:https:)?//[^"' ]*?staticflickr\\.com/\\d+/${id}_[0-9a-z]+_${code}\\.(?:jpe?g|png|gif)`, 'i'));
+    if (!m) return null;
+    const url = m[0].startsWith('http') ? m[0] : `https:${m[0]}`;
+    return pinnedUrl(url, 'staticflickr.com') ? { url } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reddit. Deterministic, no fetch (like bsky video): the v.redd.it id already names
+ * the account's video, and the HLS master is served signature-free under it. Returns
+ * the master to capture — the extension's HLS engine muxes the separate audio
+ * rendition it lists, so the download has sound (unlike the video-only CMAF_720.mp4
+ * fallback). Guarded to the v.redd.it host.
+ */
+function reddit(id: string): ResolvedMedia | null {
+  if (!/^[a-z0-9]+$/i.test(id)) return null;
+  const url = `https://v.redd.it/${id}/HLSPlaylist.m3u8`;
+  return pinnedUrl(url, 'v.redd.it') ? { url, hls: true } : null;
+}
+
+/**
+ * Pinterest. Reads the public, unauthenticated pin-widget endpoint (CORS-open, no
+ * cookies/CSRF — usable from the background worker, unlike the CSRF-gated
+ * PinResource API) and returns the pin's video: the progressive MP4 (`V_720P`) as a
+ * direct download when present, else an HLS master (`V_HLSV4` / `V_HLSV3_MOBILE`) to
+ * capture. Still pins (no `video_list`), private/deleted pins, and errors → null.
+ */
+async function pinterest(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  try {
+    // The hint id is the numeric pin id from the resolver; reject anything else
+    // before it reaches the query string.
+    if (!/^\d+$/.test(id)) return null;
+    const r = await deps.fetch(`https://widgets.pinterest.com/v3/pidgets/pins/info/?pin_ids=${encodeURIComponent(id)}`);
+    if (!r.ok) return null;
+    const j = (await r.json()) as PinterestWidgetResponse;
+    const list = j?.data?.[0]?.videos?.video_list;
+    if (!list) return null;
+    const mp4 = pinnedUrl(list.V_720P?.url, 'pinimg.com');
+    if (mp4) return { url: mp4 };
+    const hls = pinnedUrl(list.V_HLSV4?.url ?? list.V_HLSV3_MOBILE?.url, 'pinimg.com');
+    return hls ? { url: hls, hls: true } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Largest `<source>` mp4 in an ArtStation clip embed: the one with the biggest
+ *  `min-width` media query (highest resolution), else the first mp4 source. */
+function largestEmbedMp4(html: string): string | null {
+  let best: { w: number; url: string } | null = null;
+  const re = /<source\b[^>]*>/gi;
+  for (const tag of html.match(re) ?? []) {
+    const src = tag.match(/\bsrc=["']([^"']+\.mp4[^"']*)["']/i)?.[1];
+    if (!src) continue;
+    const w = Number(tag.match(/min-width:\s*(\d+)/i)?.[1]) || 0;
+    if (!best || w > best.w) best = { w, url: src };
+  }
+  return best?.url ?? null;
+}
+
+/**
+ * ArtStation (keyless). The hint id is `'<kind> <arg>'`:
+ *  - `img <largeUrl>` → probe the `/4k/` sibling (bigger than `/large/`; `/original/`
+ *    is 403-disabled) and return it only on an ok image response, else null so the
+ *    sync `/large/` stands;
+ *  - `vid <hash>` → read the public project JSON, take the first `video_clip`, fetch
+ *    its signed embed page, and return the largest unsigned `<source>` mp4.
+ * Results are host-pinned to artstation.com.
+ */
+async function artstation(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  try {
+    const sep = id.indexOf(' ');
+    const kind = id.slice(0, sep);
+    const arg = id.slice(sep + 1);
+
+    if (kind === 'img') {
+      if (!arg.includes('/large/')) return null;
+      const fourK = pinnedUrl(arg.replace('/large/', '/4k/'), 'artstation.com');
+      if (!fourK) return null;
+      const r = await deps.fetch(fourK);
+      if (!r.ok || !(r.headers.get('content-type') || '').startsWith('image/')) return null;
+      return { url: fourK };
+    }
+
+    if (kind === 'vid') {
+      if (!/^[A-Za-z0-9]+$/.test(arg)) return null;
+      const pr = await deps.fetch(`https://www.artstation.com/projects/${arg}.json`);
+      if (!pr.ok) return null;
+      const proj = (await pr.json()) as ArtStationProject;
+      const clip = (proj.assets ?? []).find((a) => a?.asset_type === 'video_clip' && typeof a.player_embedded === 'string');
+      const embed = pinnedUrl(clip?.player_embedded?.match(/\bsrc=["']([^"']+embed\.html[^"']*)["']/i)?.[1], 'artstation.com');
+      if (!embed) return null;
+      const er = await deps.fetch(embed);
+      if (!er.ok) return null;
+      const mp4 = pinnedUrl(largestEmbedMp4(await er.text()), 'artstation.com');
+      return mp4 ? { url: mp4 } : null;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 /** Resolve one hint to a final media target, or null on failure. Never throws. */
 export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise<ResolvedMedia | null> {
   switch (hint.platform) {
@@ -217,6 +353,10 @@ export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise
     case 'unsplash': return { url: unsplash(hint.id) };
     case 'vimeo': return vimeo(hint.id, deps);
     case 'bsky': return bsky(hint.id, deps);
+    case 'pinterest': return pinterest(hint.id, deps);
+    case 'reddit': return reddit(hint.id);
+    case 'flickr': return flickr(hint.id, deps);
+    case 'artstation': return artstation(hint.id, deps);
     default: return null;
   }
 }
