@@ -80,3 +80,31 @@ describe('reddit HLS master (real fixture) — the engine can mux the separate a
     expect(audio?.uri).toBe(`https://v.redd.it/${VID}/CMAF_AUDIO_128.m3u8`);
   });
 });
+
+describe('redditResolver — edge cases', () => {
+  it('swaps host + drops query for a preview.redd.it URL that has no query at all', () => {
+    const [c] = resolve('https://preview.redd.it/onlyfile.png');
+    expect(c.url).toBe('https://i.redd.it/onlyfile.png');
+    // Host changed even without a query, so the input is kept as the thumbnail.
+    expect(c.thumbnailSrc).toBe('https://preview.redd.it/onlyfile.png');
+  });
+
+  it('maps a preview.redd.it award/subpath file to the same i.redd.it path', () => {
+    const [c] = resolve('https://preview.redd.it/award_images/t5_abc/xyz.png?width=64&s=deadbeef');
+    expect(c.url).toBe('https://i.redd.it/award_images/t5_abc/xyz.png');
+  });
+
+  it('takes the id from a v.redd.it manifest URL that still carries a signature query', () => {
+    const [c] = resolve(`https://v.redd.it/${VID}/DASHPlaylist.mpd?a=1&v=1&f=1`);
+    expect(c).toMatchObject({ kind: 'video', unresolvedVideo: true, resolveHint: { platform: 'reddit', id: VID } });
+  });
+
+  it('leaves the query on i.redd.it but strips it in the candidate (idempotent on re-resolve)', () => {
+    const once = resolve('https://i.redd.it/pic.jpg?t=1')[0].url;
+    expect(once).toBe('https://i.redd.it/pic.jpg');
+    // Re-resolving the already-clean output is a no-op (no thumbnail, no change).
+    const twice = resolve(once)[0];
+    expect(twice.url).toBe('https://i.redd.it/pic.jpg');
+    expect(twice.thumbnailSrc).toBeUndefined();
+  });
+});

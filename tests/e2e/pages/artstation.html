@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>ArtStation</title></head>
+<body>
+<main role="main">
+  <!-- The SAME asset served at /small/ (src) + /medium/ (srcset) -> collapse to one
+       /large/ item. Real asset-id path shape captured live; ?<ts> is a cache-buster. -->
+  <div data-test-id="project">
+    <a href="/artwork/31o9w2">
+      <img alt="Concept small"
+           src="https://cdna.artstation.com/p/assets/images/images/100/627/266/small/ed-pantera-ts01.jpg?1700000000"
+           srcset="https://cdna.artstation.com/p/assets/images/images/100/627/266/medium/ed-pantera-ts01.jpg?1700000000 2x">
+    </a>
+  </div>
+
+  <!-- A different asset already at /large/ -> stays. -->
+  <div data-test-id="project">
+    <a href="/artwork/31o9w2"><img alt="Concept large" src="https://cdnb.artstation.com/p/assets/images/images/100/599/717/large/ed-pantera-sheet.jpg"></a>
+  </div>
+
+  <!-- Video-clip artwork: a /large/ poster inside a cell that holds the signed clip
+       iframe (durable video signal) and the /artwork/<hash> link -> a pending Video item. -->
+  <div data-test-id="project">
+    <a href="/artwork/V25orP">
+      <img alt="Clip poster" src="https://cdna.artstation.com/p/assets/images/images/100/627/300/large/marathon-poster.jpg">
+      <iframe title="clip" src="https://www.artstation.com/api/v2/animation/video_clips/270e0e78-f9fc-4685-9a74-0e4f4c7b36d0/embed.html?s=deadbeef"></iframe>
+    </a>
+  </div>
+</main>
+</body></html>

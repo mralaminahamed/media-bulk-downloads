@@ -43,3 +43,28 @@ describe('flickrResolver — resolve', () => {
     expect(resolve('https://staticflickr.com/65535/notaphoto.jpg')).toEqual([]);
   });
 });
+
+describe('flickrResolver — edge cases', () => {
+  it('matches the legacy farmN.staticflickr host and upgrades to _b with a hint', () => {
+    const [c] = resolve(`https://farm5.staticflickr.com/4104/${ID}_${SECRET}_z.jpg`);
+    expect(c).toMatchObject({
+      kind: 'image',
+      url: `https://farm5.staticflickr.com/4104/${ID}_${SECRET}_b.jpg`,
+      resolveHint: { platform: 'flickr', id: ID },
+    });
+  });
+
+  it('upgrades a png thumbnail to _b, preserving the extension', () => {
+    const [c] = resolve(`https://live.staticflickr.com/65535/${ID}_${SECRET}_n.png`);
+    expect(c.url).toBe(`https://live.staticflickr.com/65535/${ID}_${SECRET}_b.png`);
+    expect(c.ext).toBe('png');
+  });
+
+  it('leaves an _o original untouched but still hints (the _o secret is not swappable offline)', () => {
+    const o = `https://live.staticflickr.com/65535/${ID}_originalsecret_o.jpg`;
+    const [c] = resolve(o);
+    expect(c.url).toBe(o);
+    expect(c.thumbnailSrc).toBeUndefined();
+    expect(c.resolveHint).toEqual({ platform: 'flickr', id: ID });
+  });
+});

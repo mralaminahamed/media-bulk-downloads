@@ -1,19 +1,40 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>X</title>
-<meta property="og:image" content="https://pbs.twimg.com/media/OG_HERO?format=jpg&name=large"></head>
+<meta property="og:image" content="https://pbs.twimg.com/media/GHeroImage0001?format=jpg&name=large"></head>
 <body>
 <main role="main">
+  <!-- Photo tweet: the SAME /media/ image at two name= sizes -> one name=orig item. -->
   <article data-testid="tweet">
     <p>First tweet</p>
-    <img alt="PhotoA" src="https://pbs.twimg.com/media/AAA111?format=jpg&name=small">
-    <img alt="PhotoA" src="https://pbs.twimg.com/media/AAA111?format=jpg&name=900x900">
+    <img alt="PhotoA" src="https://pbs.twimg.com/media/GAAA111PhotoAA?format=jpg&name=small">
+    <img alt="PhotoA" src="https://pbs.twimg.com/media/GAAA111PhotoAA?format=jpg&name=900x900">
     <a href="https://x.com/acme/status/1750000000000000001"><time datetime="2024-01-01">now</time></a>
   </article>
+
+  <!-- Second photo (png) -> one item. -->
   <article data-testid="tweet">
     <p>Second tweet</p>
-    <img alt="PhotoB" src="https://pbs.twimg.com/media/BBB222?format=png&name=medium">
+    <img alt="PhotoB" src="https://pbs.twimg.com/media/GBBB222PhotoBB?format=png&name=medium">
     <a href="https://x.com/acme/status/1750000000000000002"><time datetime="2024-01-01">1h</time></a>
   </article>
-  <img alt="Avatar" width="48" height="48" src="https://pbs.twimg.com/profile_images/9001/acme_400x400.jpg">
+
+  <!-- Native video: the poster is rendered as an <img> on /ext_tw_video_thumb/ -> a
+       pending Video item; the status id comes from the cell's /status/…/video/ link. -->
+  <article data-testid="tweet">
+    <p>Native video</p>
+    <img alt="Clip" src="https://pbs.twimg.com/ext_tw_video_thumb/1750000000000000003/pu/img/VidPosterAAA.jpg">
+    <a href="https://x.com/acme/status/1750000000000000003/video/1"><time datetime="2024-01-01">2h</time></a>
+  </article>
+
+  <!-- GIF: a <video> whose poster is /tweet_video_thumb/<id> -> a downloadable mp4 (gif kind). -->
+  <article data-testid="tweet">
+    <p>Reaction gif</p>
+    <video poster="https://pbs.twimg.com/tweet_video_thumb/GifThumbAAA.jpg"></video>
+    <a href="https://x.com/acme/status/1750000000000000004"><time datetime="2024-01-01">3h</time></a>
+  </article>
+
+  <!-- Avatar (/profile_images/, size suffix stripped) + card image (/card_img/, name=orig). -->
+  <img alt="Avatar" width="80" height="80" src="https://pbs.twimg.com/profile_images/1750000000000000005/acme_400x400.jpg">
+  <img alt="Card" src="https://pbs.twimg.com/card_img/1750000000000000006/abcDEF?format=jpg&name=medium">
 </main>
 </body></html>

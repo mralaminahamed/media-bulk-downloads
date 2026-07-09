@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Reddit</title></head>
+<body>
+<main role="main">
+  <!-- A signed preview.redd.it rendition served at two widths of the SAME file ->
+       both collapse to the one unsigned i.redd.it original (real filename captured live). -->
+  <img alt="post" src="https://preview.redd.it/ch5ejccb04ch1.jpeg?width=640&crop=smart&auto=webp&s=1111111111111111111111111111111111111111">
+  <img alt="post wide" src="https://preview.redd.it/ch5ejccb04ch1.jpeg?width=960&crop=smart&auto=webp&s=2222222222222222222222222222222222222222">
+
+  <!-- A direct i.redd.it original -> stays as-is. -->
+  <img alt="direct" src="https://i.redd.it/abcd1234efgh5678.png">
+
+  <!-- external-preview.redd.it proxies an external image with a query-covering signature
+       and no i.redd.it original -> intentionally left to the generic resolver (NOT rewritten). -->
+  <img alt="external" src="https://external-preview.redd.it/dHcydWIzNW11M2NoMQ.png?format=pjpg&auto=webp&s=3333333333333333333333333333333333333333">
+</main>
+</body></html>

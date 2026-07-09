@@ -14,17 +14,19 @@ async function excludeHost(page: Page, item: ReturnType<Page['locator']>): Promi
 }
 
 test.describe('realistic sites', () => {
-  test('X/Twitter: collapses name= size variants and excludes the twimg host', async ({ context }) => {
+  test('X/Twitter: collapses photo sizes, surfaces native-video + gif as Video items, excludes the pbs host', async ({ context }) => {
     const page = await openBubblePage(context, '/twitter.html');
     await openPanel(page);
-    // og:image + PhotoA (two name= sizes → one) + PhotoB + avatar = 4.
-    expect(await itemCount(page)).toBe(4);
-    await expect(figureWithSrc(page, 'AAA111')).toHaveCount(1); // size variants collapsed
+    // og + PhotoA (two name= sizes → one) + PhotoB + native video + gif + avatar + card = 7.
+    expect(await itemCount(page)).toBe(7);
+    await expect(figureWithSrc(page, 'GAAA111PhotoAA')).toHaveCount(1); // size variants collapsed
 
-    // Every item is on pbs.twimg.com → excluding the site clears the grid.
-    await excludeHost(page, figureWithSrc(page, 'BBB222'));
-    await expect(figureWithSrc(page, 'BBB222')).toHaveCount(0);
-    await expectItemCount(page, 0);
+    // The native-video poster (/ext_tw_video_thumb/) and the gif (/tweet_video_thumb/)
+    // are both Video-kind items.
+    await page.getByRole('button', { name: 'Video', exact: true }).click();
+    expect(await itemCount(page)).toBe(2);
+    await expect(figureWithSrc(page, 'ext_tw_video_thumb')).toHaveCount(1);
+    await expect(figureWithSrc(page, 'tweet_video_thumb')).toHaveCount(1);
   });
 
   test('Instagram: upgrades the thumbnail to the hydration-JSON original + reel poster', async ({ context }) => {
@@ -81,5 +83,58 @@ test.describe('realistic sites', () => {
     await expect(figureWithSrc(page, 'shirt_400x400')).toHaveCount(1);   // shopify product
     await expect(figureWithSrc(page, 'redd.it')).not.toHaveCount(0);     // gallery link
     expect(await itemCount(page)).toBeGreaterThanOrEqual(8);
+  });
+
+  test('Pinterest: collapses /<size>/ variants to one original + surfaces the video pin, then excludes the pinimg host', async ({ context }) => {
+    const page = await openBubblePage(context, '/pinterest.html');
+    await openPanel(page);
+    // og original + pin A (236/474/736 → one) + pin B (564/736 → one) + video pin = 4.
+    expect(await itemCount(page)).toBe(4);
+    await expect(figureWithSrc(page, '45791643dd397b203c0306f076d94e0b')).toHaveCount(1); // 3 sizes collapsed
+    await expect(figureWithSrc(page, 'BBBB1111222233334444555566667777')).toHaveCount(1); // 2 sizes collapsed
+
+    // The video pin (poster + <video> in its cell) is a Video-kind pending item.
+    await page.getByRole('button', { name: 'Video', exact: true }).click();
+    expect(await itemCount(page)).toBe(1);
+    await expect(figureWithSrc(page, '62b7a5ecc1b483e99a3456ef9c2f7861')).toHaveCount(1);
+
+    // Every item lives on i.pinimg.com → excluding the site clears the grid.
+    await page.getByRole('button', { name: 'All', exact: true }).click();
+    await excludeHost(page, figureWithSrc(page, '45791643dd397b203c0306f076d94e0b'));
+    await expectItemCount(page, 0);
+  });
+
+  test('Reddit: collapses preview.redd.it renditions to the i.redd.it original; leaves external-preview alone', async ({ context }) => {
+    const page = await openBubblePage(context, '/reddit.html');
+    await openPanel(page);
+    // preview (640 + 960 → one i.redd.it) + direct i.redd.it + external-preview = 3.
+    expect(await itemCount(page)).toBe(3);
+    await expect(figureWithSrc(page, 'ch5ejccb04ch1')).toHaveCount(1);       // two renditions collapsed
+    await expect(figureWithSrc(page, 'abcd1234efgh5678')).toHaveCount(1);    // direct original
+    await expect(figureWithSrc(page, 'external-preview.redd.it')).toHaveCount(1); // NOT rewritten
+  });
+
+  test('Flickr: collapses sub-_b sizes to _b, keeps the different-secret _6k, passes the buddyicon through', async ({ context }) => {
+    const page = await openBubblePage(context, '/flickr.html');
+    await openPanel(page);
+    // photo (_n/_z/_b → one _b) + the _6k original + the buddyicon = 3.
+    expect(await itemCount(page)).toBe(3);
+    await expect(figureWithSrc(page, '55379291849')).toHaveCount(1);   // three sizes collapsed
+    await expect(figureWithSrc(page, '99887766554_3d3e638f8b_6k')).toHaveCount(1); // large kept as-is
+    await expect(figureWithSrc(page, 'buddyicon')).toHaveCount(1);     // non-photo asset survives
+  });
+
+  test('ArtStation: collapses /small/ + /medium/ to /large/ and surfaces the video-clip poster as a Video item', async ({ context }) => {
+    const page = await openBubblePage(context, '/artstation.html');
+    await openPanel(page);
+    // asset A (small + medium → one /large/) + direct /large/ B + video-clip poster = 3.
+    expect(await itemCount(page)).toBe(3);
+    await expect(figureWithSrc(page, 'ed-pantera-ts01')).toHaveCount(1); // two buckets collapsed
+    await expect(figureWithSrc(page, 'ed-pantera-sheet')).toHaveCount(1);
+
+    // The clip artwork (poster + embed iframe in its cell) is a Video-kind pending item.
+    await page.getByRole('button', { name: 'Video', exact: true }).click();
+    expect(await itemCount(page)).toBe(1);
+    await expect(figureWithSrc(page, 'marathon-poster')).toHaveCount(1);
   });
 });
