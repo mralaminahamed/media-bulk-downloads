@@ -49,15 +49,31 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
     setSettings((prev) => ({ ...prev, namingMode: mode }));
   };
 
+  // Persist notifyOnComplete straight to storage (a single-field SET_SETTINGS
+  // patch), NOT just to local state gated behind the Save button. Turning it on
+  // triggers the optional `notifications` permission prompt, and Chrome closes the
+  // action popup when that prompt takes focus — which would drop both the grant
+  // callback and the unsaved toggle, so Save is never reachable. Writing now makes
+  // enabling survive the popup closing.
+  const persistNotify = (value: boolean) => {
+    setSettings((prev) => ({ ...prev, notifyOnComplete: value }));
+    sendRuntimeMessage({ type: 'SET_SETTINGS', patch: { notifyOnComplete: value } });
+  };
+
   // Turning on completion toasts needs the optional `notifications` permission,
-  // requested here inside the click's user gesture. Denied → the toggle stays off.
+  // requested here inside the click's user gesture.
   const handleNotifyToggle = () => {
     if (settings.notifyOnComplete) {
-      setSettings((prev) => ({ ...prev, notifyOnComplete: false }));
+      persistNotify(false);
       return;
     }
+    // Persist the ON intent BEFORE the prompt (which may close the popup), then
+    // request. If the popup survives and the user denies, roll back. Persisting
+    // "on but not yet granted" is harmless: notifyBatchDone no-ops until the
+    // permission is actually present.
+    persistNotify(true);
     chrome.permissions.request({ permissions: ['notifications'] }, (granted) => {
-      if (granted) setSettings((prev) => ({ ...prev, notifyOnComplete: true }));
+      if (!granted) persistNotify(false);
     });
   };
 
