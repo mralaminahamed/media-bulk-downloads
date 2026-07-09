@@ -125,7 +125,14 @@ export async function getQueueSnapshot(): Promise<QueueState> {
 // died: if Chrome finished the download meanwhile, mark it done; otherwise put it
 // back in the queue so pump() re-dispatches it. Then drain whatever is claimable.
 export async function reconcileQueue(): Promise<void> {
-  const snapshot = await loadQueue();
+  let snapshot: QueueState;
+  try {
+    snapshot = await loadQueue();
+  } catch {
+    // Storage unavailable (e.g. a worker torn down mid-read) → nothing to
+    // reconcile now; the next startup retries. Never reject (callers `void` us).
+    return;
+  }
   const actives = snapshot.items.filter((i) => i.status === 'active' && i.downloadId !== undefined);
   for (const item of actives) {
     let completed = false;

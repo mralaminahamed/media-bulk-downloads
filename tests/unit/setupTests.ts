@@ -126,6 +126,10 @@ global.chrome = {
         open: vi.fn(),
         show: vi.fn(),
         search: vi.fn().mockResolvedValue([]),
+        onChanged: {
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+        },
     },
     offscreen: {
         Reason: { BLOBS: 'BLOBS' },

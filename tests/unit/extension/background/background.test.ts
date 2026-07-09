@@ -653,25 +653,31 @@ describe('DOWNLOAD_IMAGES — settings gate (no ephemeral-worker default-setting
   const img = (src: string): ImageInfo =>
     ({ src, alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' });
 
-  it('waits for settings to load, then downloads into the user subfolder', async () => {
+  it('waits for settings to load, then queues + dispatches into the user subfolder', async () => {
     // Load real settings (a subfolder), which resolves the settingsReady gate.
     (chrome.storage.sync.get as Mock).mockImplementation((_keys, cb) => cb({ settings: { downloadPath: 'Pics' } }));
     loadSettings();
     (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb(1));
-    (chrome.storage.local.get as Mock).mockResolvedValue({ downloadHistory: [] });
-    (chrome.storage.local.set as Mock).mockResolvedValue(undefined);
+    // The queue round-trips through storage.local, so give it a stateful,
+    // string-key-aware store (the enqueue write must be visible to pump's read).
+    const local: Record<string, unknown> = {};
+    (chrome.storage.local.get as Mock).mockImplementation(async (k: string) => (k in local ? { [k]: local[k] } : {}));
+    (chrome.storage.local.set as Mock).mockImplementation(async (o: Record<string, unknown>) => { Object.assign(local, o); });
 
     messageHandler(
       { type: 'DOWNLOAD_IMAGES', images: [img('https://c/a.jpg')], sourcePage: undefined },
       {},
       vi.fn(),
     );
-    await new Promise((r) => setTimeout(r, 0)); // flush settingsReady.then → downloadAndRecord
+    await new Promise((r) => setTimeout(r, 0)); // flush settingsReady.then → enqueue → pump → download
 
+    // The queue dispatched the item into the user's subfolder with the built name.
     expect(chrome.downloads.download).toHaveBeenCalledWith(
       expect.objectContaining({ filename: 'Pics/image_1.jpg' }),
       expect.any(Function),
     );
+    // History is NOT recorded on dispatch — only on chrome.downloads onChanged=complete.
+    expect((local.downloadQueue as { items: { status: string }[] }).items[0].status).toBe('active');
   });
 });
 
@@ -1278,5 +1284,46 @@ describe('excluded blocklist reaches the background download paths', () => {
       expect.objectContaining({ url: 'https://cdn.ads.com/ad.jpg' }),
       expect.any(Function),
     );
+  });
+});
+
+describe('QUEUE_* routing → download queue', () => {
+  const saved = global.chrome;
+  let store: Record<string, unknown>;
+
+  beforeEach(() => {
+    store = {};
+    global.chrome = {
+      storage: {
+        local: {
+          get: vi.fn(async (k: string) => (k in store ? { [k]: store[k] } : {})),
+          set: vi.fn(async (o: Record<string, unknown>) => { Object.assign(store, o); }),
+        },
+      },
+      downloads: {
+        download: vi.fn(),
+        search: vi.fn(async () => []),
+        onChanged: { addListener: vi.fn() },
+      },
+      runtime: { lastError: undefined },
+    } as unknown as typeof chrome;
+  });
+
+  afterEach(() => { global.chrome = saved; });
+
+  it('QUEUE_PAUSE routes to the dispatcher and flips paused in storage', async () => {
+    const respond = vi.fn();
+    const res = messageHandler({ type: 'QUEUE_PAUSE' }, {}, respond);
+    expect(res).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+    expect((store.downloadQueue as { paused?: boolean } | undefined)?.paused).toBe(true);
+    expect(respond).toHaveBeenCalledWith({ status: 'success', message: 'Paused' });
+  });
+
+  it('QUEUE_RESUME clears paused', async () => {
+    store.downloadQueue = { items: [], paused: true };
+    messageHandler({ type: 'QUEUE_RESUME' }, {}, vi.fn());
+    await new Promise((r) => setTimeout(r, 0));
+    expect((store.downloadQueue as { paused?: boolean }).paused).toBe(false);
   });
 });
