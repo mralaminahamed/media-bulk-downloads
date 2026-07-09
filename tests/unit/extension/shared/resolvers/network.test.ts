@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolveOriginal } from '@/extension/shared/resolvers/network';
+import pinWidget from '../../../fixtures/pinterest/pin-video-widget.json';
 
 // Vitest cwd is the project root; jsdom's import.meta.url is an http URL, so read
 // the captured Flickr /sizes/ fragment from cwd rather than the module URL.
@@ -439,5 +440,83 @@ describe('resolveOriginal — flickr (keyless /sizes/ scrape)', () => {
   it('returns null when fetch throws', async () => {
     const throwing = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
     expect(await resolveOriginal({ platform: 'flickr', id: ID }, { fetch: throwing })).toBeNull();
+  });
+});
+
+describe('resolveOriginal — reddit (deterministic HLS master)', () => {
+  // A fetch that fails the test if it is ever called: reddit resolution is derived
+  // from the id alone, with no network round-trip.
+  const noFetch = (async () => { throw new Error('reddit must not fetch'); }) as unknown as typeof fetch;
+
+  it('builds the signature-free v.redd.it HLS master from the id, without fetching', async () => {
+    const out = await resolveOriginal({ platform: 'reddit', id: '8tnc0d8mu3ch1' }, { fetch: noFetch });
+    expect(out).toEqual({ url: 'https://v.redd.it/8tnc0d8mu3ch1/HLSPlaylist.m3u8', hls: true });
+  });
+
+  it('rejects an id with non [a-z0-9] characters (path-injection guard)', async () => {
+    expect(await resolveOriginal({ platform: 'reddit', id: '../evil' }, { fetch: noFetch })).toBeNull();
+    expect(await resolveOriginal({ platform: 'reddit', id: 'a/b' }, { fetch: noFetch })).toBeNull();
+    expect(await resolveOriginal({ platform: 'reddit', id: '' }, { fetch: noFetch })).toBeNull();
+  });
+});
+
+describe('resolveOriginal — pinterest (pin-widget)', () => {
+  // A fetch that records the URL it was called with and returns `payload`.
+  const capturingFetch = (payload: unknown, ok = true) => {
+    const calls: string[] = [];
+    const fn = (async (u: string) => { calls.push(String(u)); return { ok, json: async () => payload }; }) as unknown as typeof fetch;
+    return Object.assign(fn, { calls });
+  };
+  const listOnly = (video_list: Record<string, { url: string }>) => ({ data: [{ videos: { video_list } }] });
+
+  it('queries the public widget endpoint with the pin id', async () => {
+    const fetch = capturingFetch(pinWidget);
+    await resolveOriginal({ platform: 'pinterest', id: '84301824269690044' }, { fetch });
+    expect(fetch.calls).toEqual(['https://widgets.pinterest.com/v3/pidgets/pins/info/?pin_ids=84301824269690044']);
+  });
+
+  it('prefers the progressive V_720P mp4 over the HLS renditions (real fixture)', async () => {
+    const out = await resolveOriginal({ platform: 'pinterest', id: '84301824269690044' }, { fetch: mockFetch(pinWidget) });
+    expect(out).toEqual({ url: 'https://v1.pinimg.com/videos/iht/720p/62/b7/a5/62b7a5ecc1b483e99a3456ef9c2f7861.mp4' });
+  });
+
+  it('falls back to the V_HLSV4 master when there is no progressive mp4', async () => {
+    const payload = listOnly({ V_HLSV4: { url: 'https://v1.pinimg.com/videos/iht/hls/aa/bb/cc/deadbeef.m3u8' } });
+    const out = await resolveOriginal({ platform: 'pinterest', id: '123' }, { fetch: mockFetch(payload) });
+    expect(out).toEqual({ url: 'https://v1.pinimg.com/videos/iht/hls/aa/bb/cc/deadbeef.m3u8', hls: true });
+  });
+
+  it('falls back to V_HLSV3_MOBILE when it is the only rendition', async () => {
+    const payload = listOnly({ V_HLSV3_MOBILE: { url: 'https://v1.pinimg.com/videos/iht/hls/aa/bb/cc/deadbeef.m3u8' } });
+    const out = await resolveOriginal({ platform: 'pinterest', id: '123' }, { fetch: mockFetch(payload) });
+    expect(out).toEqual({ url: 'https://v1.pinimg.com/videos/iht/hls/aa/bb/cc/deadbeef.m3u8', hls: true });
+  });
+
+  it('rejects a video url that is not on the pinimg.com host family', async () => {
+    const payload = listOnly({ V_720P: { url: 'https://evil.example/x.mp4' } });
+    expect(await resolveOriginal({ platform: 'pinterest', id: '123' }, { fetch: mockFetch(payload) })).toBeNull();
+  });
+
+  it('returns null for a still pin (no video_list)', async () => {
+    expect(await resolveOriginal({ platform: 'pinterest', id: '123' }, { fetch: mockFetch({ data: [{}] }) })).toBeNull();
+  });
+
+  it('returns null on an empty data array (private / deleted pin)', async () => {
+    expect(await resolveOriginal({ platform: 'pinterest', id: '123' }, { fetch: mockFetch({ data: [] }) })).toBeNull();
+  });
+
+  it('returns null on a non-ok response', async () => {
+    expect(await resolveOriginal({ platform: 'pinterest', id: '123' }, { fetch: mockFetch({}, false) })).toBeNull();
+  });
+
+  it('returns null when fetch throws', async () => {
+    const throwing = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
+    expect(await resolveOriginal({ platform: 'pinterest', id: '123' }, { fetch: throwing })).toBeNull();
+  });
+
+  it('returns null for a non-numeric pin id, without fetching', async () => {
+    const fetch = capturingFetch(pinWidget);
+    expect(await resolveOriginal({ platform: 'pinterest', id: '../evil' }, { fetch })).toBeNull();
+    expect(fetch.calls).toEqual([]);
   });
 });

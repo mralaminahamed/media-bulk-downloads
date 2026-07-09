@@ -58,4 +58,28 @@ describe('resolve — generic fallback', () => {
       resolveHint: { platform: 'flickr', id: '55379291849' },
     });
   });
+
+  it('includes redditResolver before genericResolver', () => {
+    const ids = REGISTRY.map((r) => r.id);
+    expect(ids).toContain('reddit');
+    expect(ids.indexOf('reddit')).toBeLessThan(ids.indexOf('generic'));
+  });
+
+  it('routes a preview.redd.it URL through the reddit resolver to the i.redd.it original', () => {
+    const [c] = resolve('https://preview.redd.it/abc123.jpeg?width=640&s=deadbeef', ctx);
+    expect(c).toMatchObject({ kind: 'image', url: 'https://i.redd.it/abc123.jpeg' });
+    expect(c.thumbnailSrc).toBe('https://preview.redd.it/abc123.jpeg?width=640&s=deadbeef');
+  });
+
+  it('includes pinterestResolver before genericResolver', () => {
+    const ids = REGISTRY.map((r) => r.id);
+    expect(ids).toContain('pinterest');
+    expect(ids.indexOf('pinterest')).toBeLessThan(ids.indexOf('generic'));
+  });
+
+  it('routes an i.pinimg.com size folder through the pinterest resolver to /originals/', () => {
+    const [c] = resolve('https://i.pinimg.com/564x/aa/bb/cc/deadbeef.jpg', ctx);
+    expect(c).toMatchObject({ kind: 'image', url: 'https://i.pinimg.com/originals/aa/bb/cc/deadbeef.jpg' });
+    expect(c.thumbnailSrc).toBe('https://i.pinimg.com/564x/aa/bb/cc/deadbeef.jpg');
+  });
 });

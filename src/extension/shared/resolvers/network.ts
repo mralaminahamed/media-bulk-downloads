@@ -37,6 +37,10 @@ interface VimeoConfig {
 interface DidService { id?: string; type?: string; serviceEndpoint?: string }
 interface DidDoc { service?: DidService[] }
 
+interface PinterestVideoEntry { url?: string }
+interface PinterestPin { videos?: { video_list?: Record<string, PinterestVideoEntry> } }
+interface PinterestWidgetResponse { data?: PinterestPin[] }
+
 /**
  * A URL taken from an API JSON response is untrusted: constrain it to https and
  * the expected host family before handing it back as a downloadable media URL.
@@ -241,6 +245,45 @@ async function flickr(id: string, deps: NetDeps): Promise<ResolvedMedia | null> 
   }
 }
 
+/**
+ * Reddit. Deterministic, no fetch (like bsky video): the v.redd.it id already names
+ * the account's video, and the HLS master is served signature-free under it. Returns
+ * the master to capture — the extension's HLS engine muxes the separate audio
+ * rendition it lists, so the download has sound (unlike the video-only CMAF_720.mp4
+ * fallback). Guarded to the v.redd.it host.
+ */
+function reddit(id: string): ResolvedMedia | null {
+  if (!/^[a-z0-9]+$/i.test(id)) return null;
+  const url = `https://v.redd.it/${id}/HLSPlaylist.m3u8`;
+  return pinnedUrl(url, 'v.redd.it') ? { url, hls: true } : null;
+}
+
+/**
+ * Pinterest. Reads the public, unauthenticated pin-widget endpoint (CORS-open, no
+ * cookies/CSRF — usable from the background worker, unlike the CSRF-gated
+ * PinResource API) and returns the pin's video: the progressive MP4 (`V_720P`) as a
+ * direct download when present, else an HLS master (`V_HLSV4` / `V_HLSV3_MOBILE`) to
+ * capture. Still pins (no `video_list`), private/deleted pins, and errors → null.
+ */
+async function pinterest(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  try {
+    // The hint id is the numeric pin id from the resolver; reject anything else
+    // before it reaches the query string.
+    if (!/^\d+$/.test(id)) return null;
+    const r = await deps.fetch(`https://widgets.pinterest.com/v3/pidgets/pins/info/?pin_ids=${encodeURIComponent(id)}`);
+    if (!r.ok) return null;
+    const j = (await r.json()) as PinterestWidgetResponse;
+    const list = j?.data?.[0]?.videos?.video_list;
+    if (!list) return null;
+    const mp4 = pinnedUrl(list.V_720P?.url, 'pinimg.com');
+    if (mp4) return { url: mp4 };
+    const hls = pinnedUrl(list.V_HLSV4?.url ?? list.V_HLSV3_MOBILE?.url, 'pinimg.com');
+    return hls ? { url: hls, hls: true } : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Resolve one hint to a final media target, or null on failure. Never throws. */
 export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise<ResolvedMedia | null> {
   switch (hint.platform) {
@@ -249,6 +292,8 @@ export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise
     case 'unsplash': return { url: unsplash(hint.id) };
     case 'vimeo': return vimeo(hint.id, deps);
     case 'bsky': return bsky(hint.id, deps);
+    case 'pinterest': return pinterest(hint.id, deps);
+    case 'reddit': return reddit(hint.id);
     case 'flickr': return flickr(hint.id, deps);
     default: return null;
   }

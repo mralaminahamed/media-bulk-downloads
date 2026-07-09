@@ -1,0 +1,19 @@
+{
+  "_source": "reddit listing JSON media.reddit_video for a native video post (r/oddlysatisfying, post 1urbr97) — captured 2026-07-09; signature query params redacted to <sig>. Documents the real shape; the resolver builds the master from the v.redd.it id in the path, so it does not parse this.",
+  "media": {
+    "reddit_video": {
+      "fallback_url": "https://v.redd.it/8tnc0d8mu3ch1/CMAF_720.mp4?source=fallback",
+      "hls_url": "https://v.redd.it/8tnc0d8mu3ch1/HLSPlaylist.m3u8?a=<sig>&v=<sig>&f=<sig>",
+      "dash_url": "https://v.redd.it/8tnc0d8mu3ch1/DASHPlaylist.mpd?a=<sig>&v=<sig>&f=<sig>",
+      "has_audio": true,
+      "is_gif": false,
+      "width": 480,
+      "height": 800
+    }
+  },
+  "_notes": {
+    "bare_master_no_signature": "GET https://v.redd.it/8tnc0d8mu3ch1/HLSPlaylist.m3u8 (no query) -> 200; body is hls-master.m3u8",
+    "fallback_is_silent": "CMAF_720.mp4 is a video-only rendition; audio lives in the CMAF_AUDIO_*.m3u8 renditions the master lists",
+    "preview_image": "preview.redd.it/<file>?...&s=<sig> -> original i.redd.it/<file> (verified 200)"
+  }
+}
