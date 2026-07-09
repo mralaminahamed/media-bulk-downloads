@@ -82,4 +82,19 @@ describe('resolve — generic fallback', () => {
     expect(c).toMatchObject({ kind: 'image', url: 'https://i.pinimg.com/originals/aa/bb/cc/deadbeef.jpg' });
     expect(c.thumbnailSrc).toBe('https://i.pinimg.com/564x/aa/bb/cc/deadbeef.jpg');
   });
+
+  it('includes artstationResolver before genericResolver', () => {
+    const ids = REGISTRY.map((r) => r.id);
+    expect(ids).toContain('artstation');
+    expect(ids.indexOf('artstation')).toBeLessThan(ids.indexOf('generic'));
+  });
+
+  it('routes an ArtStation asset through the artstation resolver (small -> /large/ + hint)', () => {
+    const [c] = resolve('https://cdna.artstation.com/p/assets/images/images/1/2/3/small/x.jpg', ctx);
+    expect(c).toMatchObject({
+      kind: 'image',
+      url: 'https://cdna.artstation.com/p/assets/images/images/1/2/3/large/x.jpg',
+      resolveHint: { platform: 'artstation', id: 'img https://cdna.artstation.com/p/assets/images/images/1/2/3/large/x.jpg' },
+    });
+  });
 });
