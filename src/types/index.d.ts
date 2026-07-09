@@ -529,6 +529,10 @@ export interface AppProps {
   deepScan?: (onProgress: (p: DeepScanProgress) => void) => Promise<ImageInfo[]>;
   /** Aborts an in-flight deep scan. Defaults to messaging the active tab (popup). */
   abortDeepScan?: () => void;
+  /** How to run Facebook original-capture. When absent, the capture control is hidden. */
+  captureOriginals?: (onProgress: (p: OriginalCaptureProgress) => void) => Promise<ImageInfo[]>;
+  /** Aborts an in-flight original-capture run. */
+  abortCaptureOriginals?: () => void;
   /** Which surface this app renders in. */
   surface?: 'popup' | 'bubble';
   /** When embedded (bubble), a close handler for the header. */

@@ -13,7 +13,7 @@ import { BrandMark } from '../components/BrandMark';
 import { SkeletonGrid } from './components/states/SkeletonGrid';
 import { EmptyState } from './components/states/EmptyState';
 import { ErrorState } from './components/states/ErrorState';
-import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, DownloadZipMessage, DownloadBytesMessage, ExcludedKind, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
+import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, DownloadZipMessage, DownloadBytesMessage, ExcludedKind, FavouriteEntry, FilterOptions, ImageInfo, OriginalCaptureProgress, SettingsData } from '@/types';
 import { filterImagesBySettings, applyToolbarFilters, filterExcluded, ExcludedMatchers } from '../shared/collection/filters';
 import { SrcKeySet, canonicalSrcKey } from '../shared/collection/canonical';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
@@ -31,7 +31,7 @@ import { buildDownloadFilename } from '../shared/collection/download-name';
 import { hostFromUrl, registrableDomain, todayISO } from '../shared/collection/paths';
 import { requestCaptureStream } from '../shared/active-tab/capture-stream-active';
 import { copyText, downloadText, fetchDownloadedOnDisk, getImageFileSize, mapWithConcurrency, sendRuntimeMessage } from './utils';
-import { Cog6ToothIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon, NoSymbolIcon } from '@heroicons/react/24/outline';
+import { Cog6ToothIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon, NoSymbolIcon, PhotoIcon } from '@heroicons/react/24/outline';
 
 // Concurrent HEAD requests when enriching remote image sizes.
 const SIZE_FETCH_CONCURRENCY = 6;
@@ -63,6 +63,8 @@ const App: React.FC<AppProps> = ({
   collect = collectFromActiveTab,
   deepScan = deepScanActiveTab,
   abortDeepScan = abortDeepScanActiveTab,
+  captureOriginals,
+  abortCaptureOriginals,
   surface = 'popup',
   onClose,
   dragHandleProps,
@@ -78,6 +80,9 @@ const App: React.FC<AppProps> = ({
   const [settings, setSettings] = useState<SettingsData>(DEFAULT_SETTINGS);
   const [deepScanning, setDeepScanning] = useState(false);
   const [deepProgress, setDeepProgress] = useState<DeepScanProgress | null>(null);
+  const [capturing, setCapturing] = useState(false);
+  const [captureProgress, setCaptureProgress] = useState<OriginalCaptureProgress | null>(null);
+  const [confirmCapture, setConfirmCapture] = useState(false);
   const [downloadedSrcs, setDownloadedSrcs] = useState<SrcKeySet>(new SrcKeySet());
   const [showFavourites, setShowFavourites] = useState(false);
   const [showExcluded, setShowExcluded] = useState(false);
@@ -362,6 +367,45 @@ const App: React.FC<AppProps> = ({
       setState((prev) => ({ ...prev, status: e instanceof Error ? e.message : 'deep scan failed' }));
     } finally {
       setDeepScanning(false);
+    }
+  };
+
+  /**
+   * Facebook original-capture opens each photo one-by-one on facebook.com — a
+   * risk-bearing, rate-limit-prone action — so it's gated behind an inline
+   * confirm rather than running the instant the button is clicked. A second
+   * click while capturing aborts the in-flight run (mirroring deep scan).
+   */
+  const handleCaptureOriginals = (): void => {
+    if (capturing) {
+      abortCaptureOriginals?.();
+      return;
+    }
+    setConfirmCapture(true);
+  };
+
+  const runCapture = async (): Promise<void> => {
+    setConfirmCapture(false);
+    if (!captureOriginals) return;
+    setCapturing(true);
+    setCaptureProgress(null);
+    try {
+      const found = await captureOriginals((p) => setCaptureProgress(p));
+      // Merge into the existing set by CANONICAL src key, same as deep scan —
+      // a captured original replacing/joining a lower-res tile shouldn't duplicate.
+      const bySrc = new Map(rawImagesRef.current.map((m) => [canonicalSrcKey(m.src), m]));
+      found.forEach((m) => {
+        const key = canonicalSrcKey(m.src);
+        if (!bySrc.has(key)) bySrc.set(key, m);
+      });
+      const merged = [...bySrc.values()];
+      rawImagesRef.current = merged;
+      const eligible = filterExcluded(filterImagesBySettings(merged, settings), excludedRef.current);
+      applyResolution(eligible, settings);
+    } catch (e) {
+      setState((prev) => ({ ...prev, status: e instanceof Error ? e.message : 'capture failed' }));
+    } finally {
+      setCapturing(false);
     }
   };
 
@@ -839,6 +883,23 @@ const App: React.FC<AppProps> = ({
                 className={`h-4.5 w-4.5 ${deepScanning ? 'animate-pulse' : ''}`}
               />
             </button>
+            {captureOriginals && settings.fbCaptureOriginals && (
+              <>
+                {capturing && (
+                  <span className="num inline-flex items-center rounded-full bg-(--brand-soft) px-2 py-0.5 text-[10px] font-semibold text-(--brand-ink)">
+                    Opened {captureProgress?.opened ?? 0}/{captureProgress?.total ?? 0} · {captureProgress?.captured ?? 0} originals
+                  </span>
+                )}
+                <button
+                  onClick={handleCaptureOriginals}
+                  className="iconbtn"
+                  title={capturing ? 'Stop capturing originals' : 'Fetch full-res originals (Facebook)'}
+                  aria-label={capturing ? 'Stop capturing originals' : 'Fetch full-res originals (Facebook)'}
+                >
+                  <PhotoIcon className={`h-4.5 w-4.5 ${capturing ? 'animate-pulse' : ''}`} />
+                </button>
+              </>
+            )}
             <button onClick={fetchImages} className="iconbtn" title="Rescan page" aria-label="Rescan page">
               <ArrowPathIcon className={`h-4.5 w-4.5 ${state.isLoading ? 'animate-[spin_0.9s_linear_infinite]' : ''}`} />
             </button>
@@ -853,6 +914,22 @@ const App: React.FC<AppProps> = ({
 
       {/* Body */}
       <main className="scroll-thin flex-1 overflow-y-auto px-4 py-3">
+        {confirmCapture && (
+          <div role="dialog" aria-label="Confirm original capture" className="mb-3 rounded-(--radius) border hairline bg-(--panel-2) p-3">
+            <p className="text-[13px] text-(--ink)">
+              Open up to {settings.fbCaptureMaxPhotos} photos one-by-one to fetch full-res originals
+              (~{Math.ceil((settings.fbCaptureMaxPhotos * 3) / 60)} min). Facebook may rate-limit. Continue?
+            </p>
+            <div className="mt-2 flex gap-2">
+              <button type="button" onClick={() => void runCapture()} className="btn btn-primary btn-sm">
+                Continue
+              </button>
+              <button type="button" onClick={() => setConfirmCapture(false)} className="btn btn-ghost btn-sm">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
         {state.isLoading ? (
           <SkeletonGrid thumbnailSize={settings.thumbnailSize} />
         ) : total === 0 ? (
