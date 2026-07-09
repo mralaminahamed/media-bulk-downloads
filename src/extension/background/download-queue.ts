@@ -120,3 +120,30 @@ export async function retryQueueItem(id: string): Promise<void> {
 export async function getQueueSnapshot(): Promise<QueueState> {
   return loadQueue();
 }
+
+// On service-worker startup, reconcile any items left 'active' when the worker
+// died: if Chrome finished the download meanwhile, mark it done; otherwise put it
+// back in the queue so pump() re-dispatches it. Then drain whatever is claimable.
+export async function reconcileQueue(): Promise<void> {
+  const snapshot = await loadQueue();
+  const actives = snapshot.items.filter((i) => i.status === 'active' && i.downloadId !== undefined);
+  for (const item of actives) {
+    let completed = false;
+    try {
+      const [hit] = await chrome.downloads.search({ id: item.downloadId });
+      completed = hit?.state === 'complete';
+    } catch {
+      // search unavailable → treat as needing a requeue rather than losing the item.
+    }
+    await withState(async (s) => {
+      const cur = s.items.find((i) => i.id === item.id);
+      if (!cur || cur.status !== 'active') return { state: s, value: null };
+      if (completed) return { state: markDone(s, item.id), value: null };
+      const items = s.items.map((i) =>
+        i.id === item.id ? { ...i, status: 'queued' as const, downloadId: undefined, readyAt: Date.now() } : i,
+      );
+      return { state: { ...s, items }, value: null };
+    });
+  }
+  void pump();
+}

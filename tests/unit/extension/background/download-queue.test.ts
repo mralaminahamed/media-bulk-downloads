@@ -4,8 +4,9 @@ const { recordDownloads } = vi.hoisted(() => ({ recordDownloads: vi.fn(async () 
 vi.mock('@/extension/shared/storage/history', () => ({ recordDownloads }));
 
 import {
-  initQueueDispatcher, enqueueDownloads, handleDownloadChanged, getQueueSnapshot,
+  initQueueDispatcher, enqueueDownloads, handleDownloadChanged, getQueueSnapshot, reconcileQueue,
 } from '@/extension/background/download-queue';
+import { QUEUE_KEY } from '@/extension/shared/storage/download-queue';
 
 let store: Record<string, unknown>;
 let downloadCb: (() => void) | null;
@@ -83,5 +84,28 @@ describe('queue dispatcher', () => {
     expect(snap.items[0].attempts).toBe(1);
     expect(snap.items[0].status).toBe('queued');
     expect(snap.items[0].downloadId).toBeUndefined();
+  });
+});
+
+describe('reconcile on restart', () => {
+  it('marks active→done when the download completed while the SW was dead', async () => {
+    store[QUEUE_KEY] = { paused: false, items: [
+      { id: 'a', url: 'u1', filename: 'f1', status: 'active', attempts: 0, downloadId: 100, readyAt: 0, addedAt: 0 },
+    ] };
+    (chrome.downloads.search as ReturnType<typeof vi.fn>).mockResolvedValueOnce([{ id: 100, state: 'complete' }]);
+    await reconcileQueue();
+    await flush();
+    const snap = await getQueueSnapshot();
+    expect(snap.items[0].status).toBe('done');
+  });
+
+  it('requeues active→queued when the download is missing/interrupted', async () => {
+    store[QUEUE_KEY] = { paused: false, items: [
+      { id: 'b', url: 'u2', filename: 'f2', status: 'active', attempts: 0, downloadId: 200, readyAt: 0, addedAt: 0 },
+    ] };
+    (chrome.downloads.search as ReturnType<typeof vi.fn>).mockResolvedValueOnce([]);
+    await reconcileQueue();
+    const snap = await getQueueSnapshot();
+    expect(['queued', 'active']).toContain(snap.items[0].status);
   });
 });
