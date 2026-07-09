@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pinFbUrl, fbidFromUrl, extFromPath, numOr } from '@/extension/shared/resolvers/sniffers/fb-media-sniff';
+import { pinFbUrl, fbidFromUrl, extFromPath, numOr, extractFbMedia } from '@/extension/shared/resolvers/sniffers/fb-media-sniff';
 
 describe('pinFbUrl', () => {
   it('accepts https fbcdn / cdninstagram hosts', () => {
@@ -62,5 +62,37 @@ describe('numOr', () => {
     expect(numOr('720')).toBeUndefined();
     expect(numOr(null)).toBeUndefined();
     expect(numOr(undefined)).toBeUndefined();
+  });
+});
+
+describe('extractFbMedia', () => {
+  it('picks the largest image per FBID and ignores blurred previews', () => {
+    const json = { data: { node: { id: '100', __typename: 'Photo',
+      blurred_image: { uri: 'https://x.fbcdn.net/v/blur_n.jpg', width: 20, height: 20 },
+      image: { uri: 'https://x.fbcdn.net/v/small_n.jpg', width: 320, height: 240 },
+      photo_image: { uri: 'https://x.fbcdn.net/v/orig_n.jpg', width: 2048, height: 1536 } } } };
+    const out = extractFbMedia(json).filter((e) => e.fbid === '100' && e.kind === 'image');
+    expect(out).toHaveLength(1);
+    expect(out[0].url).toContain('orig_n.jpg');
+    expect(out[0].width).toBe(2048);
+  });
+
+  it('extracts a real mp4 video (HD preferred) with its poster', () => {
+    const json = { video: { id: '200', __typename: 'Video',
+      playable_url: 'https://x.fbcdn.net/v/sd.mp4',
+      playable_url_quality_hd: 'https://x.fbcdn.net/v/hd.mp4',
+      preferred_thumbnail: { image: { uri: 'https://x.fbcdn.net/v/cover_n.jpg', width: 640, height: 360 } } } };
+    const vids = extractFbMedia(json).filter((e) => e.kind === 'video');
+    expect(vids).toHaveLength(1);
+    expect(vids[0].url).toContain('hd.mp4');
+    expect(vids[0].fbid).toBe('200');
+    expect(vids[0].poster).toContain('cover_n.jpg');
+  });
+
+  it('drops media with no resolvable ancestor id and rejects non-fbcdn urls', () => {
+    const json = { image: { uri: 'https://evil.com/x.jpg', width: 800, height: 600 } };            // bad host
+    const json2 = { image: { uri: 'https://x.fbcdn.net/y_n.jpg', width: 800, height: 600 } };      // no id
+    expect(extractFbMedia(json)).toHaveLength(0);
+    expect(extractFbMedia(json2)).toHaveLength(0);
   });
 });
