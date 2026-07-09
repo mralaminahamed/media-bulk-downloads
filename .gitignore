@@ -43,6 +43,9 @@ Thumbs.db
 /docs/superpowers/
 /.superpowers/
 /docs/native-resolvers-analysis.md
+/.claude/settings.json
+/.claude/settings.local.json
+/.claude/worktrees/
 
 # WXT
 .output/
