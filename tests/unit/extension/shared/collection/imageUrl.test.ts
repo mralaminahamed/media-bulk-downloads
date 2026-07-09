@@ -129,6 +129,51 @@ describe('upgradeToOriginal', () => {
       'https://images.rawpixel.com/image_1300/cHJpdmF0ZS9sci9pbWFnZXM.jpg?w=1300&h=800&q=80',
       'https://images.rawpixel.com/image_1300/cHJpdmF0ZS9sci9pbWFnZXM.jpg',
     ],
+    [
+      'Sanity strips the imgix transform to the master (native dims in filename)',
+      'https://cdn.sanity.io/images/prj/ds/abc-2218x1479.jpg?w=800&h=600&fit=crop&auto=format',
+      'https://cdn.sanity.io/images/prj/ds/abc-2218x1479.jpg',
+    ],
+    [
+      'Contentful strips the imgix transform to the master',
+      'https://images.ctfassets.net/space/asset/hash/photo.jpg?w=400&h=300&fit=fill&fm=webp',
+      'https://images.ctfassets.net/space/asset/hash/photo.jpg',
+    ],
+    [
+      'Sirv strips the dynamic resizer query',
+      'https://demo.sirv.com/product.jpg?w=300&h=200&scale.width=300&q=80',
+      'https://demo.sirv.com/product.jpg',
+    ],
+    [
+      'Storyblok drops the /m/ service segment to the master',
+      'https://a.storyblok.com/f/39898/3310x2192/hash/image.jpg/m/1200x795/filters:format(webp)',
+      'https://a.storyblok.com/f/39898/3310x2192/hash/image.jpg',
+    ],
+    [
+      'Uploadcare strips the -/ operations to the bare-UUID original',
+      'https://ucarecdn.com/8f1e2d3c-0000-1111-2222-abcdef012345/-/resize/800x/-/format/auto/',
+      'https://ucarecdn.com/8f1e2d3c-0000-1111-2222-abcdef012345/',
+    ],
+    [
+      'ImageKit drops the ?tr= query to the original',
+      'https://ik.imagekit.io/demo/default-image.jpg?tr=w-300,h-200',
+      'https://ik.imagekit.io/demo/default-image.jpg',
+    ],
+    [
+      'ImageKit strips the /tr:/ path segment to the original',
+      'https://ik.imagekit.io/demo/tr:w-300,h-200/default-image.jpg',
+      'https://ik.imagekit.io/demo/default-image.jpg',
+    ],
+    [
+      'Cloudflare /cdn-cgi/image/ unwraps an absolute src',
+      'https://example.com/cdn-cgi/image/width=800,quality=75/https://origin.com/hero.jpg',
+      'https://origin.com/hero.jpg',
+    ],
+    [
+      'Cloudflare /cdn-cgi/image/ unwraps a same-origin src',
+      'https://example.com/cdn-cgi/image/width=800/uploads/hero.jpg',
+      'https://example.com/uploads/hero.jpg',
+    ],
   ];
 
   it.each(cases)('%s', (_name, input, expected) => {
@@ -241,6 +286,38 @@ describe('upgradeToOriginal', () => {
     }
   });
 
+  it('leaves an ImageKit signed URL (ik-s=) untouched — a path edit would break it', () => {
+    const url = 'https://ik.imagekit.io/demo/tr:w-300/default-image.jpg?ik-s=abc123def';
+    const r = upgradeToOriginal(url);
+    expect(r.original).toBe(url);
+    expect(r.thumbnail).toBeUndefined();
+  });
+
+  it('Sanity size variants of one image dedup to a single master URL', () => {
+    const master = 'https://cdn.sanity.io/images/prj/ds/abc-2218x1479.jpg';
+    const outputs = ['?w=800', '?w=1600&h=900&fit=crop', '?w=400&auto=format&q=70'].map(
+      (q) => upgradeToOriginal(master + q).original,
+    );
+    expect(new Set(outputs)).toEqual(new Set([master]));
+  });
+
+  it('Sirv matches any subdomain under sirv.com', () => {
+    const r = upgradeToOriginal('https://mybrand.sirv.com/a/b/photo.png?w=200&scale.width=200');
+    expect(r.original).toBe('https://mybrand.sirv.com/a/b/photo.png');
+    expect(r.thumbnail).toBe('https://mybrand.sirv.com/a/b/photo.png?w=200&scale.width=200');
+  });
+
+  it('leaves a Storyblok/Uploadcare master (no transform segment) unchanged', () => {
+    for (const url of [
+      'https://a.storyblok.com/f/39898/3310x2192/hash/image.jpg', // no /m/ segment
+      'https://ucarecdn.com/8f1e2d3c-0000-1111-2222-abcdef012345/', // bare UUID, no -/ ops
+    ]) {
+      const r = upgradeToOriginal(url);
+      expect(r.original).toBe(url);
+      expect(r.thumbnail).toBeUndefined();
+    }
+  });
+
   it('discards a wikimedia rewrite that would empty the path', () => {
     // Real wikimedia thumb URLs always have a directory path ahead of `/thumb/`
     // (e.g. /wikipedia/commons/thumb/a/ab/Cat.jpg/320px-Cat.jpg), so the rewrite
@@ -302,6 +379,17 @@ describe('deproxy', () => {
   });
   it('unwraps a Cloudinary fetch URL', () => {
     expect(deproxy('https://res.cloudinary.com/demo/image/fetch/w_200/https://cdn.com/d.jpg')).toBe('https://cdn.com/d.jpg');
+  });
+  it('unwraps a Cloudflare /cdn-cgi/image/ URL (absolute and same-origin src)', () => {
+    expect(deproxy('https://ex.com/cdn-cgi/image/width=800,quality=75/https://origin.com/hero.jpg'))
+      .toBe('https://origin.com/hero.jpg');
+    expect(deproxy('https://ex.com/cdn-cgi/image/width=800/uploads/hero.jpg'))
+      .toBe('https://ex.com/uploads/hero.jpg');
+  });
+  it('does NOT treat a /cdn-cgi/image/ path without an options segment as a proxy', () => {
+    // The first segment must look like an options list (contain `=`); a bare
+    // `.../cdn-cgi/image/logo.jpg` is not unwrapped (would otherwise misfire).
+    expect(deproxy('https://ex.com/cdn-cgi/image/logo.jpg')).toBeNull();
   });
   it('returns null when the wrapped value is not media', () => {
     expect(deproxy('https://site.com/page?url=' + encodeURIComponent('https://cdn.com/article'))).toBeNull();

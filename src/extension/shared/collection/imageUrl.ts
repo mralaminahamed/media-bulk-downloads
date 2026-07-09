@@ -141,6 +141,27 @@ export function deproxy(url: string): string | null {
     if (abs && looksLikeMediaUrl(abs)) return abs;
   }
 
+  // Cloudflare Images: /cdn-cgi/image/<options>/<src>, where <options> is a
+  // comma-list of key=value transforms (width=800,quality=75,…) and <src> is the
+  // origin image — either an absolute URL or a same-origin path. Unwrap to <src>
+  // (mirrors the Cloudinary /image/fetch/ case; the src carries an image
+  // extension, so this must run before the `MEDIA_EXT.test` guard below). The
+  // `=` check ensures the first segment is really an options list, not a src. #225
+  if (u.pathname.includes('/cdn-cgi/image/')) {
+    const after = u.pathname.split('/cdn-cgi/image/')[1] ?? '';
+    const slash = after.indexOf('/');
+    const opts = slash > 0 ? after.slice(0, slash) : '';
+    if (slash > 0 && opts.includes('=')) {
+      const decoded = safeDecode(after.slice(slash + 1)) + (u.search || '');
+      try {
+        const abs = /^https?:\/\//i.test(decoded) ? decoded : new URL(decoded, u.origin).href;
+        if (looksLikeMediaUrl(abs)) return abs;
+      } catch {
+        /* fall through */
+      }
+    }
+  }
+
   // weserv: host serves ?url=<host/path> (often without scheme)
   if (/(?:^|\.)(?:images\.weserv\.nl|wsrv\.nl)$/i.test(u.hostname)) {
     const raw = u.searchParams.get('url');
@@ -340,6 +361,63 @@ const RULES: CdnRule[] = [
       u.hostname === 'images.rawpixel.com',
     rewrite: (u) => dropParams(u, RESIZE_PARAMS),
   },
+  // ── Tier-2 strip-transform CDN family (#225) ──────────────────────────────
+  // A family of transform engines that all share one shape: strip the resize
+  // transform → the stored origin master (dimensions are encoded in the path or
+  // filename, so the master is reconstructable). These engines UPSCALE past the
+  // source on over-request, so the widest openly-served rendition is the stripped
+  // master, not a giant ?w=. For the param-strip hosts, dropParams removes only
+  // the named transform keys, so any delivery signature the URL carries is left
+  // intact (never forged, never broken); ImageKit strips a path segment instead,
+  // so it explicitly bails on a signed (ik-s=) URL. Cloudflare /cdn-cgi/image/ is
+  // a path-embedded proxy handled in deproxy() above.
+  {
+    // Sanity (cdn.sanity.io): imgix-family query resizer; native dims live in the
+    // filename (…-2218x1479.jpg), so stripping the transform reaches the master.
+    match: (u) => u.hostname === 'cdn.sanity.io',
+    rewrite: (u) => dropParams(u, [...RESIZE_PARAMS, 'fm', 'auto', 'rect', 'flip', 'or', 'sat', 'bg']),
+  },
+  {
+    // Contentful (images.ctfassets.net): imgix-family query resizer. dropParams
+    // touches only the transform keys, so a secure-delivery token survives.
+    match: (u) => u.hostname === 'images.ctfassets.net',
+    rewrite: (u) => dropParams(u, [...RESIZE_PARAMS, 'fm', 'f', 'r', 'bg']),
+  },
+  {
+    // Sirv (*.sirv.com): ?w=&h=&scale.width=&scale.height=&q= dynamic resizer;
+    // the bare path is the stored original.
+    match: (u) => /(?:^|\.)sirv\.com$/i.test(u.hostname),
+    rewrite: (u) =>
+      dropParams(u, [...RESIZE_PARAMS, 'scale.width', 'scale.height', 'format', 'colorspace']),
+  },
+  {
+    // Storyblok (*.storyblok.com): the image service appends a /m/<w>x<h>/
+    // filters:…/ segment AFTER the filename; native dims are already in the path
+    // (…/<WxH>/…). Strip everything from /m/ onward to reach the master.
+    match: (u) => /(?:^|\.)storyblok\.com$/i.test(u.hostname) && u.pathname.includes('/m/'),
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/\/m\/.*$/i, '');
+    },
+  },
+  {
+    // Uploadcare (ucarecdn.com): /<uuid>/-/<operation>/…/ transform segments;
+    // strip the -/…/ operations back to the bare-UUID original.
+    match: (u) => u.hostname === 'ucarecdn.com' && u.pathname.includes('/-/'),
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/\/-\/.*$/i, '/');
+    },
+  },
+  {
+    // ImageKit (ik.imagekit.io): resize via a ?tr= query or a /tr:<ops>/ path
+    // segment. Strip both to the original. A signed URL (ik-s=) can't be re-signed
+    // after a path edit, so it is left untouched (match bails).
+    match: (u) => u.hostname === 'ik.imagekit.io' && !u.searchParams.has('ik-s'),
+    rewrite: (u) => {
+      u.searchParams.delete('tr');
+      u.pathname = u.pathname.replace(/\/tr:[^/]+\//i, '/');
+    },
+  },
+  // ──────────────────────────────────────────────────────────────────────────
   {
     // Cloudinary: strip the leading transformation segment(s) right after
     // /upload/. A transform segment is a comma-list of `<key>_<value>` params
@@ -695,9 +773,10 @@ export function upgradeToOriginal(url: string): { original: string; thumbnail?: 
   const before = parsed.pathname;
   if (rule) rule.rewrite(parsed);
 
-  // Guard: a rewrite must not destroy the filename or empty the path.
-  const filename = parsed.pathname.split('/').pop() ?? '';
-  if (!parsed.pathname || parsed.pathname === '/' || !filename) {
+  // Guard: a rewrite must not empty or collapse the path to root. A directory-
+  // style original (…/<uuid>/ for Uploadcare) is legitimate, so the test is for a
+  // surviving non-empty segment rather than a trailing filename.
+  if (!parsed.pathname || parsed.pathname.split('/').filter(Boolean).length === 0) {
     return { original: url };
   }
 
