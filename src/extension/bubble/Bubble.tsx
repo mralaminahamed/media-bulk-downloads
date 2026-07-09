@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { BubbleCorner, BubblePanelPlacement, DeepScanProgress, ImageInfo, SettingsData } from '@/types';
+import { BubbleCorner, BubblePanelPlacement, DeepScanProgress, ImageInfo, OriginalCaptureProgress, SettingsData } from '@/types';
 import { withDefaults } from '../shared/storage/settings';
 import { collectMedia } from '../content/collect';
 import { startDeepScan } from '../content/deepScanRunner';
+import { startOriginalCapture } from '../content/originalCaptureRunner';
+import { isFbPhotoGrid } from '../shared/active-tab/fb-grid-url';
 import App from '../popup/App';
 import { BrandMark } from '../components/BrandMark';
 
@@ -160,6 +162,28 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
     deepScanAbortRef.current?.abort();
   }, []);
 
+  // Original-capture (Facebook full-res fetch) also runs in-page here — same
+  // rationale as deep scan above: no messaging, so the Stop control needs its
+  // own abort controller ref.
+  const captureAbortRef = useRef<AbortController | null>(null);
+  const captureLocal = useCallback((onProgress: (p: OriginalCaptureProgress) => void): Promise<ImageInfo[]> => {
+    const ac = new AbortController();
+    captureAbortRef.current = ac;
+    const s = settingsRef.current;
+    return startOriginalCapture(
+      (opened, captured, total, reason) => {
+        const p: OriginalCaptureProgress = { type: 'FB_CAPTURE_PROGRESS', opened, captured, total };
+        if (reason) p.reason = reason;
+        onProgress(p);
+      },
+      ac.signal,
+      { maxPhotos: s.fbCaptureMaxPhotos, maxMs: s.fbCaptureMaxSeconds * 1000 },
+    );
+  }, []);
+  const abortCaptureLocal = useCallback(() => {
+    captureAbortRef.current?.abort();
+  }, []);
+
   // Free-drag of the panel via its header.
   const panelRef = useRef<HTMLDivElement>(null);
   const panelDrag = useRef<{ sx: number; sy: number; left: number; top: number; w: number; h: number } | null>(null);
@@ -209,18 +233,25 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
     return () => window.removeEventListener('keydown', onKey, true);
   }, [open]);
 
-  // Abort an in-flight deep scan when the panel closes (or the bubble unmounts).
-  // Otherwise startDeepScan keeps auto-scrolling the live page after the user
-  // dismissed the UI, with no way to stop it.
+  // Abort an in-flight deep scan or original capture when the panel closes (or
+  // the bubble unmounts). Otherwise startDeepScan/startOriginalCapture keeps
+  // auto-scrolling the live page after the user dismissed the UI, with no way
+  // to stop it.
   useEffect(() => {
-    if (!open) deepScanAbortRef.current?.abort();
+    if (!open) {
+      deepScanAbortRef.current?.abort();
+      captureAbortRef.current?.abort();
+    }
   }, [open]);
 
   // Also abort on full unmount — e.g. the bubble is turned off in Settings while a
   // scan is running. The [open] effect above only covers the panel-close
   // transition; without this, root.unmount() leaves the page auto-scrolling with
   // no UI left to stop it. Empty deps → the cleanup fires only on teardown.
-  useEffect(() => () => deepScanAbortRef.current?.abort(), []);
+  useEffect(() => () => {
+    deepScanAbortRef.current?.abort();
+    captureAbortRef.current?.abort();
+  }, []);
 
   const persist = useCallback((patch: Partial<SettingsData>) => {
     // Route through the background's single serialized settings writer so a drag
@@ -354,6 +385,8 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
               collect={collectLocal}
               deepScan={deepScanLocal}
               abortDeepScan={abortDeepScanLocal}
+              captureOriginals={isFbPhotoGrid(location.href) ? captureLocal : undefined}
+              abortCaptureOriginals={isFbPhotoGrid(location.href) ? abortCaptureLocal : undefined}
               surface="bubble"
               onClose={() => setOpen(false)}
               dragHandleProps={{

@@ -4,6 +4,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import '@testing-library/jest-dom';
 import Bubble from '@/extension/bubble/Bubble';
 import { startDeepScan } from '@/extension/content/deepScanRunner';
+import { isFbPhotoGrid } from '@/extension/shared/active-tab/fb-grid-url';
 import { SettingsData } from '@/types';
 
 // Never-resolving deep scan so we can observe its abort signal on panel close.
@@ -562,6 +563,23 @@ describe('Bubble', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Stop deep scan' }));
     expect(signal.aborted).toBe(true);
     expect(screen.getByRole('heading', { name: 'Media Bulk Downloads' })).toBeInTheDocument();
+  });
+
+  // --- Original-capture gating (off a FB photo grid) --------------------------
+
+  // This file's jsdom location stays at its default (non-facebook.com) origin —
+  // see tests/unit/extension/bubble/Bubble.capture.test.tsx for the pinned
+  // facebook.com/…/photos counterpart, which is the "on a FB grid" half of this
+  // gate (jsdom's `location` is immutable at runtime, so the two halves can't
+  // share one file — same technique as facebook.test.ts / facebook-offhost.test.ts).
+  it('does not wire captureOriginals into the embedded App off a FB photo grid, even with the setting on', async () => {
+    expect(isFbPhotoGrid(location.href)).toBe(false);
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { ...settings, fbCaptureOriginals: true } }));
+    render(<Bubble initialSettings={settings} />);
+    await dispatchToggle();
+    await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
+
+    expect(screen.queryByRole('button', { name: 'Fetch full-res originals (Facebook)' })).not.toBeInTheDocument();
   });
 
   // --- Header Close control --------------------------------------------------
