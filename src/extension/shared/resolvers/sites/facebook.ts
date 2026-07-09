@@ -1,5 +1,5 @@
-import { Resolver } from '../types';
-import { FbMediaEntry, pinFbUrl } from '@/extension/shared/resolvers/sniffers/fb-media-sniff';
+import { MediaCandidate, Resolver, ResolveContext } from '../types';
+import { FbMediaEntry, pinFbUrl, fbidFromUrl, extractFbMedia } from '@/extension/shared/resolvers/sniffers/fb-media-sniff';
 
 /**
  * Facebook resolver. FB serves media from signed CDNs (*.fbcdn.net,
@@ -7,10 +7,13 @@ import { FbMediaEntry, pinFbUrl } from '@/extension/shared/resolvers/sniffers/fb
  * thumbnail cannot be rewritten to its original. The page already ships each
  * photo/video's real URL inside its GraphQL responses and hydration JSON,
  * captured by the MAIN-world `fb-media-sniffer` and fed here via
- * `ingestSniffedFbMedia`.
+ * `ingestSniffedFbMedia`, plus this module's own read of embedded
+ * `<script type="application/json">` hydration blocks.
  *
- * This module currently implements only the validated sniff store — matching
- * a tile to its owner fbid and returning candidates lands in a follow-up task.
+ * So we never forge a URL: given a tile, we find its owner fbid (from the
+ * enclosing photo/video/watch/reel link, else the page URL) and return every
+ * media entry known for that fbid — images at full resolution, videos as
+ * their real downloadable mp4.
  */
 
 const SNIFF_CAP = 4000;
@@ -50,27 +53,99 @@ export function ingestSniffedFbMedia(entries: unknown): void {
   cache = null;
 }
 
-/** Test-only: reset store + cache. */
+/** Test-only: reset store + cache + parsed-script tracking. */
 export function __resetFbResolver(): void {
   store = [];
   version = 0;
   cache = null;
-}
-
-/** Test-only: current store size, so ingest tests can assert growth/rejection
- *  without depending on the (not-yet-implemented) resolve/match logic. */
-export function __storeSize(): number {
-  return store.length;
+  parsedScripts = new WeakSet<Element>();
 }
 
 /**
- * Stub — match/resolve land in a follow-up task once the store above is
- * grouped by fbid and wired to a tile's enclosing photo/video link. Returning
- * `false`/`[]` unconditionally means this resolver never claims a candidate
- * yet, so the generic resolver keeps handling Facebook media until then.
+ * Parse embedded hydration JSON once per script node. FB ships each opened
+ * photo/video's real URL inside its own page JSON (in addition to whatever
+ * the MAIN-world sniffer captures from GraphQL/api responses), so reading it
+ * here means a page reload / first paint already has media resolvable before
+ * any network response is sniffed. Embedded blocks are stable once rendered,
+ * so a deep scan's repeated calls parse each block exactly once.
  */
+function parseHydration(): void {
+  document.querySelectorAll('script[type="application/json"]').forEach((s) => {
+    if (parsedScripts.has(s)) return;
+    parsedScripts.add(s);
+    const text = s.textContent || '';
+    // Cheap guard: only parse blocks that could carry media.
+    if (text.indexOf('fbcdn') === -1 && text.indexOf('playable_url') === -1) return;
+    try {
+      ingestSniffedFbMedia(extractFbMedia(JSON.parse(text)));
+    } catch {
+      /* not JSON / not ours — ignore */
+    }
+  });
+}
+let parsedScripts = new WeakSet<Element>();
+
+function buildByFbid(): Map<string, FbMediaEntry[]> {
+  parseHydration();
+  const key = String(version);
+  if (cache && cache.key === key) return cache.byFbid;
+  const byFbid = new Map<string, FbMediaEntry[]>();
+  for (const e of store) {
+    const list = byFbid.get(e.fbid);
+    if (list) list.push(e);
+    else byFbid.set(e.fbid, [e]);
+  }
+  cache = { key, byFbid };
+  return byFbid;
+}
+
+function toCandidate(e: FbMediaEntry): MediaCandidate {
+  const c: MediaCandidate = { url: e.url, kind: e.kind, ext: e.ext };
+  if (typeof e.width === 'number') c.width = e.width;
+  if (typeof e.height === 'number') c.height = e.height;
+  if (e.kind === 'video' && e.poster) c.poster = e.poster;
+  if (e.pending) c.unresolvedVideo = true;
+  return c;
+}
+
+/**
+ * Once a video's real playable URL has been seen (a resolved video for its
+ * fbid), drop the pending cover-only entry for that same fbid so the tile is
+ * downloadable rather than stuck "not fetched". Entries here all share one fbid.
+ */
+function preferResolved(entries: FbMediaEntry[]): FbMediaEntry[] {
+  const hasReal = entries.some((e) => e.kind === 'video' && !e.pending);
+  return hasReal ? entries.filter((e) => !(e.kind === 'video' && e.pending)) : entries;
+}
+
+const FB_CDN = /(?:^|\.)(?:fbcdn\.net|cdninstagram\.com)$/i;
+const onFacebook = (): boolean => {
+  const h = location.hostname;
+  return h === 'facebook.com' || h.endsWith('.facebook.com');
+};
+
+function fbidFromContext(ctx: ResolveContext): string | null {
+  const link = ctx.el?.closest?.('a[href*="fbid="], a[href*="/photo/"], a[href*="/videos/"], a[href*="/watch/"], a[href*="/reel/"]');
+  const fromLink = fbidFromUrl(link?.getAttribute('href'));
+  if (fromLink) return fromLink;
+  return fbidFromUrl(ctx.pageUrl);
+}
+
 export const facebookResolver: Resolver = {
   id: 'facebook',
-  match: () => false,
-  resolve: () => [],
+  match: (u) => onFacebook() && FB_CDN.test(u.hostname),
+  resolve: (_u, ctx): MediaCandidate[] => {
+    const fbid = fbidFromContext(ctx);
+    if (!fbid) return [];
+    const entries = buildByFbid().get(fbid);
+    return entries && entries.length ? preferResolved(entries).map(toCandidate) : [];
+  },
 };
+
+/** Full media for the opened photo/video (from pageUrl), or [] off such a page. */
+export function facebookPageMedia(pageUrl?: string): MediaCandidate[] {
+  const fbid = fbidFromUrl(pageUrl);
+  if (!fbid) return [];
+  const entries = buildByFbid().get(fbid);
+  return entries ? preferResolved(entries).map(toCandidate) : [];
+}
