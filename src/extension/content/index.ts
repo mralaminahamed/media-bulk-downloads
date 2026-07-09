@@ -9,6 +9,7 @@
 import { SettingsData, DeepScanProgress } from '@/types';
 import { collectMedia } from './collect';
 import { ingestSniffedIgMedia } from '../shared/resolvers/sites/instagram';
+import { ingestSniffedFbMedia } from '../shared/resolvers/sites/facebook';
 import { ingestSniffedHls } from '../shared/resolvers/sniffers/hls-sniff';
 import { withDefaults } from '../shared/storage/settings';
 import { startDeepScan } from './deepScanRunner';
@@ -23,6 +24,7 @@ export * from './collect';
 const host = location.hostname;
 const onXHost = host === 'x.com' || host.endsWith('.x.com') || host === 'twitter.com' || host.endsWith('.twitter.com');
 const onIgHost = host === 'instagram.com' || host.endsWith('.instagram.com');
+const onFbHost = host === 'facebook.com' || host.endsWith('.facebook.com');
 
 // Relay the MAIN-world X/Twitter media sniffer's findings to the background.
 // The sniffer (x-media-sniffer.content.ts) runs in the page realm to read the
@@ -54,6 +56,23 @@ if (onIgHost) {
     const data = event.data as { source?: unknown; entries?: unknown } | null;
     if (!data || data.source !== 'ibd-ig-media' || !Array.isArray(data.entries)) return;
     ingestSniffedIgMedia(data.entries);
+  });
+}
+
+// Relay the MAIN-world Facebook media sniffer's findings into the resolver.
+// The sniffer (fb-media-sniffer.content.ts) reads the page's own /api/graphql
+// responses (photos/videos loaded on scroll/open) and postMessages the extracted
+// media here. Like IG, FB media resolves in-content (the real mp4/full-res image
+// is in the response), so we feed the entries straight to the resolver's
+// in-memory store — collectMedia() then resolves scroll-loaded posts with no
+// network call. Validate the envelope here; ingestSniffedFbMedia re-validates and
+// host-pins every entry (the payload crossed the page realm and is untrusted).
+if (onFbHost) {
+  window.addEventListener('message', (event: MessageEvent) => {
+    if (event.source !== window || event.origin !== location.origin) return;
+    const data = event.data as { source?: unknown; entries?: unknown } | null;
+    if (!data || data.source !== 'ibd-fb-media' || !Array.isArray(data.entries)) return;
+    ingestSniffedFbMedia(data.entries);
   });
 }
 

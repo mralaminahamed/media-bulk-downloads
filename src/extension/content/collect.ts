@@ -18,6 +18,7 @@ import { canonicalSrcKey } from '@/extension/shared/collection/canonical';
 import { resolve, MediaCandidate } from '@/extension/shared/resolvers';
 import { twitterGifCandidate, twitterVideoPending } from '@/extension/shared/resolvers/sites/twitter';
 import { instagramPageMedia } from '@/extension/shared/resolvers/sites/instagram';
+import { facebookPageMedia } from '@/extension/shared/resolvers/sites/facebook';
 import { youtubeVideoId } from '@/extension/shared/resolvers/sites/youtube';
 import { vimeoVideoId } from '@/extension/shared/resolvers/sites/vimeo';
 import { sniffedHlsManifests } from '@/extension/shared/resolvers/sniffers/hls-sniff';
@@ -592,6 +593,14 @@ export function collectMedia(): MediaItem[] {
   // virtualized carousel slides and `blob:`-backed reel videos. No-ops on a
   // profile grid (no shortcode in the URL); deduped against the walk above.
   for (const cand of instagramPageMedia(pageUrl)) {
+    pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
+  }
+
+  // Facebook opened photo/video: surface the full-res original / real mp4 from
+  // the page's own GraphQL/hydration, covering media the DOM hides (viewer
+  // blob:, virtualized album). No-ops off a photo/video page; deduped by
+  // canonicalSrcKey against the walk above.
+  for (const cand of facebookPageMedia(pageUrl)) {
     pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
   }
 
