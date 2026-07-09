@@ -66,18 +66,23 @@ export const VIDEO_URL_KEYS = ['playable_url_quality_hd', 'browser_native_hd_url
  * name (FB renames/aliases fields constantly). Tracks the nearest ancestor
  * numeric `id` as the FBID owner. Media with no ancestor id is dropped (cannot
  * be keyed to a tile). Untrusted input: every URL is host-pinned via pinFbUrl.
+ * Pure and defensive: never throws, bounded step count, cycle-guarded — mirrors
+ * `extractIgMedia`'s walk bound (`seen` node Set + 400000-step cap).
  */
 export function extractFbMedia(root: unknown): FbMediaEntry[] {
   const out: FbMediaEntry[] = [];
-  const seen = new Set<string>();
+  const seenKeys = new Set<string>();
+  const nodeSeen = new Set<object>();
+  const steps = { n: 0 };
   const push = (e: FbMediaEntry): void => {
     const k = `${e.fbid}\n${e.url}`;
-    if (seen.has(k)) return;
-    seen.add(k);
+    if (seenKeys.has(k)) return;
+    seenKeys.add(k);
     out.push(e);
   };
   const walk = (node: unknown, parentKey: string, fbid: string): void => {
-    if (!node || typeof node !== 'object') return;
+    if (steps.n++ > 400000 || !node || typeof node !== 'object' || nodeSeen.has(node as object)) return;
+    nodeSeen.add(node as object);
     if (Array.isArray(node)) { for (const v of node) walk(v, parentKey, fbid); return; }
     const obj = node as Record<string, unknown>;
     const ownId = typeof obj.id === 'string' && /^\d{1,32}$/.test(obj.id) ? obj.id : fbid;

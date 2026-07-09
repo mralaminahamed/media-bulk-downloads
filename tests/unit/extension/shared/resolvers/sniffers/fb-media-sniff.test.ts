@@ -95,4 +95,37 @@ describe('extractFbMedia', () => {
     expect(extractFbMedia(json)).toHaveLength(0);
     expect(extractFbMedia(json2)).toHaveLength(0);
   });
+
+  it('handles a deeply-nested benign structure without throwing and still yields the leaf', () => {
+    // Deep nesting wrapping one owned media leaf. Depth 1000 is ~20-50x realistic
+    // FB nesting yet a safe margin below the JS call-stack limit — the walk (like
+    // its recursive twin) is depth-bounded by the stack, which the step guard does
+    // not extend, so we stay well clear of that separate boundary here.
+    const leaf = { id: '9', image: { uri: 'https://x.fbcdn.net/deep_n.jpg', width: 800, height: 600 } };
+    let nested: unknown = leaf;
+    for (let i = 0; i < 1000; i++) nested = { a: nested };
+    const root = { id: '9', wrapper: nested };
+    let out: ReturnType<typeof extractFbMedia> = [];
+    expect(() => { out = extractFbMedia(root); }).not.toThrow();
+    const img = out.find((e) => e.url.includes('deep_n.jpg'));
+    expect(img).toBeDefined();
+    expect(img?.fbid).toBe('9');
+    expect(img?.kind).toBe('image');
+  });
+
+  it('is cycle-guarded: a self-referential graph terminates and still yields the leaf', () => {
+    // Exercises the nodeSeen guard directly: without it this object/array cycle
+    // recurses forever (stack overflow). With it, each node is visited once.
+    const root: Record<string, unknown> = { id: '9', image: { uri: 'https://x.fbcdn.net/cyc_n.jpg', width: 800, height: 600 } };
+    root.self = root;               // object cycle
+    const arr: unknown[] = [root];
+    arr.push(arr);                  // array cycle
+    root.list = arr;
+    let out: ReturnType<typeof extractFbMedia> = [];
+    expect(() => { out = extractFbMedia(root); }).not.toThrow();
+    const img = out.find((e) => e.url.includes('cyc_n.jpg'));
+    expect(img).toBeDefined();
+    expect(img?.fbid).toBe('9');
+    expect(img?.kind).toBe('image');
+  });
 });
