@@ -1,7 +1,7 @@
 import { HistoryEntry, ImageInfo } from '@/types';
-import { buildDownloadFilename } from '../shared/collection/download-name';
-import { recordDownloads } from '../shared/storage/history';
-import { currentSettings } from './state';
+import { buildDownloadFilename } from '../../shared/collection/download-name';
+import { recordDownloads } from '../../shared/storage/history';
+import { currentSettings } from '../state';
 
 /**
  * Downloads each eligible image and records the successful ones to history,

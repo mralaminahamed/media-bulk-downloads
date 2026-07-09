@@ -3,8 +3,8 @@ import { filterImagesBySettings, filterExcluded } from '../shared/collection/fil
 import { newCaptureRunId } from '../shared/active-tab/capture-stream-active';
 import { addFavourite } from '../shared/storage/favourites';
 import { currentSettings, excludedCache, settingsReady, excludedReady } from './state';
-import { downloadAndRecord } from './downloads';
-import { captureStreamToFile, captureRunTabs } from './capture';
+import { downloadAndRecord } from './download/downloads';
+import { captureStreamToFile, captureRunTabs } from './download/capture';
 import { MENU, mediaFromContext } from './context-menu';
 
 /**

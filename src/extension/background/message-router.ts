@@ -13,11 +13,11 @@ import { addExcluded, removeExcluded, clearExcluded, restoreExcluded } from '../
 import { streamErrorMessage } from '../shared/download/stream/stream-error-message';
 import {
   enqueueDownloads, pauseQueue, resumeQueue, cancelQueue, retryQueueItem, getQueueSnapshot,
-} from './download-queue';
+} from './download/download-queue';
 import type { HistoryDraft, QueueState } from '../shared/storage/download-queue';
 import { currentSettings, excludedCache, settingsReady, excludedReady, writeSettingsPatch } from './state';
 import { storeSniffedMedia, snifferByTab, resolveOriginalsBatch } from './sniffer-store';
-import { captureStreamToFile, captureRunTabs } from './capture';
+import { captureStreamToFile, captureRunTabs } from './download/capture';
 
 /** Response callback shape for the background message router. */
 export type SendResponse = (

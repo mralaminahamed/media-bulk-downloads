@@ -1,7 +1,7 @@
 import { ChromeMessage, SettingsData } from '@/types';
 import { withDefaults } from '../shared/storage/settings';
 import { EXCLUDED_KEY } from '../shared/storage/excluded';
-import { initQueueDispatcher, reconcileQueue } from './download-queue';
+import { initQueueDispatcher, reconcileQueue } from './download/download-queue';
 import {
   currentSettings, excludedReady, settingsReady,
   loadSettings, reloadExcluded, resolveSettingsGate, setCurrentSettings, setApplySettingsHook,
@@ -132,6 +132,6 @@ export { sanitizePathSegment } from '../shared/collection/paths';
 export { buildDownloadFilename, extensionForType, originalNameFromUrl } from '../shared/collection/download-name';
 export { loadSettings } from './state';
 export { isInjectableUrl, updateTabBadge } from './badge';
-export { downloadAndRecord } from './downloads';
+export { downloadAndRecord } from './download/downloads';
 export { resolveOriginalsBatch, storeSniffedMedia } from './sniffer-store';
 export { setupContextMenus, mediaFromContext } from './context-menu';

@@ -5,7 +5,7 @@ vi.mock('@/extension/shared/storage/history', () => ({ recordDownloads }));
 
 import {
   initQueueDispatcher, enqueueDownloads, handleDownloadChanged, getQueueSnapshot, reconcileQueue,
-} from '@/extension/background/download-queue';
+} from '@/extension/background/download/download-queue';
 import { QUEUE_KEY } from '@/extension/shared/storage/download-queue';
 
 let store: Record<string, unknown>;
