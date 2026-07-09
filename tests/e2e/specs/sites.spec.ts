@@ -14,17 +14,19 @@ async function excludeHost(page: Page, item: ReturnType<Page['locator']>): Promi
 }
 
 test.describe('realistic sites', () => {
-  test('X/Twitter: collapses name= size variants and excludes the twimg host', async ({ context }) => {
+  test('X/Twitter: collapses photo sizes, surfaces native-video + gif as Video items, excludes the pbs host', async ({ context }) => {
     const page = await openBubblePage(context, '/twitter.html');
     await openPanel(page);
-    // og:image + PhotoA (two name= sizes → one) + PhotoB + avatar = 4.
-    expect(await itemCount(page)).toBe(4);
-    await expect(figureWithSrc(page, 'AAA111')).toHaveCount(1); // size variants collapsed
+    // og + PhotoA (two name= sizes → one) + PhotoB + native video + gif + avatar + card = 7.
+    expect(await itemCount(page)).toBe(7);
+    await expect(figureWithSrc(page, 'GAAA111PhotoAA')).toHaveCount(1); // size variants collapsed
 
-    // Every item is on pbs.twimg.com → excluding the site clears the grid.
-    await excludeHost(page, figureWithSrc(page, 'BBB222'));
-    await expect(figureWithSrc(page, 'BBB222')).toHaveCount(0);
-    await expectItemCount(page, 0);
+    // The native-video poster (/ext_tw_video_thumb/) and the gif (/tweet_video_thumb/)
+    // are both Video-kind items.
+    await page.getByRole('button', { name: 'Video', exact: true }).click();
+    expect(await itemCount(page)).toBe(2);
+    await expect(figureWithSrc(page, 'ext_tw_video_thumb')).toHaveCount(1);
+    await expect(figureWithSrc(page, 'tweet_video_thumb')).toHaveCount(1);
   });
 
   test('Instagram: upgrades the thumbnail to the hydration-JSON original + reel poster', async ({ context }) => {

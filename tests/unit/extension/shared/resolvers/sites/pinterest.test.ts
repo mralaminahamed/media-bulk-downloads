@@ -109,3 +109,40 @@ describe('pinterestResolver — video pins', () => {
     expect(c.resolveHint).toBeUndefined();
   });
 });
+
+describe('pinterestResolver — edge cases', () => {
+  it('does not crash and returns an image when ctx.el is absent', () => {
+    const [c] = resolve(img('736x')); // no el in ctx
+    expect(c).toMatchObject({ kind: 'image', url: ORIGINALS });
+  });
+
+  it('treats a /videos/thumbnails/ video-poster path as a plain image (no size-folder rule applies)', () => {
+    const vt = 'https://i.pinimg.com/videos/thumbnails/originals/62/b7/a5/62b7a5ecc1b483e99a3456ef9c2f7861.0000000.jpg';
+    const [c] = resolve(vt);
+    expect(c.kind).toBe('image');
+    expect(c.url).toBe(vt);
+  });
+
+  it('extracts the pin id even when the /pin/ link carries a trailing query', () => {
+    const cell = document.createElement('div');
+    cell.innerHTML = '<a href="/pin/84301824269690044/?utm_source=x"><img alt="p"><video></video></a>';
+    const [c] = resolve(img('736x'), { allowNetwork: false, el: cell.querySelector('img')! });
+    expect(c.resolveHint).toEqual({ platform: 'pinterest', id: '84301824269690044' });
+  });
+
+  it('detects a <video> elsewhere in the pin cell, not only inside the anchor', () => {
+    const cell = document.createElement('div');
+    cell.setAttribute('data-test-id', 'pin');
+    cell.innerHTML = '<a href="/pin/555/"><img alt="p"></a><div class="overlay"><video></video></div>';
+    const [c] = resolve(img('736x'), { allowNetwork: false, el: cell.querySelector('img')! });
+    expect(c).toMatchObject({ kind: 'video', unresolvedVideo: true, resolveHint: { platform: 'pinterest', id: '555' } });
+  });
+
+  it('ignores a /pin/ link that has no numeric id (nothing to resolve)', () => {
+    const cell = document.createElement('div');
+    cell.innerHTML = '<a href="/pin/create/"><img alt="p"><video></video></a>';
+    const [c] = resolve(img('564x'), { allowNetwork: false, el: cell.querySelector('img')! });
+    expect(c.kind).toBe('image'); // no id → falls back to the image
+    expect(c.url).toBe(ORIGINALS);
+  });
+});

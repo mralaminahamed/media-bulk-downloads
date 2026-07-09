@@ -72,3 +72,32 @@ describe('artstationResolver — video', () => {
     expect(c.resolveHint).toEqual({ platform: 'artstation', id: `img ${LARGE}` });
   });
 });
+
+describe('artstationResolver — edge cases', () => {
+  it('keeps a /4k/ image as-is and hints (the tier finds no /large/ to swap, so it stays max)', () => {
+    const fourk = 'https://cdna.artstation.com/p/assets/images/images/100/627/266/4k/ed-pantera-ts01.jpg';
+    const [c] = resolve(fourk);
+    expect(c).toMatchObject({ kind: 'image', url: fourk, resolveHint: { platform: 'artstation', id: `img ${fourk}` } });
+  });
+
+  it('upgrades a cover asset path to /large/', () => {
+    const [c] = resolve('https://cdnb.artstation.com/p/assets/covers/images/100/600/391/small/cover.jpg');
+    expect(c.url).toBe('https://cdnb.artstation.com/p/assets/covers/images/100/600/391/large/cover.jpg');
+  });
+
+  it('accepts a class-based video signal (obfuscation-tolerant)', () => {
+    const cell = document.createElement('div');
+    const a = document.createElement('a'); a.setAttribute('href', '/artwork/AbC123');
+    a.appendChild(document.createElement('img'));
+    const overlay = document.createElement('div'); overlay.className = 'ProjectVideoPlayer';
+    cell.append(a, overlay);
+    const [c] = resolve(asset('large'), { allowNetwork: false, el: a.querySelector('img')! });
+    expect(c).toMatchObject({ kind: 'video', unresolvedVideo: true, resolveHint: { platform: 'artstation', id: 'vid AbC123' } });
+  });
+
+  it('does NOT match a cdn[ab] path with no image size bucket (left to the generic resolver)', () => {
+    const ctx = { allowNetwork: false };
+    expect(artstationResolver.match(new URL('https://cdna.artstation.com/p/assets/covers/videos/foo.mp4'), ctx)).toBe(false);
+    expect(artstationResolver.match(new URL('https://cdna.artstation.com/p/static/logo.svg'), ctx)).toBe(false);
+  });
+});
