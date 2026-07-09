@@ -15,6 +15,15 @@ export interface QueueItem {
   addedAt: number;
   /** Opaque to the reducer; the dispatcher uses it to write history on completion. */
   history?: HistoryDraft;
+  /** Apply the Referer-rewrite DNR rule on this item's next dispatch (#197). Set
+   *  after a 403 when the rewrite retry is authorised. */
+  useReferer?: boolean;
+  /** This item failed with a hotlink 403 and no Referer rewrite was applied — the
+   *  popup surfaces an opt-in "Retry with page referer" for it. */
+  hotlink?: boolean;
+  /** Id of the session DNR rule active for this item's in-flight download, so the
+   *  dispatcher can tear it down when the download settles. Dispatcher-managed. */
+  ruleId?: number;
 }
 
 export interface QueueState {
@@ -97,8 +106,8 @@ export function markDone(state: QueueState, id: string): QueueState {
   return patch(state, id, (i) => ({ ...i, status: 'done' }));
 }
 
-export function markFailed(state: QueueState, id: string, error: string): QueueState {
-  return patch(state, id, (i) => ({ ...i, status: 'failed', error }));
+export function markFailed(state: QueueState, id: string, error: string, hotlink = false): QueueState {
+  return patch(state, id, (i) => ({ ...i, status: 'failed', error, hotlink: hotlink || undefined }));
 }
 
 export function scheduleRetry(state: QueueState, id: string, now: number): QueueState {
@@ -116,10 +125,13 @@ export function cancel(state: QueueState, target: string): QueueState {
   return { ...state, items: state.items.filter((i) => i.id !== target) };
 }
 
-export function retryFailed(state: QueueState, id: string, now: number): QueueState {
+export function retryFailed(state: QueueState, id: string, now: number, useReferer = false): QueueState {
   return patch(state, id, (i) =>
     i.status === 'failed'
-      ? { ...i, status: 'queued', attempts: 0, error: undefined, readyAt: now, downloadId: undefined }
+      ? {
+          ...i, status: 'queued', attempts: 0, error: undefined, readyAt: now,
+          downloadId: undefined, hotlink: undefined, useReferer: useReferer || undefined,
+        }
       : i,
   );
 }

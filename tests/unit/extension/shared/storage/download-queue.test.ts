@@ -75,6 +75,23 @@ describe('download-queue reducer', () => {
     expect(markFailed(s, id, 'boom').items[0]).toMatchObject({ status: 'failed', error: 'boom' });
   });
 
+  it('markFailed flags hotlink 403s (opt-in retry) but not ordinary failures', () => {
+    let s = emptyQueue();
+    s = enqueue(s, [{ url: 'u1', filename: 'f1' }, { url: 'u2', filename: 'f2' }], T0);
+    expect(markFailed(s, s.items[0].id, 'SERVER_FORBIDDEN', true).items[0].hotlink).toBe(true);
+    expect(markFailed(s, s.items[1].id, 'boom').items[1].hotlink).toBeUndefined();
+  });
+
+  it('retryFailed can arm the Referer rewrite and clears the hotlink flag', () => {
+    let s = emptyQueue();
+    s = enqueue(s, [{ url: 'u1', filename: 'f1' }], T0);
+    s = markFailed(s, s.items[0].id, 'SERVER_FORBIDDEN', true);
+    const plain = retryFailed(s, s.items[0].id, T0 + 5);
+    expect(plain.items[0]).toMatchObject({ status: 'queued', hotlink: undefined, useReferer: undefined });
+    const withReferer = retryFailed(s, s.items[0].id, T0 + 5, true);
+    expect(withReferer.items[0]).toMatchObject({ status: 'queued', hotlink: undefined, useReferer: true });
+  });
+
   it('unknown id is a no-op (never throws)', () => {
     const s = enqueue(emptyQueue(), [{ url: 'u1', filename: 'f1' }], T0);
     expect(() => markDone(s, 'nope')).not.toThrow();
