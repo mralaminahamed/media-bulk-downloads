@@ -118,6 +118,46 @@ function preferResolved(entries: FbMediaEntry[]): FbMediaEntry[] {
   return hasReal ? entries.filter((e) => !(e.kind === 'video' && e.pending)) : entries;
 }
 
+/**
+ * Collapse the raw store entries for one fbid into what should actually
+ * surface. Unlike `keepLargestImagePerFbid` in fb-media-sniff.ts (which only
+ * dedupes within a single `extractFbMedia` walk), this runs over everything
+ * ever ingested for the fbid: on facebook.com the grid thumbnail (small) and
+ * the photo-open original (large) arrive in SEPARATE responses, so both
+ * persist in the store and both would otherwise surface even though FB is one
+ * fbid = one photo.
+ *
+ *  1. FR2 — a video's cover node is walked and emitted as a standalone image
+ *     entry too, so first drop any image whose url equals a video's poster in
+ *     this group (before largest-image selection, so the poster can never win).
+ *  2. FR1 — keep only the largest remaining image by width*height (missing
+ *     width/height counts as area 0); ties keep the LAST (newest-ingested) one,
+ *     matching the store's existing newest-wins eviction behavior. All videos
+ *     are always kept, pending or resolved.
+ *  3. Then apply the existing pending-video collapse (`preferResolved`).
+ *
+ * Shared by facebookResolver.resolve and facebookPageMedia so the rule lives once.
+ */
+function collapseFbidGroup(entries: FbMediaEntry[]): FbMediaEntry[] {
+  const posterUrls = new Set<string>();
+  for (const e of entries) if (e.kind === 'video' && e.poster) posterUrls.add(e.poster);
+
+  const videos: FbMediaEntry[] = [];
+  let bestImage: FbMediaEntry | undefined;
+  for (const e of entries) {
+    if (e.kind === 'video') {
+      videos.push(e);
+      continue;
+    }
+    if (posterUrls.has(e.url)) continue; // FR2: a video's poster isn't a standalone photo
+    const area = (e.width ?? 0) * (e.height ?? 0);
+    const bestArea = bestImage ? (bestImage.width ?? 0) * (bestImage.height ?? 0) : -1;
+    if (!bestImage || area >= bestArea) bestImage = e; // FR1: largest wins; ties keep the newest
+  }
+
+  return preferResolved(bestImage ? [...videos, bestImage] : videos);
+}
+
 const FB_CDN = /(?:^|\.)(?:fbcdn\.net|cdninstagram\.com)$/i;
 const onFacebook = (): boolean => {
   const h = location.hostname;
@@ -138,7 +178,7 @@ export const facebookResolver: Resolver = {
     const fbid = fbidFromContext(ctx);
     if (!fbid) return [];
     const entries = buildByFbid().get(fbid);
-    return entries && entries.length ? preferResolved(entries).map(toCandidate) : [];
+    return entries && entries.length ? collapseFbidGroup(entries).map(toCandidate) : [];
   },
 };
 
@@ -147,5 +187,5 @@ export function facebookPageMedia(pageUrl?: string): MediaCandidate[] {
   const fbid = fbidFromUrl(pageUrl);
   if (!fbid) return [];
   const entries = buildByFbid().get(fbid);
-  return entries ? preferResolved(entries).map(toCandidate) : [];
+  return entries ? collapseFbidGroup(entries).map(toCandidate) : [];
 }

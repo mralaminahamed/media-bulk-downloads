@@ -165,6 +165,48 @@ describe('facebookPageMedia', () => {
   });
 });
 
+describe('FR1: largest-image-per-fbid collapse across separate store ingests', () => {
+  it('facebookResolver.resolve returns only the largest image when a small grid thumbnail and a large photo-open original arrive as SEPARATE ingests for the same fbid', () => {
+    ingestSniffedFbMedia([{ fbid: '900', kind: 'image', url: `${CDN}/thumb_900_n.jpg`, ext: 'jpg', width: 200, height: 200 }]);
+    ingestSniffedFbMedia([{ fbid: '900', kind: 'image', url: `${CDN}/orig_900_n.jpg`, ext: 'jpg', width: 2048, height: 1536 }]);
+    const out = facebookResolver.resolve(u(`${CDN}/thumb_900_n.jpg`), ctxWithLink('/photo/?fbid=900'));
+    const images = out.filter((c) => c.kind === 'image');
+    expect(images).toHaveLength(1);
+    expect(images[0].url).toBe(`${CDN}/orig_900_n.jpg`);
+  });
+
+  it('facebookPageMedia returns only the largest image when a small grid thumbnail and a large photo-open original arrive as SEPARATE ingests for the same fbid', () => {
+    ingestSniffedFbMedia([{ fbid: '901', kind: 'image', url: `${CDN}/thumb_901_n.jpg`, ext: 'jpg', width: 160, height: 160 }]);
+    ingestSniffedFbMedia([{ fbid: '901', kind: 'image', url: `${CDN}/orig_901_n.jpg`, ext: 'jpg', width: 1920, height: 1440 }]);
+    const out = facebookPageMedia('https://www.facebook.com/photo/?fbid=901');
+    const images = out.filter((c) => c.kind === 'image');
+    expect(images).toHaveLength(1);
+    expect(images[0].url).toBe(`${CDN}/orig_901_n.jpg`);
+  });
+});
+
+describe('FR2: a video poster must not also surface as a standalone downloadable image', () => {
+  it('facebookResolver.resolve returns the video but drops the image entry whose url equals the video poster (same fbid)', () => {
+    ingestSniffedFbMedia([
+      { fbid: '910', kind: 'video', url: `${CDN}/vid_910.mp4`, ext: 'mp4', poster: `${CDN}/poster_910_n.jpg` },
+      { fbid: '910', kind: 'image', url: `${CDN}/poster_910_n.jpg`, ext: 'jpg', width: 720, height: 720 },
+    ]);
+    const out = facebookResolver.resolve(u(`${CDN}/poster_910_n.jpg`), ctxWithLink('/videos/910'));
+    expect(out.some((c) => c.kind === 'video' && c.url === `${CDN}/vid_910.mp4`)).toBe(true);
+    expect(out.some((c) => c.kind === 'image' && c.url === `${CDN}/poster_910_n.jpg`)).toBe(false);
+  });
+
+  it('facebookPageMedia returns the video but drops the image entry whose url equals the video poster (same fbid)', () => {
+    ingestSniffedFbMedia([
+      { fbid: '911', kind: 'video', url: `${CDN}/vid_911.mp4`, ext: 'mp4', poster: `${CDN}/poster_911_n.jpg` },
+      { fbid: '911', kind: 'image', url: `${CDN}/poster_911_n.jpg`, ext: 'jpg', width: 720, height: 720 },
+    ]);
+    const out = facebookPageMedia('https://www.facebook.com/videos/911');
+    expect(out.some((c) => c.kind === 'video' && c.url === `${CDN}/vid_911.mp4`)).toBe(true);
+    expect(out.some((c) => c.kind === 'image' && c.url === `${CDN}/poster_911_n.jpg`)).toBe(false);
+  });
+});
+
 describe('parseHydration — embedded script[type="application/json"] parse', () => {
   it('parses an embedded hydration blob and resolves its video via facebookPageMedia', () => {
     hydrate({

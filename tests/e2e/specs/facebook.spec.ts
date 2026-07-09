@@ -20,8 +20,10 @@ const FB_ORIGIN = 'https://www.facebook.com';
  * same fixture file the static server already hosts: the browser's own
  * `location` is genuinely facebook.com (so the extension's `*.facebook.com`
  * content scripts + the real resolver run), while the bytes still come from
- * `tests/e2e/pages/facebook-photos.html` via `serve.mjs`. No real network
- * request ever leaves the machine — Playwright intercepts before dispatch.
+ * `tests/e2e/pages/facebook-photos.html` via `serve.mjs`. The page's own
+ * HTML/navigation is served locally via page.route; the fixture's fbcdn
+ * <img> URLs are not intercepted, but the test asserts on the resolved
+ * candidate src, not on image loads.
  */
 async function openFacebookPhotosPage(context: BrowserContext): Promise<Page> {
   const worker = await serviceWorker(context);
