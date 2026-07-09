@@ -37,6 +37,9 @@ describe('FilterToolbar Component', () => {
     deepScanMaxSeconds: 20,
     deepScanMaxScrolls: 40,
     deepScanClickLoadMore: false,
+    fbCaptureOriginals: false,
+    fbCaptureMaxPhotos: 60,
+    fbCaptureMaxSeconds: 180,
   };
 
   const renderToolbar = (over: Partial<SettingsData> = {}) =>

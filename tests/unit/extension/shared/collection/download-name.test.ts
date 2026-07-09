@@ -166,6 +166,9 @@ describe('buildDownloadFilename', () => {
     deepScanMaxSeconds: 20,
     deepScanMaxScrolls: 40,
     deepScanClickLoadMore: false,
+    fbCaptureOriginals: false,
+    fbCaptureMaxPhotos: 60,
+    fbCaptureMaxSeconds: 180,
   };
   const image = (over: Partial<ImageInfo>): ImageInfo => ({
     src: 'https://cdn.com/path/photo.jpg', alt: '', width: 0, height: 0,

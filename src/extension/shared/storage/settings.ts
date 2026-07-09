@@ -30,6 +30,9 @@ export const DEFAULT_SETTINGS: SettingsData = {
   deepScanMaxSeconds: 20,
   deepScanMaxScrolls: 40,
   deepScanClickLoadMore: false,
+  fbCaptureOriginals: false,
+  fbCaptureMaxPhotos: 60,
+  fbCaptureMaxSeconds: 180,
 };
 
 /** A plain object, or {} — so spreading a corrupt string/array/number legacy

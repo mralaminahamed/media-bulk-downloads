@@ -136,6 +136,25 @@ export interface DeepScanProgress {
   reason?: DeepScanStopReason;
 }
 
+/**
+ * Why an original-capture run ended. `complete` = every enumerated photo
+ * processed; `max-photos` / `max-time` = a cap stopped it; `aborted` = the user
+ * stopped it; `error` = a step threw (partial results still returned).
+ */
+export type OriginalCaptureStopReason = 'complete' | 'max-photos' | 'max-time' | 'aborted' | 'error';
+
+export interface OriginalCaptureProgress {
+  type: 'FB_CAPTURE_PROGRESS';
+  /** Photos opened so far (the capped, risk-bearing action). */
+  opened: number;
+  /** Photos whose full-res original has landed in the store. */
+  captured: number;
+  /** Total enumerated photo tiles. */
+  total: number;
+  /** Present only on the final progress event — why the run ended. */
+  reason?: OriginalCaptureStopReason;
+}
+
 export interface ResolveOriginalsMessage {
   type: 'RESOLVE_ORIGINALS';
   hints: { src: string; hint: ResolveHint }[];
@@ -372,6 +391,7 @@ export type ChromeMessage =
   | DeepScanMessage
   | DeepScanAbortMessage
   | DeepScanProgress
+  | OriginalCaptureProgress
   | ResolveOriginalsMessage
   | XMediaSeenMessage
   | OpenDownloadMessage
@@ -470,6 +490,12 @@ export interface SettingsData {
   deepScanMaxScrolls: number;
   /** Opt-in: click "Load more"-style buttons between scroll rounds during a deep scan. */
   deepScanClickLoadMore: boolean;
+  /** Master opt-in for Facebook full-res original capture. OFF by default —
+   *  it opens each photo one-by-one on facebook.com, so it never runs unasked. */
+  fbCaptureOriginals: boolean;
+  /** Original-capture caps — the run stops at whichever is reached first. */
+  fbCaptureMaxPhotos: number;
+  fbCaptureMaxSeconds: number;
 }
 
 export type SizeBucket = 'all' | 'small' | 'medium' | 'large';

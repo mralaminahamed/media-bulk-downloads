@@ -31,6 +31,9 @@ const base: SettingsData = {
   deepScanMaxSeconds: 20,
   deepScanMaxScrolls: 40,
   deepScanClickLoadMore: false,
+  fbCaptureOriginals: false,
+  fbCaptureMaxPhotos: 60,
+  fbCaptureMaxSeconds: 180,
 };
 
 const img = (over: Partial<ImageInfo>): ImageInfo => ({

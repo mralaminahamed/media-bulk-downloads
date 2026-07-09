@@ -94,3 +94,20 @@ describe('downloadConcurrency setting', () => {
     expect(withDefaults({}).downloadConcurrency).toBe(5);
   });
 });
+
+describe('withDefaults — Facebook original-capture settings', () => {
+  it('defaults the capture toggle OFF and the caps to 60 / 180', () => {
+    expect(DEFAULT_SETTINGS.fbCaptureOriginals).toBe(false);
+    expect(DEFAULT_SETTINGS.fbCaptureMaxPhotos).toBe(60);
+    expect(DEFAULT_SETTINGS.fbCaptureMaxSeconds).toBe(180);
+  });
+  it('fills the capture defaults when stored settings omit them', () => {
+    const s = withDefaults({ downloadPath: '/x' });
+    expect(s.fbCaptureOriginals).toBe(false);
+    expect(s.fbCaptureMaxPhotos).toBe(60);
+    expect(s.fbCaptureMaxSeconds).toBe(180);
+  });
+  it('preserves a stored capture toggle', () => {
+    expect(withDefaults({ fbCaptureOriginals: true }).fbCaptureOriginals).toBe(true);
+  });
+});
