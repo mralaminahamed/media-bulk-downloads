@@ -6,13 +6,14 @@
  * bubble surface (dynamically imported) when the user has enabled it.
  */
 
-import { SettingsData, DeepScanProgress } from '@/types';
+import { SettingsData, DeepScanProgress, OriginalCaptureProgress } from '@/types';
 import { collectMedia } from './collect';
 import { ingestSniffedIgMedia } from '../shared/resolvers/sites/instagram';
 import { ingestSniffedFbMedia } from '../shared/resolvers/sites/facebook';
 import { ingestSniffedHls } from '../shared/resolvers/sniffers/hls-sniff';
 import { withDefaults } from '../shared/storage/settings';
 import { startDeepScan } from './deepScanRunner';
+import { startOriginalCapture } from './originalCaptureRunner';
 
 // Re-export the pure collection API (kept for tests and other importers).
 export * from './collect';
@@ -134,6 +135,40 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
   }
   if (message === 'DEEP_SCAN_ABORT') {
     deepScanAbort?.abort();
+    sendResponse(true);
+    return; // sync
+  }
+});
+
+// ── Facebook original-capture lifecycle ─────────────────────────────────────
+let captureAbort: AbortController | null = null;
+
+chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
+  if (message === 'FB_CAPTURE_ORIGINALS') {
+    captureAbort?.abort();
+    captureAbort = new AbortController();
+    const signal = captureAbort.signal;
+    const onProgress: Parameters<typeof startOriginalCapture>[0] = (opened, captured, total, reason) => {
+      const p: OriginalCaptureProgress = { type: 'FB_CAPTURE_PROGRESS', opened, captured, total };
+      if (reason) p.reason = reason;
+      chrome.runtime.sendMessage(p).catch(() => {
+        /* popup may be closed */
+      });
+    };
+    // Read the user's configurable caps before starting; fall back to defaults.
+    chrome.storage.sync.get(['settings'], (result) => {
+      const s = withDefaults(result.settings);
+      startOriginalCapture(onProgress, signal, {
+        maxPhotos: s.fbCaptureMaxPhotos,
+        maxMs: s.fbCaptureMaxSeconds * 1000,
+      })
+        .then((media) => sendResponse(media))
+        .catch(() => sendResponse([]));
+    });
+    return true; // async response
+  }
+  if (message === 'FB_CAPTURE_ABORT') {
+    captureAbort?.abort();
     sendResponse(true);
     return; // sync
   }
