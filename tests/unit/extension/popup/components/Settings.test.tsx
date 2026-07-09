@@ -317,6 +317,70 @@ describe('Settings Component', () => {
     expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ deepScanClickLoadMore: true }));
   });
 
+  // ── Facebook original capture ─────────────────────────────────────────────
+  it('toggles fbCaptureOriginals', () => {
+    render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    fireEvent.click(screen.getByRole('switch', { name: /fetch full-res originals/i }));
+    fireEvent.click(screen.getByText('Save'));
+    expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ fbCaptureOriginals: true }));
+  });
+
+  it('reveals the photo/second caps only after enabling fbCaptureOriginals', () => {
+    render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    expect(screen.queryByLabelText('Max photos:')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Max seconds:')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('switch', { name: /fetch full-res originals/i }));
+    expect(screen.getByLabelText('Max photos:')).toHaveValue(60);
+    expect(screen.getByLabelText('Max seconds:')).toHaveValue(180);
+  });
+
+  it('saves the fbCapture max photos and max seconds as numbers', () => {
+    render(
+      <Settings
+        onClose={mockOnClose}
+        onSettingsChange={mockOnSettingsChange}
+        settings={{ ...initialSettings, fbCaptureOriginals: true }}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText('Max photos:'), { target: { value: '90' } });
+    fireEvent.change(screen.getByLabelText('Max seconds:'), { target: { value: '240' } });
+    fireEvent.click(screen.getByText('Save'));
+    expect(mockOnSettingsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ fbCaptureMaxPhotos: 90, fbCaptureMaxSeconds: 240 }),
+    );
+  });
+
+  it('clamps fbCaptureMaxPhotos to its bounds on blur', () => {
+    render(
+      <Settings
+        onClose={mockOnClose}
+        onSettingsChange={mockOnSettingsChange}
+        settings={{ ...initialSettings, fbCaptureOriginals: true }}
+      />,
+    );
+    const photos = screen.getByLabelText('Max photos:');
+    fireEvent.change(photos, { target: { value: '9999' } });
+    fireEvent.blur(photos);
+    fireEvent.click(screen.getByText('Save'));
+    expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ fbCaptureMaxPhotos: 200 }));
+  });
+
+  it('clamps fbCaptureMaxSeconds to its floor on blur', () => {
+    render(
+      <Settings
+        onClose={mockOnClose}
+        onSettingsChange={mockOnSettingsChange}
+        settings={{ ...initialSettings, fbCaptureOriginals: true }}
+      />,
+    );
+    const seconds = screen.getByLabelText('Max seconds:');
+    fireEvent.change(seconds, { target: { value: '1' } });
+    fireEvent.blur(seconds);
+    fireEvent.click(screen.getByText('Save'));
+    expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ fbCaptureMaxSeconds: 30 }));
+  });
+
   // ── Dropdowns ──────────────────────────────────────────────────────────────
   it('saves the chosen image-conversion format', () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);

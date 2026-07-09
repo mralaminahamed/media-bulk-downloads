@@ -346,6 +346,37 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
               checked={settings.deepScanClickLoadMore}
               onToggle={() => toggle('deepScanClickLoadMore')}
             />
+            <ToggleRow
+              id="set-fbCaptureOriginals"
+              label="Fetch full-res originals (Facebook)"
+              description="On a Facebook photo grid, open each photo one-by-one to capture its full-resolution original (grid tiles are only ~640px). Off by default — it opens many photos sequentially and Facebook may rate-limit."
+              checked={settings.fbCaptureOriginals}
+              onToggle={() => toggle('fbCaptureOriginals')}
+            />
+            {settings.fbCaptureOriginals && (
+              <div className="grid grid-cols-2 gap-3">
+                <NumberField
+                  id="set-fbCaptureMaxPhotos"
+                  name="fbCaptureMaxPhotos"
+                  label="Max photos:"
+                  min={1}
+                  max={200}
+                  value={settings.fbCaptureMaxPhotos}
+                  onChange={handleChange}
+                  onBlur={clampOnBlur('fbCaptureMaxPhotos', 1, 200)}
+                />
+                <NumberField
+                  id="set-fbCaptureMaxSeconds"
+                  name="fbCaptureMaxSeconds"
+                  label="Max seconds:"
+                  min={30}
+                  max={600}
+                  value={settings.fbCaptureMaxSeconds}
+                  onChange={handleChange}
+                  onBlur={clampOnBlur('fbCaptureMaxSeconds', 30, 600)}
+                />
+              </div>
+            )}
           </Section>
 
           <Section title="Appearance">
