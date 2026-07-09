@@ -13,7 +13,7 @@ import { ingestSniffedFbMedia } from '../shared/resolvers/sites/facebook';
 import { ingestSniffedHls } from '../shared/resolvers/sniffers/hls-sniff';
 import { withDefaults } from '../shared/storage/settings';
 import { startDeepScan } from './deepScanRunner';
-import { startOriginalCapture } from './originalCaptureRunner';
+import { startOriginalCapture, runCaptureOnLoadedTiles } from './originalCaptureRunner';
 
 // Re-export the pure collection API (kept for tests and other importers).
 export * from './collect';
@@ -26,6 +26,14 @@ const host = location.hostname;
 const onXHost = host === 'x.com' || host.endsWith('.x.com') || host === 'twitter.com' || host.endsWith('.twitter.com');
 const onIgHost = host === 'instagram.com' || host.endsWith('.instagram.com');
 const onFbHost = host === 'facebook.com' || host.endsWith('.facebook.com');
+
+// Whether a deep scan on this host should chain into an original-capture pass
+// once its scroll loop finishes. Pure and exported so it's directly testable
+// without wiring up the message-listener harness.
+export function shouldChainCapture(host: string, s: SettingsData): boolean {
+  const onFb = host === 'facebook.com' || host.endsWith('.facebook.com');
+  return onFb && s.fbCaptureOriginals;
+}
 
 // Relay the MAIN-world X/Twitter media sniffer's findings to the background.
 // The sniffer (x-media-sniffer.content.ts) runs in the page realm to read the
@@ -128,6 +136,28 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
         maxScrolls: s.deepScanMaxScrolls,
         clickLoadMore: s.deepScanClickLoadMore,
       })
+        .then(async (media) => {
+          if (!shouldChainCapture(host, s)) return media;
+          // Deep scan already scrolled, so capture the loaded tiles (no re-scroll),
+          // then re-collect so the resolver upgrades every tile to its original.
+          const captureProgress = (
+            opened: number,
+            captured: number,
+            total: number,
+            reason?: OriginalCaptureProgress['reason'],
+          ) => {
+            const p: OriginalCaptureProgress = { type: 'FB_CAPTURE_PROGRESS', opened, captured, total };
+            if (reason) p.reason = reason;
+            chrome.runtime.sendMessage(p).catch(() => {
+              /* popup may be closed */
+            });
+          };
+          await runCaptureOnLoadedTiles(captureProgress, signal, {
+            maxPhotos: s.fbCaptureMaxPhotos,
+            maxMs: s.fbCaptureMaxSeconds * 1000,
+          });
+          return collectMedia();
+        })
         .then((media) => sendResponse(media))
         .catch(() => sendResponse([]));
     });
