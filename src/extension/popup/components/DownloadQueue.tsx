@@ -38,7 +38,7 @@ export function DownloadQueue() {
   // Requesting an optional permission must happen in a user gesture — do it here
   // on the click, then message the background to retry with the Referer rewrite.
   const retryWithReferer = async (id: string) => {
-    const granted = await chrome.permissions.request({ permissions: ['declarativeNetRequest'] });
+    const granted = await chrome.permissions.request({ permissions: ['declarativeNetRequestWithHostAccess'] });
     if (granted) sendRuntimeMessage({ type: 'QUEUE_RETRY', id, referer: true });
   };
 
@@ -74,7 +74,7 @@ export function DownloadQueue() {
             <span className="num shrink-0 text-(--ink-2)">{i.status}</span>
             {i.status === 'failed' && i.hotlink ? (
               // A hotlink 403 won't change on a bare retry — offer the Referer
-              // rewrite, which needs the optional declarativeNetRequest permission
+              // rewrite, which needs the optional declarativeNetRequestWithHostAccess permission
               // requested here from the click (a user gesture).
               <button
                 type="button"

@@ -30,7 +30,7 @@ so all three stores match.
 
 - [ ] **Firefox account** created and the AMO developer agreement accepted at [addons.mozilla.org/developers](https://addons.mozilla.org/developers/).
 - [ ] `wxt.config.ts` sets the Firefox `gecko.id`, `strict_min_version: '109.0'`, and `data_collection_permissions: { required: ['none'] }`. `yarn build:firefox` emits `.output/firefox-mv3/manifest.json`.
-- [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`; optional `notifications` and `declarativeNetRequest` (both requested at runtime).
+- [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`; optional `notifications` and `declarativeNetRequestWithHostAccess` (both requested at runtime).
 - [ ] Icons 16/32/48/128 present (`src/public/icon/`) — ✅ already in the build; AMO uses the manifest icons (no separate store logo).
 - [ ] `yarn lint` and `wxt build -b firefox` pass clean (AMO runs its own validator on upload too).
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
@@ -148,7 +148,7 @@ notification with the result of a download batch — the only feedback when the
 user downloads via a keyboard shortcut or the right-click menu with no popup
 open. Requested at runtime the first time it is enabled, never at install.
 
-**declarativeNetRequest (optional)** — off until the user enables it. Fixes
+**declarativeNetRequestWithHostAccess (optional)** — off until the user enables it. Fixes
 hotlink-protected downloads: some CDNs reject a file request whose Referer header
 doesn't match the page it is shown on (HTTP 403). When a download the user
 started fails that way, the extension can retry it with a temporary, single-URL

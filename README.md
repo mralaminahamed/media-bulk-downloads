@@ -185,7 +185,7 @@ Optional (requested only when you turn the feature on, never at install):
 | Permission             | Why it's needed                                                                          |
 |------------------------|------------------------------------------------------------------------------------------|
 | `notifications`        | Show a desktop toast when a download batch finishes (Settings → Downloads)                |
-| `declarativeNetRequest` | Retry a hotlink-blocked download (HTTP 403) with the source page as `Referer` — requested only when you use "Retry w/ referer" on a failed item, and used only for that one request |
+| `declarativeNetRequestWithHostAccess` | Retry a hotlink-blocked download (HTTP 403) with the source page as `Referer` — requested only when you use "Retry w/ referer" on a failed item, and used only for that one request |
 
 ## Supported sites
 
