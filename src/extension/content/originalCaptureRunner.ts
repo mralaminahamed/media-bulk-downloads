@@ -18,7 +18,7 @@ const POLL_MS = 150;
 const MAX_BACK = 3;
 
 /** Distinct {fbid, open} targets from the grid's photo/album anchors. */
-export function photoTargetsFromDom(root: ParentNode = document): PhotoTarget[] {
+export function photoTargetsFromDom(root: Document | ShadowRoot = document): PhotoTarget[] {
   const seen = new Set<string>();
   const out: PhotoTarget[] = [];
   root.querySelectorAll<HTMLAnchorElement>('a[href*="fbid="], a[href*="/photo/"]').forEach((a) => {
