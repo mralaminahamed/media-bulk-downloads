@@ -53,6 +53,14 @@ each permission. In short: `downloads`/`downloads.open` save and open your files
 with their source page, and host access lets the extension read media on the page
 you are using.
 
+Two permissions are **optional** and requested only when you turn the matching
+feature on, never at install: `notifications` (a local desktop toast when a
+download batch finishes) and `declarativeNetRequest` (used only if you choose
+"Retry with page referer" on a download a site blocked with HTTP 403 — it sets
+that one request's `Referer`/`Origin` to the item's own source page so the file
+downloads, then removes the rule). Both act entirely on your device; neither sends
+any data off it.
+
 ## Data sharing
 
 None. No data is sold, rented, or shared with any third party. No data is used for
