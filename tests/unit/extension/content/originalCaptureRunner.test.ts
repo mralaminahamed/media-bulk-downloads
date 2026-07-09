@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { photoTargetsFromDom, isOffPhotoRoute, runCaptureOnLoadedTiles } from '@/extension/content/originalCaptureRunner';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { photoTargetsFromDom, isOffPhotoRoute, runCaptureOnLoadedTiles, startOriginalCapture } from '@/extension/content/originalCaptureRunner';
 import { ingestSniffedFbMedia, __resetFbResolver } from '@/extension/shared/resolvers/sites/facebook';
 
 describe('photoTargetsFromDom', () => {
@@ -42,5 +42,38 @@ describe('runCaptureOnLoadedTiles (integration over real deps)', () => {
     const r = await runCaptureOnLoadedTiles(() => {}, new AbortController().signal, { maxPhotos: 5, maxMs: 60000 });
     expect(r.captured).toBe(1);
     expect(r.opened).toBe(1);
+  });
+});
+
+describe('startOriginalCapture (scroll restore)', () => {
+  const originalScrollTo = window.scrollTo;
+  const originalScrollYDescriptor = Object.getOwnPropertyDescriptor(window, 'scrollY');
+
+  afterEach(() => {
+    window.scrollTo = originalScrollTo;
+    if (originalScrollYDescriptor) {
+      Object.defineProperty(window, 'scrollY', originalScrollYDescriptor);
+    }
+  });
+
+  it('restores the pre-scroll position, not the post-scroll-to-load position', async () => {
+    // jsdom's real window.scrollTo does not update window.scrollY, so simulate
+    // a real browser where scrolling actually moves scrollY.
+    let y = 50;
+    Object.defineProperty(window, 'scrollY', { configurable: true, get: () => y });
+    window.scrollTo = ((_x: number, ny: number) => { y = ny; }) as typeof window.scrollTo;
+
+    // Empty grid: enumerate() returns [] so the capture loop is a no-op, and
+    // scrollToLoadAll's scrollHeight stays flat (0 in jsdom) after one 800ms
+    // poll, so it exits quickly with the small maxMs below.
+    document.body.innerHTML = '';
+
+    await startOriginalCapture(() => {}, new AbortController().signal, { maxPhotos: 5, maxMs: 10 });
+
+    // With the bug, startY is sampled after scrollToLoadAll already scrolled
+    // to document.scrollHeight (0 in jsdom), so restore() would leave y at 0.
+    // Fixed, startY is sampled before any scrolling, so restore() brings us
+    // back to the original 50.
+    expect(window.scrollY).toBe(50);
   });
 });

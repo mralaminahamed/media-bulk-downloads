@@ -133,8 +133,8 @@ export async function startOriginalCapture(
   config: StartCaptureConfig = {},
 ): Promise<MediaItem[]> {
   const opts = optsFrom(config, signal);
-  await scrollToLoadAll(signal, opts.maxMs);
   const { deps } = buildDeps(onProgress);
+  await scrollToLoadAll(signal, opts.maxMs);
   await runOriginalCapture(deps, opts);
   return collectMedia();
 }
