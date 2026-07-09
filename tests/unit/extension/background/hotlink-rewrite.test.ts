@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   applyRefererRule, removeRefererRule, hasDnrPermission, requestDnrPermission,
-} from '@/extension/background/hotlink-rewrite';
+} from '@/extension/background/download/hotlink-rewrite';
 
 let sessionRules: { id: number }[];
 let updateSessionRules: ReturnType<typeof vi.fn>;
