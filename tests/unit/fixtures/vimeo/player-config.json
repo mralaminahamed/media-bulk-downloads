@@ -1,0 +1,20 @@
+{
+  "_source": "player.vimeo.com/video/76979871/config (public, refererless) — captured 2026-07-09. Real STRUCTURE: progressive renditions on vod-progressive-ak.vimeocdn.com (heights 360/270/720/540) + HLS cdns (akfire default). The progressive/hls URLs are short-lived signed CDN links, so the opaque exp/hmac tokens here are placeholders (SIG) — the resolver returns the URL verbatim and only host-pins to vimeocdn.com, so token contents are irrelevant to the test.",
+  "request": {
+    "files": {
+      "progressive": [
+        { "height": 360, "url": "https://vod-progressive-ak.vimeocdn.com/exp=SIG~acl=SIG~hmac=SIG/vimeo-prod/360p.mp4" },
+        { "height": 270, "url": "https://vod-progressive-ak.vimeocdn.com/exp=SIG~acl=SIG~hmac=SIG/vimeo-prod/240p.mp4" },
+        { "height": 720, "url": "https://vod-progressive-ak.vimeocdn.com/exp=SIG~acl=SIG~hmac=SIG/vimeo-prod/720p.mp4" },
+        { "height": 540, "url": "https://vod-progressive-ak.vimeocdn.com/exp=SIG~acl=SIG~hmac=SIG/vimeo-prod/540p.mp4" }
+      ],
+      "hls": {
+        "default_cdn": "akfire_interconnect_quic",
+        "cdns": {
+          "akfire_interconnect_quic": { "url": "https://vod-adaptive-ak.vimeocdn.com/exp=SIG~acl=SIG/master.m3u8" },
+          "fastly_skyfire": { "url": "https://skyfire.vimeocdn.com/SIG/master.m3u8" }
+        }
+      }
+    }
+  }
+}

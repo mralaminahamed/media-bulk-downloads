@@ -1,0 +1,16 @@
+{
+  "_source": "cdn.syndication.twimg.com/tweet-result?id=…&token=…&lang=en for a live native-video tweet — captured 2026-07-09, trimmed to the fields the resolver reads. video.twimg.com amplify URLs are public/unsigned.",
+  "mediaDetails": [
+    {
+      "type": "video",
+      "video_info": {
+        "variants": [
+          { "content_type": "application/x-mpegURL", "url": "https://video.twimg.com/amplify_video/2074974762711785472/pl/QHArhQ4IOBVf3dL5.m3u8?v=82a" },
+          { "content_type": "video/mp4", "bitrate": 256000, "url": "https://video.twimg.com/amplify_video/2074974762711785472/vid/avc1/274x270/CwflLoGT3wym3ocs.mp4" },
+          { "content_type": "video/mp4", "bitrate": 832000, "url": "https://video.twimg.com/amplify_video/2074974762711785472/vid/avc1/366x360/9NaSNpCnH4p3Sm_r.mp4" },
+          { "content_type": "video/mp4", "bitrate": 2176000, "url": "https://video.twimg.com/amplify_video/2074974762711785472/vid/avc1/720x708/ENlI2GicSM30_PC_.mp4" }
+        ]
+      }
+    }
+  ]
+}

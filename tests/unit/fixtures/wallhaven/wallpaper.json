@@ -1,0 +1,9 @@
+{
+  "_source": "wallhaven.cc/api/v1/w/gwm2z3 (public, no key) — captured 2026-07-09, trimmed. data.path is the unsigned full-res CDN URL the resolver returns.",
+  "data": {
+    "id": "gwm2z3",
+    "resolution": "6144x3455",
+    "file_type": "image/jpeg",
+    "path": "https://w.wallhaven.cc/full/gw/wallhaven-gwm2z3.jpg"
+  }
+}

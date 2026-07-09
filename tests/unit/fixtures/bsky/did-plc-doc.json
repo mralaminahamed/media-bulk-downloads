@@ -1,0 +1,10 @@
+{
+  "_source": "plc.directory/did:plc:z72i7hdynmk6r22z27h6tvur (public PLC directory) — captured 2026-07-09, trimmed to the service array the resolver reads.",
+  "service": [
+    {
+      "id": "#atproto_pds",
+      "type": "AtprotoPersonalDataServer",
+      "serviceEndpoint": "https://puffball.us-east.host.bsky.network"
+    }
+  ]
+}

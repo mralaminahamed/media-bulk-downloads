@@ -2,6 +2,11 @@ import { readFileSync } from 'node:fs';
 import { resolveOriginal } from '@/extension/shared/resolvers/network';
 import pinWidget from '../../../fixtures/pinterest/pin-video-widget.json';
 import asProject from '../../../fixtures/artstation/project.json';
+import tweetResultVideo from '../../../fixtures/twitter/tweet-result-video.json';
+import wallhavenWallpaper from '../../../fixtures/wallhaven/wallpaper.json';
+import bskyDidDoc from '../../../fixtures/bsky/did-plc-doc.json';
+import vimeoConfig from '../../../fixtures/vimeo/player-config.json';
+import redditVideo from '../../../fixtures/reddit/reddit-video.json';
 
 // Vitest cwd is the project root; jsdom's import.meta.url is an http URL, so read
 // the captured HTML fixtures from cwd rather than the module URL.
@@ -12,18 +17,10 @@ const mockFetch = (payload: unknown, ok = true) =>
   (async () => ({ ok, json: async () => payload })) as unknown as typeof fetch;
 
 describe('resolveOriginal — twitter', () => {
-  const tweetJson = {
-    mediaDetails: [{
-      video_info: { variants: [
-        { content_type: 'application/x-mpegURL', url: 'https://video.twimg.com/x.m3u8' },
-        { content_type: 'video/mp4', bitrate: 832000, url: 'https://video.twimg.com/lo.mp4' },
-        { content_type: 'video/mp4', bitrate: 2176000, url: 'https://video.twimg.com/hi.mp4' },
-      ] },
-    }],
-  };
-  it('picks the highest-bitrate mp4', async () => {
-    const url = await resolveOriginal({ platform: 'twitter', id: '123' }, { fetch: mockFetch(tweetJson) });
-    expect(url).toEqual({ url: 'https://video.twimg.com/hi.mp4' });
+  it('picks the highest-bitrate mp4 from a real syndication response (fixture)', async () => {
+    // The captured tweet has 1 HLS + 3 mp4 variants (256k/832k/2176k); the 2176k wins.
+    const url = await resolveOriginal({ platform: 'twitter', id: '123' }, { fetch: mockFetch(tweetResultVideo) });
+    expect(url).toEqual({ url: 'https://video.twimg.com/amplify_video/2074974762711785472/vid/avc1/720x708/ENlI2GicSM30_PC_.mp4' });
   });
   it('resolves an HLS-only tweet to its x-mpegURL master (twimg-pinned)', async () => {
     const hls = { mediaDetails: [{ video_info: { variants: [{ content_type: 'application/x-mpegURL', url: 'https://video.twimg.com/x.m3u8' }] } }] };
@@ -117,10 +114,9 @@ describe('resolveOriginal — twitter', () => {
 });
 
 describe('resolveOriginal — wallhaven', () => {
-  it('returns data.path', async () => {
-    const wh = { data: { path: 'https://w.wallhaven.cc/full/ab/wallhaven-abcdef.png', file_type: 'image/png' } };
-    expect(await resolveOriginal({ platform: 'wallhaven', id: 'abcdef' }, { fetch: mockFetch(wh) }))
-      .toEqual({ url: 'https://w.wallhaven.cc/full/ab/wallhaven-abcdef.png' });
+  it('returns data.path from a real wallhaven API response (fixture)', async () => {
+    expect(await resolveOriginal({ platform: 'wallhaven', id: 'gwm2z3' }, { fetch: mockFetch(wallhavenWallpaper) }))
+      .toEqual({ url: 'https://w.wallhaven.cc/full/gw/wallhaven-gwm2z3.jpg' });
   });
   it('returns null on 401 (nsfw/unlisted)', async () => {
     expect(await resolveOriginal({ platform: 'wallhaven', id: 'x' }, { fetch: mockFetch({}, false) })).toBeNull();
@@ -148,14 +144,10 @@ describe('resolveOriginal — unsplash', () => {
 describe('resolveOriginal — vimeo', () => {
   const config = (progressive: unknown[]) => ({ request: { files: { progressive } } });
 
-  it('returns the highest progressive mp4, pinned to vimeocdn.com', async () => {
-    const payload = config([
-      { height: 360, url: 'https://vod-progressive-ak.vimeocdn.com/a/360.mp4' },
-      { height: 720, url: 'https://vod-progressive-ak.vimeocdn.com/a/720.mp4' },
-      { height: 540, url: 'https://vod-progressive-ak.vimeocdn.com/a/540.mp4' },
-    ]);
-    expect(await resolveOriginal({ platform: 'vimeo', id: '76979871' }, { fetch: mockFetch(payload) }))
-      .toEqual({ url: 'https://vod-progressive-ak.vimeocdn.com/a/720.mp4' });
+  it('returns the highest progressive mp4 from a real player config (fixture), pinned to vimeocdn.com', async () => {
+    // The captured config has 360/270/720/540 progressive renditions; the 720p wins.
+    expect(await resolveOriginal({ platform: 'vimeo', id: '76979871' }, { fetch: mockFetch(vimeoConfig) }))
+      .toEqual({ url: 'https://vod-progressive-ak.vimeocdn.com/exp=SIG~acl=SIG~hmac=SIG/vimeo-prod/720p.mp4' });
   });
 
   it('returns null when there is no progressive rendition (HLS/DASH-only)', async () => {
@@ -251,8 +243,8 @@ describe('resolveOriginal — bsky (getBlob)', () => {
     return Object.assign(fn, { calls });
   };
 
-  it('did:plc — resolves the PDS via plc.directory and builds the getBlob URL', async () => {
-    const fetch = capturingFetch(pdsDoc);
+  it('did:plc — resolves the PDS via plc.directory and builds the getBlob URL (real DID doc fixture)', async () => {
+    const fetch = capturingFetch(bskyDidDoc);
     const out = await resolveOriginal({ platform: 'bsky', id: 'blob did:plc:z72i7hd bafblobcid' }, { fetch });
     expect(fetch.calls).toEqual(['https://plc.directory/did%3Aplc%3Az72i7hd']);
     expect(out).toEqual({
@@ -453,6 +445,15 @@ describe('resolveOriginal — reddit (deterministic HLS master)', () => {
   it('builds the signature-free v.redd.it HLS master from the id, without fetching', async () => {
     const out = await resolveOriginal({ platform: 'reddit', id: '8tnc0d8mu3ch1' }, { fetch: noFetch });
     expect(out).toEqual({ url: 'https://v.redd.it/8tnc0d8mu3ch1/HLSPlaylist.m3u8', hls: true });
+  });
+
+  it('derives the v.redd.it id from a real media.reddit_video shape (fixture) and yields its audio-muxable master', async () => {
+    // The captured reddit_video fallback_url is the video-only CMAF mp4; the resolver
+    // takes the v.redd.it id from its path and returns the audio-bearing HLS master.
+    const id = redditVideo.media.reddit_video.fallback_url.match(/v\.redd\.it\/([a-z0-9]+)\//i)?.[1] ?? '';
+    expect(id).toBe('8tnc0d8mu3ch1');
+    expect(await resolveOriginal({ platform: 'reddit', id }, { fetch: noFetch }))
+      .toEqual({ url: 'https://v.redd.it/8tnc0d8mu3ch1/HLSPlaylist.m3u8', hls: true });
   });
 
   it('rejects an id with non [a-z0-9] characters (path-injection guard)', async () => {
