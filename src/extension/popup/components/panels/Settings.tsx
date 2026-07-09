@@ -6,13 +6,13 @@ import { buildBackup, parseBackup } from '@/extension/shared/storage/backup';
 import { loadFavourites } from '@/extension/shared/storage/favourites';
 import { loadHistory } from '@/extension/shared/storage/history';
 import { loadExcluded } from '@/extension/shared/storage/excluded';
-import { downloadText, sendRuntimeMessage } from '../utils';
-import { useDialog } from '../hooks/useDialog';
-import { TextField } from './fields/TextField';
-import { NumberField } from './fields/NumberField';
-import { SelectField } from './fields/SelectField';
-import { ToggleRow } from './fields/ToggleRow';
-import { Section } from './fields/Section';
+import { downloadText, sendRuntimeMessage } from '../../utils';
+import { useDialog } from '../../hooks/useDialog';
+import { TextField } from '../fields/TextField';
+import { NumberField } from '../fields/NumberField';
+import { SelectField } from '../fields/SelectField';
+import { ToggleRow } from '../fields/ToggleRow';
+import { Section } from '../fields/Section';
 
 const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings: initialSettings }) => {
   const [settings, setSettings] = useState<SettingsData>(initialSettings);

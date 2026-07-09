@@ -1,7 +1,7 @@
 import type { Mock } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import FavouritesPanel from '@/extension/popup/components/FavouritesPanel';
+import FavouritesPanel from '@/extension/popup/components/panels/FavouritesPanel';
 import * as favourites from '@/extension/shared/storage/favourites';
 
 const entry = {

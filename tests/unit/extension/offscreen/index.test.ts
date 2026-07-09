@@ -1,7 +1,7 @@
 import type { Mock } from 'vitest';
 import { installOffscreenCaptureHost } from '@/extension/offscreen';
 
-vi.mock('@/extension/shared/download/hls', () => ({
+vi.mock('@/extension/shared/download/stream/hls', () => ({
   captureHls: vi.fn(),
   HlsError: class HlsError extends Error {
     code: string;
@@ -9,7 +9,7 @@ vi.mock('@/extension/shared/download/hls', () => ({
   },
 }));
 
-vi.mock('@/extension/shared/download/dash', () => ({
+vi.mock('@/extension/shared/download/stream/dash', () => ({
   captureDash: vi.fn(),
   DashError: class DashError extends Error {
     code: string;
@@ -18,8 +18,8 @@ vi.mock('@/extension/shared/download/dash', () => ({
 }));
 
 // vi.mock is hoisted, so these static imports resolve to the mocked modules above.
-import { captureHls, HlsError } from '@/extension/shared/download/hls';
-import { captureDash, DashError } from '@/extension/shared/download/dash';
+import { captureHls, HlsError } from '@/extension/shared/download/stream/hls';
+import { captureDash, DashError } from '@/extension/shared/download/stream/dash';
 
 type Listener = (msg: unknown, sender: unknown, sendResponse: (r: unknown) => void) => unknown;
 

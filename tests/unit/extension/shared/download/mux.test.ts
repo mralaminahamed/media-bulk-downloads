@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import * as MP4Box from 'mp4box';
-import { muxTracks } from '@/extension/shared/download/mux';
+import { muxTracks } from '@/extension/shared/download/stream/mux';
 
 // mp4box is a CJS module whose ESM namespace is frozen under Vite (can't assign
 // `createFile`). Mock it so `createFile` is a swappable spy that DELEGATES to the

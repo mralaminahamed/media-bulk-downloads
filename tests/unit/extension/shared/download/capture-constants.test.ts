@@ -1,4 +1,4 @@
-import { STREAM_MAX_BYTES, STREAM_TARGET_HEIGHT } from '@/extension/shared/download/capture-constants';
+import { STREAM_MAX_BYTES, STREAM_TARGET_HEIGHT } from '@/extension/shared/download/stream/capture-constants';
 
 describe('capture-constants', () => {
   it('caps assembled bytes at 1 GB', () => {
