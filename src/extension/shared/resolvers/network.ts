@@ -209,6 +209,19 @@ async function bsky(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
   }
 }
 
+/**
+ * Reddit. Deterministic, no fetch (like bsky video): the v.redd.it id already names
+ * the account's video, and the HLS master is served signature-free under it. Returns
+ * the master to capture — the extension's HLS engine muxes the separate audio
+ * rendition it lists, so the download has sound (unlike the video-only CMAF_720.mp4
+ * fallback). Guarded to the v.redd.it host.
+ */
+function reddit(id: string): ResolvedMedia | null {
+  if (!/^[a-z0-9]+$/i.test(id)) return null;
+  const url = `https://v.redd.it/${id}/HLSPlaylist.m3u8`;
+  return pinnedUrl(url, 'v.redd.it') ? { url, hls: true } : null;
+}
+
 /** Resolve one hint to a final media target, or null on failure. Never throws. */
 export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise<ResolvedMedia | null> {
   switch (hint.platform) {
@@ -217,6 +230,7 @@ export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise
     case 'unsplash': return { url: unsplash(hint.id) };
     case 'vimeo': return vimeo(hint.id, deps);
     case 'bsky': return bsky(hint.id, deps);
+    case 'reddit': return reddit(hint.id);
     default: return null;
   }
 }

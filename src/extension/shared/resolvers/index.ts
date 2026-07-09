@@ -4,12 +4,13 @@ import { bskyResolver } from './sites/bsky';
 import { genericResolver } from './sites/generic';
 import { instagramResolver } from './sites/instagram';
 import { magnificResolver } from './sites/magnific';
+import { redditResolver } from './sites/reddit';
 import { twitterResolver } from './sites/twitter';
 import { unsplashResolver } from './sites/unsplash';
 import { wallhavenResolver } from './sites/wallhaven';
 import { youtubeResolver } from './sites/youtube';
 
-export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, unsplashResolver, wallhavenResolver, behanceResolver, bskyResolver, magnificResolver, youtubeResolver, genericResolver];
+export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, unsplashResolver, wallhavenResolver, behanceResolver, bskyResolver, redditResolver, magnificResolver, youtubeResolver, genericResolver];
 
 export function resolve(rawUrl: string, ctx: ResolveContext): MediaCandidate[] {
   let u: URL;
