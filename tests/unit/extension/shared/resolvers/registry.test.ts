@@ -43,4 +43,19 @@ describe('resolve — generic fallback', () => {
       resolveHint: { platform: 'bsky', id: 'blob did:plc:abc bafcid' },
     });
   });
+
+  it('includes flickrResolver before genericResolver', () => {
+    const ids = REGISTRY.map((r) => r.id);
+    expect(ids).toContain('flickr');
+    expect(ids.indexOf('flickr')).toBeLessThan(ids.indexOf('generic'));
+  });
+
+  it('routes a staticflickr photo through the flickr resolver (with a flickr hint)', () => {
+    const [c] = resolve('https://live.staticflickr.com/65535/55379291849_42e9ef501b_n.jpg', ctx);
+    expect(c).toMatchObject({
+      kind: 'image',
+      url: 'https://live.staticflickr.com/65535/55379291849_42e9ef501b_b.jpg',
+      resolveHint: { platform: 'flickr', id: '55379291849' },
+    });
+  });
 });
