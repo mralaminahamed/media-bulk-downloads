@@ -21,12 +21,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   protected downloads used to fail with a confusing error. A failed 403 now
   surfaces a **"Retry w/ referer"** action in the download queue: it retries with
   the item's source page set as `Referer`/`Origin` (via a short-lived, single-URL
-  `declarativeNetRequest` session rule that is torn down immediately after), so
+  `declarativeNetRequestWithHostAccess` session rule that is torn down immediately after), so
   the same URL returns 200. This **only** rewrites headers for a download you
   initiated and only after an explicit opt-in — it restores access to media you
   can already view, not an auth/paywall bypass.
 
-  **Permission:** requires the **optional** `declarativeNetRequest` permission,
+  **Permission:** requires the **optional** `declarativeNetRequestWithHostAccess` permission,
   requested from the popup the first time you use "Retry w/ referer" — never at
   install, and never for anything else.
 - **Metadata preservation for format conversion** (#199): converting an image

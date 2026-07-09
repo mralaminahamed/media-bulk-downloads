@@ -48,7 +48,7 @@ describe('DownloadQueue', () => {
     fireEvent.click(btn);
     await Promise.resolve();
     await Promise.resolve();
-    expect(permRequest).toHaveBeenCalledWith({ permissions: ['declarativeNetRequest'] });
+    expect(permRequest).toHaveBeenCalledWith({ permissions: ['declarativeNetRequestWithHostAccess'] });
     expect(sendMessage).toHaveBeenCalledWith({ type: 'QUEUE_RETRY', id: 'd', referer: true });
   });
 

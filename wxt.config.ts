@@ -30,9 +30,14 @@ export default defineConfig({
     permissions: ['downloads', 'downloads.open', 'storage', 'tabs', 'contextMenus', 'offscreen'],
     // Requested at runtime, so neither shows an install-time permission prompt:
     // `notifications` when the user turns on finish notifications, and
-    // `declarativeNetRequest` when they opt into the hotlink-403 Referer retry
-    // (#197) from a failed download — granted from the popup's user gesture.
-    optional_permissions: ['notifications', 'declarativeNetRequest'],
+    // `declarativeNetRequestWithHostAccess` when they opt into the hotlink-403 Referer
+    // retry (#197) from a failed download — granted from the popup's user gesture.
+    // NOTE: it MUST be `declarativeNetRequestWithHostAccess`, not `declarativeNetRequest`
+    // — Chrome forbids the latter in optional_permissions and silently drops it, so the
+    // runtime request would never grant. The WithHostAccess variant gives the same
+    // chrome.declarativeNetRequest API; its actions apply only to hosts we can access,
+    // which is fine since we hold `<all_urls>` as a required host permission.
+    optional_permissions: ['notifications', 'declarativeNetRequestWithHostAccess'],
     host_permissions: ['<all_urls>'],
     icons: {
       16: 'icon/16.png',

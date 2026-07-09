@@ -15,7 +15,7 @@ Version at time of writing: **1.1.0** · Manifest **V3**.
 - [ ] One-time **$5 developer registration** paid on the [Developer Dashboard](https://chrome.google.com/webstore/devconsole).
 - [ ] `wxt.config.ts` name/description correct; version comes from `package.json`. `yarn build` emits `.output/chrome-mv3/manifest.json`.
 - [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`.
-- [ ] Optional permissions declared: `notifications` and `declarativeNetRequest` (both requested at runtime, not at install — see §4).
+- [ ] Optional permissions declared: `notifications` and `declarativeNetRequestWithHostAccess` (both requested at runtime, not at install — see §4).
 - [ ] `commands` (keyboard shortcuts) and the MAIN-world content scripts (page + Instagram/X media sniffers) are present — no extra permission needed, but note them for review (see §4).
 - [ ] Icons 16/32/48/64/128 present (`src/public/icon/`) — ✅ already in the build.
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
@@ -26,7 +26,7 @@ Version at time of writing: **1.1.0** · Manifest **V3**.
 
 > **Updating the existing listing:** 1.1.0 added `contextMenus`, `offscreen`, and
 > optional `notifications` over the 1.0.0 listing; this release additionally adds
-> optional `declarativeNetRequest` (the hotlink-403 Referer retry). Added
+> optional `declarativeNetRequestWithHostAccess` (the hotlink-403 Referer retry). Added
 > permissions trigger a fuller re-review; the optional ones are requested at
 > runtime, so they don't re-prompt existing users on update — fill a
 > justification for each new permission (§4) before submitting.
@@ -158,7 +158,7 @@ downloads via a keyboard shortcut or the right-click menu with no popup open. It
 is requested at runtime the first time it is enabled, never at install.
 ```
 
-**declarativeNetRequest (optional)**
+**declarativeNetRequestWithHostAccess (optional)**
 ```
 Optional, off until the user turns it on. Fixes hotlink-protected downloads: some
 CDNs reject a file request whose Referer header doesn't match the page it is shown

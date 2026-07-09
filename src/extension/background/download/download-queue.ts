@@ -116,7 +116,7 @@ export async function handleDownloadChanged(delta: chrome.downloads.DownloadDelt
 
   const forbidden = current === 'interrupted' && (await isForbidden(delta));
   // A 403 is worth a Referer-rewrite retry only once, and only if the user has
-  // granted the optional declarativeNetRequest permission. Otherwise it fails with
+  // granted the optional declarativeNetRequestWithHostAccess permission. Otherwise it fails with
   // the hotlink flag so the popup can offer an explicit opt-in.
   const rewrite = forbidden && !item.useReferer && (await hasDnrPermission());
 

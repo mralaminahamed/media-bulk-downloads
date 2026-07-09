@@ -71,7 +71,7 @@ describe('hotlink-rewrite', () => {
   it('permission helpers delegate to chrome.permissions', async () => {
     expect(await hasDnrPermission()).toBe(true);
     expect(await requestDnrPermission()).toBe(true);
-    expect(chrome.permissions.contains).toHaveBeenCalledWith({ permissions: ['declarativeNetRequest'] });
-    expect(chrome.permissions.request).toHaveBeenCalledWith({ permissions: ['declarativeNetRequest'] });
+    expect(chrome.permissions.contains).toHaveBeenCalledWith({ permissions: ['declarativeNetRequestWithHostAccess'] });
+    expect(chrome.permissions.request).toHaveBeenCalledWith({ permissions: ['declarativeNetRequestWithHostAccess'] });
   });
 });

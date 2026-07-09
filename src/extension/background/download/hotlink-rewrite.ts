@@ -6,11 +6,11 @@
  * that one URL, retries, then tears the rule down. Restores access to media the
  * user can already view — not an auth/paywall bypass.
  *
- * `declarativeNetRequest` is an OPTIONAL permission: the request must come from a
+ * `declarativeNetRequestWithHostAccess` is an OPTIONAL permission: the request must come from a
  * user gesture (the popup's "Retry with page referer"), never the background SW.
  */
 
-const DNR_PERMISSION: chrome.permissions.Permissions = { permissions: ['declarativeNetRequest'] };
+const DNR_PERMISSION: chrome.permissions.Permissions = { permissions: ['declarativeNetRequestWithHostAccess'] };
 
 export function hasDnrPermission(): Promise<boolean> {
   try {

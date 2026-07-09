@@ -26,7 +26,7 @@ the listing copy is intentionally identical so every store matches.
 
 - [ ] **Opera account** created and the developer agreement accepted at [addons.opera.com/developer](https://addons.opera.com/developer/).
 - [ ] `wxt.config.ts` name/description correct; version comes from `package.json`. `yarn zip` emits the Chromium package `.output/media-bulk-downloads-<version>-chrome.zip`.
-- [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`; optional `notifications` and `declarativeNetRequest` (both requested at runtime).
+- [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`; optional `notifications` and `declarativeNetRequestWithHostAccess` (both requested at runtime).
 - [ ] Icons 16/32/48/128 present (`src/public/icon/`) — ✅ already in the build; Opera uses the manifest icons.
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
 - [ ] At least **1 screenshot** (see §5) — the 1280×800 shots from the Chrome package work as-is.
@@ -158,7 +158,7 @@ downloads via a keyboard shortcut or the right-click menu with no popup open. It
 is requested at runtime the first time it is enabled, never at install.
 ```
 
-**declarativeNetRequest (optional)**
+**declarativeNetRequestWithHostAccess (optional)**
 ```
 Optional, off until the user turns it on. Fixes hotlink-protected downloads: some
 CDNs reject a file request whose Referer header doesn't match the page it is shown
@@ -287,7 +287,7 @@ CONDITIONAL / NON-OBVIOUS FEATURES
 - Download history: re-download, open file, or reveal in folder.
 
 PERMISSIONS
-downloads / downloads.open: save and reopen files. storage: local settings + history on the device. tabs: label a download with its source page and open that page on request. contextMenus: right-click download / favourite actions. offscreen: assemble HLS/DASH streams (fetch + join segments) on-device. Host <all_urls>: read media on whatever page the user runs it on; activates only when the user opens the popup or the on-page panel. notifications (optional, runtime): desktop toast when a batch finishes. declarativeNetRequest (optional, runtime): retry a hotlink-blocked download (HTTP 403) with a temporary single-URL rule setting Referer/Origin to the item's source page — user-initiated downloads only, removed right after.
+downloads / downloads.open: save and reopen files. storage: local settings + history on the device. tabs: label a download with its source page and open that page on request. contextMenus: right-click download / favourite actions. offscreen: assemble HLS/DASH streams (fetch + join segments) on-device. Host <all_urls>: read media on whatever page the user runs it on; activates only when the user opens the popup or the on-page panel. notifications (optional, runtime): desktop toast when a batch finishes. declarativeNetRequestWithHostAccess (optional, runtime): retry a hotlink-blocked download (HTTP 403) with a temporary single-URL rule setting Referer/Origin to the item's source page — user-initiated downloads only, removed right after.
 
 PRIVACY
 No data is collected or transmitted; no remote code is executed. Settings and history never leave the device.

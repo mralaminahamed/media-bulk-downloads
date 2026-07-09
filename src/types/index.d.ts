@@ -350,7 +350,7 @@ export interface QueueRetryMessage {
   type: 'QUEUE_RETRY';
   id: string;
   /** Retry with the Referer/Origin rewrite (hotlink 403 opt-in, #197). Requires
-   *  the popup to have obtained the optional declarativeNetRequest permission. */
+   *  the popup to have obtained the optional declarativeNetRequestWithHostAccess permission. */
   referer?: boolean;
 }
 export type QueueGetMessage = { type: 'QUEUE_GET' };
