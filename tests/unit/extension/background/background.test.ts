@@ -1326,4 +1326,16 @@ describe('QUEUE_* routing → download queue', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect((store.downloadQueue as { paused?: boolean }).paused).toBe(false);
   });
+
+  it('QUEUE_RETRY with referer re-queues a hotlink-failed item with the rewrite armed', async () => {
+    store.downloadQueue = { paused: false, items: [
+      { id: 'h', url: 'https://cdn/x.jpg', filename: 'x.jpg', status: 'failed', attempts: 0, error: 'SERVER_FORBIDDEN', hotlink: true, readyAt: 0, addedAt: 0 },
+    ] };
+    messageHandler({ type: 'QUEUE_RETRY', id: 'h', referer: true }, {}, vi.fn());
+    await new Promise((r) => setTimeout(r, 0));
+    const item = (store.downloadQueue as { items: { status: string; useReferer?: boolean; hotlink?: boolean }[] }).items[0];
+    expect(item.useReferer).toBe(true);
+    expect(item.hotlink).toBeUndefined();
+    expect(['queued', 'active']).toContain(item.status);
+  });
 });

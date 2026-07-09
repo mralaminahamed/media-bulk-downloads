@@ -28,9 +28,11 @@ export default defineConfig({
     description:
       'Bulk-download images, video & audio from any web page. Smart type filters, instant preview, original quality — fast and private.',
     permissions: ['downloads', 'downloads.open', 'storage', 'tabs', 'contextMenus', 'offscreen'],
-    // Requested at runtime only when the user turns on "notify when downloads
-    // finish" — so it never shows an install-time permission prompt.
-    optional_permissions: ['notifications'],
+    // Requested at runtime, so neither shows an install-time permission prompt:
+    // `notifications` when the user turns on finish notifications, and
+    // `declarativeNetRequest` when they opt into the hotlink-403 Referer retry
+    // (#197) from a failed download — granted from the popup's user gesture.
+    optional_permissions: ['notifications', 'declarativeNetRequest'],
     host_permissions: ['<all_urls>'],
     icons: {
       16: 'icon/16.png',

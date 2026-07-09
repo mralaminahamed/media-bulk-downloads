@@ -740,7 +740,7 @@ const messageRouter: MessageRouter = {
     return true;
   },
   QUEUE_RETRY: (message, _sender, respond) => {
-    void retryQueueItem(message.id).then(() => respond({ status: 'success', message: 'Retrying' }));
+    void retryQueueItem(message.id, message.referer).then(() => respond({ status: 'success', message: 'Retrying' }));
     return true;
   },
   QUEUE_GET: (_message, _sender, respond) => {
