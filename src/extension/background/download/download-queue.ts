@@ -1,8 +1,9 @@
 import {
-  loadQueue, saveQueue, enqueue, claimNext, markActive, markDone,
+  loadQueue, saveQueue, enqueue, claimNext, markActive, markDone, markFailed,
   scheduleRetry, cancel, retryFailed, type EnqueueEntry, type QueueState,
 } from '@/extension/shared/storage/download-queue';
 import { recordDownloads } from '@/extension/shared/storage/history';
+import { applyRefererRule, removeRefererRule, hasDnrPermission } from './hotlink-rewrite';
 
 interface Deps {
   getConcurrency: () => number;
@@ -61,9 +62,29 @@ export async function pump(): Promise<void> {
       return c ? { state: c.state, value: c.item } : { state: s, value: null };
     });
     if (!claimed) break;
+    // Hotlink 403 retry (#197): install a scoped Referer-rewrite DNR rule before
+    // this dispatch and remember its id so the download's onChanged can tear it
+    // down. Best-effort — a rule failure just proceeds without the rewrite.
+    let ruleId: number | undefined;
+    if (claimed.useReferer) {
+      try {
+        ruleId = await applyRefererRule(claimed.url, claimed.history?.sourcePageUrl);
+        const rid = ruleId;
+        await withState(async (s) => ({
+          state: { ...s, items: s.items.map((i) => (i.id === claimed.id ? { ...i, ruleId: rid } : i)) },
+          value: null,
+        }));
+      } catch {
+        ruleId = undefined;
+      }
+    }
     const downloadId = await startDownload(claimed.url, claimed.filename);
     if (downloadId === undefined) {
-      await withState(async (s) => ({ state: scheduleRetry(s, claimed.id, Date.now()), value: null }));
+      if (ruleId != null) await removeRefererRule(ruleId);
+      await withState(async (s) => ({
+        state: scheduleRetry({ ...s, items: s.items.map((i) => (i.id === claimed.id ? { ...i, ruleId: undefined } : i)) }, claimed.id, Date.now()),
+        value: null,
+      }));
       scheduleNudge();
     } else {
       await withState(async (s) => ({ state: markActive(s, claimed.id, downloadId), value: null }));
@@ -71,15 +92,56 @@ export async function pump(): Promise<void> {
   }
 }
 
+// Whether an interrupted download failed with a hotlink 403. The reason may ride
+// on the onChanged delta itself; if not, ask chrome.downloads for the record.
+async function isForbidden(delta: chrome.downloads.DownloadDelta): Promise<boolean> {
+  if (delta.error?.current) return delta.error.current === 'SERVER_FORBIDDEN';
+  try {
+    const [dl] = await chrome.downloads.search({ id: delta.id });
+    return dl?.error === 'SERVER_FORBIDDEN';
+  } catch {
+    return false;
+  }
+}
+
 export async function handleDownloadChanged(delta: chrome.downloads.DownloadDelta): Promise<void> {
   const current = delta.state?.current;
   if (current !== 'complete' && current !== 'interrupted') return;
+
+  // Snapshot the matching item first: we need its flags (useReferer / ruleId)
+  // before mutating, and the 403 + permission checks are async.
+  const snapshot = await loadQueue();
+  const item = snapshot.items.find((i) => i.downloadId === delta.id && i.status === 'active');
+  if (!item) return;
+
+  const forbidden = current === 'interrupted' && (await isForbidden(delta));
+  // A 403 is worth a Referer-rewrite retry only once, and only if the user has
+  // granted the optional declarativeNetRequest permission. Otherwise it fails with
+  // the hotlink flag so the popup can offer an explicit opt-in.
+  const rewrite = forbidden && !item.useReferer && (await hasDnrPermission());
+
   const done = await withState(async (s) => {
-    const item = s.items.find((i) => i.downloadId === delta.id && i.status === 'active');
-    if (!item) return { state: s, value: null };
-    if (current === 'complete') return { state: markDone(s, item.id), value: item };
-    return { state: scheduleRetry(s, item.id, Date.now()), value: null };
+    const cur = s.items.find((i) => i.id === item.id && i.status === 'active');
+    if (!cur) return { state: s, value: null };
+    if (current === 'complete') return { state: markDone(s, cur.id), value: cur };
+    if (forbidden) {
+      if (rewrite) {
+        // Arm the rewrite and requeue immediately — not counted toward the normal
+        // backoff attempt cap (a bare 403 retry never changes; the referer does).
+        const items = s.items.map((i) =>
+          i.id === cur.id
+            ? { ...i, status: 'queued' as const, readyAt: Date.now(), downloadId: undefined, ruleId: undefined, useReferer: true }
+            : i,
+        );
+        return { state: { ...s, items }, value: null };
+      }
+      return { state: markFailed(s, cur.id, 'SERVER_FORBIDDEN', true), value: null };
+    }
+    return { state: scheduleRetry(s, cur.id, Date.now()), value: null };
   });
+
+  // The attempt has settled — tear down any Referer rule that was active for it.
+  if (item.ruleId != null) await removeRefererRule(item.ruleId);
   if (done?.history) {
     void recordDownloads([{ ...done.history, time: Date.now(), downloadId: delta.id }]);
   }
@@ -112,8 +174,8 @@ export async function cancelQueue(target: string): Promise<void> {
   await withState(async (s) => ({ state: cancel(s, target), value: null }));
 }
 
-export async function retryQueueItem(id: string): Promise<void> {
-  await withState(async (s) => ({ state: retryFailed(s, id, Date.now()), value: null }));
+export async function retryQueueItem(id: string, referer = false): Promise<void> {
+  await withState(async (s) => ({ state: retryFailed(s, id, Date.now(), referer), value: null }));
   void pump();
 }
 

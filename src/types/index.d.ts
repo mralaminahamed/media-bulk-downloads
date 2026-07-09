@@ -349,6 +349,9 @@ export interface QueueCancelMessage {
 export interface QueueRetryMessage {
   type: 'QUEUE_RETRY';
   id: string;
+  /** Retry with the Referer/Origin rewrite (hotlink 403 opt-in, #197). Requires
+   *  the popup to have obtained the optional declarativeNetRequest permission. */
+  referer?: boolean;
 }
 export type QueueGetMessage = { type: 'QUEUE_GET' };
 

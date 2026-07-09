@@ -11,7 +11,7 @@ import { SrcKeySet } from '@/extension/shared/collection/canonical';
 import { HISTORY_KEY } from '@/extension/shared/storage/history';
 import { FAVOURITES_KEY } from '@/extension/shared/storage/favourites';
 import { buildZip } from '@/extension/shared/download/zip';
-import { convertImage } from '@/extension/shared/download/convert';
+import { convertImage } from '@/extension/shared/download/convert/convert';
 
 vi.mock('@/extension/shared/active-tab/deep-scan-active-tab', () => ({
   deepScanActiveTab: vi.fn(async (onProgress) => {
@@ -49,8 +49,8 @@ vi.mock('@/extension/shared/download/zip', () => ({
 // Keep the real isConvertible (a pure classifier the download path branches on) so
 // the passthrough/convert split is exercised for real; only the canvas-backed
 // convertImage (unavailable under jsdom) is mocked.
-vi.mock('@/extension/shared/download/convert', async () => ({
-  ...(await vi.importActual<typeof import('@/extension/shared/download/convert')>('@/extension/shared/download/convert')),
+vi.mock('@/extension/shared/download/convert/convert', async () => ({
+  ...(await vi.importActual<typeof import('@/extension/shared/download/convert/convert')>('@/extension/shared/download/convert/convert')),
   convertImage: vi.fn(),
 }));
 

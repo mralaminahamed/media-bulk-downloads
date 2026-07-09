@@ -9,10 +9,10 @@ import {
 } from '@heroicons/react/24/outline';
 import { HistoryEntry } from '@/types';
 import { loadHistory, HISTORY_KEY } from '@/extension/shared/storage/history';
-import { relativeTime, sendRuntimeMessage } from '../utils';
-import { LoadingImage } from './LoadingImage';
-import { useDialog } from '../hooks/useDialog';
-import { ClearAllButton } from './fields/ClearAllButton';
+import { relativeTime, sendRuntimeMessage } from '../../utils';
+import { LoadingImage } from '../LoadingImage';
+import { useDialog } from '../../hooks/useDialog';
+import { ClearAllButton } from '../fields/ClearAllButton';
 
 export interface HistoryPanelProps {
   onClose: () => void;

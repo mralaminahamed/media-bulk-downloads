@@ -7,6 +7,28 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Persistent download queue** (#196): bulk downloads now run through a
+  concurrency-capped queue that tracks each file's real outcome
+  (queued / downloading / done / failed), retries transient failures with
+  exponential backoff, and **resumes after the popup closes or the service
+  worker restarts** — a partially-failed batch is no longer indistinguishable
+  from a successful one. Success is recorded on the download's actual completion,
+  not on dispatch. New **Settings → Downloads → "Simultaneous downloads"**
+  (1–10, default 5). The popup shows a live queue with per-file status and
+  **pause / resume / cancel / retry**. Fully local; no new permissions.
+- **Hotlink 403 fix via Referer rewrite** (#197): many CDNs return **403** to a
+  media request whose `Referer` doesn't match the origin site, so hotlink-
+  protected downloads used to fail with a confusing error. A failed 403 now
+  surfaces a **"Retry w/ referer"** action in the download queue: it retries with
+  the item's source page set as `Referer`/`Origin` (via a short-lived, single-URL
+  `declarativeNetRequest` session rule that is torn down immediately after), so
+  the same URL returns 200. This **only** rewrites headers for a download you
+  initiated and only after an explicit opt-in — it restores access to media you
+  can already view, not an auth/paywall bypass.
+
+  **Permission:** requires the **optional** `declarativeNetRequest` permission,
+  requested from the popup the first time you use "Retry w/ referer" — never at
+  install, and never for anything else.
 - **Metadata preservation for format conversion** (#199): converting an image
   (WebP/AVIF/PNG/JPEG → PNG/JPEG) now copies the source's embedded **EXIF and
   XMP** — copyright, author, capture settings, AI-provenance — into the output

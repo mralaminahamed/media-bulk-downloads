@@ -15,7 +15,7 @@ Version at time of writing: **1.1.0** · Manifest **V3**.
 - [ ] One-time **$5 developer registration** paid on the [Developer Dashboard](https://chrome.google.com/webstore/devconsole).
 - [ ] `wxt.config.ts` name/description correct; version comes from `package.json`. `yarn build` emits `.output/chrome-mv3/manifest.json`.
 - [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`.
-- [ ] Optional permission declared: `notifications` (requested at runtime, not at install — see §4).
+- [ ] Optional permissions declared: `notifications` and `declarativeNetRequest` (both requested at runtime, not at install — see §4).
 - [ ] `commands` (keyboard shortcuts) and the MAIN-world content scripts (page + Instagram/X media sniffers) are present — no extra permission needed, but note them for review (see §4).
 - [ ] Icons 16/32/48/64/128 present (`src/public/icon/`) — ✅ already in the build.
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
@@ -24,9 +24,11 @@ Version at time of writing: **1.1.0** · Manifest **V3**.
 - [ ] `.output/media-bulk-downloads-<version>-chrome.zip` produced by `yarn zip`.
 - [ ] Single-purpose description, permission justifications, and data disclosures filled in (below).
 
-> **Updating the existing listing:** 1.1.0 adds `contextMenus`, `offscreen`, and
-> optional `notifications` over the 1.0.0 listing. Added permissions trigger a
-> fuller re-review and may re-prompt existing users to accept them — fill a
+> **Updating the existing listing:** 1.1.0 added `contextMenus`, `offscreen`, and
+> optional `notifications` over the 1.0.0 listing; this release additionally adds
+> optional `declarativeNetRequest` (the hotlink-403 Referer retry). Added
+> permissions trigger a fuller re-review; the optional ones are requested at
+> runtime, so they don't re-prompt existing users on update — fill a
 > justification for each new permission (§4) before submitting.
 
 ---
@@ -154,6 +156,19 @@ Optional, off until the user turns it on. Shows a desktop notification reporting
 the result of a download batch — the only feedback available when the user
 downloads via a keyboard shortcut or the right-click menu with no popup open. It
 is requested at runtime the first time it is enabled, never at install.
+```
+
+**declarativeNetRequest (optional)**
+```
+Optional, off until the user turns it on. Fixes hotlink-protected downloads: some
+CDNs reject a file request whose Referer header doesn't match the page it is shown
+on (HTTP 403). When a download the user started fails that way, the extension can
+retry it with a temporary, single-URL session rule that sets Referer/Origin to
+that item's own source page, then removes the rule immediately after the retry.
+It is requested at runtime the first time the user chooses "Retry with page
+referer" on a failed download, never at install. It only ever modifies headers on
+a request the user initiated, and restores access to media the user can already
+view — it is not an auth or paywall bypass.
 ```
 
 **Host permissions — `<all_urls>`**

@@ -35,6 +35,13 @@ export function DownloadQueue() {
   const done = items.filter((i) => i.status === 'done').length;
   const failed = items.filter((i) => i.status === 'failed').length;
 
+  // Requesting an optional permission must happen in a user gesture — do it here
+  // on the click, then message the background to retry with the Referer rewrite.
+  const retryWithReferer = async (id: string) => {
+    const granted = await chrome.permissions.request({ permissions: ['declarativeNetRequest'] });
+    if (granted) sendRuntimeMessage({ type: 'QUEUE_RETRY', id, referer: true });
+  };
+
   return (
     <section className="download-queue border-t hairline bg-(--panel) px-4 py-2.5" aria-label="Download queue">
       <header className="mb-1.5 flex items-center gap-2 text-[11px] text-(--ink-2)">
@@ -65,14 +72,28 @@ export function DownloadQueue() {
             </span>
             {i.status === 'failed' && i.error && <span className="truncate text-(--ink-3)">{i.error}</span>}
             <span className="num shrink-0 text-(--ink-2)">{i.status}</span>
-            {i.status === 'failed' && (
+            {i.status === 'failed' && i.hotlink ? (
+              // A hotlink 403 won't change on a bare retry — offer the Referer
+              // rewrite, which needs the optional declarativeNetRequest permission
+              // requested here from the click (a user gesture).
               <button
                 type="button"
-                onClick={() => sendRuntimeMessage({ type: 'QUEUE_RETRY', id: i.id })}
+                onClick={() => void retryWithReferer(i.id)}
                 className="shrink-0 text-(--ink-3) hover:text-(--ink)"
+                title="Retry sending this page as the Referer (asks for permission the first time)"
               >
-                Retry
+                Retry w/ referer
               </button>
+            ) : (
+              i.status === 'failed' && (
+                <button
+                  type="button"
+                  onClick={() => sendRuntimeMessage({ type: 'QUEUE_RETRY', id: i.id })}
+                  className="shrink-0 text-(--ink-3) hover:text-(--ink)"
+                >
+                  Retry
+                </button>
+              )
             )}
             {(i.status === 'queued' || i.status === 'active') && (
               <button

@@ -54,8 +54,12 @@ global.chrome = {
         create: vi.fn(),
     },
     permissions: {
-        request: vi.fn(),
-        contains: vi.fn(),
+        request: vi.fn().mockResolvedValue(false),
+        contains: vi.fn().mockResolvedValue(false),
+    },
+    declarativeNetRequest: {
+        getSessionRules: vi.fn().mockResolvedValue([]),
+        updateSessionRules: vi.fn().mockResolvedValue(undefined),
     },
     contextMenus: {
         create: vi.fn(),

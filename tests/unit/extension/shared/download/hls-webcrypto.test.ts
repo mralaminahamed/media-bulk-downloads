@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { createCipheriv, randomBytes } from 'crypto';
-import { browserHlsDeps, webcryptoDecrypt } from '@/extension/shared/download/hls-webcrypto';
+import { browserHlsDeps, webcryptoDecrypt } from '@/extension/shared/download/stream/hls-webcrypto';
 
 // Runs in the node environment (not jsdom): jsdom is a separate JS realm, and
 // Node 20's webcrypto rejects a cross-realm typed array (ERR_INVALID_ARG_TYPE)
