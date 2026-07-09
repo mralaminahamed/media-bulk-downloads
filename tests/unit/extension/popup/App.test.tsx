@@ -1091,9 +1091,13 @@ describe('App Component', () => {
     // and now the file is on disk. The listener registered first on this mount is
     // the downloaded-mark one (before history/favourites/excluded).
     disk = ['https://c/a.jpg'];
-    const downloadedListener = addListener.mock.calls[before][0];
+    // Fire the change on every listener registered this mount (the download-queue
+    // panel also subscribes; it ignores non-queue changes) so this stays robust to
+    // listener registration order.
+    const fireAll = (change: Record<string, unknown>) =>
+      addListener.mock.calls.slice(before).forEach(([fn]) => fn(change, 'local'));
     await act(async () => {
-      downloadedListener({ [HISTORY_KEY]: { newValue: [] } }, 'local');
+      fireAll({ [HISTORY_KEY]: { newValue: [] } });
       await Promise.resolve();
     });
 
@@ -1108,12 +1112,15 @@ describe('App Component', () => {
     await screen.findByText('Filters');
     expect(screen.queryByLabelText('Favourited')).toBeNull();
 
-    // The favourites listener is the 2nd registered on this mount. It re-reads the
-    // committed store (not the event's newValue), so seed storage before firing.
-    const favListener = addListener.mock.calls[before + 1][0];
+    // The favourites listener re-reads the committed store (not the event's
+    // newValue), so seed storage before firing. Fire on every mount listener (the
+    // download-queue panel subscribes too and ignores non-queue changes) to stay
+    // robust to registration order.
+    const fireAll = (change: Record<string, unknown>) =>
+      addListener.mock.calls.slice(before).forEach(([fn]) => fn(change, 'local'));
     await act(async () => {
       await chrome.storage.local.set({ [FAVOURITES_KEY]: [{ src: 'https://c/fav.jpg' }] });
-      favListener({ [FAVOURITES_KEY]: { newValue: [{ src: 'https://c/fav.jpg' }] } }, 'local');
+      fireAll({ [FAVOURITES_KEY]: { newValue: [{ src: 'https://c/fav.jpg' }] } });
     });
 
     expect(await screen.findByLabelText('Favourited')).toBeInTheDocument();
@@ -1126,16 +1133,19 @@ describe('App Component', () => {
     await screen.findByText('Filters');
 
     // The listener re-reads the committed store on any FAVOURITES_KEY change, so
-    // drive it by mutating storage: first add the favourite, then clear it.
-    const favListener = addListener.mock.calls[before + 1][0];
+    // drive it by mutating storage: first add the favourite, then clear it. Fire on
+    // every mount listener (the queue panel subscribes too, ignoring non-queue
+    // changes) so this is robust to listener registration order.
+    const fireAll = (change: Record<string, unknown>) =>
+      addListener.mock.calls.slice(before).forEach(([fn]) => fn(change, 'local'));
     await act(async () => {
       await chrome.storage.local.set({ [FAVOURITES_KEY]: [{ src: 'https://c/fav.jpg' }] });
-      favListener({ [FAVOURITES_KEY]: { newValue: [{ src: 'https://c/fav.jpg' }] } }, 'local');
+      fireAll({ [FAVOURITES_KEY]: { newValue: [{ src: 'https://c/fav.jpg' }] } });
     });
     expect(await screen.findByLabelText('Favourited')).toBeInTheDocument();
     await act(async () => {
       await chrome.storage.local.set({ [FAVOURITES_KEY]: [] });
-      favListener({ [FAVOURITES_KEY]: {} }, 'local');
+      fireAll({ [FAVOURITES_KEY]: {} });
     });
     await waitFor(() => expect(screen.queryByLabelText('Favourited')).toBeNull());
   });
