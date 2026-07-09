@@ -41,6 +41,9 @@ interface PinterestVideoEntry { url?: string }
 interface PinterestPin { videos?: { video_list?: Record<string, PinterestVideoEntry> } }
 interface PinterestWidgetResponse { data?: PinterestPin[] }
 
+interface ArtStationAsset { asset_type?: string; player_embedded?: string }
+interface ArtStationProject { assets?: ArtStationAsset[] }
+
 /**
  * A URL taken from an API JSON response is untrusted: constrain it to https and
  * the expected host family before handing it back as a downloadable media URL.
@@ -284,6 +287,64 @@ async function pinterest(id: string, deps: NetDeps): Promise<ResolvedMedia | nul
   }
 }
 
+/** Largest `<source>` mp4 in an ArtStation clip embed: the one with the biggest
+ *  `min-width` media query (highest resolution), else the first mp4 source. */
+function largestEmbedMp4(html: string): string | null {
+  let best: { w: number; url: string } | null = null;
+  const re = /<source\b[^>]*>/gi;
+  for (const tag of html.match(re) ?? []) {
+    const src = tag.match(/\bsrc=["']([^"']+\.mp4[^"']*)["']/i)?.[1];
+    if (!src) continue;
+    const w = Number(tag.match(/min-width:\s*(\d+)/i)?.[1]) || 0;
+    if (!best || w > best.w) best = { w, url: src };
+  }
+  return best?.url ?? null;
+}
+
+/**
+ * ArtStation (keyless). The hint id is `'<kind> <arg>'`:
+ *  - `img <largeUrl>` → probe the `/4k/` sibling (bigger than `/large/`; `/original/`
+ *    is 403-disabled) and return it only on an ok image response, else null so the
+ *    sync `/large/` stands;
+ *  - `vid <hash>` → read the public project JSON, take the first `video_clip`, fetch
+ *    its signed embed page, and return the largest unsigned `<source>` mp4.
+ * Results are host-pinned to artstation.com.
+ */
+async function artstation(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  try {
+    const sep = id.indexOf(' ');
+    const kind = id.slice(0, sep);
+    const arg = id.slice(sep + 1);
+
+    if (kind === 'img') {
+      if (!arg.includes('/large/')) return null;
+      const fourK = pinnedUrl(arg.replace('/large/', '/4k/'), 'artstation.com');
+      if (!fourK) return null;
+      const r = await deps.fetch(fourK);
+      if (!r.ok || !(r.headers.get('content-type') || '').startsWith('image/')) return null;
+      return { url: fourK };
+    }
+
+    if (kind === 'vid') {
+      if (!/^[A-Za-z0-9]+$/.test(arg)) return null;
+      const pr = await deps.fetch(`https://www.artstation.com/projects/${arg}.json`);
+      if (!pr.ok) return null;
+      const proj = (await pr.json()) as ArtStationProject;
+      const clip = (proj.assets ?? []).find((a) => a?.asset_type === 'video_clip' && typeof a.player_embedded === 'string');
+      const embed = pinnedUrl(clip?.player_embedded?.match(/\bsrc=["']([^"']+embed\.html[^"']*)["']/i)?.[1], 'artstation.com');
+      if (!embed) return null;
+      const er = await deps.fetch(embed);
+      if (!er.ok) return null;
+      const mp4 = pinnedUrl(largestEmbedMp4(await er.text()), 'artstation.com');
+      return mp4 ? { url: mp4 } : null;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 /** Resolve one hint to a final media target, or null on failure. Never throws. */
 export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise<ResolvedMedia | null> {
   switch (hint.platform) {
@@ -295,6 +356,7 @@ export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise
     case 'pinterest': return pinterest(hint.id, deps);
     case 'reddit': return reddit(hint.id);
     case 'flickr': return flickr(hint.id, deps);
+    case 'artstation': return artstation(hint.id, deps);
     default: return null;
   }
 }

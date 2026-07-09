@@ -1,10 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { resolveOriginal } from '@/extension/shared/resolvers/network';
 import pinWidget from '../../../fixtures/pinterest/pin-video-widget.json';
+import asProject from '../../../fixtures/artstation/project.json';
 
 // Vitest cwd is the project root; jsdom's import.meta.url is an http URL, so read
-// the captured Flickr /sizes/ fragment from cwd rather than the module URL.
+// the captured HTML fixtures from cwd rather than the module URL.
 const flickrSizesHtml = readFileSync('tests/unit/fixtures/flickr/sizes-6k.html', 'utf8');
+const asEmbed = readFileSync('tests/unit/fixtures/artstation/embed.html', 'utf8');
 
 const mockFetch = (payload: unknown, ok = true) =>
   (async () => ({ ok, json: async () => payload })) as unknown as typeof fetch;
@@ -518,5 +520,73 @@ describe('resolveOriginal — pinterest (pin-widget)', () => {
     const fetch = capturingFetch(pinWidget);
     expect(await resolveOriginal({ platform: 'pinterest', id: '../evil' }, { fetch })).toBeNull();
     expect(fetch.calls).toEqual([]);
+  });
+});
+
+describe('resolveOriginal — artstation (keyless /4k/ + video)', () => {
+  const LARGE = 'https://cdna.artstation.com/p/assets/images/images/100/627/266/large/x.jpg';
+  const headers = (ct: string | null) => ({ get: (h: string) => (h.toLowerCase() === 'content-type' ? ct : null) });
+  // Dispatches by URL: /projects/ → the project JSON, embed.html → the clip HTML,
+  // anything else → the /4k/ image probe. Records the URLs fetched.
+  const asFetch = (o: { imgOk?: boolean; imgCt?: string | null; projOk?: boolean; proj?: unknown; embedOk?: boolean; embed?: string } = {}) => {
+    const calls: string[] = [];
+    const fn = (async (u: string) => {
+      const s = String(u); calls.push(s);
+      if (s.includes('/projects/')) return { ok: o.projOk ?? true, json: async () => o.proj ?? asProject };
+      if (s.includes('embed.html')) return { ok: o.embedOk ?? true, text: async () => o.embed ?? asEmbed };
+      return { ok: o.imgOk ?? true, headers: headers(o.imgCt ?? 'image/jpeg') };
+    }) as unknown as typeof fetch;
+    return Object.assign(fn, { calls });
+  };
+
+  it('img: probes the /4k/ sibling and returns it on an ok image response', async () => {
+    const fetch = asFetch();
+    const out = await resolveOriginal({ platform: 'artstation', id: `img ${LARGE}` }, { fetch });
+    expect(out).toEqual({ url: LARGE.replace('/large/', '/4k/') });
+    expect(fetch.calls[0]).toBe(LARGE.replace('/large/', '/4k/'));
+  });
+
+  it('img: returns null when /4k/ 404s (asset has no 4k) so the /large/ image stands', async () => {
+    expect(await resolveOriginal({ platform: 'artstation', id: `img ${LARGE}` }, { fetch: asFetch({ imgOk: false }) })).toBeNull();
+  });
+
+  it('img: returns null when the /4k/ response is not an image (an HTML error page)', async () => {
+    expect(await resolveOriginal({ platform: 'artstation', id: `img ${LARGE}` }, { fetch: asFetch({ imgCt: 'text/html' }) })).toBeNull();
+  });
+
+  it('img: rejects a /large/ URL that is not on the artstation.com host family', async () => {
+    const evil = 'https://evil.example/p/assets/images/images/1/2/3/large/x.jpg';
+    expect(await resolveOriginal({ platform: 'artstation', id: `img ${evil}` }, { fetch: asFetch() })).toBeNull();
+  });
+
+  it('vid: reads the project JSON, follows the clip embed, and returns the largest mp4 (real fixtures)', async () => {
+    const fetch = asFetch();
+    const out = await resolveOriginal({ platform: 'artstation', id: 'vid V25orP' }, { fetch });
+    expect(out).toEqual({ url: 'https://cdn.artstation.com/p/video_sources/003/353/339/v03-1.mp4' });
+    expect(fetch.calls[0]).toBe('https://www.artstation.com/projects/V25orP.json');
+  });
+
+  it('vid: returns null for a project with no video_clip asset', async () => {
+    const proj = { assets: [{ asset_type: 'image', player_embedded: '' }] };
+    expect(await resolveOriginal({ platform: 'artstation', id: 'vid V25orP' }, { fetch: asFetch({ proj }) })).toBeNull();
+  });
+
+  it('vid: returns null for a hash with unexpected characters, without fetching', async () => {
+    const fetch = asFetch();
+    expect(await resolveOriginal({ platform: 'artstation', id: 'vid ../evil' }, { fetch })).toBeNull();
+    expect(fetch.calls).toEqual([]);
+  });
+
+  it('vid: returns null on a non-ok project response', async () => {
+    expect(await resolveOriginal({ platform: 'artstation', id: 'vid V25orP' }, { fetch: asFetch({ projOk: false }) })).toBeNull();
+  });
+
+  it('vid: returns null when the embed has no mp4 source', async () => {
+    expect(await resolveOriginal({ platform: 'artstation', id: 'vid V25orP' }, { fetch: asFetch({ embed: '<video></video>' }) })).toBeNull();
+  });
+
+  it('returns null when fetch throws', async () => {
+    const throwing = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
+    expect(await resolveOriginal({ platform: 'artstation', id: `img ${LARGE}` }, { fetch: throwing })).toBeNull();
   });
 });
