@@ -467,6 +467,32 @@ describe('Settings Component', () => {
     expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ notifyOnComplete: true }));
   });
 
+  it('persists notify ON immediately, without waiting for Save (survives the prompt closing the popup)', () => {
+    (chrome.permissions.request as Mock).mockImplementation(
+      (_perms: chrome.permissions.Permissions, cb: (granted: boolean) => void) => cb(true),
+    );
+    render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    fireEvent.click(screen.getByRole('switch', { name: /notify when downloads finish/i }));
+    // The setting is written straight away via SET_SETTINGS — the user never has
+    // to reach Save, which the permission prompt can make unreachable by closing
+    // the popup. (Without this, enabling notifications silently never persisted.)
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'SET_SETTINGS', patch: expect.objectContaining({ notifyOnComplete: true }) }),
+    );
+  });
+
+  it('persists the revert immediately when the permission is denied', () => {
+    (chrome.permissions.request as Mock).mockImplementation(
+      (_perms: chrome.permissions.Permissions, cb: (granted: boolean) => void) => cb(false),
+    );
+    render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    fireEvent.click(screen.getByRole('switch', { name: /notify when downloads finish/i }));
+    const calls = (chrome.runtime.sendMessage as Mock).mock.calls.map((c) => c[0]);
+    // Optimistically persisted ON, then rolled back to OFF once denied.
+    expect(calls).toContainEqual(expect.objectContaining({ type: 'SET_SETTINGS', patch: expect.objectContaining({ notifyOnComplete: true }) }));
+    expect(calls).toContainEqual(expect.objectContaining({ type: 'SET_SETTINGS', patch: expect.objectContaining({ notifyOnComplete: false }) }));
+  });
+
   it('reverts notifications off when the permission is denied', () => {
     (chrome.permissions.request as Mock).mockImplementation(
       (_perms: chrome.permissions.Permissions, cb: (granted: boolean) => void) => cb(false),
