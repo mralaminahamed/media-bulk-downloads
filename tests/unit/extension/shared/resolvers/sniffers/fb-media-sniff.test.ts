@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pinFbUrl, fbidFromUrl, extFromPath } from '@/extension/shared/resolvers/sniffers/fb-media-sniff';
+import { pinFbUrl, fbidFromUrl, extFromPath, numOr } from '@/extension/shared/resolvers/sniffers/fb-media-sniff';
 
 describe('pinFbUrl', () => {
   it('accepts https fbcdn / cdninstagram hosts', () => {
@@ -11,6 +11,11 @@ describe('pinFbUrl', () => {
     expect(pinFbUrl('http://scontent.xx.fbcdn.net/x.jpg')).toBeNull();
     expect(pinFbUrl(42)).toBeNull();
     expect(pinFbUrl('https://notfbcdn.net.evil.com/x.jpg')).toBeNull();
+    // Userinfo bypass: `fbcdn.net` is the username, the real host is evil.com.
+    expect(pinFbUrl('https://fbcdn.net@evil.com/x.jpg')).toBeNull();
+  });
+  it('accepts an uppercase host (URL normalizes the hostname to lowercase)', () => {
+    expect(pinFbUrl('https://SCONTENT.FBCDN.NET/x.jpg')).toBeTruthy();
   });
 });
 
@@ -34,5 +39,28 @@ describe('extFromPath', () => {
     expect(extFromPath('https://x.fbcdn.net/v/t39/a_n.jpg?oh=1')).toBe('jpg');
     expect(extFromPath('https://x.fbcdn.net/v/t39/a_n.mp4')).toBe('mp4');
     expect(extFromPath('https://x.fbcdn.net/v/t39/a_n.svg')).toBe('jpg'); // off-allowlist → default
+  });
+  it('reads the ext from the path, never the query string', () => {
+    // The query is stripped before matching, so an extension smuggled into it
+    // cannot spoof (or rescue) the real path extension.
+    expect(extFromPath('https://x.fbcdn.net/a.mp4?x=.exe')).toBe('mp4');
+    expect(extFromPath('https://x.fbcdn.net/a.exe?x=.mp4')).toBe('jpg');
+  });
+});
+
+describe('numOr', () => {
+  it('passes through a finite positive number', () => {
+    expect(numOr(1080)).toBe(1080);
+  });
+  it('returns undefined for 0, negatives, NaN, and Infinity', () => {
+    expect(numOr(0)).toBeUndefined();
+    expect(numOr(-5)).toBeUndefined();
+    expect(numOr(NaN)).toBeUndefined();
+    expect(numOr(Infinity)).toBeUndefined();
+  });
+  it('returns undefined for non-number inputs', () => {
+    expect(numOr('720')).toBeUndefined();
+    expect(numOr(null)).toBeUndefined();
+    expect(numOr(undefined)).toBeUndefined();
   });
 });
