@@ -44,6 +44,18 @@ describe('resolve — generic fallback', () => {
     });
   });
 
+  it('includes redditResolver before genericResolver', () => {
+    const ids = REGISTRY.map((r) => r.id);
+    expect(ids).toContain('reddit');
+    expect(ids.indexOf('reddit')).toBeLessThan(ids.indexOf('generic'));
+  });
+
+  it('routes a preview.redd.it URL through the reddit resolver to the i.redd.it original', () => {
+    const [c] = resolve('https://preview.redd.it/abc123.jpeg?width=640&s=deadbeef', ctx);
+    expect(c).toMatchObject({ kind: 'image', url: 'https://i.redd.it/abc123.jpeg' });
+    expect(c.thumbnailSrc).toBe('https://preview.redd.it/abc123.jpeg?width=640&s=deadbeef');
+  });
+
   it('includes pinterestResolver before genericResolver', () => {
     const ids = REGISTRY.map((r) => r.id);
     expect(ids).toContain('pinterest');

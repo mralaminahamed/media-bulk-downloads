@@ -378,6 +378,23 @@ describe('resolveOriginal — id injection is neutralized', () => {
   });
 });
 
+describe('resolveOriginal — reddit (deterministic HLS master)', () => {
+  // A fetch that fails the test if it is ever called: reddit resolution is derived
+  // from the id alone, with no network round-trip.
+  const noFetch = (async () => { throw new Error('reddit must not fetch'); }) as unknown as typeof fetch;
+
+  it('builds the signature-free v.redd.it HLS master from the id, without fetching', async () => {
+    const out = await resolveOriginal({ platform: 'reddit', id: '8tnc0d8mu3ch1' }, { fetch: noFetch });
+    expect(out).toEqual({ url: 'https://v.redd.it/8tnc0d8mu3ch1/HLSPlaylist.m3u8', hls: true });
+  });
+
+  it('rejects an id with non [a-z0-9] characters (path-injection guard)', async () => {
+    expect(await resolveOriginal({ platform: 'reddit', id: '../evil' }, { fetch: noFetch })).toBeNull();
+    expect(await resolveOriginal({ platform: 'reddit', id: 'a/b' }, { fetch: noFetch })).toBeNull();
+    expect(await resolveOriginal({ platform: 'reddit', id: '' }, { fetch: noFetch })).toBeNull();
+  });
+});
+
 describe('resolveOriginal — pinterest (pin-widget)', () => {
   // A fetch that records the URL it was called with and returns `payload`.
   const capturingFetch = (payload: unknown, ok = true) => {
