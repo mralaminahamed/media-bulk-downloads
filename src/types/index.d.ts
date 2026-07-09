@@ -441,6 +441,8 @@ export interface SettingsData {
    *  segment (slow, memory-heavy), so it's an explicit opt-in rather than something
    *  the grid shows unasked. */
   captureHlsStreams: boolean;
+  /** Max simultaneous file downloads the queue dispatches (1–10). */
+  downloadConcurrency: number;
   /** Deep-scan caps — the scan stops at whichever is reached first. */
   deepScanMaxItems: number;
   deepScanMaxSeconds: number;

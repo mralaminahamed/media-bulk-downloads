@@ -82,3 +82,15 @@ describe('withDefaults — corrupt shapes', () => {
     expect(s.bubblePanelPoint).toEqual(DEFAULT_SETTINGS.bubblePanelPoint);
   });
 });
+
+describe('downloadConcurrency setting', () => {
+  it('defaults to 5', () => {
+    expect(DEFAULT_SETTINGS.downloadConcurrency).toBe(5);
+  });
+  it('is preserved through withDefaults', () => {
+    expect(withDefaults({ downloadConcurrency: 8 }).downloadConcurrency).toBe(8);
+  });
+  it('falls back to default when absent', () => {
+    expect(withDefaults({}).downloadConcurrency).toBe(5);
+  });
+});
