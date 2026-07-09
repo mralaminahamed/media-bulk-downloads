@@ -214,6 +214,38 @@ async function bsky(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
 }
 
 /**
+ * Flickr (keyless). Sizes larger than `_b` are served under a different secret than
+ * the thumbnail, so they can't be built offline. Recover the largest via two public,
+ * unauthenticated hops: `photo.gne?id=<id>` → the canonical photo page, then its
+ * `/sizes/` page → `/sizes/<largest>/`, whose HTML carries the correct-secret URL.
+ * The canonical is host-pinned to flickr.com (open-redirect guard) and the result to
+ * staticflickr.com. Any failed hop / shifted markup → null (the `_b` image stands).
+ */
+async function flickr(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  try {
+    if (!/^\d+$/.test(id)) return null;
+    const g = await deps.fetch(`https://www.flickr.com/photo.gne?id=${encodeURIComponent(id)}`);
+    if (!g.ok) return null;
+    let canonical: URL;
+    try { canonical = new URL(g.url); } catch { return null; }
+    const flickrHost = canonical.protocol === 'https:' && (canonical.hostname === 'flickr.com' || canonical.hostname === 'www.flickr.com');
+    if (!flickrHost || !new RegExp(`^/photos/[^/]+/${id}(?:/|$)`).test(canonical.pathname)) return null;
+
+    const r = await deps.fetch(`${canonical.origin}${canonical.pathname.replace(/\/$/, '')}/sizes/`);
+    if (!r.ok) return null;
+    const code = new URL(r.url).pathname.match(/\/sizes\/([a-z0-9]+)\//i)?.[1];
+    if (!code) return null;
+    const body = await r.text();
+    const m = body.match(new RegExp(`(?:https:)?//[^"' ]*?staticflickr\\.com/\\d+/${id}_[0-9a-z]+_${code}\\.(?:jpe?g|png|gif)`, 'i'));
+    if (!m) return null;
+    const url = m[0].startsWith('http') ? m[0] : `https:${m[0]}`;
+    return pinnedUrl(url, 'staticflickr.com') ? { url } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Reddit. Deterministic, no fetch (like bsky video): the v.redd.it id already names
  * the account's video, and the HLS master is served signature-free under it. Returns
  * the master to capture — the extension's HLS engine muxes the separate audio
@@ -262,6 +294,7 @@ export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise
     case 'bsky': return bsky(hint.id, deps);
     case 'pinterest': return pinterest(hint.id, deps);
     case 'reddit': return reddit(hint.id);
+    case 'flickr': return flickr(hint.id, deps);
     default: return null;
   }
 }

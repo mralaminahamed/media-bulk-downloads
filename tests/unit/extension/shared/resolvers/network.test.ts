@@ -1,5 +1,10 @@
+import { readFileSync } from 'node:fs';
 import { resolveOriginal } from '@/extension/shared/resolvers/network';
 import pinWidget from '../../../fixtures/pinterest/pin-video-widget.json';
+
+// Vitest cwd is the project root; jsdom's import.meta.url is an http URL, so read
+// the captured Flickr /sizes/ fragment from cwd rather than the module URL.
+const flickrSizesHtml = readFileSync('tests/unit/fixtures/flickr/sizes-6k.html', 'utf8');
 
 const mockFetch = (payload: unknown, ok = true) =>
   (async () => ({ ok, json: async () => payload })) as unknown as typeof fetch;
@@ -375,6 +380,66 @@ describe('resolveOriginal — id injection is neutralized', () => {
     const res = await resolveOriginal({ platform: 'unsplash', id: '../../@evil' }, { fetch: spy });
     expect(res).toEqual({ url: `https://unsplash.com/photos/${encodeURIComponent('../../@evil')}/download` });
     expect((res as { url: string }).url).not.toContain('/photos/../../');
+  });
+});
+
+describe('resolveOriginal — flickr (keyless /sizes/ scrape)', () => {
+  const ID = '55379291849';
+  const CANON = `https://www.flickr.com/photos/31779113@N06/${ID}/`;
+  // Two-hop mock: photo.gne resolves to `canonical`, the /sizes/ fetch resolves to
+  // `sizesUrl` with `body`. Records the URLs it was asked to fetch.
+  const flickrFetch = (o: { gneOk?: boolean; canonical?: string; sizesOk?: boolean; sizesUrl?: string; body?: string } = {}) => {
+    const calls: string[] = [];
+    const fn = (async (u: string) => {
+      calls.push(String(u));
+      if (String(u).includes('photo.gne')) return { ok: o.gneOk ?? true, url: o.canonical ?? CANON };
+      return { ok: o.sizesOk ?? true, url: o.sizesUrl ?? `${CANON}sizes/6k/`, text: async () => o.body ?? flickrSizesHtml };
+    }) as unknown as typeof fetch;
+    return Object.assign(fn, { calls });
+  };
+
+  it('recovers the largest (6k) URL — with its different secret — from the real /sizes/ page', async () => {
+    const fetch = flickrFetch();
+    const out = await resolveOriginal({ platform: 'flickr', id: ID }, { fetch });
+    expect(out).toEqual({ url: `https://live.staticflickr.com/65535/${ID}_3d3e638f8b_6k.jpg` });
+    expect(fetch.calls[0]).toBe(`https://www.flickr.com/photo.gne?id=${ID}`);
+    expect(fetch.calls[1]).toBe(`https://www.flickr.com/photos/31779113@N06/${ID}/sizes/`);
+  });
+
+  it('returns null for a non-numeric id without fetching', async () => {
+    const fetch = flickrFetch();
+    expect(await resolveOriginal({ platform: 'flickr', id: '../evil' }, { fetch })).toBeNull();
+    expect(fetch.calls).toEqual([]);
+  });
+
+  it('rejects a photo.gne redirect to a non-flickr host (open-redirect guard)', async () => {
+    const fetch = flickrFetch({ canonical: `https://evil.example/photos/x/${ID}/` });
+    expect(await resolveOriginal({ platform: 'flickr', id: ID }, { fetch })).toBeNull();
+  });
+
+  it('rejects a canonical whose path is not this photo id', async () => {
+    const fetch = flickrFetch({ canonical: 'https://www.flickr.com/photos/x/99999/' });
+    expect(await resolveOriginal({ platform: 'flickr', id: ID }, { fetch })).toBeNull();
+  });
+
+  it('returns null when the /sizes/ final URL has no size code', async () => {
+    const fetch = flickrFetch({ sizesUrl: CANON });
+    expect(await resolveOriginal({ platform: 'flickr', id: ID }, { fetch })).toBeNull();
+  });
+
+  it('returns null when the page has no matching staticflickr URL for that size', async () => {
+    const fetch = flickrFetch({ body: '<div>no image here</div>' });
+    expect(await resolveOriginal({ platform: 'flickr', id: ID }, { fetch })).toBeNull();
+  });
+
+  it('returns null on a non-ok photo.gne response', async () => {
+    const fetch = flickrFetch({ gneOk: false });
+    expect(await resolveOriginal({ platform: 'flickr', id: ID }, { fetch })).toBeNull();
+  });
+
+  it('returns null when fetch throws', async () => {
+    const throwing = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
+    expect(await resolveOriginal({ platform: 'flickr', id: ID }, { fetch: throwing })).toBeNull();
   });
 });
 
