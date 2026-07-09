@@ -204,6 +204,31 @@ describe('upgradeToOriginal', () => {
       'https://brand.assets.adidas.com/images/w_500,f_auto/x/y.jpg',
       'https://brand.assets.adidas.com/images/w_1920,f_auto/x/y.jpg',
     ],
+    [
+      'Flaticon raises the size segment to the 512 free ceiling',
+      'https://cdn-icons-png.flaticon.com/128/25/25231.png',
+      'https://cdn-icons-png.flaticon.com/512/25/25231.png',
+    ],
+    [
+      'pxhere sets the size token to !d (download original)',
+      'https://c.pxhere.com/photos/3b/5b/swan_bird_lake-1254062.jpg!s1',
+      'https://c.pxhere.com/photos/3b/5b/swan_bird_lake-1254062.jpg!d',
+    ],
+    [
+      'pxhere appends !d to a bare path (bare .jpg 403s)',
+      'https://c.pxhere.com/photos/3b/5b/swan_bird_lake-1254062.jpg',
+      'https://c.pxhere.com/photos/3b/5b/swan_bird_lake-1254062.jpg!d',
+    ],
+    [
+      'AlphaCoders strips the thumb-<N>- prefix to the original',
+      'https://images2.alphacoders.com/433/thumb-350-43350.jpg',
+      'https://images2.alphacoders.com/433/43350.jpg',
+    ],
+    [
+      'WallpaperFlare strips -thumbnail, keeping the /preview/ path',
+      'https://c0.wallpaperflare.com/preview/283/479/652/ancient-antique-art-thumbnail.jpg',
+      'https://c0.wallpaperflare.com/preview/283/479/652/ancient-antique-art.jpg',
+    ],
   ];
 
   it.each(cases)('%s', (_name, input, expected) => {
@@ -370,6 +395,26 @@ describe('upgradeToOriginal', () => {
 
   it('adidas never downgrades a width already >= 1920', () => {
     const url = 'https://assets.adidas.com/images/w_2500,f_auto/abc/shoe.jpg';
+    const r = upgradeToOriginal(url);
+    expect(r.original).toBe(url);
+    expect(r.thumbnail).toBeUndefined();
+  });
+
+  it('leaves Tier-4 assets already at their largest rendition unchanged', () => {
+    for (const url of [
+      'https://cdn-icons-png.flaticon.com/512/25/25231.png', // already the 512 ceiling
+      'https://c.pxhere.com/photos/3b/5b/swan-1254062.jpg!d', // already !d
+      'https://images2.alphacoders.com/433/43350.jpg', // already the bare original
+      'https://c0.wallpaperflare.com/preview/283/479/652/ancient-art.jpg', // no -thumbnail suffix
+    ]) {
+      const r = upgradeToOriginal(url);
+      expect(r.original).toBe(url);
+      expect(r.thumbnail).toBeUndefined();
+    }
+  });
+
+  it('Flaticon never downgrades an icon already larger than the 512 ceiling', () => {
+    const url = 'https://cdn-icons-png.flaticon.com/1024/25/25231.png';
     const r = upgradeToOriginal(url);
     expect(r.original).toBe(url);
     expect(r.thumbnail).toBeUndefined();
