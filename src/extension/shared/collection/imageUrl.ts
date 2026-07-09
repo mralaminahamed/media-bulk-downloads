@@ -468,6 +468,52 @@ const RULES: CdnRule[] = [
     },
   },
   // ──────────────────────────────────────────────────────────────────────────
+  // ── Tier-4 free-tier stock / icons / wallpaper (#227) ─────────────────────
+  // All four live-verified (byte size + watermark check); vecteezy (Pro previews
+  // are watermarked, indistinguishable by host/path) and svgrepo (/show/ is
+  // already the vector original) were verified and REJECTED. alphacoders and
+  // wallpaperflare are aggregators of third-party content — the rewrite is a
+  // valid size upgrade, but redistribution is the user's responsibility.
+  {
+    // Flaticon (cdn-icons-png.flaticon.com): the first path segment is the icon
+    // size (/128/25/25231.png). Raise it to 512, the free-PNG ceiling (larger
+    // sizes/SVG need an account and live on other hosts). Only raise. Verified
+    // 128px=2.7 KB -> 512px=8.6 KB. See #227.
+    match: (u) => u.hostname === 'cdn-icons-png.flaticon.com',
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/^\/(\d+)\//, (m, n) => (parseInt(n, 10) < 512 ? '/512/' : m));
+    },
+  },
+  {
+    // pxhere (c.pxhere.com): a trailing `!<token>` on the /photos/ path selects a
+    // rendition (!s/!s1/!c/!f = smaller); `!d` is the site's Download-Original.
+    // Set the token to !d. The bare `.jpg` with NO token returns 403, so this
+    // always SETS !d rather than stripping. CC0. Verified !s1=69 KB -> !d=401 KB.
+    match: (u) => u.hostname === 'c.pxhere.com' && u.pathname.startsWith('/photos/'),
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/(\.(?:jpe?g|png|gif))(?:![a-z0-9]+)?$/i, '$1!d');
+    },
+  },
+  {
+    // AlphaCoders (images<N>.alphacoders.com): the wallpaper thumbnail is a
+    // `thumb-<N>-<id>.<ext>` filename; strip the `thumb-<N>-` prefix for the
+    // full-resolution original. Verified 24 KB -> 1.3 MB. See #227.
+    match: (u) => /^images\d+\.alphacoders\.com$/i.test(u.hostname),
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/\/thumb-\d+-(\d+\.(?:jpe?g|png|webp))$/i, '/$1');
+    },
+  },
+  {
+    // WallpaperFlare (c<N>.wallpaperflare.com): the preview image filename ends
+    // `-thumbnail.<ext>`; strip that suffix for the larger rendition. The
+    // `/preview/` PATH segment must be kept (dropping it 404s). Verified
+    // 19 KB -> 126 KB. See #227.
+    match: (u) => /^c\d+\.wallpaperflare\.com$/i.test(u.hostname),
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/-thumbnail(\.(?:jpe?g|png|webp))$/i, '$1');
+    },
+  },
+  // ──────────────────────────────────────────────────────────────────────────
   {
     // Cloudinary: strip the leading transformation segment(s) right after
     // /upload/. A transform segment is a comma-list of `<key>_<value>` params
