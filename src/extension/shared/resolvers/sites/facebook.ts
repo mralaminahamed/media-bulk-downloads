@@ -18,6 +18,9 @@ import { FbMediaEntry, pinFbUrl, fbidFromUrl, extractFbMedia } from '@/extension
 
 const SNIFF_CAP = 4000;
 const FB_EXT = /^(?:jpe?g|png|webp|gif|avif|heic|mp4|mov|webm|m4v)$/i;
+/** An fbcdn image counts as a full-res original once its shorter edge clears this.
+ *  Grid renditions are ~640px; photo-viewer originals are 2048/4096px. */
+const ORIGINAL_MIN_PX = 1024;
 let store: FbMediaEntry[] = [];
 let version = 0;
 let cache: { key: string; byFbid: Map<string, FbMediaEntry[]> } | null = null;
@@ -188,4 +191,20 @@ export function facebookPageMedia(pageUrl?: string): MediaCandidate[] {
   if (!fbid) return [];
   const entries = buildByFbid().get(fbid);
   return entries ? collapseFbidGroup(entries).map(toCandidate) : [];
+}
+
+/**
+ * Does the store already hold a full-resolution original for this fbid? True
+ * when some stored image entry for `fbid` has both dimensions and a shorter edge
+ * >= ORIGINAL_MIN_PX. Used by the original-capture loop to skip photos already
+ * captured and to detect when a freshly-opened photo's original has landed.
+ */
+export function hasOriginalFor(fbid: string): boolean {
+  for (const e of store) {
+    if (e.fbid !== fbid || e.kind !== 'image') continue;
+    if (typeof e.width === 'number' && typeof e.height === 'number' && Math.min(e.width, e.height) >= ORIGINAL_MIN_PX) {
+      return true;
+    }
+  }
+  return false;
 }

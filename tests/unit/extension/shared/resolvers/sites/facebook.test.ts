@@ -10,7 +10,7 @@
  * half of the match gate is covered in the sibling file facebook-offhost.test.ts,
  * which stays at jsdom's default (non-facebook) location.
  */
-import { ingestSniffedFbMedia, __resetFbResolver, facebookResolver, facebookPageMedia } from '@/extension/shared/resolvers/sites/facebook';
+import { ingestSniffedFbMedia, __resetFbResolver, hasOriginalFor, facebookResolver, facebookPageMedia } from '@/extension/shared/resolvers/sites/facebook';
 
 const CDN = 'https://x.fbcdn.net';
 
@@ -236,5 +236,27 @@ describe('parseHydration — embedded script[type="application/json"] parse', ()
     const second = facebookPageMedia('https://www.facebook.com/watch/?v=702');
     expect(first).toEqual(second);
     expect(second).toHaveLength(1);
+  });
+});
+
+describe('hasOriginalFor', () => {
+  beforeEach(() => __resetFbResolver());
+
+  it('is true once a >=1024 original for the fbid is in the store', () => {
+    ingestSniffedFbMedia([{ fbid: '100', kind: 'image', url: 'https://x.fbcdn.net/o_n.jpg', ext: 'jpg', width: 2048, height: 1536 }]);
+    expect(hasOriginalFor('100')).toBe(true);
+  });
+  it('is false when only a ~640px grid rendition is stored', () => {
+    ingestSniffedFbMedia([{ fbid: '101', kind: 'image', url: 'https://x.fbcdn.net/g_n.jpg', ext: 'jpg', width: 640, height: 480 }]);
+    expect(hasOriginalFor('101')).toBe(false);
+  });
+  it('uses the SHORTER edge and treats 1024 as the boundary', () => {
+    ingestSniffedFbMedia([{ fbid: '102', kind: 'image', url: 'https://x.fbcdn.net/a_n.jpg', ext: 'jpg', width: 3000, height: 1024 }]);
+    ingestSniffedFbMedia([{ fbid: '103', kind: 'image', url: 'https://x.fbcdn.net/b_n.jpg', ext: 'jpg', width: 3000, height: 1023 }]);
+    expect(hasOriginalFor('102')).toBe(true);
+    expect(hasOriginalFor('103')).toBe(false);
+  });
+  it('is false for an unknown fbid', () => {
+    expect(hasOriginalFor('999')).toBe(false);
   });
 });
