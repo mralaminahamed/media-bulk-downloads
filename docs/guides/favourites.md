@@ -55,7 +55,7 @@ sequenceDiagram
 `storage.onChanged` path — only the mutation inside `favourites.ts` differs.
 
 Implementation: `src/extension/shared/storage/favourites.ts`,
-`src/extension/popup/components/FavouritesPanel.tsx`, and the star controls in
+`src/extension/popup/components/panels/FavouritesPanel.tsx`, and the star controls in
 `src/extension/popup/components/ImageList.tsx`.
 
 See also: [Download](./download.md) · [Download History](./history.md) ·
