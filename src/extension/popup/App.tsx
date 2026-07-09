@@ -335,6 +335,23 @@ const App: React.FC<AppProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.minimumImageSize, settings.excludeBase64Images, settings.excludeEmoji, settings.resolveOriginals, settings.captureHlsStreams, applyResolution, excludedMatch]);
 
+  /**
+   * Replace the collection with a COMPLETE fresh upgraded snapshot (as opposed to
+   * an additive merge). Used by any capture path whose `found` result already
+   * represents every tile on the page, upgraded — an additive merge would leave
+   * both the stale (low-res) and fresh (full-res) rows behind. Guarded so an
+   * empty/failed capture never wipes what the user already had.
+   */
+  const applyFreshSnapshot = (found: ImageInfo[]): void => {
+    if (!found.length) {
+      setState((prev) => ({ ...prev, status: 'No originals captured.' }));
+      return;
+    }
+    rawImagesRef.current = found;
+    const eligible = filterExcluded(filterImagesBySettings(found, settings), excludedRef.current);
+    applyResolution(eligible, settings);
+  };
+
   const handleDeepScan = async () => {
     if (deepScanning) {
       abortDeepScan();
@@ -349,19 +366,32 @@ const App: React.FC<AppProps> = ({
         if (p.reason) stopReason = p.reason;
         setDeepProgress(p);
       });
-      // Merge deep-scan results into the existing set by CANONICAL src key, so a
-      // rotating CDN edge host doesn't re-add an image already collected.
-      const bySrc = new Map(rawImagesRef.current.map((m) => [canonicalSrcKey(m.src), m]));
-      found.forEach((m) => {
-        const key = canonicalSrcKey(m.src);
-        if (!bySrc.has(key)) bySrc.set(key, m);
-      });
-      const merged = [...bySrc.values()];
-      rawImagesRef.current = merged;
-      const eligible = filterExcluded(filterImagesBySettings(merged, settings), excludedRef.current);
-      applyResolution(eligible, settings);
+      let mergedCount: number;
+      // `captureOriginals && settings.fbCaptureOriginals` mirrors the content handler's
+      // shouldChainCapture(host, s) gate: on a FB photo grid with the master toggle on,
+      // this deep scan chained a capture, so `found` is a COMPLETE upgraded snapshot
+      // (every tile, upgraded to a new full-res URL) — replace, don't merge, or the
+      // stale low-res row and the upgraded row (different canonical keys) both survive.
+      if (captureOriginals && settings.fbCaptureOriginals) {
+        applyFreshSnapshot(found);
+        mergedCount = found.length;
+      } else {
+        // Merge deep-scan results into the existing set by CANONICAL src key, so a
+        // rotating CDN edge host doesn't re-add an image already collected.
+        const bySrc = new Map(rawImagesRef.current.map((m) => [canonicalSrcKey(m.src), m]));
+        found.forEach((m) => {
+          const key = canonicalSrcKey(m.src);
+          if (!bySrc.has(key)) bySrc.set(key, m);
+        });
+        const merged = [...bySrc.values()];
+        rawImagesRef.current = merged;
+        const eligible = filterExcluded(filterImagesBySettings(merged, settings), excludedRef.current);
+        applyResolution(eligible, settings);
+        mergedCount = merged.length;
+      }
       // If a cap (not a natural finish) ended the scan, tell the user media may remain.
-      const capMsg = deepScanCapMessage(stopReason, merged.length);
+      // Orthogonal to the merge strategy above, so it applies on both branches.
+      const capMsg = deepScanCapMessage(stopReason, mergedCount);
       if (capMsg) setState((prev) => ({ ...prev, status: capMsg }));
     } catch (e) {
       setState((prev) => ({ ...prev, status: e instanceof Error ? e.message : 'deep scan failed' }));
@@ -392,17 +422,11 @@ const App: React.FC<AppProps> = ({
     try {
       const found = await captureOriginals((p) => setCaptureProgress(p));
       // Capture UPGRADES existing photos to a new full-res URL, so an additive merge
-      // (as in handleDeepScan) would leave both the low-res and full-res rows. `found`
-      // is a complete fresh collectMedia() snapshot of the page (all tiles, upgraded),
-      // so replace the collection with it — but never on an empty/failed capture,
-      // which would wipe what the user already had.
-      if (found.length) {
-        rawImagesRef.current = found;
-        const eligible = filterExcluded(filterImagesBySettings(found, settings), excludedRef.current);
-        applyResolution(eligible, settings);
-      } else {
-        setState((prev) => ({ ...prev, status: 'No originals captured.' }));
-      }
+      // (as in the non-chained branch of handleDeepScan) would leave both the low-res
+      // and full-res rows. `found` is a complete fresh collectMedia() snapshot of the
+      // page (all tiles, upgraded) — replace via the shared helper (also guards against
+      // an empty/failed capture wiping what the user already had).
+      applyFreshSnapshot(found);
     } catch (e) {
       setState((prev) => ({ ...prev, status: e instanceof Error ? e.message : 'capture failed' }));
     } finally {

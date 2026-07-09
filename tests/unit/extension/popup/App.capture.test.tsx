@@ -102,4 +102,79 @@ describe('App — Facebook original-capture control', () => {
     expect(headerCount()).toBe('1');
     expect(screen.getByRole('img', { name: 'Test' })).toHaveAttribute('src', 'https://x.fbcdn.net/lowres/a_n.jpg');
   });
+
+  it('deep-scan-chain: replaces the collection with the fresh snapshot — no duplicate of the upgraded photo', async () => {
+    // captureOriginals present (FB photo grid) + fbCaptureOriginals on ⇒ this deep
+    // scan chained a capture, so its result is a COMPLETE upgraded snapshot (same
+    // photo, different fbcdn pathname ⇒ different canonical key than the stale tile).
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { fbCaptureOriginals: true } }));
+    const captureOriginals = vi.fn(async () => []) as never;
+    const deepScan = vi.fn(async () => [
+      image({ src: 'https://x.fbcdn.net/hires/a_n.jpg' }),
+    ]) as never;
+    const { container } = render(
+      <App
+        collect={async () => [image({ src: 'https://x.fbcdn.net/lowres/a_n.jpg' })]}
+        captureOriginals={captureOriginals}
+        deepScan={deepScan}
+      />,
+    );
+    await screen.findByText('Filters');
+    const headerCount = () => container.querySelector('header .num')?.textContent;
+    expect(headerCount()).toBe('1');
+
+    fireEvent.click(await screen.findByRole('button', { name: /deep scan/i }));
+
+    // Exactly one item — the stale low-res row was replaced, not kept alongside
+    // the upgraded one.
+    await waitFor(() => expect(deepScan).toHaveBeenCalled());
+    await waitFor(() => expect(headerCount()).toBe('1'));
+    expect(screen.getByRole('img', { name: 'Test' })).toHaveAttribute('src', 'https://x.fbcdn.net/hires/a_n.jpg');
+  });
+
+  it('normal deep scan (not a capture chain) still additively merges new media', async () => {
+    // No captureOriginals prop ⇒ not a FB photo grid ⇒ shouldChainCapture is false,
+    // regardless of the fbCaptureOriginals toggle — the additive merge must hold.
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { fbCaptureOriginals: true } }));
+    const deepScan = vi.fn(async () => [
+      image({ src: 'https://cdn.example.com/new-tile.jpg' }),
+    ]) as never;
+    const { container } = render(
+      <App collect={async () => [image({ src: 'https://cdn.example.com/existing.jpg' })]} deepScan={deepScan} />,
+    );
+    await screen.findByText('Filters');
+    const headerCount = () => container.querySelector('header .num')?.textContent;
+    expect(headerCount()).toBe('1');
+
+    fireEvent.click(await screen.findByRole('button', { name: /deep scan/i }));
+
+    // Both the prior item and the newly found one are present — additive merge preserved.
+    await waitFor(() => expect(headerCount()).toBe('2'));
+    const srcs = screen.getAllByRole('img', { name: 'Test' }).map((el) => el.getAttribute('src'));
+    expect(srcs).toEqual(expect.arrayContaining(['https://cdn.example.com/existing.jpg', 'https://cdn.example.com/new-tile.jpg']));
+  });
+
+  it('deep scan with fbCaptureOriginals off still additively merges, even with the capture prop present', async () => {
+    // captureOriginals present, but the master toggle is off ⇒ shouldChainCapture
+    // is false ⇒ the deep scan did not chain a capture ⇒ additive merge must hold.
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { fbCaptureOriginals: false } }));
+    const captureOriginals = vi.fn(async () => []) as never;
+    const deepScan = vi.fn(async () => [
+      image({ src: 'https://cdn.example.com/new-tile.jpg' }),
+    ]) as never;
+    const { container } = render(
+      <App
+        collect={async () => [image({ src: 'https://cdn.example.com/existing.jpg' })]}
+        captureOriginals={captureOriginals}
+        deepScan={deepScan}
+      />,
+    );
+    await screen.findByText('Filters');
+    const headerCount = () => container.querySelector('header .num')?.textContent;
+    expect(headerCount()).toBe('1');
+
+    fireEvent.click(await screen.findByRole('button', { name: /deep scan/i }));
+
+    await waitFor(() => expect(headerCount()).toBe('2'));
+  });
 });
