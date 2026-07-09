@@ -1,0 +1,33 @@
+{
+  "_source": "GET https://widgets.pinterest.com/v3/pidgets/pins/info/?pin_ids=84301824269690044 (public, unauthenticated) — captured 2026-07-09, trimmed to the fields the resolver reads",
+  "data": [
+    {
+      "id": "84301824269690044",
+      "is_video": false,
+      "videos": {
+        "video_list": {
+          "V_HLSV4": {
+            "url": "https://v1.pinimg.com/videos/iht/hls/62/b7/a5/62b7a5ecc1b483e99a3456ef9c2f7861.m3u8",
+            "width": 1080,
+            "height": 1920,
+            "duration": 75133,
+            "thumbnail": "https://i.pinimg.com/videos/thumbnails/originals/62/b7/a5/62b7a5ecc1b483e99a3456ef9c2f7861.0000000.jpg"
+          },
+          "V_720P": {
+            "url": "https://v1.pinimg.com/videos/iht/720p/62/b7/a5/62b7a5ecc1b483e99a3456ef9c2f7861.mp4",
+            "width": 1080,
+            "height": 1920,
+            "duration": 75133,
+            "thumbnail": "https://i.pinimg.com/videos/thumbnails/originals/62/b7/a5/62b7a5ecc1b483e99a3456ef9c2f7861.0000000.jpg"
+          },
+          "V_HLSV3_MOBILE": {
+            "url": "https://v1.pinimg.com/videos/iht/hls/62/b7/a5/62b7a5ecc1b483e99a3456ef9c2f7861.m3u8",
+            "width": 1080,
+            "height": 1920,
+            "duration": 75133
+          }
+        }
+      }
+    }
+  ]
+}
