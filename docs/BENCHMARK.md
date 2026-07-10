@@ -354,3 +354,17 @@ per-surface >=80% figure across Photos/Reels/Page, load the built extension
 Deep scan (its `document_start` sniffer + scroll accumulation), and read the
 panel's per-item resolution. The e2e (`facebook-sniffer.spec.ts`) already proves
 the mechanism deterministically on data faithful to the real `text/html` NDJSON.
+
+## H. Instagram original-image accuracy — 2026-07-10
+
+Measured live across 6 profile timelines (83 post-grid tiles): **~99%** of
+surfaced tiles carry an original at `max(w,h) >= 1024` (83/84; the single miss a
+640px tile). Instagram is **not** grid-locked like Facebook — it serves the
+profile-grid images at full/near-original resolution directly in the DOM
+(measured 640–4096px, overwhelmingly >=1024). The extension collects that DOM
+`<img>` src as-is (the IG CDN is signed → read, never rewritten), so the surfaced
+image is already the original; no graphql upgrade is needed on the grid. The IG
+resolver's `image_versions2.candidates` / `video_versions` path (§B row 54) adds
+value only on individual post/feed pages where a larger candidate exists than the
+DOM thumbnail. No code change was warranted. Per-page detail (with handles) is
+kept in a gitignored `test-samples/` file — no account identifiers here.
