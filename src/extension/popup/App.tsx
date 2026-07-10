@@ -8,6 +8,7 @@ import FilterToolbar, { DEFAULT_FILTERS } from './components/FilterToolbar';
 import { DownloadButton } from './components/DownloadButton';
 import { ProgressBar } from './components/ProgressBar';
 import { DownloadQueue } from './components/DownloadQueue';
+import { SaveAsPromptHint } from './components/SaveAsPromptHint';
 import { SelectCheckbox } from './components/fields/SelectCheckbox';
 import { BrandMark } from '../components/BrandMark';
 import { SkeletonGrid } from './components/states/SkeletonGrid';
@@ -882,6 +883,8 @@ const App: React.FC<AppProps> = ({
           />
         )}
       </main>
+
+      <SaveAsPromptHint />
 
       {/* Persistent download queue: per-file status + pause/resume/cancel/retry
           (#196). Renders nothing when the queue is empty. */}

@@ -7,6 +7,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Save-As prompt hint**: when Chrome's own "Ask where to save each file before
+  downloading" setting forces the OS Save-As dialog — which an extension cannot
+  read or override — the popup now surfaces a one-time, dismissible hint linking
+  straight to `chrome://settings/downloads` so you can turn it off for silent
+  saves. Cancelling that dialog no longer makes the download queue re-try (and
+  re-prompt); a user-cancelled item is marked failed and left for a manual retry.
+
 - **Facebook original-image accuracy + multi-surface support**: the Facebook
   resolver and its passive MAIN-world sniffer (`fb-media-sniffer`) now cover
   Photos, Reels, and the Page surface with **77–90% original-image accuracy**

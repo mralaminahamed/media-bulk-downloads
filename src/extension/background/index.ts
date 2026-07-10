@@ -1,6 +1,7 @@
 import { ChromeMessage, SettingsData } from '@/types';
 import { withDefaults } from '../shared/storage/settings';
 import { EXCLUDED_KEY } from '../shared/storage/excluded';
+import { markSaveAsPromptSeen } from '../shared/storage/save-as-hint';
 import { initQueueDispatcher, reconcileQueue } from './download/download-queue';
 import {
   currentSettings, excludedReady, settingsReady,
@@ -44,6 +45,14 @@ chrome.runtime.onStartup?.addListener(() => {
   void reconcileQueue();
 });
 void settingsReady.then(() => reconcileQueue()).catch(() => {});
+
+// When the user cancels Chrome's Save-As dialog, the download is interrupted with
+// USER_CANCELED — a signal that Chrome's "Ask where to save each file" pref is on
+// (which the extension can't override). Flag it for the popup's one-time hint.
+// Independent of the queue so it also catches ZIP / backup / direct downloads.
+chrome.downloads.onChanged.addListener((delta) => {
+  if (delta.error?.current === 'USER_CANCELED') void markSaveAsPromptSeen();
+});
 
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'sync' && changes.settings) {

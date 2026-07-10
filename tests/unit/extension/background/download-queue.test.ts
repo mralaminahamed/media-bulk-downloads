@@ -7,7 +7,7 @@ import {
   initQueueDispatcher, enqueueDownloads, handleDownloadChanged, getQueueSnapshot, reconcileQueue,
   pollProgressForTest, __setProgressTimerForTest,
 } from '@/extension/background/download/download-queue';
-import { QUEUE_KEY } from '@/extension/shared/storage/download-queue';
+import { QUEUE_KEY, saveQueue, loadQueue } from '@/extension/shared/storage/download-queue';
 
 let store: Record<string, unknown>;
 let downloadCb: (() => void) | null;
@@ -208,6 +208,28 @@ describe('hotlink 403 handling', () => {
     expect(snap.items[0].attempts).toBe(1);
     expect(snap.items[0].hotlink).toBeUndefined();
     expect(dnrRules.length).toBe(0);
+  });
+});
+
+describe('user-cancelled download (Save-As dialog dismissed)', () => {
+  it('marks the item failed with no retry on USER_CANCELED', async () => {
+    await saveQueue({ paused: false, items: [
+      { id: 'a', url: 'u', filename: 'a.jpg', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, downloadId: 5 },
+    ] });
+    await handleDownloadChanged({ id: 5, state: { current: 'interrupted', previous: 'in_progress' }, error: { current: 'USER_CANCELED' } } as unknown as chrome.downloads.DownloadDelta);
+    const s = await loadQueue();
+    expect(s.items[0].status).toBe('failed');
+    expect(s.items[0].error).toBe('Cancelled');
+  });
+
+  it('still schedules a retry for an ordinary (non-cancel, non-403) interrupt', async () => {
+    await saveQueue({ paused: false, items: [
+      { id: 'b', url: 'u', filename: 'b.jpg', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, downloadId: 6 },
+    ] });
+    await handleDownloadChanged({ id: 6, state: { current: 'interrupted', previous: 'in_progress' }, error: { current: 'NETWORK_FAILED' } } as unknown as chrome.downloads.DownloadDelta);
+    const s = await loadQueue();
+    expect(s.items[0].status).toBe('queued'); // scheduled retry
+    expect(s.items[0].attempts).toBe(1);
   });
 });
 
