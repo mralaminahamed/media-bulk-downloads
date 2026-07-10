@@ -13,6 +13,7 @@ import { addExcluded, removeExcluded, clearExcluded, restoreExcluded } from '../
 import { streamErrorMessage } from '../shared/download/stream/stream-error-message';
 import {
   enqueueDownloads, pauseQueue, resumeQueue, cancelQueue, retryQueueItem, getQueueSnapshot,
+  clearFinishedQueue, retryAllFailedQueue, openQueueItem,
 } from './download/download-queue';
 import type { HistoryDraft, QueueState } from '../shared/storage/download-queue';
 import { currentSettings, excludedCache, settingsReady, excludedReady, writeSettingsPatch } from './state';
@@ -106,11 +107,20 @@ export const messageRouter: MessageRouter = {
     return true;
   },
   QUEUE_RETRY: (message, _sender, respond) => {
-    void retryQueueItem(message.id, message.referer).then(() => respond({ status: 'success', message: 'Retrying' }));
+    const p = message.id === 'all-failed' ? retryAllFailedQueue() : retryQueueItem(message.id, message.referer);
+    void p.then(() => respond({ status: 'success', message: 'Retrying' }));
     return true;
   },
   QUEUE_GET: (_message, _sender, respond) => {
     void getQueueSnapshot().then((snap) => respond(snap));
+    return true;
+  },
+  QUEUE_CLEAR: (_message, _sender, respond) => {
+    void clearFinishedQueue().then(() => respond({ status: 'success', message: 'Cleared' }));
+    return true;
+  },
+  QUEUE_OPEN: (message, _sender, respond) => {
+    void openQueueItem(message.id).then(() => respond({ status: 'success', message: 'Opened' }));
     return true;
   },
 

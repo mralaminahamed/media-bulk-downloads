@@ -1,6 +1,6 @@
 import {
   loadQueue, saveQueue, enqueue, claimNext, markActive, markDone, markFailed,
-  scheduleRetry, cancel, retryFailed, setProgress, type EnqueueEntry, type QueueState,
+  scheduleRetry, cancel, retryFailed, setProgress, clearFinished, retryAllFailed, type EnqueueEntry, type QueueState,
 } from '@/extension/shared/storage/download-queue';
 import { recordDownloads } from '@/extension/shared/storage/history';
 import { applyRefererRule, removeRefererRule, hasDnrPermission } from './hotlink-rewrite';
@@ -216,6 +216,21 @@ export async function retryQueueItem(id: string, referer = false): Promise<void>
 
 export async function getQueueSnapshot(): Promise<QueueState> {
   return loadQueue();
+}
+
+export async function clearFinishedQueue(): Promise<void> {
+  await withState(async (s) => ({ state: clearFinished(s), value: null }));
+}
+
+export async function retryAllFailedQueue(): Promise<void> {
+  await withState(async (s) => ({ state: retryAllFailed(s, Date.now()), value: null }));
+  void pump();
+}
+
+export async function openQueueItem(id: string): Promise<void> {
+  const s = await loadQueue();
+  const it = s.items.find((i) => i.id === id);
+  if (it && it.status === 'done' && it.downloadId !== undefined) chrome.downloads.open(it.downloadId);
 }
 
 // On service-worker startup, reconcile any items left 'active' when the worker
