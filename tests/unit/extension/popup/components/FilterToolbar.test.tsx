@@ -226,4 +226,30 @@ describe('FilterToolbar Component', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove State filter' }));
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ downloadState: 'all' }));
   });
+
+  it('resets the State filter via the global "Clear all" control', () => {
+    renderToolbar();
+    fireEvent.click(screen.getByRole('button', { name: 'State' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Downloaded' }));
+    fireEvent.click(screen.getByText('Clear all'));
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ downloadState: 'all' }));
+  });
+
+  it('surfaces an active Size filter as a removable chip and clears it via ×', () => {
+    renderToolbar();
+    openMore();
+    fireEvent.click(screen.getByRole('button', { name: 'Large' })); // size seg in More
+    // a Size chip now appears in the primary row
+    const clearSize = screen.getByRole('button', { name: 'Remove Size filter' });
+    expect(clearSize).toBeInTheDocument();
+    fireEvent.click(clearSize);
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ sizeBucket: 'all' }));
+  });
+
+  it('surfaces an active Base64 filter as a removable chip', () => {
+    renderToolbar();
+    openMore();
+    fireEvent.click(screen.getByRole('switch', { name: /base64/i })); // turn base64 off
+    expect(screen.getByRole('button', { name: 'Remove Base64 filter' })).toBeInTheDocument();
+  });
 });

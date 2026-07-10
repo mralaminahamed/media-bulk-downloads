@@ -109,7 +109,8 @@ test.describe('filters, search, and empty state', () => {
   test('the size-bucket control narrows to the dimensionless items', async ({ context }) => {
     const page = await openBubblePage(context, '/mixed.html');
     await openPanel(page);
-    expect(await itemCount(page)).toBe(4); // 2 images (120x120) + video + audio
+    const all = await itemCount(page);
+    expect(all).toBe(4); // 2 images (120x120) + video + audio
 
     await page.getByRole('button', { name: 'More', exact: true }).click();
     await page.getByRole('group', { name: 'Image size' }).getByRole('button', { name: 'Large' }).click();
@@ -118,6 +119,12 @@ test.describe('filters, search, and empty state', () => {
     // 0 for <video>/<audio> (never reads the element's intrinsic size), so both
     // count as "unknown dims", which the size-bucket rule never hides.
     await expectItemCount(page, 2);
+
+    // The active Size filter surfaces as a removable chip in the primary row —
+    // clearing it via × restores the full grid.
+    await expect(page.getByRole('button', { name: 'Remove Size filter' })).toBeVisible();
+    await page.getByRole('button', { name: 'Remove Size filter' }).click();
+    await expect.poll(() => itemCount(page)).toBe(all);
   });
 
   test('the minimum-size floor drops only the item with a known small file size', async ({ context }) => {

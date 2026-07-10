@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronDownIcon, MagnifyingGlassIcon, BarsArrowUpIcon, BarsArrowDownIcon } from '@heroicons/react/24/outline';
 import { FilterOptions, SettingsData } from '@/types';
 import ChipFlyout from './ChipFlyout';
+import FilterChip from './FilterChip';
 
 interface FilterToolbarProps {
   onFilterChange: (filters: FilterOptions) => void;
@@ -108,6 +109,14 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
 
   const showSize = filters.mediaKind === 'all' || filters.mediaKind === 'image';
 
+  // Active advanced filters mirrored as removable chips (they are SET inside More).
+  const advChips: { key: string; label: string; clear: () => void }[] = [
+    filters.imageType !== 'all' && { key: 'format', label: filters.imageType.toUpperCase(), clear: () => update({ imageType: 'all' }) },
+    filters.sizeBucket !== 'all' && { key: 'size', label: SIZE_OPTIONS.find((o) => o.value === filters.sizeBucket)!.label, clear: () => update({ sizeBucket: 'all' }) },
+    filters.minSize > 0 && { key: 'min', label: `≥ ${filters.minSize} KB`, clear: () => update({ minSize: 0 }) },
+    !filters.includeBase64 && !base64Disabled && { key: 'base64', label: 'No Base64', clear: () => update({ includeBase64: true }) },
+  ].filter(Boolean) as { key: string; label: string; clear: () => void }[];
+
   const sortDirLabel = filters.sortDir === 'asc' ? 'Ascending' : 'Descending';
 
   return (
@@ -185,6 +194,17 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
           onChange={(v) => update({ downloadState: v })}
           clearLabel="Remove State filter"
         />
+
+        {advChips.map((c) => (
+          <FilterChip
+            key={c.key}
+            label={c.label}
+            active
+            onOpen={() => setMoreOpen(true)}
+            onClear={c.clear}
+            clearLabel={`Remove ${c.key === 'base64' ? 'Base64' : c.key === 'min' ? 'Min size' : c.key === 'format' ? 'Format' : 'Size'} filter`}
+          />
+        ))}
 
         {/* More — discloses the advanced (format / size / min-size / base64) filters */}
         <button
