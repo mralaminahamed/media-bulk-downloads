@@ -147,6 +147,29 @@ export interface EmitOptions<T> {
   extract: (json: unknown) => T[];
   /** Wrap the items in the postMessage envelope the content-script relay expects. */
   envelope: (items: T[]) => object;
+  /** When true, parse the body as NDJSON — one JSON value per line, behind an
+   *  optional `for (;;);` XSSI prefix — and extract from every chunk. Facebook
+   *  streams /api/graphql this way. Default false: a single JSON.parse, which is
+   *  what Instagram/X single-object responses need (unchanged). */
+  ndjson?: boolean;
+}
+
+/** Parse an NDJSON body into successfully-parsed JSON values, skipping the
+ *  optional leading `for (;;);` XSSI guard and any blank/partial chunk. Valid
+ *  JSON never contains a raw newline outside a string, so splitting on "\n" is
+ *  safe between top-level values. */
+function parseNdjson(text: string): unknown[] {
+  const out: unknown[] = [];
+  for (const line of text.replace(/^for\s*\(;;\);/, '').split('\n')) {
+    const chunk = line.trim();
+    if (!chunk) continue;
+    try {
+      out.push(JSON.parse(chunk));
+    } catch {
+      /* partial / non-JSON line — skip, keep the siblings */
+    }
+  }
+  return out;
 }
 
 /**
@@ -154,11 +177,11 @@ export interface EmitOptions<T> {
  * postMessages the envelope to the isolated content script (same-origin only).
  * Non-JSON or unexpected shapes are ignored.
  */
-export function makeSnifferEmit<T>({ guard, extract, envelope }: EmitOptions<T>): (text: string) => void {
+export function makeSnifferEmit<T>({ guard, extract, envelope, ndjson }: EmitOptions<T>): (text: string) => void {
   return (text: string): void => {
     if (!text || !guard(text)) return;
     try {
-      const items = extract(JSON.parse(text));
+      const items = ndjson ? parseNdjson(text).flatMap((json) => extract(json)) : extract(JSON.parse(text));
       if (items.length) window.postMessage(envelope(items), location.origin);
     } catch {
       /* not JSON / not ours — ignore, never disturb the page */

@@ -48,6 +48,38 @@ describe('makeSnifferEmit', () => {
     expect(() => emit('MEDIA but not json {')).not.toThrow();
     expect(posted).toEqual([]);
   });
+
+  it('parses an NDJSON body, extracting from every chunk, posting once', () => {
+    const emitNd = makeSnifferEmit<number>({
+      guard: (t) => t.includes('MEDIA'),
+      extract: (json) => (json as { items?: number[] }).items ?? [],
+      envelope: (items) => ({ source: 'test', items }),
+      ndjson: true,
+    });
+    emitNd('{"MEDIA":1,"items":[1]}\n{"MEDIA":1,"items":[2,3]}');
+    expect(posted).toEqual([{ source: 'test', items: [1, 2, 3] }]);
+  });
+
+  it('skips a malformed NDJSON chunk but keeps its siblings, and strips a for(;;); prefix', () => {
+    const emitNd = makeSnifferEmit<number>({
+      guard: (t) => t.includes('MEDIA'),
+      extract: (json) => (json as { items?: number[] }).items ?? [],
+      envelope: (items) => ({ source: 'test', items }),
+      ndjson: true,
+    });
+    emitNd('for (;;);{"MEDIA":1,"items":[1]}\n{ partial not json\n{"MEDIA":1,"items":[9]}');
+    expect(posted).toEqual([{ source: 'test', items: [1, 9] }]);
+  });
+
+  it('with ndjson off, a single-object body still parses (Instagram/X unchanged)', () => {
+    const emitSingle = makeSnifferEmit<number>({
+      guard: (t) => t.includes('MEDIA'),
+      extract: (json) => (json as { items?: number[] }).items ?? [],
+      envelope: (items) => ({ source: 'test', items }),
+    });
+    emitSingle('{"MEDIA":1,"items":[5]}');
+    expect(posted).toEqual([{ source: 'test', items: [5] }]);
+  });
 });
 
 describe('installResponseSniffer (fetch path)', () => {
