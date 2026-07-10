@@ -19,9 +19,14 @@ import { imageExtFromUrl } from '@/extension/shared/collection/mediaType';
  *
  * Gated to Threads pages by `ctx.pageUrl` so the Instagram/Facebook resolvers keep
  * owning the same CDN hosts on their own sites (there the resolver returns `[]`
- * and the registry falls through). Images only for now — Threads video posts
- * serve blob mp4s whose real files live in GraphQL, needing a MAIN-world sniffer
- * (as Instagram reels do); those fall through to the generic path until then.
+ * and the registry falls through). Images only — and it need not handle video: a
+ * MOUNTED Threads <video> carries a REAL https progressive .mp4 in its src
+ * (cdninstagram), which the generic collectAv <video> path already collects
+ * downloadably. Unlike Instagram reels, Threads video is NOT blob:-backed. Its
+ * feed/grid is virtualized, though: only the active tile mounts a <video>; an
+ * unmounted video tile exposes only its cover image, and that post's mp4 is in
+ * neither the page hydration nor the feed GraphQL (verified live 2026-07-10), so
+ * it is not passively reachable. See docs/BENCHMARK.md §I.
  */
 
 const META_CDN = /(?:^|\.)(?:cdninstagram\.com|fbcdn\.net)$/i;
