@@ -42,4 +42,25 @@ describe('collectMedia — Twitter/X pending status cells', () => {
       resolveHint: { platform: 'twitter', id: '1700000000000000003' },
     });
   });
+
+  it('does NOT emit a second pending video for a mounted <video poster> cell', () => {
+    // The <video poster> has already been picked up by the existing
+    // twitterVideoPending pass (videos.forEach in collect.ts). The new
+    // pushTwitterPending pass must recognize this cell as already-painted
+    // (via TWITTER_PAINTED_MEDIA matching the poster) and must NOT also push
+    // an unresolvedVideo item keyed off the /status/.../video/1 link.
+    document.body.innerHTML =
+      `<a href="/u/status/1700000000000000009/video/1"><video poster="https://pbs.twimg.com/amplify_video_thumb/999/img/y.jpg"></video></a>`;
+    const items = collectMedia();
+    const videoItems = items.filter((m) => m.kind === 'video');
+    expect(videoItems).toHaveLength(1);
+    // The one video item is the twitterVideoPending candidate, keyed by the
+    // poster URL (not the /status/ link) and carrying a resolveHint derived
+    // from the enclosing /status/ link.
+    expect(videoItems[0]).toMatchObject({
+      src: 'https://pbs.twimg.com/amplify_video_thumb/999/img/y.jpg',
+      unresolvedVideo: true,
+      resolveHint: { platform: 'twitter', id: '1700000000000000009' },
+    });
+  });
 });

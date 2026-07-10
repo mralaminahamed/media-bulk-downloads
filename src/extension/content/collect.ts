@@ -376,7 +376,7 @@ export function collectMedia(): MediaItem[] {
       });
     } else {
       media.push({
-        src: resolvedHref, alt: '', width: 0, height: 0, type: 'unknown', fileSize: 0, isBase64: false,
+        src: resolvedHref, alt: '', width: 0, height: 0, type: 'mp4', fileSize: 0, isBase64: false,
         kind: 'video', unresolvedVideo: true,
         resolveHint: { platform: 'twitter', id: sid },
       });
