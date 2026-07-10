@@ -321,6 +321,68 @@ export function collectMedia(): MediaItem[] {
     });
   };
 
+  // X/Twitter unpainted grid cells: a `/user/status/<id>/photo|video/<n>` link
+  // whose cell never rendered a real pbs.twimg.com media <img> (or a mounted
+  // <video>'s poster) — common on a fast scroll through a lazy-loading grid,
+  // which leaves the anchor in the DOM with nothing painted inside it yet. Emits
+  // a PENDING item (unresolvedImage / unresolvedVideo) keyed by the anchor's own
+  // status id + index, so the opt-in resolve pass (resolveOriginals) can still
+  // recover the original via the syndication endpoint (network.ts's twitter()
+  // photo branch / existing video branch). A cell that DID paint is already
+  // collected by the <img>/<video> passes above — this only fills the gap, it
+  // never duplicates. Gated to x.com/twitter.com so an unrelated site's own
+  // `/status/<n>` path segment is never scanned. `twitterPendingSeen` only
+  // dedupes within this single collectMedia() call (e.g. two anchors sharing a
+  // status id); cross-scan/deep-scan dedup already happens at the caller via
+  // canonicalSrcKey on `src`, which is this item's stable status-permalink URL.
+  const twitterPendingSeen = new Set<string>();
+  const isTwitterPage = (() => {
+    try {
+      return /(?:^|\.)(?:x|twitter)\.com$/i.test(new URL(pageUrl).hostname);
+    } catch {
+      return false;
+    }
+  })();
+  const TWITTER_STATUS_CELL = /^\/[^/]+\/status\/(\d{1,20})\/(photo|video)\/(\d{1,3})$/;
+  const TWITTER_PAINTED_MEDIA = /pbs\.twimg\.com\/(?:media|amplify_video_thumb|ext_tw_video_thumb)\//;
+  const pushTwitterPending = (a: HTMLAnchorElement, resolvedHref: string): void => {
+    let pathname: string;
+    try {
+      pathname = new URL(resolvedHref).pathname;
+    } catch {
+      return;
+    }
+    const m = pathname.match(TWITTER_STATUS_CELL);
+    if (!m) return;
+    const [, sid, kind, nStr] = m;
+    const dedupKey = `${sid}/${kind}/${nStr}`;
+    if (twitterPendingSeen.has(dedupKey)) return;
+    twitterPendingSeen.add(dedupKey);
+
+    // Already painted — a real media <img> or a mounted <video>'s poster inside
+    // this cell — the existing img/video passes above already collected it.
+    const painted =
+      [...a.querySelectorAll('img[src]')].some((img) => TWITTER_PAINTED_MEDIA.test(img.getAttribute('src') || '')) ||
+      [...a.querySelectorAll('video[poster]')].some((v) => TWITTER_PAINTED_MEDIA.test(v.getAttribute('poster') || ''));
+    if (painted) return;
+
+    if (seenSources.has(resolvedHref)) return;
+    seenSources.add(resolvedHref);
+    if (kind === 'photo') {
+      media.push({
+        src: resolvedHref, alt: '', width: 0, height: 0, type: 'unknown', fileSize: 0, isBase64: false,
+        kind: 'image', unresolvedImage: true,
+        resolveHint: { platform: 'twitter', id: `photo ${sid} ${Number(nStr)}` },
+      });
+    } else {
+      media.push({
+        src: resolvedHref, alt: '', width: 0, height: 0, type: 'unknown', fileSize: 0, isBase64: false,
+        kind: 'video', unresolvedVideo: true,
+        resolveHint: { platform: 'twitter', id: sid },
+      });
+    }
+  };
+
   const collectAv = (
     rawSrc: string,
     kind: 'video' | 'audio',
@@ -520,6 +582,9 @@ export function collectMedia(): MediaItem[] {
       else if (resolvedHref && isDashManifest(resolvedHref) && /^https?:\/\//i.test(resolvedHref)) pushDash(resolvedHref, '');
       // A link to a Vimeo video — surface as a pending video resolved on demand.
       else if (resolvedHref && vimeoVideoId(resolvedHref)) pushVimeo(vimeoVideoId(resolvedHref)!);
+      // An X/Twitter status permalink (`/user/status/<id>/photo|video/<n>`) whose
+      // cell never painted its media — surface a pending item resolved on demand.
+      else if (isTwitterPage && resolvedHref) pushTwitterPending(a, resolvedHref);
     });
 
     // <noscript> fallbacks (real image often lives here for no-JS users).
