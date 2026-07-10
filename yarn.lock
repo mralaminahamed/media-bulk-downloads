@@ -911,7 +911,7 @@ __metadata:
     typescript: "npm:^7.0.2"
     vite: "npm:^8.1.4"
     vitest: "npm:^4.1.10"
-    web-ext: "npm:^10.4.0"
+    web-ext: "npm:^10.5.0"
     wxt: "npm:^0.20.27"
   languageName: unknown
   linkType: soft
