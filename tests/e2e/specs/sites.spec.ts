@@ -137,4 +137,70 @@ test.describe('realistic sites', () => {
     expect(await itemCount(page)).toBe(1);
     await expect(figureWithSrc(page, 'marathon-poster')).toHaveCount(1);
   });
+
+  test('Unsplash: strips imgix params from the unsigned image; leaves the signed Unsplash+ URL intact', async ({ context }) => {
+    const page = await openBubblePage(context, '/unsplash.html');
+    await openPanel(page);
+    // unsigned images.unsplash.com (params stripped) + signed plus.unsplash.com (untouched) = 2.
+    expect(await itemCount(page)).toBe(2);
+    await expect(figureWithSrc(page, 'photo-EEUNSPLASHAAA')).toHaveCount(1);
+    await expect(figureWithSrc(page, 'premium_photo-EEUNSPLASHBBB')).toHaveCount(1);
+  });
+
+  test('Wallhaven: rewrites the th thumb to the full-resolution file (jpg vs badged png)', async ({ context }) => {
+    const page = await openBubblePage(context, '/wallhaven.html');
+    await openPanel(page);
+    // one unbadged jpg wallpaper + one span.png-badged png wallpaper = 2.
+    expect(await itemCount(page)).toBe(2);
+    // The fixture keeps its media in <figure> (the resolver reads the figure's
+    // png/gif badge, resolution label, and preview link), so match on the grid's
+    // /lg/ thumbnail — the page's own <img> serves /small/, never /lg/.
+    await expect(figureWithSrc(page, 'lg/ee/ee9k7d')).toHaveCount(1);
+    await expect(figureWithSrc(page, 'lg/ab/ab3x2m')).toHaveCount(1);
+  });
+
+  test('Behance: upgrades the /disp/ render to the max-size /source/ original', async ({ context }) => {
+    const page = await openBubblePage(context, '/behance.html');
+    await openPanel(page);
+    expect(await itemCount(page)).toBe(1);
+    await expect(figureWithSrc(page, 'behanceEE01a1b2c3')).toHaveCount(1);
+  });
+
+  test('Bluesky: upgrades feed_thumbnail to feed_fullsize; the video post is a Video-kind item', async ({ context }) => {
+    const page = await openBubblePage(context, '/bsky.html');
+    await openPanel(page);
+    // feed photo (thumbnail → fullsize) + video post (feed_video_blob poster) = 2.
+    expect(await itemCount(page)).toBe(2);
+    await expect(figureWithSrc(page, 'bafkreieebimgcidAAA')).toHaveCount(1);
+
+    // The video post surfaces its poster as a pending Video-kind item.
+    await page.getByRole('button', { name: 'Video', exact: true }).click();
+    expect(await itemCount(page)).toBe(1);
+    await expect(figureWithSrc(page, 'bafkreieebvidcidBBB')).toHaveCount(1);
+  });
+
+  test('Arc XP: collapses the resizer width variants to the widest, preserving the auth token', async ({ context }) => {
+    const page = await openBubblePage(context, '/arcxp.html');
+    await openPanel(page);
+    // 480w / 960w / 1920w of one photo (shared auth) collapse to the single widest.
+    expect(await itemCount(page)).toBe(1);
+    await expect(figureWithSrc(page, 'EEARC5SOURCEID7')).toHaveCount(1);
+  });
+
+  test('Magnific: collapses the signed width variants to the widest, keeping the token', async ({ context }) => {
+    const page = await openBubblePage(context, '/magnific.html');
+    await openPanel(page);
+    // 360w / 740w / 2000w of one photo collapse to the single widest signed variant.
+    expect(await itemCount(page)).toBe(1);
+    await expect(figureWithSrc(page, 'eemag7photoID3')).toHaveCount(1);
+  });
+
+  test('YouTube: turns an <iframe> embed and a bare watch link into public poster images', async ({ context }) => {
+    const page = await openBubblePage(context, '/youtube.html');
+    await openPanel(page);
+    // embed iframe (id 1) + watch anchor (id 2) → two i.ytimg posters = 2.
+    expect(await itemCount(page)).toBe(2);
+    await expect(figureWithSrc(page, 'EEYToneVID1')).toHaveCount(1);
+    await expect(figureWithSrc(page, 'EEYTtwoVID2')).toHaveCount(1);
+  });
 });

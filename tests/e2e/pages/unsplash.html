@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Unsplash</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Sample Unsplash page fixture for e2e media collection tests." />
+  <meta property="og:title" content="Unsplash Fixture" />
+  <meta property="og:type" content="website" />
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="/">Home</a>
+      <a href="#">Explore</a>
+      <a href="#">Collections</a>
+    </nav>
+    <h1>Unsplash Photos</h1>
+  </header>
+  <main role="main">
+    <h2>Editorial feed</h2>
+    <!-- Public images.unsplash.com URL: UNSIGNED (no `s` param), so the resolver
+         strips the imgix size/quality params (w,q,fm,fit,ixlib,…) back to the bare
+         original. The item keeps the served URL as its thumbnail -> the grid <img>
+         still carries the `photo-EEUNSPLASHAAA` id token. (Page media is NOT wrapped
+         in <figure>: the extension grid renders each item as a <figure>, and the e2e
+         assertion counts those — a page <figure> with the same token would collide.) -->
+    <div>
+      <a href="/photos/EEUNSPLASHAAA">
+        <img alt="Coastline at dawn"
+          src="https://images.unsplash.com/photo-EEUNSPLASHAAA?ixlib=rb-4.0.3&w=400&q=80&fm=jpg&fit=crop">
+      </a>
+      <p>Coastline at dawn.</p>
+    </div>
+
+    <!-- Unsplash+ (plus.unsplash.com) is ALWAYS signed: the `s` signature is
+         computed over the whole query, so deleting size params would 403 it. The
+         resolver leaves a signed URL exactly as served. -->
+    <div>
+      <img alt="Studio portrait"
+        src="https://plus.unsplash.com/premium_photo-EEUNSPLASHBBB?w=800&q=60&s=eeprivatesignature123">
+      <p>Studio portrait (Unsplash+, signed).</p>
+    </div>
+  </main>
+  <footer>
+    <p>Fixture data for automated testing only.</p>
+  </footer>
+</body>
+</html>
