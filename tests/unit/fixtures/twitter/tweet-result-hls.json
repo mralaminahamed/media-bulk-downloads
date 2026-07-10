@@ -1,0 +1,32 @@
+{
+  "_source": "GET https://cdn.syndication.twimg.com/tweet-result?id=<id>&token=<t>&lang=en (public syndication endpoint). Real STRUCTURE mirroring the captured tweet-result envelope, trimmed to a LIVE/broadcast tweet whose `video_info.variants` carry only an `application/x-mpegURL` (HLS) master and no progressive `video/mp4` — so the resolver must take the HLS fallback. The companion tweet-result-video.json covers the mp4 path; this covers the HLS-master path. The signed playlist token is a placeholder (the resolver host-pins to twimg.com and returns the URL verbatim).",
+  "__typename": "Tweet",
+  "lang": "en",
+  "favorite_count": 0,
+  "created_at": "2026-07-09T12:00:00.000Z",
+  "display_text_range": [0, 9],
+  "id_str": "1799999999999999999",
+  "text": "Live now",
+  "user": {
+    "id_str": "12000000",
+    "name": "Example Broadcaster",
+    "screen_name": "example",
+    "verified": false
+  },
+  "mediaDetails": [
+    {
+      "type": "video",
+      "display_url": "pic.twitter.com/EXAMPLE",
+      "media_url_https": "https://pbs.twimg.com/amplify_video_thumb/1799999999999999999/img/EXAMPLE_THUMB.jpg",
+      "video_info": {
+        "aspect_ratio": [16, 9],
+        "variants": [
+          {
+            "content_type": "application/x-mpegURL",
+            "url": "https://video.twimg.com/amplify_video/1799999999999999999/pl/EXAMPLE_MASTER.m3u8?tag=16&container=fmp4"
+          }
+        ]
+      }
+    }
+  ]
+}

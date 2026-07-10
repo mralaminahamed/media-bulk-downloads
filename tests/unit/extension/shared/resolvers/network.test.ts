@@ -5,8 +5,12 @@ import asProject from '../../../fixtures/artstation/project.json';
 import tweetResultVideo from '../../../fixtures/twitter/tweet-result-video.json';
 import wallhavenWallpaper from '../../../fixtures/wallhaven/wallpaper.json';
 import bskyDidDoc from '../../../fixtures/bsky/did-plc-doc.json';
+import bskyDidWebDoc from '../../../fixtures/bsky/did-web-doc.json';
 import vimeoConfig from '../../../fixtures/vimeo/player-config.json';
+import vimeoHlsConfig from '../../../fixtures/vimeo/player-config-hls.json';
 import redditVideo from '../../../fixtures/reddit/reddit-video.json';
+import tweetResultHls from '../../../fixtures/twitter/tweet-result-hls.json';
+import pinHlsWidget from '../../../fixtures/pinterest/pin-hls-widget.json';
 
 // Vitest cwd is the project root; jsdom's import.meta.url is an http URL, so read
 // the captured HTML fixtures from cwd rather than the module URL.
@@ -21,6 +25,13 @@ describe('resolveOriginal — twitter', () => {
     // The captured tweet has 1 HLS + 3 mp4 variants (256k/832k/2176k); the 2176k wins.
     const url = await resolveOriginal({ platform: 'twitter', id: '123' }, { fetch: mockFetch(tweetResultVideo) });
     expect(url).toEqual({ url: 'https://video.twimg.com/amplify_video/2074974762711785472/vid/avc1/720x708/ENlI2GicSM30_PC_.mp4' });
+  });
+  it('falls back to the x-mpegURL master from a real live/broadcast syndication response (fixture)', async () => {
+    // The captured live tweet carries only an HLS master (no progressive mp4), so the
+    // resolver returns it as a capturable stream — the real-envelope counterpart to the
+    // crafted HLS-only cases below.
+    expect(await resolveOriginal({ platform: 'twitter', id: '456' }, { fetch: mockFetch(tweetResultHls) }))
+      .toEqual({ url: 'https://video.twimg.com/amplify_video/1799999999999999999/pl/EXAMPLE_MASTER.m3u8?tag=16&container=fmp4', hls: true });
   });
   it('resolves an HLS-only tweet to its x-mpegURL master (twimg-pinned)', async () => {
     const hls = { mediaDetails: [{ video_info: { variants: [{ content_type: 'application/x-mpegURL', url: 'https://video.twimg.com/x.m3u8' }] } }] };
@@ -150,6 +161,14 @@ describe('resolveOriginal — vimeo', () => {
       .toEqual({ url: 'https://vod-progressive-ak.vimeocdn.com/exp=SIG~acl=SIG~hmac=SIG/vimeo-prod/720p.mp4' });
   });
 
+  it('falls back to the default_cdn HLS master from a real HLS/DASH-only config (fixture)', async () => {
+    // This captured config has an empty `progressive` array, so the resolver takes the
+    // `hls` block and selects the default_cdn (akfire_interconnect_quic) — exercising the
+    // real cdns shape that player-config.json's own hls block never reaches (progressive wins there).
+    expect(await resolveOriginal({ platform: 'vimeo', id: '76979871' }, { fetch: mockFetch(vimeoHlsConfig) }))
+      .toEqual({ url: 'https://vod-adaptive-ak.vimeocdn.com/exp=SIG~acl=SIG~hmac=SIG/vimeo-prod-hls/master.m3u8', hls: true });
+  });
+
   it('returns null when there is no progressive rendition (HLS/DASH-only)', async () => {
     expect(await resolveOriginal({ platform: 'vimeo', id: '1' }, { fetch: mockFetch(config([])) })).toBeNull();
   });
@@ -258,6 +277,17 @@ describe('resolveOriginal — bsky (getBlob)', () => {
     expect(fetch.calls).toEqual(['https://example.com/.well-known/did.json']);
     expect(out).toEqual({
       url: 'https://puffball.us-east.host.bsky.network/xrpc/com.atproto.sync.getBlob?did=did%3Aweb%3Aexample.com&cid=bafblobcid',
+    });
+  });
+
+  it('did:web — resolves the PDS from a real .well-known DID document (fixture)', async () => {
+    // Real-shaped atproto DID doc (multiple @context entries, verificationMethod, the
+    // #atproto_pds service): pdsFromDoc must still pick the PDS endpoint out of it.
+    const fetch = capturingFetch(bskyDidWebDoc);
+    const out = await resolveOriginal({ platform: 'bsky', id: 'blob did:web:example.com bafblobcid' }, { fetch });
+    expect(fetch.calls).toEqual(['https://example.com/.well-known/did.json']);
+    expect(out).toEqual({
+      url: 'https://morel.us-east.host.bsky.network/xrpc/com.atproto.sync.getBlob?did=did%3Aweb%3Aexample.com&cid=bafblobcid',
     });
   });
 
@@ -481,6 +511,13 @@ describe('resolveOriginal — pinterest (pin-widget)', () => {
   it('prefers the progressive V_720P mp4 over the HLS renditions (real fixture)', async () => {
     const out = await resolveOriginal({ platform: 'pinterest', id: '84301824269690044' }, { fetch: mockFetch(pinWidget) });
     expect(out).toEqual({ url: 'https://v1.pinimg.com/videos/iht/720p/62/b7/a5/62b7a5ecc1b483e99a3456ef9c2f7861.mp4' });
+  });
+
+  it('falls back to the V_HLSV4 master for a real HLS-only pin with no progressive rendition (fixture)', async () => {
+    // pin-hls-widget.json has only HLS renditions (no V_720P), so the resolver returns
+    // the V_HLSV4 master — the real-envelope counterpart to the crafted fallback below.
+    const out = await resolveOriginal({ platform: 'pinterest', id: '1069579883656016853' }, { fetch: mockFetch(pinHlsWidget) });
+    expect(out).toEqual({ url: 'https://v1.pinimg.com/videos/mc/hls/aa/bb/cc/aabbccddeeff00112233445566778899.m3u8', hls: true });
   });
 
   it('falls back to the V_HLSV4 master when there is no progressive mp4', async () => {
