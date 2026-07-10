@@ -221,6 +221,51 @@ describe('ImageList Component', () => {
     });
   });
 
+  describe('ImageList pending images', () => {
+    const pendingImage: ImageInfo = {
+      src: 'https://x.com/u/status/1700000000000000001/photo/1', alt: '', width: 0, height: 0,
+      type: 'unknown', fileSize: 0, isBase64: false, kind: 'image', unresolvedImage: true,
+      resolveHint: { platform: 'twitter', id: 'photo 1700000000000000001 1' },
+    };
+
+    it('renders a pending placeholder for an unresolvedImage item (no status-URL <img>)', () => {
+      render(<ImageList images={[pendingImage]} onImageDownload={vi.fn()} />);
+      // No <img> at all is emitted for a pending image tile — in particular, never
+      // an <img src> pointing at the x.com status URL.
+      expect(screen.queryByRole('img', { name: /.*/ })?.getAttribute('src') ?? '').not.toContain('x.com/');
+      expect(screen.queryAllByRole('img')).toHaveLength(0);
+      // Same pending affordance a pending video gets: an eyebrow label (it carries
+      // a resolveHint, so it reads "not fetched", matching the video case).
+      expect(screen.getByText('not fetched')).toBeInTheDocument();
+      // No manual fetch/download action — pending images resolve automatically.
+      expect(screen.queryByTitle('Download')).not.toBeInTheDocument();
+      expect(screen.queryByTitle('Get video')).not.toBeInTheDocument();
+    });
+
+    it('does not render a select checkbox for a pending image (not downloadable)', () => {
+      render(<ImageList images={[pendingImage]} onImageDownload={vi.fn()} onToggleSelect={vi.fn()} />);
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    });
+
+    it('is excluded from the downloadable count needed for "renders images correctly"-style assertions', () => {
+      // Sanity check that a pending image is rendered at all (tile present) even
+      // though it contributes no <img> — the figure/tile itself still mounts.
+      render(<ImageList images={[pendingImage]} onImageDownload={vi.fn()} />);
+      expect(screen.getByRole('button', { name: 'View Details' })).toBeInTheDocument();
+    });
+
+    it('shows a graceful placeholder (no <img>) and an informational footer in the preview modal', async () => {
+      render(<ImageList images={[pendingImage]} onImageDownload={vi.fn()} />);
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      const dialog = screen.getByRole('dialog');
+      // A pending image has no poster (unlike a pending video) — the preview must
+      // degrade gracefully, not render a broken/placeholder <img>.
+      expect(within(dialog).queryByRole('img')).toBeNull();
+      expect(within(dialog).queryByRole('button', { name: 'Download' })).toBeNull();
+      expect(within(dialog).getByText(/hasn't been fetched yet/i)).toBeInTheDocument();
+    });
+  });
+
   describe('ImageList — selection', () => {
     it('toggles a single item, then shift-clicks to select the range to it', () => {
       const onToggleSelect = vi.fn();

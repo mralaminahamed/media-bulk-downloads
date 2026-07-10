@@ -12,6 +12,7 @@ import {
   ArrowPathIcon,
   NoSymbolIcon,
   GlobeAltIcon,
+  PhotoIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { PlayBadge } from './icons/PlayBadge';
@@ -39,6 +40,12 @@ const typeLabel = (img: ImageInfo): string => (img.isBase64 ? 'B64' : img.type.t
 
 /** A Twitter video whose real file hasn't been fetched yet: shown, not downloadable. */
 const isPendingVideo = (img: ImageInfo): boolean => img.kind === 'video' && !!img.unresolvedVideo;
+
+/** A Twitter image whose real file hasn't been fetched yet (from an unpainted
+ *  /status/photo cell): `src` is an x.com status URL, NOT an image — it must
+ *  never be handed to an <img src>. Shown as a neutral placeholder, not
+ *  downloadable, and resolved automatically (no per-item fetch action). */
+const isPendingImage = (img: ImageInfo): boolean => img.kind === 'image' && !!img.unresolvedImage;
 
 /** An HLS stream: downloadable, but by capturing (fetch + assemble segments)
  *  rather than a single-file download, so the action reads "Capture stream". */
@@ -192,10 +199,11 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
       >
         {images.map((image, index) => {
           const isSelected = selectedSrcs?.has(image.src) ?? false;
-          // Only downloadable items are selectable — a pending video has no file,
-          // and an HLS/DASH stream is captured individually (not bulk-selectable),
-          // so it must match the selection guards in App (which skip hlsManifest).
-          const selectable = !!onToggleSelect && !isPendingVideo(image) && !isHlsStream(image);
+          // Only downloadable items are selectable — a pending video/image has no
+          // file yet, and an HLS/DASH stream is captured individually (not
+          // bulk-selectable), so it must match the selection guards in App (which
+          // skip hlsManifest).
+          const selectable = !!onToggleSelect && !isPendingVideo(image) && !isPendingImage(image) && !isHlsStream(image);
           const boxUp = selectable && (selectionActive || isSelected);
           return (
           <figure
@@ -215,7 +223,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                   }`}
                 />
               )}
-              {image.kind === 'image' ? (
+              {image.kind === 'image' && !image.unresolvedImage ? (
                 <LoadingImage
                   key={image.thumbnailSrc ?? image.src}
                   src={image.thumbnailSrc ?? image.src}
@@ -223,6 +231,12 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                   lazy
                   className="h-full w-full object-cover"
                 />
+              ) : isPendingImage(image) ? (
+                // No real thumbnail exists yet (src is an x.com status URL, not an
+                // image) — never point an <img> at it; show a neutral icon instead.
+                <div className="grid h-full w-full place-items-center bg-(--panel-2)">
+                  <PhotoIcon className="h-8 w-8 text-(--ink-3)" />
+                </div>
               ) : image.kind === 'video' && image.poster ? (
                 <>
                   <LoadingImage
@@ -250,7 +264,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                 {typeLabel(image)}
               </span>
 
-              {isPendingVideo(image) && (
+              {(isPendingVideo(image) || isPendingImage(image)) && (
                 <span className="eyebrow absolute bottom-1.5 left-1.5 rounded-xs bg-(--panel)/85 px-1.5 py-0.5 text-[9px] leading-none text-(--ink) backdrop-blur-sm">
                   {resolveFailedSrcs?.has(image.src) ? "couldn't fetch"
                     : image.resolveHint ? 'not fetched'
@@ -327,7 +341,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                           : <ArrowDownTrayIcon className="h-4 w-4" />}
                     </button>
                   ) : null
-                ) : (
+                ) : isPendingImage(image) ? null : (
                   <button
                     onClick={() => onImageDownload(image)}
                     title={isHlsStream(image) ? 'Capture stream' : 'Download'}
@@ -468,6 +482,12 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                     className="mx-auto w-full object-contain"
                     style={{ maxHeight: previewSize }}
                   />
+                ) : isPendingImage(selectedImage) ? (
+                  // No poster exists for a pending image (unlike pending video) — degrade
+                  // to a neutral icon rather than pointing an <img> at the status URL.
+                  <div className="grid place-items-center p-10">
+                    <PhotoIcon className="h-12 w-12 text-(--ink-3)" />
+                  </div>
                 ) : isHlsStream(selectedImage) ? (
                   // An HLS manifest can't play in a bare <video>; show the poster
                   // (or a film glyph) — the file is produced by Capture, not here.
@@ -579,6 +599,10 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                 ) : (
                   <p className="text-center text-[12px] text-(--ink-2)">{"This video's file can't be fetched."}</p>
                 )
+              ) : isPendingImage(selectedImage) ? (
+                <p className="text-center text-[12px] text-(--ink-2)">
+                  This image hasn&apos;t been fetched yet — turn on &ldquo;Resolve exact originals&rdquo; in Settings to load it automatically.
+                </p>
               ) : (
                 <button onClick={() => onImageDownload(selectedImage)} title={isHlsStream(selectedImage) ? 'Capture stream' : 'Download'} aria-label={isHlsStream(selectedImage) ? 'Capture stream' : 'Download'} className="btn btn-primary w-full">
                   <ArrowDownTrayIcon className="h-4 w-4" />
