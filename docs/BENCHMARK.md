@@ -25,9 +25,11 @@ discovers on real pages.
 Run dates: 2026-07-03 / 2026-07-04 / **2026-07-05** / **2026-07-06** (§A re-run
 2026-07-05 against the rule set as of that run — 32 CDN rules + 6 resolvers,
 historical as of the 2026-07-05/06 run; Instagram resolver added 2026-07-06).
-The resolver registry has since grown to 15 entries (14 dedicated + a generic
-fallback — see [Collection Pipeline](./guides/collection-pipeline.md)); §G/§H
-below reflect the current Facebook/Instagram resolvers. Chrome (Manifest V3).
+The resolver registry has since grown to 16 entries (15 dedicated + a generic
+fallback — see [Collection Pipeline](./guides/collection-pipeline.md)); the
+Threads, Bluesky, Arc XP and magnific resolvers were added since and are mapped in
+§C rows 59–62. §G/§H below reflect the current Facebook/Instagram resolvers.
+Chrome (Manifest V3).
 
 ## A. Live-verified results
 
@@ -122,7 +124,7 @@ via `curl` or in-browser `Image()`), 2026-07-05:
 ## C. Coverage matrix (CDN family → sites)
 
 Beyond the live rows above, the engine's behavior on a site is determined by the
-**CDN family** it serves from. This matrix maps 58 popular sites/services to the
+**CDN family** it serves from. This matrix maps 64 popular sites/services to the
 rule they exercise and how coverage was established: **[L]** live-injected in this
 run, **[C]** covered by the same CDN rule verified on a live site (or built and
 verified against a real sampled URL — HTTP/`Image()` — pulled from that site),
@@ -189,6 +191,12 @@ logged-out), **[G]** a known gap.
 | 56 | TikTok                             | *.tiktokcdn.com (signed)      | —                                                                                          | A       |
 | 57 | Temu                               | img.kwcdn.com                 | drop the Qiniu `imageView2/…` transform query → stored original (sample-based)             | C²      |
 | 58 | LinkedIn                           | media.licdn.com (signed)      | *(none — `dms/image/v2` renditions carry an HMAC `t=` token bound to the size; any rewrite 401s)* | G       |
+| 59 | Threads (profile grid + posts)     | *.cdninstagram.com / *.fbcdn.net on threads.com | **resolver** — a mounted post ships the full original directly in the `<img srcset>` (up to ~2610w); returns the widest candidate (generic dedup would keep the thumbnail). Gated to threads.com/net | **L**⁴  |
+| 60 | Bluesky                            | cdn.bsky.app                  | **resolver** — `feed_thumbnail`→`feed_fullsize` / `avatar_thumbnail`→`avatar` (network-free); `feed_video_blob` → pending video (HLS master on video.bsky.app); true original via `com.atproto.sync.getBlob` (Phase 2) | C/N⁴   |
+| 61 | Arc XP / Fusion (Reuters, many pubs)| */resizer/v2/…?auth= (host-agnostic) | **resolver** — reuse the page-issued `auth` (bound to the source, not a width); collapse the srcset widths to the single widest; never strip the token (would 403) | C⁴      |
+| 62 | Magnific                           | img.magnific.com              | **resolver** — collapse the signed srcset widths to the widest; each token is width-bound so it is never stripped (stripping downgrades to the 626px default) | C⁴      |
+| 63 | Vimeo                              | player.vimeo.com config → *.vimeocdn.com | **resolver** (Phase 2) — read the public player config; highest progressive mp4 as a direct download, else the HLS master to capture | N       |
+| 64 | YouTube (video links / embeds)     | youtube.com, youtu.be, /embed, /shorts → i.ytimg.com | **resolver** — video id from any watch/embed/short URL → `hqdefault` poster (thumbnails only; ciphered streams deliberately untouched per ToS/policy) | C       |
 
 ¹ Tumblr previously had a `/sWxH/` → `/s1280x1920/` rule; it was **removed** — modern
 `64.media.tumblr.com` pre-renders one size folder per image and every other size 404s,
@@ -216,6 +224,16 @@ Reels-tab / grid **clips ship only a cover** (`media_type` 2 with no
 private per-reel GraphQL, which this extension does not do. They surface as
 **pending videos** (poster = cover) that upgrade to the real mp4 when the reel's
 own response is sniffed (on play/open).
+
+⁴ Rows 59–62 are newer dedicated resolvers, each with unit tests and an e2e page
+fixture driving the real bubble (PRs #266–#268); their URL shapes come from real
+samples. **Threads** image extraction was live-verified 2026-07-10 (grid originals
+1119–3277 px across three public profiles; see §I for Threads video) — hence **L**.
+**Bluesky / Arc XP / magnific** are verified against those real-sampled URL shapes
+via the fixtures, not yet live-injected in a benchmark run — hence **C** (Bluesky's
+getBlob original and Vimeo are opt-in network, **N**). The HLS-master fallback of
+the Vimeo/Twitter/Pinterest network resolvers gained real-shaped `resolveOriginal`
+fixtures in the same cycle.
 
 ## D. Gaps found
 
