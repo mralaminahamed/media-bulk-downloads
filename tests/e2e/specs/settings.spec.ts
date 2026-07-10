@@ -181,16 +181,21 @@ test.describe('settings panel (draft + Save)', () => {
     expect((await stored(context)).resolveOriginals).toBeUndefined();
   });
 
-  test('"Notify when downloads finish" stays off when the permission is denied', async ({ context }) => {
+  test('"Notify when downloads finish" persists the intent immediately when enabled', async ({ context }) => {
     const page = await openBubblePage(context, '/media.html');
     await openPanel(page);
     await openSettings(page);
     await openAdvanced(page);
-    // Toggling it on requests the optional notifications permission; with no user
-    // to grant it (headless), the switch must not flip on.
+    // Enabling notify optimistically flips on and writes straight to storage
+    // (SET_SETTINGS), so the choice survives the popup closing while the optional
+    // `notifications` prompt is up. This asserts that real background round-trip.
+    // The grant/deny rollback branch is covered deterministically in the unit test
+    // (Settings.test.tsx) — a real permission prompt cannot resolve headlessly, so
+    // its callback never fires here and cannot be exercised end-to-end.
     const notify = panel(page).getByRole('switch', { name: /notify when downloads finish/i });
     await notify.click();
-    await expect(notify).toHaveAttribute('aria-checked', 'false');
+    await expect(notify).toHaveAttribute('aria-checked', 'true');
+    await expect.poll(async () => (await stored(context)).notifyOnComplete).toBe(true);
   });
 
   test('Export backup confirms it exported', async ({ context }) => {
