@@ -1,6 +1,7 @@
 import { passesSettingsFilters, filterImagesBySettings, applyToolbarFilters, isExcluded, filterExcluded, ExcludedMatchers } from '@/extension/shared/collection/filters';
 import { ImageInfo, SettingsData, FilterOptions } from '@/types';
 import { SrcKeySet } from '@/extension/shared/collection/canonical';
+import { DEFAULT_FILTERS } from '@/extension/popup/components/FilterToolbar';
 
 const base: SettingsData = {
   downloadPath: '',
@@ -375,5 +376,33 @@ describe('isExcluded / filterExcluded', () => {
     expect(isExcluded(variant, fbMatchers)).toBe(true);
     // A different path on the same CDN is NOT excluded.
     expect(isExcluded('https://scontent-bom2-3.xx.fbcdn.net/v/t39/other_999.jpg?oh=X', fbMatchers)).toBe(false);
+  });
+});
+
+describe('applyToolbarFilters — downloadState', () => {
+  const items = [
+    { src: 'a', filename: 'a.jpg', alt: '', width: 10, height: 10, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' as const },
+    { src: 'b', filename: 'b.jpg', alt: '', width: 10, height: 10, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' as const },
+  ];
+  const base = { ...DEFAULT_FILTERS };
+  const isDownloaded = (i: { src: string }) => i.src === 'a';
+
+  it('all keeps everything (predicate ignored)', () => {
+    expect(applyToolbarFilters(items, { ...base, downloadState: 'all' }, isDownloaded)).toHaveLength(2);
+  });
+  it('downloaded keeps only predicate-true items', () => {
+    const out = applyToolbarFilters(items, { ...base, downloadState: 'downloaded' }, isDownloaded);
+    expect(out.map((i) => i.src)).toEqual(['a']);
+  });
+  it('not-downloaded keeps only predicate-false items', () => {
+    const out = applyToolbarFilters(items, { ...base, downloadState: 'not-downloaded' }, isDownloaded);
+    expect(out.map((i) => i.src)).toEqual(['b']);
+  });
+  it('composes with another filter (downloaded + a search that excludes a)', () => {
+    const out = applyToolbarFilters(items, { ...base, downloadState: 'downloaded', search: 'b' }, isDownloaded);
+    expect(out).toHaveLength(0); // only "a" is downloaded, but search keeps only "b"
+  });
+  it('with no predicate, downloaded keeps nothing (default () => false)', () => {
+    expect(applyToolbarFilters(items, { ...base, downloadState: 'downloaded' })).toHaveLength(0);
   });
 });

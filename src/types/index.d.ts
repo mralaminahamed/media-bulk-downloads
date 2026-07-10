@@ -501,6 +501,9 @@ export interface FilterOptions {
   minSize: number;
   includeBase64: boolean;
   sizeBucket: SizeBucket;
+  /** Filter by whether the item has already been downloaded (per the badge's
+   *  history-derived set). 'all' = off. */
+  downloadState: 'all' | 'downloaded' | 'not-downloaded';
   /** Free-text query matched against filename, alt, type, and URL. Empty = off. */
   search: string;
   /** Sort key + direction applied after filtering. */

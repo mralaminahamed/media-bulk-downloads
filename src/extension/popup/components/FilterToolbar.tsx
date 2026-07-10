@@ -13,6 +13,7 @@ export const DEFAULT_FILTERS: FilterOptions = {
   minSize: 0,
   includeBase64: true,
   sizeBucket: 'all',
+  downloadState: 'all',
   search: '',
   sortBy: 'default',
   sortDir: 'desc',

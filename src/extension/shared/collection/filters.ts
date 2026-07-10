@@ -123,7 +123,11 @@ export function filterExcluded(items: ImageInfo[], m: ExcludedMatchers): ImageIn
  * free-text search, and the chosen sort order. Filtering is followed by an
  * optional stable sort; `sortBy: 'default'` preserves collection order.
  */
-export function applyToolbarFilters(items: ImageInfo[], filters: FilterOptions): ImageInfo[] {
+export function applyToolbarFilters(
+  items: ImageInfo[],
+  filters: FilterOptions,
+  isDownloaded: (item: ImageInfo) => boolean = () => false,
+): ImageInfo[] {
   const minBytes = (Number.isFinite(filters.minSize) ? filters.minSize : 0) * 1024;
   // The Type dropdown offers formats for the selected kind — image formats when
   // kind is 'all'. So the format filter applies only to items of that family;
@@ -136,6 +140,8 @@ export function applyToolbarFilters(items: ImageInfo[], filters: FilterOptions):
     if (filters.imageType !== 'all' && item.kind === typeFamily && item.type !== filters.imageType) return false;
     if (minBytes > 0 && item.fileSize > 0 && item.fileSize < minBytes) return false;
     if (!filters.includeBase64 && item.isBase64) return false;
+    if (filters.downloadState === 'downloaded' && !isDownloaded(item)) return false;
+    if (filters.downloadState === 'not-downloaded' && isDownloaded(item)) return false;
     return matchesSearch(item, filters.search ?? '');
   });
 
