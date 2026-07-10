@@ -373,3 +373,20 @@ resolver's `image_versions2.candidates` / `video_versions` path (§B row 54) add
 value only on individual post/feed pages where a larger candidate exists than the
 DOM thumbnail. No code change was warranted. Per-page detail (with handles) is
 kept in a gitignored `test-samples/` file — no account identifiers here.
+
+## I. Threads video — 2026-07-10
+
+Threads runs on Instagram infra but delivers video differently from IG reels: a
+mounted `<video>` carries a REAL https progressive `.mp4` directly in
+`currentSrc` (cdninstagram, measured ~720×1280, no `blob:`, no manifest), which
+the generic `collectAv` path already collects as a downloadable item — **no
+sniffer needed**. Verified live: the mp4 is in **neither** the page hydration
+`<script type="application/json">` **nor** the feed GraphQL responses (8
+responses, 0 `video_versions`/mp4 tokens), so an IG-style GraphQL sniffer would
+capture nothing. The feed/grid is virtualized — only the active tile mounts a
+`<video>`; an unmounted grid/off-screen video tile exposes only its cover image,
+and its mp4 is not passively reachable (the passive ceiling; forcing it would
+require active auto-scroll/mount, out of scope). No production code change was
+warranted; the behavior is locked in by
+`tests/unit/extension/content/collect-threads-video.test.ts` and the e2e
+`threads-video` spec. URL samples omitted (the safety filter strips CDN tokens).
