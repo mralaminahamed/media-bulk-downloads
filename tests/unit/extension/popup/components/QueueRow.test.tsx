@@ -32,6 +32,11 @@ it('a failed hotlink item offers Retry w/ referer; a plain failed offers Retry',
   expect(onRetry).toHaveBeenCalledWith('a');
 });
 
+it('a failed item shows its error reason', () => {
+  render(<ul><QueueRow item={item({ status: 'failed', error: 'SERVER_FORBIDDEN' })} {...props} /></ul>);
+  expect(screen.getByText('SERVER_FORBIDDEN')).toBeInTheDocument();
+});
+
 it('a queued item offers Cancel and no progress bar', async () => {
   const onCancel = vi.fn();
   render(<ul><QueueRow item={item({ status: 'queued' })} {...props} onCancel={onCancel} /></ul>);
