@@ -18,10 +18,13 @@ export default defineContentScript({
     installResponseSniffer({
       urlKey: '__ibdFbUrl',
       isApi: (url) => url.indexOf('/api/graphql') !== -1 || url.indexOf('/graphql') !== -1,
+      contentTypeOk: () => true,
       emit: makeSnifferEmit({
-        guard: (text) => text.indexOf('fbcdn') !== -1 || text.indexOf('playable_url') !== -1,
+        guard: (text) =>
+          text.indexOf('fbcdn') !== -1 || text.indexOf('playable_url') !== -1 || text.indexOf('progressive_url') !== -1,
         extract: extractFbMedia,
         envelope: (entries) => ({ source: 'ibd-fb-media', entries }),
+        ndjson: true,
       }),
     });
   },
