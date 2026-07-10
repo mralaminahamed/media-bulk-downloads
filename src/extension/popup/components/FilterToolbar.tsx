@@ -88,7 +88,8 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
   const advancedCount =
     (filters.sizeBucket !== 'all' ? 1 : 0) +
     (filters.minSize > 0 ? 1 : 0) +
-    (!filters.includeBase64 && !base64Disabled ? 1 : 0);
+    (!filters.includeBase64 && !base64Disabled ? 1 : 0) +
+    (filters.downloadState !== 'all' ? 1 : 0);
   const activeCount =
     (filters.mediaKind !== 'all' ? 1 : 0) +
     (filters.imageType !== 'all' ? 1 : 0) +
@@ -257,6 +258,21 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
               className="switch"
             />
           </div>
+
+          {/* Downloaded — filter by whether the item is already in the download
+              history (same source as the per-item "downloaded" badge). */}
+          <select
+            aria-label="Downloaded"
+            title="Downloaded"
+            value={filters.downloadState}
+            onChange={(e) => update({ downloadState: e.target.value as FilterOptions['downloadState'] })}
+            className="field shrink-0 py-0 text-[12px]"
+            style={{ height: 28, width: 130 }}
+          >
+            <option value="all">All items</option>
+            <option value="downloaded">Downloaded</option>
+            <option value="not-downloaded">Not downloaded</option>
+          </select>
         </div>
       )}
     </section>

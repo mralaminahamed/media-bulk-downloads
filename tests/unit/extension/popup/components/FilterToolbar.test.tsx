@@ -198,4 +198,19 @@ describe('FilterToolbar Component', () => {
     fireEvent.change(min, { target: { value: '' } });
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ minSize: 0 }));
   });
+
+  it('applies a downloaded filter from the More popover', () => {
+    renderToolbar();
+    openMore();
+    fireEvent.change(screen.getByLabelText('Downloaded'), { target: { value: 'downloaded' } });
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ downloadState: 'downloaded' }));
+  });
+
+  it('includes downloadState in a reset (Clear all)', () => {
+    renderToolbar();
+    openMore();
+    fireEvent.change(screen.getByLabelText('Downloaded'), { target: { value: 'not-downloaded' } });
+    fireEvent.click(screen.getByText('Clear all'));
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ downloadState: 'all' }));
+  });
 });
