@@ -22,6 +22,7 @@ import { facebookPageMedia } from '@/extension/shared/resolvers/sites/facebook';
 import { youtubeVideoId } from '@/extension/shared/resolvers/sites/youtube';
 import { vimeoVideoId } from '@/extension/shared/resolvers/sites/vimeo';
 import { sniffedHlsManifests } from '@/extension/shared/resolvers/sniffers/hls-sniff';
+import { HOST_ID } from '@/extension/bubble/mount';
 
 /** Determines if a URL is a base64-encoded image. */
 export function isBase64Image(src: string): boolean {
@@ -403,7 +404,7 @@ export function collectMedia(): MediaItem[] {
       // off of) — once the real page resolves to a different (upgraded) URL, so
       // resolvers that tag a `mediaKey` (Task 8) could never actually dedupe an
       // in-place upgrade while the panel is open.
-      const shadow = el.id !== 'ibd-bubble-host' ? el.shadowRoot : null;
+      const shadow = el.id !== HOST_ID ? el.shadowRoot : null;
       if (shadow) addRoot(shadow);
 
       switch (el.tagName) {
