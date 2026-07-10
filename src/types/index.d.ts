@@ -42,6 +42,10 @@ export interface ImageInfo {
    *  assemble segments) rather than downloaded as a single file; `src` holds the
    *  manifest URL too, but it must never be handed to chrome.downloads directly. */
   hlsManifest?: string;
+  /** Stable cross-rendition identity from the resolver (e.g. `fb:<fbid>`), so a
+   *  deep-scan that re-resolves a grid tile to its sniffed original replaces the
+   *  thumbnail row rather than duplicating it. */
+  mediaKey?: string;
 }
 
 /** Preferred name for a collected media item (image, video, or audio). */
