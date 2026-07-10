@@ -1,9 +1,32 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Facebook</title></head>
-<body>
-<div role="main">
-  <img alt="FBphoto1" src="https://scontent-del1-1.xx.fbcdn.net/v/t39.30808-6/FB_PHOTO_1_n.jpg?stp=dst-jpg_s640&_nc_ohc=AAA&oh=00_ONE&oe=6A00">
-  <img alt="FBphoto1" src="https://scontent-bom2-2.xx.fbcdn.net/v/t39.30808-6/FB_PHOTO_1_n.jpg?stp=dst-jpg_s960&_nc_ohc=BBB&oh=00_TWO&oe=6B00">
-  <img alt="FBphoto2" src="https://scontent-lax3-1.xx.fbcdn.net/v/t39.30808-6/FB_PHOTO_2_n.jpg?_nc_ohc=CCC&oh=00_THREE&oe=6C00">
-</div>
-</body></html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Facebook fixture: the same photo served from two edge PoPs with different signed CDN query strings, plus one distinct second photo.">
+    <meta property="og:title" content="Facebook">
+    <meta property="og:type" content="website">
+    <title>Facebook</title>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <a href="/">Home</a>
+        <a href="#">Friends</a>
+        <a href="#">Groups</a>
+      </nav>
+      <h1>Facebook</h1>
+    </header>
+    <div role="main">
+      <h2>Timeline photos</h2>
+      <p>Two edge-PoP copies of the same photo, plus one more distinct photo.</p>
+      <img alt="FBphoto1" src="https://scontent-del1-1.xx.fbcdn.net/v/t39.30808-6/FB_PHOTO_1_n.jpg?stp=dst-jpg_s640&_nc_ohc=AAA&oh=00_ONE&oe=6A00">
+      <img alt="FBphoto1" src="https://scontent-bom2-2.xx.fbcdn.net/v/t39.30808-6/FB_PHOTO_1_n.jpg?stp=dst-jpg_s960&_nc_ohc=BBB&oh=00_TWO&oe=6B00">
+      <img alt="FBphoto2" src="https://scontent-lax3-1.xx.fbcdn.net/v/t39.30808-6/FB_PHOTO_2_n.jpg?_nc_ohc=CCC&oh=00_THREE&oe=6C00">
+      <p><time datetime="2026-01-01">Jan 1</time> — shared with Friends.</p>
+    </div>
+    <footer>
+      <p>Fixture footer for e2e tests.</p>
+    </footer>
+  </body>
+</html>

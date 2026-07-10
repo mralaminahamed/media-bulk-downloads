@@ -1,11 +1,36 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Instagram</title></head>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Instagram</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Sample Instagram profile grid fixture for e2e media collection tests." />
+  <meta property="og:title" content="Instagram Fixture" />
+  <meta property="og:type" content="website" />
+</head>
 <body>
-<script type="application/json">{"items":[{"code":"CabcXYZ001","media_type":1,"image_versions2":{"candidates":[{"url":"https://scontent.cdninstagram.com/v/t51/IG_A_1080.jpg?oh=AA&oe=11","width":1080,"height":1080},{"url":"https://scontent.cdninstagram.com/v/t51/IG_A_320.jpg?oh=BB&oe=22","width":320,"height":320}]}},{"code":"CdefUVW002","media_type":2,"video_versions":[{"url":"https://scontent.cdninstagram.com/v/reel/IG_REEL.mp4?oh=CC&oe=33","width":720,"height":1280}],"image_versions2":{"candidates":[{"url":"https://scontent.cdninstagram.com/v/t51/IG_REEL_POSTER.jpg?oh=DD&oe=44","width":720,"height":1280}]}}]}</script>
-<article>
-  <a href="/p/CabcXYZ001/"><img alt="IG post" src="https://scontent-lax3-1.cdninstagram.com/v/t51/IG_A_THUMB.jpg?oh=EE&oe=55"></a>
-</article>
-<article>
-  <a href="/reel/CdefUVW002/"><img alt="IG reel" src="https://scontent-lax3-1.cdninstagram.com/v/t51/IG_REEL_THUMB.jpg?oh=FF&oe=66"></a>
-</article>
-</body></html>
+  <header>
+    <nav>
+      <a href="/">Home</a>
+      <a href="#">Explore</a>
+      <a href="#">Reels</a>
+    </nav>
+    <h1>Instagram Profile</h1>
+  </header>
+  <main role="main">
+    <script type="application/json">{"items":[{"code":"CabcXYZ001","media_type":1,"image_versions2":{"candidates":[{"url":"https://scontent.cdninstagram.com/v/t51/IG_A_1080.jpg?oh=AA&oe=11","width":1080,"height":1080},{"url":"https://scontent.cdninstagram.com/v/t51/IG_A_320.jpg?oh=BB&oe=22","width":320,"height":320}]}},{"code":"CdefUVW002","media_type":2,"video_versions":[{"url":"https://scontent.cdninstagram.com/v/reel/IG_REEL.mp4?oh=CC&oe=33","width":720,"height":1280}],"image_versions2":{"candidates":[{"url":"https://scontent.cdninstagram.com/v/t51/IG_REEL_POSTER.jpg?oh=DD&oe=44","width":720,"height":1280}]}}]}</script>
+    <h2>Posts</h2>
+    <article>
+      <a href="/p/CabcXYZ001/"><img alt="IG post" src="https://scontent-lax3-1.cdninstagram.com/v/t51/IG_A_THUMB.jpg?oh=EE&oe=55"></a>
+    </article>
+    <p>A single-photo post.</p>
+    <article>
+      <a href="/reel/CdefUVW002/"><img alt="IG reel" src="https://scontent-lax3-1.cdninstagram.com/v/t51/IG_REEL_THUMB.jpg?oh=FF&oe=66"></a>
+    </article>
+    <p>A reel post with an embedded video.</p>
+  </main>
+  <footer>
+    <p>Fixture data for automated testing only.</p>
+  </footer>
+</body>
+</html>
