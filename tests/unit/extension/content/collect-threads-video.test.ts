@@ -34,9 +34,10 @@ describe('collectMedia — Threads video', () => {
   it('does not surface a blob: <video> (unmounted/streaming) as a downloadable item', () => {
     document.body.innerHTML = `<video src="blob:https://www.threads.com/abc-123"></video>`;
 
-    const srcs = collectMedia().map((m) => m.src);
+    const items = collectMedia();
 
-    expect(srcs.some((s) => s.startsWith('blob:'))).toBe(false);
+    expect(items.some((m) => m.src.startsWith('blob:'))).toBe(false);
+    expect(items.filter((m) => m.kind === 'video')).toHaveLength(0); // no video item at all, not just no blob src
   });
 
   it('routes an .m3u8 <video> to HLS capture, not a plain mp4', () => {

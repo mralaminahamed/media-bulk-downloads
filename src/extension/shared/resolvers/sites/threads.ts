@@ -23,11 +23,10 @@ import { imageExtFromUrl } from '@/extension/shared/collection/mediaType';
  * MOUNTED Threads <video> carries a REAL https progressive .mp4 in its src
  * (cdninstagram), which the generic collectAv <video> path already collects
  * downloadably. Unlike Instagram reels, Threads video is NOT blob:-backed. Its
- * feed/grid is virtualized, though:
- * only the active tile mounts a <video>; an unmounted video tile exposes only its
- * cover image, and that post's mp4 is in neither the page hydration nor the feed
- * GraphQL (verified live 2026-07-10), so it is not passively reachable. See
- * docs/BENCHMARK.md §I.
+ * feed/grid is virtualized, though: only the active tile mounts a <video>; an
+ * unmounted video tile exposes only its cover image, and that post's mp4 is in
+ * neither the page hydration nor the feed GraphQL (verified live 2026-07-10), so
+ * it is not passively reachable. See docs/BENCHMARK.md §I.
  */
 
 const META_CDN = /(?:^|\.)(?:cdninstagram\.com|fbcdn\.net)$/i;
