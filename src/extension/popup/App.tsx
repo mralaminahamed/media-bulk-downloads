@@ -81,6 +81,16 @@ const App: React.FC<AppProps> = ({
   const [deepScanning, setDeepScanning] = useState(false);
   const [deepProgress, setDeepProgress] = useState<DeepScanProgress | null>(null);
   const [downloadedSrcs, setDownloadedSrcs] = useState<SrcKeySet>(new SrcKeySet());
+  const downloadedRef = useRef<SrcKeySet>(downloadedSrcs);
+  const isDownloaded = useCallback((item: ImageInfo) => downloadedRef.current.has(item.src), []);
+  useEffect(() => {
+    downloadedRef.current = downloadedSrcs;
+    // When the Downloaded filter is active, a completed download changes which
+    // items pass it — re-derive the shown grid from the current image set.
+    if (filtersRef.current.downloadState !== 'all') {
+      setState((prev) => ({ ...prev, filteredImages: applyToolbarFilters(prev.images, filtersRef.current, isDownloaded) }));
+    }
+  }, [downloadedSrcs, isDownloaded]);
   const [showFavourites, setShowFavourites] = useState(false);
   const [showExcluded, setShowExcluded] = useState(false);
   const [favouriteSrcs, setFavouriteSrcs] = useState<SrcKeySet>(new SrcKeySet());
@@ -215,7 +225,7 @@ const App: React.FC<AppProps> = ({
         return {
           ...prev,
           images: nextImages,
-          filteredImages: applyToolbarFilters(eligible, filtersRef.current),
+          filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloaded),
         };
       });
     });
@@ -268,7 +278,7 @@ const App: React.FC<AppProps> = ({
       return {
         ...prev,
         images: nextImages,
-        filteredImages: applyToolbarFilters(eligible, filtersRef.current),
+        filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloaded),
       };
     });
   }, []);
@@ -284,7 +294,7 @@ const App: React.FC<AppProps> = ({
   const applyResolution = useCallback(
     (eligible: ImageInfo[], s: SettingsData): void => {
       // Preserve the active toolbar filter when repopulating the grid.
-      const filtered = applyToolbarFilters(eligible, filtersRef.current);
+      const filtered = applyToolbarFilters(eligible, filtersRef.current, isDownloaded);
       setState((prev) => ({ ...prev, images: eligible, filteredImages: filtered }));
       if (s.resolveOriginals) void enrichOriginals(eligible, s.captureHlsStreams);
       void enrichImageSizes(eligible);
@@ -367,7 +377,7 @@ const App: React.FC<AppProps> = ({
 
   const handleFilterChange = (filters: FilterOptions) => {
     filtersRef.current = filters;
-    setState((prev) => ({ ...prev, filteredImages: applyToolbarFilters(prev.images, filters), status: '' }));
+    setState((prev) => ({ ...prev, filteredImages: applyToolbarFilters(prev.images, filters, isDownloaded), status: '' }));
   };
 
   const currentSourcePage = async (): Promise<{ url: string; title?: string }> => {
@@ -649,7 +659,7 @@ const App: React.FC<AppProps> = ({
     setState((prev) => {
       const images = swap(prev.images);
       const eligible = filterExcluded(filterImagesBySettings(images, settingsRef.current), excludedRef.current);
-      return { ...prev, images, filteredImages: applyToolbarFilters(eligible, filtersRef.current) };
+      return { ...prev, images, filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloaded) };
     });
   };
 
@@ -700,7 +710,7 @@ const App: React.FC<AppProps> = ({
     setState((prev) => {
       const images = swap(prev.images);
       const eligible = filterExcluded(filterImagesBySettings(images, settingsRef.current), excludedRef.current);
-      return { ...prev, images, filteredImages: applyToolbarFilters(eligible, filtersRef.current) };
+      return { ...prev, images, filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloaded) };
     });
   };
 
