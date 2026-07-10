@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { loadQueue, QUEUE_KEY, type QueueState } from '@/extension/shared/storage/download-queue';
 import { sendRuntimeMessage } from '../utils';
+import { QueueRow } from './QueueRow';
 
 /**
  * Live view of the persistent download queue (#196). Reads state reactively from
@@ -34,6 +35,14 @@ export function DownloadQueue() {
 
   const done = items.filter((i) => i.status === 'done').length;
   const failed = items.filter((i) => i.status === 'failed').length;
+  const finished = items.filter((i) => i.status === 'done' || i.status === 'failed').length;
+
+  // Overall bar: bytes-weighted across items whose size is known, else done/total.
+  const sized = items.filter((i) => i.totalBytes && i.totalBytes > 0);
+  const overallPct = sized.length
+    ? Math.round((sized.reduce((a, i) => a + Math.min(i.bytesReceived ?? 0, i.totalBytes as number), 0) /
+        sized.reduce((a, i) => a + (i.totalBytes as number), 0)) * 100)
+    : Math.round((done / items.length) * 100);
 
   // Requesting an optional permission must happen in a user gesture — do it here
   // on the click, then message the background to retry with the Referer rewrite.
@@ -41,70 +50,50 @@ export function DownloadQueue() {
     const granted = await chrome.permissions.request({ permissions: ['declarativeNetRequestWithHostAccess'] });
     if (granted) sendRuntimeMessage({ type: 'QUEUE_RETRY', id, referer: true });
   };
+  const btn = 'rounded px-1.5 py-0.5 text-(--ink-2) hover:text-(--ink) hover:bg-(--panel-2)';
 
   return (
     <section className="download-queue border-t hairline bg-(--panel) px-4 py-2.5" aria-label="Download queue">
       <header className="mb-1.5 flex items-center gap-2 text-[11px] text-(--ink-2)">
-        <strong className="num text-(--ink)">
-          {done} / {items.length}
-        </strong>
-        {failed > 0 && <span className="text-(--danger)">{failed} failed</span>}
-        <div className="ml-auto flex items-center gap-2">
-          {paused ? (
-            <button type="button" onClick={() => sendRuntimeMessage({ type: 'QUEUE_RESUME' })} className="hover:text-(--ink)">
-              Resume
-            </button>
-          ) : (
-            <button type="button" onClick={() => sendRuntimeMessage({ type: 'QUEUE_PAUSE' })} className="hover:text-(--ink)">
-              Pause
+        <div role="status" aria-live="polite" className="flex items-center gap-2">
+          <strong className="num text-(--ink)">{done} / {items.length}</strong>
+          {failed > 0 && <span className="text-(--danger)">{failed} failed</span>}
+        </div>
+        <div className="ml-auto flex items-center gap-1">
+          <button type="button" className={btn}
+            onClick={() => sendRuntimeMessage({ type: paused ? 'QUEUE_RESUME' : 'QUEUE_PAUSE' })}>
+            {paused ? 'Resume' : 'Pause'}
+          </button>
+          {failed > 0 && (
+            <button type="button" className={btn} onClick={() => sendRuntimeMessage({ type: 'QUEUE_RETRY', id: 'all-failed' })}>
+              Retry failed
             </button>
           )}
-          <button type="button" onClick={() => sendRuntimeMessage({ type: 'QUEUE_CANCEL' })} className="hover:text-(--ink)">
+          {finished > 0 && (
+            <button type="button" className={btn} onClick={() => sendRuntimeMessage({ type: 'QUEUE_CLEAR' })}>
+              Clear done
+            </button>
+          )}
+          <button type="button" className={btn} onClick={() => sendRuntimeMessage({ type: 'QUEUE_CANCEL' })}>
             Cancel all
           </button>
         </div>
       </header>
+
+      <div className="mb-2 h-1 overflow-hidden rounded-full bg-(--panel-2)" aria-hidden="true">
+        <span className="block h-full rounded-full bg-(--brand-ink) transition-[width] duration-300" style={{ width: `${overallPct}%` }} />
+      </div>
+
       <ul className="max-h-40 space-y-0.5 overflow-y-auto">
         {items.map((i) => (
-          <li key={i.id} className={`download-queue__item is-${i.status} flex items-center gap-2 text-[11px]`}>
-            <span className="min-w-0 flex-1 truncate text-(--ink)" title={i.filename}>
-              {i.filename}
-            </span>
-            {i.status === 'failed' && i.error && <span className="truncate text-(--ink-3)">{i.error}</span>}
-            <span className="num shrink-0 text-(--ink-2)">{i.status}</span>
-            {i.status === 'failed' && i.hotlink ? (
-              // A hotlink 403 won't change on a bare retry — offer the Referer
-              // rewrite, which needs the optional declarativeNetRequestWithHostAccess permission
-              // requested here from the click (a user gesture).
-              <button
-                type="button"
-                onClick={() => void retryWithReferer(i.id)}
-                className="shrink-0 text-(--ink-3) hover:text-(--ink)"
-                title="Retry sending this page as the Referer (asks for permission the first time)"
-              >
-                Retry w/ referer
-              </button>
-            ) : (
-              i.status === 'failed' && (
-                <button
-                  type="button"
-                  onClick={() => sendRuntimeMessage({ type: 'QUEUE_RETRY', id: i.id })}
-                  className="shrink-0 text-(--ink-3) hover:text-(--ink)"
-                >
-                  Retry
-                </button>
-              )
-            )}
-            {(i.status === 'queued' || i.status === 'active') && (
-              <button
-                type="button"
-                onClick={() => sendRuntimeMessage({ type: 'QUEUE_CANCEL', id: i.id })}
-                className="shrink-0 text-(--ink-3) hover:text-(--ink)"
-              >
-                Cancel
-              </button>
-            )}
-          </li>
+          <QueueRow
+            key={i.id}
+            item={i}
+            onCancel={(id) => sendRuntimeMessage({ type: 'QUEUE_CANCEL', id })}
+            onRetry={(id) => sendRuntimeMessage({ type: 'QUEUE_RETRY', id })}
+            onRetryReferer={(id) => void retryWithReferer(id)}
+            onOpen={(id) => sendRuntimeMessage({ type: 'QUEUE_OPEN', id })}
+          />
         ))}
       </ul>
     </section>

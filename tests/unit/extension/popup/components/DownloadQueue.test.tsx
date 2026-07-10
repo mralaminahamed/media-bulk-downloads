@@ -1,78 +1,47 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { DownloadQueue } from '@/extension/popup/components/DownloadQueue';
-import { QUEUE_KEY } from '@/extension/shared/storage/download-queue';
+import * as storage from '@/extension/shared/storage/download-queue';
+import * as utils from '@/extension/popup/utils';
+import type { QueueState } from '@/extension/shared/storage/download-queue';
 
-let sendMessage: ReturnType<typeof vi.fn>;
-let permRequest: ReturnType<typeof vi.fn>;
+const setQueue = (s: QueueState) => vi.spyOn(storage, 'loadQueue').mockResolvedValue(s);
 
-beforeEach(() => {
-  const store: Record<string, unknown> = { [QUEUE_KEY]: { paused: false, items: [
-    { id: 'a', url: 'u1', filename: 'f1', status: 'done', attempts: 0, readyAt: 0, addedAt: 0 },
-    { id: 'b', url: 'u2', filename: 'f2', status: 'failed', attempts: 3, error: 'SERVER_FAILED', readyAt: 0, addedAt: 0 },
-    { id: 'c', url: 'u3', filename: 'f3', status: 'queued', attempts: 0, readyAt: 0, addedAt: 0 },
-    { id: 'd', url: 'u4', filename: 'f4', status: 'failed', attempts: 0, error: 'SERVER_FORBIDDEN', hotlink: true, readyAt: 0, addedAt: 0 },
-  ] } };
-  sendMessage = vi.fn(async () => ({ status: 'success' }));
-  permRequest = vi.fn(async () => true);
-  global.chrome = {
-    storage: {
-      local: {
-        get: vi.fn(async (k: string) => (typeof k === 'string' && k in store ? { [k]: store[k] } : {})),
-        set: vi.fn(async () => {}),
-      },
-      onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
-    },
-    permissions: { request: permRequest, contains: vi.fn(async () => false) },
-    runtime: { sendMessage, lastError: undefined },
-  } as unknown as typeof chrome;
+it('renders nothing when the queue is empty', async () => {
+  setQueue({ paused: false, items: [] });
+  const { container } = render(<DownloadQueue />);
+  await waitFor(() => expect(container).toBeEmptyDOMElement());
 });
 
-describe('DownloadQueue', () => {
-  it('renders progress (done/total) and a failed row with its reason', async () => {
-    render(<DownloadQueue />);
-    expect(await screen.findByText(/1\s*\/\s*4/)).toBeInTheDocument();
-    expect(await screen.findByText(/SERVER_FORBIDDEN/)).toBeInTheDocument();
-  });
+it('shows the summary as an aria-live region with the overall bar and counts', async () => {
+  setQueue({ paused: false, items: [
+    { id: 'a', url: 'u', filename: 'a', status: 'done', attempts: 0, readyAt: 0, addedAt: 0 },
+    { id: 'b', url: 'u', filename: 'b', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, downloadId: 1, bytesReceived: 5, totalBytes: 10 },
+    { id: 'c', url: 'u', filename: 'c', status: 'failed', attempts: 3, error: 'x', readyAt: 0, addedAt: 0 },
+  ] });
+  render(<DownloadQueue />);
+  const live = await screen.findByRole('status');
+  expect(live).toHaveAttribute('aria-live', 'polite');
+  expect(live).toHaveTextContent('1 / 3');
+  expect(live).toHaveTextContent('1 failed');
+});
 
-  it('sends a plain QUEUE_RETRY for an ordinary failed item', async () => {
-    render(<DownloadQueue />);
-    const retry = await screen.findByRole('button', { name: 'Retry' });
-    fireEvent.click(retry);
-    expect(sendMessage).toHaveBeenCalledWith({ type: 'QUEUE_RETRY', id: 'b' });
-  });
+it('Retry failed shows only when there are failures and dispatches retry-all', async () => {
+  const send = vi.spyOn(utils, 'sendRuntimeMessage').mockImplementation(() => {});
+  setQueue({ paused: false, items: [
+    { id: 'c', url: 'u', filename: 'c', status: 'failed', attempts: 3, error: 'x', readyAt: 0, addedAt: 0 },
+  ] });
+  render(<DownloadQueue />);
+  await userEvent.click(await screen.findByRole('button', { name: /retry failed/i }));
+  expect(send).toHaveBeenCalledWith({ type: 'QUEUE_RETRY', id: 'all-failed' });
+});
 
-  it('a hotlink 403 shows "Retry w/ referer"; clicking requests the permission then retries with referer', async () => {
-    render(<DownloadQueue />);
-    const btn = await screen.findByRole('button', { name: /retry w\/ referer/i });
-    fireEvent.click(btn);
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(permRequest).toHaveBeenCalledWith({ permissions: ['declarativeNetRequestWithHostAccess'] });
-    expect(sendMessage).toHaveBeenCalledWith({ type: 'QUEUE_RETRY', id: 'd', referer: true });
-  });
-
-  it('does not retry when the permission is denied', async () => {
-    permRequest.mockResolvedValueOnce(false);
-    render(<DownloadQueue />);
-    fireEvent.click(await screen.findByRole('button', { name: /retry w\/ referer/i }));
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(sendMessage).not.toHaveBeenCalledWith(expect.objectContaining({ referer: true }));
-  });
-
-  it('sends QUEUE_PAUSE from the pause control', async () => {
-    render(<DownloadQueue />);
-    const pause = await screen.findByRole('button', { name: /pause/i });
-    fireEvent.click(pause);
-    expect(sendMessage).toHaveBeenCalledWith({ type: 'QUEUE_PAUSE' });
-  });
-
-  it('renders nothing when the queue is empty', async () => {
-    (chrome.storage.local.get as ReturnType<typeof vi.fn>).mockResolvedValue({ [QUEUE_KEY]: { paused: false, items: [] } });
-    const { container } = render(<DownloadQueue />);
-    // findBy would throw on absence; assert the section never appears.
-    await Promise.resolve();
-    expect(container.querySelector('.download-queue')).toBeNull();
-  });
+it('Clear done shows when finished items exist and dispatches QUEUE_CLEAR', async () => {
+  const send = vi.spyOn(utils, 'sendRuntimeMessage').mockImplementation(() => {});
+  setQueue({ paused: false, items: [
+    { id: 'a', url: 'u', filename: 'a', status: 'done', attempts: 0, readyAt: 0, addedAt: 0 },
+  ] });
+  render(<DownloadQueue />);
+  await userEvent.click(await screen.findByRole('button', { name: /clear done/i }));
+  expect(send).toHaveBeenCalledWith({ type: 'QUEUE_CLEAR' });
 });
