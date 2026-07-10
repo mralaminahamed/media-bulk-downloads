@@ -92,15 +92,15 @@ export async function pump(): Promise<void> {
   }
 }
 
-// Whether an interrupted download failed with a hotlink 403. The reason may ride
-// on the onChanged delta itself; if not, ask chrome.downloads for the record.
-async function isForbidden(delta: chrome.downloads.DownloadDelta): Promise<boolean> {
-  if (delta.error?.current) return delta.error.current === 'SERVER_FORBIDDEN';
+// The interrupt reason: it may ride on the onChanged delta itself; if not, ask
+// chrome.downloads for the record. Undefined when unavailable.
+async function interruptError(delta: chrome.downloads.DownloadDelta): Promise<string | undefined> {
+  if (delta.error?.current) return delta.error.current;
   try {
     const [dl] = await chrome.downloads.search({ id: delta.id });
-    return dl?.error === 'SERVER_FORBIDDEN';
+    return dl?.error;
   } catch {
-    return false;
+    return undefined;
   }
 }
 
@@ -114,7 +114,9 @@ export async function handleDownloadChanged(delta: chrome.downloads.DownloadDelt
   const item = snapshot.items.find((i) => i.downloadId === delta.id && i.status === 'active');
   if (!item) return;
 
-  const forbidden = current === 'interrupted' && (await isForbidden(delta));
+  const errCode = current === 'interrupted' ? await interruptError(delta) : undefined;
+  const forbidden = errCode === 'SERVER_FORBIDDEN';
+  const cancelled = errCode === 'USER_CANCELED';
   // A 403 is worth a Referer-rewrite retry only once, and only if the user has
   // granted the optional declarativeNetRequestWithHostAccess permission. Otherwise it fails with
   // the hotlink flag so the popup can offer an explicit opt-in.
@@ -137,6 +139,7 @@ export async function handleDownloadChanged(delta: chrome.downloads.DownloadDelt
       }
       return { state: markFailed(s, cur.id, 'SERVER_FORBIDDEN', true), value: null };
     }
+    if (cancelled) return { state: markFailed(s, cur.id, 'Cancelled'), value: null };
     return { state: scheduleRetry(s, cur.id, Date.now()), value: null };
   });
 
