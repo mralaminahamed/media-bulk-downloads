@@ -144,7 +144,7 @@ test.describe('settings panel (draft + Save)', () => {
     await expect(maxTime).toHaveValue('5');
   });
 
-  test('editing then Save applies "Exclude Base64 Images" on the next scan', async ({ context }) => {
+  test('editing then Save applies "Exclude Base64 images" on the next scan', async ({ context }) => {
     const page = await openBubblePage(context, '/media.html');
     await openPanel(page);
     expect(await itemCount(page)).toBe(5); // 3 data: SVGs + fbcdn + other host

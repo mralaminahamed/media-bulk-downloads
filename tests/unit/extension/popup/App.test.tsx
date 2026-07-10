@@ -239,7 +239,7 @@ describe('App Component', () => {
     );
   });
 
-  it('persists the Bubble Corner + Panel Position dropdowns, keeping the drag-only offsets', async () => {
+  it('persists the Bubble corner + Panel position dropdowns, keeping the drag-only offsets', async () => {
     // Stored state carries a dragged button offset (x/y) and a freeform panel
     // point — neither has a Settings control, so both must survive a form save.
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) =>

@@ -680,8 +680,3 @@ export interface SelectCheckboxProps {
   /** Positioning / visibility classes from the call site, appended last so they win. */
   className?: string;
 }
-
-export interface SectionProps {
-  title: string;
-  children: ReactNode;
-}
