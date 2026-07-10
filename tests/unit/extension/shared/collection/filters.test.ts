@@ -107,7 +107,7 @@ const item = (over: Partial<ImageInfo>): ImageInfo =>
   ({ ...toolbarBase, src: 'x', type: 'png', kind: 'image', ...over }) as ImageInfo;
 
 const F = (over: Partial<FilterOptions>): FilterOptions =>
-  ({ mediaKind: 'all', imageType: 'all', minSize: 0, includeBase64: true, sizeBucket: 'all', search: '', sortBy: 'default', sortDir: 'desc', ...over });
+  ({ mediaKind: 'all', imageType: 'all', minSize: 0, includeBase64: true, sizeBucket: 'all', downloadState: 'all', search: '', sortBy: 'default', sortDir: 'desc', ...over });
 
 describe('applyToolbarFilters — mediaKind', () => {
   const items = [
