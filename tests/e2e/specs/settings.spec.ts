@@ -5,6 +5,8 @@ import type { Page, BrowserContext } from '@playwright/test';
 const panel = (page: Page) => page.getByRole('dialog', { name: /settings/i });
 const openSettings = (page: Page) => page.getByRole('button', { name: 'Settings' }).click();
 const save = (page: Page) => panel(page).getByRole('button', { name: 'Save', exact: true });
+const selectTab = (page: Page, name: RegExp) => panel(page).getByRole('tab', { name }).click();
+const openAdvanced = (page: Page) => panel(page).getByRole('button', { name: 'Advanced', exact: true }).click();
 
 async function stored(context: BrowserContext): Promise<Record<string, unknown>> {
   const w = await serviceWorker(context);
@@ -20,6 +22,7 @@ test.describe('settings panel (draft + Save)', () => {
     await expect(panel(page)).toBeVisible();
     await expect(save(page)).toBeDisabled();
 
+    await selectTab(page, /Media/i);
     const sw = panel(page).getByRole('switch', { name: /exclude base64 images/i });
     await sw.click();
     await expect(save(page)).toBeEnabled();     // dirty
@@ -34,17 +37,20 @@ test.describe('settings panel (draft + Save)', () => {
 
     // showImageCount defaults on, the rest off — so assert each flips from its
     // own initial state rather than assuming they all go to true.
-    const switches: Array<[RegExp, string]> = [
-      [/ask where to save/i, 'saveAs'],
-      [/exclude base64 images/i, 'excludeBase64Images'],
-      [/exclude emoji/i, 'excludeEmoji'],
-      [/resolve exact originals/i, 'resolveOriginals'],
-      [/capture video streams/i, 'captureHlsStreams'],
-      [/click .*load more/i, 'deepScanClickLoadMore'],
-      [/show image count/i, 'showImageCount'],
+    // Each entry's optional 3rd element navigates to the tab/Advanced section that
+    // control now lives behind, run once right before that control is first used.
+    const switches: Array<[RegExp, string, (() => Promise<void>) | undefined]> = [
+      [/ask where to save/i, 'saveAs', undefined],
+      [/exclude base64 images/i, 'excludeBase64Images', () => selectTab(page, /Media/i)],
+      [/exclude emoji/i, 'excludeEmoji', undefined],
+      [/resolve exact originals/i, 'resolveOriginals', undefined],
+      [/capture video streams/i, 'captureHlsStreams', undefined],
+      [/click .*load more/i, 'deepScanClickLoadMore', () => openAdvanced(page)],
+      [/show image count/i, 'showImageCount', () => selectTab(page, /Display/i)],
     ];
     const initial: Record<string, boolean> = {};
-    for (const [name, key] of switches) {
+    for (const [name, key, nav] of switches) {
+      if (nav) await nav();
       const sw = panel(page).getByRole('switch', { name });
       initial[key] = (await sw.getAttribute('aria-checked')) === 'true';
       await sw.click();
@@ -60,15 +66,16 @@ test.describe('settings panel (draft + Save)', () => {
     await openPanel(page);
     await openSettings(page);
 
-    const numbers: Array<[RegExp, string, number]> = [
-      [/minimum image size/i, 'minimumImageSize', 250],
-      [/max items/i, 'deepScanMaxItems', 2000],
-      [/max time/i, 'deepScanMaxSeconds', 60],
-      [/max scroll steps/i, 'deepScanMaxScrolls', 100],
-      [/thumbnail size/i, 'thumbnailSize', 180],
-      [/preview size/i, 'previewSize', 500],
+    const numbers: Array<[RegExp, string, number, (() => Promise<void>) | undefined]> = [
+      [/minimum image size/i, 'minimumImageSize', 250, () => selectTab(page, /Media/i)],
+      [/max items/i, 'deepScanMaxItems', 2000, () => openAdvanced(page)],
+      [/max time/i, 'deepScanMaxSeconds', 60, undefined],
+      [/max scroll steps/i, 'deepScanMaxScrolls', 100, undefined],
+      [/thumbnail size/i, 'thumbnailSize', 180, () => selectTab(page, /Display/i)],
+      [/preview size/i, 'previewSize', 500, () => openAdvanced(page)],
     ];
-    for (const [name, , value] of numbers) {
+    for (const [name, , value, nav] of numbers) {
+      if (nav) await nav();
       const field = panel(page).getByRole('spinbutton', { name });
       await field.fill(String(value));
       await field.blur();
@@ -99,6 +106,7 @@ test.describe('settings panel (draft + Save)', () => {
     await openSettings(page);
 
     await panel(page).getByRole('combobox', { name: /convert images/i }).selectOption('jpeg');
+    await selectTab(page, /Display/i);
     await panel(page).getByRole('combobox', { name: /bubble corner/i }).selectOption('top-left');
     await panel(page).getByRole('combobox', { name: /panel position/i }).selectOption('center');
     await save(page).click();
@@ -123,6 +131,8 @@ test.describe('settings panel (draft + Save)', () => {
     await openPanel(page);
     await openSettings(page);
 
+    await selectTab(page, /Media/i);
+    await openAdvanced(page);
     const maxItems = panel(page).getByRole('spinbutton', { name: /max items/i });
     await maxItems.fill('99999'); // above max 5000
     await maxItems.blur();
@@ -140,6 +150,7 @@ test.describe('settings panel (draft + Save)', () => {
     expect(await itemCount(page)).toBe(5); // 3 data: SVGs + fbcdn + other host
 
     await openSettings(page);
+    await selectTab(page, /Media/i);
     await panel(page).getByRole('switch', { name: /exclude base64 images/i }).click();
     await save(page).click();
     await expect(panel(page)).toHaveCount(0); // Save closes the panel
@@ -152,6 +163,7 @@ test.describe('settings panel (draft + Save)', () => {
     const page = await openBubblePage(context, '/media.html');
     await openPanel(page);
     await openSettings(page);
+    await selectTab(page, /Media/i);
     await panel(page).getByRole('switch', { name: /exclude emoji/i }).click();
     await panel(page).getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(panel(page)).toHaveCount(0);
@@ -162,6 +174,7 @@ test.describe('settings panel (draft + Save)', () => {
     const page = await openBubblePage(context, '/media.html');
     await openPanel(page);
     await openSettings(page);
+    await selectTab(page, /Media/i);
     await panel(page).getByRole('switch', { name: /resolve exact originals/i }).click();
     await page.keyboard.press('Escape');
     await expect(panel(page)).toHaveCount(0);
@@ -172,6 +185,7 @@ test.describe('settings panel (draft + Save)', () => {
     const page = await openBubblePage(context, '/media.html');
     await openPanel(page);
     await openSettings(page);
+    await openAdvanced(page);
     // Toggling it on requests the optional notifications permission; with no user
     // to grant it (headless), the switch must not flip on.
     const notify = panel(page).getByRole('switch', { name: /notify when downloads finish/i });
@@ -183,6 +197,7 @@ test.describe('settings panel (draft + Save)', () => {
     const page = await openBubblePage(context, '/media.html');
     await openPanel(page);
     await openSettings(page);
+    await selectTab(page, /Data/i);
 
     // The export routes the JSON through the background's chrome.downloads (not a
     // page-context download), so assert the in-panel confirmation instead.
