@@ -84,6 +84,45 @@ test.describe('facebook sniffer (text/html NDJSON graphql)', () => {
     await expect(figureWithSrc(page, 'FBG_302_grid_n')).toHaveCount(0);
   });
 
+  test('a grid tile collected before its original is sniffed upgrades in place (no duplicate)', async ({ context }) => {
+    const worker = await serviceWorker(context);
+    await worker.evaluate(
+      () => new Promise<void>((resolve) => chrome.storage.sync.set({ settings: { bubbleEnabled: true } }, () => resolve())),
+    );
+    const page = await context.newPage();
+    let releaseGraphql: () => void = () => {};
+    const gate = new Promise<void>((r) => { releaseGraphql = r; });
+    await page.route(`${FB_ORIGIN}/**`, async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname.includes('/api/graphql')) {
+        await gate; // hold the original until the panel has collected grid-only
+        await route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: PHOTOS_NDJSON });
+        return;
+      }
+      const res = await fetch(`http://localhost:${PORT}/facebook-photos-grid.html`);
+      await route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: await res.text() });
+    });
+    await page.goto(`${FB_ORIGIN}/page/photos`);
+    await page.getByRole('button', { name: 'Media Bulk Downloads' }).waitFor();
+    await openPanel(page);
+
+    // Graphql still gated: the two tiles are collected at GRID resolution.
+    expect(await itemCount(page)).toBe(2);
+    await expect(figureWithSrc(page, 'FBG_301_grid_n')).toHaveCount(1);
+
+    // Release the original + deep-scan (drives the re-fetch + re-collect).
+    releaseGraphql();
+    await page.getByRole('button', { name: 'Deep scan' }).click();
+
+    // Upgraded IN PLACE — originals shown, grid rows gone, still exactly 2 items
+    // (without the mediaKey merge this would be 4: grid + original for each).
+    await expect(figureWithSrc(page, 'FBG_301_orig_n')).toHaveCount(1);
+    await expect(figureWithSrc(page, 'FBG_302_orig_n')).toHaveCount(1);
+    await expect(figureWithSrc(page, 'FBG_301_grid_n')).toHaveCount(0);
+    await expect(figureWithSrc(page, 'FBG_302_grid_n')).toHaveCount(0);
+    expect(await itemCount(page)).toBe(2);
+  });
+
   test('a reel resolves to a downloadable mp4 via progressive_url', async ({ context }) => {
     const page = await openFbSniffer(context, 'facebook-reel.html', REEL_NDJSON);
     await openPanel(page);

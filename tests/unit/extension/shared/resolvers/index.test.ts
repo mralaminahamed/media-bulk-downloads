@@ -30,6 +30,6 @@ describe('resolve — routes fbcdn media on facebook.com to facebookResolver', (
       allowNetwork: false,
       pageUrl: 'https://www.facebook.com/photo/?fbid=100',
     });
-    expect(out).toEqual([{ url: 'https://x.fbcdn.net/orig_n.jpg', kind: 'image', ext: 'jpg', width: 2048, height: 1536 }]);
+    expect(out).toEqual([{ url: 'https://x.fbcdn.net/orig_n.jpg', kind: 'image', ext: 'jpg', width: 2048, height: 1536, mediaKey: 'fb:100' }]);
   });
 });
