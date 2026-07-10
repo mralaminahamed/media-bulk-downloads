@@ -49,16 +49,26 @@ describe('FilterToolbar Component', () => {
   it('renders filters with a Type dropdown', () => {
     renderToolbar();
     expect(screen.getByText('Filters')).toBeInTheDocument();
+    openMore();
     const typeSelect = screen.getByLabelText('Media format');
     expect(typeSelect).toBeInTheDocument();
     expect(within(typeSelect).getByRole('option', { name: 'All formats' })).toBeInTheDocument();
     expect(within(typeSelect).getByRole('option', { name: 'JPEG' })).toBeInTheDocument();
   });
 
-  it('applies a type filter when the dropdown changes', () => {
+  it('applies a type filter from the More popover', () => {
     renderToolbar();
+    openMore();
     fireEvent.change(screen.getByLabelText('Media format'), { target: { value: 'jpeg' } });
-    expect(mockOnFilterChange).toHaveBeenCalledWith(expect.objectContaining({ imageType: 'jpeg' }));
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ imageType: 'jpeg' }));
+  });
+
+  it('counts an active format in the More badge', () => {
+    renderToolbar();
+    openMore();
+    fireEvent.change(screen.getByLabelText('Media format'), { target: { value: 'png' } });
+    // advanced badge now reads 1 (format only)
+    expect(screen.getByText('1')).toBeInTheDocument();
   });
 
   it('keeps advanced filters behind "More"', () => {
@@ -94,6 +104,7 @@ describe('FilterToolbar Component', () => {
     renderToolbar();
     expect(screen.queryByText('Clear all')).not.toBeInTheDocument();
 
+    openMore();
     fireEvent.change(screen.getByLabelText('Media format'), { target: { value: 'png' } });
     fireEvent.click(screen.getByText('Clear all'));
 
@@ -166,6 +177,7 @@ describe('FilterToolbar Component', () => {
   it('switches format options when the media kind changes', async () => {
     const onFilterChange = vi.fn();
     render(<FilterToolbar onFilterChange={onFilterChange} extensionSettings={DEFAULT_SETTINGS} />);
+    fireEvent.click(screen.getByRole('button', { name: /More/i }));
     const typeSelect = screen.getByLabelText('Media format');
     // image formats by default
     expect(within(typeSelect).getByRole('option', { name: 'JPEG' })).toBeInTheDocument();
@@ -181,6 +193,7 @@ describe('FilterToolbar Component', () => {
 
   it('offers audio codec options when the Audio kind is selected', async () => {
     renderToolbar();
+    openMore();
     await userEvent.click(screen.getByRole('button', { name: 'Audio' }));
     const typeSelect = screen.getByLabelText('Media format');
     expect(within(typeSelect).getByRole('option', { name: 'MP3' })).toBeInTheDocument();
@@ -199,18 +212,63 @@ describe('FilterToolbar Component', () => {
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ minSize: 0 }));
   });
 
-  it('applies a downloaded filter from the More popover', () => {
+  it('applies a downloaded filter from the State chip', () => {
     renderToolbar();
-    openMore();
-    fireEvent.change(screen.getByLabelText('Downloaded'), { target: { value: 'downloaded' } });
+    fireEvent.click(screen.getByRole('button', { name: 'State' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Downloaded' }));
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ downloadState: 'downloaded' }));
   });
 
-  it('includes downloadState in a reset (Clear all)', () => {
+  it('clears the State filter via its × (back to all)', () => {
     renderToolbar();
-    openMore();
-    fireEvent.change(screen.getByLabelText('Downloaded'), { target: { value: 'not-downloaded' } });
+    fireEvent.click(screen.getByRole('button', { name: 'State' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Not downloaded' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove State filter' }));
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ downloadState: 'all' }));
+  });
+
+  it('resets the State filter via the global "Clear all" control', () => {
+    renderToolbar();
+    fireEvent.click(screen.getByRole('button', { name: 'State' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Downloaded' }));
     fireEvent.click(screen.getByText('Clear all'));
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ downloadState: 'all' }));
+  });
+
+  it('surfaces an active Size filter as a removable chip and clears it via ×', () => {
+    renderToolbar();
+    openMore();
+    fireEvent.click(screen.getByRole('button', { name: 'Large' })); // size seg in More
+    // a Size chip now appears in the primary row
+    const clearSize = screen.getByRole('button', { name: 'Remove Size filter' });
+    expect(clearSize).toBeInTheDocument();
+    fireEvent.click(clearSize);
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ sizeBucket: 'all' }));
+  });
+
+  it('surfaces an active Base64 filter as a removable chip', () => {
+    renderToolbar();
+    openMore();
+    fireEvent.click(screen.getByRole('switch', { name: /base64/i })); // turn base64 off
+    expect(screen.getByRole('button', { name: 'Remove Base64 filter' })).toBeInTheDocument();
+  });
+
+  it('surfaces an active Format filter as a removable chip with the canonical mixed-case label and clears it via ×', () => {
+    renderToolbar();
+    openMore();
+    fireEvent.change(screen.getByLabelText('Media format'), { target: { value: 'webp' } });
+    // canonical label from the select's options, not filters.imageType.toUpperCase()
+    expect(screen.getByRole('button', { name: 'WebP' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Format filter' }));
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ imageType: 'all' }));
+  });
+
+  it('surfaces an active Min size filter as a removable chip and clears it via ×', () => {
+    renderToolbar();
+    openMore();
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '500' } });
+    expect(screen.getByRole('button', { name: '≥ 500 KB' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Min size filter' }));
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ minSize: 0 }));
   });
 });

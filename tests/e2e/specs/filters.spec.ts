@@ -88,26 +88,29 @@ test.describe('filters, search, and empty state', () => {
     // Download exactly one item (same click pattern as download.spec.ts).
     await item(page, 'Alpha').getByRole('button', { name: 'Download' }).click();
     // The item gains its "downloaded" badge once history records it. Scope to
-    // the figure — the badge shares its aria-label with the Downloaded <select>.
+    // the figure — the badge shares its aria-label with the item-level "Downloaded" mark.
     await expect(item(page, 'Alpha').locator('[aria-label="Downloaded"]')).toBeVisible();
 
-    await page.getByRole('button', { name: 'More', exact: true }).click();
-    const downloadedSelect = page.getByRole('combobox', { name: 'Downloaded' });
-
-    await downloadedSelect.selectOption('downloaded');
+    // The State chip lives in the primary row — no "More" needed.
+    await page.getByRole('button', { name: 'State' }).click();
+    await page.getByRole('menuitem', { name: 'Downloaded', exact: true }).click();
     await expectItemCount(page, 1);
 
-    await downloadedSelect.selectOption('not-downloaded');
+    // Selecting a value relabels the chip's trigger to that value; reopen it to switch.
+    await page.getByRole('button', { name: 'Downloaded', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Not downloaded', exact: true }).click();
     await expectItemCount(page, total - 1);
 
-    await downloadedSelect.selectOption('all');
+    // Clear back to "All items" via the chip's × control.
+    await page.getByRole('button', { name: 'Remove State filter' }).click();
     await expectItemCount(page, total);
   });
 
   test('the size-bucket control narrows to the dimensionless items', async ({ context }) => {
     const page = await openBubblePage(context, '/mixed.html');
     await openPanel(page);
-    expect(await itemCount(page)).toBe(4); // 2 images (120x120) + video + audio
+    const all = await itemCount(page);
+    expect(all).toBe(4); // 2 images (120x120) + video + audio
 
     await page.getByRole('button', { name: 'More', exact: true }).click();
     await page.getByRole('group', { name: 'Image size' }).getByRole('button', { name: 'Large' }).click();
@@ -116,6 +119,12 @@ test.describe('filters, search, and empty state', () => {
     // 0 for <video>/<audio> (never reads the element's intrinsic size), so both
     // count as "unknown dims", which the size-bucket rule never hides.
     await expectItemCount(page, 2);
+
+    // The active Size filter surfaces as a removable chip in the primary row —
+    // clearing it via × restores the full grid.
+    await expect(page.getByRole('button', { name: 'Remove Size filter' })).toBeVisible();
+    await page.getByRole('button', { name: 'Remove Size filter' }).click();
+    await expect.poll(() => itemCount(page)).toBe(all);
   });
 
   test('the minimum-size floor drops only the item with a known small file size', async ({ context }) => {

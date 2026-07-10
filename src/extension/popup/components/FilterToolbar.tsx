@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ChevronDownIcon, MagnifyingGlassIcon, BarsArrowUpIcon, BarsArrowDownIcon } from '@heroicons/react/24/outline';
 import { FilterOptions, SettingsData } from '@/types';
+import ChipFlyout from './ChipFlyout';
+import FilterChip from './FilterChip';
 
 interface FilterToolbarProps {
   onFilterChange: (filters: FilterOptions) => void;
@@ -68,6 +70,12 @@ const SIZE_OPTIONS: { value: 'all' | 'small' | 'medium' | 'large'; label: string
   { value: 'large', label: 'Large' },
 ];
 
+const STATE_OPTIONS: { value: FilterOptions['downloadState']; label: string }[] = [
+  { value: 'all', label: 'All items' },
+  { value: 'downloaded', label: 'Downloaded' },
+  { value: 'not-downloaded', label: 'Not downloaded' },
+];
+
 const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extensionSettings }) => {
   const [filters, setFilters] = useState<FilterOptions>(DEFAULT_FILTERS);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -84,20 +92,34 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
   };
 
   const base64Disabled = extensionSettings.excludeBase64Images;
-  // Filters tucked inside the "More" popover — its badge counts only these.
+  // Filters tucked inside the "More" popover — its badge counts only Format/Size/Min/Base64.
+  // Downloaded state lives in its own primary-row State chip (below), so it's
+  // intentionally excluded from this badge.
   const advancedCount =
+    (filters.imageType !== 'all' ? 1 : 0) +
     (filters.sizeBucket !== 'all' ? 1 : 0) +
     (filters.minSize > 0 ? 1 : 0) +
-    (!filters.includeBase64 && !base64Disabled ? 1 : 0) +
-    (filters.downloadState !== 'all' ? 1 : 0);
+    (!filters.includeBase64 && !base64Disabled ? 1 : 0);
   const activeCount =
     (filters.mediaKind !== 'all' ? 1 : 0) +
-    (filters.imageType !== 'all' ? 1 : 0) +
     advancedCount +
+    (filters.downloadState !== 'all' ? 1 : 0) +
     (filters.search.trim() ? 1 : 0) +
     (filters.sortBy !== 'default' ? 1 : 0);
 
   const showSize = filters.mediaKind === 'all' || filters.mediaKind === 'image';
+
+  // Active advanced filters mirrored as removable chips (they are SET inside More).
+  const advChips: { key: string; label: string; clear: () => void }[] = [
+    filters.imageType !== 'all' && {
+      key: 'format',
+      label: formatsForKind(filters.mediaKind).find((o) => o.value === filters.imageType)?.label ?? filters.imageType.toUpperCase(),
+      clear: () => update({ imageType: 'all' }),
+    },
+    filters.sizeBucket !== 'all' && { key: 'size', label: SIZE_OPTIONS.find((o) => o.value === filters.sizeBucket)!.label, clear: () => update({ sizeBucket: 'all' }) },
+    filters.minSize > 0 && { key: 'min', label: `≥ ${filters.minSize} KB`, clear: () => update({ minSize: 0 }) },
+    !filters.includeBase64 && !base64Disabled && { key: 'base64', label: 'No Base64', clear: () => update({ includeBase64: true }) },
+  ].filter(Boolean) as { key: string; label: string; clear: () => void }[];
 
   const sortDirLabel = filters.sortDir === 'asc' ? 'Ascending' : 'Descending';
 
@@ -164,25 +186,31 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
           ))}
         </div>
 
-        {/* Type — dropdown; options adapt to the selected kind. Height/width via
-            inline style because .field (width:100%, height:34px) is defined after
-            Tailwind and would otherwise win over h-/w- utilities. */}
-        <select
-          aria-label="Media format"
-          title="Media format"
-          value={filters.imageType}
-          onChange={(e) => update({ imageType: e.target.value })}
-          className="field shrink-0 py-0 text-[12px]"
-          style={{ height: 28, width: 120 }}
-        >
-          {formatsForKind(filters.mediaKind).map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.value === 'all' ? 'All formats' : opt.label}
-            </option>
-          ))}
-        </select>
+        {/* State — download status. Single-select chip flyout in the primary row
+            (promoted out of "More"; see ChipFlyout). */}
+        <ChipFlyout
+          id="filter-state-flyout"
+          triggerLabel="State"
+          valueLabel={(v) => STATE_OPTIONS.find((o) => o.value === v)!.label}
+          options={STATE_OPTIONS}
+          value={filters.downloadState}
+          defaultValue="all"
+          onChange={(v) => update({ downloadState: v })}
+          clearLabel="Remove State filter"
+        />
 
-        {/* More — discloses the advanced (size / min-size / base64) filters */}
+        {advChips.map((c) => (
+          <FilterChip
+            key={c.key}
+            label={c.label}
+            active
+            onOpen={() => setMoreOpen(true)}
+            onClear={c.clear}
+            clearLabel={`Remove ${c.key === 'base64' ? 'Base64' : c.key === 'min' ? 'Min size' : c.key === 'format' ? 'Format' : 'Size'} filter`}
+          />
+        ))}
+
+        {/* More — discloses the advanced (format / size / min-size / base64) filters */}
         <button
           type="button"
           onClick={() => setMoreOpen((o) => !o)}
@@ -209,6 +237,24 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
       {/* Advanced filters — shown when "More" is open. */}
       {moreOpen && (
         <div id="filter-more" className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t hairline pt-3">
+          <label className="flex items-center gap-2 text-[12px] text-(--ink-2)">
+            <span className="eyebrow">Format</span>
+            <select
+              aria-label="Media format"
+              title="Media format"
+              value={filters.imageType}
+              onChange={(e) => update({ imageType: e.target.value })}
+              className="field shrink-0 py-0 text-[12px]"
+              style={{ height: 28, width: 120 }}
+            >
+              {formatsForKind(filters.mediaKind).map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.value === 'all' ? 'All formats' : opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
           {showSize && (
             <div className="flex items-center gap-2">
               <span className="eyebrow">Size</span>
@@ -258,21 +304,6 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
               className="switch"
             />
           </div>
-
-          {/* Downloaded — filter by whether the item is already in the download
-              history (same source as the per-item "downloaded" badge). */}
-          <select
-            aria-label="Downloaded"
-            title="Downloaded"
-            value={filters.downloadState}
-            onChange={(e) => update({ downloadState: e.target.value as FilterOptions['downloadState'] })}
-            className="field shrink-0 py-0 text-[12px]"
-            style={{ height: 28, width: 130 }}
-          >
-            <option value="all">All items</option>
-            <option value="downloaded">Downloaded</option>
-            <option value="not-downloaded">Not downloaded</option>
-          </select>
         </div>
       )}
     </section>
