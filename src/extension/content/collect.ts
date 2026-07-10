@@ -22,6 +22,7 @@ import { facebookPageMedia } from '@/extension/shared/resolvers/sites/facebook';
 import { youtubeVideoId } from '@/extension/shared/resolvers/sites/youtube';
 import { vimeoVideoId } from '@/extension/shared/resolvers/sites/vimeo';
 import { sniffedHlsManifests } from '@/extension/shared/resolvers/sniffers/hls-sniff';
+import { HOST_ID } from '@/extension/bubble/mount';
 
 /** Determines if a URL is a base64-encoded image. */
 export function isBase64Image(src: string): boolean {
@@ -198,6 +199,7 @@ export function collectMedia(): MediaItem[] {
       if (cand.poster) item.poster = cand.poster;
       if (cand.resolveHint) item.resolveHint = cand.resolveHint;
       if (cand.unresolvedVideo) item.unresolvedVideo = true;
+      if (cand.mediaKey) item.mediaKey = cand.mediaKey;
       media.push(item);
       return;
     }
@@ -234,6 +236,7 @@ export function collectMedia(): MediaItem[] {
     // The resolver knows the true file extension (e.g. Wallhaven .jpg vs the
     // canonical 'jpeg' type); carry it so the download keeps the real extension.
     if (cand.ext) info.ext = cand.ext;
+    if (cand.mediaKey) info.mediaKey = cand.mediaKey;
     media.push(info);
   };
 
@@ -392,8 +395,16 @@ export function collectMedia(): MediaItem[] {
 
     root.querySelectorAll<HTMLElement>('*').forEach((el) => {
       // Discover open shadow roots regardless of layout (a not-rendered host can
-      // still contain visible media once its component mounts).
-      const shadow = el.shadowRoot;
+      // still contain visible media once its component mounts) — EXCEPT our own
+      // on-page bubble (mount.tsx's `#ibd-bubble-host`, an open shadow root by
+      // necessity for its own styling). Without this exclusion a re-scan while
+      // the bubble is showing a not-yet-upgraded grid thumbnail "discovers" that
+      // thumbnail as if it were new page content and re-adds it — untagged (the
+      // bubble's own markup has no enclosing page anchor for a resolver to key
+      // off of) — once the real page resolves to a different (upgraded) URL, so
+      // resolvers that tag a `mediaKey` (Task 8) could never actually dedupe an
+      // in-place upgrade while the panel is open.
+      const shadow = el.id !== HOST_ID ? el.shadowRoot : null;
       if (shadow) addRoot(shadow);
 
       switch (el.tagName) {

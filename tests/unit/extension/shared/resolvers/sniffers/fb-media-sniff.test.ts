@@ -32,6 +32,11 @@ describe('fbidFromUrl', () => {
     expect(fbidFromUrl('/photo/?fbid=abc')).toBeNull();
     expect(fbidFromUrl(null)).toBeNull();
   });
+  it('parses the /photo/<id> and /photos/<id> path forms (grid tile anchors)', () => {
+    expect(fbidFromUrl('/natgeo/photos/777/')).toBe('777');
+    expect(fbidFromUrl('/photo/888')).toBe('888');
+    expect(fbidFromUrl('/some/photos/')).toBeNull(); // no id → null
+  });
 });
 
 describe('extFromPath', () => {
@@ -127,5 +132,26 @@ describe('extractFbMedia', () => {
     expect(img).toBeDefined();
     expect(img?.fbid).toBe('9');
     expect(img?.kind).toBe('image');
+  });
+
+  it('extracts a reel video from progressive_url when playable_url is absent', () => {
+    const json = { data: { node: { id: '401', __typename: 'Video',
+      progressive_url: 'https://x.fbcdn.net/o1/v/t2/f2/reel_401_prog.mp4?oh=a',
+      preferred_thumbnail: { image: { uri: 'https://x.fbcdn.net/v/cover_401_n.jpg', width: 640, height: 360 } } } } };
+    const vids = extractFbMedia(json).filter((e) => e.kind === 'video');
+    expect(vids).toHaveLength(1);
+    expect(vids[0].url).toContain('reel_401_prog.mp4');
+    expect(vids[0].fbid).toBe('401');
+    expect(vids[0].ext).toBe('mp4');
+    expect(vids[0].poster).toContain('cover_401_n.jpg');
+  });
+
+  it('still prefers playable_url over progressive_url when both are present', () => {
+    const json = { video: { id: '402',
+      progressive_url: 'https://x.fbcdn.net/o1/v/t2/prog.mp4',
+      playable_url: 'https://x.fbcdn.net/v/playable.mp4' } };
+    const vids = extractFbMedia(json).filter((e) => e.kind === 'video');
+    expect(vids).toHaveLength(1);
+    expect(vids[0].url).toContain('playable.mp4');
   });
 });

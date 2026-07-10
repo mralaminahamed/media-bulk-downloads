@@ -12,6 +12,11 @@ export interface MediaCandidate {
    *  (e.g. Wallhaven's grid resolution label). Preferred over thumbnail dims. */
   width?: number;
   height?: number;
+  /** Stable identity of the underlying media, supplied by a resolver that can
+   *  recognise the same item across renditions (e.g. a Facebook photo's fbid,
+   *  shared by its grid thumbnail and its full-res original). Lets a cross-scan
+   *  merge upgrade-replace a rendition instead of adding a duplicate row. */
+  mediaKey?: string;
 }
 
 export interface ResolveContext {

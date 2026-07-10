@@ -41,7 +41,8 @@ export function fbidFromUrl(url: unknown): string | null {
     url.match(/[?&]fbid=(\d{1,32})/) ||
     url.match(/[?&]v=(\d{1,32})/) ||
     url.match(/\/videos\/(\d{1,32})/) ||
-    url.match(/\/reels?\/(\d{1,32})/);
+    url.match(/\/reels?\/(\d{1,32})/) ||
+    url.match(/\/photos?\/(\d{1,32})/);
   return m ? m[1] : null;
 }
 
@@ -59,7 +60,9 @@ export function numOr(v: unknown): number | undefined {
 }
 
 // HD first — the walk takes the first present key, so order = priority.
-export const VIDEO_URL_KEYS = ['playable_url_quality_hd', 'browser_native_hd_url', 'playable_url', 'browser_native_sd_url'];
+// `progressive_url` is last: reels carry only this key, and regular videos keep
+// preferring the HD/playable variants above it.
+export const VIDEO_URL_KEYS = ['playable_url_quality_hd', 'browser_native_hd_url', 'playable_url', 'browser_native_sd_url', 'progressive_url'];
 
 /**
  * Recursively walk any parsed FB response and emit media by SHAPE, not field

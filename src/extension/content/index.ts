@@ -74,6 +74,11 @@ if (onFbHost) {
     if (!data || data.source !== 'ibd-fb-media' || !Array.isArray(data.entries)) return;
     ingestSniffedFbMedia(data.entries);
   });
+
+  // Tell the MAIN-world FB sniffer we're listening now, so it replays any
+  // /api/graphql it captured before this relay registered (mirrors the HLS relay
+  // below). The sniffer's replay listener validates same-window + same-origin.
+  window.postMessage({ source: 'ibd-fb-ready' }, location.origin);
 }
 
 // Relay the MAIN-world HLS/DASH sniffer's findings into the collector's store.

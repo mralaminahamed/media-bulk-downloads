@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Photos</title>
+<style>body{height:3000px}</style></head>
+<body>
+<div role="main">
+  <a href="/page/photos/301/"><img alt="photo 1" src="https://scontent-a.xx.fbcdn.net/v/t39.30808-6/FBG_301_grid_n.jpg?stp=dst-jpg_s417x417&oh=00_GA&oe=6A"></a>
+  <a href="/page/photos/302/"><img alt="photo 2" src="https://scontent-b.xx.fbcdn.net/v/t39.30808-6/FBG_302_grid_n.jpg?stp=dst-jpg_s417x417&oh=00_GB&oe=6B"></a>
+</div>
+<script>
+  // Mimic Facebook streaming its photo graph from /api/graphql as the user
+  // scrolls. Fire once on load (racy against the extension's own content-script
+  // import — may be dropped) and once on first scroll (a safe retry the test
+  // drives once the launcher proves the sniffer's relay is listening); the
+  // sniffer catches the text/html NDJSON response either way.
+  function pull() { try { var x = new XMLHttpRequest(); x.open('GET', '/api/graphql/?doc_id=photos'); x.send(); } catch (e) {} }
+  addEventListener('DOMContentLoaded', pull);
+  addEventListener('scroll', function once() { removeEventListener('scroll', once); pull(); }, { passive: true });
+</script>
+</body></html>

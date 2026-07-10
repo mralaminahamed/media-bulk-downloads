@@ -15,10 +15,15 @@ export interface ResponseSnifferOptions {
   emit: (text: string) => void;
   /** Property name used to stash the request URL on each XHR instance. */
   urlKey: string;
+  /** Which response content-types carry the media graph. Default: any that
+   *  includes "json". Facebook serves /api/graphql as `text/html`, so its
+   *  sniffer overrides this to accept everything. */
+  contentTypeOk?: (contentType: string) => boolean;
 }
 
 /** Wrap the page's fetch + XMLHttpRequest to feed JSON API response text to `emit`. */
-export function installResponseSniffer({ isApi, emit, urlKey }: ResponseSnifferOptions): void {
+export function installResponseSniffer({ isApi, emit, urlKey, contentTypeOk }: ResponseSnifferOptions): void {
+  const ctOk = contentTypeOk ?? ((ct: string) => ct.includes('json'));
   const nativeFetch = window.fetch;
   window.fetch = function patchedFetch(this: unknown, ...args: Parameters<typeof fetch>) {
     const res = nativeFetch.apply(this as never, args);
@@ -28,7 +33,7 @@ export function installResponseSniffer({ isApi, emit, urlKey }: ResponseSnifferO
       if (isApi(url)) {
         res
           .then((r) => {
-            if ((r.headers.get('content-type') || '').includes('json')) r.clone().text().then(emit).catch(() => {});
+            if (ctOk(r.headers.get('content-type') || '')) r.clone().text().then(emit).catch(() => {});
           })
           .catch(() => {});
       }
@@ -58,7 +63,7 @@ export function installResponseSniffer({ isApi, emit, urlKey }: ResponseSnifferO
         try {
           const url = String((this as unknown as Record<string, unknown>)[urlKey] || '');
           const ct = this.getResponseHeader('content-type') || '';
-          if (isApi(url) && ct.includes('json') && typeof this.responseText === 'string') emit(this.responseText);
+          if (isApi(url) && ctOk(ct) && typeof this.responseText === 'string') emit(this.responseText);
         } catch {
           /* ignore */
         }
@@ -142,6 +147,29 @@ export interface EmitOptions<T> {
   extract: (json: unknown) => T[];
   /** Wrap the items in the postMessage envelope the content-script relay expects. */
   envelope: (items: T[]) => object;
+  /** When true, parse the body as NDJSON — one JSON value per line, behind an
+   *  optional `for (;;);` XSSI prefix — and extract from every chunk. Facebook
+   *  streams /api/graphql this way. Default false: a single JSON.parse, which is
+   *  what Instagram/X single-object responses need (unchanged). */
+  ndjson?: boolean;
+}
+
+/** Parse an NDJSON body into successfully-parsed JSON values, skipping the
+ *  optional leading `for (;;);` XSSI guard and any blank/partial chunk. Valid
+ *  JSON never contains a raw newline outside a string, so splitting on "\n" is
+ *  safe between top-level values. */
+function parseNdjson(text: string): unknown[] {
+  const out: unknown[] = [];
+  for (const line of text.replace(/^for\s*\(;;\);/, '').split('\n')) {
+    const chunk = line.trim();
+    if (!chunk) continue;
+    try {
+      out.push(JSON.parse(chunk));
+    } catch {
+      /* partial / non-JSON line — skip, keep the siblings */
+    }
+  }
+  return out;
 }
 
 /**
@@ -149,11 +177,11 @@ export interface EmitOptions<T> {
  * postMessages the envelope to the isolated content script (same-origin only).
  * Non-JSON or unexpected shapes are ignored.
  */
-export function makeSnifferEmit<T>({ guard, extract, envelope }: EmitOptions<T>): (text: string) => void {
+export function makeSnifferEmit<T>({ guard, extract, envelope, ndjson }: EmitOptions<T>): (text: string) => void {
   return (text: string): void => {
     if (!text || !guard(text)) return;
     try {
-      const items = extract(JSON.parse(text));
+      const items = ndjson ? parseNdjson(text).flatMap((json) => extract(json)) : extract(JSON.parse(text));
       if (items.length) window.postMessage(envelope(items), location.origin);
     } catch {
       /* not JSON / not ours — ignore, never disturb the page */

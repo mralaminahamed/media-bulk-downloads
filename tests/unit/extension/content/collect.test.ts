@@ -11,6 +11,7 @@ vi.mock('@/extension/shared/resolvers/sniffers/hls-sniff', async () => {
 
 import { collectMedia, backgroundImageUrls } from '@/extension/content/collect';
 import { ingestSniffedHls, resetSniffedHls, sniffedHlsManifests } from '@/extension/shared/resolvers/sniffers/hls-sniff';
+import { HOST_ID } from '@/extension/bubble/mount';
 
 const setBody = (html: string) => {
   document.body.innerHTML = html;
@@ -578,6 +579,24 @@ describe('collectMedia — shadow DOM', () => {
     sr.innerHTML = '<slot></slot>';
     const slotted = collectMedia().filter((i) => i.src === 'https://cdn.com/slotted.jpg');
     expect(slotted).toHaveLength(1);
+  });
+
+  it('excludes media inside the extension\'s own bubble-host shadow root', () => {
+    setBody(`<div id="${HOST_ID}"></div><div id="other-host"></div>`);
+    const bubbleHost = document.getElementById(HOST_ID)!;
+    const bubbleShadow = bubbleHost.attachShadow({ mode: 'open' });
+    bubbleShadow.innerHTML = '<img src="https://cdn.com/bubble-image.jpg">';
+
+    const otherHost = document.getElementById('other-host')!;
+    const otherShadow = otherHost.attachShadow({ mode: 'open' });
+    otherShadow.innerHTML = '<img src="https://cdn.com/other-shadow.jpg">';
+
+    const media = collectMedia();
+    const srcs = media.map((i) => i.src);
+    // Bubble-host media is NOT collected (extension's own UI must not be scanned)
+    expect(srcs).not.toContain('https://cdn.com/bubble-image.jpg');
+    // But other shadow roots ARE still scanned
+    expect(srcs).toContain('https://cdn.com/other-shadow.jpg');
   });
 });
 

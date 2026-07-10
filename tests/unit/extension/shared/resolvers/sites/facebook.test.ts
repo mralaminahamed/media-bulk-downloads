@@ -57,7 +57,7 @@ describe('ingestSniffedFbMedia + facebookResolver.resolve', () => {
   it('stores a valid image and the resolver returns it for its fbid (fbid from enclosing anchor)', () => {
     ingestSniffedFbMedia([{ fbid: '100', kind: 'image', url: `${CDN}/orig_n.jpg`, ext: 'jpg', width: 2048, height: 1536 }]);
     const out = facebookResolver.resolve(u(`${CDN}/thumb_n.jpg`), ctxWithLink('/photo/?fbid=100'));
-    expect(out).toEqual([{ url: `${CDN}/orig_n.jpg`, kind: 'image', ext: 'jpg', width: 2048, height: 1536 }]);
+    expect(out).toEqual([{ url: `${CDN}/orig_n.jpg`, kind: 'image', ext: 'jpg', width: 2048, height: 1536, mediaKey: 'fb:100' }]);
   });
 
   it('resolves via ctx.pageUrl when there is no enclosing photo/video link', () => {
@@ -66,13 +66,28 @@ describe('ingestSniffedFbMedia + facebookResolver.resolve', () => {
       allowNetwork: false,
       pageUrl: 'https://www.facebook.com/photo/?fbid=150',
     });
-    expect(out).toEqual([{ url: `${CDN}/pageonly_n.jpg`, kind: 'image', ext: 'jpg', width: 1024, height: 768 }]);
+    expect(out).toEqual([{ url: `${CDN}/pageonly_n.jpg`, kind: 'image', ext: 'jpg', width: 1024, height: 768, mediaKey: 'fb:150' }]);
   });
 
   it('returns a video candidate with kind:video and the HD mp4 url', () => {
     ingestSniffedFbMedia([{ fbid: '200', kind: 'video', url: `${CDN}/hd_720.mp4`, ext: 'mp4', width: 1280, height: 720, poster: `${CDN}/hd_poster.jpg` }]);
     const out = facebookResolver.resolve(u(`${CDN}/hd_poster.jpg`), ctxWithLink('/videos/200'));
-    expect(out).toEqual([{ url: `${CDN}/hd_720.mp4`, kind: 'video', ext: 'mp4', width: 1280, height: 720, poster: `${CDN}/hd_poster.jpg` }]);
+    expect(out).toEqual([{ url: `${CDN}/hd_720.mp4`, kind: 'video', ext: 'mp4', width: 1280, height: 720, poster: `${CDN}/hd_poster.jpg`, mediaKey: 'fb:200' }]);
+  });
+
+  it('keys a photo tile whose anchor uses the /<page>/photos/<id>/ path form', () => {
+    document.body.innerHTML = '<a href="/natgeo/photos/777/"><img src="https://x.fbcdn.net/v/grid_777_n.jpg"></a>';
+    ingestSniffedFbMedia([
+      { fbid: '777', kind: 'image', url: 'https://x.fbcdn.net/v/orig_777_n.jpg', width: 2048, height: 1536 },
+    ]);
+    const img = document.querySelector('img') as Element;
+    const out = facebookResolver.resolve(new URL('https://x.fbcdn.net/v/grid_777_n.jpg'), {
+      allowNetwork: false,
+      pageUrl: 'https://www.facebook.com/natgeo/photos',
+      el: img,
+    } as unknown as Parameters<typeof facebookResolver.resolve>[1]);
+    expect(out).toHaveLength(1);
+    expect(out[0].url).toContain('orig_777_n.jpg');
   });
 
   it('rejects forged entries (bad host, bad fbid) and never lets a bad ext through: falls back to the kind default', () => {
@@ -81,7 +96,11 @@ describe('ingestSniffedFbMedia + facebookResolver.resolve', () => {
       { fbid: 'abc', kind: 'image', url: `${CDN}/x_n.jpg`, ext: 'jpg', width: 9, height: 9 }, // bad fbid -> dropped
       { fbid: '102', kind: 'image', url: `${CDN}/x_n.exe`, ext: 'exe', width: 9, height: 9 }, // survives; ext falls back
     ]);
-    expect(facebookResolver.resolve(u(`${CDN}/a.jpg`), ctxWithLink('/photo/?fbid=101'))).toHaveLength(0);
+    // fbid 101's forged entry was dropped, so no ORIGINAL exists — the resolver
+    // still surfaces the on-page thumbnail, tagged with the photo identity so a
+    // later original can upgrade-replace it.
+    const passthrough = facebookResolver.resolve(u(`${CDN}/a.jpg`), ctxWithLink('/photo/?fbid=101'));
+    expect(passthrough).toEqual([{ url: `${CDN}/a.jpg`, kind: 'image', mediaKey: 'fb:101' }]);
     const [c] = facebookResolver.resolve(u(`${CDN}/a.jpg`), ctxWithLink('/photo/?fbid=102'));
     // Carried assertion (b): assert the actual ext VALUE, not just "not exe".
     expect(c.ext).toBe('jpg');
@@ -99,9 +118,15 @@ describe('ingestSniffedFbMedia + facebookResolver.resolve', () => {
     expect(out).toEqual([]);
   });
 
-  it('returns [] when the fbid is known but nothing has been ingested for it', () => {
+  it('returns a tagged thumbnail passthrough when the fbid is known but nothing is ingested yet', () => {
     const out = facebookResolver.resolve(u(`${CDN}/x_n.jpg`), ctxWithLink('/photo/?fbid=999'));
-    expect(out).toEqual([]);
+    expect(out).toEqual([{ url: `${CDN}/x_n.jpg`, kind: 'image', mediaKey: 'fb:999' }]);
+  });
+
+  it('once an original is ingested, resolve returns it (not the thumbnail passthrough), tagged', () => {
+    ingestSniffedFbMedia([{ fbid: '778', kind: 'image', url: `${CDN}/orig_778_n.jpg`, ext: 'jpg', width: 2048, height: 1536 }]);
+    const out = facebookResolver.resolve(u(`${CDN}/grid_778_n.jpg`), ctxWithLink('/photo/?fbid=778'));
+    expect(out).toEqual([{ url: `${CDN}/orig_778_n.jpg`, kind: 'image', ext: 'jpg', width: 2048, height: 1536, mediaKey: 'fb:778' }]);
   });
 });
 
@@ -152,7 +177,7 @@ describe('facebookPageMedia', () => {
   it('returns the video for fbid 200 from a /watch/?v= page URL', () => {
     ingestSniffedFbMedia([{ fbid: '200', kind: 'video', url: `${CDN}/watch_hd.mp4`, ext: 'mp4', width: 1920, height: 1080, poster: `${CDN}/watch_poster.jpg` }]);
     const out = facebookPageMedia('https://www.facebook.com/watch/?v=200');
-    expect(out).toEqual([{ url: `${CDN}/watch_hd.mp4`, kind: 'video', ext: 'mp4', width: 1920, height: 1080, poster: `${CDN}/watch_poster.jpg` }]);
+    expect(out).toEqual([{ url: `${CDN}/watch_hd.mp4`, kind: 'video', ext: 'mp4', width: 1920, height: 1080, poster: `${CDN}/watch_poster.jpg`, mediaKey: 'fb:200' }]);
   });
 
   it('returns [] when the URL carries no recoverable fbid', () => {
@@ -215,7 +240,7 @@ describe('parseHydration — embedded script[type="application/json"] parse', ()
       preferred_thumbnail: { image: { uri: `${CDN}/hydrated_poster.jpg` } },
     });
     const out = facebookPageMedia('https://www.facebook.com/watch/?v=700');
-    expect(out).toEqual([{ url: `${CDN}/hydrated_hd.mp4`, kind: 'video', ext: 'mp4', poster: `${CDN}/hydrated_poster.jpg` }]);
+    expect(out).toEqual([{ url: `${CDN}/hydrated_hd.mp4`, kind: 'video', ext: 'mp4', poster: `${CDN}/hydrated_poster.jpg`, mediaKey: 'fb:700' }]);
   });
 
   it('skips script blocks with no fbcdn/playable_url token and invalid-JSON blocks without throwing', () => {
@@ -226,7 +251,7 @@ describe('parseHydration — embedded script[type="application/json"] parse', ()
     document.body.appendChild(bad); // JSON.parse throws -> swallowed
     hydrate({ id: '701', playable_url_quality_hd: `${CDN}/ok_hd.mp4` }); // the good one still resolves
     expect(facebookPageMedia('https://www.facebook.com/watch/?v=701')).toEqual([
-      { url: `${CDN}/ok_hd.mp4`, kind: 'video', ext: 'mp4' },
+      { url: `${CDN}/ok_hd.mp4`, kind: 'video', ext: 'mp4', mediaKey: 'fb:701' },
     ]);
   });
 

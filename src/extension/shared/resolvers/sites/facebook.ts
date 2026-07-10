@@ -165,7 +165,7 @@ const onFacebook = (): boolean => {
 };
 
 function fbidFromContext(ctx: ResolveContext): string | null {
-  const link = ctx.el?.closest?.('a[href*="fbid="], a[href*="/photo/"], a[href*="/videos/"], a[href*="/watch/"], a[href*="/reel/"]');
+  const link = ctx.el?.closest?.('a[href*="fbid="], a[href*="/photo/"], a[href*="/photos/"], a[href*="/videos/"], a[href*="/watch/"], a[href*="/reel/"]');
   const fromLink = fbidFromUrl(link?.getAttribute('href'));
   if (fromLink) return fromLink;
   return fbidFromUrl(ctx.pageUrl);
@@ -174,11 +174,16 @@ function fbidFromContext(ctx: ResolveContext): string | null {
 export const facebookResolver: Resolver = {
   id: 'facebook',
   match: (u) => onFacebook() && FB_CDN.test(u.hostname),
-  resolve: (_u, ctx): MediaCandidate[] => {
+  resolve: (u, ctx): MediaCandidate[] => {
     const fbid = fbidFromContext(ctx);
     if (!fbid) return [];
+    const key = `fb:${fbid}`;
     const entries = buildByFbid().get(fbid);
-    return entries && entries.length ? collapseFbidGroup(entries).map(toCandidate) : [];
+    if (entries && entries.length) return collapseFbidGroup(entries).map((e) => ({ ...toCandidate(e), mediaKey: key }));
+    // No original sniffed yet: surface the tile's own src (as the generic fallback
+    // would) but TAGGED with the photo identity, so when the original later lands
+    // the deep-scan merge upgrade-replaces this row instead of adding a duplicate.
+    return [{ url: u.href, kind: 'image', mediaKey: key }];
   },
 };
 
@@ -186,6 +191,7 @@ export const facebookResolver: Resolver = {
 export function facebookPageMedia(pageUrl?: string): MediaCandidate[] {
   const fbid = fbidFromUrl(pageUrl);
   if (!fbid) return [];
+  const key = `fb:${fbid}`;
   const entries = buildByFbid().get(fbid);
-  return entries ? collapseFbidGroup(entries).map(toCandidate) : [];
+  return entries ? collapseFbidGroup(entries).map((e) => ({ ...toCandidate(e), mediaKey: key })) : [];
 }
