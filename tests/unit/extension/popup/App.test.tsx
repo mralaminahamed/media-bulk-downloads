@@ -1104,6 +1104,56 @@ describe('App Component', () => {
     expect(await screen.findByLabelText('Downloaded')).toBeInTheDocument();
   });
 
+  it('re-derives the filtered grid live when a download completes while the Downloaded filter is active', async () => {
+    // Unlike the badge test above, the Downloaded filter is switched on FIRST (via
+    // the toolbar → handleFilterChange), and only THEN does a download land and
+    // history change. The user never re-touches the filter afterwards, so the only
+    // thing that can reveal photo-a is the live re-filter effect (App.tsx ~86-93)
+    // re-applying applyToolbarFilters off the updated downloadedSrcs set.
+    let disk: string[] = [];
+    (chrome.runtime.sendMessage as Mock).mockImplementation((msg, cb) => {
+      if (msg?.type === 'GET_DOWNLOADED_SRCS' && cb) cb(disk);
+    });
+    const addListener = chrome.storage.onChanged.addListener as Mock;
+    const before = addListener.mock.calls.length;
+
+    render(
+      <App
+        collect={async () => [
+          image({ src: 'https://c/a.jpg', alt: 'photo-a' }),
+          image({ src: 'https://c/b.jpg', alt: 'photo-b' }),
+        ]}
+      />,
+    );
+    await screen.findByText('Filters');
+
+    // Turn the Downloaded filter on via the toolbar (the handleFilterChange path).
+    // Exact match — "More download options" (DownloadButton) also matches /More/i.
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Downloaded' }), { target: { value: 'downloaded' } });
+
+    // Nothing is on disk yet, so the active filter hides both items.
+    expect(screen.queryByAltText('photo-a')).toBeNull();
+    expect(screen.queryByAltText('photo-b')).toBeNull();
+
+    // The download lands: history changes while the Downloaded filter is STILL
+    // active and untouched. Fire on every listener registered this mount (the
+    // download-queue panel also subscribes; it ignores non-queue changes) so this
+    // stays robust to listener registration order.
+    disk = ['https://c/a.jpg'];
+    const fireAll = (change: Record<string, unknown>) =>
+      addListener.mock.calls.slice(before).forEach(([fn]) => fn(change, 'local'));
+    await act(async () => {
+      fireAll({ [HISTORY_KEY]: { newValue: [] } });
+      await Promise.resolve();
+    });
+
+    // Only the now-downloaded item reappears — the still-not-downloaded one stays
+    // hidden — proving the grid was re-derived from downloadedSrcs, not just a badge.
+    expect(await screen.findByAltText('photo-a')).toBeInTheDocument();
+    expect(screen.queryByAltText('photo-b')).toBeNull();
+  });
+
   it('reflects a favourite added elsewhere via a storage change (badge appears)', async () => {
     const addListener = chrome.storage.onChanged.addListener as Mock;
     const before = addListener.mock.calls.length;
