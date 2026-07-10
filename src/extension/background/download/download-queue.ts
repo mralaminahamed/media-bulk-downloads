@@ -1,6 +1,6 @@
 import {
   loadQueue, saveQueue, enqueue, claimNext, markActive, markDone, markFailed,
-  scheduleRetry, cancel, retryFailed, type EnqueueEntry, type QueueState,
+  scheduleRetry, cancel, retryFailed, setProgress, type EnqueueEntry, type QueueState,
 } from '@/extension/shared/storage/download-queue';
 import { recordDownloads } from '@/extension/shared/storage/history';
 import { applyRefererRule, removeRefererRule, hasDnrPermission } from './hotlink-rewrite';
@@ -19,7 +19,7 @@ function withState<T>(fn: (s: QueueState) => Promise<{ state: QueueState; value:
   const run = chain.then(async () => {
     const s = await loadQueue();
     const { state, value } = await fn(s);
-    await saveQueue(state);
+    if (state !== s) await saveQueue(state);
     return value;
   });
   // Keep the chain alive regardless of individual outcomes.
@@ -88,6 +88,7 @@ export async function pump(): Promise<void> {
       scheduleNudge();
     } else {
       await withState(async (s) => ({ state: markActive(s, claimed.id, downloadId), value: null }));
+      ensureProgressPoll();
     }
   }
 }
@@ -160,6 +161,40 @@ function scheduleNudge(): void {
     void pump();
   }, 1100);
 }
+
+const PROGRESS_POLL_MS = 600;
+let progressTimer: ReturnType<typeof setInterval> | null = null;
+
+function stopProgressPoll(): void {
+  if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
+}
+function ensureProgressPoll(): void {
+  if (!progressTimer) progressTimer = setInterval(() => { void pollProgress(); }, PROGRESS_POLL_MS);
+}
+
+// Poll chrome.downloads for each active item's byte progress and persist it via
+// the shared mutex. Self-stops when nothing is active. Exported (test-only names)
+// so the poll can be driven deterministically without a real timer.
+async function pollProgress(): Promise<void> {
+  await withState(async (s) => {
+    const actives = s.items.filter((i) => i.status === 'active' && i.downloadId !== undefined);
+    if (actives.length === 0) { stopProgressPoll(); return { state: s, value: null }; }
+    let next = s;
+    for (const it of actives) {
+      let dl: chrome.downloads.DownloadItem | undefined;
+      try { [dl] = await chrome.downloads.search({ id: it.downloadId }); } catch { dl = undefined; }
+      if (!dl) continue;
+      const total = typeof dl.totalBytes === 'number' && dl.totalBytes > 0 ? dl.totalBytes : undefined;
+      next = setProgress(next, it.downloadId as number, dl.bytesReceived ?? 0, total);
+    }
+    return { state: next, value: null }; // withState skips the write when next === s
+  });
+}
+
+/** @internal test seam */
+export const pollProgressForTest = (): Promise<void> => pollProgress();
+/** @internal test seam */
+export const __setProgressTimerForTest = (v: ReturnType<typeof setInterval> | null): void => { progressTimer = v; };
 
 export async function pauseQueue(): Promise<void> {
   await withState(async (s) => ({ state: { ...s, paused: true }, value: null }));

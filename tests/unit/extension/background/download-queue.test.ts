@@ -5,6 +5,7 @@ vi.mock('@/extension/shared/storage/history', () => ({ recordDownloads }));
 
 import {
   initQueueDispatcher, enqueueDownloads, handleDownloadChanged, getQueueSnapshot, reconcileQueue,
+  pollProgressForTest, __setProgressTimerForTest,
 } from '@/extension/background/download/download-queue';
 import { QUEUE_KEY } from '@/extension/shared/storage/download-queue';
 
@@ -49,6 +50,11 @@ beforeEach(() => {
     runtime: { lastError: undefined },
   } as unknown as typeof chrome;
   initQueueDispatcher({ getConcurrency: () => 2, getSaveAs: () => false });
+  // pump() now starts a real setInterval progress poll once an item goes active;
+  // seed a truthy sentinel so ensureProgressPoll() sees a timer "already running"
+  // and never schedules a real one, keeping this suite free of leaked timers.
+  // (clearInterval on a bogus handle is a safe no-op if pollProgress ever self-stops.)
+  __setProgressTimerForTest(1 as unknown as ReturnType<typeof setInterval>);
 });
 
 // A macrotask runs only after the entire microtask queue drains, so one tick
@@ -206,5 +212,30 @@ describe('reconcile on restart', () => {
     await reconcileQueue();
     const snap = await getQueueSnapshot();
     expect(['queued', 'active']).toContain(snap.items[0].status);
+  });
+});
+
+describe('progress poll', () => {
+  it('writes live bytes for an active item from chrome.downloads.search', async () => {
+    store[QUEUE_KEY] = { paused: false, items: [
+      { id: 'a', url: 'u', filename: 'a', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, downloadId: 7 },
+    ] };
+    (chrome.downloads.search as ReturnType<typeof vi.fn>).mockResolvedValueOnce([{ id: 7, bytesReceived: 400, totalBytes: 800 }]);
+    await pollProgressForTest();
+    const snap = await getQueueSnapshot();
+    expect(snap.items[0]).toMatchObject({ bytesReceived: 400, totalBytes: 800 });
+  });
+
+  it('does not write when nothing changed (no-op skip)', async () => {
+    store[QUEUE_KEY] = { paused: false, items: [
+      {
+        id: 'a', url: 'u', filename: 'a', status: 'active', attempts: 0, readyAt: 0, addedAt: 0,
+        downloadId: 7, bytesReceived: 400, totalBytes: 800,
+      },
+    ] };
+    (chrome.downloads.search as ReturnType<typeof vi.fn>).mockResolvedValueOnce([{ id: 7, bytesReceived: 400, totalBytes: 800 }]);
+    (chrome.storage.local.set as ReturnType<typeof vi.fn>).mockClear();
+    await pollProgressForTest();
+    expect(chrome.storage.local.set).not.toHaveBeenCalled();
   });
 });
