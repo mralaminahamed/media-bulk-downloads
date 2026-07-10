@@ -10,12 +10,13 @@ import { instagramResolver } from './sites/instagram';
 import { magnificResolver } from './sites/magnific';
 import { pinterestResolver } from './sites/pinterest';
 import { redditResolver } from './sites/reddit';
+import { threadsResolver } from './sites/threads';
 import { twitterResolver } from './sites/twitter';
 import { unsplashResolver } from './sites/unsplash';
 import { wallhavenResolver } from './sites/wallhaven';
 import { youtubeResolver } from './sites/youtube';
 
-export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, facebookResolver, unsplashResolver, wallhavenResolver, behanceResolver, bskyResolver, pinterestResolver, redditResolver, flickrResolver, artstationResolver, magnificResolver, arcxpResolver, youtubeResolver, genericResolver];
+export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, facebookResolver, threadsResolver, unsplashResolver, wallhavenResolver, behanceResolver, bskyResolver, pinterestResolver, redditResolver, flickrResolver, artstationResolver, magnificResolver, arcxpResolver, youtubeResolver, genericResolver];
 
 export function resolve(rawUrl: string, ctx: ResolveContext): MediaCandidate[] {
   let u: URL;
