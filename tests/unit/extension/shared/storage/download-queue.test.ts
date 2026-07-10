@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   emptyQueue, enqueue, claimNext, activeCount, markActive, markDone,
   markFailed, scheduleRetry, cancel, retryFailed, clearFinished,
-  backoffMs, MAX_ATTEMPTS,
+  backoffMs, MAX_ATTEMPTS, setProgress, retryAllFailed,
 } from '@/extension/shared/storage/download-queue';
+import type { QueueState } from '@/extension/shared/storage/download-queue';
 
 const T0 = 1_000_000;
 
@@ -120,5 +121,44 @@ describe('download-queue reducer', () => {
     s = markDone(s, s.items[0].id);
     s = markFailed(s, s.items[1].id, 'x');
     expect(clearFinished(s).items).toHaveLength(0);
+  });
+});
+
+describe('setProgress', () => {
+  const base = (): QueueState => ({
+    paused: false,
+    items: [
+      { id: 'a', url: 'u1', filename: 'a.jpg', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, downloadId: 11 },
+      { id: 'b', url: 'u2', filename: 'b.jpg', status: 'queued', attempts: 0, readyAt: 0, addedAt: 0 },
+    ],
+  });
+  it('patches the active item matching the downloadId', () => {
+    const out = setProgress(base(), 11, 500, 1000);
+    expect(out.items[0]).toMatchObject({ id: 'a', bytesReceived: 500, totalBytes: 1000 });
+  });
+  it('returns the SAME state ref when no active item matches (no-op write skip)', () => {
+    const s = base();
+    expect(setProgress(s, 999, 1, 2)).toBe(s);
+  });
+  it('returns the SAME state ref when the bytes did not change', () => {
+    const s = setProgress(base(), 11, 500, 1000);
+    expect(setProgress(s, 11, 500, 1000)).toBe(s);
+  });
+});
+
+describe('retryAllFailed', () => {
+  it('re-queues every failed item and leaves others untouched', () => {
+    const s: QueueState = { paused: false, items: [
+      { id: 'a', url: 'u', filename: 'a', status: 'failed', attempts: 3, error: 'x', hotlink: true, readyAt: 0, addedAt: 0, bytesReceived: 9, totalBytes: 9 },
+      { id: 'b', url: 'u', filename: 'b', status: 'done', attempts: 0, readyAt: 0, addedAt: 0 },
+      { id: 'c', url: 'u', filename: 'c', status: 'failed', attempts: 1, error: 'y', readyAt: 0, addedAt: 0 },
+    ] };
+    const out = retryAllFailed(s, 1000);
+    expect(out.items[0]).toMatchObject({ id: 'a', status: 'queued', attempts: 0, readyAt: 1000 });
+    expect(out.items[0].error).toBeUndefined();
+    expect(out.items[0].hotlink).toBeUndefined();
+    expect(out.items[0].bytesReceived).toBeUndefined();
+    expect(out.items[1].status).toBe('done'); // untouched
+    expect(out.items[2]).toMatchObject({ id: 'c', status: 'queued', attempts: 0 });
   });
 });

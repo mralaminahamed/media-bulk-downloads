@@ -1,6 +1,6 @@
 import {
   loadQueue, saveQueue, enqueue, claimNext, markActive, markDone, markFailed,
-  scheduleRetry, cancel, retryFailed, type EnqueueEntry, type QueueState,
+  scheduleRetry, cancel, retryFailed, setProgress, clearFinished, retryAllFailed, type EnqueueEntry, type QueueState,
 } from '@/extension/shared/storage/download-queue';
 import { recordDownloads } from '@/extension/shared/storage/history';
 import { applyRefererRule, removeRefererRule, hasDnrPermission } from './hotlink-rewrite';
@@ -19,7 +19,7 @@ function withState<T>(fn: (s: QueueState) => Promise<{ state: QueueState; value:
   const run = chain.then(async () => {
     const s = await loadQueue();
     const { state, value } = await fn(s);
-    await saveQueue(state);
+    if (state !== s) await saveQueue(state);
     return value;
   });
   // Keep the chain alive regardless of individual outcomes.
@@ -88,6 +88,7 @@ export async function pump(): Promise<void> {
       scheduleNudge();
     } else {
       await withState(async (s) => ({ state: markActive(s, claimed.id, downloadId), value: null }));
+      ensureProgressPoll();
     }
   }
 }
@@ -130,7 +131,10 @@ export async function handleDownloadChanged(delta: chrome.downloads.DownloadDelt
         // backoff attempt cap (a bare 403 retry never changes; the referer does).
         const items = s.items.map((i) =>
           i.id === cur.id
-            ? { ...i, status: 'queued' as const, readyAt: Date.now(), downloadId: undefined, ruleId: undefined, useReferer: true }
+            ? {
+                ...i, status: 'queued' as const, readyAt: Date.now(), downloadId: undefined, ruleId: undefined, useReferer: true,
+                bytesReceived: undefined, totalBytes: undefined,
+              }
             : i,
         );
         return { state: { ...s, items }, value: null };
@@ -161,6 +165,40 @@ function scheduleNudge(): void {
   }, 1100);
 }
 
+const PROGRESS_POLL_MS = 600;
+let progressTimer: ReturnType<typeof setInterval> | null = null;
+
+function stopProgressPoll(): void {
+  if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
+}
+function ensureProgressPoll(): void {
+  if (!progressTimer) progressTimer = setInterval(() => { void pollProgress(); }, PROGRESS_POLL_MS);
+}
+
+// Poll chrome.downloads for each active item's byte progress and persist it via
+// the shared mutex. Self-stops when nothing is active. Exported (test-only names)
+// so the poll can be driven deterministically without a real timer.
+async function pollProgress(): Promise<void> {
+  await withState(async (s) => {
+    const actives = s.items.filter((i) => i.status === 'active' && i.downloadId !== undefined);
+    if (actives.length === 0) { stopProgressPoll(); return { state: s, value: null }; }
+    let next = s;
+    for (const it of actives) {
+      let dl: chrome.downloads.DownloadItem | undefined;
+      try { [dl] = await chrome.downloads.search({ id: it.downloadId }); } catch { dl = undefined; }
+      if (!dl) continue;
+      const total = typeof dl.totalBytes === 'number' && dl.totalBytes > 0 ? dl.totalBytes : undefined;
+      next = setProgress(next, it.downloadId as number, dl.bytesReceived ?? 0, total);
+    }
+    return { state: next, value: null }; // withState skips the write when next === s
+  });
+}
+
+/** @internal test seam */
+export const pollProgressForTest = (): Promise<void> => pollProgress();
+/** @internal test seam */
+export const __setProgressTimerForTest = (v: ReturnType<typeof setInterval> | null): void => { progressTimer = v; };
+
 export async function pauseQueue(): Promise<void> {
   await withState(async (s) => ({ state: { ...s, paused: true }, value: null }));
 }
@@ -181,6 +219,21 @@ export async function retryQueueItem(id: string, referer = false): Promise<void>
 
 export async function getQueueSnapshot(): Promise<QueueState> {
   return loadQueue();
+}
+
+export async function clearFinishedQueue(): Promise<void> {
+  await withState(async (s) => ({ state: clearFinished(s), value: null }));
+}
+
+export async function retryAllFailedQueue(): Promise<void> {
+  await withState(async (s) => ({ state: retryAllFailed(s, Date.now()), value: null }));
+  void pump();
+}
+
+export async function openQueueItem(id: string): Promise<void> {
+  const s = await loadQueue();
+  const it = s.items.find((i) => i.id === id);
+  if (it && it.status === 'done' && it.downloadId !== undefined) chrome.downloads.open(it.downloadId);
 }
 
 // On service-worker startup, reconcile any items left 'active' when the worker
@@ -209,7 +262,9 @@ export async function reconcileQueue(): Promise<void> {
       if (!cur || cur.status !== 'active') return { state: s, value: null };
       if (completed) return { state: markDone(s, item.id), value: null };
       const items = s.items.map((i) =>
-        i.id === item.id ? { ...i, status: 'queued' as const, downloadId: undefined, readyAt: Date.now() } : i,
+        i.id === item.id
+          ? { ...i, status: 'queued' as const, downloadId: undefined, readyAt: Date.now(), bytesReceived: undefined, totalBytes: undefined }
+          : i,
       );
       return { state: { ...s, items }, value: null };
     });

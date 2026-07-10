@@ -1302,6 +1302,7 @@ describe('QUEUE_* routing → download queue', () => {
       },
       downloads: {
         download: vi.fn(),
+        open: vi.fn(),
         search: vi.fn(async () => []),
         onChanged: { addListener: vi.fn() },
       },
@@ -1336,6 +1337,42 @@ describe('QUEUE_* routing → download queue', () => {
     const item = (store.downloadQueue as { items: { status: string; useReferer?: boolean; hotlink?: boolean }[] }).items[0];
     expect(item.useReferer).toBe(true);
     expect(item.hotlink).toBeUndefined();
+    expect(['queued', 'active']).toContain(item.status);
+  });
+
+  it('QUEUE_CLEAR clears finished (done/failed) items, keeping live ones', async () => {
+    store.downloadQueue = { paused: false, items: [
+      { id: 'a', url: 'u', filename: 'a', status: 'done', attempts: 0, readyAt: 0, addedAt: 0 },
+      { id: 'b', url: 'u', filename: 'b', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, downloadId: 1 },
+    ] };
+    const respond = vi.fn();
+    messageHandler({ type: 'QUEUE_CLEAR' }, {}, respond);
+    await new Promise((r) => setTimeout(r, 0));
+    const s = store.downloadQueue as { items: { id: string }[] };
+    expect(s.items.map((i) => i.id)).toEqual(['b']);
+    expect(respond).toHaveBeenCalledWith({ status: 'success', message: 'Cleared' });
+  });
+
+  it('QUEUE_OPEN opens a done item via chrome.downloads.open', async () => {
+    store.downloadQueue = { paused: false, items: [
+      { id: 'a', url: 'u', filename: 'a', status: 'done', attempts: 0, readyAt: 0, addedAt: 0, downloadId: 42 },
+    ] };
+    const respond = vi.fn();
+    messageHandler({ type: 'QUEUE_OPEN', id: 'a' }, {}, respond);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(chrome.downloads.open).toHaveBeenCalledWith(42);
+    expect(respond).toHaveBeenCalledWith({ status: 'success', message: 'Opened' });
+  });
+
+  it('QUEUE_RETRY id:"all-failed" re-queues all failed items', async () => {
+    store.downloadQueue = { paused: false, items: [
+      { id: 'a', url: 'u', filename: 'a', status: 'failed', attempts: 3, error: 'x', readyAt: 0, addedAt: 0 },
+    ] };
+    messageHandler({ type: 'QUEUE_RETRY', id: 'all-failed' }, {}, vi.fn());
+    await new Promise((r) => setTimeout(r, 0));
+    const item = (store.downloadQueue as { items: { status: string }[] }).items[0];
+    // Same pump()-triggered race as the referer-retry test above: the item may
+    // already have been re-claimed to 'active' by the time we assert.
     expect(['queued', 'active']).toContain(item.status);
   });
 });

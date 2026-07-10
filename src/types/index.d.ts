@@ -359,6 +359,16 @@ export interface QueueRetryMessage {
 }
 export type QueueGetMessage = { type: 'QUEUE_GET' };
 
+/** Clear all finished (done/failed) queue items. Routed through the background
+ *  (single writer for the queue). */
+export type QueueClearMessage = { type: 'QUEUE_CLEAR' };
+
+/** Open a done queue item's downloaded file (chrome.downloads.open). */
+export interface QueueOpenMessage {
+  type: 'QUEUE_OPEN';
+  id: string;
+}
+
 export type ChromeMessage =
   | DownloadMessage
   | SetSettingsMessage
@@ -367,6 +377,8 @@ export type ChromeMessage =
   | QueueCancelMessage
   | QueueRetryMessage
   | QueueGetMessage
+  | QueueClearMessage
+  | QueueOpenMessage
   | DownloadZipMessage
   | DownloadTextMessage
   | DownloadBytesMessage
