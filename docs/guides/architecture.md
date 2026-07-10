@@ -42,7 +42,7 @@ flowchart TB
   DL -- chrome.downloads.download --> DISK[("Downloads")]
   DL -- recordDownloads() --> HIST
   HIST -- chrome.storage.local --> STORE[("history + favourites")]
-  RES -- "fetch() — opt-in" --> EXT[("Twitter / Wallhaven / Unsplash APIs")]
+  RES -- "fetch() — opt-in" --> EXT[("Twitter / Wallhaven / Unsplash / Vimeo /<br/>Bluesky / Pinterest / Reddit / Flickr / ArtStation APIs")]
 
   classDef sw fill:#e8ecff,stroke:#4f46e5,color:#111;
   classDef pop fill:#fff5e6,stroke:#d98a00,color:#111;
@@ -77,8 +77,8 @@ readability.
 | `shared/collection/paths.ts`                                  | Download-path token expansion (`{host}`/`{domain}`/`{date}`/`{kind}`) + path sanitizing                                                      |
 | `shared/storage/history.ts`                                | `HistoryEntry[]` persistence in `chrome.storage.local` — merge/dedup/cap, serialized writes                                                  |
 | `shared/storage/favourites.ts`                             | `FavouriteEntry[]` persistence in `chrome.storage.local` — same merge/dedup/cap shape                                                        |
-| `shared/resolvers/index.ts`                        | Resolver `REGISTRY` (`twitterResolver, instagramResolver, unsplashResolver, wallhavenResolver, behanceResolver, magnificResolver, youtubeResolver, genericResolver`) + `resolve()` dispatch |
-| `shared/resolvers/sites/{twitter,instagram,unsplash,wallhaven,behance,magnific,youtube,vimeo}.ts` | Per-host, synchronous, network-free URL upgrades; attach `resolveHint`/`unresolvedVideo` when a better original needs a network fetch |
+| `shared/resolvers/index.ts`                        | Resolver `REGISTRY` (`twitterResolver, instagramResolver, facebookResolver, unsplashResolver, wallhavenResolver, behanceResolver, bskyResolver, pinterestResolver, redditResolver, flickrResolver, artstationResolver, magnificResolver, arcxpResolver, youtubeResolver, genericResolver` — 14 dedicated + the generic fallback) + `resolve()` dispatch |
+| `shared/resolvers/sites/*.ts` (15 files: `twitter, instagram, facebook, unsplash, wallhaven, behance, bsky, pinterest, reddit, flickr, artstation, magnific, arcxp, youtube, generic`; plus `vimeo.ts`, id-extraction only — no `REGISTRY` entry, used by the network tier) | Per-host, synchronous, network-free URL upgrades; attach `resolveHint`/`unresolvedVideo` when a better original needs a network fetch |
 | `shared/resolvers/sites/generic.ts`                | Fallback resolver: today's de-proxy + CDN-rule engine, image-only                                                                            |
 | `shared/resolvers/sniffers/{response,hls,ig-media,x-media}-sniff*.ts` | Passive MAIN-world response/URL sniffers (HLS/DASH manifests, X/Instagram media JSON) + their in-content stores                    |
 | `shared/resolvers/network.ts`                      | The opt-in resolver: actual `fetch()` calls (Twitter syndication API, Wallhaven API, Unsplash download endpoint)                             |
@@ -91,23 +91,49 @@ readability.
 
 ## Message catalog
 
-| Message                | From → To                                     | Shape                                           | Response                                                                    |
-|------------------------|-----------------------------------------------|-------------------------------------------------|-----------------------------------------------------------------------------|
-| `GET_IMAGES`           | popup / background → content                  | string                                          | `MediaItem[]`                                                               |
-| `DOWNLOAD_IMAGES`      | popup / bubble → background                   | `{ type, images, sourcePage? }`                 | `{ status, message }`                                                       |
-| `DEEP_SCAN`            | popup → content                               | string                                          | `MediaItem[]` (async, channel held open)                                    |
-| `DEEP_SCAN_ABORT`      | popup → content                               | string                                          | `true`                                                                      |
-| `DEEP_SCAN_PROGRESS`   | content → runtime (popup listens)             | `{ type, found, scrolls, elapsedMs, reason? }`  | — (`reason: DeepScanStopReason` set on the final event)                     |
-| `TOGGLE_BUBBLE`        | background (icon click) → content             | string                                          | —                                                                           |
-| `RESOLVE_ORIGINALS`    | popup / bubble → background                   | `{ type, hints: { src, hint: ResolveHint }[] }` | `{ resolved: Record<string, string> }` (src → resolved URL, successes only) |
-| `OPEN_DOWNLOAD_FILE`   | popup / bubble (HistoryPanel) → background    | `{ type, downloadId }`                          | — (fire-and-forget; `chrome.downloads.open`)                                |
-| `SHOW_DOWNLOAD`        | popup / bubble (HistoryPanel) → background    | `{ type, downloadId }`                          | — (fire-and-forget; `chrome.downloads.show`)                                |
-| `OPEN_URL`             | popup / bubble → background                   | `{ type, url }`                                 | — (opens `url` in a new tab; only `http(s)://` is honored)                  |
-| `CLEAR_HISTORY`        | popup / bubble (HistoryPanel) → background    | `{ type }`                                      | —                                                                           |
-| `REMOVE_HISTORY_ENTRY` | popup / bubble (HistoryPanel) → background    | `{ type, src }`                                 | —                                                                           |
-| `ADD_FAVOURITE`        | popup / bubble → background                   | `{ type, entry: FavouriteEntry }`               | —                                                                           |
-| `REMOVE_FAVOURITE`     | popup / bubble → background                   | `{ type, src }`                                 | —                                                                           |
-| `CLEAR_FAVOURITES`     | popup / bubble (FavouritesPanel) → background | `{ type }`                                      | —                                                                           |
+| Message                 | From → To                                      | Shape                                            | Response                                                                    |
+|-------------------------|-------------------------------------------------|---------------------------------------------------|------------------------------------------------------------------------------|
+| **Collection & bubble** |                                                 |                                                   |                                                                              |
+| `GET_IMAGES`            | popup / background → content                   | string                                            | `MediaItem[]`                                                               |
+| `TOGGLE_BUBBLE`         | background (icon click) → content               | string                                            | —                                                                           |
+| `DEEP_SCAN`             | popup → content                                 | string                                            | `MediaItem[]` (async, channel held open)                                   |
+| `DEEP_SCAN_ABORT`       | popup → content                                 | string                                            | `true`                                                                      |
+| `DEEP_SCAN_PROGRESS`    | content → runtime (popup listens)               | `{ type, found, scrolls, elapsedMs, reason? }`     | — (`reason: DeepScanStopReason` set on the final event)                     |
+| **Resolve Originals & capture** |                                          |                                                   |                                                                              |
+| `RESOLVE_ORIGINALS`     | popup / bubble → background                     | `{ type, hints: { src, hint: ResolveHint }[] }`    | `{ resolved: Record<string, string> }` (src → resolved URL, successes only) |
+| `X_MEDIA_SEEN`          | content (MAIN-world sniffer relay) → background | `{ type, pairs: [mediaId, ResolvedMedia][] }`      | — (background re-pins + stores each pair)                                   |
+| `CAPTURE_STREAM`        | popup / bubble → background                     | `{ type, runId, item: ImageInfo, sourcePage }`     | `{ status, message }` (async; background owns the offscreen doc + download) |
+| `CAPTURE_RUN`           | background → offscreen document                 | `{ type, runId, manifestUrl, engine: 'hls'\|'dash', quality, maxBytes }` | — (not part of the `ChromeMessage` union; internal to the capture pipeline) |
+| `CAPTURE_PROGRESS`      | offscreen → all contexts (popup listens)        | `{ type, runId, done, total }`                     | —                                                                           |
+| **Downloads**           |                                                 |                                                   |                                                                              |
+| `DOWNLOAD_IMAGES`       | popup / bubble → background                     | `{ type, images, sourcePage? }`                    | `{ status, message }`                                                       |
+| `DOWNLOAD_ZIP`          | popup / bubble → background                     | `{ type, b64, filename }`                          | `{ status, message }`                                                       |
+| `DOWNLOAD_TEXT`         | popup / bubble → background                     | `{ type, filename, text, mime }`                   | — (fire-and-forget)                                                         |
+| `DOWNLOAD_BYTES`        | popup / bubble → background                     | `{ type, filename, b64, mime, source? }`           | — (fire-and-forget; records history when `source` is present)              |
+| `OPEN_DOWNLOAD_FILE`    | popup / bubble (HistoryPanel) → background      | `{ type, downloadId }`                             | — (fire-and-forget; `chrome.downloads.open`)                                |
+| `SHOW_DOWNLOAD`         | popup / bubble (HistoryPanel) → background      | `{ type, downloadId }`                             | — (fire-and-forget; `chrome.downloads.show`)                                |
+| `GET_DOWNLOADED_SRCS`   | popup / bubble → background                     | `{ type }`                                         | `string[]` (srcs still present on disk)                                    |
+| `OPEN_URL`              | popup / bubble → background                     | `{ type, url }`                                    | — (opens `url` in a new tab; only `http(s)://` is honored)                  |
+| **Queue ops**           |                                                 |                                                   |                                                                              |
+| `QUEUE_PAUSE`           | popup → background                              | `{ type }`                                         | `{ status, message }`                                                       |
+| `QUEUE_RESUME`          | popup → background                              | `{ type }`                                         | `{ status, message }`                                                       |
+| `QUEUE_CANCEL`          | popup → background                              | `{ type, id? }`                                    | `{ status, message }` (omit `id` to cancel all still-live items)           |
+| `QUEUE_RETRY`           | popup → background                              | `{ type, id, referer? }`                           | `{ status, message }`                                                       |
+| `QUEUE_GET`             | popup → background                              | `{ type }`                                         | a queue snapshot (items + status)                                           |
+| **History**             |                                                 |                                                   |                                                                              |
+| `CLEAR_HISTORY`         | popup / bubble (HistoryPanel) → background      | `{ type }`                                         | —                                                                           |
+| `REMOVE_HISTORY_ENTRY`  | popup / bubble (HistoryPanel) → background      | `{ type, src }`                                    | —                                                                           |
+| **Favourites**          |                                                 |                                                   |                                                                              |
+| `ADD_FAVOURITE`         | popup / bubble → background                     | `{ type, entry: FavouriteEntry }`                  | —                                                                           |
+| `REMOVE_FAVOURITE`      | popup / bubble → background                     | `{ type, src }`                                    | —                                                                           |
+| `CLEAR_FAVOURITES`      | popup / bubble (FavouritesPanel) → background   | `{ type }`                                         | —                                                                           |
+| **Excluded**            |                                                 |                                                   |                                                                              |
+| `ADD_EXCLUDED`          | popup / bubble → background                     | `{ type, entry: ExcludedEntry }`                   | —                                                                           |
+| `REMOVE_EXCLUDED`       | popup / bubble → background                     | `{ type, kind, value }`                            | —                                                                           |
+| `CLEAR_EXCLUDED`        | popup / bubble → background                     | `{ type }`                                         | —                                                                           |
+| **Settings & backup**   |                                                 |                                                   |                                                                              |
+| `SET_SETTINGS`          | popup / bubble → background                     | `{ type, patch: Partial<SettingsData> }`           | — (single serialized writer)                                                |
+| `RESTORE_DATA`          | popup → background                              | `{ type, favourites, history, excluded }`          | — (replaces all three from an imported backup)                             |
 
 All history/favourite mutations and the file/URL-opening messages are routed
 through the background service worker even though they originate in the
@@ -155,9 +181,12 @@ from the page: `HistoryEntry` (one per completed download) and `FavouriteEntry`
 - Deep scan only scrolls; it makes no requests itself.
 - The **opt-in** `resolveOriginals` setting (off by default) is the one path
   that contacts external hosts: when enabled, the background can `fetch()` a
-  small, pinned set of host APIs — Twitter's syndication endpoint, the
-  Wallhaven API, and Unsplash's download endpoint — to upgrade a hinted item to
-  its true original. See [Resolve Originals](./resolve-originals.md) for exactly
+  small, pinned set of host APIs across the 9 supported platforms — Twitter's
+  syndication endpoint, the Wallhaven API, Unsplash's download endpoint,
+  Vimeo's player config, the Bluesky/atproto PDS, the Pinterest pin-widget
+  endpoint, Reddit's deterministic HLS master, and Flickr's / ArtStation's
+  public pages — to upgrade a hinted item to its true original. See
+  [Resolve Originals](./resolve-originals.md) for exactly
   what is sent and to whom.
 
 Workflow detail: [Getting Started](./getting-started.md) ·

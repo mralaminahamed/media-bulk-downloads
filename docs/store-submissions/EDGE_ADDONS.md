@@ -306,7 +306,7 @@ HOW TO TEST
 CONDITIONAL / NON-OBVIOUS FEATURES
 - On-page bubble: a draggable panel with the same tools, without opening the popup. Enable it in Settings ("Show on-page bubble").
 - Deep scan: an optional, bounded auto-scroll (button in the popup) that surfaces media on infinite-scroll / virtualized pages.
-- Resolve exact originals: OFF by default (Settings). When on, it fetches the highest-resolution file for a few supported hosts (Twitter, Wallhaven, Unsplash) directly from that media's own CDN. This is the only feature that contacts a host other than the current page.
+- Resolve exact originals: OFF by default (Settings). When on, it fetches the highest-resolution file for several supported media hosts (e.g. Twitter, Wallhaven, Unsplash, Vimeo, Reddit, Bluesky, Pinterest, Flickr, ArtStation) directly from that media's own CDN. This is the only feature that contacts a host other than the current page.
 - Download history: re-download, open file, or reveal in folder.
 
 PERMISSIONS

@@ -7,6 +7,26 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Facebook original-image accuracy + multi-surface support**: the Facebook
+  resolver and its passive MAIN-world sniffer (`fb-media-sniffer`) now cover
+  Photos, Reels, and the Page surface with **77–90% original-image accuracy**
+  (up from ~5%). Facebook streams its media graph from `/api/graphql` over XHR
+  as **`text/html`-content-type, multi-chunk NDJSON** — the shared sniffer
+  previously dropped all of it at its json-only content-type and single-parse
+  gates. Both gates are now configurable (Facebook opts in; Instagram/X sniffing
+  is unchanged), the extractor learned the reel `progressive_url` video key and
+  the `/photo(s)/<id>` fbid path, and every candidate is tagged with a
+  `mediaKey` so an already-rendered tile upgrades in place once the real
+  original streams in, instead of adding a duplicate row. See
+  [BENCHMARK.md §G](./docs/BENCHMARK.md#g-facebook-original-image-accuracy-passive-sniff--2026-07-10)
+  for the full measurement. Passive, read-only; no new permissions.
+- **Fixed: "Notify when downloads finish" setting not persisting** (#255):
+  toggling the notification setting on requests the optional `notifications`
+  permission, and Chrome closes the action popup while that permission prompt
+  has focus — which used to drop the unsaved toggle along with the popup, since
+  it was only written on the Settings panel's Save button. The toggle is now
+  persisted immediately (a direct `SET_SETTINGS` write) the moment it's
+  flipped, so enabling it survives the popup closing for the permission prompt.
 - **Persistent download queue** (#196): bulk downloads now run through a
   concurrency-capped queue that tracks each file's real outcome
   (queued / downloading / done / failed), retries transient failures with

@@ -76,8 +76,9 @@ Persisted with `chrome.storage.sync`:
   (original name vs. sequential prefix), "Ask where to save each file".
 - **Collection** — minimum image size, exclude base64, and **"Resolve exact
   originals"** (off by default) — an opt-in toggle that lets the background
-  fetch a few supported hosts (Twitter/X, Wallhaven, Unsplash) for the exact
-  original file. See [Resolve Originals](./resolve-originals.md).
+  fetch a hinted item's exact original from one of 9 supported hosts
+  (Twitter/X, Wallhaven, Unsplash, Vimeo, Bluesky, Pinterest, Reddit, Flickr,
+  ArtStation). See [Resolve Originals](./resolve-originals.md).
 - **Deep scan** — max items (50–5000), max time (5–120 s), max scroll steps
   (5–200), and **"Click 'Load more' buttons"** (off by default). These override
   the built-in defaults per scan. See [Deep Scan](./deep-scan.md).
@@ -90,34 +91,43 @@ Persisted with `chrome.storage.sync`:
 ```
 wxt.config.ts                   # WXT build config (manifest fn, targets, zip)
 src/
-  entrypoints/                  # WXT entrypoints (background, content, popup) → wrap extension/
+  entrypoints/                  # WXT entrypoints → background · content ·
+                                 #   ig/x/fb/hls MAIN-world media sniffers ·
+                                 #   offscreen (HLS/DASH capture) · popup
   public/icon/                  # extension icons
   types/                        # shared TypeScript types
   extension/
-    background/index.ts         # service worker: badge, downloads, settings, icon click
+    background/                # MV3 service worker, split by concern:
+      index.ts                 #   wiring + re-exports (badge.ts, download-name.ts)
+      badge.ts                 #   per-tab badge, isInjectableUrl(), popup/bubble mode
+      commands.ts               #   keyboard-shortcut handling
+      context-menu.ts           #   right-click actions
+      message-router.ts         #   ChromeMessage dispatch table
+      state.ts                  #   settings/excluded cache + readiness gates
+      download/                 #   queue, zip/text/bytes downloads, HLS/DASH capture,
+                                 #     hotlink-referer retry
     content/index.ts            # content-script logic: GET_IMAGES, DEEP_SCAN, bubble mount
     content/collect.ts          # collectMedia(): DOM -> MediaItem[]
     content/deepScanRunner.ts   # real-DOM deep-scan bindings
     components/BrandMark.tsx    # shared icon mark (popup header + bubble launcher)
-    shared/
-      imageUrl.ts               # de-proxy + CDN upgrade rules + type/dim parsing
-      extract.ts                # lazy attrs, srcset, noscript, gallery links
-      mediaType.ts              # video/audio type detection + skip list
-      deepScan.ts               # pure bounded deep-scan loop
-      filters.ts                # settings + toolbar filtering
-      settings.ts               # DEFAULT_SETTINGS + withDefaults()
-      paths.ts                  # expandPathTemplate, sanitizePathSegment, domain/date helpers
-      history.ts                # download-history storage (record / remove / clear)
-      favourites.ts             # favourites storage (add / remove / clear)
-      collect-active-tab.ts     # popup collect() client
-      deep-scan-active-tab.ts   # popup deep-scan client
-      resolve-originals-active.ts # popup RESOLVE_ORIGINALS client
-      resolvers/                # opt-in "resolve exact originals" host resolvers:
-                                 #   twitter.ts, unsplash.ts, wallhaven.ts, generic.ts,
-                                 #   network.ts (dispatch + fetch), types.ts, index.ts
+    shared/                     # Cross-context logic:
+      collection/               #   extract · imageUrl · mediaType · deepScan · filters ·
+                                 #     paths · download-name.ts (buildDownloadFilename)
+      storage/                  #   settings · history · favourites · excluded · backup
+      active-tab/               #   popup↔content bridges: collect / deep-scan /
+                                 #     resolve-originals / capture-stream
+      download/                  #   zip · base64 · convert/ · stream/ (shared helpers)
+      resolvers/                 #   collection-time REGISTRY + opt-in network resolve:
+        index.ts                 #     REGISTRY (15 entries) + resolve() dispatch
+        network.ts                #     opt-in fetch() dispatch (9 platforms)
+        sites/                    #     twitter, instagram, facebook, unsplash, wallhaven,
+                                   #       behance, bsky, pinterest, reddit, flickr,
+                                   #       artstation, magnific, arcxp, youtube, generic
+                                   #       (+ vimeo.ts, id-extraction only)
+        sniffers/                 #     response/hls/ig-media/x-media/fb-media MAIN-world sniffers
     popup/
       App.tsx                   # popup shell: grid, filters, header actions
-      components/               # ImageList, FilterToolbar, Settings, HistoryPanel,
+      components/panels/        # ImageList, FilterToolbar, Settings, HistoryPanel,
                                  #   FavouritesPanel
       hooks/useDialog.ts        # shared modal focus-trap/Escape hook
       utils.ts

@@ -88,8 +88,8 @@ can never point outside `Downloads/`.
 - `hostFromUrl`, `registrableDomain`, `todayISO` — token-value helpers (same file).
 - `buildDownloadFilename(image, index, settings, sourcePageUrl?)` — resolves the
   tokens against the source page and prepends the folder
-  (`src/extension/background/index.ts`); the source URL is threaded from
-  `downloadAndRecord`.
+  (`src/extension/shared/collection/download-name.ts`); the source URL is
+  threaded from `downloadAndRecord`.
 
 ## Back-compatibility
 

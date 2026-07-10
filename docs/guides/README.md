@@ -55,9 +55,9 @@ flowchart LR
 - **Two opt-in exceptions contact the network, both off unless the user turns
   them on:** popup-only, user-initiated `HEAD` size enrichment, and the
   **Resolve Originals** setting (`resolveOriginals`, off by default), which lets
-  the background `fetch` a handful of supported host APIs (Twitter/X,
-  Wallhaven, Unsplash) for the exact original file. See
-  [Resolve Originals](./resolve-originals.md).
+  the background `fetch` one of 9 supported host APIs (Twitter/X, Wallhaven,
+  Unsplash, Vimeo, Bluesky, Pinterest, Reddit, Flickr, ArtStation) for the
+  exact original file. See [Resolve Originals](./resolve-originals.md).
 - **Deep scan issues no requests of its own** — it scrolls and re-reads the DOM;
   the page loads its own media.
 - **Conservative URL upgrading.** Only safe path-based CDN rewrites; signed hosts

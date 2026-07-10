@@ -17,13 +17,14 @@ always runs, and a network one that runs only when you turn the setting on.
 | **Opt-in network resolve** | Only if `resolveOriginals` is on | Yes — a handful of `fetch()` calls | Background service worker (`resolvers/network.ts`) |
 
 Phase one is [Collection Pipeline](./collection-pipeline.md)'s `resolve()`
-registry: `twitterResolver → unsplashResolver → wallhavenResolver →
-genericResolver`. For most URLs it fully resolves the original with no network
-call at all — Twitter `name=orig`, Unsplash query-param stripping, Wallhaven
-full-file paths built from the DOM's own extension evidence. It only reaches
-for phase two when it *can't* finish the job locally, by attaching a
-`resolveHint` (or marking a video `unresolvedVideo`) instead of guessing or
-fetching.
+registry — 14 dedicated resolvers (Twitter, Instagram, Facebook, Unsplash,
+Wallhaven, Behance, Bluesky, Pinterest, Reddit, Flickr, ArtStation, Magnific,
+Arc XP, YouTube) plus a generic fallback. For most URLs it fully resolves the
+original with no network call at all — Twitter `name=orig`, Unsplash
+query-param stripping, Wallhaven full-file paths built from the DOM's own
+extension evidence. It only reaches for phase two when it *can't* finish the
+job locally, by attaching a `resolveHint` (or marking a video
+`unresolvedVideo`) instead of guessing or fetching.
 
 ## What it contacts
 
@@ -31,20 +32,28 @@ Phase two is `resolveOriginal(hint, deps)` in
 `src/extension/shared/resolvers/network.ts`, called from the background
 service worker only (never from a content script or the popup directly):
 
-| Platform    | Endpoint                                                                       | What it fetches                                                                                                                                                                                                             |
-|-------------|--------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `twitter`   | `https://cdn.syndication.twimg.com/tweet-result?id=<id>&token=<token>&lang=en` | The tweet's syndication JSON; picks the highest-bitrate `video/mp4` variant from `mediaDetails[].video_info.variants`. The token is derived with the same (public, key-free) algorithm as react-tweet's syndication client. |
-| `wallhaven` | `https://wallhaven.cc/api/v1/w/<id>`                                           | The wallpaper's public API record; reads `data.path` (the full-size file URL).                                                                                                                                              |
-| `unsplash`  | *(no fetch)*                                                                   | Builds `https://unsplash.com/photos/<id>/download` directly — Unsplash's own download-redirect URL. The request only actually happens later, if the item is downloaded, via `chrome.downloads`.                             |
+| Platform     | Endpoint                                                                       | What it fetches                                                                                                                                                                                                             |
+|--------------|--------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `twitter`    | `https://cdn.syndication.twimg.com/tweet-result?id=<id>&token=<token>&lang=en` | The tweet's syndication JSON; picks the highest-bitrate `video/mp4` variant from `mediaDetails[].video_info.variants`, falling back to the `application/x-mpegURL` (HLS) master when no progressive mp4 exists. The token is derived with the same (public, key-free) algorithm as react-tweet's syndication client. |
+| `wallhaven`  | `https://wallhaven.cc/api/v1/w/<id>`                                           | The wallpaper's public API record; reads `data.path` (the full-size file URL).                                                                                                                                              |
+| `unsplash`   | *(no fetch)*                                                                   | Builds `https://unsplash.com/photos/<id>/download` directly — Unsplash's own download-redirect URL. The request only actually happens later, if the item is downloaded, via `chrome.downloads`.                             |
+| `vimeo`      | `https://player.vimeo.com/video/<id>/config`                                   | The public, refererless player config; picks the highest progressive mp4 from `request.files.progressive[]`, falling back to the `request.files.hls` master (to capture) when the video has no progressive rendition. Domain-locked embeds 403 and stay unresolved. |
+| `bsky`       | *(video)* `https://video.bsky.app/watch/<did>/<cid>/playlist.m3u8` built directly; *(blob)* the account's PDS resolved from its DID doc (`plc.directory` or the `did:web` domain's `.well-known/did.json`), then `<pds>/xrpc/com.atproto.sync.getBlob?did=<did>&cid=<cid>` | A video hint returns the HLS master with no fetch at all; a blob hint fetches the true uploaded original via `getBlob`. |
+| `pinterest`  | `https://widgets.pinterest.com/v3/pidgets/pins/info/?pin_ids=<id>`             | The public, unauthenticated pin-widget record; returns the progressive mp4 (`V_720P`) when present, else an HLS master (`V_HLSV4`/`V_HLSV3_MOBILE`) to capture.                                                          |
+| `reddit`     | *(no fetch)*                                                                   | Builds `https://v.redd.it/<id>/HLSPlaylist.m3u8` directly — the signature-free HLS master, whose separate audio rendition the extension's HLS engine muxes back in.                                                      |
+| `flickr`     | `https://www.flickr.com/photo.gne?id=<id>` then that photo's `/sizes/` page    | Two chained public, keyless fetches: the canonical photo page (host-pinned to `flickr.com`), then its sizes page, whose HTML carries the correct-secret URL for the largest size — a size class served under a different secret than the thumbnail. |
+| `artstation` | *(image)* the `/4k/` sibling of the `/large/` URL; *(video)* `https://www.artstation.com/projects/<hash>.json` then the video clip's signed embed page | An image hint probes `/4k/` and returns it only on an ok image response; a video hint reads the project JSON, fetches its embed page, and returns the largest unsigned `<source>` mp4.                                  |
 
 Every URL taken out of a JSON response is passed through `pinnedUrl()` before
 it's trusted: it must be `https:` and its hostname must equal (or be a
-subdomain of) the expected host (`twimg.com` / `wallhaven.cc`). Anything else —
-a malformed URL, an unexpected redirect target — resolves to `null` instead of
-being handed back as a downloadable URL. `resolveOriginal()` never throws; a
-failed lookup for one item just means that item stays as collected — or, for a
-per-item "Get video" request, is surfaced as failed rather than silently
-dropped (see [On-demand](#on-demand-the-get-video-button) below).
+subdomain of) the expected host family (e.g. `twimg.com`, `wallhaven.cc`,
+`vimeocdn.com`, `bsky.app`, `pinimg.com`, `v.redd.it`, `staticflickr.com`,
+`artstation.com`, or the account's own PDS host for a Bluesky blob). Anything
+else — a malformed URL, an unexpected redirect target — resolves to `null`
+instead of being handed back as a downloadable URL. `resolveOriginal()` never
+throws; a failed lookup for one item just means that item stays as collected —
+or, for a per-item "Get video" request, is surfaced as failed rather than
+silently dropped (see [On-demand](#on-demand-the-get-video-button) below).
 
 A tweet can also fail to resolve for a reason that has nothing to do with
 `pinnedUrl()`: the syndication endpoint itself returns a tombstone-shaped
@@ -143,11 +152,14 @@ longer tombstoned, or after a transient network blip.
 - **Off by default.** Every other feature — collection, deep scan, size
   enrichment — either reads only what the page already loaded or (image-size
   `HEAD` requests) stays on the same host; this is the one setting that talks
-  to Twitter/Wallhaven/Unsplash servers on your behalf.
+  to an external host on your behalf — one of Twitter, Wallhaven, Unsplash,
+  Vimeo, Bluesky, Pinterest, Reddit, Flickr, or ArtStation, whichever the
+  hinted item came from.
 - What's sent is minimal: the id already visible in the page's own URL (a
-  tweet status id, a Wallhaven wallpaper id) or nothing at all (Unsplash just
-  builds a URL). No cookies or auth are attached — the fetch runs from the
-  background service worker, not the page.
+  tweet status id, a Wallhaven wallpaper id, a Flickr photo id, etc.) or
+  nothing at all (Unsplash and Reddit just build a URL). No cookies or auth
+  are attached — the fetch runs from the background service worker, not the
+  page.
 - Toggling **Resolve exact originals (network requests)** in Settings is the
   single switch for *automatic* resolution; see
   [Getting Started](./getting-started.md#settings).

@@ -22,12 +22,15 @@ interface Resolver {
   match(u: URL, ctx: ResolveContext): boolean;   // exact hostname === checks, not substring
   resolve(u: URL, ctx: ResolveContext): MediaCandidate[]; // synchronous, network-free; [] = "not mine"
 }
-interface ResolveContext { el?: Element; allowNetwork: boolean }
+interface ResolveContext { el?: Element; allowNetwork: boolean; pageUrl?: string }
 interface MediaCandidate {
   url: string; kind: 'image' | 'video' | 'gif'; ext?: string;
   thumbnailSrc?: string; poster?: string;
+  width?: number; height?: number; // resolver-known intrinsic dims (preferred over thumbnail dims)
   resolveHint?: ResolveHint;      // { platform, id } → opt-in network resolve
   unresolvedVideo?: boolean;      // poster-only pending video; never displayed until resolved
+  mediaKey?: string;              // stable cross-rendition identity (e.g. `fb:<fbid>`) so a
+                                  // deep-scan upgrade-replaces a rendition instead of duplicating
 }
 ```
 
@@ -52,8 +55,8 @@ interface MediaCandidate {
   re-add them.
 - Shape-validate any page-controlled value (e.g. a `data-*` id) before putting it
   in a URL path (`/^[a-z0-9]+$/i`).
-- Add tests in `tests/extension/shared/resolvers/<site>.test.ts` (call the
-  resolver directly) and, for collection wiring, `tests/extension/content/collect.test.ts`.
+- Add tests in `tests/unit/extension/shared/resolvers/<site>.test.ts` (call the
+  resolver directly) and, for collection wiring, `tests/unit/extension/content/collect.test.ts`.
 - Verify live: bundle the real `collectMedia()` into an IIFE exposing
   `window.__bench` via a Vite/esbuild lib build, inject it into the target page
   with the browser javascript tool, and run it once. Strip query strings from any

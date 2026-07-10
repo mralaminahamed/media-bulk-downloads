@@ -23,6 +23,7 @@ Optional (requested at runtime when the feature is enabled, never at install):
 | Permission | Why |
 |---|---|
 | `notifications` | Desktop toast when a download batch finishes (Settings → Downloads) |
+| `declarativeNetRequestWithHostAccess` | "Retry w/ referer" on a hotlink-403 download: a short-lived, single-URL session rule sets the item's source page as `Referer`/`Origin`, torn down immediately after. Must be this variant, not `declarativeNetRequest` (Chrome drops the latter from `optional_permissions`). |
 
 ## Least privilege — before adding a permission
 

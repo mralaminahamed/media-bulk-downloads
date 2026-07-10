@@ -23,8 +23,11 @@ discovers on real pages.
 - Sample URLs are shown as `origin + path` (query stripped) for privacy.
 
 Run dates: 2026-07-03 / 2026-07-04 / **2026-07-05** / **2026-07-06** (§A re-run
-2026-07-05 against the current rule set — 32 CDN rules + 6 resolvers; Instagram
-resolver added 2026-07-06). Chrome (Manifest V3).
+2026-07-05 against the rule set as of that run — 32 CDN rules + 6 resolvers,
+historical as of the 2026-07-05/06 run; Instagram resolver added 2026-07-06).
+The resolver registry has since grown to 15 entries (14 dedicated + a generic
+fallback — see [Collection Pipeline](./guides/collection-pipeline.md)); §G/§H
+below reflect the current Facebook/Instagram resolvers. Chrome (Manifest V3).
 
 ## A. Live-verified results
 
@@ -182,7 +185,7 @@ logged-out), **[G]** a known gap.
 | 52 | 500px                              | drscdn.500px.org (signed)     | *(none — signed URLs)*                                                                      | G       |
 | 53 | Giphy / Tenor                      | media*.giphy.com / tenor.com  | direct (already served at original size)                                                    | C       |
 | 54 | Instagram                          | *.cdninstagram.com (signed)   | **resolver** — reads the post's media graph from page JSON + sniffed GraphQL; every carousel slide + real mp4 (signed URLs read, never rewritten) | **L**³  |
-| 55 | Facebook                           | *.fbcdn.net (signed)          | left intact                                                                                | A       |
+| 55 | Facebook                           | *.fbcdn.net / *.cdninstagram.com (signed) | **resolver** — passive MAIN-world sniffer reads `text/html`-NDJSON GraphQL + page hydration; full-res photos + reel mp4s, 77–90% accuracy (§G) | **L**   |
 | 56 | TikTok                             | *.tiktokcdn.com (signed)      | —                                                                                          | A       |
 | 57 | Temu                               | img.kwcdn.com                 | drop the Qiniu `imageView2/…` transform query → stored original (sample-based)             | C²      |
 | 58 | LinkedIn                           | media.licdn.com (signed)      | *(none — `dms/image/v2` renditions carry an HMAC `t=` token bound to the size; any rewrite 401s)* | G       |
@@ -204,8 +207,10 @@ and the real progressive-mp4 `video_versions` live in the page's own
 it fetches on scroll (captured by a passive MAIN-world sniffer — read-only, no
 forged requests). Verified live 2026-07-06 against a public profile: single
 image, reel (9 MB mp4, HTTP 200), and 9- and 10-slide carousels (every child
-1440 px, HTTP 200). Facebook (row 55) has no page resolver and stays a gap;
-Instagram media served from `fbcdn.net` is covered by this resolver.
+1440 px, HTTP 200). Facebook (row 55) now has its own dedicated resolver + a
+passive MAIN-world sniffer (`fb-media-sniffer`), covering photos and reels at
+77–90% original-image accuracy — see §G below for the full measurement.
+Instagram media served from `fbcdn.net` is covered by the Instagram resolver.
 Reels-tab / grid **clips ship only a cover** (`media_type` 2 with no
 `video_versions`, confirmed live) — no bulk mp4 exists without forging the
 private per-reel GraphQL, which this extension does not do. They surface as

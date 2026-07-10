@@ -215,6 +215,7 @@ upgrade rules for:
 | Next.js / Vercel                   | De-proxy `/_next/image?url=` (absolute + relative)  |
 | Wallhaven                          | PNG/GIF detection → correct extension               |
 | Instagram                          | Post hydration + sniffed GraphQL → full-res image/video (signed CDN) |
+| Facebook                           | Passive `text/html`-NDJSON GraphQL + page-hydration sniff → full-res photo / reel mp4 (signed CDN) |
 | Bluesky                            | `/img/<rendition>/` → largest CDN sibling / `getBlob` original |
 | Magnific                           | Collapse signed `srcset` widths → single largest rendition |
 
@@ -227,11 +228,12 @@ an `og:video`, or a direct link — it appears in the grid tagged **HLS · captu
 **Capture** fetches the manifest and every segment, decrypts standard **AES-128**
 where present, and assembles them into a single file: MPEG-TS `.ts`, or `.mp4` for
 fragmented-MP4 streams. It selects the ~720p variant by default and runs in the
-popup, so keep the popup open while it works (like the ZIP flow).
+background service worker plus a hidden **offscreen document** — capture
+keeps running even if you close the popup.
 
 **Not captured, by design:** **DRM** (Widevine / PlayReady / FairPlay,
 `SAMPLE-AES`) and **live** streams — capturing them would breach the stream's DRM
-and Chrome Web Store policy. Streams larger than the in-popup size cap report a
+and Chrome Web Store policy. Streams larger than the ~1 GB size cap report a
 message rather than exhausting memory.
 
 Streams are found two ways: in the page DOM, and via a passive, MAIN-world
@@ -260,7 +262,7 @@ media-bulk-downloads/
 ├── web-ext.config.ts         # Dev browser-launch config (wxt dev)
 ├── src/
 │   ├── entrypoints/          # WXT entrypoints → background · content ·
-│   │   │                      #   ig/x MAIN-world media sniffers · popup
+│   │   │                      #   ig/x/fb/hls MAIN-world media sniffers · popup
 │   ├── extension/            # Grouped by execution context, then concern
 │   │   ├── background/       # MV3 service worker: downloads, history, messaging
 │   │   ├── content/          # In-page: index (listeners) · collect · deepScanRunner
