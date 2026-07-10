@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDownIcon, MagnifyingGlassIcon, BarsArrowUpIcon, BarsArrowDownIcon } from '@heroicons/react/24/outline';
 import { FilterOptions, SettingsData } from '@/types';
+import ChipFlyout from './ChipFlyout';
 
 interface FilterToolbarProps {
   onFilterChange: (filters: FilterOptions) => void;
@@ -68,6 +69,12 @@ const SIZE_OPTIONS: { value: 'all' | 'small' | 'medium' | 'large'; label: string
   { value: 'large', label: 'Large' },
 ];
 
+const STATE_OPTIONS: { value: FilterOptions['downloadState']; label: string }[] = [
+  { value: 'all', label: 'All items' },
+  { value: 'downloaded', label: 'Downloaded' },
+  { value: 'not-downloaded', label: 'Not downloaded' },
+];
+
 const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extensionSettings }) => {
   const [filters, setFilters] = useState<FilterOptions>(DEFAULT_FILTERS);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -85,8 +92,8 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
 
   const base64Disabled = extensionSettings.excludeBase64Images;
   // Filters tucked inside the "More" popover — its badge counts only Format/Size/Min/Base64.
-  // Downloaded also lives in More for now, but stays out of this badge since Task 4 promotes
-  // it to its own primary-row chip.
+  // Downloaded state lives in its own primary-row State chip (below), so it's
+  // intentionally excluded from this badge.
   const advancedCount =
     (filters.imageType !== 'all' ? 1 : 0) +
     (filters.sizeBucket !== 'all' ? 1 : 0) +
@@ -165,6 +172,19 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
             </button>
           ))}
         </div>
+
+        {/* State — download status. Single-select chip flyout in the primary row
+            (promoted out of "More"; see ChipFlyout). */}
+        <ChipFlyout
+          id="filter-state-flyout"
+          triggerLabel="State"
+          valueLabel={(v) => STATE_OPTIONS.find((o) => o.value === v)!.label}
+          options={STATE_OPTIONS}
+          value={filters.downloadState}
+          defaultValue="all"
+          onChange={(v) => update({ downloadState: v })}
+          clearLabel="Remove State filter"
+        />
 
         {/* More — discloses the advanced (format / size / min-size / base64) filters */}
         <button
@@ -260,21 +280,6 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
               className="switch"
             />
           </div>
-
-          {/* Downloaded — filter by whether the item is already in the download
-              history (same source as the per-item "downloaded" badge). */}
-          <select
-            aria-label="Downloaded"
-            title="Downloaded"
-            value={filters.downloadState}
-            onChange={(e) => update({ downloadState: e.target.value as FilterOptions['downloadState'] })}
-            className="field shrink-0 py-0 text-[12px]"
-            style={{ height: 28, width: 130 }}
-          >
-            <option value="all">All items</option>
-            <option value="downloaded">Downloaded</option>
-            <option value="not-downloaded">Not downloaded</option>
-          </select>
         </div>
       )}
     </section>

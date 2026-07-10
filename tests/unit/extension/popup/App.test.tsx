@@ -1127,10 +1127,9 @@ describe('App Component', () => {
     );
     await screen.findByText('Filters');
 
-    // Turn the Downloaded filter on via the toolbar (the handleFilterChange path).
-    // Exact match — "More download options" (DownloadButton) also matches /More/i.
-    fireEvent.click(screen.getByRole('button', { name: 'More' }));
-    fireEvent.change(screen.getByRole('combobox', { name: 'Downloaded' }), { target: { value: 'downloaded' } });
+    // Turn the Downloaded filter on via the toolbar's State chip (handleFilterChange path).
+    fireEvent.click(screen.getByRole('button', { name: 'State' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Downloaded' }));
 
     // Nothing is on disk yet, so the active filter hides both items.
     expect(screen.queryByAltText('photo-a')).toBeNull();

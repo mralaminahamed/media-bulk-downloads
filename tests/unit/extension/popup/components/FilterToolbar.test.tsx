@@ -212,18 +212,18 @@ describe('FilterToolbar Component', () => {
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ minSize: 0 }));
   });
 
-  it('applies a downloaded filter from the More popover', () => {
+  it('applies a downloaded filter from the State chip', () => {
     renderToolbar();
-    openMore();
-    fireEvent.change(screen.getByLabelText('Downloaded'), { target: { value: 'downloaded' } });
+    fireEvent.click(screen.getByRole('button', { name: 'State' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Downloaded' }));
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ downloadState: 'downloaded' }));
   });
 
-  it('includes downloadState in a reset (Clear all)', () => {
+  it('clears the State filter via its × (back to all)', () => {
     renderToolbar();
-    openMore();
-    fireEvent.change(screen.getByLabelText('Downloaded'), { target: { value: 'not-downloaded' } });
-    fireEvent.click(screen.getByText('Clear all'));
+    fireEvent.click(screen.getByRole('button', { name: 'State' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Not downloaded' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove State filter' }));
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ downloadState: 'all' }));
   });
 });

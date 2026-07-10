@@ -88,19 +88,21 @@ test.describe('filters, search, and empty state', () => {
     // Download exactly one item (same click pattern as download.spec.ts).
     await item(page, 'Alpha').getByRole('button', { name: 'Download' }).click();
     // The item gains its "downloaded" badge once history records it. Scope to
-    // the figure — the badge shares its aria-label with the Downloaded <select>.
+    // the figure — the badge shares its aria-label with the item-level "Downloaded" mark.
     await expect(item(page, 'Alpha').locator('[aria-label="Downloaded"]')).toBeVisible();
 
-    await page.getByRole('button', { name: 'More', exact: true }).click();
-    const downloadedSelect = page.getByRole('combobox', { name: 'Downloaded' });
-
-    await downloadedSelect.selectOption('downloaded');
+    // The State chip lives in the primary row — no "More" needed.
+    await page.getByRole('button', { name: 'State' }).click();
+    await page.getByRole('menuitem', { name: 'Downloaded', exact: true }).click();
     await expectItemCount(page, 1);
 
-    await downloadedSelect.selectOption('not-downloaded');
+    // Selecting a value relabels the chip's trigger to that value; reopen it to switch.
+    await page.getByRole('button', { name: 'Downloaded', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Not downloaded', exact: true }).click();
     await expectItemCount(page, total - 1);
 
-    await downloadedSelect.selectOption('all');
+    // Clear back to "All items" via the chip's × control.
+    await page.getByRole('button', { name: 'Remove State filter' }).click();
     await expectItemCount(page, total);
   });
 
