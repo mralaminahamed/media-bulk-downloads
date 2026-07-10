@@ -84,16 +84,18 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
   };
 
   const base64Disabled = extensionSettings.excludeBase64Images;
-  // Filters tucked inside the "More" popover — its badge counts only these.
+  // Filters tucked inside the "More" popover — its badge counts only Format/Size/Min/Base64.
+  // Downloaded also lives in More for now, but stays out of this badge since Task 4 promotes
+  // it to its own primary-row chip.
   const advancedCount =
+    (filters.imageType !== 'all' ? 1 : 0) +
     (filters.sizeBucket !== 'all' ? 1 : 0) +
     (filters.minSize > 0 ? 1 : 0) +
-    (!filters.includeBase64 && !base64Disabled ? 1 : 0) +
-    (filters.downloadState !== 'all' ? 1 : 0);
+    (!filters.includeBase64 && !base64Disabled ? 1 : 0);
   const activeCount =
     (filters.mediaKind !== 'all' ? 1 : 0) +
-    (filters.imageType !== 'all' ? 1 : 0) +
     advancedCount +
+    (filters.downloadState !== 'all' ? 1 : 0) +
     (filters.search.trim() ? 1 : 0) +
     (filters.sortBy !== 'default' ? 1 : 0);
 
@@ -164,25 +166,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
           ))}
         </div>
 
-        {/* Type — dropdown; options adapt to the selected kind. Height/width via
-            inline style because .field (width:100%, height:34px) is defined after
-            Tailwind and would otherwise win over h-/w- utilities. */}
-        <select
-          aria-label="Media format"
-          title="Media format"
-          value={filters.imageType}
-          onChange={(e) => update({ imageType: e.target.value })}
-          className="field shrink-0 py-0 text-[12px]"
-          style={{ height: 28, width: 120 }}
-        >
-          {formatsForKind(filters.mediaKind).map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.value === 'all' ? 'All formats' : opt.label}
-            </option>
-          ))}
-        </select>
-
-        {/* More — discloses the advanced (size / min-size / base64) filters */}
+        {/* More — discloses the advanced (format / size / min-size / base64) filters */}
         <button
           type="button"
           onClick={() => setMoreOpen((o) => !o)}
@@ -209,6 +193,24 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
       {/* Advanced filters — shown when "More" is open. */}
       {moreOpen && (
         <div id="filter-more" className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t hairline pt-3">
+          <label className="flex items-center gap-2 text-[12px] text-(--ink-2)">
+            <span className="eyebrow">Format</span>
+            <select
+              aria-label="Media format"
+              title="Media format"
+              value={filters.imageType}
+              onChange={(e) => update({ imageType: e.target.value })}
+              className="field shrink-0 py-0 text-[12px]"
+              style={{ height: 28, width: 120 }}
+            >
+              {formatsForKind(filters.mediaKind).map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.value === 'all' ? 'All formats' : opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
           {showSize && (
             <div className="flex items-center gap-2">
               <span className="eyebrow">Size</span>

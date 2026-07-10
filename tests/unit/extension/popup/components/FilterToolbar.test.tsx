@@ -49,16 +49,26 @@ describe('FilterToolbar Component', () => {
   it('renders filters with a Type dropdown', () => {
     renderToolbar();
     expect(screen.getByText('Filters')).toBeInTheDocument();
+    openMore();
     const typeSelect = screen.getByLabelText('Media format');
     expect(typeSelect).toBeInTheDocument();
     expect(within(typeSelect).getByRole('option', { name: 'All formats' })).toBeInTheDocument();
     expect(within(typeSelect).getByRole('option', { name: 'JPEG' })).toBeInTheDocument();
   });
 
-  it('applies a type filter when the dropdown changes', () => {
+  it('applies a type filter from the More popover', () => {
     renderToolbar();
+    openMore();
     fireEvent.change(screen.getByLabelText('Media format'), { target: { value: 'jpeg' } });
-    expect(mockOnFilterChange).toHaveBeenCalledWith(expect.objectContaining({ imageType: 'jpeg' }));
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ imageType: 'jpeg' }));
+  });
+
+  it('counts an active format in the More badge', () => {
+    renderToolbar();
+    openMore();
+    fireEvent.change(screen.getByLabelText('Media format'), { target: { value: 'png' } });
+    // advanced badge now reads 1 (format only)
+    expect(screen.getByText('1')).toBeInTheDocument();
   });
 
   it('keeps advanced filters behind "More"', () => {
@@ -94,6 +104,7 @@ describe('FilterToolbar Component', () => {
     renderToolbar();
     expect(screen.queryByText('Clear all')).not.toBeInTheDocument();
 
+    openMore();
     fireEvent.change(screen.getByLabelText('Media format'), { target: { value: 'png' } });
     fireEvent.click(screen.getByText('Clear all'));
 
@@ -166,6 +177,7 @@ describe('FilterToolbar Component', () => {
   it('switches format options when the media kind changes', async () => {
     const onFilterChange = vi.fn();
     render(<FilterToolbar onFilterChange={onFilterChange} extensionSettings={DEFAULT_SETTINGS} />);
+    fireEvent.click(screen.getByRole('button', { name: /More/i }));
     const typeSelect = screen.getByLabelText('Media format');
     // image formats by default
     expect(within(typeSelect).getByRole('option', { name: 'JPEG' })).toBeInTheDocument();
@@ -181,6 +193,7 @@ describe('FilterToolbar Component', () => {
 
   it('offers audio codec options when the Audio kind is selected', async () => {
     renderToolbar();
+    openMore();
     await userEvent.click(screen.getByRole('button', { name: 'Audio' }));
     const typeSelect = screen.getByLabelText('Media format');
     expect(within(typeSelect).getByRole('option', { name: 'MP3' })).toBeInTheDocument();
