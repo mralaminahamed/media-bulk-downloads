@@ -191,6 +191,7 @@ describe('App Component', () => {
     render(<App collect={async () => [image({ type: 'png' })]} />);
     await screen.findByText('Filters');
 
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
     fireEvent.change(screen.getByLabelText('Media format'), { target: { value: 'jpeg' } });
 
     await waitFor(() =>
@@ -1007,7 +1008,8 @@ describe('App Component', () => {
     // Unfiltered, unselected: the count reads "2 / 2" (no "shown" suffix).
     await waitFor(() => expect(footerText()).toMatch(/2\s*\/\s*2/));
 
-    // Filter to jpeg → 1 of 2 shown.
+    // Filter to jpeg → 1 of 2 shown. (Format now lives in the "More" popover.)
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
     fireEvent.change(screen.getByLabelText('Media format'), { target: { value: 'jpeg' } });
     await waitFor(() => expect(footerText()).toMatch(/1\s*\/\s*2\s*shown/));
 
@@ -1301,6 +1303,7 @@ describe('App Component', () => {
     expect(await screen.findByRole('button', { name: /download selected 1/i })).toBeInTheDocument();
 
     // Filter to PNG only → the ticked jpeg is no longer shown → selection is pruned.
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
     fireEvent.change(screen.getByLabelText('Media format'), { target: { value: 'png' } });
     await waitFor(() => expect(screen.queryByRole('button', { name: /download selected/i })).toBeNull());
     // Footer reverts to the plain bulk button for the one shown png.
