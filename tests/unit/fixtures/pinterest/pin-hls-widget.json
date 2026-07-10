@@ -1,0 +1,26 @@
+{
+  "_source": "GET https://widgets.pinterest.com/v3/pidgets/pins/info/?pin_ids=<id> (public, unauthenticated). Real STRUCTURE mirroring the captured pin-widget response, trimmed to a video pin whose `video_list` has only HLS renditions (V_HLSV4 / V_HLSV3_MOBILE) and no progressive V_720P — so the resolver must fall back to the HLS master. The companion pin-video-widget.json includes a V_720P that wins, so its V_HLSV4 fallback is never exercised; this covers it.",
+  "data": [
+    {
+      "id": "1069579883656016853",
+      "is_video": true,
+      "videos": {
+        "video_list": {
+          "V_HLSV4": {
+            "url": "https://v1.pinimg.com/videos/mc/hls/aa/bb/cc/aabbccddeeff00112233445566778899.m3u8",
+            "width": 720,
+            "height": 1280,
+            "duration": 15040,
+            "thumbnail": "https://i.pinimg.com/videos/thumbnails/originals/aa/bb/cc/aabbccddeeff00112233445566778899.0000000.jpg"
+          },
+          "V_HLSV3_MOBILE": {
+            "url": "https://v1.pinimg.com/videos/mc/hls/aa/bb/cc/aabbccddeeff00112233445566778899_mobile.m3u8",
+            "width": 480,
+            "height": 854,
+            "duration": 15040
+          }
+        }
+      }
+    }
+  ]
+}

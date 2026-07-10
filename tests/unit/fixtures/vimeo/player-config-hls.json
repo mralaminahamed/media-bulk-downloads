@@ -1,0 +1,31 @@
+{
+  "_source": "player.vimeo.com/video/<id>/config (public, refererless). Real STRUCTURE mirroring the captured config, trimmed to an HLS/DASH-only video: `progressive` is empty (no direct MP4 rendition), so the resolver must fall back to the `hls` cdns block and pick `default_cdn`. The existing player-config.json has a progressive rendition that wins, so its own hls block is never exercised — this fixture covers that fallback against the real cdns shape. exp/hmac tokens are short-lived signed CDN links, replaced with SIG placeholders (the resolver host-pins to vimeocdn.com and returns the URL verbatim).",
+  "request": {
+    "files": {
+      "progressive": [],
+      "hls": {
+        "default_cdn": "akfire_interconnect_quic",
+        "separate_av": true,
+        "cdns": {
+          "akfire_interconnect_quic": {
+            "url": "https://vod-adaptive-ak.vimeocdn.com/exp=SIG~acl=SIG~hmac=SIG/vimeo-prod-hls/master.m3u8",
+            "origin": "gcs",
+            "avc_url": "https://vod-adaptive-ak.vimeocdn.com/exp=SIG~acl=SIG~hmac=SIG/vimeo-prod-hls/master.m3u8"
+          },
+          "fastly_skyfire": {
+            "url": "https://skyfire.vimeocdn.com/exp=SIG~acl=SIG~hmac=SIG2/vimeo-prod-hls/master.m3u8",
+            "origin": "fastly"
+          }
+        }
+      },
+      "dash": {
+        "default_cdn": "akfire_interconnect_quic",
+        "cdns": {
+          "akfire_interconnect_quic": {
+            "url": "https://vod-adaptive-ak.vimeocdn.com/exp=SIG~acl=SIG~hmac=SIG/vimeo-prod-dash/master.mpd"
+          }
+        }
+      }
+    }
+  }
+}
