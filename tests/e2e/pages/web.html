@@ -1,18 +1,47 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>News site</title>
-<meta property="og:image" content="https://cdn.newssite.example/og-hero.jpg"></head>
-<body>
-<article>
-  <img alt="Responsive" src="https://cdn.newssite.example/small.jpg"
-       srcset="https://cdn.newssite.example/small.jpg 480w, https://cdn.newssite.example/large.jpg 1600w">
-  <picture>
-    <source srcset="https://cdn.newssite.example/pic-2x.webp 2x">
-    <img alt="Picture" src="https://cdn.newssite.example/pic.jpg">
-  </picture>
-  <img alt="Lazy" data-src="https://cdn.newssite.example/lazy-original.jpg" src="https://cdn.newssite.example/placeholder.gif">
-  <div style="background-image:url('https://cdn.newssite.example/backdrop.jpg')" role="img" aria-label="bg"></div>
-  <img alt="Wikipedia" src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Example.jpg/120px-Example.jpg">
-  <img alt="Shopify" src="https://cdn.shopify.com/s/files/1/0001/products/shirt_400x400.jpg?v=1">
-  <a href="https://i.redd.it/galleryitem987.jpg"><img alt="Gallery" src="https://preview.redd.it/thumb987.jpg"></a>
-</article>
-</body></html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="A news article fixture covering responsive images, picture/source variants, lazy-loaded images, a CSS background image, and third-party CDN hosts." />
+    <meta property="og:title" content="News site" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://cdn.newssite.example/og-hero.jpg" />
+    <title>News site</title>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <a href="/">Home</a>
+        <a href="#">Sections</a>
+        <a href="#">Search</a>
+      </nav>
+      <h1>News site</h1>
+    </header>
+    <main>
+      <article>
+        <h2>Today's top story</h2>
+        <p>A roundup of images sourced from several content-delivery networks.</p>
+        <time datetime="2026-07-10">July 10, 2026</time>
+        <img alt="Responsive" src="https://cdn.newssite.example/small.jpg"
+             srcset="https://cdn.newssite.example/small.jpg 480w, https://cdn.newssite.example/large.jpg 1600w" />
+        <p>The image above adapts to viewport width via <code>srcset</code>.</p>
+        <picture>
+          <source srcset="https://cdn.newssite.example/pic-2x.webp 2x" />
+          <img alt="Picture" src="https://cdn.newssite.example/pic.jpg" />
+        </picture>
+        <h3>Lazy-loaded gallery</h3>
+        <img alt="Lazy" data-src="https://cdn.newssite.example/lazy-original.jpg" src="https://cdn.newssite.example/placeholder.gif" />
+        <div style="background-image:url('https://cdn.newssite.example/backdrop.jpg')" role="img" aria-label="bg"></div>
+        <p>Photo credits below reference the original CDN hosts.</p>
+        <img alt="Wikipedia" src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Example.jpg/120px-Example.jpg" />
+        <img alt="Shopify" src="https://cdn.shopify.com/s/files/1/0001/products/shirt_400x400.jpg?v=1" />
+        <a href="https://i.redd.it/galleryitem987.jpg"><img alt="Gallery" src="https://preview.redd.it/thumb987.jpg" /></a>
+        <address>Reported by the newsroom staff.</address>
+      </article>
+    </main>
+    <footer>
+      <p>&copy; 2026 News site. All rights reserved.</p>
+    </footer>
+  </body>
+</html>

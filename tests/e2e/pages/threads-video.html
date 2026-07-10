@@ -1,10 +1,33 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Threads video</title></head>
-<body>
-<div role="main">
-  <video
-    src="https://scontent.cdninstagram.com/o1/v/t2/THREADS_VID.mp4"
-    poster="https://scontent.cdninstagram.com/v/t51/THREADS_VID_POSTER.jpg"
-    muted></video>
-</div>
-</body></html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Threads fixture: a mounted native video element with a real https mp4 src and poster, collected via the generic collectAv path.">
+    <meta property="og:title" content="Threads video">
+    <meta property="og:type" content="website">
+    <title>Threads video</title>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <a href="/">Home</a>
+        <a href="#">Search</a>
+        <a href="#">Activity</a>
+      </nav>
+      <h1>Threads</h1>
+    </header>
+    <div role="main">
+      <h2>Post</h2>
+      <p><time datetime="2026-01-01">Jan 1</time> — a video reply.</p>
+      <video
+        src="https://scontent.cdninstagram.com/o1/v/t2/THREADS_VID.mp4"
+        poster="https://scontent.cdninstagram.com/v/t51/THREADS_VID_POSTER.jpg"
+        muted></video>
+      <p>Replies load below.</p>
+    </div>
+    <footer>
+      <p>Fixture footer for e2e tests.</p>
+    </footer>
+  </body>
+</html>

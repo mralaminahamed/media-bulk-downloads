@@ -1,18 +1,42 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Flickr</title></head>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Flickr</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Sample Flickr photostream fixture for e2e media collection tests." />
+  <meta property="og:title" content="Flickr Fixture" />
+  <meta property="og:type" content="website" />
+</head>
 <body>
-<main role="main">
-  <!-- The SAME photo (real id + display secret captured live) served at _n and _z (both
-       smaller than _b, same secret) plus an already-_b copy -> all collapse to one _b item. -->
-  <img alt="photo n" src="https://live.staticflickr.com/65535/55379291849_42e9ef501b_n.jpg">
-  <img alt="photo z" src="https://live.staticflickr.com/65535/55379291849_42e9ef501b_z.jpg">
-  <img alt="photo b" src="https://live.staticflickr.com/65535/55379291849_42e9ef501b_b.jpg">
+  <header>
+    <nav>
+      <a href="/">Home</a>
+      <a href="#">Explore</a>
+      <a href="#">Photostream</a>
+    </nav>
+    <h1>Flickr Photostream</h1>
+  </header>
+  <main role="main">
+    <h2>Photos</h2>
+    <!-- The SAME photo (real id + display secret captured live) served at _n and _z (both
+         smaller than _b, same secret) plus an already-_b copy -> all collapse to one _b item. -->
+    <img alt="photo n" src="https://live.staticflickr.com/65535/55379291849_42e9ef501b_n.jpg">
+    <img alt="photo z" src="https://live.staticflickr.com/65535/55379291849_42e9ef501b_z.jpg">
+    <img alt="photo b" src="https://live.staticflickr.com/65535/55379291849_42e9ef501b_b.jpg">
+    <p>The same photo rendered at three size variants.</p>
 
-  <!-- A different photo already at _6k. Larger sizes carry a DIFFERENT secret than the
-       thumbnail, so it must NOT be downsized to _b — it stays as the _6k original. -->
-  <img alt="photo 6k" src="https://live.staticflickr.com/65535/99887766554_3d3e638f8b_6k.jpg">
+    <!-- A different photo already at _6k. Larger sizes carry a DIFFERENT secret than the
+         thumbnail, so it must NOT be downsized to _b — it stays as the _6k original. -->
+    <img alt="photo 6k" src="https://live.staticflickr.com/65535/99887766554_3d3e638f8b_6k.jpg">
+    <p>A high-resolution photo with a distinct secret.</p>
 
-  <!-- A non-photo staticflickr asset (buddyicon) -> not a photo path, left to generic. -->
-  <img alt="avatar" width="48" height="48" src="https://combo.staticflickr.com/pw/images/buddyicon.png">
-</main>
-</body></html>
+    <!-- A non-photo staticflickr asset (buddyicon) -> not a photo path, left to generic. -->
+    <img alt="avatar" width="48" height="48" src="https://combo.staticflickr.com/pw/images/buddyicon.png">
+    <p>A profile avatar icon, not a photostream item.</p>
+  </main>
+  <footer>
+    <p>Fixture data for automated testing only.</p>
+  </footer>
+</body>
+</html>

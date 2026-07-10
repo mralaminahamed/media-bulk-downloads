@@ -1,10 +1,36 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Streams</title></head>
-<body>
-  <h1>Streaming media</h1>
-  <video controls poster="https://cdn.stream.example/poster1.jpg">
-    <source src="https://cdn.stream.example/master.m3u8" type="application/vnd.apple.mpegurl">
-  </video>
-  <a href="https://cdn.stream.example/manifest.mpd">DASH manifest link</a>
-  <img alt="Poster" width="120" height="120" src="https://cdn.stream.example/thumb.jpg">
-</body></html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="A streaming-media fixture with an HLS video source, a DASH manifest link, and a standalone poster image." />
+    <meta property="og:title" content="Streams" />
+    <meta property="og:type" content="website" />
+    <title>Streams</title>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <a href="/">Home</a>
+        <a href="#">Live</a>
+      </nav>
+      <h1>Streaming media</h1>
+    </header>
+    <main>
+      <h2>Live broadcast</h2>
+      <p>An HLS stream with a poster frame shown before playback starts.</p>
+      <video controls poster="https://cdn.stream.example/poster1.jpg">
+        <source src="https://cdn.stream.example/master.m3u8" type="application/vnd.apple.mpegurl" />
+      </video>
+      <p>
+        <a href="https://cdn.stream.example/manifest.mpd">DASH manifest link</a>
+      </p>
+      <h3>Episode thumbnail</h3>
+      <img alt="Poster" width="120" height="120" src="https://cdn.stream.example/thumb.jpg" />
+      <time datetime="2026-07-10">Aired July 10, 2026</time>
+    </main>
+    <footer>
+      <p>MBD e2e fixtures &mdash; streaming scenarios.</p>
+    </footer>
+  </body>
+</html>
