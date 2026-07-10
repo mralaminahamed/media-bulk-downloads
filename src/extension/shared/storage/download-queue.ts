@@ -24,6 +24,11 @@ export interface QueueItem {
   /** Id of the session DNR rule active for this item's in-flight download, so the
    *  dispatcher can tear it down when the download settles. Dispatcher-managed. */
   ruleId?: number;
+  /** Live progress for an active item (bytes fetched so far / total, from the
+   *  dispatcher's chrome.downloads poll). Absent until the first poll; totalBytes
+   *  absent when Chrome doesn't know the size. */
+  bytesReceived?: number;
+  totalBytes?: number;
 }
 
 export interface QueueState {
@@ -116,7 +121,7 @@ export function scheduleRetry(state: QueueState, id: string, now: number): Queue
     if (attempts >= MAX_ATTEMPTS) {
       return { ...i, attempts, status: 'failed', error: i.error ?? 'retry limit reached', downloadId: undefined };
     }
-    return { ...i, attempts, status: 'queued', readyAt: now + backoffMs(attempts), downloadId: undefined };
+    return { ...i, attempts, status: 'queued', readyAt: now + backoffMs(attempts), downloadId: undefined, bytesReceived: undefined, totalBytes: undefined };
   });
 }
 
@@ -131,9 +136,37 @@ export function retryFailed(state: QueueState, id: string, now: number, useRefer
       ? {
           ...i, status: 'queued', attempts: 0, error: undefined, readyAt: now,
           downloadId: undefined, hotlink: undefined, useReferer: useReferer || undefined,
+          bytesReceived: undefined, totalBytes: undefined,
         }
       : i,
   );
+}
+
+/** Update the live byte progress of the active item owning `downloadId`. Returns
+ *  the same state reference when no active item matches or nothing changed, so
+ *  the dispatcher can skip a redundant storage write. */
+export function setProgress(state: QueueState, downloadId: number, bytesReceived: number, totalBytes?: number): QueueState {
+  const idx = state.items.findIndex((i) => i.downloadId === downloadId && i.status === 'active');
+  if (idx === -1) return state;
+  const cur = state.items[idx];
+  if (cur.bytesReceived === bytesReceived && cur.totalBytes === totalBytes) return state;
+  const items = state.items.slice();
+  items[idx] = { ...cur, bytesReceived, totalBytes };
+  return { ...state, items };
+}
+
+/** Re-queue every failed item at once (bulk plain retry — no Referer rewrite). */
+export function retryAllFailed(state: QueueState, now: number): QueueState {
+  return {
+    ...state,
+    items: state.items.map((i) =>
+      i.status === 'failed'
+        ? { ...i, status: 'queued' as const, attempts: 0, error: undefined, readyAt: now,
+            downloadId: undefined, hotlink: undefined, useReferer: undefined,
+            bytesReceived: undefined, totalBytes: undefined }
+        : i,
+    ),
+  };
 }
 
 export function clearFinished(state: QueueState): QueueState {
