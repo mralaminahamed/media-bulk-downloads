@@ -155,3 +155,57 @@ describe('extractFbMedia', () => {
     expect(vids[0].url).toContain('playable.mp4');
   });
 });
+
+describe('extractFbMedia — UI-chrome rejection (discovery-spike reconciliation)', () => {
+  // Live capture on facebook.com photos + photo-viewer surfaces showed the
+  // hydration/GraphQL payload is dominated by UI-icon objects that share the
+  // exact `{ uri, width, height }` shape as real photos but are 12–72px glyphs
+  // (reaction icons, sprite bundles). They inherit an ancestor `id`, so without
+  // a size floor they surface as fake downloadable "media". Real photos measured
+  // 213×320 up to 2048×1536; icons never exceeded 72×72.
+
+  it('drops small UI-icon nodes even when they carry uri + width + height + an ancestor id', () => {
+    // Icons under a NON icon-named key (a numeric sprite id and a generic key),
+    // so only the size floor — not a parent-key filter — can reject them.
+    const json = { id: '777', __typename: 'CometUIStory',
+      '1876411': { uri: 'https://x.fbcdn.net/rsrc/sprite_n.png', width: 20, height: 20, scale: 1 },
+      glyph: { uri: 'https://x.fbcdn.net/rsrc/g_n.png', width: 72, height: 72 } };
+    expect(extractFbMedia(json).filter((e) => e.kind === 'image')).toHaveLength(0);
+  });
+
+  it('excludes an image under an `icon` parent key regardless of size', () => {
+    // Named icon keys observed live: primary_icon / secondary_icon /
+    // active_secondary_icon / icon. Guards the (rare) icon that clears the floor.
+    const json = { id: '778', icon: { uri: 'https://x.fbcdn.net/rsrc/bigicon_n.png', width: 200, height: 200 } };
+    expect(extractFbMedia(json).filter((e) => e.kind === 'image')).toHaveLength(0);
+  });
+
+  it('keeps the real photo while dropping a sibling reaction icon at the same FBID', () => {
+    // Real GraphQL Photo node shape: { __typename:'Photo', id:<18 digits>,
+    // image:{ uri, width, height }, ... } with chrome icons alongside.
+    const json = { id: '888', __typename: 'Photo',
+      image: { uri: 'https://x.fbcdn.net/v/real_n.jpg', width: 960, height: 1280 },
+      reaction: { uri: 'https://x.fbcdn.net/rsrc/like_n.png', width: 24, height: 24 } };
+    const imgs = extractFbMedia(json).filter((e) => e.kind === 'image');
+    expect(imgs).toHaveLength(1);
+    expect(imgs[0].url).toContain('real_n.jpg');
+    expect(imgs[0].width).toBe(960);
+  });
+
+  it('accepts at the floor and rejects just below it', () => {
+    const atFloor = { id: '1', image: { uri: 'https://x.fbcdn.net/v/a_n.jpg', width: 128, height: 128 } };
+    const belowFloor = { id: '2', image: { uri: 'https://x.fbcdn.net/v/b_n.jpg', width: 127, height: 300 } };
+    expect(extractFbMedia(atFloor).filter((e) => e.kind === 'image')).toHaveLength(1);
+    expect(extractFbMedia(belowFloor).filter((e) => e.kind === 'image')).toHaveLength(0);
+  });
+
+  it('still surfaces the `viewer_image` key seen in profile-photos hydration', () => {
+    // Profile-photos hydration keys the full image as `viewer_image` (the
+    // GraphQL viewer keys it as `image`); both must resolve.
+    const json = { id: '999', __typename: 'Photo',
+      viewer_image: { uri: 'https://x.fbcdn.net/v/vi_n.jpg', width: 1366, height: 2048 } };
+    const imgs = extractFbMedia(json).filter((e) => e.kind === 'image');
+    expect(imgs).toHaveLength(1);
+    expect(imgs[0].url).toContain('vi_n.jpg');
+  });
+});
