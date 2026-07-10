@@ -55,7 +55,7 @@ function deepScanCapMessage(reason: DeepScanStopReason | undefined, count: numbe
 /** Items the user can actually download/zip now — pending videos and HLS streams
  *  (which are captured individually, not fetched as one file) are excluded. */
 const downloadable = (list: ImageInfo[]): ImageInfo[] =>
-  list.filter((i) => !i.unresolvedVideo && !i.hlsManifest);
+  list.filter((i) => !i.unresolvedVideo && !i.unresolvedImage && !i.hlsManifest);
 
 /** Pending videos that still carry a resolve hint — the set "Get all videos" acts on. */
 const pendingVideos = (list: ImageInfo[]): ImageInfo[] =>

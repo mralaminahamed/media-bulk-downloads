@@ -28,4 +28,13 @@ describe('applyResolved', () => {
   it('leaves an HLS-only item pending (returns null) when capture is off', () => {
     expect(applyResolved(base, { url: 'https://x/master.m3u8', hls: true }, false)).toBeNull();
   });
+
+  it('clears unresolvedImage and swaps src on a resolved pending image', () => {
+    const item = {
+      src: 'https://x.com/u/status/1/photo/1', kind: 'image', unresolvedImage: true,
+      resolveHint: { platform: 'twitter', id: 'photo 1 1' },
+    } as any;
+    const out = applyResolved(item, { url: 'https://pbs.twimg.com/media/AA?format=jpg&name=orig' }, false);
+    expect(out).toMatchObject({ src: 'https://pbs.twimg.com/media/AA?format=jpg&name=orig', unresolvedImage: false, resolveHint: undefined });
+  });
 });

@@ -561,6 +561,19 @@ describe('App Component', () => {
     expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
   });
 
+  it('shows a pending image but excludes it from the download count', async () => {
+    const pendingImage = image({
+      src: 'https://x.com/u/status/1/photo/1', kind: 'image',
+      unresolvedImage: true, resolveHint: { platform: 'twitter', id: 'photo 1 1' },
+    });
+    render(<App collect={async () => [image({ src: 'a.jpg' }), pendingImage]} />);
+    await screen.findByText('Filters');
+    // both items are on the page (image + pending image) → plural header…
+    expect(screen.getByText('items on this page')).toBeInTheDocument();
+    // …but only the real image is downloadable
+    expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
+  });
+
   it('opens and closes the Favourites panel from the header', async () => {
     render(<App collect={async () => []} />);
     await userEvent.click(await screen.findByRole('button', { name: /favourites/i }));
