@@ -75,6 +75,21 @@ describe('ingestSniffedFbMedia + facebookResolver.resolve', () => {
     expect(out).toEqual([{ url: `${CDN}/hd_720.mp4`, kind: 'video', ext: 'mp4', width: 1280, height: 720, poster: `${CDN}/hd_poster.jpg` }]);
   });
 
+  it('keys a photo tile whose anchor uses the /<page>/photos/<id>/ path form', () => {
+    document.body.innerHTML = '<a href="/natgeo/photos/777/"><img src="https://x.fbcdn.net/v/grid_777_n.jpg"></a>';
+    ingestSniffedFbMedia([
+      { fbid: '777', kind: 'image', url: 'https://x.fbcdn.net/v/orig_777_n.jpg', width: 2048, height: 1536 },
+    ]);
+    const img = document.querySelector('img') as Element;
+    const out = facebookResolver.resolve(new URL('https://x.fbcdn.net/v/grid_777_n.jpg'), {
+      allowNetwork: false,
+      pageUrl: 'https://www.facebook.com/natgeo/photos',
+      el: img,
+    } as unknown as Parameters<typeof facebookResolver.resolve>[1]);
+    expect(out).toHaveLength(1);
+    expect(out[0].url).toContain('orig_777_n.jpg');
+  });
+
   it('rejects forged entries (bad host, bad fbid) and never lets a bad ext through: falls back to the kind default', () => {
     ingestSniffedFbMedia([
       { fbid: '101', kind: 'image', url: 'https://evil.com/x.jpg', ext: 'jpg', width: 9, height: 9 }, // bad host -> dropped

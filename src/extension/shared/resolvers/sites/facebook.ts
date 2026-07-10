@@ -165,7 +165,7 @@ const onFacebook = (): boolean => {
 };
 
 function fbidFromContext(ctx: ResolveContext): string | null {
-  const link = ctx.el?.closest?.('a[href*="fbid="], a[href*="/photo/"], a[href*="/videos/"], a[href*="/watch/"], a[href*="/reel/"]');
+  const link = ctx.el?.closest?.('a[href*="fbid="], a[href*="/photo/"], a[href*="/photos/"], a[href*="/videos/"], a[href*="/watch/"], a[href*="/reel/"]');
   const fromLink = fbidFromUrl(link?.getAttribute('href'));
   if (fromLink) return fromLink;
   return fbidFromUrl(ctx.pageUrl);
