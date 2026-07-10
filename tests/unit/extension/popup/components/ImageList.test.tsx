@@ -219,6 +219,14 @@ describe('ImageList Component', () => {
       render(<ImageList images={[resolved]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} />);
       expect(screen.getByTitle('Download')).toBeInTheDocument();
     });
+
+    it('does not render an "Add favourite" button for a pending video (poster is not the real file)', () => {
+      render(
+        <ImageList images={[pendingVideo]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()}
+          onToggleFavourite={vi.fn()} favouriteSrcs={new SrcKeySet()} />,
+      );
+      expect(screen.queryByRole('button', { name: /add favourite/i })).not.toBeInTheDocument();
+    });
   });
 
   describe('ImageList pending images', () => {
@@ -229,11 +237,15 @@ describe('ImageList Component', () => {
     };
 
     it('renders a pending placeholder for an unresolvedImage item (no status-URL <img>)', () => {
-      render(<ImageList images={[pendingImage]} onImageDownload={vi.fn()} />);
-      // No <img> at all is emitted for a pending image tile — in particular, never
-      // an <img src> pointing at the x.com status URL.
-      expect(screen.queryByRole('img', { name: /.*/ })?.getAttribute('src') ?? '').not.toContain('x.com/');
-      expect(screen.queryAllByRole('img')).toHaveLength(0);
+      const { container } = render(<ImageList images={[pendingImage]} onImageDownload={vi.fn()} />);
+      // Raw DOM query, not screen.getByRole('img'): the pending fixture's alt is
+      // '', so an <img alt=""> carries NO ARIA img role and a role-based query
+      // would return 0 results even if a regression reintroduced
+      // <img src="https://x.com/...">. Query the actual DOM instead so this guard
+      // can fail.
+      const tileImgs = Array.from(container.querySelectorAll('img'));
+      expect(tileImgs.some((img) => (img.getAttribute('src') ?? '').includes('x.com/'))).toBe(false);
+      expect(tileImgs).toHaveLength(0);
       // Same pending affordance a pending video gets: an eyebrow label (it carries
       // a resolveHint, so it reads "not fetched", matching the video case).
       expect(screen.getByText('not fetched')).toBeInTheDocument();
@@ -247,11 +259,43 @@ describe('ImageList Component', () => {
       expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     });
 
-    it('is excluded from the downloadable count needed for "renders images correctly"-style assertions', () => {
+    it('still mounts the tile (View Details action) for a pending image, despite it emitting no <img>', () => {
       // Sanity check that a pending image is rendered at all (tile present) even
       // though it contributes no <img> — the figure/tile itself still mounts.
       render(<ImageList images={[pendingImage]} onImageDownload={vi.fn()} />);
       expect(screen.getByRole('button', { name: 'View Details' })).toBeInTheDocument();
+    });
+
+    it('does not render an "Add favourite" button for a pending image (would leak the placeholder src into favourites)', () => {
+      render(
+        <ImageList images={[pendingImage]} onImageDownload={vi.fn()}
+          onToggleFavourite={vi.fn()} favouriteSrcs={new SrcKeySet()} />,
+      );
+      expect(screen.queryByRole('button', { name: /add favourite/i })).not.toBeInTheDocument();
+    });
+
+    it('still renders "Add favourite" for a normal (resolved) image tile', () => {
+      const resolved: ImageInfo = { ...pendingImage, unresolvedImage: false, resolveHint: undefined, src: 'https://pbs.twimg.com/media/resolved.jpg' };
+      render(
+        <ImageList images={[resolved]} onImageDownload={vi.fn()}
+          onToggleFavourite={vi.fn()} favouriteSrcs={new SrcKeySet()} />,
+      );
+      expect(screen.getByRole('button', { name: /add favourite/i })).toBeInTheDocument();
+    });
+
+    it('regains the "Add favourite" button once a pending image resolves (gating tracks the live flag, not sticky)', () => {
+      const { rerender } = render(
+        <ImageList images={[pendingImage]} onImageDownload={vi.fn()}
+          onToggleFavourite={vi.fn()} favouriteSrcs={new SrcKeySet()} />,
+      );
+      expect(screen.queryByRole('button', { name: /add favourite/i })).not.toBeInTheDocument();
+
+      const resolved: ImageInfo = { ...pendingImage, unresolvedImage: false, resolveHint: undefined };
+      rerender(
+        <ImageList images={[resolved]} onImageDownload={vi.fn()}
+          onToggleFavourite={vi.fn()} favouriteSrcs={new SrcKeySet()} />,
+      );
+      expect(screen.getByRole('button', { name: /add favourite/i })).toBeInTheDocument();
     });
 
     it('shows a graceful placeholder (no <img>) and an informational footer in the preview modal', async () => {
@@ -259,10 +303,23 @@ describe('ImageList Component', () => {
       await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
       const dialog = screen.getByRole('dialog');
       // A pending image has no poster (unlike a pending video) — the preview must
-      // degrade gracefully, not render a broken/placeholder <img>.
-      expect(within(dialog).queryByRole('img')).toBeNull();
+      // degrade gracefully, not render a broken/placeholder <img>. Raw DOM query
+      // for the same reason as the tile assertion above (alt='' has no img role).
+      const dialogImgs = Array.from(dialog.querySelectorAll('img'));
+      expect(dialogImgs.some((img) => (img.getAttribute('src') ?? '').includes('x.com/'))).toBe(false);
+      expect(dialogImgs).toHaveLength(0);
       expect(within(dialog).queryByRole('button', { name: 'Download' })).toBeNull();
       expect(within(dialog).getByText(/hasn't been fetched yet/i)).toBeInTheDocument();
+    });
+
+    it('does not render an "Add favourite" button in the preview modal for a pending image', async () => {
+      render(
+        <ImageList images={[pendingImage]} onImageDownload={vi.fn()}
+          onToggleFavourite={vi.fn()} favouriteSrcs={new SrcKeySet()} />,
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).queryByRole('button', { name: /add favourite/i })).not.toBeInTheDocument();
     });
   });
 

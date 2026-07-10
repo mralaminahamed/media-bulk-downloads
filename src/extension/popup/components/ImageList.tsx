@@ -312,7 +312,11 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                 >
                   <EyeIcon className="h-4 w-4" />
                 </button>
-                {onToggleFavourite && (
+                {/* A pending item's `src` is a placeholder (x.com status URL / not-yet-
+                    fetched video), not a real file — favouriting it would store that
+                    placeholder as entry.src, which FavouritesPanel/HistoryPanel then
+                    hand straight to <img src>. Hide the affordance until it resolves. */}
+                {onToggleFavourite && !(isPendingImage(image) || isPendingVideo(image)) && (
                   <button
                     onClick={() => onToggleFavourite(image)}
                     title={favouriteSrcs?.has(image.src) ? 'Remove favourite' : 'Add favourite'}
@@ -391,7 +395,8 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                 )}
               </div>
               <div className="flex items-center gap-0.5">
-                {onToggleFavourite && (
+                {/* Same placeholder-leak guard as the grid tile's favourite button. */}
+                {onToggleFavourite && !(isPendingImage(selectedImage) || isPendingVideo(selectedImage)) && (
                   <button
                     onClick={() => onToggleFavourite(selectedImage)}
                     title={favouriteSrcs?.has(selectedImage.src) ? 'Remove favourite' : 'Add favourite'}
