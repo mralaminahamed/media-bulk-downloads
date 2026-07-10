@@ -30,6 +30,7 @@ the listing copy is intentionally identical so every store matches.
 - [ ] Icons 16/32/48/128 present (`src/public/icon/`) — ✅ already in the build; Opera uses the manifest icons.
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
 - [ ] At least **1 screenshot** (see §5) — the 1280×800 shots from the Chrome package work as-is.
+- [ ] **Promotional picture 300×188 PNG** ready for the moderator (see §5) — ✅ `assets/opera-promo-300x188.png`.
 - [ ] `.output/media-bulk-downloads-<version>-chrome.zip` produced by `yarn zip` (the Chrome zip is the Opera upload).
 - [ ] `…-firefox-sources.zip` on hand from `yarn zip:firefox` in case a reviewer requests source.
 - [ ] Product description, category, and privacy answers filled in (below).
@@ -194,6 +195,12 @@ crop to size. PNG or JPEG.
 | Screenshot 3   | 1280×800           | optional | Preview modal (with prev/next)                                    |
 | Screenshot 4   | 1280×800           | optional | Settings sheet                                                    |
 | Screenshot 5   | 1280×800           | optional | Download history with the open/reveal actions                    |
+| **Promotional picture** | **300×188** | ✅ (moderator) | ✅ `assets/opera-promo-300x188.png` — brand mark + wordmark + "image, video & audio" tagline |
+
+> **Opera-specific:** the moderator asks for a **300×188** promotional picture.
+> It ships in the repo (`assets/opera-promo-300x188.png`, mirrors the Chrome
+> small-promo tile). Attach it in the submission or send it when the moderator
+> requests it.
 
 Tip: the 1280×800 screenshots from the Chrome package can be reused here as-is.
 Opera accepts common screenshot sizes (612×408 minimum); 1280×800 is well within

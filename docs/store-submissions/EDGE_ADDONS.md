@@ -24,7 +24,7 @@ identical so both stores match.
 - [ ] `wxt.config.ts` name/description correct; version comes from `package.json`. `yarn build:edge` emits `.output/edge-mv3/manifest.json`.
 - [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`; optional `notifications` and `declarativeNetRequestWithHostAccess` (both requested at runtime).
 - [ ] Icons 16/32/48/128 present (`src/public/icon/`) — ✅ already in the build.
-- [ ] **Store logo 300×300 PNG** ready (Edge-specific, see §5) — this is the one asset the Chrome package doesn't already give you.
+- [ ] **Store logo 300×300 PNG** ready (Edge-specific, see §5) — ✅ `assets/store-logo-300x300.png`.
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
 - [ ] At least **1 screenshot** at 1280×800 (or 640×480) (see §5).
 - [ ] `.output/media-bulk-downloads-<version>-edge.zip` produced by `yarn zip:edge`.
@@ -195,7 +195,7 @@ sizes. PNG or JPEG.
 
 | Asset                  | Size                  | Required        | Suggested shot                                                                                                 |
 |------------------------|-----------------------|-----------------|----------------------------------------------------------------------------------------------------------------|
-| **Store logo**         | **300×300**           | ✅ Edge-specific | Brand tile on a solid background (upscale `src/public/icon/128.png` or re-export `assets/icon.svg` at 300×300) |
+| **Store logo**         | **300×300**           | ✅ Edge-specific | ✅ `assets/store-logo-300x300.png` — brand tile on a soft brand-tinted ground (rendered from `assets/icon.svg`) |
 | Screenshot 1           | 1280×800 (or 640×480) | ✅ (≥1)          | Popup with a full media grid + type badges                                                                     |
 | Screenshot 2           | 1280×800 (or 640×480) | optional        | Filter toolbar in use (kind/format/size)                                                                       |
 | Screenshot 3           | 1280×800 (or 640×480) | optional        | Preview modal (with prev/next)                                                                                 |

@@ -55,3 +55,6 @@ Thumbs.db
 test-results/
 playwright-report/
 blob-report/
+
+# Test samples
+/test-samples
