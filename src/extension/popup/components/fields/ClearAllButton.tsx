@@ -48,5 +48,3 @@ export const ClearAllButton: React.FC<ClearAllButtonProps> = ({ onClear, disable
     </button>
   );
 };
-
-export default ClearAllButton;
