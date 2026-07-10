@@ -15,6 +15,15 @@ it('shows a % + progress bar for an active item', () => {
   expect(screen.getByLabelText('Downloading')).toBeInTheDocument();
 });
 
+it('the status icon is decorative and its label lives on a labelled wrapper (a11y)', () => {
+  const { container } = render(<ul><QueueRow item={item({ status: 'active', downloadId: 1 })} {...props} /></ul>);
+  const labelled = screen.getByLabelText('Downloading');
+  expect(labelled).toHaveAttribute('role', 'img');
+  const svg = container.querySelector('svg');
+  expect(svg).toHaveAttribute('aria-hidden', 'true');
+  expect(svg).not.toHaveAttribute('aria-label');
+});
+
 it('a done item exposes Open', async () => {
   const onOpen = vi.fn();
   render(<ul><QueueRow item={item({ status: 'done', downloadId: 9 })} {...props} onOpen={onOpen} /></ul>);

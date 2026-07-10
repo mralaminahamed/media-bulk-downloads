@@ -131,7 +131,10 @@ export async function handleDownloadChanged(delta: chrome.downloads.DownloadDelt
         // backoff attempt cap (a bare 403 retry never changes; the referer does).
         const items = s.items.map((i) =>
           i.id === cur.id
-            ? { ...i, status: 'queued' as const, readyAt: Date.now(), downloadId: undefined, ruleId: undefined, useReferer: true }
+            ? {
+                ...i, status: 'queued' as const, readyAt: Date.now(), downloadId: undefined, ruleId: undefined, useReferer: true,
+                bytesReceived: undefined, totalBytes: undefined,
+              }
             : i,
         );
         return { state: { ...s, items }, value: null };
@@ -259,7 +262,9 @@ export async function reconcileQueue(): Promise<void> {
       if (!cur || cur.status !== 'active') return { state: s, value: null };
       if (completed) return { state: markDone(s, item.id), value: null };
       const items = s.items.map((i) =>
-        i.id === item.id ? { ...i, status: 'queued' as const, downloadId: undefined, readyAt: Date.now() } : i,
+        i.id === item.id
+          ? { ...i, status: 'queued' as const, downloadId: undefined, readyAt: Date.now(), bytesReceived: undefined, totalBytes: undefined }
+          : i,
       );
       return { state: { ...s, items }, value: null };
     });

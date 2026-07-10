@@ -30,7 +30,9 @@ export function QueueRow({ item, onCancel, onRetry, onRetryReferer, onOpen }: Qu
 
   return (
     <li className={`download-queue__item is-${item.status} flex items-center gap-2 text-[11px]`}>
-      <Icon className={`h-3.5 w-3.5 shrink-0 ${cls}`} aria-label={label} />
+      <span role="img" aria-label={label} className="inline-grid shrink-0 place-items-center">
+        <Icon className={`h-3.5 w-3.5 ${cls}`} aria-hidden="true" />
+      </span>
       <span className="min-w-0 flex-1 truncate text-(--ink)" title={item.filename}>{item.filename}</span>
 
       {item.status === 'active' && (

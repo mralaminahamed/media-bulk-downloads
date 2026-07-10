@@ -144,6 +144,25 @@ describe('hotlink 403 handling', () => {
     expect(recordDownloads).toHaveBeenCalledOnce();
   });
 
+  it('403 + permission requeue clears stale bytesReceived/totalBytes (bug: stale progress bytes)', async () => {
+    permGranted = true;
+    await enqueueDownloads([withPage('https://cdn/x2.jpg', 'https://gallery/album2')]);
+    await flush();
+    if (downloadCb) downloadCb(); // id 100 active
+    await flush();
+
+    // Simulate byte progress having been polled in before the 403 interrupt arrives.
+    const cur = store[QUEUE_KEY] as { items: Array<Record<string, unknown>> };
+    cur.items[0] = { ...cur.items[0], bytesReceived: 500, totalBytes: 1000 };
+
+    await handleDownloadChanged(forbidden(100));
+    await flush();
+    const snap = await getQueueSnapshot();
+    expect(snap.items[0].useReferer).toBe(true);
+    expect(snap.items[0].bytesReceived).toBeUndefined();
+    expect(snap.items[0].totalBytes).toBeUndefined();
+  });
+
   it('403 without permission → fails with the hotlink flag and installs no rule', async () => {
     permGranted = false;
     await enqueueDownloads([{ url: 'https://cdn/y.jpg', filename: 'y.jpg' }]);
@@ -212,6 +231,22 @@ describe('reconcile on restart', () => {
     await reconcileQueue();
     const snap = await getQueueSnapshot();
     expect(['queued', 'active']).toContain(snap.items[0].status);
+  });
+
+  it('clears stale bytesReceived/totalBytes on the active→queued requeue (bug: stale progress bytes)', async () => {
+    store[QUEUE_KEY] = { paused: false, items: [
+      {
+        id: 'c', url: 'u3', filename: 'f3', status: 'active', attempts: 0, downloadId: 300, readyAt: 0, addedAt: 0,
+        bytesReceived: 4096, totalBytes: 8192,
+      },
+    ] };
+    // Reports NOT complete (interrupted), so the item is requeued rather than marked done.
+    (chrome.downloads.search as ReturnType<typeof vi.fn>).mockResolvedValueOnce([{ id: 300, state: 'interrupted' }]);
+    await reconcileQueue();
+    const snap = await getQueueSnapshot();
+    expect(['queued', 'active']).toContain(snap.items[0].status);
+    expect(snap.items[0].bytesReceived).toBeUndefined();
+    expect(snap.items[0].totalBytes).toBeUndefined();
   });
 });
 
