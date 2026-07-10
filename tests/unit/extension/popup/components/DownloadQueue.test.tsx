@@ -45,3 +45,70 @@ it('Clear done shows when finished items exist and dispatches QUEUE_CLEAR', asyn
   await userEvent.click(await screen.findByRole('button', { name: /clear done/i }));
   expect(send).toHaveBeenCalledWith({ type: 'QUEUE_CLEAR' });
 });
+
+it('a hotlink failed row\'s "Retry w/ referer" requests the permission, then retries with referer when granted', async () => {
+  const send = vi.spyOn(utils, 'sendRuntimeMessage').mockImplementation(() => {});
+  (chrome.permissions.request as ReturnType<typeof vi.fn>).mockResolvedValueOnce(true);
+  setQueue({ paused: false, items: [
+    { id: 'd', url: 'u', filename: 'd', status: 'failed', attempts: 0, error: 'SERVER_FORBIDDEN', hotlink: true, readyAt: 0, addedAt: 0 },
+  ] });
+  render(<DownloadQueue />);
+  await userEvent.click(await screen.findByRole('button', { name: /retry w\/ referer/i }));
+  await waitFor(() => expect(chrome.permissions.request).toHaveBeenCalledWith({ permissions: ['declarativeNetRequestWithHostAccess'] }));
+  await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'QUEUE_RETRY', id: 'd', referer: true }));
+});
+
+it('does not retry when the referer permission request is denied', async () => {
+  const send = vi.spyOn(utils, 'sendRuntimeMessage').mockImplementation(() => {});
+  (chrome.permissions.request as ReturnType<typeof vi.fn>).mockResolvedValueOnce(false);
+  setQueue({ paused: false, items: [
+    { id: 'e', url: 'u', filename: 'e', status: 'failed', attempts: 0, error: 'SERVER_FORBIDDEN', hotlink: true, readyAt: 0, addedAt: 0 },
+  ] });
+  render(<DownloadQueue />);
+  await userEvent.click(await screen.findByRole('button', { name: /retry w\/ referer/i }));
+  await waitFor(() => expect(chrome.permissions.request).toHaveBeenCalledWith({ permissions: ['declarativeNetRequestWithHostAccess'] }));
+  // Flush the microtask queue past the `if (granted)` check before asserting the negative.
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(send).not.toHaveBeenCalledWith({ type: 'QUEUE_RETRY', id: 'e', referer: true });
+});
+
+it('sends QUEUE_PAUSE from the Pause control', async () => {
+  const send = vi.spyOn(utils, 'sendRuntimeMessage').mockImplementation(() => {});
+  setQueue({ paused: false, items: [
+    { id: 'f', url: 'u', filename: 'f', status: 'queued', attempts: 0, readyAt: 0, addedAt: 0 },
+  ] });
+  render(<DownloadQueue />);
+  await userEvent.click(await screen.findByRole('button', { name: 'Pause' }));
+  expect(send).toHaveBeenCalledWith({ type: 'QUEUE_PAUSE' });
+});
+
+it('sends QUEUE_RESUME from the Resume control when already paused', async () => {
+  const send = vi.spyOn(utils, 'sendRuntimeMessage').mockImplementation(() => {});
+  setQueue({ paused: true, items: [
+    { id: 'g', url: 'u', filename: 'g', status: 'queued', attempts: 0, readyAt: 0, addedAt: 0 },
+  ] });
+  render(<DownloadQueue />);
+  await userEvent.click(await screen.findByRole('button', { name: 'Resume' }));
+  expect(send).toHaveBeenCalledWith({ type: 'QUEUE_RESUME' });
+});
+
+it('sends a plain QUEUE_RETRY for an ordinary (non-hotlink) failed row', async () => {
+  const send = vi.spyOn(utils, 'sendRuntimeMessage').mockImplementation(() => {});
+  setQueue({ paused: false, items: [
+    { id: 'h', url: 'u', filename: 'h', status: 'failed', attempts: 3, error: 'SERVER_FAILED', readyAt: 0, addedAt: 0 },
+  ] });
+  render(<DownloadQueue />);
+  await userEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+  expect(send).toHaveBeenCalledWith({ type: 'QUEUE_RETRY', id: 'h' });
+});
+
+it('sends QUEUE_OPEN from a done row\'s Open control', async () => {
+  const send = vi.spyOn(utils, 'sendRuntimeMessage').mockImplementation(() => {});
+  setQueue({ paused: false, items: [
+    { id: 'i', url: 'u', filename: 'i', status: 'done', attempts: 0, readyAt: 0, addedAt: 0 },
+  ] });
+  render(<DownloadQueue />);
+  await userEvent.click(await screen.findByRole('button', { name: 'Open file' }));
+  expect(send).toHaveBeenCalledWith({ type: 'QUEUE_OPEN', id: 'i' });
+});
