@@ -1,3 +1,4 @@
+import type React from 'react';
 import type { ReactNode, ChangeEvent, FocusEvent, MouseEvent, CSSProperties, HTMLAttributes } from 'react';
 import type { SrcKeySet } from '../extension/shared/collection/canonical';
 
@@ -565,6 +566,34 @@ export interface SettingsProps {
   onClose: () => void;
   onSettingsChange: (newSettings: SettingsData) => void;
   settings: SettingsData;
+}
+
+/** Shared props every Settings pane receives from the shell. */
+export interface SettingsPaneProps {
+  settings: SettingsData;
+  handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  clampOnBlur: (
+    name: keyof SettingsData,
+    min: number,
+    max?: number,
+  ) => (e: React.FocusEvent<HTMLInputElement>) => void;
+  toggle: (name: keyof SettingsData) => void;
+  setSettings: React.Dispatch<React.SetStateAction<SettingsData>>;
+  /** Whether this pane's Advanced section starts expanded (a non-default field lives there). */
+  advancedDefaultOpen: boolean;
+}
+
+export interface DownloadsPaneProps extends SettingsPaneProps {
+  folderPreview: string;
+  onNotifyToggle: () => void;
+  setNaming: (mode: SettingsData['namingMode']) => void;
+}
+
+export interface DataPaneProps {
+  onExport: () => void;
+  onImportFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  backupNote: string;
 }
 
 /** Shared props for the small SVG tile icons (play/film/audio). */

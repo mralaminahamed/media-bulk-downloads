@@ -12,7 +12,10 @@ describe('Settings Component', () => {
   const initialSettings: SettingsData = {
     downloadPath: 'downloads',
     fileNamePrefix: 'image_',
-    popupWidth: 400,
+    // Matches DEFAULT_SETTINGS.popupWidth so this fixture doesn't itself count as
+    // "non-default" — the Display pane's Advanced section should start collapsed
+    // unless a test deliberately overrides one of its fields.
+    popupWidth: 460,
     popupHeight: 600,
     showImageCount: true,
     minimumImageSize: 0,
@@ -65,6 +68,14 @@ describe('Settings Component', () => {
     (chrome.permissions.request as Mock).mockReset();
   });
 
+  // ── Tab / Advanced navigation helpers ───────────────────────────────────────
+  const selectTab = (name: RegExp | string) =>
+    fireEvent.click(screen.getByRole('tab', { name }));
+
+  // Opens the Advanced disclosure in the currently-rendered pane.
+  const openAdvanced = () =>
+    fireEvent.click(screen.getByRole('button', { name: /advanced/i }));
+
   it('renders correctly with initial settings', () => {
     render(
       <Settings
@@ -112,6 +123,7 @@ describe('Settings Component', () => {
         settings={initialSettings}
       />
     );
+    selectTab(/Display/i);
     const toggle = screen.getByRole('switch', { name: /show image count/i });
     fireEvent.click(toggle);
     fireEvent.click(screen.getByText('Save'));
@@ -128,6 +140,7 @@ describe('Settings Component', () => {
         settings={initialSettings}
       />
     );
+    selectTab(/Media/i);
     fireEvent.click(screen.getByRole('switch', { name: /exclude emoji/i }));
     fireEvent.click(screen.getByText('Save'));
     expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({
@@ -139,7 +152,8 @@ describe('Settings Component', () => {
     render(
       <Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />
     );
-    fireEvent.change(screen.getByLabelText('Minimum Image Size (px):'), { target: { value: '128' } });
+    selectTab(/Media/i);
+    fireEvent.change(screen.getByLabelText('Minimum image size (px):'), { target: { value: '128' } });
     fireEvent.click(screen.getByText('Save'));
     expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ minimumImageSize: 128 }));
   });
@@ -148,8 +162,10 @@ describe('Settings Component', () => {
     render(
       <Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />
     );
-    fireEvent.change(screen.getByLabelText('Thumbnail Size (px):'), { target: { value: '96' } });
-    fireEvent.change(screen.getByLabelText('Preview Size (px):'), { target: { value: '500' } });
+    selectTab(/Display/i);
+    openAdvanced(); // reveals previewSize
+    fireEvent.change(screen.getByLabelText('Thumbnail size (px):'), { target: { value: '96' } });
+    fireEvent.change(screen.getByLabelText('Preview size (px):'), { target: { value: '500' } });
     fireEvent.click(screen.getByText('Save'));
     expect(mockOnSettingsChange).toHaveBeenCalledWith(
       expect.objectContaining({ thumbnailSize: 96, previewSize: 500 }),
@@ -160,10 +176,11 @@ describe('Settings Component', () => {
     render(
       <Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />
     );
-    expect(screen.queryByLabelText('Bubble Corner:')).not.toBeInTheDocument();
+    selectTab(/Display/i);
+    expect(screen.queryByLabelText('Bubble corner:')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('switch', { name: /show floating bubble/i }));
-    const corner = screen.getByLabelText('Bubble Corner:');
+    const corner = screen.getByLabelText('Bubble corner:');
     fireEvent.change(corner, { target: { value: 'top-left' } });
     fireEvent.click(screen.getByText('Save'));
 
@@ -179,8 +196,9 @@ describe('Settings Component', () => {
     render(
       <Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />
     );
+    selectTab(/Display/i);
     fireEvent.click(screen.getByRole('switch', { name: /show floating bubble/i }));
-    fireEvent.change(screen.getByLabelText('Panel Position:'), { target: { value: 'center' } });
+    fireEvent.change(screen.getByLabelText('Panel position:'), { target: { value: 'center' } });
     fireEvent.click(screen.getByText('Save'));
 
     expect(mockOnSettingsChange).toHaveBeenCalledWith(
@@ -192,9 +210,11 @@ describe('Settings Component', () => {
     render(
       <Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />
     );
+    selectTab(/Display/i);
     fireEvent.click(screen.getByRole('switch', { name: /show floating bubble/i }));
-    fireEvent.change(screen.getByLabelText('Bubble Width:'), { target: { value: '520' } });
-    fireEvent.change(screen.getByLabelText('Bubble Height:'), { target: { value: '600' } });
+    openAdvanced();
+    fireEvent.change(screen.getByLabelText('Bubble width:'), { target: { value: '520' } });
+    fireEvent.change(screen.getByLabelText('Bubble height:'), { target: { value: '600' } });
     fireEvent.click(screen.getByText('Save'));
 
     expect(mockOnSettingsChange).toHaveBeenCalledWith(
@@ -219,6 +239,7 @@ describe('Settings Component', () => {
   it('toggles resolveOriginals', async () => {
     const onSettingsChange = vi.fn();
     render(<Settings settings={{ ...DEFAULT_SETTINGS }} onClose={() => {}} onSettingsChange={onSettingsChange} />);
+    selectTab(/Media/i);
     await userEvent.click(screen.getByRole('switch', { name: /resolve exact originals/i }));
     fireEvent.click(screen.getByText('Save'));
     expect(onSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ resolveOriginals: true }));
@@ -261,17 +282,18 @@ describe('Settings Component', () => {
     expect(mockOnClose).toHaveBeenCalled();
   });
 
-  // NOTE on clampOnBlur (Settings.tsx:36-42): two of its branches are unreachable
+  // NOTE on clampOnBlur (Settings.tsx): two of its branches are unreachable
   // from the rendered component and cannot be covered without changing src —
-  //  • the `max = Number.POSITIVE_INFINITY` default (line 37): every call site
+  //  • the `max = Number.POSITIVE_INFINITY` default: every call site
   //    passes an explicit max, so the default is never taken.
-  //  • the `Number.isFinite(n) ? … : min` false arm (line 40): every clamped field
+  //  • the `Number.isFinite(n) ? … : min` false arm: every clamped field
   //    is <input type="number">, which jsdom (and the browser) sanitises a
   //    non-numeric value to '' → Number('') === 0 (finite), so `n` is never NaN.
   // The clamp tests below cover the finite arm at every bound (min/max/empty).
   it('clamps an out-of-range number field to its max on blur', () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
-    const thumb = screen.getByLabelText('Thumbnail Size (px):');
+    selectTab(/Display/i);
+    const thumb = screen.getByLabelText('Thumbnail size (px):');
     fireEvent.change(thumb, { target: { value: '9999' } });
     fireEvent.blur(thumb);
     fireEvent.click(screen.getByText('Save'));
@@ -280,7 +302,8 @@ describe('Settings Component', () => {
 
   it('clamps the minimum image size to its cap on blur', () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
-    const min = screen.getByLabelText('Minimum Image Size (px):');
+    selectTab(/Media/i);
+    const min = screen.getByLabelText('Minimum image size (px):');
     fireEvent.change(min, { target: { value: '999999' } });
     fireEvent.blur(min);
     fireEvent.click(screen.getByText('Save'));
@@ -295,6 +318,7 @@ describe('Settings Component', () => {
   // ── Remaining toggles ──────────────────────────────────────────────────────
   it('saves the exclude-base64-images toggle', () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    selectTab(/Media/i);
     fireEvent.click(screen.getByRole('switch', { name: /exclude base64 images/i }));
     fireEvent.click(screen.getByText('Save'));
     expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ excludeBase64Images: true }));
@@ -302,6 +326,7 @@ describe('Settings Component', () => {
 
   it('saves the capture-HLS-streams toggle', () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    selectTab(/Media/i);
     fireEvent.click(screen.getByRole('switch', { name: /capture video streams/i }));
     fireEvent.click(screen.getByText('Save'));
     expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ captureHlsStreams: true }));
@@ -309,6 +334,8 @@ describe('Settings Component', () => {
 
   it('saves the deep-scan click-load-more toggle', () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    selectTab(/Media/i);
+    openAdvanced();
     fireEvent.click(screen.getByRole('switch', { name: /click .*load more.* buttons/i }));
     fireEvent.click(screen.getByText('Save'));
     expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ deepScanClickLoadMore: true }));
@@ -331,8 +358,9 @@ describe('Settings Component', () => {
 
   it('saves the chosen bubble corner from every option', () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    selectTab(/Display/i);
     fireEvent.click(screen.getByRole('switch', { name: /show floating bubble/i }));
-    fireEvent.change(screen.getByLabelText('Bubble Corner:'), { target: { value: 'top-right' } });
+    fireEvent.change(screen.getByLabelText('Bubble corner:'), { target: { value: 'top-right' } });
     fireEvent.click(screen.getByText('Save'));
     expect(mockOnSettingsChange).toHaveBeenCalledWith(
       expect.objectContaining({ bubblePosition: expect.objectContaining({ corner: 'top-right', x: 20, y: 20 }) }),
@@ -341,8 +369,9 @@ describe('Settings Component', () => {
 
   it('saves a corner-anchored panel placement', () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    selectTab(/Display/i);
     fireEvent.click(screen.getByRole('switch', { name: /show floating bubble/i }));
-    fireEvent.change(screen.getByLabelText('Panel Position:'), { target: { value: 'top-left' } });
+    fireEvent.change(screen.getByLabelText('Panel position:'), { target: { value: 'top-left' } });
     fireEvent.click(screen.getByText('Save'));
     expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ bubblePanelPlacement: 'top-left' }));
   });
@@ -350,14 +379,18 @@ describe('Settings Component', () => {
   // ── Number fields ──────────────────────────────────────────────────────────
   it('saves the popup width and height as numbers', () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
-    fireEvent.change(screen.getByLabelText('Popup Width:'), { target: { value: '520' } });
-    fireEvent.change(screen.getByLabelText('Popup Height:'), { target: { value: '500' } });
+    selectTab(/Display/i);
+    openAdvanced();
+    fireEvent.change(screen.getByLabelText('Popup width:'), { target: { value: '520' } });
+    fireEvent.change(screen.getByLabelText('Popup height:'), { target: { value: '500' } });
     fireEvent.click(screen.getByText('Save'));
     expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ popupWidth: 520, popupHeight: 500 }));
   });
 
   it('saves the deep-scan limits as numbers', () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    selectTab(/Media/i);
+    openAdvanced();
     fireEvent.change(screen.getByLabelText('Max items:'), { target: { value: '2500' } });
     fireEvent.change(screen.getByLabelText('Max time (seconds):'), { target: { value: '60' } });
     fireEvent.change(screen.getByLabelText('Max scroll steps:'), { target: { value: '80' } });
@@ -369,7 +402,9 @@ describe('Settings Component', () => {
 
   it('clamps a number field up to its minimum on blur (below-range)', () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
-    const width = screen.getByLabelText('Popup Width:');
+    selectTab(/Display/i);
+    openAdvanced();
+    const width = screen.getByLabelText('Popup width:');
     fireEvent.change(width, { target: { value: '10' } });
     fireEvent.blur(width);
     fireEvent.click(screen.getByText('Save'));
@@ -378,6 +413,8 @@ describe('Settings Component', () => {
 
   it('clamps the deep-scan max-items below its floor on blur', () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    selectTab(/Media/i);
+    openAdvanced();
     const items = screen.getByLabelText('Max items:');
     fireEvent.change(items, { target: { value: '5' } });
     fireEvent.blur(items);
@@ -387,6 +424,8 @@ describe('Settings Component', () => {
 
   it('clamps the deep-scan max-seconds above its ceiling on blur', () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    selectTab(/Media/i);
+    openAdvanced();
     const secs = screen.getByLabelText('Max time (seconds):');
     fireEvent.change(secs, { target: { value: '9999' } });
     fireEvent.blur(secs);
@@ -396,6 +435,8 @@ describe('Settings Component', () => {
 
   it('clamps the deep-scan max-scrolls below its floor on blur', () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    selectTab(/Media/i);
+    openAdvanced();
     const scrolls = screen.getByLabelText('Max scroll steps:');
     fireEvent.change(scrolls, { target: { value: '1' } });
     fireEvent.blur(scrolls);
@@ -405,8 +446,10 @@ describe('Settings Component', () => {
 
   it('clamps the bubble width above its ceiling on blur', () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    selectTab(/Display/i);
     fireEvent.click(screen.getByRole('switch', { name: /show floating bubble/i }));
-    const w = screen.getByLabelText('Bubble Width:');
+    openAdvanced();
+    const w = screen.getByLabelText('Bubble width:');
     fireEvent.change(w, { target: { value: '99999' } });
     fireEvent.blur(w);
     fireEvent.click(screen.getByText('Save'));
@@ -445,6 +488,9 @@ describe('Settings Component', () => {
         settings={{ ...initialSettings, notifyOnComplete: true }}
       />,
     );
+    // notifyOnComplete: true is non-default, so Downloads' Advanced section is
+    // already auto-expanded on render — no openAdvanced() needed (and calling it
+    // here would toggle it closed instead of open).
     fireEvent.click(screen.getByRole('switch', { name: /notify when downloads finish/i }));
     expect(chrome.permissions.request).not.toHaveBeenCalled();
     fireEvent.click(screen.getByText('Save'));
@@ -456,6 +502,7 @@ describe('Settings Component', () => {
       (_perms: chrome.permissions.Permissions, cb: (granted: boolean) => void) => cb(true),
     );
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    openAdvanced();
     const toggle = screen.getByRole('switch', { name: /notify when downloads finish/i });
     fireEvent.click(toggle);
     expect(chrome.permissions.request).toHaveBeenCalledWith(
@@ -472,6 +519,7 @@ describe('Settings Component', () => {
       (_perms: chrome.permissions.Permissions, cb: (granted: boolean) => void) => cb(true),
     );
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    openAdvanced();
     fireEvent.click(screen.getByRole('switch', { name: /notify when downloads finish/i }));
     // The setting is written straight away via SET_SETTINGS — the user never has
     // to reach Save, which the permission prompt can make unreachable by closing
@@ -486,6 +534,7 @@ describe('Settings Component', () => {
       (_perms: chrome.permissions.Permissions, cb: (granted: boolean) => void) => cb(false),
     );
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    openAdvanced();
     fireEvent.click(screen.getByRole('switch', { name: /notify when downloads finish/i }));
     const calls = (chrome.runtime.sendMessage as Mock).mock.calls.map((c) => c[0]);
     // Optimistically persisted ON, then rolled back to OFF once denied.
@@ -498,6 +547,7 @@ describe('Settings Component', () => {
       (_perms: chrome.permissions.Permissions, cb: (granted: boolean) => void) => cb(false),
     );
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    openAdvanced();
     const toggle = screen.getByRole('switch', { name: /notify when downloads finish/i });
     fireEvent.click(toggle);
     expect(chrome.permissions.request).toHaveBeenCalledWith(
@@ -513,6 +563,7 @@ describe('Settings Component', () => {
   // ── Backup export / import ─────────────────────────────────────────────────
   it('exports a backup as a downloadable JSON file', async () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    selectTab(/Data/i);
     fireEvent.click(screen.getByRole('button', { name: /export backup/i }));
 
     expect(await screen.findByText('Backup exported.')).toBeInTheDocument();
@@ -544,6 +595,7 @@ describe('Settings Component', () => {
     const { container } = render(
       <Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />,
     );
+    selectTab(/Data/i);
     // Cover the Import-backup button's click handler (opens the hidden picker).
     fireEvent.click(screen.getByRole('button', { name: /import backup/i }));
 
@@ -571,6 +623,7 @@ describe('Settings Component', () => {
     const { container } = render(
       <Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />,
     );
+    selectTab(/Data/i);
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     // A change event with the input's default (empty) FileList — handleImportBackup
     // should bail out early without a note or any side effects.
@@ -582,7 +635,9 @@ describe('Settings Component', () => {
 
   it('resets a cleared number field to its minimum on blur', () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
-    const height = screen.getByLabelText('Popup Height:');
+    selectTab(/Display/i);
+    openAdvanced();
+    const height = screen.getByLabelText('Popup height:');
     // Clearing a number input yields an empty value (Number('') === 0), which
     // clampOnBlur lifts back up to the field's minimum.
     fireEvent.change(height, { target: { value: '' } });
@@ -595,6 +650,7 @@ describe('Settings Component', () => {
     const { container } = render(
       <Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />,
     );
+    selectTab(/Data/i);
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     // A .json file (so it clears the input's accept filter) whose contents are
     // not a valid Media Bulk Downloads backup — here, not even valid JSON.
@@ -606,5 +662,29 @@ describe('Settings Component', () => {
     ).toBeInTheDocument();
     expect(mockOnSettingsChange).not.toHaveBeenCalled();
     expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
+  });
+
+  // ── Tabbed sheet behavior ────────────────────────────────────────────────
+  it('keeps edits from multiple tabs and saves them together', () => {
+    render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    fireEvent.click(screen.getByRole('switch', { name: 'Ask where to save each file' })); // Downloads
+    fireEvent.click(screen.getByRole('tab', { name: /Media/i }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Exclude emoji' }));               // Media
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    expect(mockOnSettingsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ saveAs: true, excludeEmoji: true }),
+    );
+  });
+
+  it('opens a pane Advanced section when one of its fields is non-default', () => {
+    render(
+      <Settings
+        onClose={mockOnClose}
+        onSettingsChange={mockOnSettingsChange}
+        settings={{ ...initialSettings, downloadConcurrency: 8 }}
+      />,
+    );
+    // Downloads Advanced auto-opened → the field is visible without clicking Advanced.
+    expect(screen.getByLabelText('Simultaneous downloads:')).toBeInTheDocument();
   });
 });

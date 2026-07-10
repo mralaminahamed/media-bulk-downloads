@@ -229,6 +229,7 @@ describe('App Component', () => {
     await screen.findByText('Filters');
 
     fireEvent.click(screen.getByTitle('Settings'));
+    fireEvent.click(screen.getByRole('tab', { name: /Display/i })); // showImageCount now lives on the Display tab
     fireEvent.click(screen.getByRole('switch', { name: /show image count/i }));
     fireEvent.click(screen.getByText('Save'));
 
@@ -247,9 +248,10 @@ describe('App Component', () => {
     await screen.findByText('Filters');
 
     fireEvent.click(screen.getByTitle('Settings'));
+    fireEvent.click(screen.getByRole('tab', { name: /Display/i })); // bubble controls now live on the Display tab
     fireEvent.click(screen.getByRole('switch', { name: /show floating bubble/i })); // reveals the bubble controls
-    fireEvent.change(screen.getByLabelText('Bubble Corner:'), { target: { value: 'top-left' } });
-    fireEvent.change(screen.getByLabelText('Panel Position:'), { target: { value: 'center' } });
+    fireEvent.change(screen.getByLabelText('Bubble corner:'), { target: { value: 'top-left' } });
+    fireEvent.change(screen.getByLabelText('Panel position:'), { target: { value: 'center' } });
     fireEvent.click(screen.getByText('Save'));
 
     // The popup sends a patch with the form-owned fields but WITHOUT the drag-only
@@ -284,6 +286,7 @@ describe('App Component', () => {
 
     // Saving an unrelated Setting must carry the fresh 600/700, not the stale snapshot.
     fireEvent.click(screen.getByTitle('Settings'));
+    fireEvent.click(screen.getByRole('tab', { name: /Display/i })); // showImageCount now lives on the Display tab
     fireEvent.click(screen.getByRole('switch', { name: /show image count/i }));
     fireEvent.click(screen.getByText('Save'));
     const call = (chrome.runtime.sendMessage as Mock).mock.calls.find((c) => c[0]?.type === 'SET_SETTINGS');
@@ -320,6 +323,7 @@ describe('App Component', () => {
     // Raise the minimum size via Settings so the small image is excluded from
     // the visible/eligible list, even though it's still collected.
     fireEvent.click(screen.getByTitle('Settings'));
+    fireEvent.click(screen.getByRole('tab', { name: /Media/i })); // minimumImageSize now lives on the Media tab
     fireEvent.change(screen.getByLabelText(/minimum image size/i), { target: { value: '200' } });
     fireEvent.click(screen.getByText('Save'));
     await waitFor(() => expect(headerCount()).toBe('1'));
@@ -333,6 +337,7 @@ describe('App Component', () => {
     // reappear — this only happens if it survived in rawImagesRef.current
     // through the deep-scan merge instead of being silently dropped.
     fireEvent.click(screen.getByTitle('Settings'));
+    fireEvent.click(screen.getByRole('tab', { name: /Media/i }));
     fireEvent.change(screen.getByLabelText(/minimum image size/i), { target: { value: '0' } });
     fireEvent.click(screen.getByText('Save'));
 
@@ -357,6 +362,7 @@ describe('App Component', () => {
     await waitFor(() => expect(headerCount()).toBe('2'));
 
     fireEvent.click(screen.getByTitle('Settings'));
+    fireEvent.click(screen.getByRole('tab', { name: /Media/i })); // excludeEmoji now lives on the Media tab
     fireEvent.click(screen.getByRole('switch', { name: /exclude emoji/i }));
     fireEvent.click(screen.getByText('Save'));
 
@@ -624,6 +630,7 @@ describe('App Component', () => {
     // Trigger the settings-change effect, which re-derives the grid from
     // rawImagesRef.current (keyed on minimumImageSize/excludeBase64Images/resolveOriginals).
     fireEvent.click(screen.getByTitle('Settings'));
+    fireEvent.click(screen.getByRole('tab', { name: /Media/i })); // minimumImageSize now lives on the Media tab
     fireEvent.change(screen.getByLabelText(/minimum image size/i), { target: { value: '10' } });
     fireEvent.click(screen.getByText('Save'));
 
