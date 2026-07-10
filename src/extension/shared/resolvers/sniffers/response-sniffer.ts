@@ -15,10 +15,15 @@ export interface ResponseSnifferOptions {
   emit: (text: string) => void;
   /** Property name used to stash the request URL on each XHR instance. */
   urlKey: string;
+  /** Which response content-types carry the media graph. Default: any that
+   *  includes "json". Facebook serves /api/graphql as `text/html`, so its
+   *  sniffer overrides this to accept everything. */
+  contentTypeOk?: (contentType: string) => boolean;
 }
 
 /** Wrap the page's fetch + XMLHttpRequest to feed JSON API response text to `emit`. */
-export function installResponseSniffer({ isApi, emit, urlKey }: ResponseSnifferOptions): void {
+export function installResponseSniffer({ isApi, emit, urlKey, contentTypeOk }: ResponseSnifferOptions): void {
+  const ctOk = contentTypeOk ?? ((ct: string) => ct.includes('json'));
   const nativeFetch = window.fetch;
   window.fetch = function patchedFetch(this: unknown, ...args: Parameters<typeof fetch>) {
     const res = nativeFetch.apply(this as never, args);
@@ -28,7 +33,7 @@ export function installResponseSniffer({ isApi, emit, urlKey }: ResponseSnifferO
       if (isApi(url)) {
         res
           .then((r) => {
-            if ((r.headers.get('content-type') || '').includes('json')) r.clone().text().then(emit).catch(() => {});
+            if (ctOk(r.headers.get('content-type') || '')) r.clone().text().then(emit).catch(() => {});
           })
           .catch(() => {});
       }
@@ -58,7 +63,7 @@ export function installResponseSniffer({ isApi, emit, urlKey }: ResponseSnifferO
         try {
           const url = String((this as unknown as Record<string, unknown>)[urlKey] || '');
           const ct = this.getResponseHeader('content-type') || '';
-          if (isApi(url) && ct.includes('json') && typeof this.responseText === 'string') emit(this.responseText);
+          if (isApi(url) && ctOk(ct) && typeof this.responseText === 'string') emit(this.responseText);
         } catch {
           /* ignore */
         }

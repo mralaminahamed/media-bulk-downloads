@@ -204,6 +204,42 @@ describe('installResponseSniffer (fetch path)', () => {
     xhr.dispatchEvent(new Event('load'));
     expect(seen).toEqual([]);
   });
+
+  it('accepts a non-json content type when contentTypeOk allows it (Facebook text/html)', async () => {
+    const seen: string[] = [];
+    const htmlResponse = {
+      headers: { get: () => 'text/html; charset=utf-8' },
+      clone: () => ({ text: () => Promise.resolve('NDJSON-BODY') }),
+    } as unknown as Response;
+    window.fetch = vi.fn().mockResolvedValue(htmlResponse) as unknown as typeof fetch;
+    installResponseSniffer({
+      isApi: (u) => u.includes('/api/'),
+      emit: (t) => seen.push(t),
+      urlKey: '__k',
+      contentTypeOk: () => true,
+    });
+    await window.fetch('https://site/api/graphql');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(seen).toEqual(['NDJSON-BODY']);
+  });
+
+  it('accepts a non-json XHR content type when contentTypeOk allows it', () => {
+    XMLHttpRequest.prototype.send = vi.fn();
+    const seen: string[] = [];
+    installResponseSniffer({
+      isApi: (u) => u.includes('/api/'),
+      emit: (t) => seen.push(t),
+      urlKey: '__k',
+      contentTypeOk: () => true,
+    });
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', 'https://site/api/graphql');
+    Object.defineProperty(xhr, 'responseText', { value: '{"fbcdn":1}', configurable: true });
+    xhr.getResponseHeader = vi.fn().mockReturnValue('text/html; charset=utf-8');
+    xhr.send();
+    xhr.dispatchEvent(new Event('load'));
+    expect(seen).toEqual(['{"fbcdn":1}']);
+  });
 });
 
 describe('installUrlSniffer', () => {
