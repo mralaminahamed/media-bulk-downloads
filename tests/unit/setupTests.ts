@@ -119,6 +119,10 @@ global.chrome = {
                 Object.assign(localStorageStore, items);
                 return Promise.resolve(undefined);
             }),
+            clear: vi.fn(() => {
+                for (const k of Object.keys(localStorageStore)) delete localStorageStore[k];
+                return Promise.resolve(undefined);
+            }),
         },
         onChanged: {
             addListener: vi.fn(),
