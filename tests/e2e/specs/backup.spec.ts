@@ -6,6 +6,7 @@ const settings = (page: Page) => page.getByRole('dialog', { name: /settings/i })
 
 async function importBackup(page: Page, json: string): Promise<void> {
   await page.getByRole('button', { name: 'Settings' }).click();
+  await settings(page).getByRole('tab', { name: /Data/i }).click();
   await settings(page).locator('input[type="file"]').setInputFiles({
     name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(json),
   });

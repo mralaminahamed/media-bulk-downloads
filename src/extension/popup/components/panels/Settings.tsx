@@ -1,22 +1,40 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { XMarkIcon, ArrowDownTrayIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
-import { BubbleCorner, BubblePanelPlacement, SettingsData, SettingsProps } from '@/types';
+import { XMarkIcon } from '@heroicons/react/24/outline';
+import { SettingsData, SettingsProps } from '@/types';
 import { expandPathTemplate, todayISO } from '@/extension/shared/collection/paths';
 import { buildBackup, parseBackup } from '@/extension/shared/storage/backup';
 import { loadFavourites } from '@/extension/shared/storage/favourites';
 import { loadHistory } from '@/extension/shared/storage/history';
 import { loadExcluded } from '@/extension/shared/storage/excluded';
+import { DEFAULT_SETTINGS } from '@/extension/shared/storage/settings';
 import { downloadText, sendRuntimeMessage } from '../../utils';
 import { useDialog } from '../../hooks/useDialog';
-import { TextField } from '../fields/TextField';
-import { NumberField } from '../fields/NumberField';
-import { SelectField } from '../fields/SelectField';
-import { ToggleRow } from '../fields/ToggleRow';
-import { Section } from '../fields/Section';
+import DownloadsPane from './settings/DownloadsPane';
+import MediaPane from './settings/MediaPane';
+import DisplayPane from './settings/DisplayPane';
+import DataPane from './settings/DataPane';
+import { SettingsTabs, SettingsTab } from './settings/SettingsTabs';
+
+const TABS: SettingsTab[] = [
+  { id: 'downloads', label: 'Downloads' },
+  { id: 'media', label: 'Media' },
+  { id: 'display', label: 'Display' },
+  { id: 'data', label: 'Data' },
+];
 
 const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings: initialSettings }) => {
   const [settings, setSettings] = useState<SettingsData>(initialSettings);
+  const [activeTab, setActiveTab] = useState('downloads');
   const panelRef = useDialog(onClose);
+
+  // Auto-expand a pane's Advanced section when the sheet opens with any of its
+  // fields already non-default, so a set value is never hidden. Seed from the
+  // INITIAL settings (not live edits) so typing does not re-open it.
+  const isNonDefault = (keys: (keyof SettingsData)[]) =>
+    keys.some((k) => JSON.stringify(initialSettings[k]) !== JSON.stringify(DEFAULT_SETTINGS[k]));
+  const downloadsAdvOpen = isNonDefault(['downloadConcurrency', 'notifyOnComplete']);
+  const mediaAdvOpen = isNonDefault(['deepScanMaxItems', 'deepScanMaxSeconds', 'deepScanMaxScrolls', 'deepScanClickLoadMore']);
+  const displayAdvOpen = isNonDefault(['popupWidth', 'popupHeight', 'previewSize', 'bubbleWidth', 'bubbleHeight']);
 
   const dirty = useMemo(
     () => JSON.stringify(settings) !== JSON.stringify(initialSettings),
@@ -148,367 +166,49 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
           </button>
         </header>
 
-        <div className="scroll-thin flex-1 space-y-6 overflow-y-auto px-4 py-4">
-          <Section title="Downloads">
-            <TextField
-              id="set-downloadPath"
-              name="downloadPath"
-              label="Save to subfolder (in Downloads):"
-              value={settings.downloadPath}
-              onChange={handleChange}
-              placeholder="e.g. Media/{domain}"
-              hint={folderPreview}
-              hintClassName="num mt-1 block text-[11px] text-(--ink-3)"
+        <SettingsTabs tabs={TABS} active={activeTab} onSelect={setActiveTab} />
+        <div className="scroll-thin flex-1 overflow-y-auto px-4 py-4">
+          {activeTab === 'downloads' && (
+            <DownloadsPane
+              settings={settings}
+              handleChange={handleChange}
+              clampOnBlur={clampOnBlur}
+              toggle={toggle}
+              setSettings={setSettings}
+              advancedDefaultOpen={downloadsAdvOpen}
+              folderPreview={folderPreview}
+              onNotifyToggle={handleNotifyToggle}
+              setNaming={setNaming}
             />
-            <p className="mt-1 text-[11px] leading-relaxed text-(--ink-3)">
-              Tokens:{' '}
-              <code className="num text-(--ink-2)">{'{host}'}</code>{' '}
-              <code className="num text-(--ink-2)">{'{domain}'}</code>{' '}
-              <code className="num text-(--ink-2)">{'{date}'}</code>{' '}
-              <code className="num text-(--ink-2)">{'{kind}'}</code>{' '}
-              — e.g. <code className="num text-(--ink-2)">Media/{'{domain}'}</code> saves each site to
-              its own folder.
-            </p>
-
-            <ToggleRow
-              id="set-saveAs"
-              label="Ask where to save each file"
-              checked={settings.saveAs}
-              onToggle={() => toggle('saveAs')}
+          )}
+          {activeTab === 'media' && (
+            <MediaPane
+              settings={settings}
+              handleChange={handleChange}
+              clampOnBlur={clampOnBlur}
+              toggle={toggle}
+              setSettings={setSettings}
+              advancedDefaultOpen={mediaAdvOpen}
             />
-
-            <NumberField
-              id="set-downloadConcurrency"
-              name="downloadConcurrency"
-              label="Simultaneous downloads:"
-              min={1}
-              max={10}
-              value={settings.downloadConcurrency}
-              onChange={handleChange}
-              onBlur={clampOnBlur('downloadConcurrency', 1, 10)}
+          )}
+          {activeTab === 'display' && (
+            <DisplayPane
+              settings={settings}
+              handleChange={handleChange}
+              clampOnBlur={clampOnBlur}
+              toggle={toggle}
+              setSettings={setSettings}
+              advancedDefaultOpen={displayAdvOpen}
             />
-
-            <ToggleRow
-              id="set-notify"
-              label="Notify when downloads finish"
-              description="Show a desktop notification with the result of each download batch — handy for keyboard-shortcut and right-click downloads. Asks for notification permission the first time."
-              checked={settings.notifyOnComplete}
-              onToggle={handleNotifyToggle}
+          )}
+          {activeTab === 'data' && (
+            <DataPane
+              onExport={() => void handleExportBackup()}
+              onImportFile={(e) => void handleImportBackup(e)}
+              fileInputRef={fileInputRef}
+              backupNote={backupNote}
             />
-
-            <SelectField
-              id="set-convert"
-              name="convertImagesTo"
-              label="Convert images on download to:"
-              value={settings.convertImagesTo}
-              onChange={(e) =>
-                setSettings((prev) => ({ ...prev, convertImagesTo: e.target.value as SettingsData['convertImagesTo'] }))
-              }
-            >
-              <option value="off">Keep original format</option>
-              <option value="png">PNG</option>
-              <option value="jpeg">JPEG</option>
-            </SelectField>
-            <p className="text-[11px] leading-relaxed text-(--ink-3)">
-              Re-encodes raster images (incl. WebP/AVIF) to your chosen format as they download.
-              Videos, audio, SVGs, and GIFs are always saved as-is.
-            </p>
-
-            {settings.convertImagesTo !== 'off' && (
-              <>
-                <SelectField
-                  id="set-convert-metadata"
-                  name="convertMetadata"
-                  label="Metadata when converting:"
-                  value={settings.convertMetadata}
-                  onChange={(e) =>
-                    setSettings((prev) => ({ ...prev, convertMetadata: e.target.value as SettingsData['convertMetadata'] }))
-                  }
-                >
-                  <option value="preserve">Preserve (copy EXIF/XMP)</option>
-                  <option value="strip">Strip (remove all metadata)</option>
-                </SelectField>
-                <p className="text-[11px] leading-relaxed text-(--ink-3)">
-                  Preserve copies embedded EXIF/XMP (copyright, author, capture info) across the
-                  re-encode. Strip removes it — useful for clearing GPS/location before sharing.
-                </p>
-              </>
-            )}
-
-            <div>
-              <span id="naming-label" className="mb-1 block text-[12px] text-(--ink-2)">
-                File naming:
-              </span>
-              <div className="segwrap" role="group" aria-labelledby="naming-label">
-                {(['prefixed', 'original'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setNaming(mode)}
-                    className={`seg ${settings.namingMode === mode ? 'is-active' : ''}`}
-                    aria-pressed={settings.namingMode === mode}
-                  >
-                    {mode === 'prefixed' ? 'Prefixed' : 'Original'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {settings.namingMode === 'prefixed' && (
-              <TextField
-                id="set-fileNamePrefix"
-                name="fileNamePrefix"
-                label="File name prefix:"
-                value={settings.fileNamePrefix}
-                onChange={handleChange}
-                hint="Numbered per file, e.g. image_1.jpg."
-              />
-            )}
-          </Section>
-
-          <Section title="Collection">
-            <NumberField
-              id="set-minimumImageSize"
-              name="minimumImageSize"
-              label="Minimum Image Size (px):"
-              min={0}
-              max={10000}
-              value={settings.minimumImageSize}
-              onChange={handleChange}
-              onBlur={clampOnBlur('minimumImageSize', 0, 10000)}
-            />
-            <ToggleRow
-              id="set-excludeBase64Images"
-              label="Exclude Base64 Images"
-              checked={settings.excludeBase64Images}
-              onToggle={() => toggle('excludeBase64Images')}
-            />
-            <ToggleRow
-              id="set-excludeEmoji"
-              label="Exclude emoji"
-              description="Hide emoji graphics (Twitter/WordPress twemoji, etc.) from results."
-              checked={settings.excludeEmoji}
-              onToggle={() => toggle('excludeEmoji')}
-            />
-            <ToggleRow
-              id="set-resolveOriginals"
-              label="Resolve exact originals (network requests)"
-              description="Fetches Twitter videos and exact Wallhaven/Unsplash originals. Off by default — keeps collection private."
-              checked={settings.resolveOriginals}
-              onToggle={() => toggle('resolveOriginals')}
-            />
-            <ToggleRow
-              id="set-captureHlsStreams"
-              label="Capture video streams (HLS & DASH)"
-              description="Surfaces .m3u8 and .mpd streams as capture items. Off by default — capturing fetches and assembles every segment, which is slow and memory-heavy."
-              checked={settings.captureHlsStreams}
-              onToggle={() => toggle('captureHlsStreams')}
-            />
-          </Section>
-
-          <Section title="Deep scan">
-            <div className="grid grid-cols-2 gap-3">
-              <NumberField
-                id="set-deepScanMaxItems"
-                name="deepScanMaxItems"
-                label="Max items:"
-                min={50}
-                max={5000}
-                value={settings.deepScanMaxItems}
-                onChange={handleChange}
-                onBlur={clampOnBlur('deepScanMaxItems', 50, 5000)}
-              />
-              <NumberField
-                id="set-deepScanMaxSeconds"
-                name="deepScanMaxSeconds"
-                label="Max time (seconds):"
-                min={5}
-                max={120}
-                value={settings.deepScanMaxSeconds}
-                onChange={handleChange}
-                onBlur={clampOnBlur('deepScanMaxSeconds', 5, 120)}
-              />
-            </div>
-            <NumberField
-              id="set-deepScanMaxScrolls"
-              name="deepScanMaxScrolls"
-              label="Max scroll steps:"
-              min={5}
-              max={200}
-              value={settings.deepScanMaxScrolls}
-              onChange={handleChange}
-              onBlur={clampOnBlur('deepScanMaxScrolls', 5, 200)}
-            />
-            <ToggleRow
-              id="set-deepScanClickLoadMore"
-              label="Click “Load more” buttons"
-              description="Lets deep scan click Load more / Show more buttons to reveal more media. Off by default — clicking page controls can have side effects."
-              checked={settings.deepScanClickLoadMore}
-              onToggle={() => toggle('deepScanClickLoadMore')}
-            />
-          </Section>
-
-          <Section title="Appearance">
-            <div className="grid grid-cols-2 gap-3">
-              <NumberField
-                id="set-popupWidth"
-                name="popupWidth"
-                label="Popup Width:"
-                min={320}
-                max={800}
-                value={settings.popupWidth}
-                onChange={handleChange}
-                onBlur={clampOnBlur('popupWidth', 320, 800)}
-              />
-              <NumberField
-                id="set-popupHeight"
-                name="popupHeight"
-                label="Popup Height:"
-                min={400}
-                max={600}
-                value={settings.popupHeight}
-                onChange={handleChange}
-                onBlur={clampOnBlur('popupHeight', 400, 600)}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <NumberField
-                id="set-thumbnailSize"
-                name="thumbnailSize"
-                label="Thumbnail Size (px):"
-                min={64}
-                max={240}
-                value={settings.thumbnailSize}
-                onChange={handleChange}
-                onBlur={clampOnBlur('thumbnailSize', 64, 240)}
-              />
-              <NumberField
-                id="set-previewSize"
-                name="previewSize"
-                label="Preview Size (px):"
-                min={240}
-                max={900}
-                value={settings.previewSize}
-                onChange={handleChange}
-                onBlur={clampOnBlur('previewSize', 240, 900)}
-              />
-            </div>
-            <ToggleRow
-              id="set-showImageCount"
-              label="Show Image Count in Popup Icon"
-              checked={settings.showImageCount}
-              onToggle={() => toggle('showImageCount')}
-            />
-          </Section>
-
-          <Section title="On-page bubble">
-            <ToggleRow
-              id="set-bubbleEnabled"
-              label="Show floating bubble on pages"
-              checked={settings.bubbleEnabled}
-              onToggle={() => toggle('bubbleEnabled')}
-            />
-            {settings.bubbleEnabled && (
-              <>
-                <SelectField
-                  id="set-bubbleCorner"
-                  name="bubbleCorner"
-                  label="Bubble Corner:"
-                  value={settings.bubblePosition.corner}
-                  onChange={(e) =>
-                    setSettings((prev) => ({
-                      ...prev,
-                      bubblePosition: { ...prev.bubblePosition, corner: e.target.value as BubbleCorner },
-                    }))
-                  }
-                >
-                  <option value="bottom-right">Bottom right</option>
-                  <option value="bottom-left">Bottom left</option>
-                  <option value="top-right">Top right</option>
-                  <option value="top-left">Top left</option>
-                </SelectField>
-                <SelectField
-                  id="set-bubblePanelPlacement"
-                  name="bubblePanelPlacement"
-                  label="Panel Position:"
-                  value={settings.bubblePanelPlacement}
-                  onChange={(e) =>
-                    setSettings((prev) => ({
-                      ...prev,
-                      bubblePanelPlacement: e.target.value as BubblePanelPlacement,
-                    }))
-                  }
-                >
-                  <option value="anchored">Next to button</option>
-                  <option value="center">Center of screen</option>
-                  <option value="free">Custom (drag panel header)</option>
-                  <option value="bottom-right">Corner · bottom right</option>
-                  <option value="bottom-left">Corner · bottom left</option>
-                  <option value="top-right">Corner · top right</option>
-                  <option value="top-left">Corner · top left</option>
-                </SelectField>
-                <p className="text-[11px] leading-relaxed text-(--ink-3)">
-                  Tip: drag the panel by its header on any page to drop it exactly where you want.
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  <NumberField
-                    id="set-bubbleWidth"
-                    name="bubbleWidth"
-                    label="Bubble Width:"
-                    min={320}
-                    max={3840}
-                    value={settings.bubbleWidth}
-                    onChange={handleChange}
-                    onBlur={clampOnBlur('bubbleWidth', 320, 3840)}
-                  />
-                  <NumberField
-                    id="set-bubbleHeight"
-                    name="bubbleHeight"
-                    label="Bubble Height:"
-                    min={360}
-                    max={2160}
-                    value={settings.bubbleHeight}
-                    onChange={handleChange}
-                    onBlur={clampOnBlur('bubbleHeight', 360, 2160)}
-                  />
-                </div>
-              </>
-            )}
-            <p className="text-[11px] leading-relaxed text-(--ink-3)">
-              Drag the bubble on any page to fine-tune its position. Works everywhere the
-              popup can run except restricted pages (chrome://, the Web Store, PDFs).
-            </p>
-          </Section>
-
-          <Section title="Backup">
-            <p className="text-[11px] leading-relaxed text-(--ink-3)">
-              Save your settings, favourites, history, and blocked sources to a JSON file, or
-              restore from a previous backup. Importing <strong>replaces</strong> your current
-              favourites, history, and blocked sources. Everything stays on your device.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => void handleExportBackup()} className="btn btn-ghost btn-sm">
-                <ArrowDownTrayIcon className="h-4 w-4" />
-                <span>Export backup</span>
-              </button>
-              <button onClick={() => fileInputRef.current?.click()} className="btn btn-ghost btn-sm">
-                <ArrowUpTrayIcon className="h-4 w-4" />
-                <span>Import backup</span>
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="application/json,.json"
-                onChange={(e) => void handleImportBackup(e)}
-                className="hidden"
-              />
-            </div>
-            {backupNote && (
-              <p aria-live="polite" className="text-[11px] text-(--ink-2)">
-                {backupNote}
-              </p>
-            )}
-          </Section>
+          )}
         </div>
 
         <footer className="flex items-center justify-between gap-2 border-t hairline px-4 py-3">
