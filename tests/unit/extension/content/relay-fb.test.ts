@@ -79,4 +79,11 @@ describe('Facebook media relay (facebook.com)', () => {
     fire(messageHandlers, message(null));
     expect(ingestSniffedFbMedia).not.toHaveBeenCalled();
   });
+
+  it('announces ibd-fb-ready so the MAIN sniffer can replay early graphql', async () => {
+    vi.resetModules();
+    const postSpy = vi.spyOn(window, 'postMessage').mockImplementation(() => undefined as never);
+    await import('@/extension/content');
+    expect(postSpy).toHaveBeenCalledWith({ source: 'ibd-fb-ready' }, window.location.origin);
+  });
 });

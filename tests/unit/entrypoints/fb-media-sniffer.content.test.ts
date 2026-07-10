@@ -5,9 +5,10 @@ import type { Mock } from 'vitest';
 vi.mock('@/extension/shared/resolvers/sniffers/response-sniffer', () => ({
   installResponseSniffer: vi.fn(),
   makeSnifferEmit: vi.fn(() => () => {}),
+  installReplayOnReady: vi.fn(),
 }));
 
-import { installResponseSniffer, makeSnifferEmit } from '@/extension/shared/resolvers/sniffers/response-sniffer';
+import { installResponseSniffer, makeSnifferEmit, installReplayOnReady } from '@/extension/shared/resolvers/sniffers/response-sniffer';
 import { extractFbMedia } from '@/extension/shared/resolvers/sniffers/fb-media-sniff';
 import fbSniffer from '@/entrypoints/fb-media-sniffer.content';
 
@@ -26,6 +27,7 @@ describe('fb-media-sniffer content entrypoint', () => {
   beforeEach(() => {
     (installResponseSniffer as Mock).mockClear();
     (makeSnifferEmit as Mock).mockClear();
+    (installReplayOnReady as Mock).mockClear();
   });
 
   it('is a MAIN-world, document_start script scoped to facebook.com', () => {
@@ -58,5 +60,34 @@ describe('fb-media-sniffer content entrypoint', () => {
   it('wraps extracted entries in the ibd-fb-media envelope the relay expects', () => {
     const { emit } = runMain();
     expect(emit.envelope([{ fbid: '1' }])).toEqual({ source: 'ibd-fb-media', entries: [{ fbid: '1' }] });
+  });
+
+  it('buffers emitted entries and replays them once the isolated relay is ready', () => {
+    const posted: unknown[] = [];
+    (window.postMessage as unknown) = vi.fn((m: unknown) => posted.push(m));
+    const { emit } = runMain();
+
+    // Before the relay is ready, the envelope returns the live envelope AND buffers.
+    expect(emit.envelope([{ fbid: '1' }])).toEqual({ source: 'ibd-fb-media', entries: [{ fbid: '1' }] });
+    emit.envelope([{ fbid: '2' }]);
+
+    const [source, replay] = (installReplayOnReady as Mock).mock.calls.at(-1)! as [string, () => void];
+    expect(source).toBe('ibd-fb-ready');
+    replay();
+    expect(posted).toContainEqual({ source: 'ibd-fb-media', entries: [{ fbid: '1' }, { fbid: '2' }] });
+  });
+
+  it('does not buffer entries emitted after the relay is ready (no double replay)', () => {
+    const posted: unknown[] = [];
+    (window.postMessage as unknown) = vi.fn((m: unknown) => posted.push(m));
+    const { emit } = runMain();
+    const replay = (installReplayOnReady as Mock).mock.calls.at(-1)![1] as () => void;
+
+    replay(); // relay ready, nothing buffered yet -> no post
+    expect(posted).toHaveLength(0);
+
+    emit.envelope([{ fbid: '9' }]); // post-ready -> live only, not buffered
+    replay(); // buffer empty -> still no replay post
+    expect(posted).toHaveLength(0);
   });
 });
