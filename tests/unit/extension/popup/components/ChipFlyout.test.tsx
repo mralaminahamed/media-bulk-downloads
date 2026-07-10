@@ -55,4 +55,12 @@ describe('ChipFlyout', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('menu')).toBeNull();
   });
+
+  it('closes the menu on an outside mousedown', () => {
+    setup('all');
+    fireEvent.click(screen.getByRole('button', { name: 'State' }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
 });

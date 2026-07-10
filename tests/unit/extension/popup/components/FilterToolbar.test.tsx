@@ -252,4 +252,23 @@ describe('FilterToolbar Component', () => {
     fireEvent.click(screen.getByRole('switch', { name: /base64/i })); // turn base64 off
     expect(screen.getByRole('button', { name: 'Remove Base64 filter' })).toBeInTheDocument();
   });
+
+  it('surfaces an active Format filter as a removable chip with the canonical mixed-case label and clears it via ×', () => {
+    renderToolbar();
+    openMore();
+    fireEvent.change(screen.getByLabelText('Media format'), { target: { value: 'webp' } });
+    // canonical label from the select's options, not filters.imageType.toUpperCase()
+    expect(screen.getByRole('button', { name: 'WebP' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Format filter' }));
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ imageType: 'all' }));
+  });
+
+  it('surfaces an active Min size filter as a removable chip and clears it via ×', () => {
+    renderToolbar();
+    openMore();
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '500' } });
+    expect(screen.getByRole('button', { name: '≥ 500 KB' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Min size filter' }));
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ minSize: 0 }));
+  });
 });

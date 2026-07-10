@@ -111,7 +111,11 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
 
   // Active advanced filters mirrored as removable chips (they are SET inside More).
   const advChips: { key: string; label: string; clear: () => void }[] = [
-    filters.imageType !== 'all' && { key: 'format', label: filters.imageType.toUpperCase(), clear: () => update({ imageType: 'all' }) },
+    filters.imageType !== 'all' && {
+      key: 'format',
+      label: formatsForKind(filters.mediaKind).find((o) => o.value === filters.imageType)?.label ?? filters.imageType.toUpperCase(),
+      clear: () => update({ imageType: 'all' }),
+    },
     filters.sizeBucket !== 'all' && { key: 'size', label: SIZE_OPTIONS.find((o) => o.value === filters.sizeBucket)!.label, clear: () => update({ sizeBucket: 'all' }) },
     filters.minSize > 0 && { key: 'min', label: `≥ ${filters.minSize} KB`, clear: () => update({ minSize: 0 }) },
     !filters.includeBase64 && !base64Disabled && { key: 'base64', label: 'No Base64', clear: () => update({ includeBase64: true }) },
