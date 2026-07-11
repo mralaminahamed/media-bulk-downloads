@@ -142,26 +142,30 @@ jobs:
         id: guard
         env:
           EXT_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          PUB_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
         run: |
-          if [ -n "$EXT_ID" ]; then
+          if [ -n "$EXT_ID" ] && [ -n "$PUB_ID" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::CHROME_* secrets not configured — skipping Chrome Web Store publish."
+            echo "::warning::CHROME_EXTENSION_ID and/or CHROME_PUBLISHER_ID not set — skipping Chrome Web Store publish."
           fi
 
-      # Official CLI (npm, version-pinned) rather than a third-party action — one
-      # less unpinned dependency in the release path. It reads the OAuth creds
-      # from the EXTENSION_ID / CLIENT_ID / CLIENT_SECRET / REFRESH_TOKEN env vars.
+      # Official CLI, always latest. Its current `chrome-webstore-upload` (v6)
+      # dependency requires a PUBLISHER_ID in addition to the OAuth creds — that
+      # newly-required input is what broke v1.2.0 (the workflow predated it). It
+      # reads EXTENSION_ID / CLIENT_ID / CLIENT_SECRET / REFRESH_TOKEN and the
+      # developer account's PUBLISHER_ID from the environment.
       - name: Publish to Chrome Web Store
         if: steps.guard.outputs.ready == 'true'
         env:
           EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
           CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
           VERSION: ${{ needs.release.outputs.version }}
         run: |
-          npx --yes chrome-webstore-upload-cli@4 upload \
+          npx --yes chrome-webstore-upload-cli@latest upload \
             --source ".output/media-bulk-downloads-${VERSION}-chrome.zip" \
             --auto-publish

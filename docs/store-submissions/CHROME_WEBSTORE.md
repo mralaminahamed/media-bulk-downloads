@@ -315,6 +315,7 @@ Actions**) to enable the Chrome Web Store publish:
 | Secret | What it is |
 |--------|-----------|
 | `CHROME_EXTENSION_ID` | the item id (`jmdhkdengijmmkelofaleinbipophckn`) |
+| `CHROME_PUBLISHER_ID` | your developer-account **publisher ID** — required by `chrome-webstore-upload` v6+. Find it on the [Developer Dashboard](https://chrome.google.com/webstore/devconsole) → **Account** (the numeric/string publisher id). |
 | `CHROME_CLIENT_ID` | OAuth client id for the [Chrome Web Store API](https://developer.chrome.com/docs/webstore/using-api) |
 | `CHROME_CLIENT_SECRET` | OAuth client secret |
 | `CHROME_REFRESH_TOKEN` | OAuth refresh token |
