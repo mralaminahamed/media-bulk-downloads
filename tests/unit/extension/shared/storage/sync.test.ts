@@ -44,6 +44,27 @@ describe('syncStores', () => {
     expect(data[HISTORY_KEY]).toEqual([]);                 // local [] wins
     expect(await idbGet(HISTORY_KEY)).toEqual([]);          // IDB repaired to []
   });
+
+  it('does not clobber a fresh local write that landed during the heal (re-check)', async () => {
+    // Simulate the startup race: local was evicted, so the initial presence check
+    // sees the key absent; but a concurrent writer repopulates it before the
+    // restore re-checks. The heal must NOT overwrite that fresh value with the
+    // older IDB snapshot.
+    await idbSet(HISTORY_KEY, [{ src: 'stale-idb' }]);
+    const getCalls: Record<string, number> = {};
+    const get = chrome.storage.local.get as unknown as ReturnType<typeof vi.fn>;
+    const set = chrome.storage.local.set as unknown as ReturnType<typeof vi.fn>;
+    get.mockReset().mockImplementation(async (key: string) => {
+      getCalls[key] = (getCalls[key] ?? 0) + 1;
+      // HISTORY_KEY: absent on the 1st get (presence check), present on the 2nd
+      // (re-check) because a concurrent write landed in between.
+      if (key === HISTORY_KEY && getCalls[key] >= 2) return { [HISTORY_KEY]: [{ src: 'fresh' }] };
+      return {};
+    });
+    set.mockReset().mockResolvedValue(undefined);
+    await syncStores();
+    expect(set).not.toHaveBeenCalledWith({ [HISTORY_KEY]: [{ src: 'stale-idb' }] });
+  });
 });
 
 describe('persistStorage', () => {

@@ -23,6 +23,14 @@ export async function persistStorage(): Promise<void> {
  *  - local missing the key (evicted) but IDB has it -> restore local from IDB (the
  *    local.set fires onChanged, so any open UI refreshes).
  * Best-effort per key; one key's failure never aborts the rest.
+ *
+ * Runs unawaited at background startup while the writer listeners are already
+ * live, so the restore branch re-checks local immediately before writing: a
+ * concurrent legitimate write (e.g. an enqueue) may have repopulated the key in
+ * the meantime, and restoring the older IDB snapshot over it would clobber that
+ * fresh write — the exact data loss this heal exists to prevent. It restores
+ * only while local is still genuinely absent. (The store modules serialize their
+ * own writes; this heal is a best-effort seed/restore that must not fight them.)
  */
 export async function syncStores(): Promise<void> {
   for (const key of MANAGED_KEYS) {
@@ -32,7 +40,10 @@ export async function syncStores(): Promise<void> {
         await idbSet(key, (localRes as Record<string, unknown>)[key]);
       } else {
         const fromIdb = await idbGet(key);
-        if (fromIdb !== undefined) await chrome.storage.local.set({ [key]: fromIdb });
+        if (fromIdb !== undefined) {
+          const recheck = await chrome.storage.local.get(key);
+          if (!(key in recheck)) await chrome.storage.local.set({ [key]: fromIdb });
+        }
       }
     } catch (e) {
       console.warn('[storage] syncStores failed for', key, e);
