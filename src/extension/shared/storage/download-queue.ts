@@ -1,4 +1,5 @@
 import type { HistoryEntry } from '@/types';
+import { durableSet } from './idb';
 
 export type QueueStatus = 'queued' | 'active' | 'done' | 'failed';
 export type HistoryDraft = Omit<HistoryEntry, 'time' | 'downloadId'>;
@@ -183,5 +184,5 @@ export async function loadQueue(): Promise<QueueState> {
 }
 
 export async function saveQueue(state: QueueState): Promise<void> {
-  await chrome.storage.local.set({ [QUEUE_KEY]: state });
+  await durableSet(QUEUE_KEY, state);
 }

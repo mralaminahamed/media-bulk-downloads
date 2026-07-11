@@ -383,7 +383,13 @@ describe('background DOWNLOAD_BYTES handler — converted-image history', () => 
     }, {}, vi.fn());
     await flush();
     await flush();
-    const written = (chrome.storage.local.set as Mock).mock.calls.at(-1)?.[0]?.downloadHistory;
+    // Assert the entry appears in SOME history write (robust to an unrelated late
+    // set call bleeding in from another test — the durable mirror mutates on its
+    // own tick, so "the last write" is not a stable anchor).
+    const written = (chrome.storage.local.set as Mock).mock.calls
+      .map((c) => c[0]?.downloadHistory)
+      .filter(Array.isArray)
+      .flat();
     expect(written).toEqual(expect.arrayContaining([
       expect.objectContaining({ src: 'https://c/orig.jpg', downloadId: 55, filename: 'image_1.png' }),
     ]));

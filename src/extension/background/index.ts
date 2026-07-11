@@ -2,6 +2,7 @@ import { ChromeMessage, SettingsData } from '@/types';
 import { withDefaults } from '../shared/storage/settings';
 import { EXCLUDED_KEY } from '../shared/storage/excluded';
 import { markSaveAsPromptSeen } from '../shared/storage/save-as-hint';
+import { persistStorage, syncStores } from '../shared/storage/sync';
 import { initQueueDispatcher, reconcileQueue } from './download/download-queue';
 import {
   currentSettings, excludedReady, settingsReady,
@@ -18,6 +19,11 @@ import { messageRouter, type SendResponse } from './message-router';
 // state.ts drives badge/action-mode updates through a hook so it never imports
 // badge.ts (keeps the module graph acyclic); wire it before the first load.
 setApplySettingsHook(applySettings);
+
+// Make storage non-evictable and heal the reactive local copy from the durable IDB
+// mirror when local was evicted (best-effort; the restore's local.set fires onChanged).
+void persistStorage();
+void syncStores();
 
 chrome.contextMenus?.onClicked.addListener(onContextMenuClick);
 chrome.commands?.onCommand.addListener(onCommand);

@@ -1,6 +1,7 @@
 import type { Mock } from 'vitest';
 import { mergeHistory, recordDownloads, removeEntry, clearHistory, restoreHistory, srcsStillOnDisk, loadHistory, HISTORY_CAP, HISTORY_MAX_BYTES } from '@/extension/shared/storage/history';
 import { HistoryEntry } from '@/types';
+import { idbGet } from '@/extension/shared/storage/idb';
 
 describe('loadHistory — corrupt storage', () => {
   it('drops entries without a string src and coerces a bad time to 0', async () => {
@@ -85,21 +86,39 @@ describe('restoreHistory', () => {
 });
 
 describe('srcsStillOnDisk', () => {
-  const withId = (src: string, downloadId: number): HistoryEntry => ({ ...e(src, 1), downloadId });
+  const withId = (src: string, downloadId?: number) =>
+    ({ src, filename: src, kind: 'image', type: 'jpeg', sourcePageUrl: '', time: 1, downloadId }) as HistoryEntry;
 
-  it('keeps only entries whose tracked download still exists on disk', () => {
-    const history = [withId('keep', 10), withId('gone', 20)];
-    const onDisk = srcsStillOnDisk(history, (id) => id === 10); // 20 was deleted/moved
-    expect(onDisk).toEqual(['keep']);
+  it('keeps entries whose file the browser reports as existing', () => {
+    const history = [withId('a', 10), withId('b', 20)];
+    const onDisk = srcsStillOnDisk(history, (id) => (id === 10 ? 'exists' : 'deleted'));
+    expect(onDisk).toEqual(['a']); // 20 positively deleted
   });
 
-  it('keeps legacy entries without a downloadId (existence cannot be verified)', () => {
-    const history = [e('legacy', 1), withId('present', 10)];
-    const onDisk = srcsStillOnDisk(history, (id) => id === 10);
-    expect(onDisk).toEqual(['legacy', 'present']);
+  it('drops an entry only when the browser positively reports it deleted', () => {
+    const history = [withId('a', 10), withId('b', 20)];
+    expect(srcsStillOnDisk(history, () => 'deleted')).toEqual([]);
   });
 
-  it('returns nothing when every tracked file is gone', () => {
-    expect(srcsStillOnDisk([withId('a', 1), withId('b', 2)], () => false)).toEqual([]);
+  it('KEEPS an entry whose download id is unknown to the browser (cleared Chrome history)', () => {
+    // regression guard: the bug dropped these, showing on-disk files as "not downloaded"
+    const history = [withId('a', 10), withId('b', 20)];
+    expect(srcsStillOnDisk(history, () => 'unknown')).toEqual(['a', 'b']);
+  });
+
+  it('keeps legacy entries with no downloadId regardless of state', () => {
+    const history = [withId('a'), withId('b', 20)];
+    expect(srcsStillOnDisk(history, () => 'deleted')).toEqual(['a']);
+  });
+});
+
+describe('history writes mirror to IDB', () => {
+  it('recordDownloads lands the entry in local AND the IDB mirror', async () => {
+    (chrome.storage.local.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({});
+    (chrome.storage.local.set as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    await recordDownloads([{ src: 'z', filename: 'z', kind: 'image', type: 'jpeg', sourcePageUrl: '', time: 5 } as HistoryEntry]);
+    await new Promise((r) => setTimeout(r, 0)); // let the fire-and-forget mirror write land
+    const mirrored = await idbGet<HistoryEntry[]>('downloadHistory');
+    expect(mirrored?.some((e) => e.src === 'z')).toBe(true);
   });
 });

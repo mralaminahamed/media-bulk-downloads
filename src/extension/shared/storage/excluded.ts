@@ -1,6 +1,7 @@
 import { ExcludedEntry, ExcludedKind } from '@/types';
 import { canonicalSrcKey, SrcKeySet } from '../collection/canonical';
 import { registrableDomain } from '../collection/paths';
+import { durableSet } from './idb';
 
 /**
  * Blocklist of excluded sources — exact media URLs and hosts — that the
@@ -65,7 +66,7 @@ function serialize(task: () => Promise<void>): Promise<void> {
 export async function addExcluded(entry: ExcludedEntry): Promise<void> {
   return serialize(async () => {
     const merged = mergeExcluded(await loadExcluded(), [entry]);
-    await chrome.storage.local.set({ [EXCLUDED_KEY]: merged });
+    await durableSet(EXCLUDED_KEY, merged);
   });
 }
 
@@ -74,19 +75,19 @@ export async function removeExcluded(kind: ExcludedKind, value: string): Promise
     const next = (await loadExcluded()).filter(
       (e) => !(e.kind === kind && (kind === 'url' ? canonicalSrcKey(e.value) === canonicalSrcKey(value) : e.value === value)),
     );
-    await chrome.storage.local.set({ [EXCLUDED_KEY]: next });
+    await durableSet(EXCLUDED_KEY, next);
   });
 }
 
 export async function restoreExcluded(entries: ExcludedEntry[]): Promise<void> {
   return serialize(async () => {
-    await chrome.storage.local.set({ [EXCLUDED_KEY]: mergeExcluded([], entries) });
+    await durableSet(EXCLUDED_KEY, mergeExcluded([], entries));
   });
 }
 
 export async function clearExcluded(): Promise<void> {
   return serialize(async () => {
-    await chrome.storage.local.set({ [EXCLUDED_KEY]: [] });
+    await durableSet(EXCLUDED_KEY, []);
   });
 }
 

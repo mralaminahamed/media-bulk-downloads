@@ -7,7 +7,7 @@ import {
 import { filterImagesBySettings, filterExcluded } from '../shared/collection/filters';
 import { buildDownloadFilename } from '../shared/collection/download-name';
 import { textToBase64 } from '../shared/download/base64';
-import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk } from '../shared/storage/history';
+import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk, DiskState } from '../shared/storage/history';
 import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } from '../shared/storage/favourites';
 import { addExcluded, removeExcluded, clearExcluded, restoreExcluded } from '../shared/storage/excluded';
 import { streamErrorMessage } from '../shared/download/stream/stream-error-message';
@@ -226,7 +226,9 @@ export const messageRouter: MessageRouter = {
         // re-offer them for download.
         const items = await chrome.downloads.search({ limit: 0 });
         const existsById = new Map(items.map((it) => [it.id, it.exists]));
-        respond(srcsStillOnDisk(history, (id) => existsById.get(id) === true));
+        const stateById = (id: number): DiskState =>
+          existsById.has(id) ? (existsById.get(id) ? 'exists' : 'deleted') : 'unknown';
+        respond(srcsStillOnDisk(history, stateById));
       } catch {
         // Degrade to "nothing known downloaded" rather than leave the port open.
         respond([]);
