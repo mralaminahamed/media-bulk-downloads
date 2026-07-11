@@ -107,7 +107,7 @@ export function DownloadQueue() {
       </div>
 
       {!collapsed && (
-        <ul className="mbd:max-h-40 mbd:space-y-0.5 mbd:overflow-y-auto">
+        <ul className="scroll-thin mbd:max-h-40 mbd:space-y-0.5 mbd:overflow-y-auto">
           {items.map((i) => (
             <QueueRow
               key={i.id}
