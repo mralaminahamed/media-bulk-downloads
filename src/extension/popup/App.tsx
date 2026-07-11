@@ -23,7 +23,6 @@ import { collectFromActiveTab } from '../shared/active-tab/collect-active-tab';
 import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/active-tab/deep-scan-active-tab';
 import { requestResolveOriginals } from '../shared/active-tab/resolve-originals-active';
 import { applyResolved } from './apply-resolved';
-import { HISTORY_KEY } from '../shared/storage/history';
 import { favouriteSrcSet, FAVOURITES_KEY } from '../shared/storage/favourites';
 import { excludedMatchers, EXCLUDED_KEY } from '../shared/storage/excluded';
 import { buildZip, zipFileName } from '../shared/download/zip';
@@ -32,9 +31,10 @@ import { u8ToBase64 } from '../shared/download/base64';
 import { buildDownloadFilename } from '../shared/collection/download-name';
 import { hostFromUrl, registrableDomain, todayISO } from '../shared/collection/paths';
 import { requestCaptureStream } from '../shared/active-tab/capture-stream-active';
-import { copyText, downloadText, fetchDownloadedOnDisk, getImageFileSize, mapWithConcurrency, sendRuntimeMessage } from './utils';
+import { copyText, downloadText, getImageFileSize, mapWithConcurrency, sendRuntimeMessage } from './utils';
 import { Cog6ToothIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon, NoSymbolIcon } from '@heroicons/react/24/outline';
 import { SIZE_FETCH_CONCURRENCY, deepScanCapMessage, downloadable, pendingVideos } from './lib/appHelpers';
+import { useDownloadHistory } from './hooks/useDownloadHistory';
 
 const App: React.FC<AppProps> = ({
   collect = collectFromActiveTab,
@@ -55,11 +55,8 @@ const App: React.FC<AppProps> = ({
   const [settings, setSettings] = useState<SettingsData>(DEFAULT_SETTINGS);
   const [deepScanning, setDeepScanning] = useState(false);
   const [deepProgress, setDeepProgress] = useState<DeepScanProgress | null>(null);
-  const [downloadedSrcs, setDownloadedSrcs] = useState<SrcKeySet>(new SrcKeySet());
-  const downloadedRef = useRef<SrcKeySet>(downloadedSrcs);
-  const isDownloaded = useCallback((item: ImageInfo) => downloadedRef.current.has(item.src), []);
+  const { downloadedSrcs, isDownloaded } = useDownloadHistory();
   useEffect(() => {
-    downloadedRef.current = downloadedSrcs;
     // When the Downloaded filter is active, a completed download changes which
     // items pass it — re-derive the shown grid from the current image set.
     if (filtersRef.current.downloadState !== 'all') {
@@ -111,20 +108,6 @@ const App: React.FC<AppProps> = ({
       void fetchImages();
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    // The "downloaded" mark reflects files still on disk, not just what history
-    // records — so an item the user deleted becomes re-downloadable (not a
-    // duplicate). chrome.downloads lives in the background, so this asks it, and
-    // re-asks whenever history changes (a new download, or a cleared entry).
-    const refresh = (): void => void fetchDownloadedOnDisk().then((s) => setDownloadedSrcs(SrcKeySet.from(s)));
-    refresh();
-    const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
-      if (area === 'local' && changes[HISTORY_KEY]) refresh();
-    };
-    chrome.storage.onChanged.addListener(onChanged);
-    return () => chrome.storage.onChanged.removeListener(onChanged);
   }, []);
 
   useEffect(() => {
