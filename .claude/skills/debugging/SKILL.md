@@ -40,7 +40,10 @@ change; after a manual `yarn build`, hit **Reload ↻** on the extension card.
 
 - Use `console.log` + read it back; **do not** trigger `alert/confirm/prompt`
   (they block the extension messaging in automated contexts).
-- `chrome.storage` is inspectable in the SW/popup devtools Application tab.
+- `chrome.storage` is inspectable in the SW/popup devtools Application tab, as is
+  the durable **IndexedDB** mirror (Application → IndexedDB → `media-bulk-downloads`
+  → `kv`). If history/favourites look wrong, compare the two: `storage.local` is the
+  working copy, IndexedDB the backstop that `syncStores()` heals from at startup.
 
 ## References
 

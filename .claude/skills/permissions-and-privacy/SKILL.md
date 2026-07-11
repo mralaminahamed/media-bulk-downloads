@@ -40,7 +40,9 @@ Optional (requested at runtime when the feature is enabled, never at install):
   The one opt-in exception (`resolveOriginals`) fetches higher-res originals
   **directly from the media's own CDN**, host-pinned, only while downloading.
 - **No servers, no analytics, no accounts.** Settings/history never leave the
-  device (sync settings stay in the user's own Chrome sync).
+  device (sync settings stay in the user's own Chrome sync). The durable
+  IndexedDB mirror of history/favourites/excluded/queue (via `navigator.storage.persist()`)
+  is also purely on-device and needs **no** manifest permission.
 - **Scheme allowlist:** only `http(s)` (and `data:image`) media is ever surfaced —
   `javascript:`/`data:text`/`file:`/`blob:` are dropped so nothing dangerous
   reaches an `<a href>`/tab-open sink. Page-supplied ids are shape-validated

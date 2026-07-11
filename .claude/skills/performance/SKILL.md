@@ -27,6 +27,10 @@ media sets, so cost is bounded deliberately.
   capped at concurrency 6 and guarded by a generation counter so a rescan cancels
   stale writes. Videos/audio are never probed.
 - **Dedup by src** everywhere (a `Set`) so lists don't balloon.
+- **Durable IDB mirror writes are fire-and-forget.** `durableSet` returns the
+  `chrome.storage.local` promise and detaches the IndexedDB write (`shared/storage/idb.ts`),
+  so persistence never blocks a save. Keep it that way — awaiting the mirror would
+  serialize every history/queue write on IDB latency.
 
 ## When touching the popup grid
 

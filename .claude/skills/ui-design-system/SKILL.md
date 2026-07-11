@@ -9,20 +9,38 @@ Tokens and component classes live in `src/styles/index.css`. Tailwind v4 utiliti
 are available; theme values are CSS variables on `:root, :host` (also inside the
 bubble's Shadow DOM), with a `@media (prefers-color-scheme: dark)` override.
 
+## ⚠️ Every Tailwind utility is prefixed `mbd:`
+
+`index.css` imports Tailwind with a prefix: `@import "tailwindcss" prefix(mbd);`.
+So **every utility class must be written `mbd:…`** — `mbd:flex`, `mbd:items-center`,
+`mbd:bg-(--panel)`, `mbd:hover:bg-(--panel-2)`, `mbd:-ml-1`, `mbd:group-hover:opacity-100`.
+A **bare** utility (`flex`, `bg-(--panel)`) generates **no CSS** — Tailwind only
+scans for the prefixed form, so a bare class is a silent no-op. The prefix goes at
+the very front, before variants and before a negative sign (`mbd:hover:…`,
+`mbd:-mt-1`).
+
+What stays **bare** (author CSS in `index.css`, not utilities — the prefix does not
+apply): the component classes below (`.btn`, `.chip`, `.field`, `.seg`, `.switch`,
+`.card`, `.num`, `.eyebrow`, `.hairline`, `.dotgrid`, `.skeleton`, `.segwrap`, …),
+the `is-active` state class, and the `group` marker is `mbd:group` (it anchors the
+prefixed `mbd:group-hover:*` variants — write it prefixed too).
+
 ## ⚠️ The cascade trap (this has caused real bugs)
 
 `index.css` defines component classes (`.field`, `.chip`, `.seg`, `.btn`, `.switch`)
 **after** `@import "tailwindcss"`. So a component class **wins over an arbitrary
 Tailwind utility of equal specificity**. Concretely:
 
-- `.field` sets `width: 100%; height: 34px` → `class="field w-[120px] h-[28px]"`
+- `.field` sets `width: 100%; height: 34px` → `class="field mbd:w-[120px] mbd:h-[28px]"`
   renders **full-width, 34px** (the utilities are overridden). Same for
-  `.chip { height: 27px }` vs `h-[28px]`.
+  `.chip { height: 27px }` vs `mbd:h-[28px]`. (The `mbd:` prefix doesn't change
+  specificity — `.mbd\:w-\[120px\]` is still one class selector, same weight as
+  `.field`, and the later-defined component class wins.)
 
 **Fix:** set the exact size with an **inline `style`** (highest priority), e.g.
 `style={{ height: 28, width: 120 }}`, or restyle without the component class.
 Utilities only "win" over classes that don't set that property (e.g. `.segwrap`
-has no width/height, so `w-[204px] h-[28px]` work there).
+has no width/height, so `mbd:w-[204px] mbd:h-[28px]` work there).
 
 ## Tokens (use these, never hardcode)
 
@@ -44,22 +62,23 @@ Mixing these on one row looks uneven — normalize with inline height (see trap 
 
 ## Tailwind v4 shorthand (write token utilities this way)
 
-Use the v4 CSS-variable **parens** shorthand, not the old bracket form:
+Use the v4 CSS-variable **parens** shorthand, not the old bracket form (and every
+utility carries the `mbd:` prefix — see the prefix section above):
 
-- Colors/surfaces: `bg-(--panel)`, `text-(--ink-2)`, `ring-(--ctl-ring)` —
+- Colors/surfaces: `mbd:bg-(--panel)`, `mbd:text-(--ink-2)`, `mbd:ring-(--ctl-ring)` —
   **not** `bg-[var(--panel)]`. Both compile to `background-color: var(--panel)`;
   the parens form is the current idiom.
-- Opacity: `bg-(--panel)/85` (v4 emits a `color-mix`, faithful).
-- Radius — prefer the **named** utilities `rounded-lg` / `rounded-sm` /
-  `rounded-xs`. They emit `var(--radius-lg|sm|xs)`, and this repo overrides those
+- Opacity: `mbd:bg-(--panel)/85` (v4 emits a `color-mix`, faithful).
+- Radius — prefer the **named** utilities `mbd:rounded-lg` / `mbd:rounded-sm` /
+  `mbd:rounded-xs`. They emit `var(--radius-lg|sm|xs)`, and this repo overrides those
   on `:root`, so they render **12 / 7 / 5 px** (this repo's scale), not Tailwind's
   defaults.
 - ⚠️ **Radius trap:** the "md" tier token is bare **`--radius`** (10px) and there
-  is **no `--radius-md`**. Write `rounded-(--radius)` — **never `rounded-md`**,
+  is **no `--radius-md`**. Write `mbd:rounded-(--radius)` — **never `mbd:rounded-md`**,
   which maps to Tailwind's default `--radius-md` (6px): a silent size change.
 - Spacing: prefer the scale over arbitrary px where it maps cleanly
-  (`h-[18px]` → `h-4.5`, `h-[28px]` → `h-7`). Keep genuinely bespoke layout widths
-  (e.g. `w-[380px]`) as arbitrary — px is the clearer intent there.
+  (`mbd:h-[18px]` → `mbd:h-4.5`, `mbd:h-[28px]` → `mbd:h-7`). Keep genuinely bespoke
+  layout widths (e.g. `mbd:w-[380px]`) as arbitrary — px is the clearer intent there.
 - This shorthand is for Tailwind **class strings only**. CSS-in-JS
   (`style={{ background: 'var(--panel)' }}`) and SVG attributes keep real
   `var(--…)` — see `src/extension/bubble/Bubble.tsx`.
@@ -71,7 +90,7 @@ Use the v4 CSS-variable **parens** shorthand, not the old bracket form:
   control (add `.segwrap-even` + a fixed width for equal columns).
 - Modals: `role="dialog"` + `aria-modal` + the shared `useDialog` hook
   (`popup/hooks/useDialog.ts`) for focus trap, Escape, focus restore. Scrim uses
-  `bg-(--overlay)`.
+  `mbd:bg-(--overlay)`.
 - Respect both themes; the tokens do the work if you use them.
 
 ## References

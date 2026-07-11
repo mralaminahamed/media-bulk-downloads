@@ -37,7 +37,13 @@ a `-sources.zip` for AMO). Version comes from `package.json`. Load unpacked:
 - `src/extension/` — background worker, content script, `popup/` + `bubble/` React UI.
 
 Permissions (keep in sync with `wxt.config.ts`): `downloads`, `downloads.open`,
-`storage`, `tabs`, host `<all_urls>`.
+`storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`, plus **optional**
+`notifications` and `declarativeNetRequestWithHostAccess` requested at runtime. See
+the `permissions-and-privacy` skill for the full table + justifications.
+
+Tailwind is compiled via `postcss.config.js` (`@tailwindcss/postcss`) and imported
+with a **prefix** — every utility class is `mbd:…` (see the `ui-design-system`
+skill). A bare utility is a silent no-op.
 
 ## MV3 pitfalls that have bitten this repo
 

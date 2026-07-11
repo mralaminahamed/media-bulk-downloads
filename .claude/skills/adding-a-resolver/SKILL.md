@@ -49,6 +49,25 @@ interface MediaCandidate {
    URL to `https` + the expected host family (`pinnedUrl(url, 'host.com')`) —
    API JSON is untrusted.
 
+## Two things the newer resolvers do differently
+
+- **Gate on the right host.** `match` usually checks `u.hostname` (the media URL).
+  But when the site page and the media CDN are *different* hosts, gate on
+  **`ctx.pageUrl`**'s host instead. Booru resolvers
+  (`resolvers/sites/booru.ts`) do this: the collected URL is the image CDN, so
+  they allowlist `ctx.pageUrl`'s host and read the original off `ctx.el` (the post
+  DOM: Danbooru's `data-file-url`, Gelbooru/Moebooru's original link). Mastodon
+  (`mastodon.ts`) is host-agnostic the other way — it matches the
+  `/media_attachments/files/` path on any instance, then rewrites `/small/` →
+  `/original/`.
+- **Video embeds are wired in `content/collect.ts`, not the registry.** An
+  `<iframe>`/anchor embed (Vimeo, Dailymotion) has no on-page `<img>`/`<video>`, so
+  a `pushX` helper in `collect.ts` (e.g. `pushDailymotion`, mirroring `pushVimeo`)
+  emits `unresolvedVideo: true` + `resolveHint: { platform, id }`; the real stream
+  is fetched in **Phase-2 `resolvers/network.ts`** (Dailymotion: `player/metadata`
+  → the `qualities.auto` HLS master, host-pinned). Add the platform to
+  `ResolvePlatform` in `src/types` when you add a case.
+
 ## Rules
 
 - Only http(s) surfaces — the registry entry drops non-http(s) schemes; don't
