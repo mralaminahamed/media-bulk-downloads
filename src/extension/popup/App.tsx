@@ -34,32 +34,7 @@ import { hostFromUrl, registrableDomain, todayISO } from '../shared/collection/p
 import { requestCaptureStream } from '../shared/active-tab/capture-stream-active';
 import { copyText, downloadText, fetchDownloadedOnDisk, getImageFileSize, mapWithConcurrency, sendRuntimeMessage } from './utils';
 import { Cog6ToothIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon, NoSymbolIcon } from '@heroicons/react/24/outline';
-
-// Concurrent HEAD requests when enriching remote image sizes.
-const SIZE_FETCH_CONCURRENCY = 6;
-
-/**
- * A user-facing note when a deep scan stopped at one of its caps rather than
- * running dry — so the user knows more media may exist below. Natural completion
- * and user-aborted scans return null (no note).
- */
-function deepScanCapMessage(reason: DeepScanStopReason | undefined, count: number): string | null {
-  switch (reason) {
-    case 'max-items': return `Stopped at the ${count}-item limit — some media may remain.`;
-    case 'max-time': return 'Stopped at the time limit — some media may remain.';
-    case 'max-scrolls': return 'Stopped at the scroll limit — some media may remain.';
-    default: return null;
-  }
-}
-
-/** Items the user can actually download/zip now — pending videos, pending images,
- *  and HLS streams (which are captured individually, not fetched as one file) are
- *  excluded. */
-const downloadable = (list: ImageInfo[]): ImageInfo[] => list.filter((i) => !isPendingOrStream(i));
-
-/** Pending videos that still carry a resolve hint — the set "Get all videos" acts on. */
-const pendingVideos = (list: ImageInfo[]): ImageInfo[] =>
-  list.filter((i) => i.kind === 'video' && i.unresolvedVideo && !!i.resolveHint);
+import { SIZE_FETCH_CONCURRENCY, deepScanCapMessage, downloadable, pendingVideos } from './lib/appHelpers';
 
 const App: React.FC<AppProps> = ({
   collect = collectFromActiveTab,
