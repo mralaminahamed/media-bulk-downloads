@@ -157,13 +157,16 @@ jobs:
           [ -f "$ZIP" ] || { echo "::error::$ZIP not found"; exit 1; }
 
           echo "Requesting access token…"
-          TOKEN="$(curl -s -X POST https://oauth2.googleapis.com/token \
+          RESP="$(curl -s -X POST https://oauth2.googleapis.com/token \
             -d "client_id=${CLIENT_ID}" \
             -d "client_secret=${CLIENT_SECRET}" \
             -d "refresh_token=${REFRESH_TOKEN}" \
-            -d "grant_type=refresh_token" | jq -r '.access_token // empty')"
+            -d "grant_type=refresh_token")"
+          TOKEN="$(echo "$RESP" | jq -r '.access_token // empty')"
           if [ -z "$TOKEN" ]; then
-            echo "::error::Could not obtain an access token (check CLIENT_ID/SECRET/REFRESH_TOKEN)."
+            # Print only the error fields (never the token) so the cause is visible.
+            echo "OAuth token error: $(echo "$RESP" | jq -c '{error, error_description}' 2>/dev/null || echo "$RESP")"
+            echo "::error::Could not obtain an access token (check CLIENT_ID/SECRET/REFRESH_TOKEN, and that the OAuth client is a 'Web application' with the Chrome Web Store API enabled)."
             exit 1
           fi
 
