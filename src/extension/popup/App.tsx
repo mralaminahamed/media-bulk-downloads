@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import ImageList from './components/ImageList';
 import Settings from './components/panels/Settings';
 import HistoryPanel from './components/panels/HistoryPanel';
 import FavouritesPanel from './components/panels/FavouritesPanel';
 import ExcludedPanel from './components/panels/ExcludedPanel';
-import FilterToolbar, { DEFAULT_FILTERS } from './components/FilterToolbar';
+import FilterToolbar from './components/FilterToolbar';
 import { DownloadButton } from './components/DownloadButton';
 import { ProgressBar } from './components/ProgressBar';
 import { DownloadQueue } from './components/DownloadQueue';
@@ -14,52 +14,20 @@ import { BrandMark } from '../components/BrandMark';
 import { SkeletonGrid } from './components/states/SkeletonGrid';
 import { EmptyState } from './components/states/EmptyState';
 import { ErrorState } from './components/states/ErrorState';
-import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, DownloadZipMessage, DownloadBytesMessage, ExcludedKind, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
-import { filterImagesBySettings, applyToolbarFilters, filterExcluded, isPendingOrStream, ExcludedMatchers } from '../shared/collection/filters';
-import { SrcKeySet } from '../shared/collection/canonical';
-import { mergeScannedMedia } from '../shared/collection/merge';
-import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
+import { AppProps, ExcludedKind, ImageInfo } from '@/types';
 import { collectFromActiveTab } from '../shared/active-tab/collect-active-tab';
 import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/active-tab/deep-scan-active-tab';
-import { requestResolveOriginals } from '../shared/active-tab/resolve-originals-active';
-import { applyResolved } from './apply-resolved';
-import { HISTORY_KEY } from '../shared/storage/history';
-import { favouriteSrcSet, FAVOURITES_KEY } from '../shared/storage/favourites';
-import { excludedMatchers, EXCLUDED_KEY } from '../shared/storage/excluded';
-import { buildZip, zipFileName } from '../shared/download/zip';
-import { convertImage, isConvertible } from '../shared/download/convert/convert';
-import { u8ToBase64 } from '../shared/download/base64';
-import { buildDownloadFilename } from '../shared/collection/download-name';
-import { hostFromUrl, registrableDomain, todayISO } from '../shared/collection/paths';
-import { requestCaptureStream } from '../shared/active-tab/capture-stream-active';
-import { copyText, downloadText, fetchDownloadedOnDisk, getImageFileSize, mapWithConcurrency, sendRuntimeMessage } from './utils';
+import { hostFromUrl, registrableDomain } from '../shared/collection/paths';
+import { sendRuntimeMessage } from './utils';
 import { Cog6ToothIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon, NoSymbolIcon } from '@heroicons/react/24/outline';
-
-// Concurrent HEAD requests when enriching remote image sizes.
-const SIZE_FETCH_CONCURRENCY = 6;
-
-/**
- * A user-facing note when a deep scan stopped at one of its caps rather than
- * running dry — so the user knows more media may exist below. Natural completion
- * and user-aborted scans return null (no note).
- */
-function deepScanCapMessage(reason: DeepScanStopReason | undefined, count: number): string | null {
-  switch (reason) {
-    case 'max-items': return `Stopped at the ${count}-item limit — some media may remain.`;
-    case 'max-time': return 'Stopped at the time limit — some media may remain.';
-    case 'max-scrolls': return 'Stopped at the scroll limit — some media may remain.';
-    default: return null;
-  }
-}
-
-/** Items the user can actually download/zip now — pending videos, pending images,
- *  and HLS streams (which are captured individually, not fetched as one file) are
- *  excluded. */
-const downloadable = (list: ImageInfo[]): ImageInfo[] => list.filter((i) => !isPendingOrStream(i));
-
-/** Pending videos that still carry a resolve hint — the set "Get all videos" acts on. */
-const pendingVideos = (list: ImageInfo[]): ImageInfo[] =>
-  list.filter((i) => i.kind === 'video' && i.unresolvedVideo && !!i.resolveHint);
+import { downloadable, pendingVideos } from './lib/appHelpers';
+import { useDownloadHistory } from './hooks/useDownloadHistory';
+import { useFavourites } from './hooks/useFavourites';
+import { useExcluded } from './hooks/useExcluded';
+import { useSelection } from './hooks/useSelection';
+import { useSettings } from './hooks/useSettings';
+import { useMediaEngine } from './hooks/useMediaEngine';
+import { useDownloadActions } from './hooks/useDownloadActions';
 
 const App: React.FC<AppProps> = ({
   collect = collectFromActiveTab,
@@ -69,126 +37,34 @@ const App: React.FC<AppProps> = ({
   onClose,
   dragHandleProps,
 }) => {
-  const [state, setState] = useState<AppState>({
-    status: '',
-    images: [],
-    filteredImages: [],
-    isLoading: true,
-  });
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [settings, setSettings] = useState<SettingsData>(DEFAULT_SETTINGS);
-  const [deepScanning, setDeepScanning] = useState(false);
-  const [deepProgress, setDeepProgress] = useState<DeepScanProgress | null>(null);
-  const [downloadedSrcs, setDownloadedSrcs] = useState<SrcKeySet>(new SrcKeySet());
-  const downloadedRef = useRef<SrcKeySet>(downloadedSrcs);
-  const isDownloaded = useCallback((item: ImageInfo) => downloadedRef.current.has(item.src), []);
-  useEffect(() => {
-    downloadedRef.current = downloadedSrcs;
-    // When the Downloaded filter is active, a completed download changes which
-    // items pass it — re-derive the shown grid from the current image set.
-    if (filtersRef.current.downloadState !== 'all') {
-      setState((prev) => ({ ...prev, filteredImages: applyToolbarFilters(prev.images, filtersRef.current, isDownloaded) }));
-    }
-  }, [downloadedSrcs, isDownloaded]);
+  const { downloadedSrcs, isDownloaded } = useDownloadHistory();
   const [showFavourites, setShowFavourites] = useState(false);
   const [showExcluded, setShowExcluded] = useState(false);
-  const [favouriteSrcs, setFavouriteSrcs] = useState<SrcKeySet>(new SrcKeySet());
-  const [excludedMatch, setExcludedMatch] = useState<ExcludedMatchers>({ urls: new SrcKeySet(), hosts: new Set() });
-  const excludedRef = useRef<ExcludedMatchers>({ urls: new SrcKeySet(), hosts: new Set() });
-  const [resolveFailedSrcs, setResolveFailedSrcs] = useState<Set<string>>(new Set());
-  const [fetchingSrcs, setFetchingSrcs] = useState<Set<string>>(new Set());
-  // Whether a batch "Get all videos" run is in flight (distinct from a single
-  // per-item "Get video", which only spins that tile — not the batch button).
-  const [fetchingAllVideos, setFetchingAllVideos] = useState(false);
   // Selective bulk download: srcs the user has ticked. Scoped to what's shown —
   // pruned whenever the filtered view changes (see the effect below).
-  const [selectedSrcs, setSelectedSrcs] = useState<Set<string>>(new Set());
-  // Live progress for in-extension batch work (zip fetch, video resolve). null = idle.
-  // total 0 → indeterminate.
-  const [progress, setProgress] = useState<{ label: string; done: number; total: number } | null>(null);
+  const { selectedSrcs, setSelectedSrcs, handleToggleSelect, handleSelectRange, handleSelectAllShown, handleClearSelection } = useSelection();
 
-  // All images collected from the page, before any settings/toolbar filtering.
-  const rawImagesRef = useRef<ImageInfo[]>([]);
-  // Generation guard so a newer refresh cancels stale size-enrichment writes.
-  const enrichGenRef = useRef(0);
-  // Generation guard so a newer refresh/rescan cancels stale resolution writes.
-  const resolveGenRef = useRef(0);
-  // Latest toolbar filters. FilterToolbar owns its own state and only notifies on
-  // user interaction, so async paths (resolution, deep scan, rescan) must re-apply
-  // these when they repopulate the grid — otherwise the active filter is dropped.
-  const filtersRef = useRef<FilterOptions>(DEFAULT_FILTERS);
+  // Defined here (ahead of its other call sites further down) so it's already
+  // initialized when useFavourites (below) is called — useFavourites must be
+  // called at this position, not later, to preserve the favourites listener's
+  // registration order (after history, before settings-sync/excluded; see the
+  // comment on the useSettings() call below).
+  const currentSourcePage = async (): Promise<{ url: string; title?: string }> => {
+    if (surface === 'bubble') return { url: location.href, title: document.title };
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    return { url: tab?.url ?? '', title: tab?.title };
+  };
 
-  // Latest settings, readable from async callbacks (the mount scan) without a
-  // stale closure.
-  const settingsRef = useRef(settings);
-  useEffect(() => {
-    settingsRef.current = settings;
-  }, [settings]);
+  const { favouriteSrcs, handleToggleFavourite } = useFavourites(currentSourcePage);
 
-  useEffect(() => {
-    // Load persisted settings BEFORE the first scan, so a persisted
-    // resolveOriginals is known when the scan gates on it.
-    chrome.storage.sync.get(['settings'], (result) => {
-      const loaded = result.settings ? withDefaults(result.settings) : DEFAULT_SETTINGS;
-      settingsRef.current = loaded;
-      setSettings(loaded);
-      void fetchImages();
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Called here — between useFavourites (above) and useExcluded (below) — so
+  // its sync 'settings' storage listener keeps its registration order
+  // relative to the favourites/excluded local listeners (tests depend on it).
+  const { settings, setSettings, settingsRef, handleSettingsChange } = useSettings();
 
-  useEffect(() => {
-    // The "downloaded" mark reflects files still on disk, not just what history
-    // records — so an item the user deleted becomes re-downloadable (not a
-    // duplicate). chrome.downloads lives in the background, so this asks it, and
-    // re-asks whenever history changes (a new download, or a cleared entry).
-    const refresh = (): void => void fetchDownloadedOnDisk().then((s) => setDownloadedSrcs(SrcKeySet.from(s)));
-    refresh();
-    const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
-      if (area === 'local' && changes[HISTORY_KEY]) refresh();
-    };
-    chrome.storage.onChanged.addListener(onChanged);
-    return () => chrome.storage.onChanged.removeListener(onChanged);
-  }, []);
-
-  useEffect(() => {
-    void favouriteSrcSet().then(setFavouriteSrcs);
-    const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
-      // Reload through favouriteSrcSet() (which normalizes via loadFavourites and
-      // drops corrupt entries) rather than trusting the raw newValue — matches the
-      // initial load, the History path, and the excluded path below.
-      if (area === 'local' && changes[FAVOURITES_KEY]) void favouriteSrcSet().then(setFavouriteSrcs);
-    };
-    chrome.storage.onChanged.addListener(onChanged);
-    return () => chrome.storage.onChanged.removeListener(onChanged);
-  }, []);
-
-  useEffect(() => {
-    // Keep settings live while the popup is open. The on-page bubble persists
-    // bubbleWidth/height/placement on resize/drag; without this the popup's
-    // one-time snapshot would clobber those the next time the user saves Settings.
-    // Mirrors the bubble's own sync listener. Registered between the favourites
-    // and excluded local listeners so both keep their positional order in tests.
-    const listener = (changes: { [k: string]: chrome.storage.StorageChange }, area: string) => {
-      if (area !== 'sync' || !changes.settings) return;
-      const next = withDefaults(changes.settings.newValue as Partial<SettingsData>);
-      settingsRef.current = next;
-      setSettings(next);
-    };
-    chrome.storage.onChanged.addListener(listener);
-    return () => chrome.storage.onChanged.removeListener(listener);
-  }, []);
-
-  useEffect(() => {
-    const load = () => void excludedMatchers().then((m) => { excludedRef.current = m; setExcludedMatch(m); });
-    load();
-    const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
-      if (area === 'local' && changes[EXCLUDED_KEY]) load();
-    };
-    chrome.storage.onChanged.addListener(onChanged);
-    return () => chrome.storage.onChanged.removeListener(onChanged);
-  }, []);
+  const { excludedMatch, excludedRef, applyExcludedOptimistic } = useExcluded();
 
   useEffect(() => {
     // Only the popup sizes the document body; the bubble is sized by its host.
@@ -197,420 +73,54 @@ const App: React.FC<AppProps> = ({
     document.body.style.height = `${settings.popupHeight}px`;
   }, [surface, settings.popupWidth, settings.popupHeight]);
 
-  /**
-   * Lazily fills in remote image byte sizes. Runs only from the popup on the
-   * active tab (user-initiated), never from the background badge path.
-   */
-  const enrichImageSizes = useCallback(async (images: ImageInfo[]): Promise<void> => {
-    const generation = ++enrichGenRef.current;
-    // A pending image's `src` is the x.com tweet-page placeholder URL, not a real
-    // file — a HEAD/GET against it would fetch the page HTML (wasted request,
-    // and violates the opt-in/passive collection constraint). Pending videos are
-    // already excluded by `kind === 'image'`, since a pending video is `kind: 'video'`.
-    const targets = images.filter((img) => !img.isBase64 && img.fileSize <= 0 && img.kind === 'image' && !img.unresolvedImage);
+  // The coupled scan/resolution/filter core: owns `state` (the collected +
+  // filtered image sets) and the refs that must stay in sync with it. Called
+  // after useSettings/useExcluded/useDownloadHistory so their return values
+  // are already initialized when threaded in as inputs.
+  const {
+    state,
+    setState,
+    deepScanning,
+    deepProgress,
+    progress,
+    setProgress,
+    fetchImages,
+    handleDeepScan,
+    handleFilterChange,
+    handleFetchVideo,
+    handleFetchAllVideos,
+    fetchingAllVideos,
+    fetchingSrcs,
+    resolveFailedSrcs,
+  } = useMediaEngine({
+    settings,
+    settingsRef,
+    setSettings,
+    excludedRef,
+    excludedMatch,
+    isDownloaded,
+    downloadedSrcs,
+    collect,
+    deepScan,
+    abortDeepScan,
+  });
 
-    await mapWithConcurrency(targets, SIZE_FETCH_CONCURRENCY, async (img) => {
-      const size = await getImageFileSize(img.src);
-      if (generation !== enrichGenRef.current || size <= 0) return;
-
-      const apply = (list: ImageInfo[]) =>
-        list.map((i) => (i.src === img.src ? { ...i, fileSize: size } : i));
-
-      // Mirror the size into the raw set too (like enrichOriginals does), so a later
-      // settings-change re-filter re-derives from rawImagesRef WITHOUT wiping the
-      // enriched sizes and re-firing a fresh round of HEAD requests.
-      rawImagesRef.current = apply(rawImagesRef.current);
-      setState((prev) => {
-        const nextImages = apply(prev.images);
-        // Re-derive the filtered view (not a plain map) so a newly-known size is
-        // re-sorted (sort-by-size) and re-gated (Min KB) — otherwise the grid
-        // order/visibility disagrees with the sizes it just showed.
-        const eligible = filterExcluded(filterImagesBySettings(nextImages, settingsRef.current), excludedRef.current);
-        return {
-          ...prev,
-          images: nextImages,
-          filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloaded),
-        };
-      });
-    });
-  }, []);
-
-  /**
-   * Opt-in resolution over the full eligible set. Pending videos are already
-   * displayed (as a poster, via `applyResolution`) — this resolves each item's
-   * `resolveHint` via the background and swaps it in place: src becomes the
-   * real original and `unresolvedVideo`/`resolveHint` are cleared, upgrading it
-   * to a downloadable mp4. Also mirrors the swap into `rawImagesRef` so the
-   * upgrade survives a later re-filter (settings change, deep scan). Items that
-   * never resolve simply stay pending — nothing flickers in and then disappears.
-   */
-  const enrichOriginals = useCallback(async (eligible: ImageInfo[], captureHlsStreams: boolean): Promise<void> => {
-    const generation = ++resolveGenRef.current;
-    const targets = eligible.filter((i) => i.resolveHint).map((i) => ({ src: i.src, hint: i.resolveHint! }));
-    if (!targets.length) return;
-    const resolved = await requestResolveOriginals(targets);
-    if (generation !== resolveGenRef.current) return;
-
-    // oldSrc -> resolved item (hint cleared, src swapped to the real original)
-    const byOldSrc = new Map<string, ImageInfo>();
-    for (const i of eligible) {
-      const r = i.resolveHint ? resolved[i.src] : undefined;
-      if (r) {
-        const swapped = applyResolved(i, r, captureHlsStreams);
-        if (swapped) byOldSrc.set(i.src, swapped);
-      }
-    }
-    if (!byOldSrc.size) return;
-    rawImagesRef.current = rawImagesRef.current.map((m) => byOldSrc.get(m.src) ?? m);
-
-    setState((prev) => {
-      // Upgrade in place any item whose old src resolved, then append resolved
-      // items that weren't already present (pending videos becoming real mp4s).
-      const nextImages = prev.images.map((m) => byOldSrc.get(m.src) ?? m);
-      const present = new Set(nextImages.map((m) => m.src));
-      for (const [oldSrc, item] of byOldSrc) {
-        if (!prev.images.some((m) => m.src === oldSrc) && !present.has(item.src)) {
-          nextImages.push(item);
-          present.add(item.src);
-        }
-      }
-      // Derive the filtered view from the new image set so the exclude blocklist,
-      // settings gates, AND the active toolbar filter all still apply to upgraded
-      // and newly-appended items — a resolved src (e.g. a pending video's mp4)
-      // that lands on the blocklist or fails a settings gate must not surface.
-      const eligible = filterExcluded(filterImagesBySettings(nextImages, settingsRef.current), excludedRef.current);
-      return {
-        ...prev,
-        images: nextImages,
-        filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloaded),
-      };
-    });
-  }, []);
-
-  /**
-   * Applies the resolve-originals gate to an eligible list, shared by every scan
-   * path (initial scan, settings change, deep scan). Poster-only pending videos
-   * ARE displayed (poster + a "Get video" action) but are excluded from the
-   * downloadable set until resolved. When `resolveOriginals` is on, they are also
-   * auto-resolved in the background and swapped to real mp4s. Image size
-   * enrichment runs on the displayed items.
-   */
-  const applyResolution = useCallback(
-    (eligible: ImageInfo[], s: SettingsData): void => {
-      // Preserve the active toolbar filter when repopulating the grid.
-      const filtered = applyToolbarFilters(eligible, filtersRef.current, isDownloaded);
-      setState((prev) => ({ ...prev, images: eligible, filteredImages: filtered }));
-      if (s.resolveOriginals) void enrichOriginals(eligible, s.captureHlsStreams);
-      void enrichImageSizes(eligible);
-    },
-    [enrichOriginals, enrichImageSizes],
-  );
-
-  const fetchImages = useCallback(async (): Promise<void> => {
-    enrichGenRef.current++; // cancel any in-flight enrichment
-    resolveGenRef.current++; // cancel any in-flight resolution
-    // A rescan unmounts FilterToolbar (isLoading) and it remounts at DEFAULT_FILTERS;
-    // reset the ref too so the repopulated grid isn't left silently filtered by the
-    // previous run's selection while the toolbar shows "All".
-    filtersRef.current = DEFAULT_FILTERS;
-    setState((prev) => ({ ...prev, isLoading: true, status: '' }));
-
-    try {
-      const imageList = await collect();
-      const raw = Array.isArray(imageList) ? imageList : [];
-      rawImagesRef.current = raw;
-      const s = settingsRef.current; // latest settings, not a stale closure
-      const eligible = filterExcluded(filterImagesBySettings(raw, s), excludedRef.current);
-
-      setState((prev) => ({ ...prev, status: '', isLoading: false }));
-      applyResolution(eligible, s);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'unknown error';
-      setState((prev) => ({
-        ...prev,
-        status: `Can't read this page: ${message}`,
-        isLoading: false,
-      }));
-    }
-  }, [collect, applyResolution]);
-
-  // Re-derive the eligible base list when the settings that affect it change.
-  // Also applies opt-in resolution when it loads/changes (settings load async on
-  // mount, so the first scan runs before a persisted resolveOriginals is known).
-  useEffect(() => {
-    if (rawImagesRef.current.length === 0) return;
-    const eligible = filterExcluded(filterImagesBySettings(rawImagesRef.current, settings), excludedRef.current);
-    applyResolution(eligible, settings);
-    // Keyed on the settings fields that affect eligibility + resolution, plus
-    // excludedMatch so an exclusion-list change re-derives the grid too.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.minimumImageSize, settings.excludeBase64Images, settings.excludeEmoji, settings.resolveOriginals, settings.captureHlsStreams, applyResolution, excludedMatch]);
-
-  const handleDeepScan = async () => {
-    if (deepScanning) {
-      abortDeepScan();
-      return;
-    }
-    setDeepScanning(true);
-    setDeepProgress(null);
-    // The final progress event carries why the scan stopped; capture it as it streams.
-    let stopReason: DeepScanStopReason | undefined;
-    try {
-      const found = await deepScan((p) => {
-        if (p.reason) stopReason = p.reason;
-        setDeepProgress(p);
-      });
-      // Merge deep-scan results into the collected set: a resolver identity
-      // (mediaKey) upgrade-replaces its prior rendition (a Facebook grid tile ->
-      // the sniffed original), while a rotating-CDN canonical repeat keeps the
-      // first occurrence. Behaviorally identical to the old canonical-only merge
-      // until a resolver sets mediaKey (Task 8).
-      const merged = mergeScannedMedia(rawImagesRef.current, found);
-      rawImagesRef.current = merged;
-      const eligible = filterExcluded(filterImagesBySettings(merged, settings), excludedRef.current);
-      applyResolution(eligible, settings);
-      // If a cap (not a natural finish) ended the scan, tell the user media may remain.
-      const capMsg = deepScanCapMessage(stopReason, merged.length);
-      if (capMsg) setState((prev) => ({ ...prev, status: capMsg }));
-    } catch (e) {
-      setState((prev) => ({ ...prev, status: e instanceof Error ? e.message : 'deep scan failed' }));
-    } finally {
-      setDeepScanning(false);
-    }
-  };
-
-  const handleFilterChange = (filters: FilterOptions) => {
-    filtersRef.current = filters;
-    setState((prev) => ({ ...prev, filteredImages: applyToolbarFilters(prev.images, filters, isDownloaded), status: '' }));
-  };
-
-  const currentSourcePage = async (): Promise<{ url: string; title?: string }> => {
-    if (surface === 'bubble') return { url: location.href, title: document.title };
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    return { url: tab?.url ?? '', title: tab?.title };
-  };
-
-  const handleDownload = async (images: ImageInfo | ImageInfo[]): Promise<void> => {
-    const list = Array.isArray(images) ? images : [images];
-    // HLS streams are captured (fetch + assemble segments), not fetched as a
-    // single file — route them to the capture path, sequentially.
-    const streams = list.filter((i) => i.hlsManifest);
-    for (const s of streams) await captureStream(s);
-    const rest = list.filter((i) => !i.hlsManifest);
-    if (!rest.length) return;
-    const target = settings.convertImagesTo;
-    if (target === 'off') {
-      await sendPlainDownload(rest);
-      return;
-    }
-    await convertAndDownload(rest, target);
-  };
-
-  /**
-   * Capture an HLS stream. The heavy lifting (fetch + mux + blob) runs in the
-   * background's offscreen document; this only fires the request, mirrors progress
-   * into the ProgressBar, and shows the status the background composes. The
-   * capture completes even if the popup closes before this resolves.
-   */
-  const captureStream = async (item: ImageInfo): Promise<void> => {
-    const sourcePage = await currentSourcePage();
-    setProgress({ label: 'Capturing stream', done: 0, total: 0 });
-    try {
-      const status = await requestCaptureStream(
-        item,
-        sourcePage,
-        (done, total) => setProgress({ label: 'Capturing stream', done, total }),
-      );
-      setState((prev) => ({ ...prev, status }));
-    } finally {
-      setProgress(null);
-    }
-  };
-
-  /** The original, fast path: hand the source URLs to the background to download. */
-  const sendPlainDownload = async (list: ImageInfo[]): Promise<void> => {
-    setState((prev) => ({
-      ...prev,
-      status: `Sending ${list.length} file${list.length === 1 ? '' : 's'} to downloads…`,
-    }));
-    const sourcePage = await currentSourcePage();
-    const message: DownloadMessage = { type: 'DOWNLOAD_IMAGES', images: list, sourcePage };
-    chrome.runtime.sendMessage(message, (response: DownloadResponse) => {
-      // chrome.runtime.lastError is only valid during this callback — capture it now.
-      const error = chrome.runtime.lastError;
-      const status = error ? `Error: ${error.message || 'unknown error'}` : response.message;
-      setState((prev) => ({ ...prev, status }));
-    });
-  };
-
-  /**
-   * Convert-on-download: raster images are fetched, re-encoded to the target
-   * format via canvas, and saved as bytes. Non-convertible items (video/audio,
-   * svg, gif, already-target) and any that fail download in their original form.
-   */
-  const convertAndDownload = async (list: ImageInfo[], target: 'png' | 'jpeg'): Promise<void> => {
-    const toConvert = list.filter((i) => isConvertible(i, target));
-    const passthrough = list.filter((i) => !isConvertible(i, target));
-    const sourcePage = await currentSourcePage();
-
-    if (passthrough.length) {
-      chrome.runtime.sendMessage({ type: 'DOWNLOAD_IMAGES', images: passthrough, sourcePage } as DownloadMessage);
-    }
-    if (!toConvert.length) {
-      setState((prev) => ({ ...prev, status: `Sent ${passthrough.length} file${passthrough.length === 1 ? '' : 's'} to downloads…` }));
-      return;
-    }
-
-    setProgress({ label: 'Converting', done: 0, total: toConvert.length });
-    let done = 0;
-    const failed: ImageInfo[] = [];
-    await mapWithConcurrency(toConvert, 3, async (img, index) => {
-      try {
-        const res = await fetch(img.src);
-        if (!res.ok) throw new Error('fetch');
-        // preserve metadata unless the user explicitly chose to strip it. If the
-        // source's metadata can't be carried across, convertImage returns null and
-        // the item falls through to a plain download of the original (below).
-        const converted = await convertImage(await res.blob(), target, {
-          preserveMetadata: settings.convertMetadata !== 'strip',
-        });
-        if (!converted) throw new Error('convert');
-        const filename = buildDownloadFilename({ ...img, ext: converted.ext }, index, settings, sourcePage.url);
-        const msg: DownloadBytesMessage = {
-          type: 'DOWNLOAD_BYTES', filename, b64: u8ToBase64(converted.bytes), mime: converted.mime,
-          // Carry the original identity so the background records it to history
-          // (the "already downloaded" mark + dedup), like a plain download.
-          source: {
-            src: img.src, kind: img.kind, type: img.type,
-            ...(img.thumbnailSrc ?? img.poster ? { thumbnailSrc: img.thumbnailSrc ?? img.poster } : {}),
-            sourcePageUrl: sourcePage.url,
-            ...(sourcePage.title ? { sourcePageTitle: sourcePage.title } : {}),
-          },
-        };
-        chrome.runtime.sendMessage(msg);
-      } catch {
-        failed.push(img);
-      } finally {
-        setProgress({ label: 'Converting', done: ++done, total: toConvert.length });
-      }
-    });
-    setProgress(null);
-
-    // Anything that couldn't be fetched/decoded downloads in its original format.
-    if (failed.length) {
-      chrome.runtime.sendMessage({ type: 'DOWNLOAD_IMAGES', images: failed, sourcePage } as DownloadMessage);
-    }
-    const okCount = toConvert.length - failed.length;
-    const note = failed.length ? ` ${failed.length} couldn't convert — saved original.` : '';
-    setState((prev) => ({ ...prev, status: `Converted ${okCount} image${okCount === 1 ? '' : 's'} to ${target.toUpperCase()}.${note}` }));
-  };
-
-  const handleBulkDownload = (): void => {
-    // Always act on the shown (filtered) set — never fall back to the unfiltered
-    // images, which would ignore the active filter.
-    void handleDownload(downloadable(state.filteredImages));
-  };
-
-  const handleSingleImageDownload = (image: ImageInfo): void => void handleDownload(image);
-
-  // ── Selective bulk download ────────────────────────────────────────────────
-  const handleToggleSelect = (image: ImageInfo): void => {
-    if (isPendingOrStream(image)) return; // pending/stream items are captured individually, not bulk-selected
-    setSelectedSrcs((prev) => {
-      const next = new Set(prev);
-      if (next.has(image.src)) next.delete(image.src);
-      else next.add(image.src);
-      return next;
-    });
-  };
-
-  /** Shift-click: add every downloadable item in the clicked run. */
-  const handleSelectRange = (imgs: ImageInfo[]): void => {
-    setSelectedSrcs((prev) => {
-      const next = new Set(prev);
-      for (const i of imgs) if (!isPendingOrStream(i)) next.add(i.src);
-      return next;
-    });
-  };
-
-  const handleSelectAllShown = (): void =>
-    setSelectedSrcs(new Set(downloadable(state.filteredImages).map((i) => i.src)));
-
-  const handleClearSelection = (): void => setSelectedSrcs(new Set());
-
-  const handleDownloadSelected = (): void => {
-    const chosen = downloadable(state.filteredImages).filter((i) => selectedSrcs.has(i.src));
-    if (chosen.length) void handleDownload(chosen);
-  };
-
-  // ── ZIP download ───────────────────────────────────────────────────────────
-  // Fetch + zip the media in this (extension) context — fetch here bypasses page
-  // CORS — then hand the bytes to the background to write via chrome.downloads.
-  const handleDownloadZip = async (images: ImageInfo[]): Promise<void> => {
-    if (!images.length) return;
-    setProgress({ label: 'Zipping', done: 0, total: images.length });
-
-    const sourcePage = await currentSourcePage();
-    const { bytes, ok, failed } = await buildZip(images, settings, sourcePage.url, {
-      fetch: (...args) => fetch(...args),
-      onProgress: (done, total) => setProgress({ label: 'Zipping', done, total }),
-    });
-    setProgress(null); // fetch phase done; the download itself is near-instant
-
-    // Nothing could be fetched (every host blocked the hotlink / offline) — fall
-    // back to individual downloads via the browser's own fetch. Use the plain
-    // path, not handleDownload: the ZIP action archives originals, so its
-    // fallback must not convert either (convert-on-download applies only to the
-    // separate-files action). `images` is already the downloadable set (no HLS).
-    if (ok === 0) {
-      void sendPlainDownload(images);
-      return;
-    }
-
-    // Items that failed to fetch fall back to a normal per-file download
-    // (fire-and-forget; the ZIP response owns the status line).
-    if (failed.length) {
-      const fallback: DownloadMessage = { type: 'DOWNLOAD_IMAGES', images: failed, sourcePage };
-      chrome.runtime.sendMessage(fallback);
-    }
-
-    const filename = zipFileName(sourcePage.url);
-    const message: DownloadZipMessage = { type: 'DOWNLOAD_ZIP', b64: u8ToBase64(bytes), filename };
-    chrome.runtime.sendMessage(message, (response: DownloadResponse) => {
-      const error = chrome.runtime.lastError;
-      const base = error ? `Error: ${error.message || 'unknown error'}` : response.message;
-      const note = failed.length ? ` ${failed.length} couldn't be fetched — downloading those individually.` : '';
-      setState((prev) => ({ ...prev, status: `${base}${note}` }));
-    });
-  };
-
-  const handleBulkDownloadZip = (): void => void handleDownloadZip(downloadable(state.filteredImages));
-
-  const handleDownloadSelectedZip = (): void => {
-    const chosen = downloadable(state.filteredImages).filter((i) => selectedSrcs.has(i.src));
-    if (chosen.length) void handleDownloadZip(chosen);
-  };
-
-  // ── Copy / export links ──────────────────────────────────────────────────
-  const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
-  const linkList = (images: ImageInfo[]): string => images.map((i) => i.src).join('\n');
-  const linksFileName = (url?: string): string => {
-    const domain = registrableDomain(hostFromUrl(url));
-    return `${domain ? `${domain}-` : ''}media-links-${todayISO()}.txt`;
-  };
-
-  const handleCopyLinks = async (images: ImageInfo[]): Promise<void> => {
-    if (!images.length) return;
-    const ok = await copyText(linkList(images));
-    setState((prev) => ({ ...prev, status: ok ? `Copied ${plural(images.length, 'link')}.` : 'Copy failed — clipboard blocked.' }));
-  };
-
-  const handleExportLinks = async (images: ImageInfo[]): Promise<void> => {
-    if (!images.length) return;
-    const { url } = await currentSourcePage();
-    downloadText(linksFileName(url), linkList(images), 'text/plain');
-    setState((prev) => ({ ...prev, status: `Exported ${plural(images.length, 'link')}.` }));
-  };
+  const {
+    handleBulkDownload,
+    handleSingleImageDownload,
+    handleDownloadSelected,
+    handleBulkDownloadZip,
+    handleDownloadSelectedZip,
+    handleCopyLinks,
+    handleExportLinks,
+  } = useDownloadActions({
+    settings,
+    filteredImages: state.filteredImages,
+    selectedSrcs,
+    setState,
+    setProgress,
+    currentSourcePage,
+  });
 
   const selectedDownloadable = (): ImageInfo[] => downloadable(state.filteredImages).filter((i) => selectedSrcs.has(i.src));
 
@@ -628,131 +138,8 @@ const App: React.FC<AppProps> = ({
       }
       return changed ? next : prev;
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.filteredImages]);
-
-  /**
-   * Resolve ONE pending video's real file on demand, regardless of the global
-   * resolveOriginals setting (this is an explicit, user-initiated request).
-   * On success, swap the item's src to the mp4 (now downloadable); on failure
-   * (tombstone / null), mark it failed so the tile can say so.
-   */
-  const handleFetchVideo = async (image: ImageInfo): Promise<void> => {
-    if (!image.resolveHint) return;
-    const src = image.src;
-    setFetchingSrcs((p) => new Set(p).add(src));
-    setResolveFailedSrcs((p) => { const n = new Set(p); n.delete(src); return n; });
-    const resolved = await requestResolveOriginals([{ src, hint: image.resolveHint }]);
-    setFetchingSrcs((p) => { const n = new Set(p); n.delete(src); return n; });
-    const r = resolved[src];
-    const swapped = r ? applyResolved(image, r, settings.captureHlsStreams) : null;
-    if (!swapped) {
-      // A null result is either no-resolution or an HLS-only video with capture
-      // off. Only mark a hard failure when nothing resolved; a gated HLS item
-      // stays quietly pending (turning on stream capture resolves it next time).
-      if (!r) setResolveFailedSrcs((p) => new Set(p).add(src));
-      return;
-    }
-    const swap = (list: ImageInfo[]) => list.map((i) => (i.src === src ? swapped : i));
-    // Mirror into the raw set too, so a later settings-change re-filter doesn't
-    // revert this item back to a pending tile.
-    rawImagesRef.current = swap(rawImagesRef.current);
-    // Re-derive the filtered view (not an in-place swap) so the resolved item is
-    // re-sorted + re-gated by the active toolbar filter — matching the auto
-    // resolveOriginals path (enrichOriginals). An in-place swap left the item in
-    // its old poster-name sort slot, out of order with the active sort.
-    setState((prev) => {
-      const images = swap(prev.images);
-      const eligible = filterExcluded(filterImagesBySettings(images, settingsRef.current), excludedRef.current);
-      return { ...prev, images, filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloaded) };
-    });
-  };
-
-  /**
-   * Resolve EVERY pending video in the current view in one batched request,
-   * regardless of the resolveOriginals setting (an explicit, user-initiated
-   * action). All targets show a spinner while the batch runs; each that resolves
-   * is swapped to its downloadable mp4, and any that don't are flagged failed.
-   */
-  const handleFetchAllVideos = async (): Promise<void> => {
-    const targets = pendingVideos(state.filteredImages);
-    if (!targets.length) return;
-    const srcs = targets.map((t) => t.src);
-    setFetchingAllVideos(true);
-    setFetchingSrcs((p) => { const n = new Set(p); srcs.forEach((s) => n.add(s)); return n; });
-    setResolveFailedSrcs((p) => { const n = new Set(p); srcs.forEach((s) => n.delete(s)); return n; });
-    // Indeterminate — the resolve happens in one background batch with no per-item signal.
-    setProgress({ label: 'Fetching videos', done: 0, total: 0 });
-
-    let resolved: Awaited<ReturnType<typeof requestResolveOriginals>>;
-    try {
-      resolved = await requestResolveOriginals(targets.map((t) => ({ src: t.src, hint: t.resolveHint! })));
-    } finally {
-      // Always clear the in-flight UI — even if the resolve throws — so the batch
-      // button and the per-item spinners never stick.
-      setProgress(null);
-      setFetchingAllVideos(false);
-      setFetchingSrcs((p) => { const n = new Set(p); srcs.forEach((s) => n.delete(s)); return n; });
-    }
-    // Keyed on the raw resolver result: only truly-unresolved items are failures.
-    // A gated HLS-only item (resolved, but capture off → applyResolved returns
-    // null below) is NOT a failure — it stays quietly pending, same as the single
-    // handleFetchVideo path.
-    const failed = srcs.filter((s) => !resolved[s]);
-    if (failed.length) setResolveFailedSrcs((p) => { const n = new Set(p); failed.forEach((s) => n.add(s)); return n; });
-
-    const byOldSrc = new Map<string, ImageInfo>();
-    for (const t of targets) {
-      const r = resolved[t.src];
-      const swapped = r ? applyResolved(t, r, settings.captureHlsStreams) : null;
-      if (swapped) byOldSrc.set(t.src, swapped);
-    }
-    if (!byOldSrc.size) return;
-    const swap = (list: ImageInfo[]) => list.map((i) => byOldSrc.get(i.src) ?? i);
-    rawImagesRef.current = swap(rawImagesRef.current);
-    // Re-derive the filtered view so every swapped video is re-sorted + re-gated
-    // by the active toolbar filter, matching the auto resolveOriginals path.
-    setState((prev) => {
-      const images = swap(prev.images);
-      const eligible = filterExcluded(filterImagesBySettings(images, settingsRef.current), excludedRef.current);
-      return { ...prev, images, filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloaded) };
-    });
-  };
-
-  const handleToggleFavourite = async (image: ImageInfo): Promise<void> => {
-    if (favouriteSrcs.has(image.src)) {
-      sendRuntimeMessage({ type: 'REMOVE_FAVOURITE', src: image.src });
-      setFavouriteSrcs((prev) => prev.withoutSrc(image.src));
-      return;
-    }
-    const sourcePage = await currentSourcePage();
-    const entry: FavouriteEntry = {
-      src: image.src,
-      kind: image.kind,
-      type: image.type,
-      sourcePageUrl: sourcePage.url,
-      time: Date.now(),
-      ...(image.thumbnailSrc ?? image.poster ? { thumbnailSrc: image.thumbnailSrc ?? image.poster } : {}),
-      ...(sourcePage.title ? { sourcePageTitle: sourcePage.title } : {}),
-    };
-    sendRuntimeMessage({ type: 'ADD_FAVOURITE', entry });
-    setFavouriteSrcs((prev) => prev.withAdded(image.src));
-  };
-
-  // Hide excluded media from the grid immediately, before the background's write
-  // round-trips back through storage.onChanged (which reconciles to the same
-  // state). Mirrors the optimistic favourite update above. A 'url' exclusion is
-  // keyed by the src's canonical key; a 'host' exclusion by its registrable domain.
-  const applyExcludedOptimistic = (updates: { kind: ExcludedKind; value: string; src: string }[]): void => {
-    let urls = excludedRef.current.urls;
-    const hosts = new Set(excludedRef.current.hosts);
-    for (const u of updates) {
-      if (u.kind === 'url') urls = urls.withAdded(u.src);
-      else hosts.add(u.value);
-    }
-    const next = { urls, hosts };
-    excludedRef.current = next;
-    setExcludedMatch(next);
-  };
 
   const excludeItem = (image: ImageInfo, kind: ExcludedKind): void => {
     const value = kind === 'host' ? registrableDomain(hostFromUrl(image.src)) : image.src;
@@ -765,21 +152,6 @@ const App: React.FC<AppProps> = ({
     for (const i of items) sendRuntimeMessage({ type: 'ADD_EXCLUDED', entry: { value: i.src, kind: 'url', time: Date.now() } });
     applyExcludedOptimistic(items.map((i) => ({ kind: 'url' as const, value: i.src, src: i.src })));
     setSelectedSrcs(new Set());
-  };
-
-  // The popup owns the form's fields. Persist through the background's single
-  // serialized writer (SET_SETTINGS) so a concurrent on-page-bubble drag can't
-  // clobber this save. Send a patch WITHOUT the drag-only bubble fields (the
-  // button's x/y offset and the freeform panel point, which have no Settings
-  // control) so the background's deep-merge preserves them.
-  const handleSettingsChange = (newSettings: SettingsData) => {
-    setSettings(newSettings);
-    const { bubblePosition, bubblePanelPoint, ...rest } = newSettings;
-    void bubblePanelPoint; // drag-only; not sent so the stored value is preserved
-    sendRuntimeMessage({
-      type: 'SET_SETTINGS',
-      patch: { ...rest, bubblePosition: { corner: bubblePosition.corner } },
-    });
   };
 
   const total = state.images.length;
@@ -912,7 +284,7 @@ const App: React.FC<AppProps> = ({
               <SelectCheckbox
                 checked={allShownSelected}
                 indeterminate={selectedCount > 0 && !allShownSelected}
-                onClick={() => (allShownSelected ? handleClearSelection() : handleSelectAllShown())}
+                onClick={() => (allShownSelected ? handleClearSelection() : handleSelectAllShown(state.filteredImages))}
                 className="shrink-0 cursor-pointer"
                 title={allShownSelected ? 'Clear selection' : 'Select all shown'}
                 ariaLabel={allShownSelected ? 'Clear selection' : 'Select all shown'}
