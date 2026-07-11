@@ -85,22 +85,21 @@ export async function restoreHistory(entries: HistoryEntry[]): Promise<void> {
   });
 }
 
+export type DiskState = 'exists' | 'deleted' | 'unknown';
+
 /**
- * The srcs from history whose downloaded file still exists on disk, given a
- * predicate that reports on-disk existence by `chrome.downloads` id (the caller
- * runs the actual `chrome.downloads.search`, which only the background realm can).
- * Pure, so it's testable without the API.
- *
- * A tracked entry (has a `downloadId`) is kept only when its file still exists —
- * so an item the user deleted from disk stops counting as already-downloaded and
- * becomes re-downloadable. Legacy entries recorded before download-id tracking
- * have no id to check, so they're kept as-is rather than surprise-unmarked.
+ * The srcs from history whose downloaded file has NOT been positively reported gone.
+ * `stateById(id)` returns 'exists' (browser knows it, file present), 'deleted' (browser
+ * knows it, file removed), or 'unknown' (browser no longer has the record — e.g. the user
+ * cleared Chrome's download history). Only 'deleted' drops an entry; 'unknown' keeps it
+ * (trust our own record), so a still-on-disk file isn't wrongly re-offered. Legacy entries
+ * with no downloadId are always kept.
  */
 export function srcsStillOnDisk(
   history: HistoryEntry[],
-  existsById: (id: number) => boolean,
+  stateById: (id: number) => DiskState,
 ): string[] {
   return history
-    .filter((e) => e.downloadId === undefined || existsById(e.downloadId))
+    .filter((e) => e.downloadId === undefined || stateById(e.downloadId) !== 'deleted')
     .map((e) => e.src);
 }
