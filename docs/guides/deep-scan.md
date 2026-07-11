@@ -111,13 +111,13 @@ overriding these. Only `idleRounds` is a genuinely fixed, non-configurable cap.
 The final progress event carries a `reason` (`DeepScanStopReason`) so the popup
 can say *why* a scan ended early:
 
-| Reason         | Trigger                                                  |
-|----------------|----------------------------------------------------------|
-| `complete`     | Idle rounds hit or page bottom reached — nothing left    |
-| `max-items`    | `maxItems` cap reached                                   |
-| `max-time`     | `maxMs` wall-clock cap reached                           |
-| `max-scrolls`  | `maxScrolls` step cap reached                            |
-| `aborted`      | User pressed Stop (`AbortController`)                    |
+| Reason        | Trigger                                               |
+|---------------|-------------------------------------------------------|
+| `complete`    | Idle rounds hit or page bottom reached — nothing left |
+| `max-items`   | `maxItems` cap reached                                |
+| `max-time`    | `maxMs` wall-clock cap reached                        |
+| `max-scrolls` | `maxScrolls` step cap reached                         |
+| `aborted`     | User pressed Stop (`AbortController`)                 |
 
 ### Scroll surfaces & load-more
 

@@ -36,11 +36,13 @@ Version at time of writing: **1.2.0** · Manifest **V3**.
 ## 2. Store listing fields
 
 **Name** (≤ 75 chars)
+
 ```
 Media Bulk Downloads
 ```
 
 **Summary / short description** (≤ 132 chars) — reuse the manifest description:
+
 ```
 Bulk-download images, video & audio from any web page. Smart type filters, instant preview, original quality — fast and private.
 ```
@@ -50,6 +52,7 @@ Bulk-download images, video & audio from any web page. Smart type filters, insta
 **Language:** English
 
 **Detailed description** (paste into the listing):
+
 ```
 Media Bulk Downloads finds every image, video, and audio file on the page you're
 viewing and lets you preview, filter, and download them in bulk — quickly, and
@@ -124,24 +127,28 @@ is viewing and lets them preview, filter, and download those files in bulk.
 ## 4. Permission justifications (required — one per permission)
 
 **downloads**
+
 ```
 Saves the images, video, and audio the user selects to their computer through
 Chrome's download manager. This is the extension's core action.
 ```
 
 **downloads.open**
+
 ```
 Lets the user open a file they previously downloaded through the extension,
 directly from the in-extension download history.
 ```
 
 **storage**
+
 ```
 Stores the user's own preferences (chrome.storage.sync) and their local download
 history (chrome.storage.local) on their device. No content is transmitted.
 ```
 
 **tabs**
+
 ```
 Reads the active tab's URL and title to (1) label each download with the page it
 came from in the history, and (2) open a media item's source page in a new tab
@@ -149,6 +156,7 @@ when the user asks. No browsing history is collected or sent.
 ```
 
 **contextMenus**
+
 ```
 Adds right-click menu items — "Download all media on this page", and, on an
 image/video/audio element, "Download this media", "Download image (original
@@ -157,6 +165,7 @@ the popup. The items only trigger the same local download the popup performs.
 ```
 
 **offscreen**
+
 ```
 Runs an offscreen document to carry out media assembly that the short-lived
 service worker and the popup cannot hold open on their own — such as capturing a
@@ -165,6 +174,7 @@ on the user's device. No page content is transmitted.
 ```
 
 **notifications (optional)**
+
 ```
 Optional, off until the user turns it on. Shows a desktop notification reporting
 the result of a download batch — the only feedback available when the user
@@ -173,6 +183,7 @@ is requested at runtime the first time it is enabled, never at install.
 ```
 
 **declarativeNetRequestWithHostAccess (optional)**
+
 ```
 Optional, off until the user turns it on. Fixes hotlink-protected downloads: some
 CDNs reject a file request whose Referer header doesn't match the page it is shown
@@ -186,6 +197,7 @@ view — it is not an auth or paywall bypass.
 ```
 
 **Host permissions — `<all_urls>`**
+
 ```
 The extension must read the media elements on whatever page the user runs it on,
 which can be any site. It activates only when the user opens the popup or enables
@@ -213,18 +225,18 @@ Icon and promo tiles already live in the repo (`assets/`, `src/public/icon/`).
 Screenshots are captured from the running extension (`yarn build`, load
 `.output/chrome-mv3` unpacked) and cropped to the exact size. PNG or JPEG, no alpha.
 
-| Asset | Size | Required | File / suggested shot |
-|---|---|---|---|
-| Store icon | 128×128 | required | ✅ `src/public/icon/128.png` |
-| Screenshot 1 | 1280×800 or 640×400 | ✅ (≥1 required) | ✅ `assets/screenshot-1280x800.png` — popup with a full media grid + type badges |
-| Screenshot 2 | 1280×800 or 640×400 | optional | Filter toolbar in use (kind/format/size) |
-| Screenshot 3 | 1280×800 or 640×400 | optional | Preview modal (with prev/next + the exclude menu) |
-| Screenshot 4 | 1280×800 or 640×400 | optional | Settings sheet |
-| Screenshot 5 | 1280×800 or 640×400 | optional | Download history with the open/reveal actions |
-| Screenshot 6 | 1280×800 or 640×400 | optional | Selection + ZIP / copy-links menu |
-| Screenshot 7 | 1280×800 or 640×400 | optional | Favourites / Excluded-sources panel |
-| Small promo tile | 440×280 | optional | ✅ `assets/promo-small-440x280.png` |
-| Marquee promo tile | 1400×560 | optional (featured only) | ✅ `assets/promo-marquee-1400x560.png` |
+| Asset              | Size                | Required                 | File / suggested shot                                                           |
+|--------------------|---------------------|--------------------------|---------------------------------------------------------------------------------|
+| Store icon         | 128×128             | required                 | ✅ `src/public/icon/128.png`                                                     |
+| Screenshot 1       | 1280×800 or 640×400 | ✅ (≥1 required)          | ✅ `assets/screenshot-1280x800.png` — popup with a full media grid + type badges |
+| Screenshot 2       | 1280×800 or 640×400 | optional                 | Filter toolbar in use (kind/format/size)                                        |
+| Screenshot 3       | 1280×800 or 640×400 | optional                 | Preview modal (with prev/next + the exclude menu)                               |
+| Screenshot 4       | 1280×800 or 640×400 | optional                 | Settings sheet                                                                  |
+| Screenshot 5       | 1280×800 or 640×400 | optional                 | Download history with the open/reveal actions                                   |
+| Screenshot 6       | 1280×800 or 640×400 | optional                 | Selection + ZIP / copy-links menu                                               |
+| Screenshot 7       | 1280×800 or 640×400 | optional                 | Favourites / Excluded-sources panel                                             |
+| Small promo tile   | 440×280             | optional                 | ✅ `assets/promo-small-440x280.png`                                              |
+| Marquee promo tile | 1400×560            | optional (featured only) | ✅ `assets/promo-marquee-1400x560.png`                                           |
 
 The two promo tiles carry the brand mark (the toolbar icon), the wordmark, and the
 "images · video · audio, original quality" message — regenerate them from the
@@ -236,9 +248,11 @@ both light and dark once and pick the stronger — the UI supports both.
 ## 6. Privacy & data disclosures (Privacy tab)
 
 **Privacy policy URL:**
+
 ```
 https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md
 ```
+
 (The repository is public, so this resolves for reviewers. Keep it current by
 editing `PRIVACY.md` on `main`.)
 
@@ -253,6 +267,7 @@ the Instagram/X media sniffers read only what the page already loaded and send
 nothing off-device.
 
 **Certifications (check all three):**
+
 - I do not sell or transfer user data to third parties outside of approved use cases.
 - I do not use or transfer user data for purposes unrelated to my item's single purpose.
 - I do not use or transfer user data to determine creditworthiness or for lending purposes.
@@ -276,6 +291,7 @@ corepack yarn zip:all      # all of the above
 Version comes from `package.json` (WXT writes it into every manifest).
 
 **Chrome Web Store (first submission):**
+
 1. [Developer Dashboard](https://chrome.google.com/webstore/devconsole) → **Add new item**.
 2. Upload `…-chrome.zip`.
 3. Fill the listing (§2), privacy (§6), and permission justifications (§4).
@@ -312,13 +328,13 @@ are not set — so it is safe to add before configuring them.
 Configure these repository secrets (**Settings → Secrets and variables →
 Actions**) to enable the Chrome Web Store publish:
 
-| Secret | What it is |
-|--------|-----------|
-| `CHROME_EXTENSION_ID` | the item id (`jmdhkdengijmmkelofaleinbipophckn`) |
-| `CHROME_PUBLISHER_ID` | your developer-account **publisher ID** — required by `chrome-webstore-upload` v6+. Find it on the [Developer Dashboard](https://chrome.google.com/webstore/devconsole) → **Account** (the numeric/string publisher id). |
-| `CHROME_CLIENT_ID` | OAuth client id for the [Chrome Web Store API](https://developer.chrome.com/docs/webstore/using-api) |
-| `CHROME_CLIENT_SECRET` | OAuth client secret |
-| `CHROME_REFRESH_TOKEN` | OAuth refresh token |
+| Secret                 | What it is                                                                                                                                                                                                               |
+|------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `CHROME_EXTENSION_ID`  | the item id (`jmdhkdengijmmkelofaleinbipophckn`)                                                                                                                                                                         |
+| `CHROME_PUBLISHER_ID`  | your developer-account **publisher ID** — required by `chrome-webstore-upload` v6+. Find it on the [Developer Dashboard](https://chrome.google.com/webstore/devconsole) → **Account** (the numeric/string publisher id). |
+| `CHROME_CLIENT_ID`     | OAuth client id for the [Chrome Web Store API](https://developer.chrome.com/docs/webstore/using-api)                                                                                                                     |
+| `CHROME_CLIENT_SECRET` | OAuth client secret                                                                                                                                                                                                      |
+| `CHROME_REFRESH_TOKEN` | OAuth refresh token                                                                                                                                                                                                      |
 
 Release flow:
 
