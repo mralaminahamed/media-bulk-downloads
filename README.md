@@ -217,7 +217,12 @@ upgrade rules for:
 | Instagram                          | Post hydration + sniffed GraphQL → full-res image/video (signed CDN) |
 | Facebook                           | Passive `text/html`-NDJSON GraphQL + page-hydration sniff → full-res photo / reel mp4 (signed CDN) |
 | Bluesky                            | `/img/<rendition>/` → largest CDN sibling / `getBlob` original |
+| Threads                            | Full-resolution media (Instagram infra) + mounted-video MP4 |
+| Mastodon                           | `/small/` → `/original/` (any instance)             |
 | Magnific                           | Collapse signed `srcset` widths → single largest rendition |
+| Dailymotion                        | Embeds / links → HLS master via public player metadata |
+| Booru (Danbooru/Gelbooru/Moebooru) | Post-page DOM → original file (page-gated)           |
+| Arc XP (news publishers)           | Resizer URL → full-size source                      |
 
 …and 50+ more CDN families — see the live [coverage benchmark](./docs/BENCHMARK.md).
 
