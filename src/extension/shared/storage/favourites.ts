@@ -1,5 +1,6 @@
 import { FavouriteEntry } from '@/types';
 import { canonicalSrcKey, SrcKeySet } from '../collection/canonical';
+import { durableSet } from './idb';
 
 export const FAVOURITES_KEY = 'favourites';
 export const FAVOURITES_CAP = 500;
@@ -65,27 +66,27 @@ function serialize(task: () => Promise<void>): Promise<void> {
 export async function addFavourite(entry: FavouriteEntry): Promise<void> {
   return serialize(async () => {
     const merged = mergeFavourites(await loadFavourites(), [entry]);
-    await chrome.storage.local.set({ [FAVOURITES_KEY]: merged });
+    await durableSet(FAVOURITES_KEY, merged);
   });
 }
 
 export async function removeFavourite(src: string): Promise<void> {
   return serialize(async () => {
     const next = (await loadFavourites()).filter((e) => canonicalSrcKey(e.src) !== canonicalSrcKey(src));
-    await chrome.storage.local.set({ [FAVOURITES_KEY]: next });
+    await durableSet(FAVOURITES_KEY, next);
   });
 }
 
 /** Replace favourites with an imported list, normalized (dedup/sort/cap/byte-budget). */
 export async function restoreFavourites(entries: FavouriteEntry[]): Promise<void> {
   return serialize(async () => {
-    await chrome.storage.local.set({ [FAVOURITES_KEY]: mergeFavourites([], entries) });
+    await durableSet(FAVOURITES_KEY, mergeFavourites([], entries));
   });
 }
 
 export async function clearFavourites(): Promise<void> {
   return serialize(async () => {
-    await chrome.storage.local.set({ [FAVOURITES_KEY]: [] });
+    await durableSet(FAVOURITES_KEY, []);
   });
 }
 

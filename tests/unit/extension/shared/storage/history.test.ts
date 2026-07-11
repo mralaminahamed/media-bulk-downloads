@@ -1,6 +1,7 @@
 import type { Mock } from 'vitest';
 import { mergeHistory, recordDownloads, removeEntry, clearHistory, restoreHistory, srcsStillOnDisk, loadHistory, HISTORY_CAP, HISTORY_MAX_BYTES } from '@/extension/shared/storage/history';
 import { HistoryEntry } from '@/types';
+import { idbGet } from '@/extension/shared/storage/idb';
 
 describe('loadHistory — corrupt storage', () => {
   it('drops entries without a string src and coerces a bad time to 0', async () => {
@@ -108,5 +109,16 @@ describe('srcsStillOnDisk', () => {
   it('keeps legacy entries with no downloadId regardless of state', () => {
     const history = [withId('a'), withId('b', 20)];
     expect(srcsStillOnDisk(history, () => 'deleted')).toEqual(['a']);
+  });
+});
+
+describe('history writes mirror to IDB', () => {
+  it('recordDownloads lands the entry in local AND the IDB mirror', async () => {
+    (chrome.storage.local.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({});
+    (chrome.storage.local.set as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    await recordDownloads([{ src: 'z', filename: 'z', kind: 'image', type: 'jpeg', sourcePageUrl: '', time: 5 } as HistoryEntry]);
+    await new Promise((r) => setTimeout(r, 0)); // let the fire-and-forget mirror write land
+    const mirrored = await idbGet<HistoryEntry[]>('downloadHistory');
+    expect(mirrored?.some((e) => e.src === 'z')).toBe(true);
   });
 });

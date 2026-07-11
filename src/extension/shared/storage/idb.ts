@@ -10,15 +10,14 @@ export const idbDelete = (key: string): Promise<void> => del(key, store);
 
 /**
  * Write-through: the reactive working copy (chrome.storage.local, which fires onChanged)
- * plus the durable IDB mirror. local is awaited (callers depend on its serialized ordering
- * and immediate reactivity); the IDB mirror is best-effort — an IDB failure is logged and
- * never breaks the local write or existing behavior.
+ * plus the durable IDB mirror. Only the local write is awaited/returned — callers (and the
+ * download queue's serialized mutation chain) depend on its ordering and immediate
+ * reactivity and must NOT be blocked on the IDB round-trip. The IDB mirror is
+ * fire-and-forget best-effort: a failure is logged, never rethrown, and a lost mirror write
+ * is repaired from local by syncStores() on the next startup (local-wins-if-present).
  */
-export async function durableSet(key: string, value: unknown): Promise<void> {
-  await chrome.storage.local.set({ [key]: value });
-  try {
-    await idbSet(key, value);
-  } catch (e) {
-    console.warn('[storage] IDB mirror write failed', key, e);
-  }
+export function durableSet(key: string, value: unknown): Promise<void> {
+  const local = chrome.storage.local.set({ [key]: value });
+  void idbSet(key, value).catch((e) => console.warn('[storage] IDB mirror write failed', key, e));
+  return local;
 }

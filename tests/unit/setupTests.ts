@@ -161,6 +161,10 @@ global.chrome = {
 
 // Reset the in-memory chrome.storage.local backing store after every test so
 // state written by one test never leaks into a later test in the same file.
-afterEach(() => {
+// First drain a macrotask so any deferred async — the durable IDB mirror writes
+// (fire-and-forget) and serialized queue/history continuations — settles WITHIN
+// its own test boundary instead of bleeding a late set() into the next test.
+afterEach(async () => {
+    await new Promise((r) => setTimeout(r, 0));
     for (const k of Object.keys(localStorageStore)) delete localStorageStore[k];
 });

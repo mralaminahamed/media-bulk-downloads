@@ -1,5 +1,6 @@
 import { HistoryEntry } from '@/types';
 import { canonicalSrcKey } from '../collection/canonical';
+import { durableSet } from './idb';
 
 export const HISTORY_KEY = 'downloadHistory';
 export const HISTORY_CAP = 500;
@@ -61,27 +62,27 @@ export async function recordDownloads(added: HistoryEntry[]): Promise<void> {
   if (!added.length) return;
   return serialize(async () => {
     const merged = mergeHistory(await loadHistory(), added);
-    await chrome.storage.local.set({ [HISTORY_KEY]: merged });
+    await durableSet(HISTORY_KEY, merged);
   });
 }
 
 export async function removeEntry(src: string): Promise<void> {
   return serialize(async () => {
     const next = (await loadHistory()).filter((e) => canonicalSrcKey(e.src) !== canonicalSrcKey(src));
-    await chrome.storage.local.set({ [HISTORY_KEY]: next });
+    await durableSet(HISTORY_KEY, next);
   });
 }
 
 export async function clearHistory(): Promise<void> {
   return serialize(async () => {
-    await chrome.storage.local.set({ [HISTORY_KEY]: [] });
+    await durableSet(HISTORY_KEY, []);
   });
 }
 
 /** Replace history with an imported list, normalized (dedup/sort/cap/byte-budget). */
 export async function restoreHistory(entries: HistoryEntry[]): Promise<void> {
   return serialize(async () => {
-    await chrome.storage.local.set({ [HISTORY_KEY]: mergeHistory([], entries) });
+    await durableSet(HISTORY_KEY, mergeHistory([], entries));
   });
 }
 
