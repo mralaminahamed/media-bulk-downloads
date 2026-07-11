@@ -27,7 +27,17 @@ export default defineConfig({
     name: 'Media Bulk Downloads',
     description:
       'Bulk-download images, video & audio from any web page. Smart type filters, instant preview, original quality — fast and private.',
-    permissions: ['downloads', 'downloads.open', 'storage', 'tabs', 'contextMenus', 'offscreen'],
+    // `offscreen` is Chrome-only (HLS/DASH capture assembles segments in an
+    // offscreen blob doc). Firefox has no chrome.offscreen, and AMO rejects the
+    // permission as invalid — so omit it from the Firefox build.
+    permissions: [
+      'downloads',
+      'downloads.open',
+      'storage',
+      'tabs',
+      'contextMenus',
+      ...(browser === 'firefox' ? [] : ['offscreen']),
+    ],
     // Requested at runtime, so neither shows an install-time permission prompt:
     // `notifications` when the user turns on finish notifications, and
     // `declarativeNetRequestWithHostAccess` when they opt into the hotlink-403 Referer
@@ -66,9 +76,15 @@ export default defineConfig({
           browser_specific_settings: {
             gecko: {
               id: 'media-bulk-downloads@mralaminahamed',
-              strict_min_version: '109.0',
+              // `data_collection_permissions` is supported from Firefox 140 (Android
+              // 142); pin the floors so the key is honored and AMO stops warning that
+              // it predates the declared minimum.
+              strict_min_version: '140.0',
               // Required by AMO: the extension collects no user data.
               data_collection_permissions: { required: ['none'] },
+            },
+            gecko_android: {
+              strict_min_version: '142.0',
             },
           },
         }
