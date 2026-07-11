@@ -14,7 +14,7 @@ import { BrandMark } from '../components/BrandMark';
 import { SkeletonGrid } from './components/states/SkeletonGrid';
 import { EmptyState } from './components/states/EmptyState';
 import { ErrorState } from './components/states/ErrorState';
-import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, DownloadZipMessage, DownloadBytesMessage, ExcludedKind, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
+import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, DownloadZipMessage, DownloadBytesMessage, ExcludedKind, FilterOptions, ImageInfo, SettingsData } from '@/types';
 import { filterImagesBySettings, applyToolbarFilters, filterExcluded, isPendingOrStream, ExcludedMatchers } from '../shared/collection/filters';
 import { SrcKeySet } from '../shared/collection/canonical';
 import { mergeScannedMedia } from '../shared/collection/merge';
@@ -23,7 +23,6 @@ import { collectFromActiveTab } from '../shared/active-tab/collect-active-tab';
 import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/active-tab/deep-scan-active-tab';
 import { requestResolveOriginals } from '../shared/active-tab/resolve-originals-active';
 import { applyResolved } from './apply-resolved';
-import { favouriteSrcSet, FAVOURITES_KEY } from '../shared/storage/favourites';
 import { excludedMatchers, EXCLUDED_KEY } from '../shared/storage/excluded';
 import { buildZip, zipFileName } from '../shared/download/zip';
 import { convertImage, isConvertible } from '../shared/download/convert/convert';
@@ -35,6 +34,7 @@ import { copyText, downloadText, getImageFileSize, mapWithConcurrency, sendRunti
 import { Cog6ToothIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon, NoSymbolIcon } from '@heroicons/react/24/outline';
 import { SIZE_FETCH_CONCURRENCY, deepScanCapMessage, downloadable, pendingVideos } from './lib/appHelpers';
 import { useDownloadHistory } from './hooks/useDownloadHistory';
+import { useFavourites } from './hooks/useFavourites';
 
 const App: React.FC<AppProps> = ({
   collect = collectFromActiveTab,
@@ -65,7 +65,6 @@ const App: React.FC<AppProps> = ({
   }, [downloadedSrcs, isDownloaded]);
   const [showFavourites, setShowFavourites] = useState(false);
   const [showExcluded, setShowExcluded] = useState(false);
-  const [favouriteSrcs, setFavouriteSrcs] = useState<SrcKeySet>(new SrcKeySet());
   const [excludedMatch, setExcludedMatch] = useState<ExcludedMatchers>({ urls: new SrcKeySet(), hosts: new Set() });
   const excludedRef = useRef<ExcludedMatchers>({ urls: new SrcKeySet(), hosts: new Set() });
   const [resolveFailedSrcs, setResolveFailedSrcs] = useState<Set<string>>(new Set());
@@ -110,17 +109,18 @@ const App: React.FC<AppProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    void favouriteSrcSet().then(setFavouriteSrcs);
-    const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
-      // Reload through favouriteSrcSet() (which normalizes via loadFavourites and
-      // drops corrupt entries) rather than trusting the raw newValue — matches the
-      // initial load, the History path, and the excluded path below.
-      if (area === 'local' && changes[FAVOURITES_KEY]) void favouriteSrcSet().then(setFavouriteSrcs);
-    };
-    chrome.storage.onChanged.addListener(onChanged);
-    return () => chrome.storage.onChanged.removeListener(onChanged);
-  }, []);
+  // Defined here (ahead of its other call sites further down) so it's already
+  // initialized when useFavourites (below) is called — useFavourites must be
+  // called at this position, not later, to preserve the favourites listener's
+  // registration order (after history, before settings-sync/excluded; see the
+  // comment on the settings-sync effect below).
+  const currentSourcePage = async (): Promise<{ url: string; title?: string }> => {
+    if (surface === 'bubble') return { url: location.href, title: document.title };
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    return { url: tab?.url ?? '', title: tab?.title };
+  };
+
+  const { favouriteSrcs, handleToggleFavourite } = useFavourites(currentSourcePage);
 
   useEffect(() => {
     // Keep settings live while the popup is open. The on-page bubble persists
@@ -340,12 +340,6 @@ const App: React.FC<AppProps> = ({
   const handleFilterChange = (filters: FilterOptions) => {
     filtersRef.current = filters;
     setState((prev) => ({ ...prev, filteredImages: applyToolbarFilters(prev.images, filters, isDownloaded), status: '' }));
-  };
-
-  const currentSourcePage = async (): Promise<{ url: string; title?: string }> => {
-    if (surface === 'bubble') return { url: location.href, title: document.title };
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    return { url: tab?.url ?? '', title: tab?.title };
   };
 
   const handleDownload = async (images: ImageInfo | ImageInfo[]): Promise<void> => {
@@ -674,26 +668,6 @@ const App: React.FC<AppProps> = ({
       const eligible = filterExcluded(filterImagesBySettings(images, settingsRef.current), excludedRef.current);
       return { ...prev, images, filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloaded) };
     });
-  };
-
-  const handleToggleFavourite = async (image: ImageInfo): Promise<void> => {
-    if (favouriteSrcs.has(image.src)) {
-      sendRuntimeMessage({ type: 'REMOVE_FAVOURITE', src: image.src });
-      setFavouriteSrcs((prev) => prev.withoutSrc(image.src));
-      return;
-    }
-    const sourcePage = await currentSourcePage();
-    const entry: FavouriteEntry = {
-      src: image.src,
-      kind: image.kind,
-      type: image.type,
-      sourcePageUrl: sourcePage.url,
-      time: Date.now(),
-      ...(image.thumbnailSrc ?? image.poster ? { thumbnailSrc: image.thumbnailSrc ?? image.poster } : {}),
-      ...(sourcePage.title ? { sourcePageTitle: sourcePage.title } : {}),
-    };
-    sendRuntimeMessage({ type: 'ADD_FAVOURITE', entry });
-    setFavouriteSrcs((prev) => prev.withAdded(image.src));
   };
 
   // Hide excluded media from the grid immediately, before the background's write
