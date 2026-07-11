@@ -270,6 +270,37 @@ describe('resolveOriginal — vimeo', () => {
   });
 });
 
+describe('resolveOriginal — dailymotion', () => {
+  const meta = (over: Record<string, unknown> = {}) => ({
+    qualities: {
+      auto: [{ type: 'application/x-mpegURL', url: 'https://cdndirector.dailymotion.com/cdn/manifest/video/x8pp4d0.m3u8?sec=X' }],
+    },
+    ...over,
+  });
+
+  it('returns the qualities.auto HLS master, pinned to dailymotion.com', async () => {
+    expect(await resolveOriginal({ platform: 'dailymotion', id: 'x8pp4d0' }, { fetch: mockFetch(meta()) }))
+      .toEqual({ url: 'https://cdndirector.dailymotion.com/cdn/manifest/video/x8pp4d0.m3u8?sec=X', hls: true });
+  });
+
+  it('returns null for a DRM/geo-locked video (protected_delivery)', async () => {
+    expect(await resolveOriginal({ platform: 'dailymotion', id: 'x8pp4d0' }, { fetch: mockFetch(meta({ protected_delivery: true })) })).toBeNull();
+  });
+
+  it('returns null on a non-200 metadata response', async () => {
+    expect(await resolveOriginal({ platform: 'dailymotion', id: 'x8pp4d0' }, { fetch: mockFetch({}, false) })).toBeNull();
+  });
+
+  it('returns null when the master host is not dailymotion.com (host-pin)', async () => {
+    const evil = meta({ qualities: { auto: [{ type: 'application/x-mpegURL', url: 'https://evil.example.com/x.m3u8' }] } });
+    expect(await resolveOriginal({ platform: 'dailymotion', id: 'x8pp4d0' }, { fetch: mockFetch(evil) })).toBeNull();
+  });
+
+  it('returns null when there is no auto quality', async () => {
+    expect(await resolveOriginal({ platform: 'dailymotion', id: 'x8pp4d0' }, { fetch: mockFetch(meta({ qualities: { auto: [] } })) })).toBeNull();
+  });
+});
+
 describe('resolveOriginal — bsky (getBlob)', () => {
   const pdsDoc = {
     service: [

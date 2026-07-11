@@ -21,6 +21,7 @@ import { instagramPageMedia } from '@/extension/shared/resolvers/sites/instagram
 import { facebookPageMedia } from '@/extension/shared/resolvers/sites/facebook';
 import { youtubeVideoId } from '@/extension/shared/resolvers/sites/youtube';
 import { vimeoVideoId } from '@/extension/shared/resolvers/sites/vimeo';
+import { dailymotionVideoId } from '@/extension/shared/resolvers/sites/dailymotion';
 import { sniffedHlsManifests } from '@/extension/shared/resolvers/sniffers/hls-sniff';
 import { HOST_ID } from '@/extension/bubble/mount';
 
@@ -321,6 +322,22 @@ export function collectMedia(): MediaItem[] {
     });
   };
 
+  // A Dailymotion video (embed iframe or link) surfaced as a pending video:
+  // Dailymotion hides the file behind its player metadata, so the real HLS
+  // master is fetched on the opt-in resolve pass (resolveHint 'dailymotion'),
+  // like a Vimeo video. Keyed by the canonical watch URL so an embed + a link
+  // to the same video collapse to one item.
+  const pushDailymotion = (id: string): void => {
+    const watch = `https://www.dailymotion.com/video/${id}`;
+    if (seenSources.has(watch)) return;
+    seenSources.add(watch);
+    media.push({
+      src: watch, alt: '', width: 0, height: 0, type: 'mp4',
+      fileSize: 0, isBase64: false, kind: 'video',
+      unresolvedVideo: true, resolveHint: { platform: 'dailymotion', id },
+    });
+  };
+
   // X/Twitter unpainted grid cells: a `/user/status/<id>/photo|video/<n>` link
   // whose cell never rendered a real pbs.twimg.com media <img> (or a mounted
   // <video>'s poster) — common on a fast scroll through a lazy-loading grid,
@@ -582,6 +599,8 @@ export function collectMedia(): MediaItem[] {
       else if (resolvedHref && isDashManifest(resolvedHref) && /^https?:\/\//i.test(resolvedHref)) pushDash(resolvedHref, '');
       // A link to a Vimeo video — surface as a pending video resolved on demand.
       else if (resolvedHref && vimeoVideoId(resolvedHref)) pushVimeo(vimeoVideoId(resolvedHref)!);
+      // A link to a Dailymotion video — surface as a pending video resolved on demand.
+      else if (resolvedHref && dailymotionVideoId(resolvedHref)) pushDailymotion(dailymotionVideoId(resolvedHref)!);
       // An X/Twitter status permalink (`/user/status/<id>/photo|video/<n>`) whose
       // cell never painted its media — surface a pending item resolved on demand.
       else if (isTwitterPage && resolvedHref) pushTwitterPending(a, resolvedHref);
@@ -605,6 +624,8 @@ export function collectMedia(): MediaItem[] {
       if (resolvedEmbed && youtubeVideoId(resolvedEmbed)) collectImageInfo(embedSrc, '', 0, 0, undefined, frame);
       // A Vimeo player <iframe> — surface as a pending video (resolved on demand).
       else if (resolvedEmbed && vimeoVideoId(resolvedEmbed)) pushVimeo(vimeoVideoId(resolvedEmbed)!);
+      // A Dailymotion player <iframe> — surface as a pending video (resolved on demand).
+      else if (resolvedEmbed && dailymotionVideoId(resolvedEmbed)) pushDailymotion(dailymotionVideoId(resolvedEmbed)!);
 
       let doc: Document | null;
       try {
