@@ -149,7 +149,7 @@ export function useMediaEngine({
         };
       });
     });
-  }, []);
+  }, [excludedRef, settingsRef]);
 
   /**
    * Opt-in resolution over the full eligible set. Pending videos are already
@@ -201,7 +201,7 @@ export function useMediaEngine({
         filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloaded),
       };
     });
-  }, []);
+  }, [excludedRef, settingsRef]);
 
   /**
    * Applies the resolve-originals gate to an eligible list, shared by every scan
@@ -248,7 +248,7 @@ export function useMediaEngine({
         isLoading: false,
       }));
     }
-  }, [collect, applyResolution]);
+  }, [collect, applyResolution, excludedRef, settingsRef]);
 
   // Re-derive the eligible base list when the settings that affect it change.
   // Also applies opt-in resolution when it loads/changes (settings load async on
