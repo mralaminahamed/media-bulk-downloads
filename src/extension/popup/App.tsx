@@ -35,6 +35,7 @@ import { useDownloadHistory } from './hooks/useDownloadHistory';
 import { useFavourites } from './hooks/useFavourites';
 import { useExcluded } from './hooks/useExcluded';
 import { useSelection } from './hooks/useSelection';
+import { useSettings } from './hooks/useSettings';
 
 const App: React.FC<AppProps> = ({
   collect = collectFromActiveTab,
@@ -52,7 +53,6 @@ const App: React.FC<AppProps> = ({
   });
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [settings, setSettings] = useState<SettingsData>(DEFAULT_SETTINGS);
   const [deepScanning, setDeepScanning] = useState(false);
   const [deepProgress, setDeepProgress] = useState<DeepScanProgress | null>(null);
   const { downloadedSrcs, isDownloaded } = useDownloadHistory();
@@ -88,13 +88,6 @@ const App: React.FC<AppProps> = ({
   // these when they repopulate the grid — otherwise the active filter is dropped.
   const filtersRef = useRef<FilterOptions>(DEFAULT_FILTERS);
 
-  // Latest settings, readable from async callbacks (the mount scan) without a
-  // stale closure.
-  const settingsRef = useRef(settings);
-  useEffect(() => {
-    settingsRef.current = settings;
-  }, [settings]);
-
   useEffect(() => {
     // Load persisted settings BEFORE the first scan, so a persisted
     // resolveOriginals is known when the scan gates on it.
@@ -111,7 +104,7 @@ const App: React.FC<AppProps> = ({
   // initialized when useFavourites (below) is called — useFavourites must be
   // called at this position, not later, to preserve the favourites listener's
   // registration order (after history, before settings-sync/excluded; see the
-  // comment on the settings-sync effect below).
+  // comment on the useSettings() call below).
   const currentSourcePage = async (): Promise<{ url: string; title?: string }> => {
     if (surface === 'bubble') return { url: location.href, title: document.title };
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -120,21 +113,10 @@ const App: React.FC<AppProps> = ({
 
   const { favouriteSrcs, handleToggleFavourite } = useFavourites(currentSourcePage);
 
-  useEffect(() => {
-    // Keep settings live while the popup is open. The on-page bubble persists
-    // bubbleWidth/height/placement on resize/drag; without this the popup's
-    // one-time snapshot would clobber those the next time the user saves Settings.
-    // Mirrors the bubble's own sync listener. Registered between the favourites
-    // and excluded local listeners so both keep their positional order in tests.
-    const listener = (changes: { [k: string]: chrome.storage.StorageChange }, area: string) => {
-      if (area !== 'sync' || !changes.settings) return;
-      const next = withDefaults(changes.settings.newValue as Partial<SettingsData>);
-      settingsRef.current = next;
-      setSettings(next);
-    };
-    chrome.storage.onChanged.addListener(listener);
-    return () => chrome.storage.onChanged.removeListener(listener);
-  }, []);
+  // Called here — between useFavourites (above) and useExcluded (below) — so
+  // its sync 'settings' storage listener keeps its registration order
+  // relative to the favourites/excluded local listeners (tests depend on it).
+  const { settings, setSettings, settingsRef, handleSettingsChange } = useSettings();
 
   const { excludedMatch, excludedRef, applyExcludedOptimistic } = useExcluded();
 
@@ -648,21 +630,6 @@ const App: React.FC<AppProps> = ({
     for (const i of items) sendRuntimeMessage({ type: 'ADD_EXCLUDED', entry: { value: i.src, kind: 'url', time: Date.now() } });
     applyExcludedOptimistic(items.map((i) => ({ kind: 'url' as const, value: i.src, src: i.src })));
     setSelectedSrcs(new Set());
-  };
-
-  // The popup owns the form's fields. Persist through the background's single
-  // serialized writer (SET_SETTINGS) so a concurrent on-page-bubble drag can't
-  // clobber this save. Send a patch WITHOUT the drag-only bubble fields (the
-  // button's x/y offset and the freeform panel point, which have no Settings
-  // control) so the background's deep-merge preserves them.
-  const handleSettingsChange = (newSettings: SettingsData) => {
-    setSettings(newSettings);
-    const { bubblePosition, bubblePanelPoint, ...rest } = newSettings;
-    void bubblePanelPoint; // drag-only; not sent so the stored value is preserved
-    sendRuntimeMessage({
-      type: 'SET_SETTINGS',
-      patch: { ...rest, bubblePosition: { corner: bubblePosition.corner } },
-    });
   };
 
   const total = state.images.length;
