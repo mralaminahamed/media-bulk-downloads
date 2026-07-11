@@ -344,7 +344,7 @@ export function collectMedia(): MediaItem[] {
     }
   })();
   const TWITTER_STATUS_CELL = /^\/[^/]+\/status\/(\d{1,20})\/(photo|video)\/(\d{1,3})$/;
-  const TWITTER_PAINTED_MEDIA = /pbs\.twimg\.com\/(?:media|amplify_video_thumb|ext_tw_video_thumb)\//;
+  const TWITTER_PAINTED_MEDIA = /pbs\.twimg\.com\/(?:media|amplify_video_thumb|ext_tw_video_thumb|tweet_video_thumb)\//;
   const pushTwitterPending = (a: HTMLAnchorElement, resolvedHref: string): void => {
     let pathname: string;
     try {

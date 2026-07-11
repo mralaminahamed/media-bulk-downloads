@@ -574,7 +574,7 @@ describe('ImageList Component', () => {
       expect(dialog.querySelector('video')).toBeNull();
     });
 
-    it('handles a pending video with no poster and no resolve path (src fallback + can\'t-fetch)', async () => {
+    it('renders a film-glyph placeholder (no <img>) for a pending video with no poster (can\'t-fetch)', async () => {
       // Non-Instagram src, no poster (exercises isIgUrl(undefined)), no resolveHint.
       const noPoster: ImageInfo = {
         src: 'https://pbs.twimg.com/x.jpg', alt: 'v', width: 0, height: 0, type: 'mp4',
@@ -586,11 +586,49 @@ describe('ImageList Component', () => {
 
       await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
       const dialog = screen.getByRole('dialog');
-      // With no poster the preview image falls back to the src…
-      expect(within(dialog).getByRole('img', { name: 'v' })).toHaveAttribute('src', 'https://pbs.twimg.com/x.jpg');
-      // …and the footer says the file can't be fetched, with no Get-video action.
+      // With no poster the modal must NEVER point an <img> at src (src is not
+      // necessarily a real image/file) — it degrades to the same neutral glyph
+      // the grid tile uses.
+      expect(within(dialog).queryByRole('img')).toBeNull();
+      expect(dialog.querySelector('svg')).toBeTruthy();
+      // …and the footer still says the file can't be fetched, with no Get-video action.
       expect(within(dialog).getByText(/can't be fetched/i)).toBeInTheDocument();
       expect(within(dialog).queryByText('Get video')).toBeNull();
+    });
+
+    it('never points a modal <img> at a pending video\'s status-link src when it has no poster (regression: unpainted /status/<id>/video/<n> cell)', async () => {
+      // Shape of a pending VIDEO surfaced by pushTwitterPending for an unpainted
+      // grid cell: no poster at all (unlike twitterVideoPending items, which
+      // always carry a poster), and `src` is the x.com status permalink itself —
+      // not an image or media file. Opening "View Details" must never hand this
+      // to an <img src>, which would fire a real GET to x.com/....
+      const pendingNoPoster: ImageInfo = {
+        src: 'https://x.com/u/status/1/video/1', alt: '', width: 0, height: 0, type: 'mp4',
+        fileSize: 0, isBase64: false, kind: 'video', unresolvedVideo: true,
+      };
+      render(<ImageList images={[pendingNoPoster]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} />);
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      const dialog = screen.getByRole('dialog');
+      // Raw DOM query, not screen.getByRole('img'): alt='' carries no ARIA img
+      // role, so a role-based query would miss a regression that reintroduced
+      // <img src="https://x.com/...">.
+      const dialogImgs = Array.from(dialog.querySelectorAll('img'));
+      expect(dialogImgs.some((img) => (img.getAttribute('src') ?? '').includes('x.com/'))).toBe(false);
+      expect(dialogImgs).toHaveLength(0);
+    });
+
+    it('still shows the poster in the modal for a pending video that HAS one (no regression to the native-video/GIF preview)', async () => {
+      const pendingWithPoster: ImageInfo = {
+        src: 'https://x.com/u/status/1/video/1', alt: 'clip', width: 0, height: 0, type: 'mp4',
+        fileSize: 0, isBase64: false, kind: 'video', unresolvedVideo: true,
+        poster: 'https://pbs.twimg.com/amplify_video_thumb/1/img/x.jpg',
+      };
+      render(<ImageList images={[pendingWithPoster]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} />);
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByRole('img', { name: 'clip' })).toHaveAttribute(
+        'src', 'https://pbs.twimg.com/amplify_video_thumb/1/img/x.jpg',
+      );
     });
 
     it('offers a retry label in the preview footer for a failed pending video', async () => {

@@ -480,13 +480,25 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                 style={{ minHeight: Math.min(previewSize, 160) }}
               >
                 {isPendingVideo(selectedImage) ? (
-                  <LoadingImage
-                    key={selectedImage.poster ?? selectedImage.src}
-                    src={selectedImage.poster ?? selectedImage.src}
-                    alt={selectedImage.alt}
-                    className="mx-auto w-full object-contain"
-                    style={{ maxHeight: previewSize }}
-                  />
+                  // A pending video from an unpainted /status/<id>/video/<n> cell
+                  // carries NO poster — unlike the (older) twitterVideoPending
+                  // items, which always have one. `src` there is the x.com status
+                  // permalink itself, not a media file, so it must never reach an
+                  // <img src>. Degrade to the same neutral glyph the grid tile
+                  // uses instead (mirrors the isHlsStream no-poster case below).
+                  selectedImage.poster ? (
+                    <LoadingImage
+                      key={selectedImage.poster}
+                      src={selectedImage.poster}
+                      alt={selectedImage.alt}
+                      className="mx-auto w-full object-contain"
+                      style={{ maxHeight: previewSize }}
+                    />
+                  ) : (
+                    <div className="grid place-items-center p-10">
+                      <FilmIcon className="h-12 w-12 text-(--ink-3)" />
+                    </div>
+                  )
                 ) : isPendingImage(selectedImage) ? (
                   // No poster exists for a pending image (unlike pending video) — degrade
                   // to a neutral icon rather than pointing an <img> at the status URL.

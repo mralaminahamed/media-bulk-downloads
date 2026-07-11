@@ -63,4 +63,26 @@ describe('collectMedia — Twitter/X pending status cells', () => {
       resolveHint: { platform: 'twitter', id: '1700000000000000009' },
     });
   });
+
+  it('does NOT emit a second pending video for a painted GIF cell (tweet_video_thumb poster)', () => {
+    // The <video poster="tweet_video_thumb/...ABC"> is a rendered GIF, already
+    // picked up by twitterGifCandidate (the videos.forEach pass) as a real,
+    // downloadable mp4. TWITTER_PAINTED_MEDIA must recognize tweet_video_thumb as
+    // "painted" so pushTwitterPending does NOT ALSO emit a spurious unresolvedVideo
+    // item keyed off the enclosing /status/.../video/1 link — that would duplicate
+    // the already-downloadable GIF with a fake pending placeholder.
+    document.body.innerHTML =
+      `<a href="/u/status/1700000000000000010/video/1"><video poster="https://pbs.twimg.com/tweet_video_thumb/ABC"></video></a>`;
+    const items = collectMedia();
+    const videoItems = items.filter((m) => m.kind === 'video');
+    expect(videoItems).toHaveLength(1);
+    // The one item is the real GIF from twitterGifCandidate: a downloadable mp4 at
+    // video.twimg.com, with the GIF poster preserved and no unresolvedVideo flag —
+    // not a second, pending duplicate.
+    expect(videoItems[0]).toMatchObject({
+      src: 'https://video.twimg.com/tweet_video/ABC.mp4',
+      poster: 'https://pbs.twimg.com/tweet_video_thumb/ABC',
+    });
+    expect(videoItems[0].unresolvedVideo).toBeFalsy();
+  });
 });
