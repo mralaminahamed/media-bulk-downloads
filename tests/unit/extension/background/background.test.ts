@@ -877,6 +877,31 @@ describe('context menu', () => {
     expect(dlUrls).not.toContain('https://x/m.m3u8');
   });
 
+  it('download-all excludes pending (unresolved) images and videos from chrome.downloads', async () => {
+    // A pending Twitter image's `src` is the x.com tweet-page placeholder URL —
+    // handing it to chrome.downloads would fetch the HTML page and save it as a
+    // bogus .jpg. A pending video's `src` is just a poster image, not the real
+    // file. Neither has hlsManifest, so the old hls-only split let both through.
+    (chrome.tabs.sendMessage as Mock).mockImplementation((_id, _msg, cb) =>
+      cb([
+        { src: 'https://c/real.jpg', kind: 'image', type: 'jpeg', width: 0, height: 0, fileSize: 0, isBase64: false, alt: '' },
+        {
+          src: 'https://x.com/u/status/1/photo/1', kind: 'image', type: 'jpeg', width: 0, height: 0, fileSize: 0,
+          isBase64: false, alt: '', unresolvedImage: true, resolveHint: { platform: 'twitter', id: 'photo 1 1' },
+        },
+        {
+          src: 'https://pbs.twimg.com/poster.jpg', kind: 'video', type: 'mp4', width: 0, height: 0, fileSize: 0,
+          isBase64: false, alt: '', unresolvedVideo: true, resolveHint: { platform: 'twitter', id: '1' },
+        },
+      ]));
+    contextMenuHandler(info({ menuItemId: 'mbd-download-all' }), tab({ id: 9, url: 'https://page', title: 'T' }));
+    await new Promise((r) => setTimeout(r, 0));
+    const dlUrls = (chrome.downloads.download as Mock).mock.calls.map((c) => c[0].url);
+    expect(dlUrls.some((u: string) => u.includes('real.jpg'))).toBe(true);
+    expect(dlUrls.some((u: string) => u.includes('status/1/photo/1'))).toBe(false);
+    expect(dlUrls.some((u: string) => u.includes('poster.jpg'))).toBe(false);
+  });
+
   it('adds the right-clicked image to favourites', async () => {
     contextMenuHandler(info({ menuItemId: 'mbd-favourite-image', srcUrl: 'https://cdn/pic.jpg', mediaType: 'image' }), tab({ url: 'https://page', title: 'T' }));
     await new Promise((r) => setTimeout(r, 0));

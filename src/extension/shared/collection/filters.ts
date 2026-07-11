@@ -118,6 +118,13 @@ export function filterExcluded(items: ImageInfo[], m: ExcludedMatchers): ImageIn
   return items.filter((i) => !isExcluded(i.src, m));
 }
 
+/** Items that are NOT a real, directly-downloadable file yet: pending videos, pending
+ *  images (placeholder src), and HLS streams (captured individually). Every site that
+ *  needs to hold back "download all"/selection/network-enrichment from a pending or
+ *  stream item should gate on this, rather than re-deriving the three-flag check. */
+export const isPendingOrStream = (i: Pick<ImageInfo, 'unresolvedVideo' | 'unresolvedImage' | 'hlsManifest'>): boolean =>
+  !!i.unresolvedVideo || !!i.unresolvedImage || !!i.hlsManifest;
+
 /**
  * Applies the toolbar filters (kind, format, size, min-size, base64), the
  * free-text search, and the chosen sort order. Filtering is followed by an

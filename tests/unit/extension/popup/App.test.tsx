@@ -187,6 +187,18 @@ describe('App Component', () => {
     expect(screen.queryByRole('checkbox', { name: /select all shown/i })).toBeNull();
   });
 
+  it('offers no selection checkbox for a pending image (nothing downloadable)', async () => {
+    const pendingImage = image({
+      src: 'https://x.com/u/status/1/photo/1', kind: 'image',
+      unresolvedImage: true, resolveHint: { platform: 'twitter', id: 'photo 1 1' },
+    });
+    render(<App collect={async () => [pendingImage]} />);
+    await screen.findByText('Filters');
+
+    expect(screen.queryByRole('checkbox', { name: /select item/i })).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: /select all shown/i })).toBeNull();
+  });
+
   it('disables download when a type filter matches nothing', async () => {
     render(<App collect={async () => [image({ type: 'png' })]} />);
     await screen.findByText('Filters');
@@ -209,6 +221,25 @@ describe('App Component', () => {
 
     // Card meta shows the enriched size.
     expect(await screen.findByText('2 KB')).toBeInTheDocument();
+  });
+
+  it('never fetches a pending image\'s placeholder src during size enrichment', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({ headers: { get: () => '2048' } });
+    global.fetch = fetchSpy as unknown as typeof fetch;
+
+    const pendingImage = image({
+      src: 'https://x.com/u/status/1/photo/1', kind: 'image', fileSize: 0,
+      unresolvedImage: true, resolveHint: { platform: 'twitter', id: 'photo 1 1' },
+    });
+    render(<App collect={async () => [image({ src: 'remote.jpg', fileSize: 0 }), pendingImage]} />);
+    await screen.findByText('Filters');
+
+    // The real image's size is enriched…
+    expect(await screen.findByText('2 KB')).toBeInTheDocument();
+    // …but the placeholder x.com URL is never HEAD/GET-requested (opt-in/passive
+    // collection constraint — it's a tweet-page URL, not a real file).
+    const fetchedUrls = fetchSpy.mock.calls.map((c) => c[0]);
+    expect(fetchedUrls).not.toContain(pendingImage.src);
   });
 
   it('reports a download error from the background', async () => {
@@ -966,6 +997,27 @@ describe('App Component', () => {
     fireEvent.click(boxes()[2], { shiftKey: true }); // extend selection across the run
 
     expect(await screen.findByRole('button', { name: /download selected 3/i })).toBeInTheDocument();
+  });
+
+  it('shift-click range excludes a pending image caught in the middle of the run', async () => {
+    // Regression: handleSelectRange used to only guard unresolvedVideo/hlsManifest,
+    // so a pending Twitter image (unresolvedImage) sitting inside the clicked span
+    // got silently added to the selection too, inflating the "N selected" count.
+    const pendingImage = image({
+      src: 'https://x.com/u/status/1/photo/1', kind: 'image',
+      unresolvedImage: true, resolveHint: { platform: 'twitter', id: 'photo 1 1' },
+    });
+    render(<App collect={async () => [image({ src: 'a.jpg' }), pendingImage, image({ src: 'c.jpg' })]} />);
+    await screen.findByText('Filters');
+
+    // The pending image renders no checkbox, so only a.jpg and c.jpg have one.
+    const boxes = () => screen.getAllByRole('checkbox', { name: /select item|deselect item/i });
+    expect(boxes()).toHaveLength(2);
+    fireEvent.click(boxes()[0]); // anchor on a.jpg (full-list index 0)
+    fireEvent.click(boxes()[1], { shiftKey: true }); // extend to c.jpg (full-list index 2) — spans the pending image
+
+    // Only the two real items are selected — the pending image never joined the set.
+    expect(await screen.findByRole('button', { name: /download selected 2/i })).toBeInTheDocument();
   });
 
   it('zips only the ticked set when a selection is active', async () => {
