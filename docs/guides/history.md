@@ -19,9 +19,10 @@ downloads folder.
 | **Remove**         | no                  | Deletes this one entry (`REMOVE_HISTORY_ENTRY`)                                                  |
 | **Clear all**      | no                  | Empties the whole history (`CLEAR_HISTORY`), header button                                       |
 
-  "Open file" and "Show in folder" only render when the entry carries a
-  `downloadId` — present on every download recorded going forward, but absent
-  on entries carried over from before this was tracked.
+"Open file" and "Show in folder" only render when the entry carries a
+`downloadId` — present on every download recorded going forward, but absent
+on entries carried over from before this was tracked.
+
 - A collected tile already in history shows a ✓ badge in the grid (from
   `downloadedSrcSet`) — distinct from the toolbar count in [Badge](./badge.md).
 

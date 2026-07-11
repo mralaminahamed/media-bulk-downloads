@@ -22,7 +22,8 @@ identical so both stores match.
 
 - [ ] **Partner Center account** registered for the *Microsoft Edge* program (free — no registration fee).
 - [ ] `wxt.config.ts` name/description correct; version comes from `package.json`. `yarn build:edge` emits `.output/edge-mv3/manifest.json`.
-- [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`; optional `notifications` and `declarativeNetRequestWithHostAccess` (both requested at runtime).
+- [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`; optional `notifications` and
+  `declarativeNetRequestWithHostAccess` (both requested at runtime).
 - [ ] Icons 16/32/48/128 present (`src/public/icon/`) — ✅ already in the build.
 - [ ] **Store logo 300×300 PNG** ready (Edge-specific, see §5) — ✅ `assets/store-logo-300x300.png`.
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
@@ -35,11 +36,13 @@ identical so both stores match.
 ## 2. Store listing fields
 
 **Name / display name** (≤ 50 chars)
+
 ```
 Media Bulk Downloads
 ```
 
 **Short description** (≤ 132 chars) — reuse the manifest description:
+
 ```
 Bulk-download images, video & audio from any web page. Smart type filters, instant preview, original quality — fast and private.
 ```
@@ -49,6 +52,7 @@ Bulk-download images, video & audio from any web page. Smart type filters, insta
 **Language:** English (United States)
 
 **Search terms** (up to **7**, ≤ 30 chars each):
+
 ```
 bulk download
 image downloader
@@ -60,6 +64,7 @@ save images
 ```
 
 **Detailed description** (paste into the listing):
+
 ```
 Media Bulk Downloads finds every image, video, and audio file on the page you're
 viewing and lets you preview, filter, and download them in bulk — quickly, and
@@ -126,24 +131,28 @@ Edge has no per-permission field like Chrome; put these in **Notes for
 certification** so the reviewer can map each permission to a use.
 
 **downloads**
+
 ```
 Saves the images, video, and audio the user selects to their computer through
 the browser's download manager. This is the extension's core action.
 ```
 
 **downloads.open**
+
 ```
 Lets the user open a file they previously downloaded through the extension,
 directly from the in-extension download history.
 ```
 
 **storage**
+
 ```
 Stores the user's own preferences (chrome.storage.sync) and their local download
 history (chrome.storage.local) on their device. No content is transmitted.
 ```
 
 **tabs**
+
 ```
 Reads the active tab's URL and title to (1) label each download with the page it
 came from in the history, and (2) open a media item's source page in a new tab
@@ -151,6 +160,7 @@ when the user asks. No browsing history is collected or sent.
 ```
 
 **contextMenus**
+
 ```
 Adds right-click menu items — "Download all media on this page", and, on an
 image/video/audio element, "Download this media", "Download image (original
@@ -159,6 +169,7 @@ the popup. The items only trigger the same local download the popup performs.
 ```
 
 **offscreen**
+
 ```
 Runs an offscreen document to carry out media assembly that the short-lived
 service worker and the popup cannot hold open on their own — such as capturing a
@@ -167,6 +178,7 @@ on the user's device. No page content is transmitted.
 ```
 
 **Host permissions — `<all_urls>`**
+
 ```
 The extension must read the media elements on whatever page the user runs it on,
 which can be any site. It activates only when the user opens the popup or enables
@@ -176,6 +188,7 @@ media's own CDN. It does not read or transmit page content for any other purpose
 ```
 
 **notifications (optional)**
+
 ```
 Optional, off until the user turns it on. Shows a desktop notification reporting
 the result of a download batch — the only feedback available when the user
@@ -184,6 +197,7 @@ is requested at runtime the first time it is enabled, never at install.
 ```
 
 **declarativeNetRequestWithHostAccess (optional)**
+
 ```
 Optional, off until the user turns it on. Fixes hotlink-protected downloads: some
 CDNs reject a file request whose Referer header doesn't match the page it is shown
@@ -197,6 +211,7 @@ view — it is not an auth or paywall bypass.
 ```
 
 **Testing note for the reviewer**
+
 ```
 Open any image-heavy page (e.g. a Wikipedia gallery or a news article), click the
 toolbar icon, and the popup lists every media item found. No sign-in, account, or
@@ -233,9 +248,11 @@ here as-is.
 Set under **Properties** and the **Store listing → Additional information**.
 
 **Privacy policy URL:**
+
 ```
 https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md
 ```
+
 (The repository is public, so this resolves for reviewers. Keep it current by
 editing `PRIVACY.md` on `main`.)
 
@@ -273,6 +290,7 @@ corepack yarn zip:all      # all of the above
 Version comes from `package.json` (WXT writes it into every manifest).
 
 **Microsoft Edge Add-ons (Partner Center):**
+
 1. [Partner Center → Microsoft Edge](https://partner.microsoft.com/dashboard/microsoftedge) → open your **Media Bulk Downloads** extension (or **Create new extension** for the first submission).
 2. **Packages** → upload `…-edge.zip`.
 3. **Store listing** (per language) → paste the name, short + detailed description (§2), search terms (§2), screenshots and the **300×300 store logo** (§5), and the privacy policy URL (§6).

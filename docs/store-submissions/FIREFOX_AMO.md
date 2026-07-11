@@ -16,12 +16,12 @@ so all three stores match.
 > **Different from Chrome / Edge — don't miss these:**
 > - AMO is **free**; you sign in with a Firefox account.
 > - The add-on **ID is mandatory** and already baked into the manifest
->   (`browser_specific_settings.gecko.id` = `media-bulk-downloads@mralaminahamed`).
+    > (`browser_specific_settings.gecko.id` = `media-bulk-downloads@mralaminahamed`).
 > - **Source code submission is mandatory** — the package is bundled/transpiled,
->   so you must upload the `…-sources.zip` *and* give reviewers reproducible
->   build steps (§7). This is the one thing Chrome/Edge don't ask for.
+    > so you must upload the `…-sources.zip` *and* give reviewers reproducible
+    > build steps (§7). This is the one thing Chrome/Edge don't ask for.
 > - The manifest already declares **no data collection**
->   (`data_collection_permissions: { required: ['none'] }`).
+    > (`data_collection_permissions: { required: ['none'] }`).
 > - Minimum supported Firefox is **109.0** (`strict_min_version`).
 
 ---
@@ -29,8 +29,11 @@ so all three stores match.
 ## 1. Pre-submission checklist
 
 - [ ] **Firefox account** created and the AMO developer agreement accepted at [addons.mozilla.org/developers](https://addons.mozilla.org/developers/).
-- [ ] `wxt.config.ts` sets the Firefox `gecko.id`, `strict_min_version: '109.0'`, and `data_collection_permissions: { required: ['none'] }`. `yarn build:firefox` emits `.output/firefox-mv3/manifest.json`.
-- [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, host `<all_urls>`; optional `notifications` and `declarativeNetRequestWithHostAccess` (both requested at runtime). Note: `offscreen` is **Chrome-only** — `wxt.config.ts` omits it from the Firefox build (Firefox has no `chrome.offscreen`, and AMO rejects the permission), so HLS/DASH stream capture is not available on Firefox.
+- [ ] `wxt.config.ts` sets the Firefox `gecko.id`, `strict_min_version: '109.0'`, and `data_collection_permissions: { required: ['none'] }`. `yarn build:firefox` emits
+  `.output/firefox-mv3/manifest.json`.
+- [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, host `<all_urls>`; optional `notifications` and `declarativeNetRequestWithHostAccess` (both
+  requested at runtime). Note: `offscreen` is **Chrome-only** — `wxt.config.ts` omits it from the Firefox build (Firefox has no `chrome.offscreen`, and AMO rejects the permission), so HLS/DASH stream
+  capture is not available on Firefox.
 - [ ] Icons 16/32/48/128 present (`src/public/icon/`) — ✅ already in the build; AMO uses the manifest icons (no separate store logo).
 - [ ] `yarn lint` and `wxt build -b firefox` pass clean (AMO runs its own validator on upload too).
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
@@ -43,11 +46,13 @@ so all three stores match.
 ## 2. Store listing fields
 
 **Name** (≤ 50 chars)
+
 ```
 Media Bulk Downloads
 ```
 
 **Summary** (≤ 250 chars) — reuse the manifest description:
+
 ```
 Bulk-download images, video & audio from any web page. Smart type filters, instant preview, original quality — fast and private.
 ```
@@ -62,6 +67,7 @@ Bulk-download images, video & audio from any web page. Smart type filters, insta
 **Support email:** `mrabir.ahamed@gmail.com`
 
 **Description** (paste into the listing):
+
 ```
 Media Bulk Downloads finds every image, video, and audio file on the page you're
 viewing and lets you preview, filter, and download them in bulk — quickly, and
@@ -198,9 +204,11 @@ here as-is.
 ## 6. Privacy & data disclosures
 
 **Privacy policy URL:**
+
 ```
 https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md
 ```
+
 (The repository is public, so this resolves for reviewers. Keep it current by
 editing `PRIVACY.md` on `main`.)
 
@@ -226,6 +234,7 @@ the build steps so a reviewer can reproduce the exact package.
 (produced alongside the package by `yarn zip:firefox`).
 
 **Build instructions to paste (reviewer reproduces the package):**
+
 ```
 Build environment
 - OS: macOS, Linux, or Windows
@@ -245,6 +254,7 @@ submitted package. Built with WXT (wxt.dev); no other tooling required.
 ```
 
 **Notes to reviewer (how to test):**
+
 ```
 No account, sign-in, or server is required — everything runs locally. Open any
 image-heavy page (e.g. a Wikimedia Commons category or a news article), click the
@@ -272,6 +282,7 @@ corepack yarn zip:all      # all of the above
 Version comes from `package.json` (WXT writes it into every manifest).
 
 **Firefox Add-ons (AMO):**
+
 1. [addons.mozilla.org/developers](https://addons.mozilla.org/developers/) → **Submit a New Add-on**.
 2. Choose **On this site** (listed, public).
 3. Upload `…-firefox.zip`. When the validator asks, upload `…-firefox-sources.zip` and paste the build instructions (§7).
