@@ -30,7 +30,7 @@ so all three stores match.
 
 - [ ] **Firefox account** created and the AMO developer agreement accepted at [addons.mozilla.org/developers](https://addons.mozilla.org/developers/).
 - [ ] `wxt.config.ts` sets the Firefox `gecko.id`, `strict_min_version: '109.0'`, and `data_collection_permissions: { required: ['none'] }`. `yarn build:firefox` emits `.output/firefox-mv3/manifest.json`.
-- [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`; optional `notifications` and `declarativeNetRequestWithHostAccess` (both requested at runtime).
+- [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, host `<all_urls>`; optional `notifications` and `declarativeNetRequestWithHostAccess` (both requested at runtime). Note: `offscreen` is **Chrome-only** — `wxt.config.ts` omits it from the Firefox build (Firefox has no `chrome.offscreen`, and AMO rejects the permission), so HLS/DASH stream capture is not available on Firefox.
 - [ ] Icons 16/32/48/128 present (`src/public/icon/`) — ✅ already in the build; AMO uses the manifest icons (no separate store logo).
 - [ ] `yarn lint` and `wxt build -b firefox` pass clean (AMO runs its own validator on upload too).
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
@@ -147,10 +147,10 @@ page"; on an image/video/audio element, "Download this media", "Download image
 (original quality)", "Add image to Favourites") so the user can act without
 opening the popup. Each triggers the same local download the popup performs.
 
-**offscreen** — runs an offscreen document to carry out media assembly the
-short-lived background script and the popup cannot hold open on their own — such
-as capturing a standard HLS (.m3u8) stream by fetching and joining its segments —
-entirely on the user's device. No page content is transmitted.
+> **No `offscreen` on Firefox.** The Chrome/Edge builds use an `offscreen`
+> document to capture HLS/DASH streams; Firefox has no `chrome.offscreen`, so
+> `wxt.config.ts` omits the permission from the Firefox build and that feature is
+> unavailable here. There is no `offscreen` justification to provide for AMO.
 
 **Host permissions — `<all_urls>`** — the extension must read the media elements
 on whatever page the user runs it on, which can be any site. It activates only
