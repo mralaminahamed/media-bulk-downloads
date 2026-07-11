@@ -4,7 +4,7 @@ Everything needed to publish **Media Bulk Downloads** to the Chrome Web Store:
 copy-paste listing fields, per-permission justifications, the privacy
 disclosures, required visual assets, and the packaging steps.
 
-Version at time of writing: **1.1.0** · Manifest **V3**.
+Version at time of writing: **1.2.0** · Manifest **V3**.
 
 > **Live listing:** https://chromewebstore.google.com/detail/media-bulk-downloads/jmdhkdengijmmkelofaleinbipophckn
 
@@ -24,12 +24,12 @@ Version at time of writing: **1.1.0** · Manifest **V3**.
 - [ ] `.output/media-bulk-downloads-<version>-chrome.zip` produced by `yarn zip`.
 - [ ] Single-purpose description, permission justifications, and data disclosures filled in (below).
 
-> **Updating the existing listing:** 1.1.0 added `contextMenus`, `offscreen`, and
-> optional `notifications` over the 1.0.0 listing; this release additionally adds
-> optional `declarativeNetRequestWithHostAccess` (the hotlink-403 Referer retry). Added
-> permissions trigger a fuller re-review; the optional ones are requested at
-> runtime, so they don't re-prompt existing users on update — fill a
-> justification for each new permission (§4) before submitting.
+> **Updating the existing listing (1.2.0 over the live 1.1.0):** 1.2.0 adds the
+> optional `declarativeNetRequestWithHostAccess` permission (the hotlink-403 Referer
+> retry) on top of the 1.1.0 permission set (`contextMenus`, `offscreen`, optional
+> `notifications`). Added permissions trigger a fuller re-review; the optional ones
+> are requested at runtime, so they don't re-prompt existing users on update — fill
+> a justification for each new permission (§4) before submitting.
 
 ---
 
@@ -76,10 +76,24 @@ FILTER, SEARCH, AND DOWNLOAD
 • A download history with one-click re-download, open file, or reveal in folder
 • Favourites: star images, video, or audio to a list that persists across pages
 
-MORE PLACES TO GRAB MEDIA
-• Dedicated resolvers for Instagram, X/Twitter, Vimeo, and YouTube poster images
-• Capture standard HLS (.m3u8) video streams to a single file (no DRM, no live)
-• Optional WebP/AVIF → PNG/JPEG conversion as images download
+WORKS ON THE SITES YOU USE
+• Original-quality resolvers for X/Twitter, Instagram, Facebook, Threads,
+  Bluesky, Mastodon, Pinterest, Reddit, Flickr, ArtStation, Behance, Unsplash,
+  and Wallhaven
+• Video from Vimeo, Dailymotion, YouTube poster frames, and the Booru art sites
+• Museum, stock & CDN coverage: the IIIF Image API, rawpixel, and image CDNs such
+  as Cloudinary, Sanity, Uploadcare, ImageKit, Contentful, and Cloudflare — plus
+  50+ more families
+• Capture standard HLS (.m3u8) and DASH (.mpd) video streams to a single file
+  (no DRM, no live)
+• Optional WebP/AVIF → PNG/JPEG conversion that preserves EXIF/XMP metadata
+
+RELIABLE DOWNLOADS
+• A resilient download queue tracks each file (queued / downloading / done /
+  failed), retries transient failures, and resumes after the popup closes — with
+  pause, resume, cancel, retry, and a "simultaneous downloads" cap
+• "Retry with page referer" recovers hotlink-protected files that return 403
+• Filter by Downloaded / Not-downloaded, and exclude sources you never want to see
 
 FASTER TO REACH
 • Keyboard shortcuts: open the popup, or download all media on the page

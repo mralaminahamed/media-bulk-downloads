@@ -6,7 +6,7 @@ fields, permission notes, the privacy disclosures, required assets, and — the
 part unique to Firefox — the **source-code submission and reproducible build
 instructions** reviewers require.
 
-Version at time of writing: **1.1.0** · Manifest **V3** (Firefox 109+). This is
+Version at time of writing: **1.2.0** · Manifest **V3** (Firefox 109+). This is
 the Firefox sibling of [CHROME_WEBSTORE.md](./CHROME_WEBSTORE.md) and
 [EDGE_ADDONS.md](./EDGE_ADDONS.md); the listing copy is intentionally identical
 so all three stores match.
@@ -83,6 +83,22 @@ FILTER AND DOWNLOAD
 • Download one item or the whole filtered set, with correct file extensions
 • Choose a subfolder, a naming scheme, and whether to be asked where to save
 • A download history with one-click re-download, open file, or reveal in folder
+
+WORKS ON THE SITES YOU USE
+• Original-quality resolvers for X/Twitter, Instagram, Facebook, Threads,
+  Bluesky, Mastodon, Pinterest, Reddit, Flickr, ArtStation, Behance, Unsplash,
+  and Wallhaven
+• Video from Vimeo, Dailymotion, YouTube poster frames, and the Booru art sites
+• Museum, stock & CDN coverage: the IIIF Image API, rawpixel, and image CDNs such
+  as Cloudinary, Sanity, Uploadcare, ImageKit, Contentful, and Cloudflare — plus
+  50+ more families
+• Optional WebP/AVIF → PNG/JPEG conversion that preserves EXIF/XMP metadata
+
+RELIABLE DOWNLOADS
+• A resilient download queue tracks each file and resumes after the popup closes —
+  pause, resume, cancel, retry, and a "simultaneous downloads" cap
+• "Retry with page referer" recovers hotlink-protected files that return 403
+• Filter by Downloaded / Not-downloaded, and exclude sources you never want to see
 
 PRIVATE BY DESIGN
 • Network-free by default: it only reads what the page already loaded
