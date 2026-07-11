@@ -179,22 +179,50 @@ function ensureProgressPoll(): void {
 }
 
 // Poll chrome.downloads for each active item's byte progress and persist it via
-// the shared mutex. Self-stops when nothing is active. Exported (test-only names)
-// so the poll can be driven deterministically without a real timer.
+// the shared mutex. Doubles as the terminal-state backstop: an item whose
+// download chrome reports `complete`/`interrupted` but whose onChanged we never
+// processed — the event fired in the window before markActive persisted the
+// downloadId (tiny/cached/`data:` downloads settle almost instantly), or the SW
+// was briefly asleep — would otherwise stay `active` forever, holding a
+// concurrency slot and starving the rest of the queue while its bar sits at 100%.
+// Settling those through handleDownloadChanged (the same path onChanged uses) is
+// idempotent: an item already moved off `active` no longer matches, so a real
+// onChanged that DID fire simply wins the race and the poll no-ops. Self-stops
+// when nothing is active. Exported (test-only names) so the poll can be driven
+// deterministically without a real timer.
 async function pollProgress(): Promise<void> {
-  await withState(async (s) => {
-    const actives = s.items.filter((i) => i.status === 'active' && i.downloadId !== undefined);
-    if (actives.length === 0) { stopProgressPoll(); return { state: s, value: null }; }
-    let next = s;
-    for (const it of actives) {
-      let dl: chrome.downloads.DownloadItem | undefined;
-      try { [dl] = await chrome.downloads.search({ id: it.downloadId }); } catch { dl = undefined; }
-      if (!dl) continue;
-      const total = typeof dl.totalBytes === 'number' && dl.totalBytes > 0 ? dl.totalBytes : undefined;
-      next = setProgress(next, it.downloadId as number, dl.bytesReceived ?? 0, total);
+  const snapshot = await loadQueue();
+  const actives = snapshot.items.filter((i) => i.status === 'active' && i.downloadId !== undefined);
+  if (actives.length === 0) { stopProgressPoll(); return; }
+
+  const progress: { downloadId: number; bytesReceived: number; totalBytes?: number }[] = [];
+  const terminal: { id: number; state: 'complete' | 'interrupted' }[] = [];
+  for (const it of actives) {
+    let dl: chrome.downloads.DownloadItem | undefined;
+    try { [dl] = await chrome.downloads.search({ id: it.downloadId }); } catch { dl = undefined; }
+    if (!dl) continue;
+    if (dl.state === 'complete' || dl.state === 'interrupted') {
+      terminal.push({ id: it.downloadId as number, state: dl.state });
+      continue;
     }
-    return { state: next, value: null }; // withState skips the write when next === s
-  });
+    const total = typeof dl.totalBytes === 'number' && dl.totalBytes > 0 ? dl.totalBytes : undefined;
+    progress.push({ downloadId: it.downloadId as number, bytesReceived: dl.bytesReceived ?? 0, totalBytes: total });
+  }
+
+  if (progress.length) {
+    await withState(async (s) => {
+      let next = s;
+      for (const p of progress) next = setProgress(next, p.downloadId, p.bytesReceived, p.totalBytes);
+      return { state: next, value: null }; // withState skips the write when next === s
+    });
+  }
+
+  // Settle missed terminals OUTSIDE the withState lock — handleDownloadChanged
+  // takes the lock itself, so calling it from inside the poll's own withState
+  // callback would deadlock the serialization chain.
+  for (const t of terminal) {
+    await handleDownloadChanged({ id: t.id, state: { current: t.state, previous: 'in_progress' } } as chrome.downloads.DownloadDelta);
+  }
 }
 
 /** @internal test seam */
