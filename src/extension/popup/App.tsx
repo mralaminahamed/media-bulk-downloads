@@ -15,15 +15,13 @@ import { SkeletonGrid } from './components/states/SkeletonGrid';
 import { EmptyState } from './components/states/EmptyState';
 import { ErrorState } from './components/states/ErrorState';
 import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, DownloadZipMessage, DownloadBytesMessage, ExcludedKind, FilterOptions, ImageInfo, SettingsData } from '@/types';
-import { filterImagesBySettings, applyToolbarFilters, filterExcluded, isPendingOrStream, ExcludedMatchers } from '../shared/collection/filters';
-import { SrcKeySet } from '../shared/collection/canonical';
+import { filterImagesBySettings, applyToolbarFilters, filterExcluded, isPendingOrStream } from '../shared/collection/filters';
 import { mergeScannedMedia } from '../shared/collection/merge';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
 import { collectFromActiveTab } from '../shared/active-tab/collect-active-tab';
 import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/active-tab/deep-scan-active-tab';
 import { requestResolveOriginals } from '../shared/active-tab/resolve-originals-active';
 import { applyResolved } from './apply-resolved';
-import { excludedMatchers, EXCLUDED_KEY } from '../shared/storage/excluded';
 import { buildZip, zipFileName } from '../shared/download/zip';
 import { convertImage, isConvertible } from '../shared/download/convert/convert';
 import { u8ToBase64 } from '../shared/download/base64';
@@ -35,6 +33,7 @@ import { Cog6ToothIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIc
 import { SIZE_FETCH_CONCURRENCY, deepScanCapMessage, downloadable, pendingVideos } from './lib/appHelpers';
 import { useDownloadHistory } from './hooks/useDownloadHistory';
 import { useFavourites } from './hooks/useFavourites';
+import { useExcluded } from './hooks/useExcluded';
 
 const App: React.FC<AppProps> = ({
   collect = collectFromActiveTab,
@@ -65,8 +64,6 @@ const App: React.FC<AppProps> = ({
   }, [downloadedSrcs, isDownloaded]);
   const [showFavourites, setShowFavourites] = useState(false);
   const [showExcluded, setShowExcluded] = useState(false);
-  const [excludedMatch, setExcludedMatch] = useState<ExcludedMatchers>({ urls: new SrcKeySet(), hosts: new Set() });
-  const excludedRef = useRef<ExcludedMatchers>({ urls: new SrcKeySet(), hosts: new Set() });
   const [resolveFailedSrcs, setResolveFailedSrcs] = useState<Set<string>>(new Set());
   const [fetchingSrcs, setFetchingSrcs] = useState<Set<string>>(new Set());
   // Whether a batch "Get all videos" run is in flight (distinct from a single
@@ -138,15 +135,7 @@ const App: React.FC<AppProps> = ({
     return () => chrome.storage.onChanged.removeListener(listener);
   }, []);
 
-  useEffect(() => {
-    const load = () => void excludedMatchers().then((m) => { excludedRef.current = m; setExcludedMatch(m); });
-    load();
-    const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
-      if (area === 'local' && changes[EXCLUDED_KEY]) load();
-    };
-    chrome.storage.onChanged.addListener(onChanged);
-    return () => chrome.storage.onChanged.removeListener(onChanged);
-  }, []);
+  const { excludedMatch, excludedRef, applyExcludedOptimistic } = useExcluded();
 
   useEffect(() => {
     // Only the popup sizes the document body; the bubble is sized by its host.
@@ -668,22 +657,6 @@ const App: React.FC<AppProps> = ({
       const eligible = filterExcluded(filterImagesBySettings(images, settingsRef.current), excludedRef.current);
       return { ...prev, images, filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloaded) };
     });
-  };
-
-  // Hide excluded media from the grid immediately, before the background's write
-  // round-trips back through storage.onChanged (which reconciles to the same
-  // state). Mirrors the optimistic favourite update above. A 'url' exclusion is
-  // keyed by the src's canonical key; a 'host' exclusion by its registrable domain.
-  const applyExcludedOptimistic = (updates: { kind: ExcludedKind; value: string; src: string }[]): void => {
-    let urls = excludedRef.current.urls;
-    const hosts = new Set(excludedRef.current.hosts);
-    for (const u of updates) {
-      if (u.kind === 'url') urls = urls.withAdded(u.src);
-      else hosts.add(u.value);
-    }
-    const next = { urls, hosts };
-    excludedRef.current = next;
-    setExcludedMatch(next);
   };
 
   const excludeItem = (image: ImageInfo, kind: ExcludedKind): void => {
