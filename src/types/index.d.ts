@@ -2,7 +2,7 @@ import type React from 'react';
 import type { ReactNode, ChangeEvent, FocusEvent, MouseEvent, CSSProperties, HTMLAttributes } from 'react';
 import type { SrcKeySet } from '../extension/shared/collection/canonical';
 
-export type ResolvePlatform = 'twitter' | 'wallhaven' | 'unsplash' | 'vimeo' | 'bsky' | 'pinterest' | 'reddit' | 'flickr' | 'artstation';
+export type ResolvePlatform = 'twitter' | 'wallhaven' | 'unsplash' | 'vimeo' | 'bsky' | 'pinterest' | 'reddit' | 'flickr' | 'artstation' | 'dailymotion';
 export interface ResolveHint {
   platform: ResolvePlatform;
   /** Opaque per-platform id: statusId | wallpaper id | photo shortid | for

@@ -36,6 +36,13 @@ interface VimeoConfig {
   };
 }
 
+interface DailymotionQuality { type?: string; url?: string }
+interface DailymotionMetadata {
+  error?: unknown;
+  protected_delivery?: boolean;
+  qualities?: { auto?: DailymotionQuality[] };
+}
+
 interface DidService { id?: string; type?: string; serviceEndpoint?: string }
 interface DidDoc { service?: DidService[] }
 
@@ -174,6 +181,28 @@ async function vimeo(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
     const chosen = (hls?.default_cdn ? cdns[hls.default_cdn]?.url : undefined) ?? Object.values(cdns)[0]?.url;
     const master = pinnedUrl(chosen, 'vimeocdn.com');
     return master ? { url: master, hls: true } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Dailymotion: read the public player metadata (no Referer) and return the
+ * `qualities.auto` HLS master to capture. Modern Dailymotion is HLS-only (no
+ * progressive MP4). DRM/geo-locked videos carry `protected_delivery: true` (or an
+ * `error`) and return null — no circumvention.
+ */
+async function dailymotion(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  try {
+    if (!/^[A-Za-z0-9]+$/.test(id)) return null;
+    const r = await deps.fetch(`https://www.dailymotion.com/player/metadata/video/${encodeURIComponent(id)}`);
+    if (!r.ok) return null;
+    const j = (await r.json()) as DailymotionMetadata;
+    if (j?.error || j?.protected_delivery === true) return null;
+    const auto = j?.qualities?.auto ?? [];
+    const master = auto.find((q) => q?.type === 'application/x-mpegURL' && typeof q.url === 'string')?.url;
+    const pinned = pinnedUrl(master, 'dailymotion.com');
+    return pinned ? { url: pinned, hls: true } : null;
   } catch {
     return null;
   }
@@ -375,6 +404,7 @@ export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise
     case 'wallhaven': { const u = await wallhaven(hint.id, deps); return u ? { url: u } : null; }
     case 'unsplash': return { url: unsplash(hint.id) };
     case 'vimeo': return vimeo(hint.id, deps);
+    case 'dailymotion': return dailymotion(hint.id, deps);
     case 'bsky': return bsky(hint.id, deps);
     case 'pinterest': return pinterest(hint.id, deps);
     case 'reddit': return reddit(hint.id);
