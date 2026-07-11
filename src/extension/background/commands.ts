@@ -1,5 +1,5 @@
 import { FavouriteEntry, ImageInfo } from '@/types';
-import { filterImagesBySettings, filterExcluded } from '../shared/collection/filters';
+import { filterImagesBySettings, filterExcluded, isPendingOrStream } from '../shared/collection/filters';
 import { newCaptureRunId } from '../shared/active-tab/capture-stream-active';
 import { addFavourite } from '../shared/storage/favourites';
 import { currentSettings, excludedCache, settingsReady, excludedReady } from './state';
@@ -24,8 +24,12 @@ export function downloadAllForTab(tab?: chrome.tabs.Tab): void {
       // HLS/DASH streams must be CAPTURED (fetch + mux segments), never handed to
       // chrome.downloads as a manifest URL — that saves the raw .m3u8/.mpd text as
       // a broken file. Split them out and capture each; download the rest normally.
+      // Pending videos/images (unresolved — no real file behind `src` yet) are
+      // neither streams nor downloadable: a pending image's `src` is the x.com
+      // tweet-page URL, so handing it to chrome.downloads would fetch the HTML
+      // page and save it as a bogus `.jpg`. Drop them from both buckets.
       const streams = eligible.filter((i) => i.hlsManifest);
-      const regular = eligible.filter((i) => !i.hlsManifest);
+      const regular = eligible.filter((i) => !isPendingOrStream(i));
       if (regular.length) void downloadAndRecord(regular, sourcePage);
       for (const s of streams) {
         // Register the capturing tab under this run's id so its progress relays

@@ -39,6 +39,9 @@ export interface ImageInfo {
   resolveHint?: ResolveHint;
   /** Twitter real video: poster is shown but the item is NOT downloadable until resolved. */
   unresolvedVideo?: boolean;
+  /** Twitter pending image (from an unpainted /status/photo cell): NOT downloadable
+   *  until the syndication resolve swaps in the real pbs.twimg.com URL. */
+  unresolvedImage?: boolean;
   /** HLS stream: the `.m3u8` manifest URL. Present items are captured (fetch +
    *  assemble segments) rather than downloaded as a single file; `src` holds the
    *  manifest URL too, but it must never be handed to chrome.downloads directly. */

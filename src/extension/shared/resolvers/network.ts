@@ -9,6 +9,8 @@ interface TwitterVideoVariant {
 }
 
 interface TwitterMediaDetail {
+  type?: string;
+  media_url_https?: string;
   video_info?: { variants?: TwitterVideoVariant[] };
 }
 
@@ -69,15 +71,36 @@ function getToken(id: string): string {
     .replace(/(0+|\.)/g, '');
 }
 
+/**
+ * Twitter. The hint id is either a bare status id (video, unchanged) or
+ * `'photo <sid> <n>'` — a 1-based index into the same syndication response's
+ * `mediaDetails`, produced for an unpainted `/status/<sid>/photo/<n>` grid cell.
+ * The photo branch returns the indexed entry's `media_url_https` forced to
+ * `name=orig`, refusing anything that isn't a photo (video/missing entry) or
+ * whose URL isn't twimg.com (untrusted JSON).
+ */
 async function twitter(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  const photo = id.match(/^photo (\d{1,20}) (\d{1,3})$/);
+  const sid = photo ? photo[1] : id;
   try {
-    const token = getToken(id);
+    const token = getToken(sid);
     const r = await deps.fetch(
-      `https://cdn.syndication.twimg.com/tweet-result?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}&lang=en`,
+      `https://cdn.syndication.twimg.com/tweet-result?id=${encodeURIComponent(sid)}&token=${encodeURIComponent(token)}&lang=en`,
     );
     if (!r.ok) return null;
     const j = (await r.json()) as TwitterSyndicationResponse;
     const details = j?.mediaDetails ?? [];
+
+    if (photo) {
+      const entry = details[Number(photo[2]) - 1];
+      if (!entry || entry.video_info || entry.type === 'video' || typeof entry.media_url_https !== 'string') return null;
+      const pinned = pinnedUrl(entry.media_url_https, 'twimg.com');
+      if (!pinned) return null;
+      const u = new URL(pinned);
+      u.searchParams.set('name', 'orig');
+      return { url: u.href };
+    }
+
     let best: { bitrate: number; url: string } | null = null;
     for (const d of details) {
       for (const v of d?.video_info?.variants ?? []) {

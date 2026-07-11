@@ -38,11 +38,16 @@
     <p>A single PNG photo post.</p>
 
     <!-- Native video: the poster is rendered as an <img> on /ext_tw_video_thumb/ -> a
-         pending Video item; the status id comes from the cell's /status/…/video/ link. -->
+         pending Video item; the status id comes from the cell's /status/…/video/ link.
+         The <a> wraps its own thumbnail (matching real X markup), so the pending-cell
+         collector's "already painted" check finds the img and does not also emit a
+         duplicate pending item for this same /video/1 cell. -->
     <article data-testid="tweet">
       <p>Native video</p>
-      <img alt="Clip" src="https://pbs.twimg.com/ext_tw_video_thumb/1750000000000000003/pu/img/VidPosterAAA.jpg">
-      <a href="https://x.com/acme/status/1750000000000000003/video/1"><time datetime="2024-01-01">2h</time></a>
+      <a href="https://x.com/acme/status/1750000000000000003/video/1">
+        <img alt="Clip" src="https://pbs.twimg.com/ext_tw_video_thumb/1750000000000000003/pu/img/VidPosterAAA.jpg">
+        <time datetime="2024-01-01">2h</time>
+      </a>
     </article>
     <p>A native video post identified by its poster thumbnail.</p>
 
@@ -53,6 +58,13 @@
       <a href="https://x.com/acme/status/1750000000000000004"><time datetime="2024-01-01">3h</time></a>
     </article>
     <p>A GIF-style reaction video.</p>
+
+    <!-- Unpainted status cells: a fast-scroll grid leaves these anchors with no
+         rendered media <img> yet — the pending-item collector surfaces them as
+         a pending image / pending video, resolved later via opt-in syndication
+         fetch (resolveOriginals, OFF by default so e2e stays offline). -->
+    <a href="/u/status/1800000000000000001/photo/1"><div></div></a>
+    <a href="/u/status/1800000000000000002/video/1"><div></div></a>
 
     <h2>Profile</h2>
     <!-- Avatar (/profile_images/, size suffix stripped) + card image (/card_img/, name=orig). -->

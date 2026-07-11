@@ -219,6 +219,108 @@ describe('ImageList Component', () => {
       render(<ImageList images={[resolved]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} />);
       expect(screen.getByTitle('Download')).toBeInTheDocument();
     });
+
+    it('does not render an "Add favourite" button for a pending video (poster is not the real file)', () => {
+      render(
+        <ImageList images={[pendingVideo]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()}
+          onToggleFavourite={vi.fn()} favouriteSrcs={new SrcKeySet()} />,
+      );
+      expect(screen.queryByRole('button', { name: /add favourite/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('ImageList pending images', () => {
+    const pendingImage: ImageInfo = {
+      src: 'https://x.com/u/status/1700000000000000001/photo/1', alt: '', width: 0, height: 0,
+      type: 'unknown', fileSize: 0, isBase64: false, kind: 'image', unresolvedImage: true,
+      resolveHint: { platform: 'twitter', id: 'photo 1700000000000000001 1' },
+    };
+
+    it('renders a pending placeholder for an unresolvedImage item (no status-URL <img>)', () => {
+      const { container } = render(<ImageList images={[pendingImage]} onImageDownload={vi.fn()} />);
+      // Raw DOM query, not screen.getByRole('img'): the pending fixture's alt is
+      // '', so an <img alt=""> carries NO ARIA img role and a role-based query
+      // would return 0 results even if a regression reintroduced
+      // <img src="https://x.com/...">. Query the actual DOM instead so this guard
+      // can fail.
+      const tileImgs = Array.from(container.querySelectorAll('img'));
+      expect(tileImgs.some((img) => (img.getAttribute('src') ?? '').includes('x.com/'))).toBe(false);
+      expect(tileImgs).toHaveLength(0);
+      // Same pending affordance a pending video gets: an eyebrow label (it carries
+      // a resolveHint, so it reads "not fetched", matching the video case).
+      expect(screen.getByText('not fetched')).toBeInTheDocument();
+      // No manual fetch/download action — pending images resolve automatically.
+      expect(screen.queryByTitle('Download')).not.toBeInTheDocument();
+      expect(screen.queryByTitle('Get video')).not.toBeInTheDocument();
+    });
+
+    it('does not render a select checkbox for a pending image (not downloadable)', () => {
+      render(<ImageList images={[pendingImage]} onImageDownload={vi.fn()} onToggleSelect={vi.fn()} />);
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    });
+
+    it('still mounts the tile (View Details action) for a pending image, despite it emitting no <img>', () => {
+      // Sanity check that a pending image is rendered at all (tile present) even
+      // though it contributes no <img> — the figure/tile itself still mounts.
+      render(<ImageList images={[pendingImage]} onImageDownload={vi.fn()} />);
+      expect(screen.getByRole('button', { name: 'View Details' })).toBeInTheDocument();
+    });
+
+    it('does not render an "Add favourite" button for a pending image (would leak the placeholder src into favourites)', () => {
+      render(
+        <ImageList images={[pendingImage]} onImageDownload={vi.fn()}
+          onToggleFavourite={vi.fn()} favouriteSrcs={new SrcKeySet()} />,
+      );
+      expect(screen.queryByRole('button', { name: /add favourite/i })).not.toBeInTheDocument();
+    });
+
+    it('still renders "Add favourite" for a normal (resolved) image tile', () => {
+      const resolved: ImageInfo = { ...pendingImage, unresolvedImage: false, resolveHint: undefined, src: 'https://pbs.twimg.com/media/resolved.jpg' };
+      render(
+        <ImageList images={[resolved]} onImageDownload={vi.fn()}
+          onToggleFavourite={vi.fn()} favouriteSrcs={new SrcKeySet()} />,
+      );
+      expect(screen.getByRole('button', { name: /add favourite/i })).toBeInTheDocument();
+    });
+
+    it('regains the "Add favourite" button once a pending image resolves (gating tracks the live flag, not sticky)', () => {
+      const { rerender } = render(
+        <ImageList images={[pendingImage]} onImageDownload={vi.fn()}
+          onToggleFavourite={vi.fn()} favouriteSrcs={new SrcKeySet()} />,
+      );
+      expect(screen.queryByRole('button', { name: /add favourite/i })).not.toBeInTheDocument();
+
+      const resolved: ImageInfo = { ...pendingImage, unresolvedImage: false, resolveHint: undefined };
+      rerender(
+        <ImageList images={[resolved]} onImageDownload={vi.fn()}
+          onToggleFavourite={vi.fn()} favouriteSrcs={new SrcKeySet()} />,
+      );
+      expect(screen.getByRole('button', { name: /add favourite/i })).toBeInTheDocument();
+    });
+
+    it('shows a graceful placeholder (no <img>) and an informational footer in the preview modal', async () => {
+      render(<ImageList images={[pendingImage]} onImageDownload={vi.fn()} />);
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      const dialog = screen.getByRole('dialog');
+      // A pending image has no poster (unlike a pending video) — the preview must
+      // degrade gracefully, not render a broken/placeholder <img>. Raw DOM query
+      // for the same reason as the tile assertion above (alt='' has no img role).
+      const dialogImgs = Array.from(dialog.querySelectorAll('img'));
+      expect(dialogImgs.some((img) => (img.getAttribute('src') ?? '').includes('x.com/'))).toBe(false);
+      expect(dialogImgs).toHaveLength(0);
+      expect(within(dialog).queryByRole('button', { name: 'Download' })).toBeNull();
+      expect(within(dialog).getByText(/hasn't been fetched yet/i)).toBeInTheDocument();
+    });
+
+    it('does not render an "Add favourite" button in the preview modal for a pending image', async () => {
+      render(
+        <ImageList images={[pendingImage]} onImageDownload={vi.fn()}
+          onToggleFavourite={vi.fn()} favouriteSrcs={new SrcKeySet()} />,
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).queryByRole('button', { name: /add favourite/i })).not.toBeInTheDocument();
+    });
   });
 
   describe('ImageList — selection', () => {
@@ -472,7 +574,7 @@ describe('ImageList Component', () => {
       expect(dialog.querySelector('video')).toBeNull();
     });
 
-    it('handles a pending video with no poster and no resolve path (src fallback + can\'t-fetch)', async () => {
+    it('renders a film-glyph placeholder (no <img>) for a pending video with no poster (can\'t-fetch)', async () => {
       // Non-Instagram src, no poster (exercises isIgUrl(undefined)), no resolveHint.
       const noPoster: ImageInfo = {
         src: 'https://pbs.twimg.com/x.jpg', alt: 'v', width: 0, height: 0, type: 'mp4',
@@ -484,11 +586,49 @@ describe('ImageList Component', () => {
 
       await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
       const dialog = screen.getByRole('dialog');
-      // With no poster the preview image falls back to the src…
-      expect(within(dialog).getByRole('img', { name: 'v' })).toHaveAttribute('src', 'https://pbs.twimg.com/x.jpg');
-      // …and the footer says the file can't be fetched, with no Get-video action.
+      // With no poster the modal must NEVER point an <img> at src (src is not
+      // necessarily a real image/file) — it degrades to the same neutral glyph
+      // the grid tile uses.
+      expect(within(dialog).queryByRole('img')).toBeNull();
+      expect(dialog.querySelector('svg')).toBeTruthy();
+      // …and the footer still says the file can't be fetched, with no Get-video action.
       expect(within(dialog).getByText(/can't be fetched/i)).toBeInTheDocument();
       expect(within(dialog).queryByText('Get video')).toBeNull();
+    });
+
+    it('never points a modal <img> at a pending video\'s status-link src when it has no poster (regression: unpainted /status/<id>/video/<n> cell)', async () => {
+      // Shape of a pending VIDEO surfaced by pushTwitterPending for an unpainted
+      // grid cell: no poster at all (unlike twitterVideoPending items, which
+      // always carry a poster), and `src` is the x.com status permalink itself —
+      // not an image or media file. Opening "View Details" must never hand this
+      // to an <img src>, which would fire a real GET to x.com/....
+      const pendingNoPoster: ImageInfo = {
+        src: 'https://x.com/u/status/1/video/1', alt: '', width: 0, height: 0, type: 'mp4',
+        fileSize: 0, isBase64: false, kind: 'video', unresolvedVideo: true,
+      };
+      render(<ImageList images={[pendingNoPoster]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} />);
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      const dialog = screen.getByRole('dialog');
+      // Raw DOM query, not screen.getByRole('img'): alt='' carries no ARIA img
+      // role, so a role-based query would miss a regression that reintroduced
+      // <img src="https://x.com/...">.
+      const dialogImgs = Array.from(dialog.querySelectorAll('img'));
+      expect(dialogImgs.some((img) => (img.getAttribute('src') ?? '').includes('x.com/'))).toBe(false);
+      expect(dialogImgs).toHaveLength(0);
+    });
+
+    it('still shows the poster in the modal for a pending video that HAS one (no regression to the native-video/GIF preview)', async () => {
+      const pendingWithPoster: ImageInfo = {
+        src: 'https://x.com/u/status/1/video/1', alt: 'clip', width: 0, height: 0, type: 'mp4',
+        fileSize: 0, isBase64: false, kind: 'video', unresolvedVideo: true,
+        poster: 'https://pbs.twimg.com/amplify_video_thumb/1/img/x.jpg',
+      };
+      render(<ImageList images={[pendingWithPoster]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} />);
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByRole('img', { name: 'clip' })).toHaveAttribute(
+        'src', 'https://pbs.twimg.com/amplify_video_thumb/1/img/x.jpg',
+      );
     });
 
     it('offers a retry label in the preview footer for a failed pending video', async () => {

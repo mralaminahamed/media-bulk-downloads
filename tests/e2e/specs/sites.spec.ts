@@ -1,10 +1,36 @@
-import { test, expect } from '../fixtures/extension';
+import { test, expect, serviceWorker } from '../fixtures/extension';
 import { openBubblePage, openPanel, itemCount, expectItemCount } from '../helpers/bubble';
-import type { Page } from '@playwright/test';
+import type { BrowserContext, Page } from '@playwright/test';
+
+const PORT = Number(process.env.E2E_PORT) || 5199;
+const X_ORIGIN = 'https://x.com';
 
 const figureWithSrc = (page: Page, part: string) =>
   page.locator('figure', { has: page.locator(`img[src*="${part}"]`) });
 const previewModal = (page: Page) => page.locator('[role="dialog"][aria-modal="true"]');
+
+/**
+ * The twitter pending-cell collector (an unpainted `/status/<id>/photo|video/<n>`
+ * link) is gated on the page's REAL hostname being x.com/twitter.com, so an
+ * unrelated site's own `/status/<n>`-shaped path is never scanned. Route the
+ * genuine x.com origin to the local twitter.html fixture so `location.hostname`
+ * is truly x.com while the page body is served from disk — the same technique
+ * `openFbSniffer` uses in facebook-sniffer.spec.ts for the Facebook sniffer.
+ */
+async function openXPage(context: BrowserContext, htmlFile: string): Promise<Page> {
+  const worker = await serviceWorker(context);
+  await worker.evaluate(
+    () => new Promise<void>((resolve) => chrome.storage.sync.set({ settings: { bubbleEnabled: true } }, () => resolve())),
+  );
+  const page = await context.newPage();
+  await page.route(`${X_ORIGIN}/**`, async (route) => {
+    const res = await fetch(`http://localhost:${PORT}/${htmlFile}`);
+    await route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: await res.text() });
+  });
+  await page.goto(`${X_ORIGIN}/u/media`);
+  await page.getByRole('button', { name: 'Media Bulk Downloads' }).waitFor();
+  return page;
+}
 
 async function excludeHost(page: Page, item: ReturnType<Page['locator']>): Promise<void> {
   await item.getByRole('button', { name: 'View Details' }).click();
@@ -15,18 +41,40 @@ async function excludeHost(page: Page, item: ReturnType<Page['locator']>): Promi
 
 test.describe('realistic sites', () => {
   test('X/Twitter: collapses photo sizes, surfaces native-video + gif as Video items, excludes the pbs host', async ({ context }) => {
-    const page = await openBubblePage(context, '/twitter.html');
+    const page = await openXPage(context, 'twitter.html');
     await openPanel(page);
-    // og + PhotoA (two name= sizes → one) + PhotoB + native video + gif + avatar + card = 7.
-    expect(await itemCount(page)).toBe(7);
+    // og + PhotoA (two name= sizes → one) + PhotoB + native video + gif + avatar + card
+    // + a pending image + a pending video (both recovered from unpainted
+    // /status/<id>/photo|video/<n> cells whose grid slot never painted a real
+    // media <img>) = 9.
+    expect(await itemCount(page)).toBe(9);
     await expect(figureWithSrc(page, 'GAAA111PhotoAA')).toHaveCount(1); // size variants collapsed
 
-    // The native-video poster (/ext_tw_video_thumb/) and the gif (/tweet_video_thumb/)
-    // are both Video-kind items.
+    // The native-video poster (/ext_tw_video_thumb/), the gif (/tweet_video_thumb/),
+    // and the pending video cell are all Video-kind items.
     await page.getByRole('button', { name: 'Video', exact: true }).click();
-    expect(await itemCount(page)).toBe(2);
+    expect(await itemCount(page)).toBe(3);
     await expect(figureWithSrc(page, 'ext_tw_video_thumb')).toHaveCount(1);
     await expect(figureWithSrc(page, 'tweet_video_thumb')).toHaveCount(1);
+    await page.getByRole('button', { name: 'All', exact: true }).click();
+
+    // The two pending tiles (the unpainted photo/video cells) never rendered a
+    // real media <img> — they show a neutral placeholder icon instead, making
+    // them the only grid figures with no <img> at all. `resolveOriginals` is OFF
+    // by default (the bubble here only seeds `bubbleEnabled`), so e2e never
+    // attempts a network resolve — they stay pending for the whole test.
+    const pendingTiles = page.locator('figure').filter({ hasNot: page.locator('img') });
+    await expect(pendingTiles).toHaveCount(2);
+    // Neither pending tile exposes the normal per-item "Download" affordance...
+    await expect(pendingTiles.getByRole('button', { name: 'Download' })).toHaveCount(0);
+    // ...the pending video instead offers "Get video" (mirrors the pre-existing
+    // pending-video UX); the pending image offers no per-item fetch action yet.
+    await expect(pendingTiles.getByRole('button', { name: 'Get video' })).toHaveCount(1);
+
+    // The bulk "Download" count also excludes all 3 pending items (the
+    // pre-existing native-video pending item + the 2 new pending tiles) from
+    // the 9 collected — 6 remain downloadable.
+    await expect(page.getByRole('button', { name: 'Download 6', exact: true })).toBeVisible();
   });
 
   test('Instagram: upgrades the thumbnail to the hydration-JSON original + reel poster', async ({ context }) => {

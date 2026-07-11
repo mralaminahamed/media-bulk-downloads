@@ -1,4 +1,4 @@
-import { passesSettingsFilters, filterImagesBySettings, applyToolbarFilters, isExcluded, filterExcluded, ExcludedMatchers } from '@/extension/shared/collection/filters';
+import { passesSettingsFilters, filterImagesBySettings, applyToolbarFilters, isExcluded, filterExcluded, isPendingOrStream, ExcludedMatchers } from '@/extension/shared/collection/filters';
 import { ImageInfo, SettingsData, FilterOptions } from '@/types';
 import { SrcKeySet } from '@/extension/shared/collection/canonical';
 import { DEFAULT_FILTERS } from '@/extension/popup/components/FilterToolbar';
@@ -85,6 +85,21 @@ describe('passesSettingsFilters', () => {
   });
   it('keeps emoji images when the setting is off', () => {
     expect(passesSettingsFilters(img({ src: 'https://abs.twimg.com/emoji/v2/svg/1f9f8.svg' }), base)).toBe(true);
+  });
+});
+
+describe('isPendingOrStream', () => {
+  it('is true for a pending (unresolved) video', () => {
+    expect(isPendingOrStream(img({ kind: 'video', unresolvedVideo: true }))).toBe(true);
+  });
+  it('is true for a pending (unresolved) image', () => {
+    expect(isPendingOrStream(img({ unresolvedImage: true }))).toBe(true);
+  });
+  it('is true for an HLS stream', () => {
+    expect(isPendingOrStream(img({ kind: 'video', hlsManifest: 'https://cdn.com/live.m3u8' }))).toBe(true);
+  });
+  it('is false for a plain, already-real image', () => {
+    expect(isPendingOrStream(img({}))).toBe(false);
   });
 });
 

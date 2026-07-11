@@ -12,5 +12,5 @@ export function applyResolved(item: ImageInfo, r: ResolvedMedia, captureHls: boo
     if (!captureHls) return null;
     return { ...item, src: r.url, hlsManifest: r.url, type: 'm3u8', unresolvedVideo: false, resolveHint: undefined };
   }
-  return { ...item, src: r.url, unresolvedVideo: false, resolveHint: undefined };
+  return { ...item, src: r.url, unresolvedVideo: false, unresolvedImage: false, resolveHint: undefined };
 }

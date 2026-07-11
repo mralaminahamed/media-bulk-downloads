@@ -15,7 +15,7 @@ import { SkeletonGrid } from './components/states/SkeletonGrid';
 import { EmptyState } from './components/states/EmptyState';
 import { ErrorState } from './components/states/ErrorState';
 import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, DownloadZipMessage, DownloadBytesMessage, ExcludedKind, FavouriteEntry, FilterOptions, ImageInfo, SettingsData } from '@/types';
-import { filterImagesBySettings, applyToolbarFilters, filterExcluded, ExcludedMatchers } from '../shared/collection/filters';
+import { filterImagesBySettings, applyToolbarFilters, filterExcluded, isPendingOrStream, ExcludedMatchers } from '../shared/collection/filters';
 import { SrcKeySet } from '../shared/collection/canonical';
 import { mergeScannedMedia } from '../shared/collection/merge';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
@@ -52,10 +52,10 @@ function deepScanCapMessage(reason: DeepScanStopReason | undefined, count: numbe
   }
 }
 
-/** Items the user can actually download/zip now — pending videos and HLS streams
- *  (which are captured individually, not fetched as one file) are excluded. */
-const downloadable = (list: ImageInfo[]): ImageInfo[] =>
-  list.filter((i) => !i.unresolvedVideo && !i.hlsManifest);
+/** Items the user can actually download/zip now — pending videos, pending images,
+ *  and HLS streams (which are captured individually, not fetched as one file) are
+ *  excluded. */
+const downloadable = (list: ImageInfo[]): ImageInfo[] => list.filter((i) => !isPendingOrStream(i));
 
 /** Pending videos that still carry a resolve hint — the set "Get all videos" acts on. */
 const pendingVideos = (list: ImageInfo[]): ImageInfo[] =>
@@ -203,7 +203,11 @@ const App: React.FC<AppProps> = ({
    */
   const enrichImageSizes = useCallback(async (images: ImageInfo[]): Promise<void> => {
     const generation = ++enrichGenRef.current;
-    const targets = images.filter((img) => !img.isBase64 && img.fileSize <= 0 && img.kind === 'image');
+    // A pending image's `src` is the x.com tweet-page placeholder URL, not a real
+    // file — a HEAD/GET against it would fetch the page HTML (wasted request,
+    // and violates the opt-in/passive collection constraint). Pending videos are
+    // already excluded by `kind === 'image'`, since a pending video is `kind: 'video'`.
+    const targets = images.filter((img) => !img.isBase64 && img.fileSize <= 0 && img.kind === 'image' && !img.unresolvedImage);
 
     await mapWithConcurrency(targets, SIZE_FETCH_CONCURRENCY, async (img) => {
       const size = await getImageFileSize(img.src);
@@ -511,7 +515,7 @@ const App: React.FC<AppProps> = ({
 
   // ── Selective bulk download ────────────────────────────────────────────────
   const handleToggleSelect = (image: ImageInfo): void => {
-    if (image.unresolvedVideo || image.hlsManifest) return; // pending/stream items are captured individually, not bulk-selected
+    if (isPendingOrStream(image)) return; // pending/stream items are captured individually, not bulk-selected
     setSelectedSrcs((prev) => {
       const next = new Set(prev);
       if (next.has(image.src)) next.delete(image.src);
@@ -524,7 +528,7 @@ const App: React.FC<AppProps> = ({
   const handleSelectRange = (imgs: ImageInfo[]): void => {
     setSelectedSrcs((prev) => {
       const next = new Set(prev);
-      for (const i of imgs) if (!i.unresolvedVideo && !i.hlsManifest) next.add(i.src);
+      for (const i of imgs) if (!isPendingOrStream(i)) next.add(i.src);
       return next;
     });
   };

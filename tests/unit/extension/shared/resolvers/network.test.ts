@@ -3,6 +3,7 @@ import { resolveOriginal } from '@/extension/shared/resolvers/network';
 import pinWidget from '../../../fixtures/pinterest/pin-video-widget.json';
 import asProject from '../../../fixtures/artstation/project.json';
 import tweetResultVideo from '../../../fixtures/twitter/tweet-result-video.json';
+import tweetResultPhoto from '../../../fixtures/twitter/tweet-result-photo.json';
 import wallhavenWallpaper from '../../../fixtures/wallhaven/wallpaper.json';
 import bskyDidDoc from '../../../fixtures/bsky/did-plc-doc.json';
 import bskyDidWebDoc from '../../../fixtures/bsky/did-web-doc.json';
@@ -121,6 +122,27 @@ describe('resolveOriginal — twitter', () => {
     ] };
     expect(await resolveOriginal({ platform: 'twitter', id: '1' }, { fetch: mockFetch(mixed) }))
       .toEqual({ url: 'https://video.twimg.com/live/pl.m3u8', hls: true });
+  });
+  it('returns the n-th photo media_url_https at name=orig (fixture)', async () => {
+    expect(await resolveOriginal({ platform: 'twitter', id: 'photo 123 1' }, { fetch: mockFetch(tweetResultPhoto) }))
+      .toEqual({ url: 'https://pbs.twimg.com/media/PHOTO_A.jpg?name=orig' });
+    expect(await resolveOriginal({ platform: 'twitter', id: 'photo 123 3' }, { fetch: mockFetch(tweetResultPhoto) }))
+      .toEqual({ url: 'https://pbs.twimg.com/media/PHOTO_C.jpg?name=orig' });
+  });
+  it('returns null when the indexed media item is a video (video hint handles it)', async () => {
+    expect(await resolveOriginal({ platform: 'twitter', id: 'photo 123 2' }, { fetch: mockFetch(tweetResultPhoto) })).toBeNull();
+  });
+  it('returns null for an out-of-range photo index', async () => {
+    expect(await resolveOriginal({ platform: 'twitter', id: 'photo 123 9' }, { fetch: mockFetch(tweetResultPhoto) })).toBeNull();
+  });
+  it('rejects a photo media_url_https that is not twimg.com', async () => {
+    const evil = { mediaDetails: [{ type: 'photo', media_url_https: 'https://evil.example/x.jpg' }] };
+    expect(await resolveOriginal({ platform: 'twitter', id: 'photo 1 1' }, { fetch: mockFetch(evil) })).toBeNull();
+  });
+  it('still resolves a bare-id video hint (back-compat)', async () => {
+    // existing tweet-result-video.json path unchanged
+    const url = await resolveOriginal({ platform: 'twitter', id: '123' }, { fetch: mockFetch(tweetResultVideo) });
+    expect(url).toEqual({ url: 'https://video.twimg.com/amplify_video/2074974762711785472/vid/avc1/720x708/ENlI2GicSM30_PC_.mp4' });
   });
 });
 
