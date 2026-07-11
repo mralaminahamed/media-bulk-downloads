@@ -410,6 +410,54 @@ describe('resolveOriginalsBatch', () => {
     );
     expect(out).toEqual({ [src]: { url: 'https://video.twimg.com/net.mp4' } });
   });
+
+  it('dedupes multiple photo hints for the same status into one tweet-result fetch', async () => {
+    // A real Response so its body can only be read once — proves the batch memo
+    // actually shares one parsed result across hints rather than merely being
+    // untested luck with a hand-rolled mock whose .json() is trivially re-callable.
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify({
+      mediaDetails: [
+        { type: 'photo', media_url_https: 'https://pbs.twimg.com/media/PHOTO_A.jpg' },
+        { type: 'photo', media_url_https: 'https://pbs.twimg.com/media/PHOTO_B.jpg' },
+      ],
+    })));
+    const out = await resolveOriginalsBatch(
+      [
+        { src: 'https://x.com/u/status/5/photo/1', hint: { platform: 'twitter', id: 'photo 5 1' } },
+        { src: 'https://x.com/u/status/5/photo/2', hint: { platform: 'twitter', id: 'photo 5 2' } },
+      ],
+      { fetch: fetchMock as unknown as typeof fetch },
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toContain('tweet-result?id=5');
+    expect(out).toEqual({
+      'https://x.com/u/status/5/photo/1': { url: 'https://pbs.twimg.com/media/PHOTO_A.jpg?name=orig' },
+      'https://x.com/u/status/5/photo/2': { url: 'https://pbs.twimg.com/media/PHOTO_B.jpg?name=orig' },
+    });
+  });
+
+  it('control: photo hints for DIFFERENT statuses each still fetch (no cross-status dedupe)', async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      const sid = new URL(url).searchParams.get('id');
+      return new Response(JSON.stringify({
+        mediaDetails: [{ type: 'photo', media_url_https: `https://pbs.twimg.com/media/PHOTO_${sid}.jpg` }],
+      }));
+    });
+    const out = await resolveOriginalsBatch(
+      [
+        { src: 'https://x.com/u/status/5/photo/1', hint: { platform: 'twitter', id: 'photo 5 1' } },
+        { src: 'https://x.com/u/status/6/photo/1', hint: { platform: 'twitter', id: 'photo 6 1' } },
+      ],
+      { fetch: fetchMock as unknown as typeof fetch },
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(out).toEqual({
+      'https://x.com/u/status/5/photo/1': { url: 'https://pbs.twimg.com/media/PHOTO_5.jpg?name=orig' },
+      'https://x.com/u/status/6/photo/1': { url: 'https://pbs.twimg.com/media/PHOTO_6.jpg?name=orig' },
+    });
+  });
 });
 
 describe('X_MEDIA_SEEN sniffer store + resolve wiring', () => {
