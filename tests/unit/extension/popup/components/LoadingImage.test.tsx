@@ -11,7 +11,7 @@ describe('LoadingImage', () => {
     expect(img).toHaveAttribute('loading', 'lazy');
     // Not yet loaded: skeleton present, image faded out.
     expect(document.querySelector('.skeleton')).toBeInTheDocument();
-    expect(img).toHaveClass('opacity-0');
+    expect(img).toHaveClass('mbd:opacity-0');
   });
 
   it('clears the skeleton and reveals the image on successful load', () => {
@@ -19,8 +19,8 @@ describe('LoadingImage', () => {
     const img = screen.getByAltText('A');
     fireEvent.load(img);
     expect(document.querySelector('.skeleton')).not.toBeInTheDocument();
-    expect(img).toHaveClass('opacity-100');
-    expect(img).not.toHaveClass('opacity-0');
+    expect(img).toHaveClass('mbd:opacity-100');
+    expect(img).not.toHaveClass('mbd:opacity-0');
   });
 
   it('also clears the skeleton on error so a broken image does not shimmer forever', () => {
@@ -28,7 +28,7 @@ describe('LoadingImage', () => {
     const img = screen.getByAltText('B');
     fireEvent.error(img);
     expect(document.querySelector('.skeleton')).not.toBeInTheDocument();
-    expect(img).toHaveClass('opacity-100');
+    expect(img).toHaveClass('mbd:opacity-100');
   });
 
   it('omits the lazy loading attribute when not requested', () => {

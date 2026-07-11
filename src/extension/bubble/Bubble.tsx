@@ -346,10 +346,10 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
       {open && (
         <div
           ref={panelRef}
-          className="ibd-app sheet-in overflow-hidden rounded-[14px] border hairline bg-(--paper) shadow-2xl"
+          className="ibd-app sheet-in mbd:overflow-hidden mbd:rounded-[14px] mbd:border hairline mbd:bg-(--paper) mbd:shadow-2xl"
           style={panelStyle}
         >
-          <div className="h-full">
+          <div className="mbd:h-full">
             <App
               collect={collectLocal}
               deepScan={deepScanLocal}
@@ -374,7 +374,7 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
             onPointerCancel={onResizeUp}
             aria-label="Resize panel"
             title="Drag to resize"
-            className="grid place-items-center border-0 bg-transparent p-0"
+            className="mbd:grid mbd:place-items-center mbd:border-0 mbd:bg-transparent mbd:p-0"
             style={{
               position: 'absolute',
               width: 20,
@@ -405,7 +405,7 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
         onPointerUp={onPointerUp}
         title={open ? 'Close Media Bulk Downloads' : 'Open Media Bulk Downloads'}
         aria-label="Media Bulk Downloads"
-        className="ibd-app grid place-items-center rounded-full text-white shadow-2xl transition-transform hover:scale-105 active:scale-95"
+        className="ibd-app mbd:grid mbd:place-items-center mbd:rounded-full mbd:text-white mbd:shadow-2xl mbd:transition-transform mbd:hover:scale-105 mbd:active:scale-95"
         style={{
           ...anchorStyle(corner, pos.x, pos.y),
           width: FAB,

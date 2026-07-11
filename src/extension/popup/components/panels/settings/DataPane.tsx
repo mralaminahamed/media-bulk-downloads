@@ -7,20 +7,20 @@ const DataPane: React.FC<DataPaneProps> = ({ onExport, onImportFile, fileInputRe
     role="tabpanel"
     id="settings-panel-data"
     aria-labelledby="settings-tab-data"
-    className="space-y-3"
+    className="mbd:space-y-3"
   >
-    <p className="text-[11px] leading-relaxed text-(--ink-3)">
+    <p className="mbd:text-[11px] mbd:leading-relaxed mbd:text-(--ink-3)">
       Save your settings, favourites, history, and blocked sources to a JSON file, or
       restore from a previous backup. Importing <strong>replaces</strong> your current
       favourites, history, and blocked sources. Everything stays on your device.
     </p>
-    <div className="flex flex-wrap gap-2">
+    <div className="mbd:flex mbd:flex-wrap mbd:gap-2">
       <button onClick={onExport} className="btn btn-ghost btn-sm">
-        <ArrowDownTrayIcon className="h-4 w-4" />
+        <ArrowDownTrayIcon className="mbd:h-4 mbd:w-4" />
         <span>Export backup</span>
       </button>
       <button onClick={() => fileInputRef.current?.click()} className="btn btn-ghost btn-sm">
-        <ArrowUpTrayIcon className="h-4 w-4" />
+        <ArrowUpTrayIcon className="mbd:h-4 mbd:w-4" />
         <span>Import backup</span>
       </button>
       <input
@@ -28,11 +28,11 @@ const DataPane: React.FC<DataPaneProps> = ({ onExport, onImportFile, fileInputRe
         type="file"
         accept="application/json,.json"
         onChange={onImportFile}
-        className="hidden"
+        className="mbd:hidden"
       />
     </div>
     {backupNote && (
-      <p aria-live="polite" className="text-[11px] text-(--ink-2)">
+      <p aria-live="polite" className="mbd:text-[11px] mbd:text-(--ink-2)">
         {backupNote}
       </p>
     )}

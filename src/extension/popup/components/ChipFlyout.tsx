@@ -44,7 +44,7 @@ function ChipFlyout<T extends string>({
   };
 
   return (
-    <div ref={ref} className="relative inline-flex">
+    <div ref={ref} className="mbd:relative mbd:inline-flex">
       <FilterChip
         label={active ? valueLabel(value) : triggerLabel}
         active={active}
@@ -59,7 +59,7 @@ function ChipFlyout<T extends string>({
         <div
           id={id}
           role="menu"
-          className="absolute top-full left-0 z-10 mt-1.5 w-44 overflow-hidden rounded-(--radius-sm) border hairline bg-(--panel) py-1 shadow-lg"
+          className="mbd:absolute mbd:top-full mbd:left-0 mbd:z-10 mbd:mt-1.5 mbd:w-44 mbd:overflow-hidden mbd:rounded-(--radius-sm) mbd:border hairline mbd:bg-(--panel) mbd:py-1 mbd:shadow-lg"
         >
           {options.map((opt) => (
             <button
@@ -67,8 +67,8 @@ function ChipFlyout<T extends string>({
               type="button"
               role="menuitem"
               onClick={() => choose(opt.value)}
-              className={`flex w-full items-center px-3 py-1.5 text-left text-[12px] hover:bg-(--panel-2) ${
-                opt.value === value ? 'text-(--ink) font-semibold' : 'text-(--ink-2)'
+              className={`mbd:flex mbd:w-full mbd:items-center mbd:px-3 mbd:py-1.5 mbd:text-left mbd:text-[12px] mbd:hover:bg-(--panel-2) ${
+                opt.value === value ? 'mbd:text-(--ink) mbd:font-semibold' : 'mbd:text-(--ink-2)'
               }`}
             >
               {opt.label}

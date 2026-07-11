@@ -26,7 +26,7 @@ export const SettingsTabs: React.FC<SettingsTabsProps> = ({ tabs, active, onSele
   };
 
   return (
-    <div role="tablist" aria-label="Settings sections" className="flex flex-wrap gap-1.5 border-b hairline px-4 py-2.5">
+    <div role="tablist" aria-label="Settings sections" className="mbd:flex mbd:flex-wrap mbd:gap-1.5 mbd:border-b hairline mbd:px-4 mbd:py-2.5">
       {tabs.map((t, i) => {
         const selected = t.id === active;
         return (

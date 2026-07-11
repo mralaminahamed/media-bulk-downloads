@@ -194,7 +194,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
       {/* Fixed-size thumbnails; a wider panel reflows into more columns rather
           than stretching each image. */}
       <div
-        className="grid justify-center gap-2.5"
+        className="mbd:grid mbd:justify-center mbd:gap-2.5"
         style={{ gridTemplateColumns: `repeat(auto-fill, ${thumbnailSize}px)` }}
       >
         {images.map((image, index) => {
@@ -208,18 +208,18 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
           return (
           <figure
             key={image.src}
-            className={`card reveal group m-0 ${isSelected ? 'ring-2 ring-(--brand-ink)' : ''}`}
+            className={`card reveal mbd:group mbd:m-0 ${isSelected ? 'mbd:ring-2 mbd:ring-(--brand-ink)' : ''}`}
             style={{ animationDelay: `${Math.min(index, 12) * 0.022}s` }}
           >
-            <div className="checker relative aspect-square">
+            <div className="checker mbd:relative mbd:aspect-square">
               {selectable && (
                 <SelectCheckbox
                   checked={isSelected}
                   onClick={(e) => handleCheckbox(e, image, index)}
                   ariaLabel={isSelected ? 'Deselect item' : 'Select item'}
                   title={isSelected ? 'Deselect item' : 'Select item'}
-                  className={`absolute left-1.5 top-1.5 z-10 ${
-                    boxUp ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
+                  className={`mbd:absolute mbd:left-1.5 mbd:top-1.5 mbd:z-10 ${
+                    boxUp ? 'mbd:opacity-100' : 'mbd:opacity-0 mbd:group-hover:opacity-100 mbd:focus-visible:opacity-100'
                   }`}
                 />
               )}
@@ -229,13 +229,13 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                   src={image.thumbnailSrc ?? image.src}
                   alt={image.alt}
                   lazy
-                  className="h-full w-full object-cover"
+                  className="mbd:h-full mbd:w-full mbd:object-cover"
                 />
               ) : isPendingImage(image) ? (
                 // No real thumbnail exists yet (src is an x.com status URL, not an
                 // image) — never point an <img> at it; show a neutral icon instead.
-                <div className="grid h-full w-full place-items-center bg-(--panel-2)">
-                  <PhotoIcon className="h-8 w-8 text-(--ink-3)" />
+                <div className="mbd:grid mbd:h-full mbd:w-full mbd:place-items-center mbd:bg-(--panel-2)">
+                  <PhotoIcon className="mbd:h-8 mbd:w-8 mbd:text-(--ink-3)" />
                 </div>
               ) : image.kind === 'video' && image.poster ? (
                 <>
@@ -244,28 +244,28 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                     src={image.poster}
                     alt={image.alt}
                     lazy
-                    className="h-full w-full object-cover"
+                    className="mbd:h-full mbd:w-full mbd:object-cover"
                   />
-                  <PlayBadge className="pointer-events-none absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-white drop-shadow" />
+                  <PlayBadge className="mbd:pointer-events-none mbd:absolute mbd:left-1/2 mbd:top-1/2 mbd:h-8 mbd:w-8 mbd:-translate-x-1/2 mbd:-translate-y-1/2 mbd:text-white mbd:drop-shadow" />
                 </>
               ) : image.kind === 'video' ? (
-                <div className="grid h-full w-full place-items-center bg-(--panel-2)">
-                  <FilmIcon className="h-8 w-8 text-(--ink-3)" />
+                <div className="mbd:grid mbd:h-full mbd:w-full mbd:place-items-center mbd:bg-(--panel-2)">
+                  <FilmIcon className="mbd:h-8 mbd:w-8 mbd:text-(--ink-3)" />
                 </div>
               ) : (
-                <div className="grid h-full w-full place-items-center bg-(--panel-2)">
-                  <AudioIcon className="h-8 w-8 text-(--ink-3)" />
+                <div className="mbd:grid mbd:h-full mbd:w-full mbd:place-items-center mbd:bg-(--panel-2)">
+                  <AudioIcon className="mbd:h-8 mbd:w-8 mbd:text-(--ink-3)" />
                 </div>
               )}
 
               {/* Type tag — shares the top-left slot with the select checkbox,
                   so it fades out whenever the checkbox is shown. */}
-              <span className={`eyebrow absolute left-1.5 top-1.5 rounded-xs bg-(--panel)/85 px-1.5 py-0.5 text-[9px] leading-none text-(--ink) backdrop-blur-sm ${boxUp ? 'opacity-0' : selectable ? 'group-hover:opacity-0' : ''}`}>
+              <span className={`eyebrow mbd:absolute mbd:left-1.5 mbd:top-1.5 mbd:rounded-xs mbd:bg-(--panel)/85 mbd:px-1.5 mbd:py-0.5 mbd:text-[9px] mbd:leading-none mbd:text-(--ink) mbd:backdrop-blur-sm ${boxUp ? 'mbd:opacity-0' : selectable ? 'mbd:group-hover:opacity-0' : ''}`}>
                 {typeLabel(image)}
               </span>
 
               {(isPendingVideo(image) || isPendingImage(image)) && (
-                <span className="eyebrow absolute bottom-1.5 left-1.5 rounded-xs bg-(--panel)/85 px-1.5 py-0.5 text-[9px] leading-none text-(--ink) backdrop-blur-sm">
+                <span className="eyebrow mbd:absolute mbd:bottom-1.5 mbd:left-1.5 mbd:rounded-xs mbd:bg-(--panel)/85 mbd:px-1.5 mbd:py-0.5 mbd:text-[9px] mbd:leading-none mbd:text-(--ink) mbd:backdrop-blur-sm">
                   {resolveFailedSrcs?.has(image.src) ? "couldn't fetch"
                     : image.resolveHint ? 'not fetched'
                     : isPendingReel(image) ? 'play to fetch'
@@ -274,18 +274,18 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
               )}
 
               {isHlsStream(image) && (
-                <span className="eyebrow absolute bottom-1.5 left-1.5 rounded-xs bg-(--panel)/85 px-1.5 py-0.5 text-[9px] leading-none text-(--ink) backdrop-blur-sm">
+                <span className="eyebrow mbd:absolute mbd:bottom-1.5 mbd:left-1.5 mbd:rounded-xs mbd:bg-(--panel)/85 mbd:px-1.5 mbd:py-0.5 mbd:text-[9px] mbd:leading-none mbd:text-(--ink) mbd:backdrop-blur-sm">
                   HLS · capture
                 </span>
               )}
 
               {downloadedSrcs?.has(image.src) && (
                 <span
-                  className="absolute right-1.5 top-1.5 grid h-4 w-4 place-items-center rounded-full bg-(--brand-ink) text-white ring-1 ring-(--ctl-ring)"
+                  className="mbd:absolute mbd:right-1.5 mbd:top-1.5 mbd:grid mbd:h-4 mbd:w-4 mbd:place-items-center mbd:rounded-full mbd:bg-(--brand-ink) mbd:text-white mbd:ring-1 mbd:ring-(--ctl-ring)"
                   title="Downloaded"
                   aria-label="Downloaded"
                 >
-                  <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" className="mbd:h-3 mbd:w-3" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M20 6 9 17l-5-5" />
                   </svg>
                 </span>
@@ -293,24 +293,24 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
 
               {favouriteSrcs?.has(image.src) && (
                 <span
-                  className="absolute bottom-1.5 right-1.5 grid h-4 w-4 place-items-center rounded-full bg-(--panel)/85 text-(--brand-ink) ring-1 ring-(--ctl-ring) backdrop-blur-sm"
+                  className="mbd:absolute mbd:bottom-1.5 mbd:right-1.5 mbd:grid mbd:h-4 mbd:w-4 mbd:place-items-center mbd:rounded-full mbd:bg-(--panel)/85 mbd:text-(--brand-ink) mbd:ring-1 mbd:ring-(--ctl-ring) mbd:backdrop-blur-sm"
                   title="Favourited"
                   aria-label="Favourited"
                 >
-                  <StarIconSolid className="h-3 w-3" aria-hidden="true" />
+                  <StarIconSolid className="mbd:h-3 mbd:w-3" aria-hidden="true" />
                 </span>
               )}
 
               {/* Hover / focus actions — also revealed on keyboard focus-within so
                   the buttons aren't mouse-only. */}
-              <div className="absolute inset-0 flex items-center justify-center gap-2 bg-transparent opacity-0 transition-all duration-150 group-hover:bg-(--scrim) group-hover:opacity-100 group-focus-within:bg-(--scrim) group-focus-within:opacity-100">
+              <div className="mbd:absolute mbd:inset-0 mbd:flex mbd:items-center mbd:justify-center mbd:gap-2 mbd:bg-transparent mbd:opacity-0 mbd:transition-all mbd:duration-150 mbd:group-hover:bg-(--scrim) mbd:group-hover:opacity-100 mbd:group-focus-within:bg-(--scrim) mbd:group-focus-within:opacity-100">
                 <button
                   onClick={() => setSelectedSrc(image.src)}
                   title="View Details"
                   aria-label="View Details"
-                  className="grid h-8 w-8 place-items-center rounded-full bg-(--panel) text-(--ink) ring-1 ring-(--ctl-ring) transition-transform hover:scale-105 active:scale-95"
+                  className="mbd:grid mbd:h-8 mbd:w-8 mbd:place-items-center mbd:rounded-full mbd:bg-(--panel) mbd:text-(--ink) mbd:ring-1 mbd:ring-(--ctl-ring) mbd:transition-transform mbd:hover:scale-105 mbd:active:scale-95"
                 >
-                  <EyeIcon className="h-4 w-4" />
+                  <EyeIcon className="mbd:h-4 mbd:w-4" />
                 </button>
                 {/* A pending item's `src` is a placeholder (x.com status URL / not-yet-
                     fetched video), not a real file — favouriting it would store that
@@ -322,11 +322,11 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                     title={favouriteSrcs?.has(image.src) ? 'Remove favourite' : 'Add favourite'}
                     aria-label={favouriteSrcs?.has(image.src) ? 'Remove favourite' : 'Add favourite'}
                     aria-pressed={favouriteSrcs?.has(image.src) ?? false}
-                    className="grid h-8 w-8 place-items-center rounded-full bg-(--panel) text-(--ink) ring-1 ring-(--ctl-ring) transition-transform hover:scale-105 active:scale-95"
+                    className="mbd:grid mbd:h-8 mbd:w-8 mbd:place-items-center mbd:rounded-full mbd:bg-(--panel) mbd:text-(--ink) mbd:ring-1 mbd:ring-(--ctl-ring) mbd:transition-transform mbd:hover:scale-105 mbd:active:scale-95"
                   >
                     {favouriteSrcs?.has(image.src)
-                      ? <StarIconSolid className="h-4 w-4 text-(--brand-ink)" />
-                      : <StarIcon className="h-4 w-4" />}
+                      ? <StarIconSolid className="mbd:h-4 mbd:w-4 mbd:text-(--brand-ink)" />
+                      : <StarIcon className="mbd:h-4 mbd:w-4" />}
                   </button>
                 )}
                 {isPendingVideo(image) ? (
@@ -336,13 +336,13 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                       disabled={fetchingSrcs?.has(image.src)}
                       title={resolveFailedSrcs?.has(image.src) ? 'Retry video' : 'Get video'}
                       aria-label={resolveFailedSrcs?.has(image.src) ? 'Retry video' : 'Get video'}
-                      className="grid h-8 w-8 place-items-center rounded-full bg-(--brand-ink) text-white ring-1 ring-(--ctl-ring) transition-transform hover:scale-105 active:scale-95 disabled:opacity-60"
+                      className="mbd:grid mbd:h-8 mbd:w-8 mbd:place-items-center mbd:rounded-full mbd:bg-(--brand-ink) mbd:text-white mbd:ring-1 mbd:ring-(--ctl-ring) mbd:transition-transform mbd:hover:scale-105 mbd:active:scale-95 mbd:disabled:opacity-60"
                     >
                       {fetchingSrcs?.has(image.src)
-                        ? <ArrowPathIcon className="h-4 w-4 animate-[spin_0.9s_linear_infinite]" />
+                        ? <ArrowPathIcon className="mbd:h-4 mbd:w-4 mbd:animate-[spin_0.9s_linear_infinite]" />
                         : resolveFailedSrcs?.has(image.src)
-                          ? <ArrowPathIcon className="h-4 w-4" />
-                          : <ArrowDownTrayIcon className="h-4 w-4" />}
+                          ? <ArrowPathIcon className="mbd:h-4 mbd:w-4" />
+                          : <ArrowDownTrayIcon className="mbd:h-4 mbd:w-4" />}
                     </button>
                   ) : null
                 ) : isPendingImage(image) ? null : (
@@ -350,20 +350,20 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                     onClick={() => onImageDownload(image)}
                     title={isHlsStream(image) ? 'Capture stream' : 'Download'}
                     aria-label={isHlsStream(image) ? 'Capture stream' : 'Download'}
-                    className="grid h-8 w-8 place-items-center rounded-full bg-(--brand-ink) text-white ring-1 ring-(--ctl-ring) transition-transform hover:scale-105 active:scale-95"
+                    className="mbd:grid mbd:h-8 mbd:w-8 mbd:place-items-center mbd:rounded-full mbd:bg-(--brand-ink) mbd:text-white mbd:ring-1 mbd:ring-(--ctl-ring) mbd:transition-transform mbd:hover:scale-105 mbd:active:scale-95"
                   >
-                    <ArrowDownTrayIcon className="h-4 w-4" />
+                    <ArrowDownTrayIcon className="mbd:h-4 mbd:w-4" />
                   </button>
                 )}
               </div>
             </div>
 
-            <figcaption className="flex items-center justify-between gap-1 px-2 py-1.5">
-              <span className="num truncate text-[10px] text-(--ink-2)">
+            <figcaption className="mbd:flex mbd:items-center mbd:justify-between mbd:gap-1 mbd:px-2 mbd:py-1.5">
+              <span className="num mbd:truncate mbd:text-[10px] mbd:text-(--ink-2)">
                 {image.kind !== 'image' ? image.type.toUpperCase()
                   : image.width > 0 ? `${image.width}×${image.height}` : '—'}
               </span>
-              <span className="num text-[10px] text-(--ink-2)">{formatFileSize(image.fileSize)}</span>
+              <span className="num mbd:text-[10px] mbd:text-(--ink-2)">{formatFileSize(image.fileSize)}</span>
             </figcaption>
           </figure>
           );
@@ -372,7 +372,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
 
       {selectedImage && (
         <div
-          className="overlay-in fixed inset-0 z-50 flex items-center justify-center bg-(--overlay) p-4 backdrop-blur-[2px]"
+          className="overlay-in mbd:fixed mbd:inset-0 mbd:z-50 mbd:flex mbd:items-center mbd:justify-center mbd:bg-(--overlay) mbd:p-4 mbd:backdrop-blur-[2px]"
           onClick={close}
         >
           <div
@@ -381,20 +381,20 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
             aria-modal="true"
             aria-labelledby="preview-title"
             tabIndex={-1}
-            className="sheet-in flex max-h-full w-full flex-col overflow-hidden rounded-lg border hairline bg-(--panel) shadow-2xl focus:outline-none"
+            className="sheet-in mbd:flex mbd:max-h-full mbd:w-full mbd:flex-col mbd:overflow-hidden mbd:rounded-lg mbd:border hairline mbd:bg-(--panel) mbd:shadow-2xl mbd:focus:outline-none"
             style={{ maxWidth: Math.max(320, previewSize) }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between gap-2 border-b hairline px-4 py-2.5">
-              <div className="flex items-center gap-2">
-                <h3 id="preview-title" className="text-[13px] font-semibold text-(--ink)">Preview</h3>
+            <div className="mbd:flex mbd:items-center mbd:justify-between mbd:gap-2 mbd:border-b hairline mbd:px-4 mbd:py-2.5">
+              <div className="mbd:flex mbd:items-center mbd:gap-2">
+                <h3 id="preview-title" className="mbd:text-[13px] mbd:font-semibold mbd:text-(--ink)">Preview</h3>
                 {selectedIndex !== null && (
-                  <span className="num text-[11px] text-(--ink-3)">
+                  <span className="num mbd:text-[11px] mbd:text-(--ink-3)">
                     {selectedIndex + 1} / {images.length}
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-0.5">
+              <div className="mbd:flex mbd:items-center mbd:gap-0.5">
                 {/* Same placeholder-leak guard as the grid tile's favourite button. */}
                 {onToggleFavourite && !(isPendingImage(selectedImage) || isPendingVideo(selectedImage)) && (
                   <button
@@ -405,12 +405,12 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                     className="iconbtn"
                   >
                     {favouriteSrcs?.has(selectedImage.src)
-                      ? <StarIconSolid className="h-4.5 w-4.5 text-(--brand-ink)" />
-                      : <StarIcon className="h-4.5 w-4.5" />}
+                      ? <StarIconSolid className="mbd:h-4.5 mbd:w-4.5 mbd:text-(--brand-ink)" />
+                      : <StarIcon className="mbd:h-4.5 mbd:w-4.5" />}
                   </button>
                 )}
                 {onExclude && (
-                  <div ref={excludeMenuRef} className="relative">
+                  <div ref={excludeMenuRef} className="mbd:relative">
                     <button
                       onClick={() => setExcludeMenuOpen((v) => !v)}
                       title="Exclude source"
@@ -419,7 +419,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                       aria-expanded={excludeMenuOpen}
                       className="iconbtn"
                     >
-                      <NoSymbolIcon className="h-4.5 w-4.5" />
+                      <NoSymbolIcon className="mbd:h-4.5 mbd:w-4.5" />
                     </button>
                     {excludeMenuOpen && (
                       <div
@@ -427,30 +427,30 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                         role="menu"
                         aria-orientation="vertical"
                         onKeyDown={onExcludeMenuKeyDown}
-                        className="absolute right-0 top-full z-20 mt-1.5 w-60 overflow-hidden rounded-(--radius-sm) border hairline bg-(--panel) py-1 text-left shadow-lg"
+                        className="mbd:absolute mbd:right-0 mbd:top-full mbd:z-20 mbd:mt-1.5 mbd:w-60 mbd:overflow-hidden mbd:rounded-(--radius-sm) mbd:border hairline mbd:bg-(--panel) mbd:py-1 mbd:text-left mbd:shadow-lg"
                       >
-                        <p className="eyebrow px-3 pb-1 pt-0.5 text-(--ink-3)">Add to blocklist</p>
+                        <p className="eyebrow mbd:px-3 mbd:pb-1 mbd:pt-0.5 mbd:text-(--ink-3)">Add to blocklist</p>
                         <button
                           role="menuitem"
                           // Close the preview after excluding — the shown image is about to be
                           // filtered out of `images`, so closing is deterministic; leaving the
                           // modal open would silently reindex it to a neighbour.
                           onClick={() => { onExclude(selectedImage, 'url'); close(); }}
-                          className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-(--ink) hover:bg-(--panel-2) focus:bg-(--panel-2) focus:outline-none"
+                          className="mbd:flex mbd:w-full mbd:items-center mbd:gap-2.5 mbd:px-3 mbd:py-2 mbd:text-left mbd:text-[13px] mbd:text-(--ink) mbd:hover:bg-(--panel-2) mbd:focus:bg-(--panel-2) mbd:focus:outline-none"
                         >
-                          <NoSymbolIcon className="h-4 w-4 shrink-0 text-(--ink-2)" />
+                          <NoSymbolIcon className="mbd:h-4 mbd:w-4 mbd:shrink-0 mbd:text-(--ink-2)" />
                           <span>Exclude this image</span>
                         </button>
                         {registrableDomain(hostFromUrl(selectedImage.src)) !== '' && (
                           <button
                             role="menuitem"
                             onClick={() => { onExclude(selectedImage, 'host'); close(); }}
-                            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-(--ink) hover:bg-(--panel-2) focus:bg-(--panel-2) focus:outline-none"
+                            className="mbd:flex mbd:w-full mbd:items-center mbd:gap-2.5 mbd:px-3 mbd:py-2 mbd:text-left mbd:text-(--ink) mbd:hover:bg-(--panel-2) mbd:focus:bg-(--panel-2) mbd:focus:outline-none"
                           >
-                            <GlobeAltIcon className="h-4 w-4 shrink-0 text-(--ink-2)" />
-                            <span className="min-w-0 flex-1">
-                              <span className="block text-[13px] leading-tight">Exclude site</span>
-                              <span className="block truncate text-[11px] leading-tight text-(--ink-3)">{registrableDomain(hostFromUrl(selectedImage.src))}</span>
+                            <GlobeAltIcon className="mbd:h-4 mbd:w-4 mbd:shrink-0 mbd:text-(--ink-2)" />
+                            <span className="mbd:min-w-0 mbd:flex-1">
+                              <span className="mbd:block mbd:text-[13px] mbd:leading-tight">Exclude site</span>
+                              <span className="mbd:block mbd:truncate mbd:text-[11px] mbd:leading-tight mbd:text-(--ink-3)">{registrableDomain(hostFromUrl(selectedImage.src))}</span>
                             </span>
                           </button>
                         )}
@@ -466,17 +466,17 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                   title="Open in new tab"
                   aria-label="Open in new tab"
                 >
-                  <ArrowTopRightOnSquareIcon className="h-4.5 w-4.5" />
+                  <ArrowTopRightOnSquareIcon className="mbd:h-4.5 mbd:w-4.5" />
                 </a>
                 <button onClick={close} title="Close" aria-label="Close" className="iconbtn">
-                  <XMarkIcon className="h-4.5 w-4.5" />
+                  <XMarkIcon className="mbd:h-4.5 mbd:w-4.5" />
                 </button>
               </div>
             </div>
 
-            <div className="scroll-thin overflow-y-auto p-4">
+            <div className="scroll-thin mbd:overflow-y-auto mbd:p-4">
               <div
-                className="checker relative flex items-center justify-center overflow-hidden rounded-sm border hairline"
+                className="checker mbd:relative mbd:flex mbd:items-center mbd:justify-center mbd:overflow-hidden mbd:rounded-sm mbd:border hairline"
                 style={{ minHeight: Math.min(previewSize, 160) }}
               >
                 {isPendingVideo(selectedImage) ? (
@@ -491,19 +491,19 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                       key={selectedImage.poster}
                       src={selectedImage.poster}
                       alt={selectedImage.alt}
-                      className="mx-auto w-full object-contain"
+                      className="mbd:mx-auto mbd:w-full mbd:object-contain"
                       style={{ maxHeight: previewSize }}
                     />
                   ) : (
-                    <div className="grid place-items-center p-10">
-                      <FilmIcon className="h-12 w-12 text-(--ink-3)" />
+                    <div className="mbd:grid mbd:place-items-center mbd:p-10">
+                      <FilmIcon className="mbd:h-12 mbd:w-12 mbd:text-(--ink-3)" />
                     </div>
                   )
                 ) : isPendingImage(selectedImage) ? (
                   // No poster exists for a pending image (unlike pending video) — degrade
                   // to a neutral icon rather than pointing an <img> at the status URL.
-                  <div className="grid place-items-center p-10">
-                    <PhotoIcon className="h-12 w-12 text-(--ink-3)" />
+                  <div className="mbd:grid mbd:place-items-center mbd:p-10">
+                    <PhotoIcon className="mbd:h-12 mbd:w-12 mbd:text-(--ink-3)" />
                   </div>
                 ) : isHlsStream(selectedImage) ? (
                   // An HLS manifest can't play in a bare <video>; show the poster
@@ -513,12 +513,12 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                       key={selectedImage.poster}
                       src={selectedImage.poster}
                       alt={selectedImage.alt}
-                      className="mx-auto w-full object-contain"
+                      className="mbd:mx-auto mbd:w-full mbd:object-contain"
                       style={{ maxHeight: previewSize }}
                     />
                   ) : (
-                    <div className="grid place-items-center p-10">
-                      <FilmIcon className="h-12 w-12 text-(--ink-3)" />
+                    <div className="mbd:grid mbd:place-items-center mbd:p-10">
+                      <FilmIcon className="mbd:h-12 mbd:w-12 mbd:text-(--ink-3)" />
                     </div>
                   )
                 ) : selectedImage.kind === 'video' ? (
@@ -527,20 +527,20 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                     src={selectedImage.src}
                     poster={selectedImage.poster}
                     controls
-                    className="mx-auto w-full"
+                    className="mbd:mx-auto mbd:w-full"
                     style={{ maxHeight: previewSize }}
                   />
                 ) : selectedImage.kind === 'audio' ? (
-                  <div className="flex flex-col items-center gap-3 p-6">
-                    <AudioIcon className="h-12 w-12 text-(--ink-3)" />
-                    <audio key={selectedImage.src} src={selectedImage.src} controls className="w-full" />
+                  <div className="mbd:flex mbd:flex-col mbd:items-center mbd:gap-3 mbd:p-6">
+                    <AudioIcon className="mbd:h-12 mbd:w-12 mbd:text-(--ink-3)" />
+                    <audio key={selectedImage.src} src={selectedImage.src} controls className="mbd:w-full" />
                   </div>
                 ) : (
                   <LoadingImage
                     key={selectedImage.src}
                     src={selectedImage.src}
                     alt={selectedImage.alt}
-                    className="mx-auto w-full object-contain"
+                    className="mbd:mx-auto mbd:w-full mbd:object-contain"
                     style={{ maxHeight: previewSize }}
                   />
                 )}
@@ -551,9 +551,9 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                     onClick={goPrev}
                     title="Previous image"
                     aria-label="Previous image"
-                    className="absolute left-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-(--panel)/90 text-(--ink) ring-1 ring-(--ctl-ring) backdrop-blur-sm transition-transform hover:scale-105 active:scale-95"
+                    className="mbd:absolute mbd:left-2 mbd:top-1/2 mbd:grid mbd:h-8 mbd:w-8 mbd:-translate-y-1/2 mbd:place-items-center mbd:rounded-full mbd:bg-(--panel)/90 mbd:text-(--ink) mbd:ring-1 mbd:ring-(--ctl-ring) mbd:backdrop-blur-sm mbd:transition-transform mbd:hover:scale-105 mbd:active:scale-95"
                   >
-                    <ChevronLeftIcon className="h-5 w-5" />
+                    <ChevronLeftIcon className="mbd:h-5 mbd:w-5" />
                   </button>
                 )}
                 {hasNext && (
@@ -561,68 +561,68 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                     onClick={goNext}
                     title="Next image"
                     aria-label="Next image"
-                    className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-(--panel)/90 text-(--ink) ring-1 ring-(--ctl-ring) backdrop-blur-sm transition-transform hover:scale-105 active:scale-95"
+                    className="mbd:absolute mbd:right-2 mbd:top-1/2 mbd:grid mbd:h-8 mbd:w-8 mbd:-translate-y-1/2 mbd:place-items-center mbd:rounded-full mbd:bg-(--panel)/90 mbd:text-(--ink) mbd:ring-1 mbd:ring-(--ctl-ring) mbd:backdrop-blur-sm mbd:transition-transform mbd:hover:scale-105 mbd:active:scale-95"
                   >
-                    <ChevronRightIcon className="h-5 w-5" />
+                    <ChevronRightIcon className="mbd:h-5 mbd:w-5" />
                   </button>
                 )}
               </div>
 
-              <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[12px]">
+              <dl className="mbd:mt-3 mbd:grid mbd:grid-cols-[auto_1fr] mbd:gap-x-4 mbd:gap-y-1.5 mbd:text-[12px]">
                 {selectedImage.alt && (
                   <>
-                    <dt className="eyebrow self-center">Alt</dt>
-                    <dd className="truncate text-(--ink)">{selectedImage.alt}</dd>
+                    <dt className="eyebrow mbd:self-center">Alt</dt>
+                    <dd className="mbd:truncate mbd:text-(--ink)">{selectedImage.alt}</dd>
                   </>
                 )}
-                <dt className="eyebrow self-center">Size</dt>
-                <dd className="num text-(--ink)">
+                <dt className="eyebrow mbd:self-center">Size</dt>
+                <dd className="num mbd:text-(--ink)">
                   {selectedImage.kind !== 'image' ? '—' : selectedImage.width > 0 ? `${selectedImage.width} × ${selectedImage.height}` : 'Unknown'} · {formatFileSize(selectedImage.fileSize)}
                 </dd>
-                <dt className="eyebrow self-center">Type</dt>
-                <dd className="text-(--ink)">
+                <dt className="eyebrow mbd:self-center">Type</dt>
+                <dd className="mbd:text-(--ink)">
                   {selectedImage.type.toUpperCase()}
                   {selectedImage.isBase64 ? ' · Base64' : ''}
                 </dd>
-                <dt className="eyebrow self-center">Kind</dt>
-                <dd className="text-(--ink)">{selectedImage.kind}</dd>
-                <dt className="eyebrow self-start pt-0.5">Source</dt>
-                <dd className="num break-all text-[11px] text-(--ink-2)">{selectedImage.src}</dd>
+                <dt className="eyebrow mbd:self-center">Kind</dt>
+                <dd className="mbd:text-(--ink)">{selectedImage.kind}</dd>
+                <dt className="eyebrow mbd:self-start mbd:pt-0.5">Source</dt>
+                <dd className="num mbd:break-all mbd:text-[11px] mbd:text-(--ink-2)">{selectedImage.src}</dd>
               </dl>
             </div>
 
-            <div className="border-t hairline px-4 py-2.5">
+            <div className="mbd:border-t hairline mbd:px-4 mbd:py-2.5">
               {isPendingVideo(selectedImage) ? (
                 selectedImage.resolveHint ? (
                   <button
                     onClick={() => onFetchVideo?.(selectedImage)}
                     disabled={fetchingSrcs?.has(selectedImage.src)}
-                    className="btn btn-primary w-full disabled:opacity-60"
+                    className="btn btn-primary mbd:w-full mbd:disabled:opacity-60"
                   >
                     {fetchingSrcs?.has(selectedImage.src) ? (
                       <>
-                        <ArrowPathIcon className="h-4 w-4 animate-[spin_0.9s_linear_infinite]" />
+                        <ArrowPathIcon className="mbd:h-4 mbd:w-4 mbd:animate-[spin_0.9s_linear_infinite]" />
                         <span>Fetching…</span>
                       </>
                     ) : (
                       <>
-                        <ArrowDownTrayIcon className="h-4 w-4" />
+                        <ArrowDownTrayIcon className="mbd:h-4 mbd:w-4" />
                         <span>{resolveFailedSrcs?.has(selectedImage.src) ? "Couldn't fetch — retry" : 'Get video'}</span>
                       </>
                     )}
                   </button>
                 ) : isPendingReel(selectedImage) ? (
-                  <p className="text-center text-[12px] text-(--ink-2)">Play this reel on Instagram, then rescan — its video will be downloadable.</p>
+                  <p className="mbd:text-center mbd:text-[12px] mbd:text-(--ink-2)">Play this reel on Instagram, then rescan — its video will be downloadable.</p>
                 ) : (
-                  <p className="text-center text-[12px] text-(--ink-2)">{"This video's file can't be fetched."}</p>
+                  <p className="mbd:text-center mbd:text-[12px] mbd:text-(--ink-2)">{"This video's file can't be fetched."}</p>
                 )
               ) : isPendingImage(selectedImage) ? (
-                <p className="text-center text-[12px] text-(--ink-2)">
+                <p className="mbd:text-center mbd:text-[12px] mbd:text-(--ink-2)">
                   This image hasn&apos;t been fetched yet — turn on &ldquo;Resolve exact originals&rdquo; in Settings to load it automatically.
                 </p>
               ) : (
-                <button onClick={() => onImageDownload(selectedImage)} title={isHlsStream(selectedImage) ? 'Capture stream' : 'Download'} aria-label={isHlsStream(selectedImage) ? 'Capture stream' : 'Download'} className="btn btn-primary w-full">
-                  <ArrowDownTrayIcon className="h-4 w-4" />
+                <button onClick={() => onImageDownload(selectedImage)} title={isHlsStream(selectedImage) ? 'Capture stream' : 'Download'} aria-label={isHlsStream(selectedImage) ? 'Capture stream' : 'Download'} className="btn btn-primary mbd:w-full">
+                  <ArrowDownTrayIcon className="mbd:h-4 mbd:w-4" />
                   <span>{isHlsStream(selectedImage) ? 'Capture stream' : 'Download'}</span>
                 </button>
               )}

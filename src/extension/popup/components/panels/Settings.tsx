@@ -142,7 +142,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
 
   return (
     <div
-      className="overlay-in fixed inset-0 z-50 flex items-stretch justify-end bg-(--overlay) backdrop-blur-[2px]"
+      className="overlay-in mbd:fixed mbd:inset-0 mbd:z-50 mbd:flex mbd:items-stretch mbd:justify-end mbd:bg-(--overlay) mbd:backdrop-blur-[2px]"
       onClick={onClose}
     >
       <div
@@ -151,23 +151,23 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
         aria-modal="true"
         aria-labelledby="settings-title"
         tabIndex={-1}
-        className="sheet-in flex h-full w-full max-w-95 flex-col bg-(--panel) shadow-2xl focus:outline-none"
+        className="sheet-in mbd:flex mbd:h-full mbd:w-full mbd:max-w-95 mbd:flex-col mbd:bg-(--panel) mbd:shadow-2xl mbd:focus:outline-none"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="dotgrid flex items-center justify-between border-b hairline px-4 py-3">
+        <header className="dotgrid mbd:flex mbd:items-center mbd:justify-between mbd:border-b hairline mbd:px-4 mbd:py-3">
           <div>
-            <h2 id="settings-title" className="text-[13px] font-semibold text-(--ink)">
+            <h2 id="settings-title" className="mbd:text-[13px] mbd:font-semibold mbd:text-(--ink)">
               Settings
             </h2>
-            <p className="eyebrow mt-0.5">Preferences</p>
+            <p className="eyebrow mbd:mt-0.5">Preferences</p>
           </div>
           <button onClick={onClose} className="iconbtn" title="Close" aria-label="Close">
-            <XMarkIcon className="h-4.5 w-4.5" />
+            <XMarkIcon className="mbd:h-4.5 mbd:w-4.5" />
           </button>
         </header>
 
         <SettingsTabs tabs={TABS} active={activeTab} onSelect={setActiveTab} />
-        <div className="scroll-thin flex-1 overflow-y-auto px-4 py-4">
+        <div className="scroll-thin mbd:flex-1 mbd:overflow-y-auto mbd:px-4 mbd:py-4">
           {activeTab === 'downloads' && (
             <DownloadsPane
               settings={settings}
@@ -211,11 +211,11 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
           )}
         </div>
 
-        <footer className="flex items-center justify-between gap-2 border-t hairline px-4 py-3">
-          <span aria-live="polite" className="text-[11px] text-(--ink-3)">
+        <footer className="mbd:flex mbd:items-center mbd:justify-between mbd:gap-2 mbd:border-t hairline mbd:px-4 mbd:py-3">
+          <span aria-live="polite" className="mbd:text-[11px] mbd:text-(--ink-3)">
             {dirty ? 'Unsaved changes' : ''}
           </span>
-          <div className="flex gap-2">
+          <div className="mbd:flex mbd:gap-2">
             <button onClick={onClose} className="btn btn-ghost">
               Cancel
             </button>

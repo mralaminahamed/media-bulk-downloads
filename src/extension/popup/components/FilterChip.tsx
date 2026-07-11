@@ -18,17 +18,17 @@ interface FilterChipProps {
 const FilterChip: React.FC<FilterChipProps> = ({
   label, active, onOpen, onClear, clearLabel, showChevron, expanded, controls,
 }) => (
-  <span className="inline-flex items-center">
+  <span className="mbd:inline-flex mbd:items-center">
     <button
       type="button"
       onClick={onOpen}
       aria-expanded={expanded}
       aria-controls={controls}
-      className={`chip shrink-0 ${active ? 'is-active' : ''}`}
+      className={`chip mbd:shrink-0 ${active ? 'is-active' : ''}`}
       style={{ height: 28 }}
     >
       {label}
-      {showChevron && <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} />}
+      {showChevron && <ChevronDownIcon className={`mbd:h-3.5 mbd:w-3.5 mbd:transition-transform ${expanded ? 'mbd:rotate-180' : ''}`} />}
     </button>
     {active && onClear && (
       <button
@@ -36,9 +36,9 @@ const FilterChip: React.FC<FilterChipProps> = ({
         onClick={onClear}
         aria-label={clearLabel}
         title={clearLabel}
-        className="iconbtn iconbtn-sm -ml-1 shrink-0"
+        className="iconbtn iconbtn-sm mbd:-ml-1 mbd:shrink-0"
       >
-        <XMarkIcon className="h-3.5 w-3.5" />
+        <XMarkIcon className="mbd:h-3.5 mbd:w-3.5" />
       </button>
     )}
   </span>

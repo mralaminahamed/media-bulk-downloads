@@ -55,7 +55,7 @@ export const DownloadButton: React.FC<DownloadButtonProps> = ({ label, count, di
   };
 
   return (
-    <div ref={ref} className="relative flex-none">
+    <div ref={ref} className="mbd:relative mbd:flex-none">
       <div className="btn-group">
         <button
           onClick={onDownload}
@@ -66,7 +66,7 @@ export const DownloadButton: React.FC<DownloadButtonProps> = ({ label, count, di
           // name out here — otherwise it reads as "Download5" with no space.
           aria-label={count != null ? `${label} ${count}` : label}
         >
-          <ArrowDownTrayIcon className="h-4 w-4" />
+          <ArrowDownTrayIcon className="mbd:h-4 mbd:w-4" />
           <span>{label}</span>
           {count != null && <span className="countpill">{count}</span>}
         </button>
@@ -77,59 +77,59 @@ export const DownloadButton: React.FC<DownloadButtonProps> = ({ label, count, di
           aria-expanded={open}
           aria-label="More download options"
           title="More download options"
-          className="btn btn-primary px-2"
+          className="btn btn-primary mbd:px-2"
         >
-          <ChevronDownIcon className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+          <ChevronDownIcon className={`mbd:h-4 mbd:w-4 mbd:transition-transform ${open ? 'mbd:rotate-180' : ''}`} />
         </button>
       </div>
 
       {open && (
         <div
           role="menu"
-          className="absolute right-0 bottom-full mb-1.5 w-56 overflow-hidden rounded-(--radius-sm) border hairline bg-(--panel) py-1 shadow-lg"
+          className="mbd:absolute mbd:right-0 mbd:bottom-full mbd:mb-1.5 mbd:w-56 mbd:overflow-hidden mbd:rounded-(--radius-sm) mbd:border hairline mbd:bg-(--panel) mbd:py-1 mbd:shadow-lg"
         >
           <button
             role="menuitem"
             onClick={choose(onDownload)}
-            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-(--ink) hover:bg-(--panel-2)"
+            className="mbd:flex mbd:w-full mbd:items-center mbd:gap-2.5 mbd:px-3 mbd:py-2 mbd:text-left mbd:text-[13px] mbd:text-(--ink) mbd:hover:bg-(--panel-2)"
           >
-            <ArrowDownTrayIcon className="h-4 w-4 shrink-0 text-(--ink-2)" />
+            <ArrowDownTrayIcon className="mbd:h-4 mbd:w-4 mbd:shrink-0 mbd:text-(--ink-2)" />
             <span>As separate files</span>
           </button>
           <button
             role="menuitem"
             onClick={choose(onZip)}
-            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-(--ink) hover:bg-(--panel-2)"
+            className="mbd:flex mbd:w-full mbd:items-center mbd:gap-2.5 mbd:px-3 mbd:py-2 mbd:text-left mbd:text-[13px] mbd:text-(--ink) mbd:hover:bg-(--panel-2)"
           >
-            <ArchiveBoxArrowDownIcon className="h-4 w-4 shrink-0 text-(--ink-2)" />
+            <ArchiveBoxArrowDownIcon className="mbd:h-4 mbd:w-4 mbd:shrink-0 mbd:text-(--ink-2)" />
             <span>As ZIP archive</span>
           </button>
-          <div className="my-1 border-t hairline" role="separator" />
+          <div className="mbd:my-1 mbd:border-t hairline" role="separator" />
           <button
             role="menuitem"
             onClick={choose(onCopyLinks)}
-            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-(--ink) hover:bg-(--panel-2)"
+            className="mbd:flex mbd:w-full mbd:items-center mbd:gap-2.5 mbd:px-3 mbd:py-2 mbd:text-left mbd:text-[13px] mbd:text-(--ink) mbd:hover:bg-(--panel-2)"
           >
-            <LinkIcon className="h-4 w-4 shrink-0 text-(--ink-2)" />
+            <LinkIcon className="mbd:h-4 mbd:w-4 mbd:shrink-0 mbd:text-(--ink-2)" />
             <span>Copy links</span>
           </button>
           <button
             role="menuitem"
             onClick={choose(onExportLinks)}
-            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-(--ink) hover:bg-(--panel-2)"
+            className="mbd:flex mbd:w-full mbd:items-center mbd:gap-2.5 mbd:px-3 mbd:py-2 mbd:text-left mbd:text-[13px] mbd:text-(--ink) mbd:hover:bg-(--panel-2)"
           >
-            <DocumentArrowDownIcon className="h-4 w-4 shrink-0 text-(--ink-2)" />
+            <DocumentArrowDownIcon className="mbd:h-4 mbd:w-4 mbd:shrink-0 mbd:text-(--ink-2)" />
             <span>Export links (.txt)</span>
           </button>
           {onExclude && (
             <>
-              <div className="my-1 border-t hairline" role="separator" />
+              <div className="mbd:my-1 mbd:border-t hairline" role="separator" />
               <button
                 role="menuitem"
                 onClick={choose(onExclude)}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] text-(--ink) hover:bg-(--panel-2)"
+                className="mbd:flex mbd:w-full mbd:items-center mbd:gap-2.5 mbd:px-3 mbd:py-2 mbd:text-left mbd:text-[13px] mbd:text-(--ink) mbd:hover:bg-(--panel-2)"
               >
-                <NoSymbolIcon className="h-4 w-4 shrink-0 text-(--ink-2)" />
+                <NoSymbolIcon className="mbd:h-4 mbd:w-4 mbd:shrink-0 mbd:text-(--ink-2)" />
                 <span>Exclude</span>
               </button>
             </>

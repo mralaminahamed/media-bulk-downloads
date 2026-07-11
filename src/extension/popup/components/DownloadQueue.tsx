@@ -66,22 +66,22 @@ export function DownloadQueue() {
       return next;
     });
   };
-  const btn = 'rounded px-1.5 py-0.5 text-(--ink-2) hover:text-(--ink) hover:bg-(--panel-2)';
+  const btn = 'mbd:rounded mbd:px-1.5 mbd:py-0.5 mbd:text-(--ink-2) mbd:hover:text-(--ink) mbd:hover:bg-(--panel-2)';
   const Chevron = collapsed ? ChevronRightIcon : ChevronDownIcon;
 
   return (
-    <section className="download-queue border-t hairline bg-(--panel) px-4 py-2.5" aria-label="Download queue">
-      <header className="mb-1.5 flex items-center gap-2 text-[11px] text-(--ink-2)">
+    <section className="download-queue mbd:border-t hairline mbd:bg-(--panel) mbd:px-4 mbd:py-2.5" aria-label="Download queue">
+      <header className="mbd:mb-1.5 mbd:flex mbd:items-center mbd:gap-2 mbd:text-[11px] mbd:text-(--ink-2)">
         <button type="button" onClick={toggleCollapsed} aria-expanded={!collapsed}
           aria-label={collapsed ? 'Expand download list' : 'Collapse download list'}
-          className="grid h-5 w-5 shrink-0 place-items-center rounded text-(--ink-3) hover:text-(--ink) hover:bg-(--panel-2)">
-          <Chevron className="h-3.5 w-3.5" aria-hidden="true" />
+          className="mbd:grid mbd:h-5 mbd:w-5 mbd:shrink-0 mbd:place-items-center mbd:rounded mbd:text-(--ink-3) mbd:hover:text-(--ink) mbd:hover:bg-(--panel-2)">
+          <Chevron className="mbd:h-3.5 mbd:w-3.5" aria-hidden="true" />
         </button>
-        <div role="status" aria-live="polite" className="flex items-center gap-2">
-          <strong className="num text-(--ink)">{done} / {items.length}</strong>
-          {failed > 0 && <span className="text-(--danger)">{failed} failed</span>}
+        <div role="status" aria-live="polite" className="mbd:flex mbd:items-center mbd:gap-2">
+          <strong className="num mbd:text-(--ink)">{done} / {items.length}</strong>
+          {failed > 0 && <span className="mbd:text-(--danger)">{failed} failed</span>}
         </div>
-        <div className="ml-auto flex items-center gap-1">
+        <div className="mbd:ml-auto mbd:flex mbd:items-center mbd:gap-1">
           <button type="button" className={btn}
             onClick={() => sendRuntimeMessage({ type: paused ? 'QUEUE_RESUME' : 'QUEUE_PAUSE' })}>
             {paused ? 'Resume' : 'Pause'}
@@ -102,12 +102,12 @@ export function DownloadQueue() {
         </div>
       </header>
 
-      <div className="mb-2 h-1 overflow-hidden rounded-full bg-(--panel-2)" aria-hidden="true">
-        <span className="block h-full rounded-full bg-(--brand-ink) transition-[width] duration-300" style={{ width: `${overallPct}%` }} />
+      <div className="mbd:mb-2 mbd:h-1 mbd:overflow-hidden mbd:rounded-full mbd:bg-(--panel-2)" aria-hidden="true">
+        <span className="mbd:block mbd:h-full mbd:rounded-full mbd:bg-(--brand-ink) mbd:transition-[width] mbd:duration-300" style={{ width: `${overallPct}%` }} />
       </div>
 
       {!collapsed && (
-        <ul className="max-h-40 space-y-0.5 overflow-y-auto">
+        <ul className="mbd:max-h-40 mbd:space-y-0.5 mbd:overflow-y-auto">
           {items.map((i) => (
             <QueueRow
               key={i.id}

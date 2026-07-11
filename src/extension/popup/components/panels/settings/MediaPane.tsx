@@ -15,7 +15,7 @@ const MediaPane: React.FC<SettingsPaneProps> = ({
     role="tabpanel"
     id="settings-panel-media"
     aria-labelledby="settings-tab-media"
-    className="space-y-3"
+    className="mbd:space-y-3"
   >
     <NumberField
       id="set-minimumImageSize"
@@ -56,7 +56,7 @@ const MediaPane: React.FC<SettingsPaneProps> = ({
     />
 
     <AdvancedDisclosure id="adv-media" defaultOpen={advancedDefaultOpen}>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="mbd:grid mbd:grid-cols-2 mbd:gap-3">
         <NumberField
           id="set-deepScanMaxItems"
           name="deepScanMaxItems"

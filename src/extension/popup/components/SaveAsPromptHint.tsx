@@ -29,25 +29,25 @@ export function SaveAsPromptHint() {
   if (!seen || dismissed) return null;
 
   return (
-    <section className="border-t hairline bg-(--panel) px-4 py-2.5 text-[11px] text-(--ink-2)" aria-label="Save-As prompt hint">
-      <div className="flex items-start gap-2">
-        <p className="min-w-0 flex-1">
+    <section className="mbd:border-t hairline mbd:bg-(--panel) mbd:px-4 mbd:py-2.5 mbd:text-[11px] mbd:text-(--ink-2)" aria-label="Save-As prompt hint">
+      <div className="mbd:flex mbd:items-start mbd:gap-2">
+        <p className="mbd:min-w-0 mbd:flex-1">
           Chrome is asking where to save each file. Turn off{' '}
-          <strong className="text-(--ink)">&ldquo;Ask where to save each file before downloading&rdquo;</strong>{' '}
+          <strong className="mbd:text-(--ink)">&ldquo;Ask where to save each file before downloading&rdquo;</strong>{' '}
           in Chrome&rsquo;s download settings for silent saves.
         </p>
         <button
           type="button" aria-label="Dismiss" title="Dismiss"
           onClick={() => void dismissSaveAsHint()}
-          className="grid h-5 w-5 shrink-0 place-items-center rounded text-(--ink-3) hover:bg-(--panel-2) hover:text-(--ink)"
+          className="mbd:grid mbd:h-5 mbd:w-5 mbd:shrink-0 mbd:place-items-center mbd:rounded mbd:text-(--ink-3) mbd:hover:bg-(--panel-2) mbd:hover:text-(--ink)"
         >
-          <XMarkIcon className="h-3.5 w-3.5" />
+          <XMarkIcon className="mbd:h-3.5 mbd:w-3.5" />
         </button>
       </div>
       <button
         type="button"
         onClick={() => chrome.tabs.create({ url: 'chrome://settings/downloads' })}
-        className="mt-1.5 rounded px-1.5 py-0.5 text-(--brand-ink) hover:underline"
+        className="mbd:mt-1.5 mbd:rounded mbd:px-1.5 mbd:py-0.5 mbd:text-(--brand-ink) mbd:hover:underline"
       >
         Open download settings
       </button>

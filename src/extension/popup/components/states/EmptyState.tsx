@@ -16,7 +16,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onRefresh }) => (
     body="This page has no media that matches your filters. Try another page or rescan."
     action={
       <button onClick={onRefresh} className="btn btn-ghost">
-        <ArrowPathIcon className="h-4 w-4" />
+        <ArrowPathIcon className="mbd:h-4 mbd:w-4" />
         <span>Rescan page</span>
       </button>
     }

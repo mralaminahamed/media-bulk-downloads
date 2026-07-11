@@ -168,50 +168,50 @@ const App: React.FC<AppProps> = ({
   const allShownSelected = downloadableShown > 0 && selectedCount === downloadableShown;
 
   return (
-    <div className="ibd-app flex h-full flex-col overflow-hidden bg-(--paper) text-(--ink)">
+    <div className="ibd-app mbd:flex mbd:h-full mbd:flex-col mbd:overflow-hidden mbd:bg-(--paper) mbd:text-(--ink)">
       {/* Header (doubles as the panel drag handle in the bubble surface) */}
-      <header className="dotgrid border-b hairline" {...dragHandleProps}>
-        <div className="flex items-center justify-between px-4 pt-3.5">
-          <div className="flex items-center gap-2.5">
-            <BrandMark size={32} className="shrink-0 rounded-sm" />
-            <div className="leading-tight">
-              <h1 className="text-[15px] font-semibold tracking-tight text-(--ink)">Media Bulk Downloads</h1>
-              <p className="eyebrow mt-1">Collect · Filter · Save</p>
+      <header className="dotgrid mbd:border-b hairline" {...dragHandleProps}>
+        <div className="mbd:flex mbd:items-center mbd:justify-between mbd:px-4 mbd:pt-3.5">
+          <div className="mbd:flex mbd:items-center mbd:gap-2.5">
+            <BrandMark size={32} className="mbd:shrink-0 mbd:rounded-sm" />
+            <div className="mbd:leading-tight">
+              <h1 className="mbd:text-[15px] mbd:font-semibold mbd:tracking-tight mbd:text-(--ink)">Media Bulk Downloads</h1>
+              <p className="eyebrow mbd:mt-1">Collect · Filter · Save</p>
             </div>
           </div>
-          <div className="flex items-center gap-0.5">
+          <div className="mbd:flex mbd:items-center mbd:gap-0.5">
             <button onClick={() => setShowFavourites(true)} className="iconbtn" title="Favourites" aria-label="Favourites">
-              <StarIcon className="h-4.5 w-4.5" />
+              <StarIcon className="mbd:h-4.5 mbd:w-4.5" />
             </button>
             <button onClick={() => setShowExcluded(true)} className="iconbtn" title="Excluded sources" aria-label="Excluded sources">
-              <NoSymbolIcon className="h-4.5 w-4.5" />
+              <NoSymbolIcon className="mbd:h-4.5 mbd:w-4.5" />
             </button>
             <button onClick={() => setShowHistory(true)} className="iconbtn" title="Download history" aria-label="Download history">
-              <ClockIcon className="h-4.5 w-4.5" />
+              <ClockIcon className="mbd:h-4.5 mbd:w-4.5" />
             </button>
             <button onClick={() => setShowSettings(true)} className="iconbtn" title="Settings" aria-label="Settings">
-              <Cog6ToothIcon className="h-4.5 w-4.5" />
+              <Cog6ToothIcon className="mbd:h-4.5 mbd:w-4.5" />
             </button>
             {onClose && (
               <button onClick={onClose} className="iconbtn" title="Close" aria-label="Close">
-                <XMarkIcon className="h-4.5 w-4.5" />
+                <XMarkIcon className="mbd:h-4.5 mbd:w-4.5" />
               </button>
             )}
           </div>
         </div>
 
-        <div className="flex items-end justify-between px-4 pb-3.5 pt-3">
-          <div className="flex items-baseline gap-2">
-            <span className="num text-[30px] font-semibold leading-none text-(--ink)">
+        <div className="mbd:flex mbd:items-end mbd:justify-between mbd:px-4 mbd:pb-3.5 mbd:pt-3">
+          <div className="mbd:flex mbd:items-baseline mbd:gap-2">
+            <span className="num mbd:text-[30px] mbd:font-semibold mbd:leading-none mbd:text-(--ink)">
               {state.isLoading ? '—' : total}
             </span>
-            <span className="text-[12px] text-(--ink-2)">
+            <span className="mbd:text-[12px] mbd:text-(--ink-2)">
               {state.isLoading ? 'scanning this page' : total === 1 ? 'item on this page' : 'items on this page'}
             </span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="mbd:flex mbd:items-center mbd:gap-1.5">
             {deepScanning && (
-              <span className="num inline-flex items-center rounded-full bg-(--brand-soft) px-2 py-0.5 text-[10px] font-semibold text-(--brand-ink)">
+              <span className="num mbd:inline-flex mbd:items-center mbd:rounded-full mbd:bg-(--brand-soft) mbd:px-2 mbd:py-0.5 mbd:text-[10px] mbd:font-semibold mbd:text-(--brand-ink)">
                 {deepProgress?.found ?? 0} found
               </span>
             )}
@@ -222,11 +222,11 @@ const App: React.FC<AppProps> = ({
               aria-label={deepScanning ? 'Stop deep scan' : 'Deep scan'}
             >
               <ChevronDoubleDownIcon
-                className={`h-4.5 w-4.5 ${deepScanning ? 'animate-pulse' : ''}`}
+                className={`mbd:h-4.5 mbd:w-4.5 ${deepScanning ? 'mbd:animate-pulse' : ''}`}
               />
             </button>
             <button onClick={fetchImages} className="iconbtn" title="Rescan page" aria-label="Rescan page">
-              <ArrowPathIcon className={`h-4.5 w-4.5 ${state.isLoading ? 'animate-[spin_0.9s_linear_infinite]' : ''}`} />
+              <ArrowPathIcon className={`mbd:h-4.5 mbd:w-4.5 ${state.isLoading ? 'mbd:animate-[spin_0.9s_linear_infinite]' : ''}`} />
             </button>
           </div>
         </div>
@@ -238,7 +238,7 @@ const App: React.FC<AppProps> = ({
       )}
 
       {/* Body */}
-      <main className="scroll-thin flex-1 overflow-y-auto px-4 py-3">
+      <main className="scroll-thin mbd:flex-1 mbd:overflow-y-auto mbd:px-4 mbd:py-3">
         {state.isLoading ? (
           <SkeletonGrid thumbnailSize={settings.thumbnailSize} />
         ) : total === 0 ? (
@@ -278,14 +278,14 @@ const App: React.FC<AppProps> = ({
 
       {/* Action bar */}
       {hasImages && !state.isLoading && (
-        <footer className="flex items-center justify-between gap-3 border-t hairline bg-(--panel) px-4 py-2.5">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
+        <footer className="mbd:flex mbd:items-center mbd:justify-between mbd:gap-3 mbd:border-t hairline mbd:bg-(--panel) mbd:px-4 mbd:py-2.5">
+          <div className="mbd:flex mbd:min-w-0 mbd:flex-1 mbd:items-center mbd:gap-2">
             {downloadableShown > 0 && (
               <SelectCheckbox
                 checked={allShownSelected}
                 indeterminate={selectedCount > 0 && !allShownSelected}
                 onClick={() => (allShownSelected ? handleClearSelection() : handleSelectAllShown(state.filteredImages))}
-                className="shrink-0 cursor-pointer"
+                className="mbd:shrink-0 mbd:cursor-pointer"
                 title={allShownSelected ? 'Clear selection' : 'Select all shown'}
                 ariaLabel={allShownSelected ? 'Clear selection' : 'Select all shown'}
               />
@@ -293,30 +293,30 @@ const App: React.FC<AppProps> = ({
             {progress ? (
               <ProgressBar label={progress.label} done={progress.done} total={progress.total} />
             ) : (
-            <p className="num min-w-0 truncate text-[11px] text-(--ink-2)">
+            <p className="num mbd:min-w-0 mbd:truncate mbd:text-[11px] mbd:text-(--ink-2)">
               {state.status ? (
                 // A status line is sticky (cleared only on rescan/filter), so keep the
                 // Clear affordance reachable when a selection is still live underneath it.
                 <>
                   {state.status}
                   {selectedCount > 0 && (
-                    <button onClick={handleClearSelection} className="ml-1.5 text-(--ink-3) underline-offset-2 hover:text-(--ink) hover:underline">
+                    <button onClick={handleClearSelection} className="mbd:ml-1.5 mbd:text-(--ink-3) mbd:underline-offset-2 mbd:hover:text-(--ink) mbd:hover:underline">
                       Clear
                     </button>
                   )}
                 </>
               ) : selectedCount > 0 ? (
                 <>
-                  <span className="text-(--ink)">{selectedCount}</span> selected
-                  <button onClick={handleClearSelection} className="ml-1.5 text-(--ink-3) underline-offset-2 hover:text-(--ink) hover:underline">
+                  <span className="mbd:text-(--ink)">{selectedCount}</span> selected
+                  <button onClick={handleClearSelection} className="mbd:ml-1.5 mbd:text-(--ink-3) mbd:underline-offset-2 mbd:hover:text-(--ink) mbd:hover:underline">
                     Clear
                   </button>
                 </>
               ) : (
                 <>
-                  <span className="text-(--ink)">{shown}</span>
-                  <span className="text-(--ink-3)"> / {total}</span>
-                  {filtered && <span className="text-(--ink-3)"> shown</span>}
+                  <span className="mbd:text-(--ink)">{shown}</span>
+                  <span className="mbd:text-(--ink-3)"> / {total}</span>
+                  {filtered && <span className="mbd:text-(--ink-3)"> shown</span>}
                 </>
               )}
             </p>
@@ -326,10 +326,10 @@ const App: React.FC<AppProps> = ({
             <button
               onClick={() => void handleFetchAllVideos()}
               disabled={fetchingVideos}
-              className="btn btn-ghost flex-none"
+              className="btn btn-ghost mbd:flex-none"
               title="Fetch every pending video's real file over the network"
             >
-              <VideoCameraIcon className={`h-4 w-4 ${fetchingVideos ? 'animate-pulse' : ''}`} />
+              <VideoCameraIcon className={`mbd:h-4 mbd:w-4 ${fetchingVideos ? 'mbd:animate-pulse' : ''}`} />
               <span>{fetchingVideos ? 'Fetching…' : `Get all videos (${pendingVideoCount})`}</span>
             </button>
           )}

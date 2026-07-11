@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import "tailwindcss" prefix(mbd);
 
 /* Load the @tailwindcss/forms plugin the v4-native way. The old
    tailwind.config.js existed only to register this plugin — its color ramps,

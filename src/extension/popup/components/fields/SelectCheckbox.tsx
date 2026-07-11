@@ -25,15 +25,15 @@ export const SelectCheckbox: React.FC<SelectCheckboxProps> = ({
       aria-label={ariaLabel}
       title={title}
       onClick={onClick}
-      className={`grid h-5 w-5 place-items-center rounded-[5px] border transition-all ${
+      className={`mbd:grid mbd:h-5 mbd:w-5 mbd:place-items-center mbd:rounded-[5px] mbd:border mbd:transition-all ${
         on
-          ? 'border-(--brand-ink) bg-(--brand-ink) text-white'
-          : 'border-(--ctl-ring) bg-(--panel)/85 text-transparent backdrop-blur-sm'
+          ? 'mbd:border-(--brand-ink) mbd:bg-(--brand-ink) mbd:text-white'
+          : 'mbd:border-(--ctl-ring) mbd:bg-(--panel)/85 mbd:text-transparent mbd:backdrop-blur-sm'
       } ${className}`}
     >
       <svg
         viewBox="0 0 24 24"
-        className="h-3 w-3"
+        className="mbd:h-3 mbd:w-3"
         fill="none"
         stroke="currentColor"
         strokeWidth="3.5"
