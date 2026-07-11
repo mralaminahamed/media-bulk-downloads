@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
+import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { loadQueue, QUEUE_KEY, type QueueState } from '@/extension/shared/storage/download-queue';
 import { sendRuntimeMessage } from '../utils';
 import { QueueRow } from './QueueRow';
+
+// Persisted in chrome.storage.local so the collapsed choice survives the popup
+// remounting on every reopen (a long queue would otherwise re-expand each time).
+const COLLAPSE_KEY = 'downloadQueueCollapsed';
 
 /**
  * Live view of the persistent download queue (#196). Reads state reactively from
@@ -11,11 +16,15 @@ import { QueueRow } from './QueueRow';
  */
 export function DownloadQueue() {
   const [state, setState] = useState<QueueState>({ items: [], paused: false });
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     let alive = true;
     void loadQueue().then((s) => {
       if (alive) setState(s);
+    });
+    void chrome.storage.local.get(COLLAPSE_KEY).then((r) => {
+      if (alive) setCollapsed(Boolean(r[COLLAPSE_KEY]));
     });
     const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       if (area === 'local' && changes[QUEUE_KEY]) {
@@ -50,11 +59,24 @@ export function DownloadQueue() {
     const granted = await chrome.permissions.request({ permissions: ['declarativeNetRequestWithHostAccess'] });
     if (granted) sendRuntimeMessage({ type: 'QUEUE_RETRY', id, referer: true });
   };
+  const toggleCollapsed = () => {
+    setCollapsed((c) => {
+      const next = !c;
+      void chrome.storage.local.set({ [COLLAPSE_KEY]: next });
+      return next;
+    });
+  };
   const btn = 'rounded px-1.5 py-0.5 text-(--ink-2) hover:text-(--ink) hover:bg-(--panel-2)';
+  const Chevron = collapsed ? ChevronRightIcon : ChevronDownIcon;
 
   return (
     <section className="download-queue border-t hairline bg-(--panel) px-4 py-2.5" aria-label="Download queue">
       <header className="mb-1.5 flex items-center gap-2 text-[11px] text-(--ink-2)">
+        <button type="button" onClick={toggleCollapsed} aria-expanded={!collapsed}
+          aria-label={collapsed ? 'Expand download list' : 'Collapse download list'}
+          className="grid h-5 w-5 shrink-0 place-items-center rounded text-(--ink-3) hover:text-(--ink) hover:bg-(--panel-2)">
+          <Chevron className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
         <div role="status" aria-live="polite" className="flex items-center gap-2">
           <strong className="num text-(--ink)">{done} / {items.length}</strong>
           {failed > 0 && <span className="text-(--danger)">{failed} failed</span>}
@@ -84,18 +106,20 @@ export function DownloadQueue() {
         <span className="block h-full rounded-full bg-(--brand-ink) transition-[width] duration-300" style={{ width: `${overallPct}%` }} />
       </div>
 
-      <ul className="max-h-40 space-y-0.5 overflow-y-auto">
-        {items.map((i) => (
-          <QueueRow
-            key={i.id}
-            item={i}
-            onCancel={(id) => sendRuntimeMessage({ type: 'QUEUE_CANCEL', id })}
-            onRetry={(id) => sendRuntimeMessage({ type: 'QUEUE_RETRY', id })}
-            onRetryReferer={(id) => void retryWithReferer(id)}
-            onOpen={(id) => sendRuntimeMessage({ type: 'QUEUE_OPEN', id })}
-          />
-        ))}
-      </ul>
+      {!collapsed && (
+        <ul className="max-h-40 space-y-0.5 overflow-y-auto">
+          {items.map((i) => (
+            <QueueRow
+              key={i.id}
+              item={i}
+              onCancel={(id) => sendRuntimeMessage({ type: 'QUEUE_CANCEL', id })}
+              onRetry={(id) => sendRuntimeMessage({ type: 'QUEUE_RETRY', id })}
+              onRetryReferer={(id) => void retryWithReferer(id)}
+              onOpen={(id) => sendRuntimeMessage({ type: 'QUEUE_OPEN', id })}
+            />
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

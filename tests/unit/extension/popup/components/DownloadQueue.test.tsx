@@ -103,6 +103,31 @@ it('sends a plain QUEUE_RETRY for an ordinary (non-hotlink) failed row', async (
   expect(send).toHaveBeenCalledWith({ type: 'QUEUE_RETRY', id: 'h' });
 });
 
+it('collapses and expands the per-item list via the toggle', async () => {
+  setQueue({ paused: false, items: [
+    { id: 'a', url: 'u', filename: 'a', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, downloadId: 1 },
+  ] });
+  render(<DownloadQueue />);
+  expect(await screen.findByRole('list')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /collapse/i }));
+  await waitFor(() => expect(screen.queryByRole('list')).not.toBeInTheDocument());
+  // Header summary stays visible while collapsed.
+  expect(screen.getByRole('status')).toHaveTextContent('0 / 1');
+  await userEvent.click(screen.getByRole('button', { name: /expand/i }));
+  expect(await screen.findByRole('list')).toBeInTheDocument();
+});
+
+it('restores a persisted collapsed state on reopen', async () => {
+  await chrome.storage.local.set({ downloadQueueCollapsed: true });
+  setQueue({ paused: false, items: [
+    { id: 'a', url: 'u', filename: 'a', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, downloadId: 1 },
+  ] });
+  render(<DownloadQueue />);
+  await screen.findByRole('status');
+  await waitFor(() => expect(screen.queryByRole('list')).not.toBeInTheDocument());
+  expect(screen.getByRole('button', { name: /expand/i })).toBeInTheDocument();
+});
+
 it('sends QUEUE_OPEN from a done row\'s Open control', async () => {
   const send = vi.spyOn(utils, 'sendRuntimeMessage').mockImplementation(() => {});
   setQueue({ paused: false, items: [

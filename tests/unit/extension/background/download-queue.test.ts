@@ -295,4 +295,41 @@ describe('progress poll', () => {
     await pollProgressForTest();
     expect(chrome.storage.local.set).not.toHaveBeenCalled();
   });
+
+  // Backstop for the stuck-slot bug: if the download's `complete` onChanged fired
+  // in the window before markActive persisted the item's downloadId (tiny/cached/
+  // data: downloads settle almost instantly), or the SW was briefly asleep when it
+  // fired, the item stays `active` forever holding a concurrency slot — UI shows
+  // 100% but it never finishes and starves the rest of the queue. The poll must
+  // detect chrome's terminal state and settle the item through the same path.
+  it('settles a completed download whose onChanged was missed, then pumps the next (race backstop)', async () => {
+    store[QUEUE_KEY] = { paused: false, items: [
+      {
+        id: 'a', url: 'u1', filename: 'f1', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, downloadId: 7,
+        history: { src: 'u1', filename: 'f1', kind: 'image', type: 'image/jpeg', thumbnailSrc: 'u1', sourcePageUrl: '' },
+      },
+      { id: 'b', url: 'u2', filename: 'f2', status: 'queued', attempts: 0, readyAt: 0, addedAt: 0 },
+    ] };
+    (chrome.downloads.search as ReturnType<typeof vi.fn>).mockResolvedValue([{ id: 7, state: 'complete', bytesReceived: 800, totalBytes: 800 }]);
+    await pollProgressForTest();
+    await flush();
+    const snap = await getQueueSnapshot();
+    expect(snap.items.find((i) => i.id === 'a')!.status).toBe('done');
+    expect(recordDownloads).toHaveBeenCalledOnce();
+    // Freed slot → the queued item is dispatched.
+    expect(chrome.downloads.download).toHaveBeenCalledWith(expect.objectContaining({ url: 'u2' }), expect.any(Function));
+  });
+
+  it('settles an interrupted download whose onChanged was missed → schedules a retry (backstop)', async () => {
+    store[QUEUE_KEY] = { paused: false, items: [
+      { id: 'a', url: 'u', filename: 'f', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, downloadId: 9 },
+    ] };
+    (chrome.downloads.search as ReturnType<typeof vi.fn>).mockResolvedValue([{ id: 9, state: 'interrupted', error: 'NETWORK_FAILED' }]);
+    await pollProgressForTest();
+    await flush();
+    const snap = await getQueueSnapshot();
+    expect(snap.items[0].status).toBe('queued');
+    expect(snap.items[0].attempts).toBe(1);
+    expect(snap.items[0].downloadId).toBeUndefined();
+  });
 });
