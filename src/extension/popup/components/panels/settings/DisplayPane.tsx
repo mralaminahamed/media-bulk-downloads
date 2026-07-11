@@ -17,7 +17,7 @@ const DisplayPane: React.FC<SettingsPaneProps> = ({
     role="tabpanel"
     id="settings-panel-display"
     aria-labelledby="settings-tab-display"
-    className="space-y-3"
+    className="mbd:space-y-3"
   >
     <NumberField
       id="set-thumbnailSize"
@@ -80,18 +80,18 @@ const DisplayPane: React.FC<SettingsPaneProps> = ({
           <option value="top-right">Corner · top right</option>
           <option value="top-left">Corner · top left</option>
         </SelectField>
-        <p className="text-[11px] leading-relaxed text-(--ink-3)">
+        <p className="mbd:text-[11px] mbd:leading-relaxed mbd:text-(--ink-3)">
           Tip: drag the panel by its header on any page to drop it exactly where you want.
         </p>
       </>
     )}
-    <p className="text-[11px] leading-relaxed text-(--ink-3)">
+    <p className="mbd:text-[11px] mbd:leading-relaxed mbd:text-(--ink-3)">
       Drag the bubble on any page to fine-tune its position. Works everywhere the
       popup can run except restricted pages (chrome://, the Web Store, PDFs).
     </p>
 
     <AdvancedDisclosure id="adv-display" defaultOpen={advancedDefaultOpen}>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="mbd:grid mbd:grid-cols-2 mbd:gap-3">
         <NumberField
           id="set-popupWidth"
           name="popupWidth"
@@ -124,7 +124,7 @@ const DisplayPane: React.FC<SettingsPaneProps> = ({
         onBlur={clampOnBlur('previewSize', 240, 900)}
       />
       {settings.bubbleEnabled && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="mbd:grid mbd:grid-cols-2 mbd:gap-3">
           <NumberField
             id="set-bubbleWidth"
             name="bubbleWidth"

@@ -2,9 +2,9 @@ import React from 'react';
 import { ToggleRowProps } from '@/types';
 
 export const ToggleRow: React.FC<ToggleRowProps> = ({ id, label, description, checked, onToggle }) => (
-  <div className="py-1.5">
-    <div className="flex items-center justify-between gap-3">
-      <label htmlFor={id} className="text-[13px] text-(--ink)">
+  <div className="mbd:py-1.5">
+    <div className="mbd:flex mbd:items-center mbd:justify-between mbd:gap-3">
+      <label htmlFor={id} className="mbd:text-[13px] mbd:text-(--ink)">
         {label}
       </label>
       <button
@@ -20,7 +20,7 @@ export const ToggleRow: React.FC<ToggleRowProps> = ({ id, label, description, ch
       />
     </div>
     {description && (
-      <p id={`${id}-desc`} className="mt-1 pr-12 text-[11px] leading-relaxed text-(--ink-3)">
+      <p id={`${id}-desc`} className="mbd:mt-1 mbd:pr-12 mbd:text-[11px] mbd:leading-relaxed mbd:text-(--ink-3)">
         {description}
       </p>
     )}

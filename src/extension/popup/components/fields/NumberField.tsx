@@ -4,7 +4,7 @@ import { NumberFieldProps } from '@/types';
 /** Label + number input that clamps to [min, max] on blur. */
 export const NumberField: React.FC<NumberFieldProps> = ({ id, name, label, value, min, max, onChange, onBlur }) => (
   <div>
-    <label htmlFor={id} className="mb-1 block text-[12px] text-(--ink-2)">
+    <label htmlFor={id} className="mbd:mb-1 mbd:block mbd:text-[12px] mbd:text-(--ink-2)">
       {label}
     </label>
     <input

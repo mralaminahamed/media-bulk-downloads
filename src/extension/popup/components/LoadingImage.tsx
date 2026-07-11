@@ -10,14 +10,14 @@ export const LoadingImage: React.FC<LoadingImageProps> = ({ src, alt, className,
   const [loaded, setLoaded] = useState(false);
   return (
     <>
-      {!loaded && <span className="skeleton absolute inset-0" aria-hidden="true" />}
+      {!loaded && <span className="skeleton mbd:absolute mbd:inset-0" aria-hidden="true" />}
       <img
         src={src}
         alt={alt}
         loading={lazy ? 'lazy' : undefined}
         onLoad={() => setLoaded(true)}
         onError={() => setLoaded(true)}
-        className={`${className} transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        className={`${className} mbd:transition-opacity mbd:duration-200 ${loaded ? 'mbd:opacity-100' : 'mbd:opacity-0'}`}
         style={style}
       />
     </>

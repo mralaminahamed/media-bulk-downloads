@@ -124,12 +124,12 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
   const sortDirLabel = filters.sortDir === 'asc' ? 'Ascending' : 'Descending';
 
   return (
-    <section className="border-b hairline bg-(--panel) px-4 py-2.5">
+    <section className="mbd:border-b hairline mbd:bg-(--panel) mbd:px-4 mbd:py-2.5">
       {/* Search + sort row: free-text query over the shown grid, plus an order
           control. Wraps on very narrow popups. */}
-      <div className="mb-2.5 flex flex-wrap items-center gap-2">
-        <label className="relative min-w-[140px] flex-1">
-          <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-(--ink-3)" />
+      <div className="mbd:mb-2.5 mbd:flex mbd:flex-wrap mbd:items-center mbd:gap-2">
+        <label className="mbd:relative mbd:min-w-[140px] mbd:flex-1">
+          <MagnifyingGlassIcon className="mbd:pointer-events-none mbd:absolute mbd:top-1/2 mbd:left-2.5 mbd:h-4 mbd:w-4 mbd:-translate-y-1/2 mbd:text-(--ink-3)" />
           <input
             type="search"
             value={filters.search}
@@ -137,7 +137,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
             placeholder="Search media…"
             aria-label="Search media"
             title="Search media"
-            className="field w-full text-[12px]"
+            className="field mbd:w-full mbd:text-[12px]"
           />
         </label>
         <select
@@ -145,7 +145,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
           title="Sort order"
           value={filters.sortBy}
           onChange={(e) => update({ sortBy: e.target.value as FilterOptions['sortBy'] })}
-          className="field shrink-0 py-0 text-[12px]"
+          className="field mbd:shrink-0 mbd:py-0 mbd:text-[12px]"
           style={{ height: 30, width: 150 }}
         >
           {SORT_OPTIONS.map((opt) => (
@@ -158,22 +158,22 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
           type="button"
           onClick={() => update({ sortDir: filters.sortDir === 'asc' ? 'desc' : 'asc' })}
           disabled={filters.sortBy === 'default'}
-          className="iconbtn iconbtn-sm shrink-0 disabled:opacity-40"
+          className="iconbtn iconbtn-sm mbd:shrink-0 mbd:disabled:opacity-40"
           aria-label={`Sort direction: ${sortDirLabel}`}
           title={sortDirLabel}
         >
-          {filters.sortDir === 'asc' ? <BarsArrowUpIcon className="h-4 w-4" /> : <BarsArrowDownIcon className="h-4 w-4" />}
+          {filters.sortDir === 'asc' ? <BarsArrowUpIcon className="mbd:h-4 mbd:w-4" /> : <BarsArrowDownIcon className="mbd:h-4 mbd:w-4" />}
         </button>
       </div>
 
       {/* Primary line: Kind (segmented, one-tap) · Type (dropdown) · More (advanced).
           Wraps only if a narrow popup can't fit it all on one row. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="eyebrow shrink-0">Filters</span>
+      <div className="mbd:flex mbd:flex-wrap mbd:items-center mbd:gap-2">
+        <span className="eyebrow mbd:shrink-0">Filters</span>
 
         {/* Kind — single-choice segmented control, the primary filter. Even
             segments so the four options read as one uniform control. */}
-        <div className="segwrap segwrap-even h-[28px] w-[204px] shrink-0" role="group" aria-label="Media kind">
+        <div className="segwrap segwrap-even mbd:h-[28px] mbd:w-[204px] mbd:shrink-0" role="group" aria-label="Media kind">
           {KIND_OPTIONS.map((opt) => (
             <button
               key={opt.value}
@@ -216,18 +216,18 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
           onClick={() => setMoreOpen((o) => !o)}
           aria-expanded={moreOpen}
           aria-controls="filter-more"
-          className={`chip shrink-0 ${moreOpen ? 'is-active' : ''}`}
+          className={`chip mbd:shrink-0 ${moreOpen ? 'is-active' : ''}`}
           style={{ height: 28 }}
         >
           More
           {advancedCount > 0 && <span className="countpill">{advancedCount}</span>}
-          <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
+          <ChevronDownIcon className={`mbd:h-3.5 mbd:w-3.5 mbd:transition-transform ${moreOpen ? 'mbd:rotate-180' : ''}`} />
         </button>
 
         {activeCount > 0 && (
           <button
             onClick={reset}
-            className="ml-auto shrink-0 text-[11px] font-semibold text-(--ink-2) transition-colors hover:text-(--ink)"
+            className="mbd:ml-auto mbd:shrink-0 mbd:text-[11px] mbd:font-semibold mbd:text-(--ink-2) mbd:transition-colors mbd:hover:text-(--ink)"
           >
             Clear all
           </button>
@@ -236,15 +236,15 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
 
       {/* Advanced filters — shown when "More" is open. */}
       {moreOpen && (
-        <div id="filter-more" className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t hairline pt-3">
-          <label className="flex items-center gap-2 text-[12px] text-(--ink-2)">
+        <div id="filter-more" className="mbd:mt-3 mbd:flex mbd:flex-wrap mbd:items-center mbd:gap-x-4 mbd:gap-y-2 mbd:border-t hairline mbd:pt-3">
+          <label className="mbd:flex mbd:items-center mbd:gap-2 mbd:text-[12px] mbd:text-(--ink-2)">
             <span className="eyebrow">Format</span>
             <select
               aria-label="Media format"
               title="Media format"
               value={filters.imageType}
               onChange={(e) => update({ imageType: e.target.value })}
-              className="field shrink-0 py-0 text-[12px]"
+              className="field mbd:shrink-0 mbd:py-0 mbd:text-[12px]"
               style={{ height: 28, width: 120 }}
             >
               {formatsForKind(filters.mediaKind).map((opt) => (
@@ -256,9 +256,9 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
           </label>
 
           {showSize && (
-            <div className="flex items-center gap-2">
+            <div className="mbd:flex mbd:items-center mbd:gap-2">
               <span className="eyebrow">Size</span>
-              <div className="segwrap h-[28px]" role="group" aria-label="Image size">
+              <div className="segwrap mbd:h-[28px]" role="group" aria-label="Image size">
                 {SIZE_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
@@ -273,8 +273,8 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
             </div>
           )}
 
-          <label htmlFor="filter-min-size" className="flex items-center gap-1.5 text-[12px] text-(--ink-2)">
-            <span className="whitespace-nowrap">Min</span>
+          <label htmlFor="filter-min-size" className="mbd:flex mbd:items-center mbd:gap-1.5 mbd:text-[12px] mbd:text-(--ink-2)">
+            <span className="mbd:whitespace-nowrap">Min</span>
             <input
               id="filter-min-size"
               type="number"
@@ -282,14 +282,14 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
               value={filters.minSize || ''}
               placeholder="0"
               onChange={(e) => update({ minSize: parseInt(e.target.value, 10) || 0 })}
-              className="field num text-right"
+              className="field num mbd:text-right"
               style={{ height: 28, width: 56 }}
             />
             <span className="eyebrow">KB</span>
           </label>
 
-          <div className="flex items-center gap-2">
-            <label htmlFor="filter-base64" className="text-[12px] text-(--ink-2)">
+          <div className="mbd:flex mbd:items-center mbd:gap-2">
+            <label htmlFor="filter-base64" className="mbd:text-[12px] mbd:text-(--ink-2)">
               Base64
             </label>
             <button

@@ -54,51 +54,51 @@ const ExcludedPanel: React.FC<ExcludedPanelProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="overlay-in fixed inset-0 z-50 flex items-stretch justify-end bg-(--overlay) backdrop-blur-[2px]" onClick={onClose}>
+    <div className="overlay-in mbd:fixed mbd:inset-0 mbd:z-50 mbd:flex mbd:items-stretch mbd:justify-end mbd:bg-(--overlay) mbd:backdrop-blur-[2px]" onClick={onClose}>
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="excluded-title"
         tabIndex={-1}
-        className="sheet-in flex h-full w-full max-w-[380px] flex-col bg-(--panel) shadow-2xl focus:outline-none"
+        className="sheet-in mbd:flex mbd:h-full mbd:w-full mbd:max-w-[380px] mbd:flex-col mbd:bg-(--panel) mbd:shadow-2xl mbd:focus:outline-none"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-center justify-between border-b hairline px-4 py-3">
+        <header className="mbd:flex mbd:items-center mbd:justify-between mbd:border-b hairline mbd:px-4 mbd:py-3">
           <div>
-            <h2 id="excluded-title" className="text-[13px] font-semibold text-(--ink)">Excluded sources</h2>
-            <p className="eyebrow mt-0.5">Blocklist</p>
+            <h2 id="excluded-title" className="mbd:text-[13px] mbd:font-semibold mbd:text-(--ink)">Excluded sources</h2>
+            <p className="eyebrow mbd:mt-0.5">Blocklist</p>
           </div>
-          <div className="flex items-center gap-0.5">
+          <div className="mbd:flex mbd:items-center mbd:gap-0.5">
             <ClearAllButton onClear={handleClearAll} disabled={sorted.length === 0} />
             <button onClick={onClose} className="iconbtn" title="Close" aria-label="Close">
-              <XMarkIcon className="h-4.5 w-4.5" />
+              <XMarkIcon className="mbd:h-4.5 mbd:w-4.5" />
             </button>
           </div>
         </header>
 
-        <div className="scroll-thin flex-1 space-y-2 overflow-y-auto px-4 py-4">
+        <div className="scroll-thin mbd:flex-1 mbd:space-y-2 mbd:overflow-y-auto mbd:px-4 mbd:py-4">
           {sorted.length === 0 ? (
-            <p className="py-8 text-center text-[12px] text-(--ink-2)">No excluded sources.</p>
+            <p className="mbd:py-8 mbd:text-center mbd:text-[12px] mbd:text-(--ink-2)">No excluded sources.</p>
           ) : (
             sorted.map((entry) => (
-              <div key={`${entry.kind} ${entry.value}`} className="card flex items-center gap-2.5 p-2">
-                <span className="eyebrow flex-none rounded-sm border hairline px-1.5 py-0.5 text-[10px] uppercase">
+              <div key={`${entry.kind} ${entry.value}`} className="card mbd:flex mbd:items-center mbd:gap-2.5 mbd:p-2">
+                <span className="eyebrow mbd:flex-none mbd:rounded-sm mbd:border hairline mbd:px-1.5 mbd:py-0.5 mbd:text-[10px] mbd:uppercase">
                   {entry.kind === 'url' ? 'URL' : 'Host'}
                 </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[12px] font-medium text-(--ink)">
+                <div className="mbd:min-w-0 mbd:flex-1">
+                  <p className="mbd:truncate mbd:text-[12px] mbd:font-medium mbd:text-(--ink)">
                     {entry.kind === 'url' ? displayName(entry.value) : entry.value}
                   </p>
                 </div>
-                <div className="flex flex-none items-center gap-0.5">
+                <div className="mbd:flex mbd:flex-none mbd:items-center mbd:gap-0.5">
                   <button
                     onClick={() => handleRemove(entry)}
                     className="iconbtn iconbtn-sm"
                     title="Remove"
                     aria-label={`Remove ${entry.value}`}
                   >
-                    <TrashIcon className="h-[15px] w-[15px]" />
+                    <TrashIcon className="mbd:h-[15px] mbd:w-[15px]" />
                   </button>
                 </div>
               </div>

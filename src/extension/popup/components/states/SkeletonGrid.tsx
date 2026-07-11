@@ -8,17 +8,17 @@ import { SkeletonGridProps } from '@/types';
  */
 export const SkeletonGrid: React.FC<SkeletonGridProps> = ({ thumbnailSize }) => (
   <div className="reveal">
-    <p className="eyebrow mb-2.5 text-center">Scanning page…</p>
+    <p className="eyebrow mbd:mb-2.5 mbd:text-center">Scanning page…</p>
     <div
-      className="grid justify-center gap-2.5"
+      className="mbd:grid mbd:justify-center mbd:gap-2.5"
       style={{ gridTemplateColumns: `repeat(auto-fill, ${thumbnailSize}px)` }}
     >
       {Array.from({ length: 12 }).map((_, i) => (
-        <div key={i} className="overflow-hidden rounded-(--radius) border hairline bg-(--panel)">
-          <div className="skeleton aspect-square" />
-          <div className="flex items-center justify-between gap-1 px-2 py-1.5">
-            <span className="skeleton h-2.5 w-10 rounded-[3px]" />
-            <span className="skeleton h-2.5 w-7 rounded-[3px]" />
+        <div key={i} className="mbd:overflow-hidden mbd:rounded-(--radius) mbd:border hairline mbd:bg-(--panel)">
+          <div className="skeleton mbd:aspect-square" />
+          <div className="mbd:flex mbd:items-center mbd:justify-between mbd:gap-1 mbd:px-2 mbd:py-1.5">
+            <span className="skeleton mbd:h-2.5 mbd:w-10 mbd:rounded-[3px]" />
+            <span className="skeleton mbd:h-2.5 mbd:w-7 mbd:rounded-[3px]" />
           </div>
         </div>
       ))}

@@ -21,7 +21,7 @@ const DownloadsPane: React.FC<DownloadsPaneProps> = ({
     role="tabpanel"
     id="settings-panel-downloads"
     aria-labelledby="settings-tab-downloads"
-    className="space-y-3"
+    className="mbd:space-y-3"
   >
     <TextField
       id="set-downloadPath"
@@ -31,20 +31,20 @@ const DownloadsPane: React.FC<DownloadsPaneProps> = ({
       onChange={handleChange}
       placeholder="e.g. Media/{domain}"
       hint={folderPreview}
-      hintClassName="num mt-1 block text-[11px] text-(--ink-3)"
+      hintClassName="num mbd:mt-1 mbd:block mbd:text-[11px] mbd:text-(--ink-3)"
     />
-    <p className="mt-1 text-[11px] leading-relaxed text-(--ink-3)">
+    <p className="mbd:mt-1 mbd:text-[11px] mbd:leading-relaxed mbd:text-(--ink-3)">
       Tokens:{' '}
-      <code className="num text-(--ink-2)">{'{host}'}</code>{' '}
-      <code className="num text-(--ink-2)">{'{domain}'}</code>{' '}
-      <code className="num text-(--ink-2)">{'{date}'}</code>{' '}
-      <code className="num text-(--ink-2)">{'{kind}'}</code>{' '}
-      — e.g. <code className="num text-(--ink-2)">Media/{'{domain}'}</code> saves each site to
+      <code className="num mbd:text-(--ink-2)">{'{host}'}</code>{' '}
+      <code className="num mbd:text-(--ink-2)">{'{domain}'}</code>{' '}
+      <code className="num mbd:text-(--ink-2)">{'{date}'}</code>{' '}
+      <code className="num mbd:text-(--ink-2)">{'{kind}'}</code>{' '}
+      — e.g. <code className="num mbd:text-(--ink-2)">Media/{'{domain}'}</code> saves each site to
       its own folder.
     </p>
 
     <div>
-      <span id="naming-label" className="mb-1 block text-[12px] text-(--ink-2)">
+      <span id="naming-label" className="mbd:mb-1 mbd:block mbd:text-[12px] mbd:text-(--ink-2)">
         File naming:
       </span>
       <div className="segwrap" role="group" aria-labelledby="naming-label">
@@ -86,7 +86,7 @@ const DownloadsPane: React.FC<DownloadsPaneProps> = ({
       <option value="png">PNG</option>
       <option value="jpeg">JPEG</option>
     </SelectField>
-    <p className="text-[11px] leading-relaxed text-(--ink-3)">
+    <p className="mbd:text-[11px] mbd:leading-relaxed mbd:text-(--ink-3)">
       Re-encodes raster images (incl. WebP/AVIF) to your chosen format as they download.
       Videos, audio, SVGs, and GIFs are always saved as-is.
     </p>
@@ -105,7 +105,7 @@ const DownloadsPane: React.FC<DownloadsPaneProps> = ({
           <option value="preserve">Preserve (copy EXIF/XMP)</option>
           <option value="strip">Strip (remove all metadata)</option>
         </SelectField>
-        <p className="text-[11px] leading-relaxed text-(--ink-3)">
+        <p className="mbd:text-[11px] mbd:leading-relaxed mbd:text-(--ink-3)">
           Preserve copies embedded EXIF/XMP (copyright, author, capture info) across the
           re-encode. Strip removes it — useful for clearing GPS/location before sharing.
         </p>

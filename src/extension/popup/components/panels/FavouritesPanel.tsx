@@ -94,45 +94,45 @@ const FavouritesPanel: React.FC<FavouritesPanelProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="overlay-in fixed inset-0 z-50 flex items-stretch justify-end bg-(--overlay) backdrop-blur-[2px]" onClick={onClose}>
+    <div className="overlay-in mbd:fixed mbd:inset-0 mbd:z-50 mbd:flex mbd:items-stretch mbd:justify-end mbd:bg-(--overlay) mbd:backdrop-blur-[2px]" onClick={onClose}>
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="favourites-title"
         tabIndex={-1}
-        className="sheet-in flex h-full w-full max-w-[380px] flex-col bg-(--panel) shadow-2xl focus:outline-none"
+        className="sheet-in mbd:flex mbd:h-full mbd:w-full mbd:max-w-[380px] mbd:flex-col mbd:bg-(--panel) mbd:shadow-2xl mbd:focus:outline-none"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-center justify-between border-b hairline px-4 py-3">
+        <header className="mbd:flex mbd:items-center mbd:justify-between mbd:border-b hairline mbd:px-4 mbd:py-3">
           <div>
-            <h2 id="favourites-title" className="text-[13px] font-semibold text-(--ink)">Favourites</h2>
-            <p className="eyebrow mt-0.5">Saved media</p>
+            <h2 id="favourites-title" className="mbd:text-[13px] mbd:font-semibold mbd:text-(--ink)">Favourites</h2>
+            <p className="eyebrow mbd:mt-0.5">Saved media</p>
           </div>
-          <div className="flex items-center gap-0.5">
+          <div className="mbd:flex mbd:items-center mbd:gap-0.5">
             <ClearAllButton onClear={handleClearAll} disabled={sorted.length === 0} />
             <button onClick={onClose} className="iconbtn" title="Close" aria-label="Close">
-              <XMarkIcon className="h-4.5 w-4.5" />
+              <XMarkIcon className="mbd:h-4.5 mbd:w-4.5" />
             </button>
           </div>
         </header>
 
-        <div className="scroll-thin flex-1 space-y-2 overflow-y-auto px-4 py-4">
+        <div className="scroll-thin mbd:flex-1 mbd:space-y-2 mbd:overflow-y-auto mbd:px-4 mbd:py-4">
           {sorted.length === 0 ? (
-            <p className="py-8 text-center text-[12px] text-(--ink-2)">No favourites yet</p>
+            <p className="mbd:py-8 mbd:text-center mbd:text-[12px] mbd:text-(--ink-2)">No favourites yet</p>
           ) : (
             sorted.map((entry) => (
-              <div key={entry.src} className="card flex items-center gap-2.5 p-2">
-                <div className="checker relative h-11 w-11 flex-none overflow-hidden rounded-sm">
+              <div key={entry.src} className="card mbd:flex mbd:items-center mbd:gap-2.5 mbd:p-2">
+                <div className="checker mbd:relative mbd:h-11 mbd:w-11 mbd:flex-none mbd:overflow-hidden mbd:rounded-sm">
                   <LoadingImage
                     src={entry.thumbnailSrc ?? entry.src}
                     alt={displayName(entry.src)}
-                    className="h-full w-full object-cover"
+                    className="mbd:h-full mbd:w-full mbd:object-cover"
                   />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[12px] font-medium text-(--ink)">{displayName(entry.src)}</p>
-                  <p className="num flex items-center gap-1 text-[11px] text-(--ink-2)">
+                <div className="mbd:min-w-0 mbd:flex-1">
+                  <p className="mbd:truncate mbd:text-[12px] mbd:font-medium mbd:text-(--ink)">{displayName(entry.src)}</p>
+                  <p className="num mbd:flex mbd:items-center mbd:gap-1 mbd:text-[11px] mbd:text-(--ink-2)">
                     <span>{relativeTime(entry.time)}</span>
                     {entry.sourcePageUrl && (
                       <>
@@ -141,7 +141,7 @@ const FavouritesPanel: React.FC<FavouritesPanelProps> = ({ onClose }) => {
                           href={entry.sourcePageUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="truncate text-(--ink-2) underline"
+                          className="mbd:truncate mbd:text-(--ink-2) mbd:underline"
                         >
                           {safeHost(entry.sourcePageUrl)}
                         </a>
@@ -149,15 +149,15 @@ const FavouritesPanel: React.FC<FavouritesPanelProps> = ({ onClose }) => {
                     )}
                   </p>
                 </div>
-                <div className="flex flex-none items-center gap-0.5">
+                <div className="mbd:flex mbd:flex-none mbd:items-center mbd:gap-0.5">
                   <button onClick={() => openSource(entry)} className="iconbtn iconbtn-sm" title="Open source in new tab" aria-label="Open source in new tab">
-                    <ArrowTopRightOnSquareIcon className="h-[15px] w-[15px]" />
+                    <ArrowTopRightOnSquareIcon className="mbd:h-[15px] mbd:w-[15px]" />
                   </button>
                   <button onClick={() => handleDownload(entry)} className="iconbtn iconbtn-sm" title="Download" aria-label="Download">
-                    <ArrowDownTrayIcon className="h-[15px] w-[15px]" />
+                    <ArrowDownTrayIcon className="mbd:h-[15px] mbd:w-[15px]" />
                   </button>
                   <button onClick={() => handleRemove(entry)} className="iconbtn iconbtn-sm" title="Remove" aria-label="Remove">
-                    <TrashIcon className="h-[15px] w-[15px]" />
+                    <TrashIcon className="mbd:h-[15px] mbd:w-[15px]" />
                   </button>
                 </div>
               </div>
