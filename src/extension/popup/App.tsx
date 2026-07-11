@@ -15,7 +15,7 @@ import { SkeletonGrid } from './components/states/SkeletonGrid';
 import { EmptyState } from './components/states/EmptyState';
 import { ErrorState } from './components/states/ErrorState';
 import { AppState, AppProps, DeepScanProgress, DeepScanStopReason, DownloadMessage, DownloadResponse, DownloadZipMessage, DownloadBytesMessage, ExcludedKind, FilterOptions, ImageInfo, SettingsData } from '@/types';
-import { filterImagesBySettings, applyToolbarFilters, filterExcluded, isPendingOrStream } from '../shared/collection/filters';
+import { filterImagesBySettings, applyToolbarFilters, filterExcluded } from '../shared/collection/filters';
 import { mergeScannedMedia } from '../shared/collection/merge';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
 import { collectFromActiveTab } from '../shared/active-tab/collect-active-tab';
@@ -34,6 +34,7 @@ import { SIZE_FETCH_CONCURRENCY, deepScanCapMessage, downloadable, pendingVideos
 import { useDownloadHistory } from './hooks/useDownloadHistory';
 import { useFavourites } from './hooks/useFavourites';
 import { useExcluded } from './hooks/useExcluded';
+import { useSelection } from './hooks/useSelection';
 
 const App: React.FC<AppProps> = ({
   collect = collectFromActiveTab,
@@ -71,7 +72,7 @@ const App: React.FC<AppProps> = ({
   const [fetchingAllVideos, setFetchingAllVideos] = useState(false);
   // Selective bulk download: srcs the user has ticked. Scoped to what's shown —
   // pruned whenever the filtered view changes (see the effect below).
-  const [selectedSrcs, setSelectedSrcs] = useState<Set<string>>(new Set());
+  const { selectedSrcs, setSelectedSrcs, handleToggleSelect, handleSelectRange, handleSelectAllShown, handleClearSelection } = useSelection();
   // Live progress for in-extension batch work (zip fetch, video resolve). null = idle.
   // total 0 → indeterminate.
   const [progress, setProgress] = useState<{ label: string; done: number; total: number } | null>(null);
@@ -455,30 +456,6 @@ const App: React.FC<AppProps> = ({
   const handleSingleImageDownload = (image: ImageInfo): void => void handleDownload(image);
 
   // ── Selective bulk download ────────────────────────────────────────────────
-  const handleToggleSelect = (image: ImageInfo): void => {
-    if (isPendingOrStream(image)) return; // pending/stream items are captured individually, not bulk-selected
-    setSelectedSrcs((prev) => {
-      const next = new Set(prev);
-      if (next.has(image.src)) next.delete(image.src);
-      else next.add(image.src);
-      return next;
-    });
-  };
-
-  /** Shift-click: add every downloadable item in the clicked run. */
-  const handleSelectRange = (imgs: ImageInfo[]): void => {
-    setSelectedSrcs((prev) => {
-      const next = new Set(prev);
-      for (const i of imgs) if (!isPendingOrStream(i)) next.add(i.src);
-      return next;
-    });
-  };
-
-  const handleSelectAllShown = (): void =>
-    setSelectedSrcs(new Set(downloadable(state.filteredImages).map((i) => i.src)));
-
-  const handleClearSelection = (): void => setSelectedSrcs(new Set());
-
   const handleDownloadSelected = (): void => {
     const chosen = downloadable(state.filteredImages).filter((i) => selectedSrcs.has(i.src));
     if (chosen.length) void handleDownload(chosen);
@@ -569,6 +546,7 @@ const App: React.FC<AppProps> = ({
       }
       return changed ? next : prev;
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.filteredImages]);
 
   /**
@@ -817,7 +795,7 @@ const App: React.FC<AppProps> = ({
               <SelectCheckbox
                 checked={allShownSelected}
                 indeterminate={selectedCount > 0 && !allShownSelected}
-                onClick={() => (allShownSelected ? handleClearSelection() : handleSelectAllShown())}
+                onClick={() => (allShownSelected ? handleClearSelection() : handleSelectAllShown(state.filteredImages))}
                 className="shrink-0 cursor-pointer"
                 title={allShownSelected ? 'Clear selection' : 'Select all shown'}
                 ariaLabel={allShownSelected ? 'Clear selection' : 'Select all shown'}
