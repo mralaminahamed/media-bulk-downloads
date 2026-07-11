@@ -1,29 +1,27 @@
 name: Release
 
-# Fires when a version tag is pushed (e.g. `v1.1.0`). It re-validates, packages
+# Fires when a version tag is pushed (e.g. `v1.2.0`). It re-validates, packages
 # all browser zips, publishes a GitHub Release with them attached, and pushes the
-# Chrome build to the Chrome Web Store.
+# Chrome build to the Chrome Web Store via Google's official REST API (no
+# third-party package — plain curl against the documented endpoints:
+# https://developer.chrome.com/docs/webstore/using-api).
 #
-# Can also be run manually (Actions → Release → Run workflow) to publish the
-# CURRENT package.json version to the Chrome Web Store without a new tag — the
-# GitHub-Release step is skipped in that mode (the release already exists), only
-# the store publish runs.
+# Can also be run manually (Actions → Release → Run workflow) to re-publish the
+# CURRENT package.json version to the Chrome Web Store without a new tag; the
+# GitHub-Release steps are skipped in that mode.
 #
-# Required repository secrets for the Chrome Web Store publish (Settings →
-# Secrets and variables → Actions). If they are absent the publish step is
-# SKIPPED (the release still succeeds), so the workflow is safe to add before
-# the secrets exist:
+# Chrome Web Store secrets (Settings → Secrets and variables → Actions). Absent →
+# the publish job SKIPS with a warning (the release still succeeds):
 #   CHROME_EXTENSION_ID    the item id (jmdhkdengijmmkelofaleinbipophckn)
-#   CHROME_CLIENT_ID       OAuth client id  (Chrome Web Store API)
+#   CHROME_CLIENT_ID       OAuth client id  (Chrome Web Store API enabled)
 #   CHROME_CLIENT_SECRET   OAuth client secret
-#   CHROME_REFRESH_TOKEN   OAuth refresh token
-# See docs/store-submissions/CHROME_WEBSTORE.md and https://developer.chrome.com/docs/webstore/using-api
+#   CHROME_REFRESH_TOKEN   OAuth refresh token (from the account that OWNS the item)
 
 on:
   push:
     tags:
       - 'v*.*.*'
-  workflow_dispatch: # manual publish of the current package.json version
+  workflow_dispatch: # manual re-publish of the current package.json version
 
 permissions:
   contents: write # create the GitHub Release + upload assets
@@ -56,8 +54,6 @@ jobs:
   release:
     needs: validate
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -72,23 +68,14 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
-      - name: Derive version
-        id: meta
-        env:
-          EVENT: ${{ github.event_name }}
+      - name: Verify tag matches package.json
+        if: github.event_name == 'push'
         run: |
           PKG="$(node -p "require('./package.json').version")"
-          if [ "$EVENT" = "push" ]; then
-            # Tag push: version comes from the tag and must match package.json.
-            TAG="${GITHUB_REF_NAME#v}"
-            if [ "$TAG" != "$PKG" ]; then
-              echo "::error::Tag v$TAG does not match package.json version $PKG — bump package.json before tagging."
-              exit 1
-            fi
-            echo "version=$TAG" >> "$GITHUB_OUTPUT"
-          else
-            # Manual dispatch: publish whatever package.json currently declares.
-            echo "version=$PKG" >> "$GITHUB_OUTPUT"
+          TAG="${GITHUB_REF_NAME#v}"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::Tag v$TAG does not match package.json version $PKG — bump package.json before tagging."
+            exit 1
           fi
 
       - name: Package all browser zips
@@ -98,14 +85,13 @@ jobs:
       - name: Extract changelog section for this version
         if: github.event_name == 'push'
         env:
-          VERSION: ${{ steps.meta.outputs.version }}
-          REPO: ${{ github.repository }}
           REF_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
         run: |
-          # Print lines after "## [VERSION]" up to (not including) the next "## [" header.
-          awk -v tag="## [$VERSION]" 'index($0,tag)==1 {f=1; next} /^## \[/ && f {exit} f' CHANGELOG.md > RELEASE_NOTES.md
+          V="${REF_NAME#v}"
+          awk -v tag="## [$V]" 'index($0,tag)==1 {f=1; next} /^## \[/ && f {exit} f' CHANGELOG.md > RELEASE_NOTES.md
           if [ ! -s RELEASE_NOTES.md ]; then
-            echo "Release $VERSION" > RELEASE_NOTES.md
+            echo "Release $V" > RELEASE_NOTES.md
           fi
           {
             echo ""
@@ -122,7 +108,7 @@ jobs:
           fail_on_unmatched_files: true
 
   publish-chrome:
-    needs: release
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -142,30 +128,72 @@ jobs:
         id: guard
         env:
           EXT_ID: ${{ secrets.CHROME_EXTENSION_ID }}
-          PUB_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
+          CID: ${{ secrets.CHROME_CLIENT_ID }}
+          CSECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          RTOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
         run: |
-          if [ -n "$EXT_ID" ] && [ -n "$PUB_ID" ]; then
+          if [ -n "$EXT_ID" ] && [ -n "$CID" ] && [ -n "$CSECRET" ] && [ -n "$RTOKEN" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::CHROME_EXTENSION_ID and/or CHROME_PUBLISHER_ID not set — skipping Chrome Web Store publish."
+            echo "::warning::Chrome Web Store secrets not fully set — skipping publish."
           fi
 
-      # Official CLI, always latest. Its current `chrome-webstore-upload` (v6)
-      # dependency requires a PUBLISHER_ID in addition to the OAuth creds — that
-      # newly-required input is what broke v1.2.0 (the workflow predated it). It
-      # reads EXTENSION_ID / CLIENT_ID / CLIENT_SECRET / REFRESH_TOKEN and the
-      # developer account's PUBLISHER_ID from the environment.
-      - name: Publish to Chrome Web Store
+      # Publish through Google's official Chrome Web Store API directly (no npm
+      # package): OAuth token refresh → item-scoped v1.1 upload → publish. The
+      # v1.1 item endpoint needs only the item id (no publisher id). Docs:
+      # https://developer.chrome.com/docs/webstore/using-api
+      - name: Publish to Chrome Web Store (official API)
         if: steps.guard.outputs.ready == 'true'
         env:
           EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
-          PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
           CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
-          VERSION: ${{ needs.release.outputs.version }}
         run: |
-          npx --yes chrome-webstore-upload-cli@latest upload \
-            --source ".output/media-bulk-downloads-${VERSION}-chrome.zip" \
-            --auto-publish
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          ZIP=".output/media-bulk-downloads-${VERSION}-chrome.zip"
+          [ -f "$ZIP" ] || { echo "::error::$ZIP not found"; exit 1; }
+
+          echo "Requesting access token…"
+          RESP="$(curl -s -X POST https://oauth2.googleapis.com/token \
+            -d "client_id=${CLIENT_ID}" \
+            -d "client_secret=${CLIENT_SECRET}" \
+            -d "refresh_token=${REFRESH_TOKEN}" \
+            -d "grant_type=refresh_token")"
+          TOKEN="$(echo "$RESP" | jq -r '.access_token // empty')"
+          if [ -z "$TOKEN" ]; then
+            # Print only the error fields (never the token) so the cause is visible.
+            echo "OAuth token error: $(echo "$RESP" | jq -c '{error, error_description}' 2>/dev/null || echo "$RESP")"
+            echo "::error::Could not obtain an access token (check CLIENT_ID/SECRET/REFRESH_TOKEN, and that the OAuth client is a 'Web application' with the Chrome Web Store API enabled)."
+            exit 1
+          fi
+
+          echo "Uploading ${ZIP}…"
+          UP="$(curl -s -X PUT \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "x-goog-api-version: 2" \
+            -T "$ZIP" \
+            "https://www.googleapis.com/upload/chromewebstore/v1.1/items/${EXTENSION_ID}")"
+          echo "$UP"
+          STATE="$(echo "$UP" | jq -r '.uploadState // empty')"
+          if [ "$STATE" != "SUCCESS" ]; then
+            echo "::error::Upload did not succeed (uploadState=$STATE). See response above."
+            exit 1
+          fi
+
+          echo "Publishing…"
+          PUB="$(curl -s -X POST \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "x-goog-api-version: 2" \
+            -H "Content-Length: 0" \
+            "https://www.googleapis.com/chromewebstore/v1.1/items/${EXTENSION_ID}/publish")"
+          echo "$PUB"
+          # status is an array; OK or ITEM_PENDING_REVIEW both mean the publish was accepted.
+          if echo "$PUB" | jq -e '[.status[]] | any(. == "OK" or . == "ITEM_PENDING_REVIEW")' >/dev/null 2>&1; then
+            echo "Chrome Web Store publish accepted."
+          else
+            echo "::error::Publish was rejected. See response above."
+            exit 1
+          fi
