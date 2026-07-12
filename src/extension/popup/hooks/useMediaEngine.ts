@@ -4,8 +4,10 @@ import { filterImagesBySettings, applyToolbarFilters, filterExcluded, ExcludedMa
 import { mergeScannedMedia } from '../../shared/collection/merge';
 import { DEFAULT_SETTINGS, withDefaults } from '../../shared/storage/settings';
 import { requestResolveOriginals } from '../../shared/active-tab/resolve-originals-active';
+import { getPageType } from '../../shared/active-tab/collect-active-tab';
 import { applyResolved } from '../apply-resolved';
 import { SrcKeySet } from '../../shared/collection/canonical';
+import { pageDefaults } from '../../shared/collection/pageType';
 import { DEFAULT_FILTERS } from '../components/FilterToolbar';
 import { getImageFileSize, mapWithConcurrency } from '../utils';
 import { SIZE_FETCH_CONCURRENCY, deepScanCapMessage, pendingVideos } from '../lib/appHelpers';
@@ -41,6 +43,8 @@ export interface UseMediaEngineResult {
   resolveFailedSrcs: Set<string>;
   rawImagesRef: RefObject<ImageInfo[]>;
   filtersRef: RefObject<FilterOptions>;
+  /** Page-type-derived filter seed (opt-in `smartPageDefaults`), for FilterToolbar's `initialFilters`. */
+  filterSeed: Partial<FilterOptions>;
 }
 
 /**
@@ -72,6 +76,9 @@ export function useMediaEngine({
   });
   const [deepScanning, setDeepScanning] = useState(false);
   const [deepProgress, setDeepProgress] = useState<DeepScanProgress | null>(null);
+  // Page-type-derived filter seed, surfaced to FilterToolbar as `initialFilters`
+  // when `smartPageDefaults` is on; `{}` (today's defaults) otherwise.
+  const [filterSeed, setFilterSeed] = useState<Partial<FilterOptions>>({});
 
   useEffect(() => {
     // When the Downloaded filter is active, a completed download changes which
@@ -225,9 +232,10 @@ export function useMediaEngine({
   const fetchImages = useCallback(async (): Promise<void> => {
     enrichGenRef.current++; // cancel any in-flight enrichment
     resolveGenRef.current++; // cancel any in-flight resolution
-    // A rescan unmounts FilterToolbar (isLoading) and it remounts at DEFAULT_FILTERS;
-    // reset the ref too so the repopulated grid isn't left silently filtered by the
-    // previous run's selection while the toolbar shows "All".
+    // A rescan unmounts FilterToolbar (isLoading) and it remounts at DEFAULT_FILTERS
+    // merged with the current seed below; reset the ref too so the repopulated
+    // grid isn't left silently filtered by the previous run's selection while the
+    // toolbar shows "All"/the seed.
     filtersRef.current = DEFAULT_FILTERS;
     setState((prev) => ({ ...prev, isLoading: true, status: '' }));
 
@@ -236,6 +244,18 @@ export function useMediaEngine({
       const raw = Array.isArray(imageList) ? imageList : [];
       rawImagesRef.current = raw;
       const s = settingsRef.current; // latest settings, not a stale closure
+
+      // Opt-in: prime the toolbar's defaults from a passive page-type read (no
+      // network — DOM signals only). Off by default so behavior is unchanged
+      // unless the user turns it on in Settings.
+      let seed: Partial<FilterOptions> = {};
+      if (s.smartPageDefaults) {
+        const pt = await getPageType();
+        seed = pageDefaults(pt);
+      }
+      setFilterSeed(seed);
+      filtersRef.current = { ...DEFAULT_FILTERS, ...seed };
+
       const eligible = filterExcluded(filterImagesBySettings(raw, s), excludedRef.current);
 
       setState((prev) => ({ ...prev, status: '', isLoading: false }));
@@ -405,5 +425,6 @@ export function useMediaEngine({
     resolveFailedSrcs,
     rawImagesRef,
     filtersRef,
+    filterSeed,
   };
 }

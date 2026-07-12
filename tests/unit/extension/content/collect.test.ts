@@ -439,6 +439,72 @@ describe('collectMedia — meta / preload hero sources', () => {
   });
 });
 
+describe('page-type hero reprioritisation', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+    document.head.querySelectorAll('meta, link').forEach((n) => n.remove());
+  });
+
+  // The brief's original example host (`?name=orig` / `?name=small`) does not
+  // canonically collapse: `name` is not a recognised transform/volatile param
+  // in canonical.ts's generic dynamic-path branch, so the two URLs would keep
+  // distinct canonical keys and this test couldn't exercise dedup at all.
+  // `w=` IS a recognised TRANSFORM_PARAM (canonical.ts), so both variants of
+  // this fictitious cdn.example.com asset collapse to one canonical key
+  // (`cdn.example.com/photo/abc123`) while remaining distinct literal URLs —
+  // exactly what's needed to observe which representation wins first-come dedup.
+  const HERO = 'https://cdn.example.com/photo/abc123?w=2000';
+  const THUMB = 'https://cdn.example.com/photo/abc123?w=300'; // same canonical asset
+
+  function singleMediaDoc() {
+    document.head.innerHTML =
+      `<meta property="og:type" content="article">` +
+      `<meta property="og:image" content="${HERO}">`;
+    document.body.innerHTML = `<img src="${THUMB}" width="1200" height="800">`;
+  }
+
+  it('keeps only one item (same canonical asset) regardless of order', () => {
+    singleMediaDoc();
+    const off = collectMedia(undefined, { smartPageDefaults: false });
+    const on = collectMedia(undefined, { smartPageDefaults: true });
+    const keys = (items: ReturnType<typeof collectMedia>) => new Set(items.map((i) => i.src.split('?')[0]));
+    expect(keys(on)).toEqual(keys(off)); // distinct-asset set unchanged
+    expect(on.filter((i) => i.src.split('?')[0] === 'https://cdn.example.com/photo/abc123').length).toBe(1);
+  });
+
+  it('with the flag off, today\'s DOM-first order is unchanged: the inline thumb wins', () => {
+    singleMediaDoc();
+    const off = collectMedia(undefined, { smartPageDefaults: false });
+    const item = off.find((i) => i.src.startsWith('https://cdn.example.com/photo/abc123'));
+    expect(item?.src).toBe(THUMB);
+  });
+
+  it('with the flag on, the hero (og:image) representation wins for an article/single page', () => {
+    singleMediaDoc();
+    const on = collectMedia(undefined, { smartPageDefaults: true });
+    const item = on.find((i) => i.src.startsWith('https://cdn.example.com/photo/abc123'));
+    expect(item?.src).toBe(HERO);
+  });
+
+  // Regression guard for the C4 reorder bug: bundling the meta and preload
+  // passes into one closure shifted preload ahead of og:video even with the
+  // flag OFF. The original (pre-hero-pass) order was DOM walk -> meta ->
+  // og:video -> preload -> Instagram -> Facebook, so with the flag off the
+  // og:video item must still come before a preload-sourced image item.
+  it('with the flag off, og:video is collected before a link-preload image (original pass order preserved)', () => {
+    document.head.innerHTML =
+      '<meta property="og:video" content="https://cdn.com/clip.mp4">' +
+      '<meta property="og:video:type" content="video/mp4">' +
+      '<link rel="preload" as="image" href="https://cdn.com/pre.jpg">';
+    const off = collectMedia(undefined, { smartPageDefaults: false });
+    const videoIdx = off.findIndex((i) => i.src === 'https://cdn.com/clip.mp4');
+    const preloadIdx = off.findIndex((i) => i.src === 'https://cdn.com/pre.jpg');
+    expect(videoIdx).toBeGreaterThanOrEqual(0);
+    expect(preloadIdx).toBeGreaterThanOrEqual(0);
+    expect(videoIdx).toBeLessThan(preloadIdx);
+  });
+});
+
 describe('collectMedia — same-origin iframes', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 

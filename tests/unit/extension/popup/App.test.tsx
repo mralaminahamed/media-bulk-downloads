@@ -6,6 +6,7 @@ import App from '@/extension/popup/App';
 import { ImageInfo } from '@/types';
 import { deepScanActiveTab } from '@/extension/shared/active-tab/deep-scan-active-tab';
 import { requestResolveOriginals } from '@/extension/shared/active-tab/resolve-originals-active';
+import { getPageType } from '@/extension/shared/active-tab/collect-active-tab';
 import { excludedMatchers, EXCLUDED_KEY } from '@/extension/shared/storage/excluded';
 import { SrcKeySet } from '@/extension/shared/collection/canonical';
 import { HISTORY_KEY } from '@/extension/shared/storage/history';
@@ -26,6 +27,15 @@ vi.mock('@/extension/shared/active-tab/deep-scan-active-tab', () => ({
 
 vi.mock('@/extension/shared/active-tab/resolve-originals-active', () => ({
   requestResolveOriginals: vi.fn(async () => ({ 'poster.jpg': { url: 'https://video.twimg.com/hi.mp4' } })),
+}));
+
+// App's default `collect` prop is `collectFromActiveTab` from this module, but every
+// test below passes its own `collect` prop, so that export is never actually invoked.
+// `getPageType` IS exercised for real (via useMediaEngine's smartPageDefaults gate),
+// so it's mocked here per-test below to control the classified PageType.
+vi.mock('@/extension/shared/active-tab/collect-active-tab', () => ({
+  collectFromActiveTab: vi.fn(),
+  getPageType: vi.fn(async () => 'unknown'),
 }));
 
 vi.mock('@/extension/shared/storage/excluded', async () => {
@@ -1630,5 +1640,54 @@ describe('App Component', () => {
     // remote.jpg enriches to 4 KB; known.jpg keeps its 1 KB (the map's pass-through arm).
     expect(await screen.findByText('4 KB')).toBeInTheDocument();
     expect(screen.getByText('1 KB')).toBeInTheDocument();
+  });
+});
+
+// ── smartPageDefaults (opt-in page-type-seeded filters, #292 Task C3) ──────────
+// useMediaEngine.fetchImages awaits getPageType() only when the loaded settings
+// have smartPageDefaults on, then seeds FilterToolbar's initialFilters from
+// pageDefaults(pageType). Exercised here (rather than a standalone
+// useMediaEngine.test.ts) because App is the only existing harness that mounts
+// the hook, and it already establishes the exact machinery needed — vi.mock of
+// an active-tab module (see deep-scan-active-tab / resolve-originals-active
+// above) — so no new test infrastructure is introduced.
+describe('smartPageDefaults (page-type-seeded filters)', () => {
+  beforeEach(() => {
+    (getPageType as Mock).mockReset();
+  });
+
+  it('seeds Sort/Size from the classified page type when smartPageDefaults is on', async () => {
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { smartPageDefaults: true } }));
+    (getPageType as Mock).mockResolvedValue('gallery');
+
+    // 500x500 lands in the 'medium' size bucket (256-1024 edge) so it's a live
+    // option in availableFilterOptions — otherwise FilterToolbar's stale-option
+    // cleanup effect would immediately reset the seeded sizeBucket back to 'all'.
+    render(
+      <App
+        collect={async () => [
+          image({ src: 'a.jpg', width: 500, height: 500 }),
+          image({ src: 'b.jpg', width: 500, height: 500 }),
+        ]}
+      />,
+    );
+    await screen.findByText('Filters');
+
+    expect(getPageType).toHaveBeenCalled();
+    // pageDefaults('gallery') === { sizeBucket: 'medium', sortBy: 'size', sortDir: 'desc' },
+    // merged over DEFAULT_FILTERS as FilterToolbar's initial state.
+    expect(screen.getByLabelText('Sort order')).toHaveValue('size');
+    expect(screen.getByRole('button', { name: 'Medium' })).toBeInTheDocument(); // active size chip
+  });
+
+  it('leaves the default (unseeded) filters alone when smartPageDefaults is off', async () => {
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { smartPageDefaults: false } }));
+
+    render(<App collect={async () => [image({ src: 'a.jpg' })]} />);
+    await screen.findByText('Filters');
+
+    expect(getPageType).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Sort order')).toHaveValue('default');
+    expect(screen.queryByRole('button', { name: 'Medium' })).not.toBeInTheDocument();
   });
 });

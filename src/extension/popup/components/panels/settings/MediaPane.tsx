@@ -54,6 +54,13 @@ const MediaPane: React.FC<SettingsPaneProps> = ({
       checked={settings.captureHlsStreams}
       onToggle={() => toggle('captureHlsStreams')}
     />
+    <ToggleRow
+      id="set-smartPageDefaults"
+      label="Smart page defaults"
+      description="Detect the page type (gallery, feed, article, single) and prime sensible filter defaults. Off by default; nothing is hidden — active defaults show as clearable chips."
+      checked={settings.smartPageDefaults}
+      onToggle={() => toggle('smartPageDefaults')}
+    />
 
     <AdvancedDisclosure id="adv-media" defaultOpen={advancedDefaultOpen}>
       <div className="mbd:grid mbd:grid-cols-2 mbd:gap-3">

@@ -185,10 +185,18 @@ describe('Content Script', () => {
 
   describe('Message Handling', () => {
     it('responds with collected images when GET_IMAGES message is received', async () => {
+      // GET_IMAGES now reads the smartPageDefaults setting (Task C4) before
+      // responding, so the channel is kept open for an async chrome.storage.sync
+      // read — mock it to invoke its callback synchronously, mirroring the
+      // deep-scan handler's async storage read further down this file.
+      (chrome.storage.sync.get as Mock).mockImplementation(
+        (_keys: unknown, cb: (r: { settings: unknown }) => void) => cb({ settings: {} }),
+      );
       const sendResponse = vi.fn();
       const messageListener = (chrome.runtime.onMessage.addListener as Mock).mock.calls[0][0];
 
-      messageListener('GET_IMAGES', {}, sendResponse);
+      const ret = messageListener('GET_IMAGES', {}, sendResponse);
+      expect(ret).toBe(true); // keeps the message channel open for the async reply
 
       expect(sendResponse).toHaveBeenCalledWith(
         expect.arrayContaining([
@@ -198,6 +206,8 @@ describe('Content Script', () => {
           expect.objectContaining({ src: abs('test4.gif') }),
         ]),
       );
+
+      (chrome.storage.sync.get as Mock).mockReset();
     });
 
     it('does not respond to unknown message types', async () => {
@@ -207,6 +217,21 @@ describe('Content Script', () => {
       messageListener('UNKNOWN_MESSAGE', {}, sendResponse);
 
       expect(sendResponse).not.toHaveBeenCalled();
+    });
+
+    it('responds with the classified page type when GET_PAGE_TYPE message is received', async () => {
+      // 6 equal-sized images inside <article>, no feed markers: imageCount > 5
+      // rules out single-media, imageCount < 20 rules out gallery, feedMarkers
+      // is false so feed never applies — hasArticle is the only signal left,
+      // so this fixture classifies unambiguously as 'article'.
+      document.body.innerHTML =
+        '<article>' + '<img src="a.jpg" width="100" height="100">'.repeat(6) + '</article>';
+      const sendResponse = vi.fn();
+      const messageListener = (chrome.runtime.onMessage.addListener as Mock).mock.calls[0][0];
+
+      messageListener('GET_PAGE_TYPE', {}, sendResponse);
+
+      expect(sendResponse).toHaveBeenCalledWith('article');
     });
   });
 

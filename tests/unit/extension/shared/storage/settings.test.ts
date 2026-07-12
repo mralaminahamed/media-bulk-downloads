@@ -83,6 +83,15 @@ describe('withDefaults — corrupt shapes', () => {
   });
 });
 
+describe('smartPageDefaults setting', () => {
+  it('defaults to false', () => {
+    expect(DEFAULT_SETTINGS.smartPageDefaults).toBe(false);
+  });
+  it('withDefaults backfills it for old stored settings', () => {
+    expect(withDefaults({}).smartPageDefaults).toBe(false);
+  });
+});
+
 describe('downloadConcurrency setting', () => {
   it('defaults to 5', () => {
     expect(DEFAULT_SETTINGS.downloadConcurrency).toBe(5);

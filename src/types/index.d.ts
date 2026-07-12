@@ -490,6 +490,8 @@ export interface SettingsData {
   deepScanMaxScrolls: number;
   /** Opt-in: click "Load more"-style buttons between scroll rounds during a deep scan. */
   deepScanClickLoadMore: boolean;
+  /** Opt-in: let a passive page-type classifier prime filter defaults + pass order. */
+  smartPageDefaults: boolean;
 }
 
 export type SizeBucket = 'all' | 'small' | 'medium' | 'large';
@@ -520,6 +522,18 @@ export interface AvailableOptions {
   kinds: FilterOptions['mediaKind'][];
   formats: Record<'image' | 'video' | 'audio', string[]>;
   sizeBuckets: SizeBucket[];
+}
+
+/** A passive page-type prior derived from cheap DOM signals. */
+export type PageType = 'gallery' | 'feed' | 'article' | 'single-media' | 'unknown';
+
+export interface PageSignals {
+  imageCount: number;        // count of <img> on the page
+  density: number;           // images per viewport-area unit (0..~)
+  aspectSpread: number;      // variance of image aspect ratios (grid uniformity → low)
+  hasArticle: boolean;       // <article> present OR og:type === 'article'
+  dominantAreaRatio: number; // largest image area / total image area (0..1)
+  feedMarkers: boolean;      // role="feed" present, or many repeated card structures
 }
 
 // ── Component props ──────────────────────────────────────────────────────────

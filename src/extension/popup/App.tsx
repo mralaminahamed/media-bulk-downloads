@@ -93,6 +93,7 @@ const App: React.FC<AppProps> = ({
     fetchingAllVideos,
     fetchingSrcs,
     resolveFailedSrcs,
+    filterSeed,
   } = useMediaEngine({
     settings,
     settingsRef,
@@ -241,7 +242,7 @@ const App: React.FC<AppProps> = ({
 
       {/* Filters */}
       {hasImages && !state.isLoading && (
-        <FilterToolbar onFilterChange={handleFilterChange} extensionSettings={settings} available={availableFilterOptions} />
+        <FilterToolbar onFilterChange={handleFilterChange} extensionSettings={settings} available={availableFilterOptions} initialFilters={filterSeed} />
       )}
 
       {/* Body */}

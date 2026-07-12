@@ -13,6 +13,7 @@ import { ingestSniffedFbMedia } from '../shared/resolvers/sites/facebook';
 import { ingestSniffedHls } from '../shared/resolvers/sniffers/hls-sniff';
 import { withDefaults } from '../shared/storage/settings';
 import { startDeepScan } from './deepScanRunner';
+import { classifyPage, collectPageSignals } from '../shared/collection/pageType';
 
 // Re-export the pure collection API (kept for tests and other importers).
 export * from './collect';
@@ -98,13 +99,30 @@ window.addEventListener('message', (event: MessageEvent) => {
 // saw before this listener existed (ingestSniffedHls dedups the replay).
 window.postMessage({ source: 'ibd-hls-ready' }, location.origin);
 
-// Answer image-collection requests from the popup and background worker.
+// Answer image-collection requests from the popup and background worker, and
+// the popup's page-type classification request (used to seed filter defaults
+// when the opt-in `smartPageDefaults` setting is on — a pure DOM read, no
+// network).
 chrome.runtime.onMessage.addListener(
-  (message: unknown, _sender, sendResponse: (response: ReturnType<typeof collectMedia>) => void) => {
+  (
+    message: unknown,
+    _sender,
+    sendResponse: (response: ReturnType<typeof collectMedia> | ReturnType<typeof classifyPage>) => void,
+  ) => {
     if (message === 'GET_IMAGES') {
-      sendResponse(collectMedia());
+      // Reads the smartPageDefaults setting first so collectMedia can reorder
+      // its hero-image pass ahead of the DOM walk on a single-media/article
+      // page (Task C4) — the setting isn't known until this async storage read
+      // resolves, so the channel must stay open for it.
+      chrome.storage.sync.get(['settings'], (result) => {
+        const s = withDefaults(result.settings);
+        sendResponse(collectMedia(undefined, { smartPageDefaults: s.smartPageDefaults }));
+      });
+      return true; // async response — keep the channel open
+    } else if (message === 'GET_PAGE_TYPE') {
+      sendResponse(classifyPage(collectPageSignals(document)));
+      // Synchronous response — no need to keep the channel open.
     }
-    // Synchronous response — no need to keep the channel open.
   },
 );
 
