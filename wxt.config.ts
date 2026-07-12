@@ -49,6 +49,13 @@ export default defineConfig({
     // which is fine since we hold `<all_urls>` as a required host permission.
     optional_permissions: ['notifications', 'declarativeNetRequestWithHostAccess'],
     host_permissions: ['<all_urls>'],
+    // Chrome/Edge install floor. The hard requirement is `chrome.offscreen`
+    // (createDocument/hasDocument, used for HLS/DASH capture) — stable in Chrome
+    // 109. Everything else is at or below it (DNR session rules land in 108), and
+    // we use no 116+ API (no chrome.runtime.getContexts). Firefox declares its own
+    // floor via browser_specific_settings.gecko.strict_min_version below, so this
+    // Chromium-only key is omitted there (web-ext would flag it as unknown).
+    ...(browser === 'firefox' ? {} : { minimum_chrome_version: '109' }),
     icons: {
       16: 'icon/16.png',
       32: 'icon/32.png',
