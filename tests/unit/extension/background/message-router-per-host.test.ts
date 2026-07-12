@@ -5,8 +5,13 @@ vi.mock('@/extension/shared/storage/per-host-settings', () => ({
   clearPerHostSettings: vi.fn(() => Promise.resolve()),
 }));
 
+vi.mock('@/extension/shared/storage/per-host-scan-memory', () => ({
+  clearScanMemoryForHost: vi.fn(() => Promise.resolve()),
+}));
+
 import { messageRouter } from '@/extension/background/message-router';
 import { savePerHostSettings, clearPerHostSettings } from '@/extension/shared/storage/per-host-settings';
+import { clearScanMemoryForHost } from '@/extension/shared/storage/per-host-scan-memory';
 
 describe('SET_PER_HOST_SETTINGS router handler', () => {
   const noop = vi.fn();
@@ -28,5 +33,21 @@ describe('SET_PER_HOST_SETTINGS router handler', () => {
     );
     expect(clearPerHostSettings).toHaveBeenCalledWith('booru.example');
     expect(savePerHostSettings).not.toHaveBeenCalled();
+  });
+
+  it('a null patch also clears the host learned scan memory (#293 phase-2)', () => {
+    messageRouter.SET_PER_HOST_SETTINGS!(
+      { type: 'SET_PER_HOST_SETTINGS', host: 'booru.example', patch: null },
+      {} as chrome.runtime.MessageSender, noop,
+    );
+    expect(clearScanMemoryForHost).toHaveBeenCalledWith('booru.example');
+  });
+
+  it('a non-null patch does not touch the host learned scan memory', () => {
+    messageRouter.SET_PER_HOST_SETTINGS!(
+      { type: 'SET_PER_HOST_SETTINGS', host: 'booru.example', patch: { minimumImageSize: 1024 } },
+      {} as chrome.runtime.MessageSender, noop,
+    );
+    expect(clearScanMemoryForHost).not.toHaveBeenCalled();
   });
 });
