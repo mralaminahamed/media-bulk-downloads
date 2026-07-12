@@ -354,6 +354,16 @@ describe('Settings Component', () => {
     expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ rememberScanBehaviour: false }));
   });
 
+  it('toggles skip-duplicate-downloads', () => {
+    render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    selectTab(/Media/i);
+    const toggle = screen.getByRole('switch', { name: /skip images already downloaded/i });
+    expect(toggle).toHaveAttribute('aria-checked', 'true'); // initialSettings.skipDuplicateDownloads is true
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByText('Save'));
+    expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ skipDuplicateDownloads: false }));
+  });
+
   // ── Dropdowns ──────────────────────────────────────────────────────────────
   it('saves the chosen image-conversion format', () => {
     render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);

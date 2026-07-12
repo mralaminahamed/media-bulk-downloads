@@ -68,6 +68,13 @@ const MediaPane: React.FC<SettingsPaneProps> = ({
       checked={settings.rememberScanBehaviour}
       onToggle={() => toggle('rememberScanBehaviour')}
     />
+    <ToggleRow
+      id="set-skipDuplicateDownloads"
+      label="Skip images already downloaded"
+      description="Don't re-save an image whose file is already on disk (matched across CDN URLs). On by default; re-downloads from Favourites or History always go through."
+      checked={settings.skipDuplicateDownloads}
+      onToggle={() => toggle('skipDuplicateDownloads')}
+    />
 
     <AdvancedDisclosure id="adv-media" defaultOpen={advancedDefaultOpen}>
       <div className="mbd:grid mbd:grid-cols-2 mbd:gap-3">
