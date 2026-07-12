@@ -42,6 +42,7 @@ describe('Settings Component', () => {
     deepScanMaxScrolls: 40,
     deepScanClickLoadMore: false,
     smartPageDefaults: false,
+    rememberScanBehaviour: true,
   };
 
   // jsdom does not implement

@@ -31,6 +31,7 @@ export const DEFAULT_SETTINGS: SettingsData = {
   deepScanMaxScrolls: 40,
   deepScanClickLoadMore: false,
   smartPageDefaults: true,
+  rememberScanBehaviour: true,
 };
 
 /** A plain object, or {} — so spreading a corrupt string/array/number legacy

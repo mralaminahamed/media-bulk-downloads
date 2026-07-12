@@ -135,6 +135,17 @@ export type DeepScanAbortMessage = 'DEEP_SCAN_ABORT';
  */
 export type DeepScanStopReason = 'complete' | 'max-items' | 'max-time' | 'max-scrolls' | 'aborted' | 'error';
 
+/** One host's learned deep-scan behaviour (phase-2, #293 follow-up). Persisted per
+ *  registrable domain in chrome.storage.local; only these numbers, never URLs. */
+export interface ScanMemory {
+  /** Cross-visit EMA of the converged settle time (ms). */
+  settleMs: number;
+  /** Cross-visit EMA of the scroll depth the site needed (rounded). */
+  scrolls: number;
+  /** Last-updated wall-clock ms, for LRU eviction. */
+  updatedAt: number;
+}
+
 export interface DeepScanProgress {
   type: 'DEEP_SCAN_PROGRESS';
   found: number;
@@ -502,6 +513,9 @@ export interface SettingsData {
   deepScanClickLoadMore: boolean;
   /** Opt-in: let a passive page-type classifier prime filter defaults + pass order. */
   smartPageDefaults: boolean;
+  /** Phase-2 learned scan (#293 follow-up): remember each site's converged deep-scan
+   *  settle time + scroll depth and seed the next visit. Global; local-only. */
+  rememberScanBehaviour: boolean;
 }
 
 export type SizeBucket = 'all' | 'small' | 'medium' | 'large';

@@ -59,6 +59,7 @@ describe('FilterToolbar Component', () => {
     deepScanMaxScrolls: 40,
     deepScanClickLoadMore: false,
     smartPageDefaults: false,
+    rememberScanBehaviour: true,
   };
 
   const renderToolbar = (over: Partial<SettingsData> = {}) =>

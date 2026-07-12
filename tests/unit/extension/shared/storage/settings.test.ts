@@ -95,6 +95,18 @@ describe('smartPageDefaults setting', () => {
   });
 });
 
+describe('rememberScanBehaviour setting', () => {
+  it('defaults to true', () => {
+    expect(DEFAULT_SETTINGS.rememberScanBehaviour).toBe(true);
+  });
+  it('withDefaults backfills it for old stored settings', () => {
+    expect(withDefaults({}).rememberScanBehaviour).toBe(true);
+  });
+  it('preserves an explicit opt-out through withDefaults', () => {
+    expect(withDefaults({ rememberScanBehaviour: false }).rememberScanBehaviour).toBe(false);
+  });
+});
+
 describe('downloadConcurrency setting', () => {
   it('defaults to 5', () => {
     expect(DEFAULT_SETTINGS.downloadConcurrency).toBe(5);

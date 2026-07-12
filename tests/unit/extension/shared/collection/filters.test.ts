@@ -33,6 +33,7 @@ const base: SettingsData = {
   deepScanMaxScrolls: 40,
   deepScanClickLoadMore: false,
   smartPageDefaults: false,
+  rememberScanBehaviour: true,
 };
 
 const img = (over: Partial<ImageInfo>): ImageInfo => ({
