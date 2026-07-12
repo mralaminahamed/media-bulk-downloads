@@ -1,4 +1,5 @@
 import type { Mock, MockInstance } from 'vitest';
+import { registrableDomain } from '@/extension/shared/collection/paths';
 // The relay listeners forward sniffer payloads into these resolver functions.
 // Spy on just those two entry points (keep the rest of each module real so the
 // collectMedia tests, which pull sniffedHlsManifests / instagramPageMedia from
@@ -197,6 +198,12 @@ describe('Content Script', () => {
 
       const ret = messageListener('GET_IMAGES', {}, sendResponse);
       expect(ret).toBe(true); // keeps the message channel open for the async reply
+
+      // loadEffectiveSettingsForHost (#293) resolves the global settings AND the
+      // per-host override (both real Promises, even though the sync mock invokes
+      // its callback synchronously) before calling sendResponse, so let that
+      // microtask/macrotask chain settle before asserting.
+      await new Promise((r) => setTimeout(r, 0));
 
       expect(sendResponse).toHaveBeenCalledWith(
         expect.arrayContaining([
@@ -470,6 +477,25 @@ describe('Deep scan message handling', () => {
 
     expect(startDeepScan).toHaveBeenCalled();
     expect(sendResponse).toHaveBeenCalledWith(media);
+  });
+
+  it('uses per-host deep-scan caps when a host override exists (#293)', async () => {
+    const { handler, startDeepScan } = await wire();
+    (chrome.storage.sync.get as Mock).mockImplementation(
+      (_k: unknown, cb: (r: { settings: unknown }) => void) => cb({ settings: { deepScanMaxItems: 1000 } }),
+    );
+    await chrome.storage.local.set({
+      perHostSettings: { [registrableDomain(location.hostname)]: { deepScanMaxItems: 50 } },
+    });
+    startDeepScan.mockResolvedValue([]);
+
+    handler('DEEP_SCAN', {}, vi.fn());
+    await flush();
+
+    expect(startDeepScan).toHaveBeenCalledWith(
+      expect.any(Function), expect.anything(), expect.objectContaining({ maxItems: 50 }),
+    );
+    await chrome.storage.local.clear();
   });
 
   it('responds with an empty list when the scan rejects', async () => {
