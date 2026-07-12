@@ -28,6 +28,64 @@ export const SRC_KEY_RULES: SrcKeyRule[] = [
     match: (u) => /(?:^|\.)(?:fbcdn\.net|cdninstagram\.com)$/i.test(u.hostname),
     key: (u) => `fbcdn.net${u.pathname}`,
   },
+  {
+    // WordPress.com / Jetpack Photon: the same image is served from rotating edge
+    // digits i0/i1/i2.wp.com; the origin host + path (the rest of the pathname) is
+    // the identity, and the resize query is a rendition.
+    match: (u) => /^i[0-2]\.wp\.com$/i.test(u.hostname),
+    key: (u) => `i.wp.com${u.pathname}`,
+  },
+  {
+    // Google user content (lh3/lh4/….googleusercontent.com): the same asset gets a
+    // `=s512` / `=w800-h600` / `=s96-c` size/crop suffix on its last path segment;
+    // the segment up to the final `=size` token is the identity (only the trailing
+    // `=…` is stripped, so a token with an embedded `=` is not truncated early).
+    // Host kept to avoid over-collapse.
+    match: (u) => /(?:^|\.)googleusercontent\.com$/i.test(u.hostname),
+    key: (u) => `${u.hostname.toLowerCase()}${u.pathname.replace(/=[^/=]*$/, '')}`,
+  },
+  {
+    // imgix (*.imgix.net): every query param is a rendition / transform / signature
+    // EXCEPT `page` (selects a page of a multi-page source, e.g. a PDF) and `frame`
+    // (selects a still from an animated source) — each names genuinely different
+    // content, not a rendition — so they are kept as part of the identity, in a
+    // fixed order for a stable key. Custom imgix domains are out of scope for v1.
+    match: (u) => /(?:^|\.)imgix\.net$/i.test(u.hostname),
+    key: (u) => {
+      const q = new URLSearchParams(u.search);
+      const base = `${u.hostname.toLowerCase()}${u.pathname}`;
+      const ids = ['frame', 'page'].filter((k) => q.has(k)).map((k) => `${k}=${q.get(k)}`);
+      return ids.length ? `${base}?${ids.join('&')}` : base;
+    },
+  },
+  {
+    // Cloudinary (res.cloudinary.com): the /upload/ (or /fetch/) path may carry a
+    // multi-param transform segment (w_800,c_fill — requires >=2 comma-joined
+    // key_value tokens right after upload/fetch, so a comma-named folder is never
+    // mistaken for one) and an auto-version segment (v + exactly 10-digit Unix-epoch
+    // timestamp, only right after upload/fetch, so a hand-named /v2/ folder — or a
+    // 7-9 digit order-id/SKU folder — is never mistaken for one); both are
+    // renditions, the public id is the identity.
+    match: (u) => /(?:^|\.)res\.cloudinary\.com$/i.test(u.hostname),
+    key: (u) => {
+      const stripped = u.pathname
+        // multi-param transform segment: >=2 comma-joined key_value tokens (e.g. w_800,c_fill).
+        // A comma-named folder ("folder,name") has no key_value tokens, so it is left intact.
+        .replace(/\/(image|video|raw)\/(upload|fetch)\/(?:[a-z]+_[^/,]+,)+[a-z]+_[^/,]+\//, '/$1/$2/')
+        // Cloudinary auto-version: v + exactly 10-digit epoch, only right after upload/fetch.
+        // A hand-named /v2/ folder or a 7-9 digit order-id/SKU folder is left intact.
+        .replace(/\/(upload|fetch)\/v\d{10}\//, '/$1/');
+      return `res.cloudinary.com${stripped}`;
+    },
+  },
+  {
+    // Twitter media (pbs.twimg.com, etc.): `name=` (small/large/orig) and `format=`
+    // pick a rendition; a legacy `:size` suffix does the same on the path. The media
+    // id in the path is the identity; drop the query and the :size suffix. (The
+    // download path still upgrades to the original via the twitter resolver.)
+    match: (u) => /(?:^|\.)twimg\.com$/i.test(u.hostname),
+    key: (u) => `${u.hostname.toLowerCase()}${u.pathname.replace(/:(?:thumb|small|medium|large|orig)$/i, '')}`,
+  },
 ];
 
 /**

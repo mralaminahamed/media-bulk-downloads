@@ -83,6 +83,100 @@ describe('canonicalSrcKey', () => {
   });
 });
 
+describe('SRC_KEY_RULES cross-CDN families', () => {
+  it('collapses i0/i1/i2.wp.com edge rotation to one key', () => {
+    const a = 'https://i0.wp.com/example.com/wp-content/uploads/2020/01/pic.jpg?resize=768%2C512&ssl=1';
+    const b = 'https://i2.wp.com/example.com/wp-content/uploads/2020/01/pic.jpg?resize=1024%2C683&ssl=1';
+    expect(canonicalSrcKey(a)).toBe(canonicalSrcKey(b));
+  });
+  it('keeps two different wp.com images distinct', () => {
+    const a = 'https://i0.wp.com/example.com/wp-content/uploads/2020/01/pic.jpg';
+    const b = 'https://i0.wp.com/example.com/wp-content/uploads/2020/01/other.jpg';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
+  it('collapses googleusercontent size-suffix variants', () => {
+    const a = 'https://lh3.googleusercontent.com/a/ACg8ocK_exampletoken=s96-c';
+    const b = 'https://lh3.googleusercontent.com/a/ACg8ocK_exampletoken=s288-c';
+    expect(canonicalSrcKey(a)).toBe(canonicalSrcKey(b));
+  });
+  it('keeps two different googleusercontent assets distinct', () => {
+    const a = 'https://lh3.googleusercontent.com/a/ACg8ocK_exampletoken=s96-c';
+    const b = 'https://lh3.googleusercontent.com/a/ZZZdifferenttoken=s96-c';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
+  it('collapses imgix transform variants (path is identity)', () => {
+    const a = 'https://foo.imgix.net/bar/baz.jpg?w=800&h=600&fit=crop&s=abc';
+    const b = 'https://foo.imgix.net/bar/baz.jpg?w=1600&auto=format';
+    expect(canonicalSrcKey(a)).toBe(canonicalSrcKey(b));
+  });
+  it('keeps two different imgix paths distinct', () => {
+    const a = 'https://foo.imgix.net/bar/baz.jpg?w=800';
+    const b = 'https://foo.imgix.net/bar/qux.jpg?w=800';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
+  it('collapses cloudinary transform + version variants', () => {
+    const a = 'https://res.cloudinary.com/demo/image/upload/w_800,c_fill/v1699999999/sample.jpg';
+    const b = 'https://res.cloudinary.com/demo/image/upload/w_300,c_scale/v1700000000/sample.jpg';
+    expect(canonicalSrcKey(a)).toBe(canonicalSrcKey(b));
+  });
+  it('keeps two different cloudinary public ids distinct', () => {
+    const a = 'https://res.cloudinary.com/demo/image/upload/w_800,c_fill/sample.jpg';
+    const b = 'https://res.cloudinary.com/demo/image/upload/w_800,c_fill/other.jpg';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
+  it('collapses twimg name/format rendition variants', () => {
+    const a = 'https://pbs.twimg.com/media/FabcXYZ?format=jpg&name=small';
+    const b = 'https://pbs.twimg.com/media/FabcXYZ?format=png&name=orig';
+    expect(canonicalSrcKey(a)).toBe(canonicalSrcKey(b));
+  });
+  it('collapses the legacy :size path suffix', () => {
+    const a = 'https://pbs.twimg.com/media/FabcXYZ.jpg:large';
+    const b = 'https://pbs.twimg.com/media/FabcXYZ.jpg:small';
+    expect(canonicalSrcKey(a)).toBe(canonicalSrcKey(b));
+  });
+  it('keeps two different twimg media ids distinct', () => {
+    const a = 'https://pbs.twimg.com/media/FabcXYZ?name=small';
+    const b = 'https://pbs.twimg.com/media/Fdef456?name=small';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
+
+  it('keeps distinct googleusercontent multi-= tokens distinct', () => {
+    const a = 'https://lh3.googleusercontent.com/a/AAtokenPART1=AAtokenPART2=s96-c';
+    const b = 'https://lh3.googleusercontent.com/a/AAtokenPART1=BBtokenPART2=s96-c';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
+
+  it('keeps distinct imgix pages of a multi-page source distinct', () => {
+    const a = 'https://foo.imgix.net/doc.pdf?page=1';
+    const b = 'https://foo.imgix.net/doc.pdf?page=2';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
+
+  it('keeps distinct imgix frames of an animated source distinct', () => {
+    const a = 'https://foo.imgix.net/anim.gif?frame=3&w=200';
+    const b = 'https://foo.imgix.net/anim.gif?frame=5&w=200';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
+
+  it('keeps a cloudinary vNN-named folder distinct (not a version marker)', () => {
+    const a = 'https://res.cloudinary.com/demo/image/upload/blog/v2/hero.jpg';
+    const b = 'https://res.cloudinary.com/demo/image/upload/blog/hero.jpg';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
+
+  it('keeps a cloudinary comma-named folder distinct (not a transform)', () => {
+    const a = 'https://res.cloudinary.com/demo/image/upload/folder,name/photo.jpg';
+    const b = 'https://res.cloudinary.com/demo/image/upload/photo.jpg';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
+
+  it('keeps a cloudinary 7-digit vNNNNNNN folder distinct (not an auto-version)', () => {
+    const a = 'https://res.cloudinary.com/demo/image/upload/v1234567/hero.jpg';
+    const b = 'https://res.cloudinary.com/demo/image/upload/hero.jpg';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
+});
+
 describe('SrcKeySet', () => {
   const fbA = 'https://scontent-del3-1.xx.fbcdn.net/v/t15/739_444_661_n.jpg?oh=ONE&oe=A';
   const fbB = 'https://scontent-bom1-2.xx.fbcdn.net/v/t15/739_444_661_n.jpg?oh=TWO&oe=B'; // same image, new host+query
