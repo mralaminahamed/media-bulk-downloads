@@ -15,6 +15,7 @@ Version at time of writing: **1.2.0** · Manifest **V3**.
 - [ ] One-time **$5 developer registration** paid on the [Developer Dashboard](https://chrome.google.com/webstore/devconsole).
 - [ ] `wxt.config.ts` name/description correct; version comes from `package.json`. `yarn build` emits `.output/chrome-mv3/manifest.json`.
 - [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`.
+- [ ] `minimum_chrome_version: 109` is set in the Chrome/Edge manifest (the `chrome.offscreen` floor for HLS/DASH capture); the Firefox manifest omits it and pins `gecko.strict_min_version` instead.
 - [ ] Optional permissions declared: `notifications` and `declarativeNetRequestWithHostAccess` (both requested at runtime, not at install — see §4).
 - [ ] `commands` (keyboard shortcuts) and the MAIN-world content scripts (page + Instagram/X media sniffers) are present — no extra permission needed, but note them for review (see §4).
 - [ ] Icons 16/32/48/64/128 present (`src/public/icon/`) — ✅ already in the build.
