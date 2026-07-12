@@ -527,6 +527,9 @@ export interface SettingsData {
   /** Phase-2 learned scan (#293 follow-up): remember each site's converged deep-scan
    *  settle time + scroll depth and seed the next visit. Global; local-only. */
   rememberScanBehaviour: boolean;
+  /** Skip re-downloading an image whose file is already on disk (matched by
+   *  canonical src). Default on; explicit re-downloads always bypass it. */
+  skipDuplicateDownloads: boolean;
 }
 
 export type SizeBucket = 'all' | 'small' | 'medium' | 'large';

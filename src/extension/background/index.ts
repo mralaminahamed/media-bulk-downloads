@@ -147,6 +147,6 @@ export { sanitizePathSegment } from '../shared/collection/paths';
 export { buildDownloadFilename, extensionForType, originalNameFromUrl } from '../shared/collection/download-name';
 export { loadSettings } from './state';
 export { isInjectableUrl, updateTabBadge } from './badge';
-export { downloadAndRecord } from './download/downloads';
+export { downloadAndRecord, downloadStatusMessage } from './download/downloads';
 export { resolveOriginalsBatch, storeSniffedMedia } from './sniffer-store';
 export { setupContextMenus, mediaFromContext } from './context-menu';

@@ -96,6 +96,6 @@ export async function captureStreamToFile(
       downloadId,
     }]);
   }
-  notifyBatchDone({ total: 1, succeeded: saved ? 1 : 0, failed: saved ? 0 : 1 });
+  notifyBatchDone({ total: 1, succeeded: saved ? 1 : 0, failed: saved ? 0 : 1, skipped: 0 });
   return { ok: true, filename, saved, segmentCount: result.segmentCount, muxedAudio: result.muxedAudio };
 }

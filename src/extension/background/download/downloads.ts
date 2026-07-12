@@ -1,7 +1,9 @@
 import { HistoryEntry, ImageInfo } from '@/types';
 import { buildDownloadFilename } from '../../shared/collection/download-name';
+import { partitionByDownloaded, uniquifyBatchNames } from '../../shared/collection/download-dedupe';
 import { recordDownloads } from '../../shared/storage/history';
 import { currentSettings } from '../state';
+import { downloadedOnDiskKeys } from './downloaded-keys';
 
 /**
  * Downloads each eligible image and records the successful ones to history,
@@ -11,23 +13,39 @@ import { currentSettings } from '../state';
  */
 /** Outcome of a download batch, used to report the real status to the popup. */
 export interface DownloadResult {
-  /** How many items were eligible after filtering. */
+  /** How many items were actually attempted (eligible, after any duplicate skip). */
   total: number;
   /** How many downloads chrome actually started (returned a downloadId). */
   succeeded: number;
   /** How many failed to start (no id / runtime.lastError). */
   failed: number;
+  /** How many were skipped as already-on-disk duplicates. */
+  skipped: number;
 }
 
 export async function downloadAndRecord(
   eligible: ImageInfo[],
   sourcePage: { url: string; title?: string } | undefined,
+  opts: { skipDuplicates?: boolean } = {},
 ): Promise<DownloadResult> {
+  let toDownload = eligible;
+  let skipped = 0;
+  if (opts.skipDuplicates) {
+    const onDiskKeys = await downloadedOnDiskKeys();
+    const part = partitionByDownloaded(eligible, onDiskKeys);
+    toDownload = part.keep;
+    skipped = part.skipped.length;
+  }
+  // De-collide names within the batch (image.png, image-2.png) so distinct
+  // images sharing a name don't rely on Chrome's " (2)".
+  const paths = uniquifyBatchNames(
+    toDownload.map((image, index) => buildDownloadFilename(image, index, currentSettings, sourcePage?.url)),
+  );
   const entries = await Promise.all(
-    eligible.map(
+    toDownload.map(
       (image, index) =>
         new Promise<HistoryEntry | null>((resolve) => {
-          const filename = buildDownloadFilename(image, index, currentSettings, sourcePage?.url);
+          const filename = paths[index];
           chrome.downloads.download(
             { url: image.src, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
             (downloadId) => {
@@ -53,7 +71,12 @@ export async function downloadAndRecord(
   );
   const recorded = entries.filter((e): e is HistoryEntry => e !== null);
   await recordDownloads(recorded);
-  const result = { total: eligible.length, succeeded: recorded.length, failed: eligible.length - recorded.length };
+  const result: DownloadResult = {
+    total: toDownload.length,
+    succeeded: recorded.length,
+    failed: toDownload.length - recorded.length,
+    skipped,
+  };
   notifyBatchDone(result);
   return result;
 }
@@ -65,10 +88,11 @@ function fileCount(n: number): string {
 
 /** Human-readable final status for a finished download batch. */
 export function downloadStatusMessage(r: DownloadResult): string {
-  if (r.total === 0) return 'No files to download.';
-  if (r.succeeded === 0) return `Couldn't download ${fileCount(r.total)}.`;
-  if (r.failed === 0) return `Downloaded ${fileCount(r.succeeded)}.`;
-  return `Downloaded ${r.succeeded} of ${fileCount(r.total)} — ${r.failed} failed.`;
+  if (r.total === 0) return r.skipped > 0 ? `Nothing new — ${r.skipped} already saved.` : 'No files to download.';
+  const tail = r.skipped > 0 ? ` (${r.skipped} skipped — already saved)` : '';
+  if (r.succeeded === 0) return `Couldn't download ${fileCount(r.total)}.${tail}`;
+  if (r.failed === 0) return `Downloaded ${fileCount(r.succeeded)}.${tail}`;
+  return `Downloaded ${r.succeeded} of ${fileCount(r.total)} — ${r.failed} failed.${tail}`;
 }
 
 /**
@@ -78,7 +102,7 @@ export function downloadStatusMessage(r: DownloadResult): string {
  * granted, so it's silent unless the user asked for it.
  */
 export function notifyBatchDone(result: DownloadResult): void {
-  if (!currentSettings.notifyOnComplete || !chrome.notifications || result.total === 0) return;
+  if (!currentSettings.notifyOnComplete || !chrome.notifications || (result.total === 0 && result.skipped === 0)) return;
   chrome.notifications.create(
     {
       type: 'basic',

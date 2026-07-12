@@ -12,6 +12,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   unavailable) crashed its scan with "Cannot read properties of undefined (reading
   'query')". Page-type classification now degrades to "unknown" in that context
   instead of throwing.
+- **Duplicate files on download (`image.png`, `image (2).png`).** Bulk downloads
+  now skip images already saved to disk, and give distinct images that derive the
+  same filename clean unique names within a batch (`image.png`, `image-2.png`)
+  instead of the browser's " (2)" suffix. Controlled by a new "Skip images already
+  downloaded" setting (on by default); re-downloads from Favourites/History always
+  go through.
 
 ### Added
 - **Per-site learned deep scan.** The adaptive deep scan now remembers how long

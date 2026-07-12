@@ -6,6 +6,8 @@ import type { Mock } from 'vitest';
  */
 import '@/extension/background';
 import { ImageInfo, SettingsData } from '@/types';
+import * as dlKeys from '@/extension/background/download/downloaded-keys';
+import { SrcKeySet } from '@/extension/shared/collection/canonical';
 
 const img = (over: Partial<ImageInfo>): ImageInfo => ({
   src: 'x.jpg', alt: '', width: 100, height: 100, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image', ...over,
@@ -20,6 +22,11 @@ const onInstalled = (chrome.runtime.onInstalled.addListener as Mock).mock.calls[
 const onRemoved = (chrome.tabs.onRemoved.addListener as Mock).mock.calls[0][0];
 const onActivated = (chrome.tabs.onActivated.addListener as Mock).mock.calls[0][0];
 const onUpdated = (chrome.tabs.onUpdated.addListener as Mock).mock.calls[0][0];
+// The persistent queue's dispatcher (initQueueDispatcher) registers its
+// downloads.onChanged listener before index.ts's own save-as-prompt listener,
+// so calls[0] is the one that drives handleDownloadChanged → markDone →
+// recordDownloads.
+const onDownloadChanged = (chrome.downloads.onChanged.addListener as Mock).mock.calls[0][0];
 
 const setSettings = (patch: Partial<SettingsData>) =>
   onChanged({ settings: { newValue: patch } }, 'sync');
@@ -188,6 +195,130 @@ describe('background DOWNLOAD_IMAGES handler', () => {
     await flush();
     expect(chrome.downloads.download).not.toHaveBeenCalled();
     expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'No files to download.' });
+  });
+
+  it('de-collides distinct images that derive the same original-mode filename, and records the de-collided name to history', async () => {
+    // namingMode:'original' is the mode where the collision actually happens —
+    // in the default 'prefixed' mode the per-index name (image_1/image_2) is
+    // already unique, so uniquifyBatchNames never has to rename anything.
+    setSettings({ namingMode: 'original', skipDuplicateDownloads: false });
+
+    // Each download must resolve with a DISTINCT id so the two queue items can
+    // be completed independently below (the outer beforeEach's cb(1) would
+    // collide both items on downloadId 1).
+    let nextId = 501;
+    (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb(nextId++));
+
+    const sendResponse = vi.fn();
+    // Two distinct images whose URLs share a basename: originalNameFromUrl
+    // takes the last pathname segment minus its extension ("photo.png" →
+    // "photo"), so both derive the same built name "photo.png" before
+    // de-collision, even though the src URLs (and hosts) differ.
+    const images = [
+      img({ src: 'https://a.example/x/photo.png', type: 'png' }),
+      img({ src: 'https://b.example/y/photo.png', type: 'png' }),
+    ];
+
+    onMessage({ type: 'DOWNLOAD_IMAGES', images }, {}, sendResponse);
+    await flush();
+
+    expect(chrome.downloads.download).toHaveBeenCalledTimes(2);
+    const filename1 = (chrome.downloads.download as Mock).mock.calls[0][0].filename as string;
+    const filename2 = (chrome.downloads.download as Mock).mock.calls[1][0].filename as string;
+    // Assert on the basename, tolerating any `dir/` prefix the download-path
+    // template might add (none by default, but the naming logic is shared).
+    expect(filename1).toMatch(/(^|\/)photo\.png$/);
+    expect(filename2).toMatch(/(^|\/)photo-2\.png$/);
+    expect(filename1).not.toBe(filename2);
+    expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Queued 2 downloads.' });
+
+    // History is only recorded on chrome.downloads.onChanged=complete, not on
+    // dispatch — drive both queue items to completion so recordDownloads runs,
+    // then confirm the recorded filename is the DE-COLLIDED basename, not the
+    // raw "photo.png" both images would otherwise share.
+    onDownloadChanged({ id: 501, state: { current: 'complete', previous: 'in_progress' } });
+    await flush();
+    await flush();
+    onDownloadChanged({ id: 502, state: { current: 'complete', previous: 'in_progress' } });
+    await flush();
+    await flush();
+
+    const written = (chrome.storage.local.set as Mock).mock.calls
+      .map((c) => c[0]?.downloadHistory)
+      .filter(Array.isArray)
+      .flat();
+    expect(written).toEqual(expect.arrayContaining([
+      expect.objectContaining({ src: 'https://a.example/x/photo.png', filename: 'photo.png' }),
+      expect.objectContaining({ src: 'https://b.example/y/photo.png', filename: 'photo-2.png' }),
+    ]));
+  });
+
+  describe('skipDuplicateDownloads (on-disk dedupe)', () => {
+    // Scoped so a spy on downloadedOnDiskKeys never bleeds into a sibling test —
+    // the outer beforeEach re-applies the chrome mocks it owns regardless.
+    afterEach(() => vi.restoreAllMocks());
+
+    it('skips an already-downloaded src and reports the skipped count', async () => {
+      // skipDuplicateDownloads is on by default (DEFAULT_SETTINGS); a.png is
+      // already on disk, b.png is not — only b.png should reach chrome.downloads.
+      vi.spyOn(dlKeys, 'downloadedOnDiskKeys').mockResolvedValue(SrcKeySet.from(['https://x/a.png']));
+      const sendResponse = vi.fn();
+      const images = [img({ src: 'https://x/a.png', type: 'png' }), img({ src: 'https://x/b.png', type: 'png' })];
+
+      onMessage({ type: 'DOWNLOAD_IMAGES', images }, {}, sendResponse);
+      await flush();
+
+      expect(chrome.downloads.download).toHaveBeenCalledTimes(1);
+      expect(chrome.downloads.download).toHaveBeenCalledWith(
+        expect.objectContaining({ url: 'https://x/b.png' }),
+        expect.any(Function),
+      );
+      expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({
+        status: 'success',
+        message: expect.stringContaining('1 skipped'),
+      }));
+    });
+
+    it('does not skip when the message is explicit', async () => {
+      // Explicit re-downloads (Favourites/History) are exactly what the user
+      // asked for, so the on-disk skip must never apply even though a.png
+      // resolves as already-downloaded here.
+      vi.spyOn(dlKeys, 'downloadedOnDiskKeys').mockResolvedValue(SrcKeySet.from(['https://x/a.png']));
+      const sendResponse = vi.fn();
+
+      onMessage(
+        { type: 'DOWNLOAD_IMAGES', explicit: true, images: [img({ src: 'https://x/a.png', type: 'png' })] },
+        {},
+        sendResponse,
+      );
+      await flush();
+
+      expect(chrome.downloads.download).toHaveBeenCalledTimes(1);
+      expect(chrome.downloads.download).toHaveBeenCalledWith(
+        expect.objectContaining({ url: 'https://x/a.png' }),
+        expect.any(Function),
+      );
+    });
+
+    it('does not skip when skipDuplicateDownloads is off, and the message shape is unchanged', async () => {
+      setSettings({ skipDuplicateDownloads: false });
+      vi.spyOn(dlKeys, 'downloadedOnDiskKeys').mockResolvedValue(SrcKeySet.from(['https://x/a.png']));
+      const sendResponse = vi.fn();
+
+      onMessage(
+        { type: 'DOWNLOAD_IMAGES', images: [img({ src: 'https://x/a.png', type: 'png' })] },
+        {},
+        sendResponse,
+      );
+      await flush();
+
+      expect(chrome.downloads.download).toHaveBeenCalledTimes(1);
+      expect(chrome.downloads.download).toHaveBeenCalledWith(
+        expect.objectContaining({ url: 'https://x/a.png' }),
+        expect.any(Function),
+      );
+      expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Queued 1 download.' });
+    });
   });
 });
 

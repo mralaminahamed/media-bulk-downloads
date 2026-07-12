@@ -60,6 +60,7 @@ describe('FilterToolbar Component', () => {
     deepScanClickLoadMore: false,
     smartPageDefaults: false,
     rememberScanBehaviour: true,
+    skipDuplicateDownloads: true,
   };
 
   const renderToolbar = (over: Partial<SettingsData> = {}) =>

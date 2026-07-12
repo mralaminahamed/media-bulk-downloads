@@ -32,6 +32,7 @@ export const DEFAULT_SETTINGS: SettingsData = {
   deepScanClickLoadMore: false,
   smartPageDefaults: true,
   rememberScanBehaviour: true,
+  skipDuplicateDownloads: true,
 };
 
 /** A plain object, or {} — so spreading a corrupt string/array/number legacy
