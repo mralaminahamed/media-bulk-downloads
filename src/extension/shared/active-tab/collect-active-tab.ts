@@ -30,15 +30,26 @@ export async function collectFromActiveTab(): Promise<ImageInfo[]> {
  */
 export function getPageType(): Promise<PageType> {
   return new Promise((resolve) => {
-    chrome.tabs
-      .query({ active: true, currentWindow: true })
-      .then(([tab]) => {
-        if (!tab?.id) return resolve('unknown');
-        chrome.tabs.sendMessage(tab.id, 'GET_PAGE_TYPE', (pt: PageType) => {
-          if (chrome.runtime.lastError) return resolve('unknown');
-          resolve(pt ?? 'unknown');
-        });
-      })
-      .catch(() => resolve('unknown'));
+    // chrome.tabs is undefined in content-script contexts (the in-page bubble
+    // surface), where accessing chrome.tabs.query throws synchronously — before
+    // the .catch below can attach — and rejects this promise, surfacing as a
+    // "Can't read this page: …(reading 'query')" scan error. Guard it (plus a
+    // try/catch belt) so the documented "never rejects → 'unknown'" contract
+    // holds in every context.
+    if (!chrome?.tabs?.query) return resolve('unknown');
+    try {
+      chrome.tabs
+        .query({ active: true, currentWindow: true })
+        .then(([tab]) => {
+          if (!tab?.id) return resolve('unknown');
+          chrome.tabs.sendMessage(tab.id, 'GET_PAGE_TYPE', (pt: PageType) => {
+            if (chrome.runtime.lastError) return resolve('unknown');
+            resolve(pt ?? 'unknown');
+          });
+        })
+        .catch(() => resolve('unknown'));
+    } catch {
+      resolve('unknown');
+    }
   });
 }

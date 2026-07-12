@@ -91,4 +91,18 @@ describe('getPageType', () => {
     (chrome.tabs.query as Mock).mockRejectedValue(new Error('no tabs permission'));
     await expect(getPageType()).resolves.toBe('unknown');
   });
+
+  it('resolves "unknown" when chrome.tabs is unavailable (content-script context, e.g. the bubble)', async () => {
+    // Content scripts (the in-page bubble surface) have no chrome.tabs, so the
+    // active-tab query can't run. getPageType must degrade to 'unknown' rather
+    // than throwing a synchronous "reading 'query'" TypeError that surfaces as a
+    // "Can't read this page" scan error.
+    const savedTabs = chrome.tabs;
+    (chrome as { tabs?: unknown }).tabs = undefined;
+    try {
+      await expect(getPageType()).resolves.toBe('unknown');
+    } finally {
+      chrome.tabs = savedTabs;
+    }
+  });
 });
