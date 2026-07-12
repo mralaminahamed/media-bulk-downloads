@@ -3,8 +3,29 @@ import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import FilterToolbar from '@/extension/popup/components/FilterToolbar';
-import { SettingsData } from '@/types';
+import { AvailableOptions, SettingsData } from '@/types';
 import { DEFAULT_SETTINGS } from '@/extension/shared/storage/settings';
+
+const allAvailable: AvailableOptions = {
+  kinds: ['all', 'image', 'video'],
+  formats: { image: ['all', 'png', 'avif'], video: ['all', 'mp4'], audio: ['all'] },
+  sizeBuckets: ['all', 'small', 'medium', 'large'],
+};
+
+// The full option set the old static IMAGE_FORMATS/VIDEO_FORMATS/AUDIO_FORMATS/
+// KIND_OPTIONS constants used to offer unconditionally. The pre-existing tests
+// below exercise specific formats/kinds (JPEG, MP3, FLAC, Audio, ...) that
+// `allAvailable` deliberately omits (it's scoped to the new data-driven cases),
+// so those renders get this broader fixture instead.
+const fullAvailable: AvailableOptions = {
+  kinds: ['all', 'image', 'video', 'audio'],
+  formats: {
+    image: ['all', 'jpeg', 'png', 'gif', 'svg', 'webp'],
+    video: ['all', 'mp4', 'webm', 'ogg', 'mov'],
+    audio: ['all', 'mp3', 'wav', 'ogg', 'm4a', 'flac'],
+  },
+  sizeBuckets: ['all', 'small', 'medium', 'large'],
+};
 
 describe('FilterToolbar Component', () => {
   const mockOnFilterChange = vi.fn();
@@ -40,7 +61,7 @@ describe('FilterToolbar Component', () => {
   };
 
   const renderToolbar = (over: Partial<SettingsData> = {}) =>
-    render(<FilterToolbar onFilterChange={mockOnFilterChange} extensionSettings={{ ...settings, ...over }} />);
+    render(<FilterToolbar onFilterChange={mockOnFilterChange} extensionSettings={{ ...settings, ...over }} available={fullAvailable} />);
 
   const openMore = () => fireEvent.click(screen.getByRole('button', { name: /More/i }));
 
@@ -176,7 +197,7 @@ describe('FilterToolbar Component', () => {
 
   it('switches format options when the media kind changes', async () => {
     const onFilterChange = vi.fn();
-    render(<FilterToolbar onFilterChange={onFilterChange} extensionSettings={DEFAULT_SETTINGS} />);
+    render(<FilterToolbar onFilterChange={onFilterChange} extensionSettings={DEFAULT_SETTINGS} available={fullAvailable} />);
     fireEvent.click(screen.getByRole('button', { name: /More/i }));
     const typeSelect = screen.getByLabelText('Media format');
     // image formats by default
@@ -270,5 +291,47 @@ describe('FilterToolbar Component', () => {
     expect(screen.getByRole('button', { name: '≥ 500 KB' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Remove Min size filter' }));
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ minSize: 0 }));
+  });
+
+  it('renders only the kinds present in `available`', () => {
+    const onChange = vi.fn();
+    const { queryByText } = render(
+      <FilterToolbar onFilterChange={onChange} extensionSettings={DEFAULT_SETTINGS}
+        available={{ kinds: ['all', 'image'], formats: { image: ['all', 'png'], video: ['all'], audio: ['all'] }, sizeBuckets: ['all', 'small'] }} />,
+    );
+    expect(queryByText('Images')).toBeTruthy();
+    expect(queryByText('Video')).toBeNull();
+    expect(queryByText('Audio')).toBeNull();
+  });
+
+  it('lists present formats with a data-driven label (AVIF)', () => {
+    const onChange = vi.fn();
+    const { getByLabelText } = render(
+      <FilterToolbar onFilterChange={onChange} extensionSettings={DEFAULT_SETTINGS} available={allAvailable} />,
+    );
+    // open the "More" popover to reveal the Format select
+    fireEvent.click(document.querySelector('[aria-controls="filter-more"]') as HTMLElement);
+    const select = getByLabelText('Media format') as HTMLSelectElement;
+    const values = Array.from(select.options).map((o) => o.value);
+    expect(values).toEqual(['all', 'png', 'avif']);
+    const labels = Array.from(select.options).map((o) => o.textContent);
+    expect(labels).toContain('AVIF');
+  });
+
+  it('resets a stale format selection to all when it leaves `available`', () => {
+    const onChange = vi.fn();
+    const { rerender, getByLabelText } = render(
+      <FilterToolbar onFilterChange={onChange} extensionSettings={DEFAULT_SETTINGS} available={allAvailable} />,
+    );
+    fireEvent.click(document.querySelector('[aria-controls="filter-more"]') as HTMLElement);
+    fireEvent.change(getByLabelText('Media format'), { target: { value: 'avif' } });
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ imageType: 'avif' }));
+
+    // Re-collect: AVIF no longer present.
+    rerender(
+      <FilterToolbar onFilterChange={onChange} extensionSettings={DEFAULT_SETTINGS}
+        available={{ kinds: ['all', 'image'], formats: { image: ['all', 'png'], video: ['all'], audio: ['all'] }, sizeBuckets: ['all', 'small'] }} />,
+    );
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ imageType: 'all' }));
   });
 });

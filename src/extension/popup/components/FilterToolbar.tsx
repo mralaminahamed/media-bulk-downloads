@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronDownIcon, MagnifyingGlassIcon, BarsArrowUpIcon, BarsArrowDownIcon } from '@heroicons/react/24/outline';
-import { FilterOptions, SettingsData } from '@/types';
+import { FilterOptions, SettingsData, AvailableOptions } from '@/types';
+import { FORMAT_LABELS } from '@/extension/shared/collection/filters';
 import ChipFlyout from './ChipFlyout';
 import FilterChip from './FilterChip';
 
 interface FilterToolbarProps {
   onFilterChange: (filters: FilterOptions) => void;
   extensionSettings: SettingsData;
+  available: AvailableOptions;
 }
 
 export const DEFAULT_FILTERS: FilterOptions = {
@@ -29,46 +31,8 @@ const SORT_OPTIONS: { value: FilterOptions['sortBy']; label: string }[] = [
   { value: 'type', label: 'Sort: Type' },
 ];
 
-const KIND_OPTIONS: { value: FilterOptions['mediaKind']; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'image', label: 'Images' },
-  { value: 'video', label: 'Video' },
-  { value: 'audio', label: 'Audio' },
-];
-
-const IMAGE_FORMATS = [
-  { value: 'all', label: 'All' },
-  { value: 'jpeg', label: 'JPEG' },
-  { value: 'png', label: 'PNG' },
-  { value: 'gif', label: 'GIF' },
-  { value: 'svg', label: 'SVG' },
-  { value: 'webp', label: 'WebP' },
-];
-const VIDEO_FORMATS = [
-  { value: 'all', label: 'All' },
-  { value: 'mp4', label: 'MP4' },
-  { value: 'webm', label: 'WebM' },
-  { value: 'ogg', label: 'OGG' },
-  { value: 'mov', label: 'MOV' },
-];
-const AUDIO_FORMATS = [
-  { value: 'all', label: 'All' },
-  { value: 'mp3', label: 'MP3' },
-  { value: 'wav', label: 'WAV' },
-  { value: 'ogg', label: 'OGG' },
-  { value: 'm4a', label: 'M4A' },
-  { value: 'flac', label: 'FLAC' },
-];
-
-const formatsForKind = (kind: FilterOptions['mediaKind']) =>
-  kind === 'video' ? VIDEO_FORMATS : kind === 'audio' ? AUDIO_FORMATS : IMAGE_FORMATS;
-
-const SIZE_OPTIONS: { value: 'all' | 'small' | 'medium' | 'large'; label: string }[] = [
-  { value: 'all', label: 'Any' },
-  { value: 'small', label: 'Small' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'large', label: 'Large' },
-];
+const KIND_LABELS: Record<FilterOptions['mediaKind'], string> = { all: 'All', image: 'Images', video: 'Video', audio: 'Audio' };
+const SIZE_LABELS: Record<'all' | 'small' | 'medium' | 'large', string> = { all: 'Any', small: 'Small', medium: 'Medium', large: 'Large' };
 
 const STATE_OPTIONS: { value: FilterOptions['downloadState']; label: string }[] = [
   { value: 'all', label: 'All items' },
@@ -76,9 +40,39 @@ const STATE_OPTIONS: { value: FilterOptions['downloadState']; label: string }[] 
   { value: 'not-downloaded', label: 'Not downloaded' },
 ];
 
-const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extensionSettings }) => {
+const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extensionSettings, available }) => {
   const [filters, setFilters] = useState<FilterOptions>(DEFAULT_FILTERS);
   const [moreOpen, setMoreOpen] = useState(false);
+
+  const kindOptions = available.kinds.map((v) => ({ value: v, label: KIND_LABELS[v] }));
+  const formatFamily: 'image' | 'video' | 'audio' = filters.mediaKind === 'all' ? 'image' : filters.mediaKind;
+  const formatOptions = available.formats[formatFamily].map((v) => ({
+    value: v,
+    label: v === 'all' ? 'All' : (FORMAT_LABELS[v] ?? v.toUpperCase()),
+  }));
+  const sizeOptions = available.sizeBuckets.map((v) => ({ value: v, label: SIZE_LABELS[v] }));
+
+  // When a re-collect changes the present options, drop any active selection that
+  // is no longer available so no dead/empty filter survives.
+  useEffect(() => {
+    const patch: Partial<FilterOptions> = {};
+    if (filters.mediaKind !== 'all' && !available.kinds.includes(filters.mediaKind)) patch.mediaKind = 'all';
+    const fam = (patch.mediaKind ?? filters.mediaKind);
+    const famKey: 'image' | 'video' | 'audio' = fam === 'all' ? 'image' : fam;
+    if (filters.imageType !== 'all' && !available.formats[famKey].includes(filters.imageType)) patch.imageType = 'all';
+    if (filters.sizeBucket !== 'all' && !available.sizeBuckets.includes(filters.sizeBucket)) patch.sizeBucket = 'all';
+    if (Object.keys(patch).length > 0) {
+      const next = { ...filters, ...patch };
+      // Deliberate: syncing local filter state to a prop-driven option set (the
+      // "adjusting state when a prop changes" pattern) — not derivable during
+      // render since it must also notify the parent via onFilterChange.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setFilters(next);
+      onFilterChange(next);
+    }
+    // Fires only when the option set changes (App memoizes `available`).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [available]);
 
   const update = (patch: Partial<FilterOptions>) => {
     const next = { ...filters, ...patch };
@@ -113,10 +107,10 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
   const advChips: { key: string; label: string; clear: () => void }[] = [
     filters.imageType !== 'all' && {
       key: 'format',
-      label: formatsForKind(filters.mediaKind).find((o) => o.value === filters.imageType)?.label ?? filters.imageType.toUpperCase(),
+      label: formatOptions.find((o) => o.value === filters.imageType)?.label ?? filters.imageType.toUpperCase(),
       clear: () => update({ imageType: 'all' }),
     },
-    filters.sizeBucket !== 'all' && { key: 'size', label: SIZE_OPTIONS.find((o) => o.value === filters.sizeBucket)!.label, clear: () => update({ sizeBucket: 'all' }) },
+    filters.sizeBucket !== 'all' && { key: 'size', label: SIZE_LABELS[filters.sizeBucket], clear: () => update({ sizeBucket: 'all' }) },
     filters.minSize > 0 && { key: 'min', label: `≥ ${filters.minSize} KB`, clear: () => update({ minSize: 0 }) },
     !filters.includeBase64 && !base64Disabled && { key: 'base64', label: 'No Base64', clear: () => update({ includeBase64: true }) },
   ].filter(Boolean) as { key: string; label: string; clear: () => void }[];
@@ -174,7 +168,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
         {/* Kind — single-choice segmented control, the primary filter. Even
             segments so the four options read as one uniform control. */}
         <div className="segwrap segwrap-even mbd:h-[28px] mbd:w-[204px] mbd:shrink-0" role="group" aria-label="Media kind">
-          {KIND_OPTIONS.map((opt) => (
+          {kindOptions.map((opt) => (
             <button
               key={opt.value}
               onClick={() => update({ mediaKind: opt.value, imageType: 'all' })}
@@ -247,7 +241,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
               className="field mbd:shrink-0 mbd:py-0 mbd:text-[12px]"
               style={{ height: 28, width: 120 }}
             >
-              {formatsForKind(filters.mediaKind).map((opt) => (
+              {formatOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.value === 'all' ? 'All formats' : opt.label}
                 </option>
@@ -259,7 +253,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
             <div className="mbd:flex mbd:items-center mbd:gap-2">
               <span className="eyebrow">Size</span>
               <div className="segwrap mbd:h-[28px]" role="group" aria-label="Image size">
-                {SIZE_OPTIONS.map((opt) => (
+                {sizeOptions.map((opt) => (
                   <button
                     key={opt.value}
                     onClick={() => update({ sizeBucket: opt.value })}
