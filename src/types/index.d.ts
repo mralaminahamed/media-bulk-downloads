@@ -135,6 +135,17 @@ export type DeepScanAbortMessage = 'DEEP_SCAN_ABORT';
  */
 export type DeepScanStopReason = 'complete' | 'max-items' | 'max-time' | 'max-scrolls' | 'aborted' | 'error';
 
+/** One host's learned deep-scan behaviour (phase-2, #293 follow-up). Persisted per
+ *  registrable domain in chrome.storage.local; only these numbers, never URLs. */
+export interface ScanMemory {
+  /** Cross-visit EMA of the converged settle time (ms). */
+  settleMs: number;
+  /** Cross-visit EMA of the scroll depth the site needed (rounded). */
+  scrolls: number;
+  /** Last-updated wall-clock ms, for LRU eviction. */
+  updatedAt: number;
+}
+
 export interface DeepScanProgress {
   type: 'DEEP_SCAN_PROGRESS';
   found: number;
@@ -356,6 +367,16 @@ export interface SetPerHostSettingsMessage {
   patch: Partial<SettingsData> | null; // null = clear the host's entry
 }
 
+/** Persist a host's learned deep-scan memory (settle time + scroll depth). Routed
+ *  through the background so scan-memory saves share ONE serialized writer with the
+ *  reset/clear path (#293 phase-2) — a per-tab content-script write chain can't
+ *  clobber a concurrent background clear. */
+export interface SaveScanMemoryMessage {
+  type: 'SAVE_SCAN_MEMORY';
+  host: string;                                   // registrable domain
+  sample: { settleMs: number; scrolls: number };
+}
+
 export type QueuePauseMessage = { type: 'QUEUE_PAUSE' };
 export type QueueResumeMessage = { type: 'QUEUE_RESUME' };
 export interface QueueCancelMessage {
@@ -386,6 +407,7 @@ export type ChromeMessage =
   | DownloadMessage
   | SetSettingsMessage
   | SetPerHostSettingsMessage
+  | SaveScanMemoryMessage
   | QueuePauseMessage
   | QueueResumeMessage
   | QueueCancelMessage
@@ -502,6 +524,9 @@ export interface SettingsData {
   deepScanClickLoadMore: boolean;
   /** Opt-in: let a passive page-type classifier prime filter defaults + pass order. */
   smartPageDefaults: boolean;
+  /** Phase-2 learned scan (#293 follow-up): remember each site's converged deep-scan
+   *  settle time + scroll depth and seed the next visit. Global; local-only. */
+  rememberScanBehaviour: boolean;
 }
 
 export type SizeBucket = 'all' | 'small' | 'medium' | 'large';

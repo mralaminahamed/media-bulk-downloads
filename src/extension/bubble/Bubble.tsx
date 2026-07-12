@@ -153,6 +153,7 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
         maxMs: s.deepScanMaxSeconds * 1000,
         maxScrolls: s.deepScanMaxScrolls,
         clickLoadMore: s.deepScanClickLoadMore,
+        rememberScanBehaviour: s.rememberScanBehaviour,
       },
     );
   }, []);

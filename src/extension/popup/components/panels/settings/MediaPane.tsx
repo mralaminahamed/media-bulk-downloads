@@ -61,6 +61,13 @@ const MediaPane: React.FC<SettingsPaneProps> = ({
       checked={settings.smartPageDefaults}
       onToggle={() => toggle('smartPageDefaults')}
     />
+    <ToggleRow
+      id="set-rememberScanBehaviour"
+      label="Remember scan behaviour per site"
+      description="Learn how long each site takes to settle and how deep it scrolls, so repeat deep scans on the same site start warm instead of re-learning. On by default; local only, nothing is uploaded. 'Reset this site' clears it."
+      checked={settings.rememberScanBehaviour}
+      onToggle={() => toggle('rememberScanBehaviour')}
+    />
 
     <AdvancedDisclosure id="adv-media" defaultOpen={advancedDefaultOpen}>
       <div className="mbd:grid mbd:grid-cols-2 mbd:gap-3">

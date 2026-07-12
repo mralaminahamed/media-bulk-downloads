@@ -343,6 +343,87 @@ describe('final full-walk safety sweep', () => {
   });
 });
 
+describe('runDeepScan — learned-scan seed', () => {
+  // perRound fresh items every round (never idle for small perRound values below
+  // ADAPT_CONTINUE.richThreshold, so no auto-extend kicks in); waitForQuiet
+  // records the window it was handed so round-1 behaviour can be inspected.
+  function seedDeps(perRound: number, settleMs = 100) {
+    const windows: Array<{ quiet: number; hardCap: number }> = [];
+    let n = 0;
+    const scrollStep = vi.fn();
+    const deps = {
+      collect: () => {
+        const items: MediaItem[] = [];
+        for (let i = 0; i < perRound; i++) items.push(item(`https://x/${n}-${i}.jpg`));
+        n++;
+        return items;
+      },
+      scrollStep,
+      atBottom: () => false,
+      waitForQuiet: async (_sig: AbortSignal, w: { quiet: number; hardCap: number }) => {
+        windows.push(w);
+        return { roots: null, settleMs };
+      },
+      onProgress: () => {},
+      now: () => 0,
+      restoreScroll: () => {},
+    };
+    return { deps, windows, scrollStep };
+  }
+
+  it('with NO seed, round 1 uses the fixed default window (byte-for-byte today)', async () => {
+    const { deps, windows } = seedDeps(1);
+    await runDeepScan(deps, { ...DEEP_SCAN_DEFAULTS, maxScrolls: 2, signal: new AbortController().signal });
+    expect(windows[0]).toEqual({ quiet: ADAPT_WINDOW.defaultQuiet, hardCap: ADAPT_WINDOW.defaultHardCap });
+  });
+
+  it('with a seed, round 1 uses the seeded-EMA window instead of the fixed default', async () => {
+    const { deps, windows } = seedDeps(1);
+    // seed.settleMs = 800 → quiet = clamp(1.5*800, 250, 1200) = 1200 ; hardCap = clamp(3*800,1500,4000)=2400
+    await runDeepScan(deps, {
+      ...DEEP_SCAN_DEFAULTS, maxScrolls: 2, seed: { settleMs: 800, scrolls: 0 },
+      signal: new AbortController().signal,
+    });
+    expect(windows[0]).toEqual({ quiet: 1200, hardCap: 2400 });
+  });
+
+  it('scroll-depth seed RAISES the cap for a moderately-yielding page (no auto-extend)', async () => {
+    // 2 items/round: never 0 (no idle), never >= richThreshold=5 (no auto-extend).
+    const noSeed = seedDeps(2);
+    await runDeepScan(noSeed.deps, { ...DEEP_SCAN_DEFAULTS, maxScrolls: 5, signal: new AbortController().signal });
+    expect(noSeed.scrollStep).toHaveBeenCalledTimes(5); // stops at the base cap
+
+    const seeded = seedDeps(2);
+    await runDeepScan(seeded.deps, {
+      ...DEEP_SCAN_DEFAULTS, maxScrolls: 5, seed: { settleMs: 100, scrolls: 10 },
+      signal: new AbortController().signal,
+    });
+    expect(seeded.scrollStep).toHaveBeenCalledTimes(10); // seeded cap (clamp(10,5,2*5)=10)
+  });
+
+  it('scroll-depth seed NEVER lowers the base cap', async () => {
+    const seeded = seedDeps(2);
+    await runDeepScan(seeded.deps, {
+      ...DEEP_SCAN_DEFAULTS, maxScrolls: 5, seed: { settleMs: 100, scrolls: 1 },
+      signal: new AbortController().signal,
+    });
+    expect(seeded.scrollStep).toHaveBeenCalledTimes(5); // clamp(1,5,10) = 5, not lowered
+  });
+
+  it('emits the final learned state via onLearned', async () => {
+    const { deps } = seedDeps(0); // 0 new items → goes idle → completes
+    const onLearned = vi.fn();
+    await runDeepScan({ ...deps, onLearned }, {
+      ...DEEP_SCAN_DEFAULTS, maxScrolls: 40, idleRounds: 3, signal: new AbortController().signal,
+    });
+    expect(onLearned).toHaveBeenCalledTimes(1);
+    const arg = onLearned.mock.calls[0][0];
+    expect(arg).toMatchObject({ reason: 'complete' });
+    expect(typeof arg.settleMs).toBe('number');
+    expect(typeof arg.scrolls).toBe('number');
+  });
+});
+
 describe('dynamic continuation (keep going when rich)', () => {
   function richDeps(perRound: number) {
     let round = 0;

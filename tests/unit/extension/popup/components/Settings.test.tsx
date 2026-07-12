@@ -42,6 +42,7 @@ describe('Settings Component', () => {
     deepScanMaxScrolls: 40,
     deepScanClickLoadMore: false,
     smartPageDefaults: false,
+    rememberScanBehaviour: true,
   };
 
   // jsdom does not implement
@@ -340,6 +341,16 @@ describe('Settings Component', () => {
     fireEvent.click(screen.getByRole('switch', { name: /click .*load more.* buttons/i }));
     fireEvent.click(screen.getByText('Save'));
     expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ deepScanClickLoadMore: true }));
+  });
+
+  it('saves the remember-scan-behaviour toggle (#293 phase-2)', () => {
+    render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+    selectTab(/Media/i);
+    const toggle = screen.getByRole('switch', { name: /remember scan behaviour per site/i });
+    expect(toggle).toHaveAttribute('aria-checked', 'true'); // initialSettings.rememberScanBehaviour is true
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByText('Save'));
+    expect(mockOnSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ rememberScanBehaviour: false }));
   });
 
   // ── Dropdowns ──────────────────────────────────────────────────────────────

@@ -6,6 +6,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Per-site learned deep scan.** The adaptive deep scan now remembers how long
+  each site takes to settle and how deep it scrolls, and seeds those on the next
+  visit so a repeat scan on the same site starts warm instead of re-learning.
+  Local only (nothing is uploaded), on by default, and controlled by a new
+  "Remember scan behaviour per site" setting; "Reset this site" clears it.
+
 ### Changed
 - **Smart page defaults are now on by default.** The extension detects the page
   type (gallery, feed, article, single) and primes sensible filter defaults out of

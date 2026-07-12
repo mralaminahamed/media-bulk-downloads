@@ -167,6 +167,7 @@ describe('buildDownloadFilename', () => {
     deepScanMaxScrolls: 40,
     deepScanClickLoadMore: false,
     smartPageDefaults: false,
+    rememberScanBehaviour: true,
   };
   const image = (over: Partial<ImageInfo>): ImageInfo => ({
     src: 'https://cdn.com/path/photo.jpg', alt: '', width: 0, height: 0,

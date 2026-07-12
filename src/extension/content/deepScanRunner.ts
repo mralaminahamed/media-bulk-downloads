@@ -1,6 +1,8 @@
 import { MediaItem } from '@/types';
 import { collectMedia, type ScanRoot } from '@/extension/content/collect';
 import { runDeepScan, DeepScanDeps, DEEP_SCAN_DEFAULTS } from '@/extension/shared/collection/deepScan';
+import { registrableDomain } from '@/extension/shared/collection/paths';
+import { loadScanMemoryForHost } from '@/extension/shared/storage/per-host-scan-memory';
 
 /** Finds the element that actually scrolls the page, falling back to window. */
 function primaryScroller(): {
@@ -127,6 +129,8 @@ export function findLoadMoreButtons(root: Document | ShadowRoot = document): HTM
 export interface BuildDeepScanOpts {
   /** Opt-in: click a few "load more" buttons after each scroll step. */
   clickLoadMore?: boolean;
+  /** Phase-2: surface the loop's final learned state for persistence. */
+  onLearned?: DeepScanDeps['onLearned'];
 }
 
 // At most this many load-more buttons are clicked per scroll round, so an opt-in
@@ -157,6 +161,7 @@ export function buildDeepScanDeps(
       onProgress,
       now: () => Date.now(),
       restoreScroll: () => scroller.restore(startY),
+      onLearned: opts.onLearned,
     },
   };
 }
@@ -167,20 +172,55 @@ export interface StartDeepScanConfig {
   maxMs?: number;
   maxScrolls?: number;
   clickLoadMore?: boolean;
+  /** Phase-2: read/seed/persist this host's learned scan behaviour. */
+  rememberScanBehaviour?: boolean;
 }
 
-export function startDeepScan(
+export async function startDeepScan(
   onProgress: DeepScanDeps['onProgress'],
   signal: AbortSignal,
   config: StartDeepScanConfig = {},
 ): Promise<MediaItem[]> {
-  const { deps } = buildDeepScanDeps(onProgress, { clickLoadMore: config.clickLoadMore });
+  const host = registrableDomain(location.hostname);
+  const learn = !!config.rememberScanBehaviour && !!host;
+
+  // Degrade to a cold start if the read fails — never let storage abort a scan.
+  const seedMem = learn ? await loadScanMemoryForHost(host).catch(() => null) : null;
+
+  const onLearned: DeepScanDeps['onLearned'] = learn
+    ? ({ settleMs, scrolls, reason }) => {
+        // Write rule: never persist an aborted/errored run; blend the fresh scroll
+        // depth only on a genuine depth signal (complete / hit the scroll cap).
+        // A budget-truncated stop (time/items) under-counts depth, so keep the
+        // prior remembered value instead of lowering it.
+        if (reason === 'aborted' || reason === 'error') return;
+        const trustScrolls = reason === 'complete' || reason === 'max-scrolls';
+        // Routed through the background (SAVE_SCAN_MEMORY) rather than written
+        // directly here: each tab has its own module-local write chain in
+        // per-host-scan-memory, so a per-tab write can't share ordering with the
+        // background's clear path (#293 phase-2, NEW-1). Fire-and-forget with a
+        // .catch — the background may be unavailable (worker suspended /
+        // extension reloading); learned memory is best-effort and self-healing.
+        void chrome.runtime.sendMessage({
+          type: 'SAVE_SCAN_MEMORY',
+          host,
+          sample: { settleMs, scrolls: trustScrolls ? scrolls : (seedMem?.scrolls ?? scrolls) },
+        }).catch(() => { /* background may be unavailable; learned memory is self-healing */ });
+      }
+    : undefined;
+
+  const { deps } = buildDeepScanDeps(onProgress, {
+    clickLoadMore: config.clickLoadMore,
+    onLearned,
+  });
+
   return runDeepScan(deps, {
     ...DEEP_SCAN_DEFAULTS,
     // Apply only the caps the user actually set (ignore 0/NaN/undefined).
     ...(config.maxItems ? { maxItems: config.maxItems } : {}),
     ...(config.maxMs ? { maxMs: config.maxMs } : {}),
     ...(config.maxScrolls ? { maxScrolls: config.maxScrolls } : {}),
+    ...(seedMem ? { seed: { settleMs: seedMem.settleMs, scrolls: seedMem.scrolls } } : {}),
     signal,
   });
 }
