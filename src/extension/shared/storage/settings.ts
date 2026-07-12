@@ -48,3 +48,15 @@ export function withDefaults(stored: unknown): SettingsData {
     bubblePanelPoint: { ...DEFAULT_SETTINGS.bubblePanelPoint, ...asObject(s.bubblePanelPoint) },
   };
 }
+
+/** Read the persisted global settings from sync storage, merged over defaults.
+ *  Promise-WRAPS the callback form of storage.sync.get (not the promise form):
+ *  production-correct under MV3, and compatible with the test suite's callback
+ *  mocks. Tolerant of an unset key (→ DEFAULT_SETTINGS). Shared by the popup
+ *  mount load, the media engine's default loader, and the per-host effective
+ *  resolver, so all read the global layer identically. */
+export function loadStoredSettings(): Promise<SettingsData> {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get(['settings'], (r) => resolve(withDefaults((r as { settings?: unknown })?.settings)));
+  });
+}

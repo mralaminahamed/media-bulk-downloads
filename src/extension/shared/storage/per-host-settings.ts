@@ -1,5 +1,7 @@
 import { SettingsData } from '@/types';
+import { registrableDomain } from '../collection/paths';
 import { durableSet } from './idb';
+import { loadStoredSettings } from './settings';
 
 /**
  * Per-host preference overrides (#293). A Record<registrableDomain,
@@ -60,6 +62,17 @@ export async function overrideForHost(host: string): Promise<Partial<SettingsDat
   if (!host) return {};
   const store = await loadPerHostSettings();
   return store[host] ?? {};
+}
+
+/** Effective settings for a page's host: global (sync) with the host's override
+ *  (local) applied. `hostname` is a raw host (e.g. location.hostname); reduced to
+ *  its registrable domain for the store key. No override → identical to global. */
+export async function loadEffectiveSettingsForHost(hostname: string): Promise<SettingsData> {
+  const [global, override] = await Promise.all([
+    loadStoredSettings(),
+    overrideForHost(registrableDomain(hostname)),
+  ]);
+  return applyHostOverride(global, override);
 }
 
 let writeChain: Promise<void> = Promise.resolve();

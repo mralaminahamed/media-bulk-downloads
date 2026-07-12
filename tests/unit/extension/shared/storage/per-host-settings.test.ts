@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { DEFAULT_SETTINGS } from '@/extension/shared/storage/settings';
+import { DEFAULT_SETTINGS, loadStoredSettings } from '@/extension/shared/storage/settings';
 import {
   HOST_OVERRIDE_FIELDS, PER_HOST_SETTINGS_KEY, pickHostFields, applyHostOverride,
   loadPerHostSettings, overrideForHost, savePerHostSettings, clearPerHostSettings,
+  loadEffectiveSettingsForHost,
 } from '@/extension/shared/storage/per-host-settings';
+import type { Mock } from 'vitest';
 
 describe('per-host-settings — pure core', () => {
   it('key + allowlist are the documented values', () => {
@@ -82,5 +84,36 @@ describe('per-host-settings — storage CRUD', () => {
   it('a corrupt stored value loads as {}', async () => {
     await chrome.storage.local.set({ perHostSettings: 'garbage' });
     expect(await loadPerHostSettings()).toEqual({});
+  });
+});
+
+type SyncCb = (r: { settings?: unknown }) => void;
+
+describe('effective settings resolver', () => {
+  beforeEach(async () => {
+    await chrome.storage.local.clear();
+    (chrome.storage.sync.get as Mock).mockReset();
+  });
+
+  it('loadStoredSettings merges stored over defaults, tolerates unset', async () => {
+    (chrome.storage.sync.get as Mock).mockImplementation((_k: unknown, cb: SyncCb) => cb({}));
+    expect((await loadStoredSettings()).minimumImageSize).toBe(0);
+    (chrome.storage.sync.get as Mock).mockImplementation((_k: unknown, cb: SyncCb) => cb({ settings: { minimumImageSize: 300 } }));
+    expect((await loadStoredSettings()).minimumImageSize).toBe(300);
+  });
+
+  it('no override → effective === global', async () => {
+    (chrome.storage.sync.get as Mock).mockImplementation((_k: unknown, cb: SyncCb) => cb({ settings: { minimumImageSize: 200 } }));
+    const eff = await loadEffectiveSettingsForHost('booru.example');
+    expect(eff.minimumImageSize).toBe(200);
+  });
+
+  it('host override wins over global (keyed by registrable domain)', async () => {
+    (chrome.storage.sync.get as Mock).mockImplementation((_k: unknown, cb: SyncCb) => cb({ settings: { minimumImageSize: 200, resolveOriginals: false } }));
+    await chrome.storage.local.set({ perHostSettings: { 'booru.example': { minimumImageSize: 1024, resolveOriginals: true } } });
+    // A subdomain reduces to the registrable domain, so it picks up the same override.
+    const eff = await loadEffectiveSettingsForHost('img.booru.example');
+    expect(eff.minimumImageSize).toBe(1024);
+    expect(eff.resolveOriginals).toBe(true);
   });
 });
