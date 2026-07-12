@@ -208,6 +208,21 @@ describe('Content Script', () => {
 
       expect(sendResponse).not.toHaveBeenCalled();
     });
+
+    it('responds with the classified page type when GET_PAGE_TYPE message is received', async () => {
+      // 6 equal-sized images inside <article>, no feed markers: imageCount > 5
+      // rules out single-media, imageCount < 20 rules out gallery, feedMarkers
+      // is false so feed never applies — hasArticle is the only signal left,
+      // so this fixture classifies unambiguously as 'article'.
+      document.body.innerHTML =
+        '<article>' + '<img src="a.jpg" width="100" height="100">'.repeat(6) + '</article>';
+      const sendResponse = vi.fn();
+      const messageListener = (chrome.runtime.onMessage.addListener as Mock).mock.calls[0][0];
+
+      messageListener('GET_PAGE_TYPE', {}, sendResponse);
+
+      expect(sendResponse).toHaveBeenCalledWith('article');
+    });
   });
 
   describe('Edge Cases', () => {

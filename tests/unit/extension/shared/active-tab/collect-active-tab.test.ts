@@ -1,5 +1,5 @@
 import type { Mock } from 'vitest';
-import { collectFromActiveTab } from '@/extension/shared/active-tab/collect-active-tab';
+import { collectFromActiveTab, getPageType } from '@/extension/shared/active-tab/collect-active-tab';
 import { ImageInfo } from '@/types';
 
 describe('collectFromActiveTab', () => {
@@ -49,5 +49,46 @@ describe('collectFromActiveTab', () => {
     });
 
     await expect(collectFromActiveTab()).rejects.toThrow('unknown error');
+  });
+});
+
+describe('getPageType', () => {
+  beforeEach(() => {
+    (chrome.runtime as { lastError?: unknown }).lastError = undefined;
+  });
+
+  it('resolves the classified page type the content script returns', async () => {
+    (chrome.tabs.query as Mock).mockResolvedValue([{ id: 7 }]);
+    (chrome.tabs.sendMessage as Mock).mockImplementation((_id, _msg, cb) => cb('gallery'));
+
+    await expect(getPageType()).resolves.toBe('gallery');
+    expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(7, 'GET_PAGE_TYPE', expect.any(Function));
+  });
+
+  it('resolves "unknown" when there is no active tab', async () => {
+    (chrome.tabs.query as Mock).mockResolvedValue([]);
+    await expect(getPageType()).resolves.toBe('unknown');
+  });
+
+  it('resolves "unknown" when the content script is unreachable (lastError)', async () => {
+    (chrome.tabs.query as Mock).mockResolvedValue([{ id: 7 }]);
+    (chrome.tabs.sendMessage as Mock).mockImplementation((_id, _msg, cb) => {
+      (chrome.runtime as { lastError?: unknown }).lastError = { message: 'Receiving end does not exist' };
+      cb(undefined);
+    });
+
+    await expect(getPageType()).resolves.toBe('unknown');
+  });
+
+  it('resolves "unknown" when the content script responds with no page type (no lastError)', async () => {
+    (chrome.tabs.query as Mock).mockResolvedValue([{ id: 7 }]);
+    (chrome.tabs.sendMessage as Mock).mockImplementation((_id, _msg, cb) => cb(undefined));
+
+    await expect(getPageType()).resolves.toBe('unknown');
+  });
+
+  it('resolves "unknown" when chrome.tabs.query itself rejects', async () => {
+    (chrome.tabs.query as Mock).mockRejectedValue(new Error('no tabs permission'));
+    await expect(getPageType()).resolves.toBe('unknown');
   });
 });
