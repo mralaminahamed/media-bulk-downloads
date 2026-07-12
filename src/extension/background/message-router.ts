@@ -6,6 +6,8 @@ import {
 } from '@/types';
 import { filterImagesBySettings, filterExcluded } from '../shared/collection/filters';
 import { buildDownloadFilename } from '../shared/collection/download-name';
+import { partitionByDownloaded, uniquifyBatchNames } from '../shared/collection/download-dedupe';
+import { downloadedOnDiskKeys } from './download/downloaded-keys';
 import { textToBase64 } from '../shared/download/base64';
 import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk, DiskState } from '../shared/storage/history';
 import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } from '../shared/storage/favourites';
@@ -39,6 +41,14 @@ export type SendResponse = (
  *  union also carries bare-string messages (GET_IMAGES, …) handled elsewhere. */
 type ObjectMessage = Extract<ChromeMessage, { type: string }>;
 
+/** Popup status for a queued batch, including any skipped-as-duplicate count. */
+function queuedSkipMessage(queued: number, skipped: number): string {
+  if (queued === 0) return skipped > 0 ? `Nothing new — ${skipped} already saved.` : 'No files to download.';
+  const s = queued === 1 ? '' : 's';
+  const tail = skipped > 0 ? ` (${skipped} skipped — already saved)` : '';
+  return `Queued ${queued} download${s}${tail}.`;
+}
+
 type MessageRouter = {
   [K in ObjectMessage['type']]?: (
     message: Extract<ObjectMessage, { type: K }>,
@@ -70,8 +80,28 @@ export const messageRouter: MessageRouter = {
         const eligible = message.explicit
           ? images
           : filterExcluded(filterImagesBySettings(images, currentSettings), excludedCache);
-        const entries = eligible.map((image, index) => {
-          const filename = buildDownloadFilename(image, index, currentSettings, sourcePage?.url);
+
+        // Skip images already on disk (non-explicit downloads only, when enabled).
+        // Explicit re-downloads (Favourites/History) are exactly what the user
+        // asked for and must never be skipped.
+        let skipped = 0;
+        let toDownload = eligible;
+        if (!message.explicit && currentSettings.skipDuplicateDownloads) {
+          const onDiskKeys = await downloadedOnDiskKeys();
+          const part = partitionByDownloaded(eligible, onDiskKeys);
+          toDownload = part.keep;
+          skipped = part.skipped.length;
+        }
+
+        // De-collide filenames within this batch so distinct images that derive
+        // the same name save as image.png / image-2.png instead of Chrome's
+        // " (2)". conflictAction:'uniquify' (in the queue) stays as the
+        // cross-batch safety net.
+        const paths = uniquifyBatchNames(
+          toDownload.map((image, index) => buildDownloadFilename(image, index, currentSettings, sourcePage?.url)),
+        );
+        const entries = toDownload.map((image, i) => {
+          const filename = paths[i];
           const history: HistoryDraft = {
             src: image.src,
             filename: filename.split('/').pop() ?? filename,
@@ -84,10 +114,7 @@ export const messageRouter: MessageRouter = {
           return { url: image.src, filename, history };
         });
         const queued = await enqueueDownloads(entries);
-        respond({
-          status: 'success',
-          message: queued === 0 ? 'No files to download.' : `Queued ${queued} download${queued === 1 ? '' : 's'}.`,
-        });
+        respond({ status: 'success', message: queuedSkipMessage(queued, skipped) });
       } catch (e) {
         // Without this the port stays open and the popup hangs on "Sending…"
         // forever if the queue write (a storage.local set near quota) rejects.

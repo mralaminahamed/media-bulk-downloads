@@ -6,6 +6,8 @@ import type { Mock } from 'vitest';
  */
 import '@/extension/background';
 import { ImageInfo, SettingsData } from '@/types';
+import * as dlKeys from '@/extension/background/download/downloaded-keys';
+import { SrcKeySet } from '@/extension/shared/collection/canonical';
 
 const img = (over: Partial<ImageInfo>): ImageInfo => ({
   src: 'x.jpg', alt: '', width: 100, height: 100, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image', ...over,
@@ -188,6 +190,74 @@ describe('background DOWNLOAD_IMAGES handler', () => {
     await flush();
     expect(chrome.downloads.download).not.toHaveBeenCalled();
     expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'No files to download.' });
+  });
+
+  describe('skipDuplicateDownloads (on-disk dedupe)', () => {
+    // Scoped so a spy on downloadedOnDiskKeys never bleeds into a sibling test —
+    // the outer beforeEach re-applies the chrome mocks it owns regardless.
+    afterEach(() => vi.restoreAllMocks());
+
+    it('skips an already-downloaded src and reports the skipped count', async () => {
+      // skipDuplicateDownloads is on by default (DEFAULT_SETTINGS); a.png is
+      // already on disk, b.png is not — only b.png should reach chrome.downloads.
+      vi.spyOn(dlKeys, 'downloadedOnDiskKeys').mockResolvedValue(SrcKeySet.from(['https://x/a.png']));
+      const sendResponse = vi.fn();
+      const images = [img({ src: 'https://x/a.png', type: 'png' }), img({ src: 'https://x/b.png', type: 'png' })];
+
+      onMessage({ type: 'DOWNLOAD_IMAGES', images }, {}, sendResponse);
+      await flush();
+
+      expect(chrome.downloads.download).toHaveBeenCalledTimes(1);
+      expect(chrome.downloads.download).toHaveBeenCalledWith(
+        expect.objectContaining({ url: 'https://x/b.png' }),
+        expect.any(Function),
+      );
+      expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({
+        status: 'success',
+        message: expect.stringContaining('1 skipped'),
+      }));
+    });
+
+    it('does not skip when the message is explicit', async () => {
+      // Explicit re-downloads (Favourites/History) are exactly what the user
+      // asked for, so the on-disk skip must never apply even though a.png
+      // resolves as already-downloaded here.
+      vi.spyOn(dlKeys, 'downloadedOnDiskKeys').mockResolvedValue(SrcKeySet.from(['https://x/a.png']));
+      const sendResponse = vi.fn();
+
+      onMessage(
+        { type: 'DOWNLOAD_IMAGES', explicit: true, images: [img({ src: 'https://x/a.png', type: 'png' })] },
+        {},
+        sendResponse,
+      );
+      await flush();
+
+      expect(chrome.downloads.download).toHaveBeenCalledTimes(1);
+      expect(chrome.downloads.download).toHaveBeenCalledWith(
+        expect.objectContaining({ url: 'https://x/a.png' }),
+        expect.any(Function),
+      );
+    });
+
+    it('does not skip when skipDuplicateDownloads is off, and the message shape is unchanged', async () => {
+      setSettings({ skipDuplicateDownloads: false });
+      vi.spyOn(dlKeys, 'downloadedOnDiskKeys').mockResolvedValue(SrcKeySet.from(['https://x/a.png']));
+      const sendResponse = vi.fn();
+
+      onMessage(
+        { type: 'DOWNLOAD_IMAGES', images: [img({ src: 'https://x/a.png', type: 'png' })] },
+        {},
+        sendResponse,
+      );
+      await flush();
+
+      expect(chrome.downloads.download).toHaveBeenCalledTimes(1);
+      expect(chrome.downloads.download).toHaveBeenCalledWith(
+        expect.objectContaining({ url: 'https://x/a.png' }),
+        expect.any(Function),
+      );
+      expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Queued 1 download.' });
+    });
   });
 });
 
