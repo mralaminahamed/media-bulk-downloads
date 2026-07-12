@@ -1,6 +1,6 @@
 import { Dispatch, RefObject, SetStateAction, useEffect, useRef, useState } from 'react';
 import { SettingsData } from '@/types';
-import { DEFAULT_SETTINGS, withDefaults } from '../../shared/storage/settings';
+import { DEFAULT_SETTINGS, withDefaults, loadStoredSettings } from '../../shared/storage/settings';
 import { sendRuntimeMessage } from '../utils';
 
 export interface UseSettingsResult {
@@ -29,6 +29,17 @@ export function useSettings(): UseSettingsResult {
   useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
+
+  // Seed the global settings from storage on mount. (The media engine used to
+  // seed this as a side effect of its own load; it now loads EFFECTIVE settings,
+  // so global gets its own read here. Idempotent — the onChanged listener keeps
+  // it live afterward.)
+  useEffect(() => {
+    void loadStoredSettings().then((loaded) => {
+      settingsRef.current = loaded;
+      setSettings(loaded);
+    });
+  }, []);
 
   useEffect(() => {
     // Keep settings live while the popup is open. The on-page bubble persists
