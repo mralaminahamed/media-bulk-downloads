@@ -39,6 +39,15 @@ export function stepMultiplier(added: number): number {
   return clamp(m, ADAPT_STEP.min, ADAPT_STEP.max);
 }
 
+/** "Keep going when rich": when the scan hits maxScrolls but a round still added
+ *  at least `richThreshold` new items (and is under maxMs/maxItems), extend the
+ *  scroll cap by `grant`, up to `ceilingFactor × maxScrolls`. */
+export const ADAPT_CONTINUE = {
+  richThreshold: 5,
+  grant: 10,
+  ceilingFactor: 2,
+} as const;
+
 export interface DeepScanDeps {
   /** Full walk when called with no roots (the seed); otherwise scans only the
    *  given (opaque) subtrees. Roots are passed straight through from
@@ -108,13 +117,18 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
   // Drives the NEXT scroll's multiplier: null only before the first scroll
   // (which always steps at the normal 1.0), then the previous round's yield.
   let lastAdded: number | null = null;
+  // Dynamic scroll cap: starts at maxScrolls, can be extended (bounded) while the
+  // scan is still richly yielding new items. maxMs/maxItems remain hard caps,
+  // checked at the loop top before this cap is ever consulted.
+  let scrollCap = opts.maxScrolls;
+  const scrollCeiling = ADAPT_CONTINUE.ceilingFactor * opts.maxScrolls;
 
   try {
     merge(); // seed from the current DOM
     deps.onProgress(found.size, 0, 0);
 
     let idle = 0;
-    for (scrolls = 1; scrolls <= opts.maxScrolls; scrolls++) {
+    for (scrolls = 1; scrolls <= scrollCap; scrolls++) {
       if (opts.signal.aborted) { reason = 'aborted'; break; }
       if (found.size >= opts.maxItems) { reason = 'max-items'; break; }
       if (deps.now() - start >= opts.maxMs) { reason = 'max-time'; break; }
@@ -142,10 +156,16 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
         if (deps.atBottom()) { reason = 'complete'; break; }
       } else {
         idle = 0;
+        // Keep going when rich: about to hit the cap but still yielding richly and
+        // under the hard caps → grant a bounded extension (maxMs/maxItems still stop
+        // first, checked at the loop top).
+        if (scrolls >= scrollCap && added >= ADAPT_CONTINUE.richThreshold && scrollCap < scrollCeiling) {
+          scrollCap = Math.min(scrollCap + ADAPT_CONTINUE.grant, scrollCeiling);
+        }
       }
     }
     // Loop ran to the last iteration without breaking → the scroll cap stopped it.
-    if (scrolls > opts.maxScrolls) reason = 'max-scrolls';
+    if (scrolls > scrollCap) reason = 'max-scrolls';
   } catch {
     // A throw from deps.collect()/scrollStep mid-scan must not discard what we've
     // already gathered — mark the run errored and return the partial set so the

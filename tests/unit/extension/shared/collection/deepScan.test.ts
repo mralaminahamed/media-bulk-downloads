@@ -1,4 +1,4 @@
-import { runDeepScan, DEEP_SCAN_DEFAULTS, ADAPT_WINDOW, ADAPT_STEP, stepMultiplier } from '@/extension/shared/collection/deepScan';
+import { runDeepScan, DEEP_SCAN_DEFAULTS, ADAPT_WINDOW, ADAPT_STEP, stepMultiplier, ADAPT_CONTINUE } from '@/extension/shared/collection/deepScan';
 import { MediaItem, DeepScanStopReason } from '@/types';
 
 const item = (src: string): MediaItem =>
@@ -340,5 +340,48 @@ describe('final full-walk safety sweep', () => {
     };
     const out = await runDeepScan(deps as any, { ...DEEP_SCAN_DEFAULTS, idleRounds: 1, signal: new AbortController().signal });
     expect(out.map((m) => m.src)).toEqual(['seed']);
+  });
+});
+
+describe('dynamic continuation (keep going when rich)', () => {
+  function richDeps(perRound: number) {
+    let round = 0;
+    return {
+      collect: () => {
+        round++;
+        // Seed + every round add `perRound` brand-new items (always rich).
+        return Array.from({ length: perRound }, (_v, i) => ({ src: `https://c/${round}-${i}.jpg` } as any));
+      },
+      scrollStep: () => {},
+      atBottom: () => false,
+      waitForQuiet: async () => ({ roots: null, settleMs: 0 }),
+      onProgress: () => {},
+      now: () => 0,
+      restoreScroll: () => {},
+    };
+  }
+
+  it('extends past maxScrolls while richly yielding, up to the 2x ceiling', async () => {
+    let scrollCalls = 0;
+    const deps = richDeps(ADAPT_CONTINUE.richThreshold + 3);
+    const wrapped = { ...deps, scrollStep: () => { scrollCalls++; } };
+    await runDeepScan(wrapped as any, { maxScrolls: 5, maxMs: 1e9, maxItems: 1e9, idleRounds: 3, signal: new AbortController().signal });
+    // Without extension it would stop at 5 scrolls; rich yield extends to the ceiling 2×5=10.
+    expect(scrollCalls).toBe(2 * 5);
+  });
+
+  it('does NOT extend when yield is below the rich threshold', async () => {
+    let scrollCalls = 0;
+    // Each round adds fewer than richThreshold new items (but > 0, so not idle-complete).
+    const below = Math.max(1, ADAPT_CONTINUE.richThreshold - 1);
+    const deps = { ...richDeps(below), scrollStep: () => { scrollCalls++; } };
+    await runDeepScan(deps as any, { maxScrolls: 5, maxMs: 1e9, maxItems: 1e9, idleRounds: 3, signal: new AbortController().signal });
+    expect(scrollCalls).toBe(5); // stops at the original cap
+  });
+
+  it('maxItems still stops the scan before the extended cap', async () => {
+    const deps = richDeps(ADAPT_CONTINUE.richThreshold + 3);
+    const out = await runDeepScan(deps as any, { maxScrolls: 5, maxMs: 1e9, maxItems: 10, idleRounds: 3, signal: new AbortController().signal });
+    expect(out.length).toBe(10); // hard cap honored
   });
 });
