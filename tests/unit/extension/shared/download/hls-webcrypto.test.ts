@@ -71,7 +71,10 @@ describe('browserHlsDeps', () => {
     global.fetch = f as unknown as typeof fetch;
     expect(Array.from(await browserHlsDeps().fetchBytes('https://x/seg'))).toEqual([9]);
     expect(f).toHaveBeenCalledWith('https://x/seg', undefined);
-    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 }) as unknown as typeof fetch;
+    // 500 is a retryable status for retryingFetch, which reads Retry-After off
+    // `res.headers` before deciding whether to retry — so the mock needs a
+    // Headers-shaped object, not just `{ ok, status }`.
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500, headers: new Headers() }) as unknown as typeof fetch;
     await expect(browserHlsDeps().fetchBytes('https://x/seg')).rejects.toThrow(/500/);
   });
 
