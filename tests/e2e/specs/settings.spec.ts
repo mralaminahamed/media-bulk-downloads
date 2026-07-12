@@ -43,6 +43,7 @@ test.describe('settings panel (draft + Save)', () => {
       [/ask where to save/i, 'saveAs', undefined],
       [/exclude base64 images/i, 'excludeBase64Images', () => selectTab(page, /Media/i)],
       [/exclude emoji/i, 'excludeEmoji', undefined],
+      [/smart page defaults/i, 'smartPageDefaults', undefined],
       [/resolve exact originals/i, 'resolveOriginals', undefined],
       [/capture video streams/i, 'captureHlsStreams', undefined],
       [/click .*load more/i, 'deepScanClickLoadMore', () => openAdvanced(page)],

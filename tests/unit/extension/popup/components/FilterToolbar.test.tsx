@@ -330,6 +330,19 @@ describe('FilterToolbar Component', () => {
     expect(medium?.textContent).toBe('Medium');
   });
 
+  it('self-heals a seeded sizeBucket the page cannot satisfy (feed/gallery seed on a small-image page)', () => {
+    const onChange = vi.fn();
+    // A page-type seed asks for sizeBucket:'medium', but the collected page has only
+    // small images, so 'medium' isn't in `available`. The stale-reset must clear it
+    // to 'all' on mount so the grid isn't left empty.
+    render(
+      <FilterToolbar onFilterChange={onChange} extensionSettings={DEFAULT_SETTINGS}
+        available={{ kinds: ['all', 'image'], formats: { image: ['all', 'png'], video: ['all'], audio: ['all'] }, sizeBuckets: ['all', 'small'] }}
+        initialFilters={{ sizeBucket: 'medium' }} />,
+    );
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ sizeBucket: 'all' }));
+  });
+
   it('resets a stale format selection to all when it leaves `available`', () => {
     const onChange = vi.fn();
     const { rerender, getByLabelText } = render(
