@@ -104,6 +104,26 @@ describe('SRC_KEY_RULES cross-CDN families', () => {
     const b = 'https://lh3.googleusercontent.com/a/ZZZdifferenttoken=s96-c';
     expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
   });
+  it('collapses imgix transform variants (path is identity)', () => {
+    const a = 'https://foo.imgix.net/bar/baz.jpg?w=800&h=600&fit=crop&s=abc';
+    const b = 'https://foo.imgix.net/bar/baz.jpg?w=1600&auto=format';
+    expect(canonicalSrcKey(a)).toBe(canonicalSrcKey(b));
+  });
+  it('keeps two different imgix paths distinct', () => {
+    const a = 'https://foo.imgix.net/bar/baz.jpg?w=800';
+    const b = 'https://foo.imgix.net/bar/qux.jpg?w=800';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
+  it('collapses cloudinary transform + version variants', () => {
+    const a = 'https://res.cloudinary.com/demo/image/upload/w_800,c_fill/v1699999999/sample.jpg';
+    const b = 'https://res.cloudinary.com/demo/image/upload/w_300,c_scale/v1700000000/sample.jpg';
+    expect(canonicalSrcKey(a)).toBe(canonicalSrcKey(b));
+  });
+  it('keeps two different cloudinary public ids distinct', () => {
+    const a = 'https://res.cloudinary.com/demo/image/upload/w_800,c_fill/sample.jpg';
+    const b = 'https://res.cloudinary.com/demo/image/upload/w_800,c_fill/other.jpg';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
 });
 
 describe('SrcKeySet', () => {

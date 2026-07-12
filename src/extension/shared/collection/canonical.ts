@@ -42,6 +42,25 @@ export const SRC_KEY_RULES: SrcKeyRule[] = [
     match: (u) => /(?:^|\.)googleusercontent\.com$/i.test(u.hostname),
     key: (u) => `${u.hostname.toLowerCase()}${u.pathname.replace(/=[^/]*$/, '')}`,
   },
+  {
+    // imgix (*.imgix.net): every query param is a rendition / transform / signature;
+    // the path is the identity. Custom imgix domains are out of scope for v1.
+    match: (u) => /(?:^|\.)imgix\.net$/i.test(u.hostname),
+    key: (u) => `${u.hostname.toLowerCase()}${u.pathname}`,
+  },
+  {
+    // Cloudinary (res.cloudinary.com): the /upload/ (or /fetch/) path may carry a
+    // multi-param transform segment (w_800,c_fill — detected by the comma, so a
+    // folder name with an underscore is never mistaken for one) and a vNNN version
+    // before the public id; both are renditions, the public id is the identity.
+    match: (u) => /(?:^|\.)res\.cloudinary\.com$/i.test(u.hostname),
+    key: (u) => {
+      const stripped = u.pathname
+        .replace(/\/(image|video|raw)\/(upload|fetch)\/[^/]*,[^/]*\//, '/$1/$2/')
+        .replace(/\/v\d+\//, '/');
+      return `res.cloudinary.com${stripped}`;
+    },
+  },
 ];
 
 /**
