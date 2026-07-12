@@ -18,7 +18,7 @@ Fast, network-free by default, and built for Chrome, Firefox, and Edge from one 
 [![Extension CI](https://github.com/mralaminahamed/media-bulk-downloads/actions/workflows/extension-ci.yml/badge.svg)](https://github.com/mralaminahamed/media-bulk-downloads/actions/workflows/extension-ci.yml)
 [![Release](https://github.com/mralaminahamed/media-bulk-downloads/actions/workflows/release.yml/badge.svg)](https://github.com/mralaminahamed/media-bulk-downloads/actions/workflows/release.yml)
 
-<img src="./assets/screenshot.png" alt="Media Bulk Downloads popup showing a filtered media grid" width="640">
+<img src="assets/v1/screenshot.png" alt="Media Bulk Downloads popup showing a filtered media grid" width="640">
 
 </div>
 
