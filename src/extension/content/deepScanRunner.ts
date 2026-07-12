@@ -2,7 +2,7 @@ import { MediaItem } from '@/types';
 import { collectMedia, type ScanRoot } from '@/extension/content/collect';
 import { runDeepScan, DeepScanDeps, DEEP_SCAN_DEFAULTS } from '@/extension/shared/collection/deepScan';
 import { registrableDomain } from '@/extension/shared/collection/paths';
-import { loadScanMemoryForHost, saveScanMemoryForHost } from '@/extension/shared/storage/per-host-scan-memory';
+import { loadScanMemoryForHost } from '@/extension/shared/storage/per-host-scan-memory';
 
 /** Finds the element that actually scrolls the page, falling back to window. */
 function primaryScroller(): {
@@ -195,10 +195,17 @@ export async function startDeepScan(
         // prior remembered value instead of lowering it.
         if (reason === 'aborted' || reason === 'error') return;
         const trustScrolls = reason === 'complete' || reason === 'max-scrolls';
-        void saveScanMemoryForHost(host, {
-          settleMs,
-          scrolls: trustScrolls ? scrolls : (seedMem?.scrolls ?? scrolls),
-        });
+        // Routed through the background (SAVE_SCAN_MEMORY) rather than written
+        // directly here: each tab has its own module-local write chain in
+        // per-host-scan-memory, so a per-tab write can't share ordering with the
+        // background's clear path (#293 phase-2, NEW-1). Fire-and-forget with a
+        // .catch — the background may be unavailable (worker suspended /
+        // extension reloading); learned memory is best-effort and self-healing.
+        void chrome.runtime.sendMessage({
+          type: 'SAVE_SCAN_MEMORY',
+          host,
+          sample: { settleMs, scrolls: trustScrolls ? scrolls : (seedMem?.scrolls ?? scrolls) },
+        }).catch(() => { /* background may be unavailable; learned memory is self-healing */ });
       }
     : undefined;
 

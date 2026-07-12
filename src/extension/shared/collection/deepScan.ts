@@ -209,6 +209,7 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
   // Surface the run's final learned state (settle EMA + scroll depth used). Placed
   // after the completion sweep and final progress so `reason`, `settleEma`, and
   // `completed` are all final. The caller decides what to persist.
-  deps.onLearned?.({ settleMs: settleEma, scrolls: completed, reason });
+  // A throwing onLearned callback must not discard the scan result.
+  try { deps.onLearned?.({ settleMs: settleEma, scrolls: completed, reason }); } catch { /* keep result */ }
   return [...found.values()];
 }

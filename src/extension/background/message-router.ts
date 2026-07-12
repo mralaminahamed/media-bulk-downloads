@@ -11,7 +11,7 @@ import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory
 import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } from '../shared/storage/favourites';
 import { addExcluded, removeExcluded, clearExcluded, restoreExcluded } from '../shared/storage/excluded';
 import { savePerHostSettings, clearPerHostSettings } from '../shared/storage/per-host-settings';
-import { clearScanMemoryForHost } from '../shared/storage/per-host-scan-memory';
+import { clearScanMemoryForHost, saveScanMemoryForHost } from '../shared/storage/per-host-scan-memory';
 import { streamErrorMessage } from '../shared/download/stream/stream-error-message';
 import {
   enqueueDownloads, pauseQueue, resumeQueue, cancelQueue, retryQueueItem, getQueueSnapshot,
@@ -204,6 +204,13 @@ export const messageRouter: MessageRouter = {
       void clearPerHostSettings(message.host);
       void clearScanMemoryForHost(message.host); // also drop learned scan memory (#293 phase-2)
     } else void savePerHostSettings(message.host, message.patch);
+  },
+
+  // Persist a host's learned deep-scan memory. Routed here (not written directly in
+  // the content script) so save + clear share the background's single serialized
+  // writer and can't clobber each other across tabs/contexts (#293 phase-2).
+  SAVE_SCAN_MEMORY: (message) => {
+    void saveScanMemoryForHost(message.host, message.sample);
   },
 
   // Replace favourites + history + excluded from an imported backup, in the single-writer realm.

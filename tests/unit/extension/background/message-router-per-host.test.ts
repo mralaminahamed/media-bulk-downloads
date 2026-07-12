@@ -7,11 +7,12 @@ vi.mock('@/extension/shared/storage/per-host-settings', () => ({
 
 vi.mock('@/extension/shared/storage/per-host-scan-memory', () => ({
   clearScanMemoryForHost: vi.fn(() => Promise.resolve()),
+  saveScanMemoryForHost: vi.fn(() => Promise.resolve()),
 }));
 
 import { messageRouter } from '@/extension/background/message-router';
 import { savePerHostSettings, clearPerHostSettings } from '@/extension/shared/storage/per-host-settings';
-import { clearScanMemoryForHost } from '@/extension/shared/storage/per-host-scan-memory';
+import { clearScanMemoryForHost, saveScanMemoryForHost } from '@/extension/shared/storage/per-host-scan-memory';
 
 describe('SET_PER_HOST_SETTINGS router handler', () => {
   const noop = vi.fn();
@@ -49,5 +50,18 @@ describe('SET_PER_HOST_SETTINGS router handler', () => {
       {} as chrome.runtime.MessageSender, noop,
     );
     expect(clearScanMemoryForHost).not.toHaveBeenCalled();
+  });
+});
+
+describe('SAVE_SCAN_MEMORY router handler', () => {
+  const noop = vi.fn();
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('persists the host sample via the single serialized writer (#293 phase-2, NEW-1)', () => {
+    messageRouter.SAVE_SCAN_MEMORY!(
+      { type: 'SAVE_SCAN_MEMORY', host: 'booru.example', sample: { settleMs: 500, scrolls: 12 } },
+      {} as chrome.runtime.MessageSender, noop,
+    );
+    expect(saveScanMemoryForHost).toHaveBeenCalledWith('booru.example', { settleMs: 500, scrolls: 12 });
   });
 });

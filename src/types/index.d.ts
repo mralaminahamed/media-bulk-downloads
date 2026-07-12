@@ -367,6 +367,16 @@ export interface SetPerHostSettingsMessage {
   patch: Partial<SettingsData> | null; // null = clear the host's entry
 }
 
+/** Persist a host's learned deep-scan memory (settle time + scroll depth). Routed
+ *  through the background so scan-memory saves share ONE serialized writer with the
+ *  reset/clear path (#293 phase-2) — a per-tab content-script write chain can't
+ *  clobber a concurrent background clear. */
+export interface SaveScanMemoryMessage {
+  type: 'SAVE_SCAN_MEMORY';
+  host: string;                                   // registrable domain
+  sample: { settleMs: number; scrolls: number };
+}
+
 export type QueuePauseMessage = { type: 'QUEUE_PAUSE' };
 export type QueueResumeMessage = { type: 'QUEUE_RESUME' };
 export interface QueueCancelMessage {
@@ -397,6 +407,7 @@ export type ChromeMessage =
   | DownloadMessage
   | SetSettingsMessage
   | SetPerHostSettingsMessage
+  | SaveScanMemoryMessage
   | QueuePauseMessage
   | QueueResumeMessage
   | QueueCancelMessage

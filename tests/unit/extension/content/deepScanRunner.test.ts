@@ -248,11 +248,15 @@ describe('startDeepScan — learned-scan wiring', () => {
     vi.restoreAllMocks();
     // location.hostname → registrableDomain('www.example.com') === 'example.com'
     Object.defineProperty(window, 'location', { value: new URL('https://www.example.com/gallery'), writable: true });
+    // Writes now go through chrome.runtime.sendMessage (#293 phase-2, NEW-1): reset
+    // call history from prior tests (it's a plain vi.fn(), not a vi.spyOn(), so
+    // vi.restoreAllMocks() above doesn't clear it) and give it a resolved promise
+    // so the runner's `.catch()` on the fire-and-forget send is valid.
+    (chrome.runtime.sendMessage as unknown as Mock).mockReset().mockResolvedValue(undefined);
   });
 
-  it('reads memory, passes it as seed, and persists onLearned when the toggle is on', async () => {
+  it('reads memory, passes it as seed, and sends SAVE_SCAN_MEMORY with a fresh sample when the toggle is on', async () => {
     vi.spyOn(scanMem, 'loadScanMemoryForHost').mockResolvedValue({ settleMs: 700, scrolls: 15, updatedAt: 1 });
-    const save = vi.spyOn(scanMem, 'saveScanMemoryForHost').mockResolvedValue();
     const runSpy = vi.spyOn(loop, 'runDeepScan').mockImplementation(async (deps: unknown, opts: unknown) => {
       // Assert we got the seed, then fire onLearned like the real loop would.
       expect((opts as loop.DeepScanOpts).seed).toEqual({ settleMs: 700, scrolls: 15 });
@@ -264,12 +268,35 @@ describe('startDeepScan — learned-scan wiring', () => {
 
     expect(scanMem.loadScanMemoryForHost).toHaveBeenCalledWith('example.com');
     expect(runSpy).toHaveBeenCalled();
-    expect(save).toHaveBeenCalledWith('example.com', { settleMs: 720, scrolls: 16 });
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+      type: 'SAVE_SCAN_MEMORY',
+      host: 'example.com',
+      sample: { settleMs: 720, scrolls: 16 },
+    });
   });
 
-  it('does NOT read, seed, or persist when the toggle is off (behaviour-neutral)', async () => {
+  it('first visit (no prior memory): toggle on + reason complete still sends the bootstrap sample', async () => {
+    const load = vi.spyOn(scanMem, 'loadScanMemoryForHost').mockResolvedValue(null);
+    const runSpy = vi.spyOn(loop, 'runDeepScan').mockImplementation(async (deps: unknown, opts: unknown) => {
+      // No prior memory → no seed is passed to runDeepScan.
+      expect((opts as loop.DeepScanOpts).seed).toBeUndefined();
+      (deps as loop.DeepScanDeps).onLearned?.({ settleMs: 450, scrolls: 8, reason: 'complete' });
+      return [];
+    });
+
+    await startDeepScan(vi.fn(), signal, { rememberScanBehaviour: true });
+
+    expect(load).toHaveBeenCalledWith('example.com');
+    expect(runSpy).toHaveBeenCalled();
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+      type: 'SAVE_SCAN_MEMORY',
+      host: 'example.com',
+      sample: { settleMs: 450, scrolls: 8 },
+    });
+  });
+
+  it('does NOT read or send when the toggle is off (behaviour-neutral)', async () => {
     const load = vi.spyOn(scanMem, 'loadScanMemoryForHost').mockResolvedValue({ settleMs: 700, scrolls: 15, updatedAt: 1 });
-    const save = vi.spyOn(scanMem, 'saveScanMemoryForHost').mockResolvedValue();
     const runSpy = vi.spyOn(loop, 'runDeepScan').mockImplementation(async (deps: unknown, opts: unknown) => {
       expect((opts as loop.DeepScanOpts).seed).toBeUndefined();
       (deps as loop.DeepScanDeps).onLearned?.({ settleMs: 720, scrolls: 16, reason: 'complete' });
@@ -279,30 +306,32 @@ describe('startDeepScan — learned-scan wiring', () => {
     await startDeepScan(vi.fn(), signal, { rememberScanBehaviour: false });
 
     expect(load).not.toHaveBeenCalled();
-    expect(save).not.toHaveBeenCalled();
+    expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
     expect(runSpy).toHaveBeenCalled();
   });
 
-  it('write rule: aborted/error do not persist', async () => {
+  it('write rule: aborted/error do not send', async () => {
     vi.spyOn(scanMem, 'loadScanMemoryForHost').mockResolvedValue(null);
-    const save = vi.spyOn(scanMem, 'saveScanMemoryForHost').mockResolvedValue();
     vi.spyOn(loop, 'runDeepScan').mockImplementation(async (deps: unknown) => {
       (deps as loop.DeepScanDeps).onLearned?.({ settleMs: 100, scrolls: 3, reason: 'aborted' });
       return [];
     });
     await startDeepScan(vi.fn(), signal, { rememberScanBehaviour: true });
-    expect(save).not.toHaveBeenCalled();
+    expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
   });
 
   it('write rule: a budget-truncated stop keeps the prior scroll depth', async () => {
     vi.spyOn(scanMem, 'loadScanMemoryForHost').mockResolvedValue({ settleMs: 500, scrolls: 30, updatedAt: 1 });
-    const save = vi.spyOn(scanMem, 'saveScanMemoryForHost').mockResolvedValue();
     vi.spyOn(loop, 'runDeepScan').mockImplementation(async (deps: unknown) => {
       // max-time truncates depth → scrolls this run (5) under-counts; keep prior 30.
       (deps as loop.DeepScanDeps).onLearned?.({ settleMs: 600, scrolls: 5, reason: 'max-time' });
       return [];
     });
     await startDeepScan(vi.fn(), signal, { rememberScanBehaviour: true });
-    expect(save).toHaveBeenCalledWith('example.com', { settleMs: 600, scrolls: 30 });
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+      type: 'SAVE_SCAN_MEMORY',
+      host: 'example.com',
+      sample: { settleMs: 600, scrolls: 30 },
+    });
   });
 });
