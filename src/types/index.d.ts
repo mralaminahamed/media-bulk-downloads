@@ -490,6 +490,8 @@ export interface SettingsData {
   deepScanMaxScrolls: number;
   /** Opt-in: click "Load more"-style buttons between scroll rounds during a deep scan. */
   deepScanClickLoadMore: boolean;
+  /** Opt-in: let a passive page-type classifier prime filter defaults + pass order. */
+  smartPageDefaults: boolean;
 }
 
 export type SizeBucket = 'all' | 'small' | 'medium' | 'large';

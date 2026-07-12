@@ -40,6 +40,7 @@ const settings: SettingsData = {
   deepScanMaxSeconds: 20,
   deepScanMaxScrolls: 40,
   deepScanClickLoadMore: false,
+  smartPageDefaults: false,
 };
 
 // Persist now routes through the SET_SETTINGS message (single serialized writer
