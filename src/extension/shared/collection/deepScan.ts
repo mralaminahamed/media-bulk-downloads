@@ -66,6 +66,9 @@ export interface DeepScanDeps {
   onProgress: (found: number, scrolls: number, elapsedMs: number, reason?: DeepScanStopReason) => void;
   now: () => number;
   restoreScroll: () => void;
+  /** Emitted once at the end with the run's final learned state, so a caller can
+   *  persist it. `reason` lets the caller gate which fields it trusts. */
+  onLearned?: (m: { settleMs: number; scrolls: number; reason: DeepScanStopReason }) => void;
 }
 
 export interface DeepScanOpts {
@@ -74,6 +77,10 @@ export interface DeepScanOpts {
   maxItems: number;
   idleRounds: number;
   signal: AbortSignal;
+  /** Warm-start from a host's learned memory (phase-2). Absent = cold start
+   *  (today's behaviour, byte-for-byte). settleMs seeds settleEma; scrolls raises
+   *  the starting scroll cap (never lowers it). */
+  seed?: { settleMs: number; scrolls: number };
 }
 
 export const DEEP_SCAN_DEFAULTS: Omit<DeepScanOpts, 'signal'> = {
@@ -113,15 +120,21 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
   // so an exit before the first scrollStep reports 0 rather than 1.
   let scrolls: number; // assigned by the for-init before any read
   let completed = 0;
-  let settleEma = ADAPT_WINDOW.seedSettleMs;
+  // Seed the settle EMA from history when present; the quiet/hardCap clamps below
+  // still bound whatever value this is, so a bad seed can widen but never break.
+  let settleEma = opts.seed ? clamp(opts.seed.settleMs, 0, ADAPT_WINDOW.hardCapMax) : ADAPT_WINDOW.seedSettleMs;
   // Drives the NEXT scroll's multiplier: null only before the first scroll
   // (which always steps at the normal 1.0), then the previous round's yield.
   let lastAdded: number | null = null;
   // Dynamic scroll cap: starts at maxScrolls, can be extended (bounded) while the
   // scan is still richly yielding new items. maxMs/maxItems remain hard caps,
   // checked at the loop top before this cap is ever consulted.
-  let scrollCap = opts.maxScrolls;
   const scrollCeiling = ADAPT_CONTINUE.ceilingFactor * opts.maxScrolls;
+  // Raise-only: a remembered-deep site pre-extends its cap toward the ceiling, but
+  // the user's base maxScrolls is never lowered; maxMs/maxItems/idle still stop it.
+  let scrollCap = opts.seed
+    ? clamp(opts.seed.scrolls, opts.maxScrolls, scrollCeiling)
+    : opts.maxScrolls;
 
   try {
     merge(); // seed from the current DOM
@@ -133,7 +146,7 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
       if (found.size >= opts.maxItems) { reason = 'max-items'; break; }
       if (deps.now() - start >= opts.maxMs) { reason = 'max-time'; break; }
 
-      const quietWindow = scrolls === 1
+      const quietWindow = (scrolls === 1 && !opts.seed)
         ? { quiet: ADAPT_WINDOW.defaultQuiet, hardCap: ADAPT_WINDOW.defaultHardCap }
         : {
             quiet: clamp(ADAPT_WINDOW.quietFactor * settleEma, ADAPT_WINDOW.quietMin, ADAPT_WINDOW.quietMax),
@@ -193,5 +206,9 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
   }
 
   deps.onProgress(found.size, completed, deps.now() - start, reason);
+  // Surface the run's final learned state (settle EMA + scroll depth used). Placed
+  // after the completion sweep and final progress so `reason`, `settleEma`, and
+  // `completed` are all final. The caller decides what to persist.
+  deps.onLearned?.({ settleMs: settleEma, scrolls: completed, reason });
   return [...found.values()];
 }
