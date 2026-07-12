@@ -124,6 +124,21 @@ describe('SRC_KEY_RULES cross-CDN families', () => {
     const b = 'https://res.cloudinary.com/demo/image/upload/w_800,c_fill/other.jpg';
     expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
   });
+  it('collapses twimg name/format rendition variants', () => {
+    const a = 'https://pbs.twimg.com/media/FabcXYZ?format=jpg&name=small';
+    const b = 'https://pbs.twimg.com/media/FabcXYZ?format=png&name=orig';
+    expect(canonicalSrcKey(a)).toBe(canonicalSrcKey(b));
+  });
+  it('collapses the legacy :size path suffix', () => {
+    const a = 'https://pbs.twimg.com/media/FabcXYZ.jpg:large';
+    const b = 'https://pbs.twimg.com/media/FabcXYZ.jpg:small';
+    expect(canonicalSrcKey(a)).toBe(canonicalSrcKey(b));
+  });
+  it('keeps two different twimg media ids distinct', () => {
+    const a = 'https://pbs.twimg.com/media/FabcXYZ?name=small';
+    const b = 'https://pbs.twimg.com/media/Fdef456?name=small';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
 });
 
 describe('SrcKeySet', () => {

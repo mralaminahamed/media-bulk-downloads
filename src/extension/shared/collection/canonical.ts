@@ -61,6 +61,14 @@ export const SRC_KEY_RULES: SrcKeyRule[] = [
       return `res.cloudinary.com${stripped}`;
     },
   },
+  {
+    // Twitter media (pbs.twimg.com, etc.): `name=` (small/large/orig) and `format=`
+    // pick a rendition; a legacy `:size` suffix does the same on the path. The media
+    // id in the path is the identity; drop the query and the :size suffix. (The
+    // download path still upgrades to the original via the twitter resolver.)
+    match: (u) => /(?:^|\.)twimg\.com$/i.test(u.hostname),
+    key: (u) => `${u.hostname.toLowerCase()}${u.pathname.replace(/:(?:thumb|small|medium|large|orig)$/i, '')}`,
+  },
 ];
 
 /**
