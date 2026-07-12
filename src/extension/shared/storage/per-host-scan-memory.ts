@@ -1,4 +1,5 @@
 import { ScanMemory } from '@/types';
+import { durableSet } from './idb';
 
 /**
  * Per-host learned deep-scan behaviour (phase-2, follows #293). A
@@ -68,4 +69,60 @@ export function evictToCap(
   entries.sort((a, b) => a[1].updatedAt - b[1].updatedAt); // oldest first
   const kept = entries.slice(entries.length - cap); // keep the newest `cap`
   return Object.fromEntries(kept);
+}
+
+/** The whole scan-memory store, each entry validated via clampMemory (bad
+ *  entries dropped). */
+export async function loadScanMemory(): Promise<Record<string, ScanMemory>> {
+  const result = (await chrome.storage.local.get(PER_HOST_SCAN_MEMORY_KEY)) as Record<string, unknown>;
+  const raw = asObject(result[PER_HOST_SCAN_MEMORY_KEY]);
+  const out: Record<string, ScanMemory> = {};
+  for (const [host, val] of Object.entries(raw)) {
+    const m = clampMemory(val);
+    if (host && m) out[host] = m;
+  }
+  return out;
+}
+
+/** One host's learned memory, or null when absent/invalid. `host` is a
+ *  registrable domain (caller reduces location.hostname). */
+export async function loadScanMemoryForHost(host: string): Promise<ScanMemory | null> {
+  if (!host) return null;
+  const store = await loadScanMemory();
+  return store[host] ?? null;
+}
+
+// Serialized single-writer, so a save and a clear can't clobber each other
+// (mirrors per-host-settings.ts).
+let writeChain: Promise<void> = Promise.resolve();
+function serialize(task: () => Promise<void>): Promise<void> {
+  const run = writeChain.then(task, task);
+  writeChain = run.catch(() => undefined);
+  return run;
+}
+
+/** Blend a fresh sample into a host's memory (cross-visit EMA), stamp
+ *  updatedAt = now, and LRU-evict to cap. No-op for an empty host. */
+export async function saveScanMemoryForHost(
+  host: string,
+  sample: { settleMs: number; scrolls: number },
+  now: number = Date.now(),
+): Promise<void> {
+  if (!host) return;
+  return serialize(async () => {
+    const store = await loadScanMemory();
+    store[host] = blendMemory(store[host] ?? null, sample, now);
+    await durableSet(PER_HOST_SCAN_MEMORY_KEY, evictToCap(store));
+  });
+}
+
+/** Remove a host's memory entirely ("Reset this site"). */
+export async function clearScanMemoryForHost(host: string): Promise<void> {
+  if (!host) return;
+  return serialize(async () => {
+    const store = await loadScanMemory();
+    if (!(host in store)) return;
+    delete store[host];
+    await durableSet(PER_HOST_SCAN_MEMORY_KEY, store);
+  });
 }
