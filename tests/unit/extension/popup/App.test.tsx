@@ -104,6 +104,20 @@ describe('App Component', () => {
     expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
   });
 
+  it('first scan filters by the settings loaded on mount (#293 refactor keeps this)', async () => {
+    (chrome.storage.sync.get as Mock).mockImplementation(
+      (_k: unknown, cb: (r: { settings: unknown }) => void) => cb({ settings: { minimumImageSize: 500 } }),
+    );
+    const collect = async () => [
+      image({ src: 'https://e.com/big.jpg', width: 800, height: 800 }),
+      image({ src: 'https://e.com/tiny.jpg', width: 10, height: 10 }),
+    ];
+    render(<App collect={collect} />);
+    await screen.findByText('Filters');
+    expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /download 2/i })).toBeNull();
+  });
+
   it('shows the empty state when no images are found', async () => {
     render(<App collect={async () => []} />);
     expect(await screen.findByText('No media here')).toBeInTheDocument();
