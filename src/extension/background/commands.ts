@@ -30,7 +30,7 @@ export function downloadAllForTab(tab?: chrome.tabs.Tab): void {
       // page and save it as a bogus `.jpg`. Drop them from both buckets.
       const streams = eligible.filter((i) => i.hlsManifest);
       const regular = eligible.filter((i) => !isPendingOrStream(i));
-      if (regular.length) void downloadAndRecord(regular, sourcePage);
+      if (regular.length) void downloadAndRecord(regular, sourcePage, { skipDuplicates: currentSettings.skipDuplicateDownloads });
       for (const s of streams) {
         // Register the capturing tab under this run's id so its progress relays
         // to this tab's bubble (and no other concurrent capture's).
@@ -64,7 +64,7 @@ export function onContextMenuClick(info: chrome.contextMenus.OnClickData, tab?: 
     const media = mediaFromContext(info);
     // A single explicit right-click download is NOT run through the size/base64
     // filters — the user picked this exact item.
-    if (media) void settingsReady.then(() => downloadAndRecord([media], sourcePage));
+    if (media) void settingsReady.then(() => downloadAndRecord([media], sourcePage, { skipDuplicates: false }));
     return;
   }
 

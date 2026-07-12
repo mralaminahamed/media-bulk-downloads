@@ -6,6 +6,8 @@ vi.mock('@/extension/shared/storage/excluded', async () => ({
   clearExcluded: vi.fn().mockResolvedValue(undefined),
 }));
 import * as excludedMod from '@/extension/shared/storage/excluded';
+import * as dlKeys from '@/extension/background/download/downloaded-keys';
+import { SrcKeySet } from '@/extension/shared/collection/canonical';
 
 import {
   updateTabBadge,
@@ -18,6 +20,7 @@ import {
   DEFAULT_SETTINGS,
   resolveOriginalsBatch,
   downloadAndRecord,
+  downloadStatusMessage,
   setupContextMenus,
   mediaFromContext,
 } from '@/extension/background';
@@ -619,6 +622,8 @@ describe('downloadAndRecord', () => {
     (chrome.storage.local.get as Mock).mockReset().mockResolvedValue({ downloadHistory: [] });
     (chrome.storage.local.set as Mock).mockReset().mockResolvedValue(undefined);
   });
+  // A spy on downloadedOnDiskKeys must never bleed into a sibling test.
+  afterEach(() => vi.restoreAllMocks());
   const img = (src: string) =>
     ({ src, alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' as const });
 
@@ -649,6 +654,37 @@ describe('downloadAndRecord', () => {
     });
     await downloadAndRecord([img('https://c/b.jpg')], undefined);
     expect(chrome.storage.local.set as Mock).not.toHaveBeenCalled();
+  });
+
+  it('skips already-downloaded srcs when skipDuplicates is set', async () => {
+    vi.spyOn(dlKeys, 'downloadedOnDiskKeys').mockResolvedValue(SrcKeySet.from(['https://x/a.png']));
+    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(11));
+    const result = await downloadAndRecord(
+      [img('https://x/a.png'), img('https://x/b.png')],
+      { url: 'https://p' },
+      { skipDuplicates: true },
+    );
+    // only b.png is downloaded; a.png counted as skipped
+    expect(chrome.downloads.download).toHaveBeenCalledTimes(1);
+    expect(result.skipped).toBe(1);
+    expect(result.total).toBe(1);
+  });
+
+  it('does not skip when skipDuplicates is absent (default)', async () => {
+    const spy = vi.spyOn(dlKeys, 'downloadedOnDiskKeys');
+    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(11));
+    const result = await downloadAndRecord([img('https://x/a.png')], { url: 'https://p' });
+    expect(spy).not.toHaveBeenCalled();
+    expect(result.skipped).toBe(0);
+  });
+});
+
+describe('downloadStatusMessage', () => {
+  it('mentions skipped duplicates in the status message', () => {
+    expect(downloadStatusMessage({ total: 2, succeeded: 2, failed: 0, skipped: 3 }))
+      .toBe('Downloaded 2 files. (3 skipped — already saved)');
+    expect(downloadStatusMessage({ total: 0, succeeded: 0, failed: 0, skipped: 4 }))
+      .toBe('Nothing new — 4 already saved.');
   });
 });
 
