@@ -21,6 +21,14 @@ describe('classifyPage', () => {
   it('falls back to unknown on weak signals', () => {
     expect(classifyPage(sig({ imageCount: 4, density: 0.1, aspectSpread: 0.4 }))).toBe('unknown');
   });
+  it('classifies a uniform role="article" grid as gallery, not feed', () => {
+    // grid tiles marked role=article (>=5) but uniform + dense → gallery must win
+    expect(
+      classifyPage(
+        sig({ imageCount: 40, density: 0.8, aspectSpread: 0.02, hasArticle: false, dominantAreaRatio: 0.1, feedMarkers: true }),
+      ),
+    ).toBe('gallery');
+  });
 });
 
 describe('pageDefaults', () => {
@@ -47,5 +55,17 @@ describe('collectPageSignals', () => {
   it('reports no article when none is present', () => {
     document.body.innerHTML = '<div><img width="100" height="100"></div>';
     expect(collectPageSignals(document).hasArticle).toBe(false);
+  });
+  it('derives density, aspect spread, dominant ratio, and feed markers', () => {
+    document.body.innerHTML =
+      '<div role="feed">' +
+      '<img width="400" height="300"><img width="800" height="600"><img width="1200" height="900">' +
+      '</div>';
+    const s = collectPageSignals(document);
+    expect(s.imageCount).toBe(3);
+    expect(s.feedMarkers).toBe(true);
+    expect(s.dominantAreaRatio).toBeGreaterThan(0);
+    expect(s.dominantAreaRatio).toBeLessThanOrEqual(1);
+    expect(Number.isFinite(s.aspectSpread)).toBe(true);
   });
 });

@@ -5,20 +5,27 @@
  */
 import { PageType, PageSignals, FilterOptions } from '@/types';
 
-/** Cheap DOM signals for classification. Reads only synchronous layout-free props. */
+/**
+ * Cheap DOM signals for classification. Reads only synchronous, layout-free
+ * props: `naturalWidth`/`naturalHeight` (already resolved once the image
+ * decodes) and the `width`/`height` content attributes (via `getAttribute`).
+ * Deliberately avoids the `.width`/`.height` IDL getters, which force a
+ * layout pass when `naturalWidth` is 0 (lazy/unsized images).
+ */
 export function collectPageSignals(doc: Document): PageSignals {
   const imgs = Array.from(doc.images);
   const imageCount = imgs.length;
-  const areas = imgs.map((im) => (im.naturalWidth || im.width || 0) * (im.naturalHeight || im.height || 0));
+  const dims = imgs.map((im) => ({
+    w: im.naturalWidth || Number(im.getAttribute('width')) || 0,
+    h: im.naturalHeight || Number(im.getAttribute('height')) || 0,
+  }));
+  const areas = dims.map(({ w, h }) => w * h);
   const totalArea = areas.reduce((a, b) => a + b, 0);
-  const dominantAreaRatio = totalArea > 0 ? Math.max(0, ...areas) / totalArea : 0;
+  const maxArea = areas.reduce((m, a) => (a > m ? a : m), 0);
+  const dominantAreaRatio = totalArea > 0 ? maxArea / totalArea : 0;
 
-  const ratios = imgs
-    .map((im) => {
-      const w = im.naturalWidth || im.width || 0;
-      const h = im.naturalHeight || im.height || 0;
-      return h > 0 ? w / h : 0;
-    })
+  const ratios = dims
+    .map(({ w, h }) => (h > 0 ? w / h : 0))
     .filter((r) => r > 0);
   const mean = ratios.length ? ratios.reduce((a, b) => a + b, 0) / ratios.length : 0;
   const aspectSpread = ratios.length
@@ -37,14 +44,17 @@ export function collectPageSignals(doc: Document): PageSignals {
 }
 
 /**
- * Classify from signals. Order matters: single-media (one dominant asset) and
- * feed (explicit markers) are checked before the density/uniformity gallery test;
- * article is the text-page fallback; everything else is unknown (→ today's defaults).
+ * Classify from signals. Order matters: single-media (one dominant asset) is
+ * checked first, then the density/uniformity gallery test — a dense, uniform
+ * grid of tiles wins as `gallery` even when tiles happen to carry a legit
+ * non-feed ARIA pattern like `role="article"` — then feed (explicit markers);
+ * article is the text-page fallback; everything else is unknown (→ today's
+ * defaults).
  */
 export function classifyPage(s: PageSignals): PageType {
   if (s.imageCount <= 5 && s.dominantAreaRatio >= 0.75) return 'single-media';
-  if (s.feedMarkers && s.imageCount >= 10) return 'feed';
   if (s.imageCount >= 20 && s.density >= 0.5 && s.aspectSpread < 0.1) return 'gallery';
+  if (s.feedMarkers && s.imageCount >= 10) return 'feed';
   if (s.hasArticle) return 'article';
   return 'unknown';
 }
