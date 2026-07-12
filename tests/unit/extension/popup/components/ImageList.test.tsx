@@ -703,8 +703,9 @@ describe('ImageList Component', () => {
     figures.forEach((fig) => {
       const style = (fig as HTMLElement).style;
       expect(style.contentVisibility).toBe('auto');
-      // Square placeholder box == thumbnailSize on both axes.
-      expect(style.containIntrinsicSize).not.toBe('');
+      // Per-axis `auto <length>` — thumbnailSize-square fallback before first
+      // paint, self-correcting to the tile's real measured size afterward.
+      expect(style.containIntrinsicSize).toBe('auto 120px auto 120px');
     });
   });
 

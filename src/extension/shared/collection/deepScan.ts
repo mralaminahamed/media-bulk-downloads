@@ -107,6 +107,23 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
     deps.restoreScroll();
   }
 
+  // Final safety sweep: incremental rounds only rescan MutationObserver-visible
+  // subtrees, which can't see mutations inside pre-existing shadow roots /
+  // same-origin iframes or media reachable only via the seeded page-JSON passes.
+  // When the scan finished naturally (not a cap/abort), do ONE full-document walk
+  // so the completed result matches a full scan — the incremental speedup is kept
+  // for every round up to here; only this closing sweep pays a full walk.
+  // A throw from the closing full-walk sweep (it reaches into shadow roots /
+  // same-origin iframes) must not discard everything the loop already gathered —
+  // same invariant the loop's own try/catch protects. On failure, keep the set.
+  if (reason === 'complete') {
+    try {
+      merge();
+    } catch {
+      /* keep the accumulated `found` set */
+    }
+  }
+
   deps.onProgress(found.size, completed, deps.now() - start, reason);
   return [...found.values()];
 }

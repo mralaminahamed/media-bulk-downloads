@@ -204,3 +204,75 @@ it('seeds with a full walk (no roots) and passes mutated roots to later rounds',
   expect(calls[1]).toBe(rootsForRound1);       // round 1 = mutated subtrees
   expect(calls[2]).toBeUndefined();            // round 2 null → full walk
 });
+
+describe('final full-walk safety sweep', () => {
+  it('runs a closing full-document walk on natural completion, catching media only a full walk sees (e.g. inside a pre-existing shadow root)', async () => {
+    // Incremental, subtree-scoped rounds (collect(roots)) never see this item —
+    // only a full walk (collect() with no roots) does, simulating media that
+    // mutated inside a pre-existing shadow root / same-origin iframe.
+    let mutated = false;
+    const deps = {
+      collect: (scanRoots?: readonly unknown[]) =>
+        scanRoots === undefined
+          ? (mutated ? [item('seed'), item('shadow-only')] : [item('seed')])
+          : [], // incremental round: never finds the shadow-root item
+      scrollStep: () => {},
+      atBottom: () => false,
+      waitForQuiet: async () => { mutated = true; return [{ tag: 'subtree' }]; },
+      onProgress: () => {},
+      now: () => 0,
+      restoreScroll: () => {},
+    };
+    const out = await runDeepScan(deps as any, { ...DEEP_SCAN_DEFAULTS, idleRounds: 1, signal: new AbortController().signal });
+    expect(out.map((m) => m.src)).toContain('shadow-only');
+  });
+
+  it('does not run the closing sweep when the loop stops on a cap instead of completing naturally', async () => {
+    let mutated = false;
+    const deps = {
+      collect: (scanRoots?: readonly unknown[]) =>
+        scanRoots === undefined
+          ? (mutated ? [item('seed'), item('shadow-only')] : [item('seed')])
+          : [item('extra')], // keeps every round non-idle so the loop runs until the cap
+      scrollStep: () => {},
+      atBottom: () => false,
+      waitForQuiet: async () => { mutated = true; return [{ tag: 'subtree' }]; },
+      onProgress: () => {},
+      now: () => 0,
+      restoreScroll: () => {},
+    };
+    // maxItems caps the run before it can finish naturally → reason 'max-items',
+    // so the closing full-walk sweep must NOT fire.
+    const out = await runDeepScan(deps as any, { ...DEEP_SCAN_DEFAULTS, maxItems: 2, signal: new AbortController().signal });
+    expect(out.map((m) => m.src)).not.toContain('shadow-only');
+  });
+
+  it('resolves with the already-gathered items (not rejected, not empty) when the closing sweep itself throws', async () => {
+    // The seed (round 0) full walk succeeds; the one incremental round finds
+    // nothing new so the loop completes naturally; the closing full-walk sweep
+    // (the second scanRoots===undefined call) then throws — simulating a shadow
+    // root / same-origin iframe that blows up on the final full-document walk.
+    // Without the try/catch around the closing `merge()`, this throw would
+    // propagate out of runDeepScan and the production caller's
+    // `.catch(() => sendResponse([]))` would discard everything gathered here.
+    let fullWalkCalls = 0;
+    const deps = {
+      collect: (scanRoots?: readonly unknown[]) => {
+        if (scanRoots === undefined) {
+          fullWalkCalls++;
+          if (fullWalkCalls === 1) return [item('seed')];
+          throw new Error('closing sweep exploded');
+        }
+        return []; // incremental round: nothing new → idle immediately
+      },
+      scrollStep: () => {},
+      atBottom: () => false,
+      waitForQuiet: async () => [{ tag: 'subtree' }], // never null, so never the abort/full-walk fallback
+      onProgress: () => {},
+      now: () => 0,
+      restoreScroll: () => {},
+    };
+    const out = await runDeepScan(deps as any, { ...DEEP_SCAN_DEFAULTS, idleRounds: 1, signal: new AbortController().signal });
+    expect(out.map((m) => m.src)).toEqual(['seed']);
+  });
+});
