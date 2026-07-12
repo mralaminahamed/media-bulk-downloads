@@ -6,6 +6,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **Smart page defaults are now on by default.** The extension detects the page
+  type (gallery, feed, article, single) and primes sensible filter defaults out of
+  the box. Nothing is hidden — active defaults show as clearable chips, and the
+  behaviour can be turned off in Settings. Existing users who had explicitly toggled
+  the setting keep their choice.
+
 ## [1.2.0] - 2026-07-11
 
 ### Added
