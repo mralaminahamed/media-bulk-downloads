@@ -152,6 +152,12 @@ describe('SRC_KEY_RULES cross-CDN families', () => {
     expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
   });
 
+  it('keeps distinct imgix frames of an animated source distinct', () => {
+    const a = 'https://foo.imgix.net/anim.gif?frame=3&w=200';
+    const b = 'https://foo.imgix.net/anim.gif?frame=5&w=200';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
+
   it('keeps a cloudinary vNN-named folder distinct (not a version marker)', () => {
     const a = 'https://res.cloudinary.com/demo/image/upload/blog/v2/hero.jpg';
     const b = 'https://res.cloudinary.com/demo/image/upload/blog/hero.jpg';

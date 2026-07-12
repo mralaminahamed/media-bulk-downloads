@@ -38,20 +38,24 @@ export const SRC_KEY_RULES: SrcKeyRule[] = [
   {
     // Google user content (lh3/lh4/….googleusercontent.com): the same asset gets a
     // `=s512` / `=w800-h600` / `=s96-c` size/crop suffix on its last path segment;
-    // the segment up to the `=` is the identity. Host kept to avoid over-collapse.
+    // the segment up to the final `=size` token is the identity (only the trailing
+    // `=…` is stripped, so a token with an embedded `=` is not truncated early).
+    // Host kept to avoid over-collapse.
     match: (u) => /(?:^|\.)googleusercontent\.com$/i.test(u.hostname),
     key: (u) => `${u.hostname.toLowerCase()}${u.pathname.replace(/=[^/=]*$/, '')}`,
   },
   {
     // imgix (*.imgix.net): every query param is a rendition / transform / signature
-    // EXCEPT `page`, which selects a page of a multi-page source (e.g. a PDF) — a
-    // genuinely different asset, not a rendition — so it is kept as part of the
-    // identity. Custom imgix domains are out of scope for v1.
+    // EXCEPT `page` (selects a page of a multi-page source, e.g. a PDF) and `frame`
+    // (selects a still from an animated source) — each names genuinely different
+    // content, not a rendition — so they are kept as part of the identity, in a
+    // fixed order for a stable key. Custom imgix domains are out of scope for v1.
     match: (u) => /(?:^|\.)imgix\.net$/i.test(u.hostname),
     key: (u) => {
-      const page = new URLSearchParams(u.search).get('page');
+      const q = new URLSearchParams(u.search);
       const base = `${u.hostname.toLowerCase()}${u.pathname}`;
-      return page ? `${base}?page=${page}` : base;
+      const ids = ['frame', 'page'].filter((k) => q.has(k)).map((k) => `${k}=${q.get(k)}`);
+      return ids.length ? `${base}?${ids.join('&')}` : base;
     },
   },
   {
