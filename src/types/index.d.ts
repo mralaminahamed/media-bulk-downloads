@@ -515,6 +515,13 @@ export interface FilterOptions {
   sortDir: SortDir;
 }
 
+/** The filter option lists actually present in a collected set (each includes 'all'). */
+export interface AvailableOptions {
+  kinds: FilterOptions['mediaKind'][];
+  formats: Record<'image' | 'video' | 'audio', string[]>;
+  sizeBuckets: SizeBucket[];
+}
+
 // ── Component props ──────────────────────────────────────────────────────────
 // Central home for the popup React components' props, so each component is one
 // file that imports its props from here.

@@ -1,4 +1,4 @@
-import { passesSettingsFilters, filterImagesBySettings, applyToolbarFilters, isExcluded, filterExcluded, isPendingOrStream, ExcludedMatchers } from '@/extension/shared/collection/filters';
+import { passesSettingsFilters, filterImagesBySettings, applyToolbarFilters, isExcluded, filterExcluded, isPendingOrStream, ExcludedMatchers, deriveFilterOptions } from '@/extension/shared/collection/filters';
 import { ImageInfo, SettingsData, FilterOptions } from '@/types';
 import { SrcKeySet } from '@/extension/shared/collection/canonical';
 import { DEFAULT_FILTERS } from '@/extension/popup/components/FilterToolbar';
@@ -419,5 +419,50 @@ describe('applyToolbarFilters — downloadState', () => {
   });
   it('with no predicate, downloaded keeps nothing (default () => false)', () => {
     expect(applyToolbarFilters(items, { ...base, downloadState: 'downloaded' })).toHaveLength(0);
+  });
+});
+
+describe('deriveFilterOptions', () => {
+  it('lists only present kinds, always including all (canonical order)', () => {
+    const opts = deriveFilterOptions([img({ kind: 'image' }), img({ kind: 'video', type: 'mp4' })]);
+    expect(opts.kinds).toEqual(['all', 'image', 'video']);
+  });
+
+  it('groups formats by kind (video family)', () => {
+    const opts = deriveFilterOptions([img({ kind: 'image', type: 'png' }), img({ kind: 'video', type: 'mp4' })]);
+    expect(opts.formats.video).toEqual(['all', 'mp4']);
+    expect(opts.formats.image).toEqual(['all', 'png']);
+  });
+
+  it('lists present formats per kind in first-seen order, always including all', () => {
+    const opts = deriveFilterOptions([
+      img({ kind: 'image', type: 'png' }),
+      img({ kind: 'image', type: 'avif' }),
+    ]);
+    expect(opts.formats.image).toEqual(['all', 'png', 'avif']);
+  });
+
+  it('surfaces a novel format outside the hardcoded list', () => {
+    const opts = deriveFilterOptions([img({ kind: 'image', type: 'jxl' })]);
+    expect(opts.formats.image).toContain('jxl');
+  });
+
+  it('excludes the "unknown" placeholder type', () => {
+    const opts = deriveFilterOptions([img({ kind: 'image', type: 'unknown' })]);
+    expect(opts.formats.image).toEqual(['all']);
+  });
+
+  it('derives size buckets from known dimensions only', () => {
+    const opts = deriveFilterOptions([
+      img({ width: 100, height: 100 }), // small
+      img({ width: 500, height: 500 }), // medium
+      img({ width: 0, height: 0 }),     // unknown → 'all' only
+    ]);
+    expect(opts.sizeBuckets).toEqual(['all', 'small', 'medium']);
+  });
+
+  it('a single-format page yields one format plus all', () => {
+    const opts = deriveFilterOptions([img({ kind: 'image', type: 'jpeg' })]);
+    expect(opts.formats.image).toEqual(['all', 'jpeg']);
   });
 });

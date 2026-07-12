@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import ImageList from './components/ImageList';
 import Settings from './components/panels/Settings';
 import HistoryPanel from './components/panels/HistoryPanel';
@@ -16,6 +16,7 @@ import { EmptyState } from './components/states/EmptyState';
 import { ErrorState } from './components/states/ErrorState';
 import { AppProps, ExcludedKind, ImageInfo } from '@/types';
 import { collectFromActiveTab } from '../shared/active-tab/collect-active-tab';
+import { deriveFilterOptions } from '../shared/collection/filters';
 import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/active-tab/deep-scan-active-tab';
 import { hostFromUrl, registrableDomain } from '../shared/collection/paths';
 import { sendRuntimeMessage } from './utils';
@@ -154,6 +155,12 @@ const App: React.FC<AppProps> = ({
     setSelectedSrcs(new Set());
   };
 
+  // Data-driven filter option lists (#292) — derived from the unfiltered
+  // collected set so a filter never hides its own option list, and memoized so
+  // FilterToolbar's stale-selection-reset effect only fires when the option
+  // set actually changes, not on every render.
+  const availableFilterOptions = useMemo(() => deriveFilterOptions(state.images), [state.images]);
+
   const total = state.images.length;
   const shown = state.filteredImages.length;
   const downloadableShown = downloadable(state.filteredImages).length;
@@ -234,7 +241,7 @@ const App: React.FC<AppProps> = ({
 
       {/* Filters */}
       {hasImages && !state.isLoading && (
-        <FilterToolbar onFilterChange={handleFilterChange} extensionSettings={settings} />
+        <FilterToolbar onFilterChange={handleFilterChange} extensionSettings={settings} available={availableFilterOptions} />
       )}
 
       {/* Body */}

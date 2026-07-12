@@ -4,7 +4,7 @@
  * which images are "eligible" for a given set of user settings.
  */
 
-import { ImageInfo, SettingsData, FilterOptions, SizeBucket, SortKey, SortDir } from '@/types';
+import { ImageInfo, SettingsData, FilterOptions, SizeBucket, SortKey, SortDir, AvailableOptions } from '@/types';
 import { originalNameFromUrl } from './download-name';
 import { isEmojiUrl } from './emoji';
 import { SrcKeySet } from './canonical';
@@ -46,14 +46,22 @@ export function filterImagesBySettings(images: ImageInfo[], settings: SettingsDa
   return images.filter((img) => passesSettingsFilters(img, settings));
 }
 
+/** Classifies a known-positive largest edge into a size bucket. Callers handle
+ *  the edge <= 0 ("unknown dimensions") case themselves — this assumes edge > 0.
+ *  Single source of truth for the 256/1024 boundaries shared by inSizeBucket
+ *  and knownBucket. */
+function edgeToBucket(edge: number): Exclude<SizeBucket, 'all'> {
+  if (edge < 256) return 'small';
+  if (edge < 1024) return 'medium';
+  return 'large';
+}
+
 /** Whether an item falls in a dimension-based size bucket. Unknown dims pass. */
 function inSizeBucket(item: ImageInfo, bucket: SizeBucket): boolean {
   if (bucket === 'all') return true;
   const edge = Math.max(item.width, item.height);
   if (edge <= 0) return true; // unknown dimensions are never hidden
-  if (bucket === 'small') return edge < 256;
-  if (bucket === 'medium') return edge >= 256 && edge < 1024;
-  return edge >= 1024; // large
+  return edgeToBucket(edge) === bucket;
 }
 
 /** A readable filename for an item (basename from the URL, else the raw src). */
@@ -157,4 +165,51 @@ export function applyToolbarFilters(
     return [...shown].sort((a, b) => compareBy(a, b, filters.sortBy, filters.sortDir));
   }
   return shown;
+}
+
+/** Human labels for canonical `type` strings; a type with no entry falls back to uppercase. */
+export const FORMAT_LABELS: Record<string, string> = {
+  jpeg: 'JPEG', png: 'PNG', gif: 'GIF', svg: 'SVG', webp: 'WebP',
+  avif: 'AVIF', heic: 'HEIC', heif: 'HEIF', jxl: 'JXL',
+  mp4: 'MP4', webm: 'WebM', ogg: 'OGG', mov: 'MOV',
+  mp3: 'MP3', wav: 'WAV', m4a: 'M4A', flac: 'FLAC',
+};
+
+/** Bucket for an item's largest KNOWN edge, or null when dimensions are unknown.
+ *  Unlike inSizeBucket, unknown dims (edge <= 0) map to null (→ 'all' only), so a
+ *  page of dimensionless items doesn't make every bucket appear present. */
+function knownBucket(item: ImageInfo): Exclude<SizeBucket, 'all'> | null {
+  const edge = Math.max(item.width, item.height);
+  return edge <= 0 ? null : edgeToBucket(edge);
+}
+
+/**
+ * Derive the filter option lists present in a collected set. Kinds and size
+ * buckets come out in canonical order; formats in first-seen order. Each list is
+ * prefixed with 'all'. Formats outside FORMAT_LABELS still appear (data-driven);
+ * the 'unknown' placeholder type is omitted.
+ */
+export function deriveFilterOptions(items: ImageInfo[]): AvailableOptions {
+  const kinds = new Set<FilterOptions['mediaKind']>();
+  const formats: Record<'image' | 'video' | 'audio', Set<string>> = {
+    image: new Set(), video: new Set(), audio: new Set(),
+  };
+  const buckets = new Set<Exclude<SizeBucket, 'all'>>();
+  for (const it of items) {
+    kinds.add(it.kind);
+    if (it.type && it.type !== 'unknown') formats[it.kind].add(it.type);
+    const b = knownBucket(it);
+    if (b) buckets.add(b);
+  }
+  const kindOrder: FilterOptions['mediaKind'][] = ['image', 'video', 'audio'];
+  const bucketOrder: Exclude<SizeBucket, 'all'>[] = ['small', 'medium', 'large'];
+  return {
+    kinds: ['all', ...kindOrder.filter((k) => kinds.has(k))],
+    formats: {
+      image: ['all', ...formats.image],
+      video: ['all', ...formats.video],
+      audio: ['all', ...formats.audio],
+    },
+    sizeBuckets: ['all', ...bucketOrder.filter((b) => buckets.has(b))],
+  };
 }
