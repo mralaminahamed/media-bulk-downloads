@@ -22,9 +22,10 @@ const TABS: SettingsTab[] = [
   { id: 'data', label: 'Data' },
 ];
 
-const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings: initialSettings }) => {
+const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings: initialSettings, perHost }) => {
   const [settings, setSettings] = useState<SettingsData>(initialSettings);
   const [activeTab, setActiveTab] = useState('downloads');
+  const [siteNote, setSiteNote] = useState('');
   const panelRef = useDialog(onClose);
 
   // Auto-expand a pane's Advanced section when the sheet opens with any of its
@@ -110,6 +111,16 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
     // Persistence is owned by the parent (App.handleSettingsChange).
     onSettingsChange(settings);
     onClose();
+  };
+
+  const handleSaveForSite = () => {
+    perHost?.onSaveForSite(settings);
+    setSiteNote(`Saved for ${perHost?.host}`);
+  };
+
+  const handleResetSite = () => {
+    perHost?.onResetSite();
+    setSiteNote(`Reset ${perHost?.host}`);
   };
 
   // ── Backup (export / import all data) ───────────────────────────────────────
@@ -210,6 +221,29 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
             />
           )}
         </div>
+
+        {perHost && (
+          <div className="mbd:flex mbd:items-center mbd:justify-between mbd:gap-2 mbd:border-t hairline mbd:px-4 mbd:py-2.5">
+            <div className="mbd:min-w-0">
+              <p className="mbd:truncate mbd:text-[12px] mbd:font-medium mbd:text-(--ink)">
+                {perHost.host ? `Preferences for ${perHost.host}` : 'This site'}
+              </p>
+              <p aria-live="polite" className="eyebrow mbd:mt-0.5">
+                {siteNote || (perHost.host ? 'Remember these for this site only' : 'No active site')}
+              </p>
+            </div>
+            <div className="mbd:flex mbd:shrink-0 mbd:gap-2">
+              {perHost.hasOverride && (
+                <button onClick={handleResetSite} disabled={!perHost.host} className="btn btn-ghost">
+                  Reset this site
+                </button>
+              )}
+              <button onClick={handleSaveForSite} disabled={!perHost.host} className="btn btn-ghost">
+                Save for this site
+              </button>
+            </div>
+          </div>
+        )}
 
         <footer className="mbd:flex mbd:items-center mbd:justify-between mbd:gap-2 mbd:border-t hairline mbd:px-4 mbd:py-3">
           <span aria-live="polite" className="mbd:text-[11px] mbd:text-(--ink-3)">

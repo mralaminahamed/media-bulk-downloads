@@ -12,6 +12,7 @@ import { ingestSniffedIgMedia } from '../shared/resolvers/sites/instagram';
 import { ingestSniffedFbMedia } from '../shared/resolvers/sites/facebook';
 import { ingestSniffedHls } from '../shared/resolvers/sniffers/hls-sniff';
 import { withDefaults } from '../shared/storage/settings';
+import { loadEffectiveSettingsForHost } from '../shared/storage/per-host-settings';
 import { startDeepScan } from './deepScanRunner';
 import { classifyPage, collectPageSignals } from '../shared/collection/pageType';
 
@@ -110,12 +111,10 @@ chrome.runtime.onMessage.addListener(
     sendResponse: (response: ReturnType<typeof collectMedia> | ReturnType<typeof classifyPage>) => void,
   ) => {
     if (message === 'GET_IMAGES') {
-      // Reads the smartPageDefaults setting first so collectMedia can reorder
-      // its hero-image pass ahead of the DOM walk on a single-media/article
-      // page (Task C4) — the setting isn't known until this async storage read
-      // resolves, so the channel must stay open for it.
-      chrome.storage.sync.get(['settings'], (result) => {
-        const s = withDefaults(result.settings);
+      // Effective settings = global merged with this host's per-host override
+      // (#293). smartPageDefaults may reorder collectMedia's hero pass; the
+      // channel stays open for the async storage read.
+      void loadEffectiveSettingsForHost(location.hostname).then((s) => {
         sendResponse(collectMedia(undefined, { smartPageDefaults: s.smartPageDefaults }));
       });
       return true; // async response — keep the channel open
@@ -141,9 +140,8 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
         /* popup may be closed */
       });
     };
-    // Read the user's configurable caps before starting; fall back to defaults.
-    chrome.storage.sync.get(['settings'], (result) => {
-      const s = withDefaults(result.settings);
+    // Read this host's effective deep-scan caps before starting (#293).
+    void loadEffectiveSettingsForHost(location.hostname).then((s) => {
       startDeepScan(onProgress, signal, {
         maxItems: s.deepScanMaxItems,
         maxMs: s.deepScanMaxSeconds * 1000,

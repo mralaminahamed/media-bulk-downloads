@@ -10,6 +10,7 @@ import { textToBase64 } from '../shared/download/base64';
 import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk, DiskState } from '../shared/storage/history';
 import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } from '../shared/storage/favourites';
 import { addExcluded, removeExcluded, clearExcluded, restoreExcluded } from '../shared/storage/excluded';
+import { savePerHostSettings, clearPerHostSettings } from '../shared/storage/per-host-settings';
 import { streamErrorMessage } from '../shared/download/stream/stream-error-message';
 import {
   enqueueDownloads, pauseQueue, resumeQueue, cancelQueue, retryQueueItem, getQueueSnapshot,
@@ -192,6 +193,14 @@ export const messageRouter: MessageRouter = {
   // writeSettingsPatch) so popup + bubble writes never clobber each other.
   SET_SETTINGS: (message) => {
     writeSettingsPatch(message.patch);
+  },
+
+  // Persist or clear a per-host settings override (#293). A separate key in a
+  // separate storage area from global 'settings', so this can never clobber a
+  // concurrent global write; the store's own serialized chain orders per-host writes.
+  SET_PER_HOST_SETTINGS: (message) => {
+    if (message.patch === null) void clearPerHostSettings(message.host);
+    else void savePerHostSettings(message.host, message.patch);
   },
 
   // Replace favourites + history + excluded from an imported backup, in the single-writer realm.

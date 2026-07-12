@@ -104,6 +104,62 @@ describe('App Component', () => {
     expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
   });
 
+  it('first scan filters by the settings loaded on mount (#293 refactor keeps this)', async () => {
+    (chrome.storage.sync.get as Mock).mockImplementation(
+      (_k: unknown, cb: (r: { settings: unknown }) => void) => cb({ settings: { minimumImageSize: 500 } }),
+    );
+    const collect = async () => [
+      image({ src: 'https://e.com/big.jpg', width: 800, height: 800 }),
+      image({ src: 'https://e.com/tiny.jpg', width: 10, height: 10 }),
+    ];
+    render(<App collect={collect} />);
+    await screen.findByText('Filters');
+    expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /download 2/i })).toBeNull();
+  });
+
+  it('a per-host override drives the grid while the editor still edits global (#293)', async () => {
+    // Global min-size 0 (both pass); host override raises it to 500 → the tiny image
+    // is hidden, so only 1 of 2 is downloadable → "Download 1" (not "Download 2").
+    (chrome.storage.sync.get as Mock).mockImplementation(
+      (_k: unknown, cb: (r: { settings: unknown }) => void) => cb({ settings: { minimumImageSize: 0 } }),
+    );
+    await chrome.storage.local.set({ perHostSettings: { 'e.com': { minimumImageSize: 500 } } });
+    (chrome.tabs.query as Mock).mockResolvedValue([{ id: 1, url: 'https://e.com/gallery', title: 't' }]);
+    const collect = async () => [
+      image({ src: 'https://e.com/big.jpg', width: 800, height: 800 }),
+      image({ src: 'https://e.com/tiny.jpg', width: 10, height: 10 }),
+    ];
+    render(<App collect={collect} />);
+    await screen.findByText('Filters');
+    expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /download 2/i })).toBeNull();
+    await chrome.storage.local.clear();
+    (chrome.tabs.query as Mock).mockResolvedValue([]); // shared mock accumulates across the suite — restore the default
+  });
+
+  it('FilterToolbar Base64 control reflects the per-host effective setting, not global (#293)', async () => {
+    // Global keeps Base64 enabled; the host override excludes it. The toolbar's
+    // Base64 switch must reflect the effective (override) value — disabled — so it
+    // agrees with the grid, which filters by effective. (Regression guard: the
+    // toolbar used to read global settings, desyncing it from the grid.)
+    (chrome.storage.sync.get as Mock).mockImplementation(
+      (_k: unknown, cb: (r: { settings: unknown }) => void) => cb({ settings: { excludeBase64Images: false } }),
+    );
+    await chrome.storage.local.set({ perHostSettings: { 'e.com': { excludeBase64Images: true } } });
+    (chrome.tabs.query as Mock).mockResolvedValue([{ id: 1, url: 'https://e.com/gallery', title: 't' }]);
+    render(<App collect={async () => [image({ src: 'https://e.com/a.jpg', width: 800, height: 800 })]} />);
+    await screen.findByText('Filters');
+    // The FilterToolbar's "More" disclosure (there's also a Download "More"),
+    // identified by aria-controls="filter-more".
+    const filterMore = screen.getAllByRole('button', { name: /More/i }).find((b) => b.getAttribute('aria-controls') === 'filter-more');
+    fireEvent.click(filterMore!);
+    // The per-host override loads async; the switch becomes disabled once effective reflects it.
+    await waitFor(() => expect(screen.getByRole('switch', { name: /base64/i })).toBeDisabled());
+    await chrome.storage.local.clear();
+    (chrome.tabs.query as Mock).mockResolvedValue([]); // restore the suite default
+  });
+
   it('shows the empty state when no images are found', async () => {
     render(<App collect={async () => []} />);
     expect(await screen.findByText('No media here')).toBeInTheDocument();

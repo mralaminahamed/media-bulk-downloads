@@ -688,4 +688,37 @@ describe('Settings Component', () => {
     // Downloads Advanced auto-opened → the field is visible without clicking Advanced.
     expect(screen.getByLabelText('Simultaneous downloads:')).toBeInTheDocument();
   });
+
+  // ── Per-host "This site" row (#293) ───────────────────────────────────────
+  it('Save for this site sends the current form values to the host override', async () => {
+    const onSaveForSite = vi.fn();
+    render(
+      <Settings onClose={vi.fn()} onSettingsChange={vi.fn()} settings={DEFAULT_SETTINGS}
+        perHost={{ host: 'booru.example', hasOverride: false, onSaveForSite, onResetSite: vi.fn() }} />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /save for this site/i }));
+    expect(onSaveForSite).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/saved for booru\.example/i)).toBeInTheDocument();
+  });
+
+  it('Reset this site is shown only with an existing override', () => {
+    const { rerender } = render(
+      <Settings onClose={vi.fn()} onSettingsChange={vi.fn()} settings={DEFAULT_SETTINGS}
+        perHost={{ host: 'booru.example', hasOverride: false, onSaveForSite: vi.fn(), onResetSite: vi.fn() }} />,
+    );
+    expect(screen.queryByRole('button', { name: /reset this site/i })).toBeNull();
+    rerender(
+      <Settings onClose={vi.fn()} onSettingsChange={vi.fn()} settings={DEFAULT_SETTINGS}
+        perHost={{ host: 'booru.example', hasOverride: true, onSaveForSite: vi.fn(), onResetSite: vi.fn() }} />,
+    );
+    expect(screen.getByRole('button', { name: /reset this site/i })).toBeInTheDocument();
+  });
+
+  it('the per-host controls are disabled when the host is unknown', () => {
+    render(
+      <Settings onClose={vi.fn()} onSettingsChange={vi.fn()} settings={DEFAULT_SETTINGS}
+        perHost={{ host: '', hasOverride: false, onSaveForSite: vi.fn(), onResetSite: vi.fn() }} />,
+    );
+    expect(screen.getByRole('button', { name: /save for this site/i })).toBeDisabled();
+  });
 });

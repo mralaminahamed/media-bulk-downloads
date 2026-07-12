@@ -2,7 +2,7 @@ import { Dispatch, RefObject, SetStateAction, useCallback, useEffect, useRef, us
 import { AppState, DeepScanProgress, DeepScanStopReason, FilterOptions, ImageInfo, SettingsData } from '@/types';
 import { filterImagesBySettings, applyToolbarFilters, filterExcluded, ExcludedMatchers } from '../../shared/collection/filters';
 import { mergeScannedMedia } from '../../shared/collection/merge';
-import { DEFAULT_SETTINGS, withDefaults } from '../../shared/storage/settings';
+import { loadStoredSettings } from '../../shared/storage/settings';
 import { requestResolveOriginals } from '../../shared/active-tab/resolve-originals-active';
 import { getPageType } from '../../shared/active-tab/collect-active-tab';
 import { applyResolved } from '../apply-resolved';
@@ -15,7 +15,9 @@ import { SIZE_FETCH_CONCURRENCY, deepScanCapMessage, pendingVideos } from '../li
 export interface UseMediaEngineParams {
   settings: SettingsData;
   settingsRef: RefObject<SettingsData>;
-  setSettings: Dispatch<SetStateAction<SettingsData>>;
+  setSettings?: Dispatch<SetStateAction<SettingsData>>;
+  /** Loads the settings that gate the first scan. Defaults to global sync settings; App injects an effective (global + per-host) loader (#293). */
+  loadSettings?: () => Promise<SettingsData>;
   excludedRef: RefObject<ExcludedMatchers>;
   excludedMatch: ExcludedMatchers;
   isDownloaded: (item: ImageInfo) => boolean;
@@ -59,7 +61,7 @@ export interface UseMediaEngineResult {
 export function useMediaEngine({
   settings,
   settingsRef,
-  setSettings,
+  loadSettings,
   excludedRef,
   excludedMatch,
   isDownloaded,
@@ -109,12 +111,12 @@ export function useMediaEngine({
   const filtersRef = useRef<FilterOptions>(DEFAULT_FILTERS);
 
   useEffect(() => {
-    // Load persisted settings BEFORE the first scan, so a persisted
-    // resolveOriginals is known when the scan gates on it.
-    chrome.storage.sync.get(['settings'], (result) => {
-      const loaded = result.settings ? withDefaults(result.settings) : DEFAULT_SETTINGS;
+    // Load the effective settings BEFORE the first scan, so a persisted
+    // resolveOriginals / per-host min-size is known when the scan gates on it.
+    // The editor's GLOBAL state is seeded separately by useSettings, so the
+    // engine no longer calls setSettings here.
+    void (loadSettings ?? loadStoredSettings)().then((loaded) => {
       settingsRef.current = loaded;
-      setSettings(loaded);
       void fetchImages();
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
