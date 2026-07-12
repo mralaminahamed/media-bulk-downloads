@@ -244,7 +244,7 @@ const App: React.FC<AppProps> = ({
 
       {/* Filters */}
       {hasImages && !state.isLoading && (
-        <FilterToolbar onFilterChange={handleFilterChange} extensionSettings={settings} available={availableFilterOptions} initialFilters={filterSeed} />
+        <FilterToolbar onFilterChange={handleFilterChange} extensionSettings={perHost.effective} available={availableFilterOptions} initialFilters={filterSeed} />
       )}
 
       {/* Body */}
