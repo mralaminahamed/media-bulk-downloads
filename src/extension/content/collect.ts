@@ -655,20 +655,21 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
   // single-media/article page's meta/preload hero image is usually the one
   // full-res representation of the page's subject, while any inline <img> is
   // often a smaller thumbnail of that SAME asset (e.g. a lightbox trigger, an
-  // OG-card preview). Running the hero pass before the DOM walk lets the hero
-  // win first-come dedup instead of the thumbnail. Off (or page type
-  // unclassified), this changes nothing — see the `if (!heroFirst)` call below,
-  // which restores the pass to its original post-walk position.
+  // OG-card preview). Running the hero passes before the DOM walk lets the
+  // hero win first-come dedup instead of the thumbnail. Off (or page type
+  // unclassified), this changes nothing — see the `if (!heroFirst)` calls
+  // below, which restore each pass to its original position relative to the
+  // DOM walk and the og:video pass.
   const pageType = !incremental && opts?.smartPageDefaults
     ? classifyPage(collectPageSignals(document))
     : 'unknown';
   const heroFirst = pageType === 'single-media' || pageType === 'article';
 
-  // Meta / preload hero images: og:image, twitter:image, and preloaded images
-  // often point at the highest-resolution hero that never appears as an <img>
-  // on the page. These live in the top document head only; dedup + CDN upgrade
-  // run as usual via collectImageInfo.
-  const collectHeroImages = (): void => {
+  // Meta hero images: og:image and twitter:image often point at the
+  // highest-resolution hero that never appears as an <img> on the page.
+  // These live in the top document head only; dedup + CDN upgrade run as
+  // usual via collectImageInfo.
+  const collectHeroMeta = (): void => {
     const metaSel = [
       'meta[property="og:image"]',
       'meta[property="og:image:url"]',
@@ -680,7 +681,14 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       const content = m.getAttribute('content');
       if (content) collectImageInfo(content);
     });
+  };
 
+  // Preloaded images: <link rel=preload as=image> often points at the
+  // highest-resolution hero the page will render, ahead of it ever appearing
+  // as an <img>. Kept as its own pass (separate from collectHeroMeta) so the
+  // OFF path can slot it back in after the og:video pass, exactly where it
+  // ran before hero-first reordering existed.
+  const collectPreloadImages = (): void => {
     document.querySelectorAll('link[rel~="preload"][as="image"]').forEach((link) => {
       const href = link.getAttribute('href');
       if (href) collectImageInfo(href);
@@ -693,15 +701,18 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     });
   };
 
-  if (heroFirst) collectHeroImages();
+  if (heroFirst) {
+    collectHeroMeta();
+    collectPreloadImages();
+  }
 
   // Grows as scanRoot() discovers open shadow roots; the index loop picks them up.
   for (let i = 0; i < roots.length; i++) scanRoot(roots[i]);
 
   if (!incremental) {
-    // Today's order (heroFirst false / page type unclassified): the hero pass
-    // runs here, after the DOM walk, exactly as it always has.
-    if (!heroFirst) collectHeroImages();
+    // Today's order (heroFirst false / page type unclassified): the meta hero
+    // pass runs here, after the DOM walk, exactly as it always has.
+    if (!heroFirst) collectHeroMeta();
 
     // og:video: some pages (news, product, embeds) expose a direct downloadable
     // mp4 in <meta property="og:video"> that never appears as a <video> element.
@@ -720,6 +731,10 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
         const content = m.getAttribute('content');
         if (content) collectAv(content, 'video', ogVideoType, '', ogPosterUrl);
       });
+
+    // Today's order (heroFirst false / page type unclassified): the preload
+    // pass runs here, after og:video, exactly as it always has.
+    if (!heroFirst) collectPreloadImages();
 
     // Instagram single-post/reel pages: surface the whole post from its page JSON
     // (all carousel slides + the real mp4), covering media the DOM hides —

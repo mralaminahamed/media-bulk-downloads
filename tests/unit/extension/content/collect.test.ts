@@ -485,6 +485,24 @@ describe('page-type hero reprioritisation', () => {
     const item = on.find((i) => i.src.startsWith('https://cdn.example.com/photo/abc123'));
     expect(item?.src).toBe(HERO);
   });
+
+  // Regression guard for the C4 reorder bug: bundling the meta and preload
+  // passes into one closure shifted preload ahead of og:video even with the
+  // flag OFF. The original (pre-hero-pass) order was DOM walk -> meta ->
+  // og:video -> preload -> Instagram -> Facebook, so with the flag off the
+  // og:video item must still come before a preload-sourced image item.
+  it('with the flag off, og:video is collected before a link-preload image (original pass order preserved)', () => {
+    document.head.innerHTML =
+      '<meta property="og:video" content="https://cdn.com/clip.mp4">' +
+      '<meta property="og:video:type" content="video/mp4">' +
+      '<link rel="preload" as="image" href="https://cdn.com/pre.jpg">';
+    const off = collectMedia(undefined, { smartPageDefaults: false });
+    const videoIdx = off.findIndex((i) => i.src === 'https://cdn.com/clip.mp4');
+    const preloadIdx = off.findIndex((i) => i.src === 'https://cdn.com/pre.jpg');
+    expect(videoIdx).toBeGreaterThanOrEqual(0);
+    expect(preloadIdx).toBeGreaterThanOrEqual(0);
+    expect(videoIdx).toBeLessThan(preloadIdx);
+  });
 });
 
 describe('collectMedia — same-origin iframes', () => {
