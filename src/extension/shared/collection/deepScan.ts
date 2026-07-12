@@ -19,12 +19,34 @@ export const ADAPT_WINDOW = {
   defaultQuiet: 400, defaultHardCap: 2000, // round 1 (no EMA yet)
 } as const;
 
+/** Adaptive scroll-step bounds. multiplier = f(previous round's new-item count),
+ *  always within [min,max] so the scan never stalls or over-jumps. */
+export const ADAPT_STEP = {
+  denseYield: 15,          // >= this many new items = dense page
+  denseMultiplier: 0.6,    // dense → smaller step (don't skip lazy-mounted content)
+  zeroMultiplier: 1.75,    // zero yield → bigger step (cover ground)
+  normalMultiplier: 1.0,
+  min: 0.5, max: 2.0,
+} as const;
+
+/** Scroll-step multiplier for the NEXT round, from the previous round's yield. */
+export function stepMultiplier(added: number): number {
+  const m = added === 0
+    ? ADAPT_STEP.zeroMultiplier
+    : added >= ADAPT_STEP.denseYield
+      ? ADAPT_STEP.denseMultiplier
+      : ADAPT_STEP.normalMultiplier;
+  return clamp(m, ADAPT_STEP.min, ADAPT_STEP.max);
+}
+
 export interface DeepScanDeps {
   /** Full walk when called with no roots (the seed); otherwise scans only the
    *  given (opaque) subtrees. Roots are passed straight through from
    *  waitForQuiet — the pure loop never inspects them. */
   collect: (scanRoots?: readonly unknown[]) => MediaItem[];
-  scrollStep: () => void;
+  /** Scrolls by `multiplier` × the viewport; the loop derives the multiplier from
+   *  the previous round's yield (sparse → larger, dense → smaller). */
+  scrollStep: (multiplier: number) => void;
   atBottom: () => boolean;
   /** Waits until the DOM goes quiet using the given window, returning the mutated
    *  subtrees (or null → full walk on abort / hard cap) and the measured settle
@@ -83,6 +105,9 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
   let scrolls: number; // assigned by the for-init before any read
   let completed = 0;
   let settleEma = ADAPT_WINDOW.seedSettleMs;
+  // Drives the NEXT scroll's multiplier: null only before the first scroll
+  // (which always steps at the normal 1.0), then the previous round's yield.
+  let lastAdded: number | null = null;
 
   try {
     merge(); // seed from the current DOM
@@ -100,13 +125,14 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
             quiet: clamp(ADAPT_WINDOW.quietFactor * settleEma, ADAPT_WINDOW.quietMin, ADAPT_WINDOW.quietMax),
             hardCap: clamp(ADAPT_WINDOW.hardCapFactor * settleEma, ADAPT_WINDOW.hardCapMin, ADAPT_WINDOW.hardCapMax),
           };
-      deps.scrollStep();
+      deps.scrollStep(lastAdded === null ? ADAPT_STEP.normalMultiplier : stepMultiplier(lastAdded));
       const { roots: mutatedRoots, settleMs } = await deps.waitForQuiet(opts.signal, window);
       settleEma = (1 - ADAPT_WINDOW.emaWeight) * settleEma + ADAPT_WINDOW.emaWeight * settleMs;
       if (opts.signal.aborted) { reason = 'aborted'; break; }
       completed = scrolls; // a full scroll step finished this iteration
 
       const added = merge(mutatedRoots ?? undefined);
+      lastAdded = added;
       deps.onProgress(found.size, completed, deps.now() - start);
 
       if (found.size >= opts.maxItems) { reason = 'max-items'; break; }

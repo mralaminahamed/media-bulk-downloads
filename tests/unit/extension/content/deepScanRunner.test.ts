@@ -180,7 +180,7 @@ describe('scrollStep load-more clicking', () => {
     document.body.innerHTML = '<button id="lm">Load more</button>';
     const clicks = vi.fn();
     document.getElementById('lm')!.addEventListener('click', clicks);
-    buildDeepScanDeps(() => {}, { clickLoadMore: true }).deps.scrollStep();
+    buildDeepScanDeps(() => {}, { clickLoadMore: true }).deps.scrollStep(1);
     expect(clicks).toHaveBeenCalledTimes(1);
   });
 
@@ -188,8 +188,22 @@ describe('scrollStep load-more clicking', () => {
     document.body.innerHTML = '<button id="lm">Load more</button>';
     const clicks = vi.fn();
     document.getElementById('lm')!.addEventListener('click', clicks);
-    buildDeepScanDeps(() => {}).deps.scrollStep();
+    buildDeepScanDeps(() => {}).deps.scrollStep(1);
     expect(clicks).not.toHaveBeenCalled();
+  });
+});
+
+describe('scrollStep scroll scaling', () => {
+  it('scrollStep scrolls by multiplier × innerHeight', () => {
+    Object.defineProperty(window, 'innerHeight', { value: 800, configurable: true });
+    const by = vi.spyOn(window, 'scrollBy').mockImplementation(() => {});
+    try {
+      const { deps } = buildDeepScanDeps(() => {});
+      deps.scrollStep(0.5);
+      expect(by).toHaveBeenLastCalledWith(0, 400);
+    } finally {
+      by.mockRestore();
+    }
   });
 });
 

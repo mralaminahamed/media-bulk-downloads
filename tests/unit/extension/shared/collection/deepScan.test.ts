@@ -1,4 +1,4 @@
-import { runDeepScan, DEEP_SCAN_DEFAULTS, ADAPT_WINDOW } from '@/extension/shared/collection/deepScan';
+import { runDeepScan, DEEP_SCAN_DEFAULTS, ADAPT_WINDOW, ADAPT_STEP, stepMultiplier } from '@/extension/shared/collection/deepScan';
 import { MediaItem, DeepScanStopReason } from '@/types';
 
 const item = (src: string): MediaItem =>
@@ -235,6 +235,40 @@ it('adapts the quiet window from an EMA of observed settle time, within bounds',
   const last = windows[windows.length - 1];
   expect(last.quiet).toBe(ADAPT_WINDOW.quietMax);
   expect(last.hardCap).toBe(ADAPT_WINDOW.hardCapMax);
+});
+
+it('stepMultiplier scales by yield within [min,max]', () => {
+  expect(stepMultiplier(0)).toBe(ADAPT_STEP.zeroMultiplier);          // sparse → cover ground
+  expect(stepMultiplier(ADAPT_STEP.denseYield)).toBe(ADAPT_STEP.denseMultiplier); // dense → don't skip
+  expect(stepMultiplier(3)).toBe(ADAPT_STEP.normalMultiplier);        // normal
+  for (const a of [0, 1, 15, 100]) {
+    expect(stepMultiplier(a)).toBeGreaterThanOrEqual(ADAPT_STEP.min);
+    expect(stepMultiplier(a)).toBeLessThanOrEqual(ADAPT_STEP.max);
+  }
+});
+
+it('passes the previous round\'s yield as the next scroll multiplier (1.0 first)', async () => {
+  const mults: number[] = [];
+  let round = 0;
+  const yields = [20, 0, 3]; // round 1 adds 20 (dense), round 2 adds 0, round 3 adds 3
+  const deps = {
+    collect: () => {
+      const n = round === 0 ? 1 : (yields[round - 1] ?? 0);
+      round++;
+      return Array.from({ length: n }, (_v, i) => ({ src: `https://c/${round}-${i}.jpg` } as any));
+    },
+    scrollStep: (m: number) => { mults.push(m); },
+    atBottom: () => false,
+    waitForQuiet: async () => ({ roots: null, settleMs: 0 }),
+    onProgress: () => {},
+    now: () => 0,
+    restoreScroll: () => {},
+  };
+  await runDeepScan(deps as any, { maxScrolls: 4, maxMs: 1e9, maxItems: 1000, idleRounds: 3, signal: new AbortController().signal });
+
+  expect(mults[0]).toBe(1.0);                              // first scroll: no prior yield
+  expect(mults[1]).toBe(stepMultiplier(20));               // after a dense round → 0.6
+  expect(mults[2]).toBe(stepMultiplier(0));                // after a zero round → 1.75
 });
 
 describe('final full-walk safety sweep', () => {

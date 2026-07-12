@@ -142,10 +142,11 @@ export function buildDeepScanDeps(
   return {
     deps: {
       collect: (scanRoots) => collectMedia(scanRoots as ScanRoot[] | undefined),
-      scrollStep: () => {
-        scroller.by(window.innerHeight);
-        // Also advance any nested scroll pane that lazy-loads its own content.
-        for (const el of nestedScrollables()) el.scrollTop += el.clientHeight;
+      scrollStep: (multiplier: number) => {
+        scroller.by(window.innerHeight * multiplier);
+        // Also advance any nested scroll pane that lazy-loads its own content,
+        // by the same proportion.
+        for (const el of nestedScrollables()) el.scrollTop += el.clientHeight * multiplier;
         // Opt-in: click a bounded number of "load more" buttons.
         if (opts.clickLoadMore) {
           for (const btn of findLoadMoreButtons().slice(0, MAX_LOAD_MORE_CLICKS)) btn.click();
