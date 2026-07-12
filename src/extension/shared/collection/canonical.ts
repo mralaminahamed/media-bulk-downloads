@@ -40,24 +40,36 @@ export const SRC_KEY_RULES: SrcKeyRule[] = [
     // `=s512` / `=w800-h600` / `=s96-c` size/crop suffix on its last path segment;
     // the segment up to the `=` is the identity. Host kept to avoid over-collapse.
     match: (u) => /(?:^|\.)googleusercontent\.com$/i.test(u.hostname),
-    key: (u) => `${u.hostname.toLowerCase()}${u.pathname.replace(/=[^/]*$/, '')}`,
+    key: (u) => `${u.hostname.toLowerCase()}${u.pathname.replace(/=[^/=]*$/, '')}`,
   },
   {
-    // imgix (*.imgix.net): every query param is a rendition / transform / signature;
-    // the path is the identity. Custom imgix domains are out of scope for v1.
+    // imgix (*.imgix.net): every query param is a rendition / transform / signature
+    // EXCEPT `page`, which selects a page of a multi-page source (e.g. a PDF) — a
+    // genuinely different asset, not a rendition — so it is kept as part of the
+    // identity. Custom imgix domains are out of scope for v1.
     match: (u) => /(?:^|\.)imgix\.net$/i.test(u.hostname),
-    key: (u) => `${u.hostname.toLowerCase()}${u.pathname}`,
+    key: (u) => {
+      const page = new URLSearchParams(u.search).get('page');
+      const base = `${u.hostname.toLowerCase()}${u.pathname}`;
+      return page ? `${base}?page=${page}` : base;
+    },
   },
   {
     // Cloudinary (res.cloudinary.com): the /upload/ (or /fetch/) path may carry a
-    // multi-param transform segment (w_800,c_fill — detected by the comma, so a
-    // folder name with an underscore is never mistaken for one) and a vNNN version
-    // before the public id; both are renditions, the public id is the identity.
+    // multi-param transform segment (w_800,c_fill — requires >=2 comma-joined
+    // key_value tokens right after upload/fetch, so a comma-named folder is never
+    // mistaken for one) and an auto-version segment (v + >=7-digit timestamp, only
+    // right after upload/fetch, so a hand-named /v2/ folder is never mistaken for
+    // one); both are renditions, the public id is the identity.
     match: (u) => /(?:^|\.)res\.cloudinary\.com$/i.test(u.hostname),
     key: (u) => {
       const stripped = u.pathname
-        .replace(/\/(image|video|raw)\/(upload|fetch)\/[^/]*,[^/]*\//, '/$1/$2/')
-        .replace(/\/v\d+\//, '/');
+        // multi-param transform segment: >=2 comma-joined key_value tokens (e.g. w_800,c_fill).
+        // A comma-named folder ("folder,name") has no key_value tokens, so it is left intact.
+        .replace(/\/(image|video|raw)\/(upload|fetch)\/(?:[a-z]+_[^/,]+,)+[a-z]+_[^/,]+\//, '/$1/$2/')
+        // Cloudinary auto-version: v + >=7-digit timestamp, only right after upload/fetch.
+        // A hand-named /v2/ folder (few digits, or not in this position) is left intact.
+        .replace(/\/(upload|fetch)\/v\d{7,}\//, '/$1/');
       return `res.cloudinary.com${stripped}`;
     },
   },

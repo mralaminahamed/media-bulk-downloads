@@ -139,6 +139,30 @@ describe('SRC_KEY_RULES cross-CDN families', () => {
     const b = 'https://pbs.twimg.com/media/Fdef456?name=small';
     expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
   });
+
+  it('keeps distinct googleusercontent multi-= tokens distinct', () => {
+    const a = 'https://lh3.googleusercontent.com/a/AAtokenPART1=AAtokenPART2=s96-c';
+    const b = 'https://lh3.googleusercontent.com/a/AAtokenPART1=BBtokenPART2=s96-c';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
+
+  it('keeps distinct imgix pages of a multi-page source distinct', () => {
+    const a = 'https://foo.imgix.net/doc.pdf?page=1';
+    const b = 'https://foo.imgix.net/doc.pdf?page=2';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
+
+  it('keeps a cloudinary vNN-named folder distinct (not a version marker)', () => {
+    const a = 'https://res.cloudinary.com/demo/image/upload/blog/v2/hero.jpg';
+    const b = 'https://res.cloudinary.com/demo/image/upload/blog/hero.jpg';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
+
+  it('keeps a cloudinary comma-named folder distinct (not a transform)', () => {
+    const a = 'https://res.cloudinary.com/demo/image/upload/folder,name/photo.jpg';
+    const b = 'https://res.cloudinary.com/demo/image/upload/photo.jpg';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
 });
 
 describe('SrcKeySet', () => {
