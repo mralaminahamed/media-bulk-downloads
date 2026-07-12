@@ -689,6 +689,25 @@ describe('ImageList Component', () => {
     });
   });
 
+  it('applies content-visibility and an intrinsic-size box to every tile', () => {
+    // No renderImageList/sampleImages helper exists in this file — reuse the
+    // exact render call + inline ImageInfo shape the other tests here use.
+    const three: ImageInfo[] = [
+      { src: 'v1.jpg', alt: 'V1', width: 100, height: 100, type: 'jpeg', fileSize: 1024, isBase64: false, kind: 'image' },
+      { src: 'v2.png', alt: 'V2', width: 200, height: 200, type: 'png', fileSize: 2048, isBase64: false, kind: 'image' },
+      { src: 'v3.png', alt: 'V3', width: 200, height: 200, type: 'png', fileSize: 2048, isBase64: false, kind: 'image' },
+    ];
+    render(<ImageList images={three} onImageDownload={vi.fn()} />);
+    const figures = document.querySelectorAll('figure.card');
+    expect(figures.length).toBe(3);
+    figures.forEach((fig) => {
+      const style = (fig as HTMLElement).style;
+      expect(style.contentVisibility).toBe('auto');
+      // Square placeholder box == thumbnailSize on both axes.
+      expect(style.containIntrinsicSize).not.toBe('');
+    });
+  });
+
   describe('formatFileSize', () => {
     it('shows an em dash for unknown/invalid sizes', () => {
       expect(formatFileSize(0)).toBe('—');

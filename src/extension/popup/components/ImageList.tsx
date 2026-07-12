@@ -209,7 +209,14 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
           <figure
             key={image.src}
             className={`card reveal mbd:group mbd:m-0 ${isSelected ? 'mbd:ring-2 mbd:ring-(--brand-ink)' : ''}`}
-            style={{ animationDelay: `${Math.min(index, 12) * 0.022}s` }}
+            style={{
+              animationDelay: `${Math.min(index, 12) * 0.022}s`,
+              // Skip layout + paint of offscreen tiles (native windowing). The tile
+              // content is a square box, so the intrinsic placeholder is thumbnailSize on
+              // both axes — keeps scroll height stable when a tile is skipped.
+              contentVisibility: 'auto',
+              containIntrinsicSize: `${thumbnailSize}px ${thumbnailSize}px`,
+            }}
           >
             <div className="checker mbd:relative mbd:aspect-square">
               {selectable && (
