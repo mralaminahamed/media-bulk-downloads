@@ -6,6 +6,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **"Can't read this page" in the on-page bubble.** With smart page defaults on by
+  default, the bubble surface (which runs inside the page, where `chrome.tabs` is
+  unavailable) crashed its scan with "Cannot read properties of undefined (reading
+  'query')". Page-type classification now degrades to "unknown" in that context
+  instead of throwing.
+
 ### Added
 - **Per-site learned deep scan.** The adaptive deep scan now remembers how long
   each site takes to settle and how deep it scrolls, and seeds those on the next
