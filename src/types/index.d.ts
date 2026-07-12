@@ -347,6 +347,15 @@ export interface SetSettingsMessage {
   };
 }
 
+/** Persist ("Save for this site") or clear ("Reset this site", patch: null) a
+ *  per-host settings override. Routed through the background so there is a single
+ *  serialized writer across popup + bubble (#293). */
+export interface SetPerHostSettingsMessage {
+  type: 'SET_PER_HOST_SETTINGS';
+  host: string;                        // registrable domain
+  patch: Partial<SettingsData> | null; // null = clear the host's entry
+}
+
 export type QueuePauseMessage = { type: 'QUEUE_PAUSE' };
 export type QueueResumeMessage = { type: 'QUEUE_RESUME' };
 export interface QueueCancelMessage {
@@ -376,6 +385,7 @@ export interface QueueOpenMessage {
 export type ChromeMessage =
   | DownloadMessage
   | SetSettingsMessage
+  | SetPerHostSettingsMessage
   | QueuePauseMessage
   | QueueResumeMessage
   | QueueCancelMessage
