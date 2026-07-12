@@ -83,6 +83,19 @@ describe('canonicalSrcKey', () => {
   });
 });
 
+describe('SRC_KEY_RULES cross-CDN families', () => {
+  it('collapses i0/i1/i2.wp.com edge rotation to one key', () => {
+    const a = 'https://i0.wp.com/example.com/wp-content/uploads/2020/01/pic.jpg?resize=768%2C512&ssl=1';
+    const b = 'https://i2.wp.com/example.com/wp-content/uploads/2020/01/pic.jpg?resize=1024%2C683&ssl=1';
+    expect(canonicalSrcKey(a)).toBe(canonicalSrcKey(b));
+  });
+  it('keeps two different wp.com images distinct', () => {
+    const a = 'https://i0.wp.com/example.com/wp-content/uploads/2020/01/pic.jpg';
+    const b = 'https://i0.wp.com/example.com/wp-content/uploads/2020/01/other.jpg';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
+});
+
 describe('SrcKeySet', () => {
   const fbA = 'https://scontent-del3-1.xx.fbcdn.net/v/t15/739_444_661_n.jpg?oh=ONE&oe=A';
   const fbB = 'https://scontent-bom1-2.xx.fbcdn.net/v/t15/739_444_661_n.jpg?oh=TWO&oe=B'; // same image, new host+query

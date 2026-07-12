@@ -28,6 +28,13 @@ export const SRC_KEY_RULES: SrcKeyRule[] = [
     match: (u) => /(?:^|\.)(?:fbcdn\.net|cdninstagram\.com)$/i.test(u.hostname),
     key: (u) => `fbcdn.net${u.pathname}`,
   },
+  {
+    // WordPress.com / Jetpack Photon: the same image is served from rotating edge
+    // digits i0/i1/i2.wp.com; the origin host + path (the rest of the pathname) is
+    // the identity, and the resize query is a rendition.
+    match: (u) => /^i[0-2]\.wp\.com$/i.test(u.hostname),
+    key: (u) => `i.wp.com${u.pathname}`,
+  },
 ];
 
 /**
