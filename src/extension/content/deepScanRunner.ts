@@ -19,16 +19,16 @@ function primaryScroller(): {
 }
 
 /**
- * Resolves ~window.quiet ms after the last DOM mutation (window.hardCap ms hard
- * cap / abort). Returns the element subtrees that mutated during the wait so a
- * deep-scan round can rescan only those (null to request a full walk — on abort,
- * or when the hard cap fires mid-burst, when the mutation set is unreliable) and
- * the measured settle time (wait-start → last mutation) that feeds the loop's
- * adaptive window for the next round.
+ * Resolves ~quietWindow.quiet ms after the last DOM mutation (quietWindow.hardCap
+ * ms hard cap / abort). Returns the element subtrees that mutated during the wait
+ * so a deep-scan round can rescan only those (null to request a full walk — on
+ * abort, or when the hard cap fires mid-burst, when the mutation set is
+ * unreliable) and the measured settle time (wait-start → last mutation) that
+ * feeds the loop's adaptive window for the next round.
  */
 export function waitForQuiet(
   signal: AbortSignal,
-  window: { quiet: number; hardCap: number },
+  quietWindow: { quiet: number; hardCap: number },
 ): Promise<{ roots: readonly Element[] | null; settleMs: number }> {
   return new Promise((resolve) => {
     const startedAt = Date.now();
@@ -47,10 +47,10 @@ export function waitForQuiet(
         }
       }
       clearTimeout(quiet);
-      quiet = setTimeout(done, window.quiet);
+      quiet = setTimeout(done, quietWindow.quiet);
     });
-    const hard = setTimeout(() => { hardCapped = true; done(); }, window.hardCap);
-    quiet = setTimeout(done, window.quiet);
+    const hard = setTimeout(() => { hardCapped = true; done(); }, quietWindow.hardCap);
+    quiet = setTimeout(done, quietWindow.quiet);
     function done() {
       clearTimeout(quiet);
       clearTimeout(hard);

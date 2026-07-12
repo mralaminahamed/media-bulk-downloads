@@ -60,7 +60,7 @@ export interface DeepScanDeps {
   /** Waits until the DOM goes quiet using the given window, returning the mutated
    *  subtrees (or null → full walk on abort / hard cap) and the measured settle
    *  time (scroll → last mutation) that feeds the loop's adaptive window. */
-  waitForQuiet: (signal: AbortSignal, window: { quiet: number; hardCap: number })
+  waitForQuiet: (signal: AbortSignal, quietWindow: { quiet: number; hardCap: number })
     => Promise<{ roots: readonly unknown[] | null; settleMs: number }>;
   // `reason` is passed only on the final call, when the loop has stopped.
   onProgress: (found: number, scrolls: number, elapsedMs: number, reason?: DeepScanStopReason) => void;
@@ -133,14 +133,14 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
       if (found.size >= opts.maxItems) { reason = 'max-items'; break; }
       if (deps.now() - start >= opts.maxMs) { reason = 'max-time'; break; }
 
-      const window = scrolls === 1
+      const quietWindow = scrolls === 1
         ? { quiet: ADAPT_WINDOW.defaultQuiet, hardCap: ADAPT_WINDOW.defaultHardCap }
         : {
             quiet: clamp(ADAPT_WINDOW.quietFactor * settleEma, ADAPT_WINDOW.quietMin, ADAPT_WINDOW.quietMax),
             hardCap: clamp(ADAPT_WINDOW.hardCapFactor * settleEma, ADAPT_WINDOW.hardCapMin, ADAPT_WINDOW.hardCapMax),
           };
       deps.scrollStep(lastAdded === null ? ADAPT_STEP.normalMultiplier : stepMultiplier(lastAdded));
-      const { roots: mutatedRoots, settleMs } = await deps.waitForQuiet(opts.signal, window);
+      const { roots: mutatedRoots, settleMs } = await deps.waitForQuiet(opts.signal, quietWindow);
       settleEma = (1 - ADAPT_WINDOW.emaWeight) * settleEma + ADAPT_WINDOW.emaWeight * settleMs;
       if (opts.signal.aborted) { reason = 'aborted'; break; }
       completed = scrolls; // a full scroll step finished this iteration
