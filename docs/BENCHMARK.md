@@ -429,3 +429,9 @@ every tile `<figure>`, so the browser skips layout/paint for offscreen tiles
 instead of rendering the whole grid up front. Manual check at ~1000 items: the
 grid stays responsive to scroll with only the near-viewport tiles doing paint
 work; on-screen tile appearance is unchanged.
+
+## K. Deep-scan collection performance
+
+**P3 (2026-07-12):** deep-scan rounds after the seed rescan only
+`MutationObserver`-reported subtrees (full walk on the seed and on the
+busy-page hard cap); no change to media collected.

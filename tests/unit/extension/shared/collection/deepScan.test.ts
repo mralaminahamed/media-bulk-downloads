@@ -14,7 +14,7 @@ function makeDeps(rounds: MediaItem[][], collectFn?: (i: number) => MediaItem[])
       collect: () => (collectFn ? collectFn(i) : rounds[Math.min(i, rounds.length - 1)] ?? []),
       scrollStep: () => { i++; },
       atBottom: () => i >= rounds.length,
-      waitForQuiet: async () => { t += 100; },
+      waitForQuiet: async () => { t += 100; return null; },
       onProgress: (found: number, scrolls: number, _elapsed: number, reason?: DeepScanStopReason) => {
         progress.push(found);
         lastScrolls = scrolls;
@@ -140,7 +140,7 @@ describe('stop reason', () => {
       collect: () => [item('a')],
       scrollStep: () => {},
       atBottom: () => false,
-      waitForQuiet: async () => { ac.abort(); },
+      waitForQuiet: async () => { ac.abort(); return null; },
       onProgress: (_f: number, _s: number, _e: number, reason?: DeepScanStopReason) => {
         if (reason) lastReason = reason;
       },
@@ -162,7 +162,7 @@ describe('stop reason', () => {
       collect: () => (i === 0 ? [item('a')] : [item('a'), item('b'), item('c'), item('d')]),
       scrollStep: () => { i++; },
       atBottom: () => false,
-      waitForQuiet: async () => {},
+      waitForQuiet: async () => null,
       onProgress: (_f: number, _s: number, _e: number, reason?: DeepScanStopReason) => {
         if (reason) lastReason = reason;
       },
@@ -173,4 +173,34 @@ describe('stop reason', () => {
     expect(lastReason).toBe('max-items');
     expect(out.length).toBe(3);
   });
+});
+
+it('seeds with a full walk (no roots) and passes mutated roots to later rounds', async () => {
+  const calls: Array<readonly unknown[] | undefined> = [];
+  const rootsForRound1 = [{ tag: 'subtree-A' }] as const;
+  let round = 0;
+  const deps = {
+    collect: (scanRoots?: readonly unknown[]) => {
+      calls.push(scanRoots);
+      // Seed returns one item; round 1 returns a new item so the loop continues
+      // once, then round 2 returns nothing new → idle.
+      if (round === 0) return [{ src: 'https://c/seed.jpg' } as any];
+      if (round === 1) return [{ src: 'https://c/r1.jpg' } as any];
+      return [];
+    },
+    scrollStep: () => {},
+    atBottom: () => false,
+    waitForQuiet: async () => {
+      round++;
+      return round === 1 ? rootsForRound1 : null; // round 2 → full walk fallback
+    },
+    onProgress: () => {},
+    now: () => 0,
+    restoreScroll: () => {},
+  };
+  await runDeepScan(deps as any, { maxScrolls: 5, maxMs: 999999, maxItems: 1000, idleRounds: 1, signal: new AbortController().signal });
+
+  expect(calls[0]).toBeUndefined();            // seed = full walk
+  expect(calls[1]).toBe(rootsForRound1);       // round 1 = mutated subtrees
+  expect(calls[2]).toBeUndefined();            // round 2 null → full walk
 });

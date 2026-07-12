@@ -8,10 +8,15 @@ import { MediaItem, DeepScanStopReason } from '@/types';
 import { canonicalSrcKey } from './canonical';
 
 export interface DeepScanDeps {
-  collect: () => MediaItem[];
+  /** Full walk when called with no roots (the seed); otherwise scans only the
+   *  given (opaque) subtrees. Roots are passed straight through from
+   *  waitForQuiet — the pure loop never inspects them. */
+  collect: (scanRoots?: readonly unknown[]) => MediaItem[];
   scrollStep: () => void;
   atBottom: () => boolean;
-  waitForQuiet: (signal: AbortSignal) => Promise<void>;
+  /** Resolves after the DOM goes quiet, returning the subtrees that mutated
+   *  during the wait, or null to request a full walk (abort / busy-page cap). */
+  waitForQuiet: (signal: AbortSignal) => Promise<readonly unknown[] | null>;
   // `reason` is passed only on the final call, when the loop has stopped.
   onProgress: (found: number, scrolls: number, elapsedMs: number, reason?: DeepScanStopReason) => void;
   now: () => number;
@@ -37,9 +42,9 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
   const found = new Map<string, MediaItem>();
   const start = deps.now();
 
-  const merge = (): number => {
+  const merge = (scanRoots?: readonly unknown[]): number => {
     let added = 0;
-    for (const m of deps.collect()) {
+    for (const m of deps.collect(scanRoots)) {
       // Enforce the ceiling inside the merge — a single round (or the seed) can
       // return far more than maxItems, and the between-rounds guard alone would
       // let `found` blow past the documented cap.
@@ -75,11 +80,11 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
       if (deps.now() - start >= opts.maxMs) { reason = 'max-time'; break; }
 
       deps.scrollStep();
-      await deps.waitForQuiet(opts.signal);
+      const mutatedRoots = await deps.waitForQuiet(opts.signal);
       if (opts.signal.aborted) { reason = 'aborted'; break; }
       completed = scrolls; // a full scroll step finished this iteration
 
-      const added = merge();
+      const added = merge(mutatedRoots ?? undefined);
       deps.onProgress(found.size, completed, deps.now() - start);
 
       if (found.size >= opts.maxItems) { reason = 'max-items'; break; }
