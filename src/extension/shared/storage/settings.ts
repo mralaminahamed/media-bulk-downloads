@@ -30,7 +30,7 @@ export const DEFAULT_SETTINGS: SettingsData = {
   deepScanMaxSeconds: 20,
   deepScanMaxScrolls: 40,
   deepScanClickLoadMore: false,
-  smartPageDefaults: false,
+  smartPageDefaults: true,
 };
 
 /** A plain object, or {} — so spreading a corrupt string/array/number legacy

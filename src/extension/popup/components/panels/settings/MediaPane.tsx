@@ -57,7 +57,7 @@ const MediaPane: React.FC<SettingsPaneProps> = ({
     <ToggleRow
       id="set-smartPageDefaults"
       label="Smart page defaults"
-      description="Detect the page type (gallery, feed, article, single) and prime sensible filter defaults. Off by default; nothing is hidden — active defaults show as clearable chips."
+      description="Detect the page type (gallery, feed, article, single) and prime sensible filter defaults. On by default; nothing is hidden — active defaults show as clearable chips, and you can turn this off."
       checked={settings.smartPageDefaults}
       onToggle={() => toggle('smartPageDefaults')}
     />

@@ -84,11 +84,14 @@ describe('withDefaults — corrupt shapes', () => {
 });
 
 describe('smartPageDefaults setting', () => {
-  it('defaults to false', () => {
-    expect(DEFAULT_SETTINGS.smartPageDefaults).toBe(false);
+  it('defaults to true', () => {
+    expect(DEFAULT_SETTINGS.smartPageDefaults).toBe(true);
   });
   it('withDefaults backfills it for old stored settings', () => {
-    expect(withDefaults({}).smartPageDefaults).toBe(false);
+    expect(withDefaults({}).smartPageDefaults).toBe(true);
+  });
+  it('preserves an explicit opt-out through withDefaults', () => {
+    expect(withDefaults({ smartPageDefaults: false }).smartPageDefaults).toBe(false);
   });
 });
 
