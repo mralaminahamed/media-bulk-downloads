@@ -19,8 +19,8 @@ Version at time of writing: **1.2.0** · Manifest **V3**.
 - [ ] `commands` (keyboard shortcuts) and the MAIN-world content scripts (page + Instagram/X media sniffers) are present — no extra permission needed, but note them for review (see §4).
 - [ ] Icons 16/32/48/64/128 present (`src/public/icon/`) — ✅ already in the build.
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
-- [ ] At least **1 screenshot** at 1280×800 or 640×400 (see §5) — ✅ `assets/screenshot-1280x800.png`.
-- [ ] Promo tiles (optional): small 440×280 + marquee 1400×560 — ✅ in `assets/` (`promo-small-440x280.png`, `promo-marquee-1400x560.png`).
+- [ ] At least **1 screenshot** at 1280×800 or 640×400 (see §5) — ✅ seven real captures in `assets/v2/` (`screenshot-1-grab` … `screenshot-7-history`); Chrome shows up to 5.
+- [ ] Promo tiles (optional): small 440×280 + marquee 1400×560 — ✅ in `assets/v2/` (`promo-small-440x280.png`, `promo-marquee-1400x560.png`).
 - [ ] `.output/media-bulk-downloads-<version>-chrome.zip` produced by `yarn zip`.
 - [ ] Single-purpose description, permission justifications, and data disclosures filled in (below).
 
@@ -221,26 +221,34 @@ transmit page content for any other purpose.
 
 ## 5. Required visual assets
 
-Icon and promo tiles already live in the repo (`assets/`, `src/public/icon/`).
-Screenshots are captured from the running extension (`yarn build`, load
-`.output/chrome-mv3` unpacked) and cropped to the exact size. PNG or JPEG, no alpha.
+Assets live in `assets/v2/`. The **screenshots are real captures** of the built
+extension: `assets/v2/src/capture-screenshots.mjs` loads `.output/chrome-mv3`
+into Chromium (Playwright), drives the on-page bubble over a local gallery page,
+and screenshots the genuine UI at exact 1280×800 (run it from the repo so
+`node_modules` resolves; `yarn build` first). The **promo tiles** (marquee,
+small, store-logo, opera) are brand art rendered from HTML via
+`assets/v2/src/render.js`. Seven screenshots are provided; the **Chrome Web
+Store shows up to 5**, so upload 1–5 there (Edge/Firefox allow more — add 6–7).
 
-| Asset              | Size                | Required                 | File / suggested shot                                                           |
+| Asset              | Size                | Required                 | File / shot                                                                     |
 |--------------------|---------------------|--------------------------|---------------------------------------------------------------------------------|
 | Store icon         | 128×128             | required                 | ✅ `src/public/icon/128.png`                                                     |
-| Screenshot 1       | 1280×800 or 640×400 | ✅ (≥1 required)          | ✅ `assets/screenshot-1280x800.png` — popup with a full media grid + type badges |
-| Screenshot 2       | 1280×800 or 640×400 | optional                 | Filter toolbar in use (kind/format/size)                                        |
-| Screenshot 3       | 1280×800 or 640×400 | optional                 | Preview modal (with prev/next + the exclude menu)                               |
-| Screenshot 4       | 1280×800 or 640×400 | optional                 | Settings sheet                                                                  |
-| Screenshot 5       | 1280×800 or 640×400 | optional                 | Download history with the open/reveal actions                                   |
-| Screenshot 6       | 1280×800 or 640×400 | optional                 | Selection + ZIP / copy-links menu                                               |
-| Screenshot 7       | 1280×800 or 640×400 | optional                 | Favourites / Excluded-sources panel                                             |
-| Small promo tile   | 440×280             | optional                 | ✅ `assets/promo-small-440x280.png`                                              |
-| Marquee promo tile | 1400×560            | optional (featured only) | ✅ `assets/promo-marquee-1400x560.png`                                           |
+| Screenshot 1       | 1280×800            | ✅ (≥1 required)          | ✅ `assets/v2/screenshot-1-grab-1280x800.png` — real popup over a page: media grid, toolbar, Download 14 |
+| Screenshot 2       | 1280×800            | optional                 | ✅ `assets/v2/screenshot-2-preview-1280x800.png` — preview modal (dimensions, type, source) |
+| Screenshot 3       | 1280×800            | optional                 | ✅ `assets/v2/screenshot-3-settings-1280x800.png` — settings: folder tokens, naming, convert |
+| Screenshot 4       | 1280×800            | optional                 | ✅ `assets/v2/screenshot-4-filters-1280x800.png` — filters: format / size / base64, search, sort |
+| Screenshot 5       | 1280×800            | optional                 | ✅ `assets/v2/screenshot-5-favourites-1280x800.png` — favourites saved across pages |
+| Screenshot 6       | 1280×800            | optional                 | ✅ `assets/v2/screenshot-6-excluded-1280x800.png` — Excluded-sources blocklist (host / URL) |
+| Screenshot 7       | 1280×800            | optional                 | ✅ `assets/v2/screenshot-7-history-1280x800.png` — download history with re-download / open / reveal |
+| Small promo tile   | 440×280             | optional                 | ✅ `assets/v2/promo-small-440x280.png`                                              |
+| Marquee promo tile | 1400×560            | optional (featured only) | ✅ `assets/v2/promo-marquee-1400x560.png`                                           |
+| Store logo (Edge)  | 300×300             | required (Edge)          | ✅ `assets/v2/store-logo-300x300.png`                                               |
+| Opera promo        | 300×188             | optional (Opera)         | ✅ `assets/v2/opera-promo-300x188.png`                                              |
 
 The two promo tiles carry the brand mark (the toolbar icon), the wordmark, and the
 "images · video · audio, original quality" message — regenerate them from the
-source in `assets/` if the branding ever changes. Tip: shoot each screenshot in
+HTML source in `assets/v2/src/` (`node assets/v2/src/render.js`, with Playwright
+on `NODE_PATH`) if the branding ever changes. Tip: shoot each screenshot in
 both light and dark once and pick the stronger — the UI supports both.
 
 ---
