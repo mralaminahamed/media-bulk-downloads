@@ -600,6 +600,13 @@ export interface SettingsProps {
   onClose: () => void;
   onSettingsChange: (newSettings: SettingsData) => void;
   settings: SettingsData;
+  /** Per-host override controls (#293). Absent → the row is hidden entirely. */
+  perHost?: {
+    host: string;                       // '' when unknown → controls disabled
+    hasOverride: boolean;
+    onSaveForSite: (current: SettingsData) => void;
+    onResetSite: () => void;
+  };
 }
 
 /** Shared props every Settings pane receives from the shell. */
