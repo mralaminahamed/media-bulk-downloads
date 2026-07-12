@@ -319,6 +319,17 @@ describe('FilterToolbar Component', () => {
     expect(labels).toContain('AVIF');
   });
 
+  it('seeds initial filters from initialFilters (page-type default)', () => {
+    const onChange = vi.fn();
+    const { getByLabelText } = render(
+      <FilterToolbar onFilterChange={onChange} extensionSettings={DEFAULT_SETTINGS}
+        available={allAvailable} initialFilters={{ sizeBucket: 'medium' }} />,
+    );
+    fireEvent.click(document.querySelector('[aria-controls="filter-more"]') as HTMLElement);
+    const medium = getByLabelText('Image size').querySelector('[aria-pressed="true"]');
+    expect(medium?.textContent).toBe('Medium');
+  });
+
   it('resets a stale format selection to all when it leaves `available`', () => {
     const onChange = vi.fn();
     const { rerender, getByLabelText } = render(

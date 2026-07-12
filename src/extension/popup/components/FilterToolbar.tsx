@@ -9,6 +9,7 @@ interface FilterToolbarProps {
   onFilterChange: (filters: FilterOptions) => void;
   extensionSettings: SettingsData;
   available: AvailableOptions;
+  initialFilters?: Partial<FilterOptions>;
 }
 
 export const DEFAULT_FILTERS: FilterOptions = {
@@ -40,8 +41,8 @@ const STATE_OPTIONS: { value: FilterOptions['downloadState']; label: string }[] 
   { value: 'not-downloaded', label: 'Not downloaded' },
 ];
 
-const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extensionSettings, available }) => {
-  const [filters, setFilters] = useState<FilterOptions>(DEFAULT_FILTERS);
+const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extensionSettings, available, initialFilters }) => {
+  const [filters, setFilters] = useState<FilterOptions>({ ...DEFAULT_FILTERS, ...initialFilters });
   const [moreOpen, setMoreOpen] = useState(false);
 
   const kindOptions = available.kinds.map((v) => ({ value: v, label: KIND_LABELS[v] }));
