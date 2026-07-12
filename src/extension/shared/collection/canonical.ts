@@ -35,6 +35,13 @@ export const SRC_KEY_RULES: SrcKeyRule[] = [
     match: (u) => /^i[0-2]\.wp\.com$/i.test(u.hostname),
     key: (u) => `i.wp.com${u.pathname}`,
   },
+  {
+    // Google user content (lh3/lh4/….googleusercontent.com): the same asset gets a
+    // `=s512` / `=w800-h600` / `=s96-c` size/crop suffix on its last path segment;
+    // the segment up to the `=` is the identity. Host kept to avoid over-collapse.
+    match: (u) => /(?:^|\.)googleusercontent\.com$/i.test(u.hostname),
+    key: (u) => `${u.hostname.toLowerCase()}${u.pathname.replace(/=[^/]*$/, '')}`,
+  },
 ];
 
 /**

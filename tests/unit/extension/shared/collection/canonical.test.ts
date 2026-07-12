@@ -94,6 +94,16 @@ describe('SRC_KEY_RULES cross-CDN families', () => {
     const b = 'https://i0.wp.com/example.com/wp-content/uploads/2020/01/other.jpg';
     expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
   });
+  it('collapses googleusercontent size-suffix variants', () => {
+    const a = 'https://lh3.googleusercontent.com/a/ACg8ocK_exampletoken=s96-c';
+    const b = 'https://lh3.googleusercontent.com/a/ACg8ocK_exampletoken=s288-c';
+    expect(canonicalSrcKey(a)).toBe(canonicalSrcKey(b));
+  });
+  it('keeps two different googleusercontent assets distinct', () => {
+    const a = 'https://lh3.googleusercontent.com/a/ACg8ocK_exampletoken=s96-c';
+    const b = 'https://lh3.googleusercontent.com/a/ZZZdifferenttoken=s96-c';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
 });
 
 describe('SrcKeySet', () => {
