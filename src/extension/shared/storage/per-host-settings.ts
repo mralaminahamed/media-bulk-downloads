@@ -1,4 +1,5 @@
 import { SettingsData } from '@/types';
+import { durableSet } from './idb';
 
 /**
  * Per-host preference overrides (#293). A Record<registrableDomain,
@@ -41,4 +42,52 @@ export function pickHostFields(s: Partial<SettingsData>): Partial<SettingsData> 
  *  Precedence DEFAULT → global → host (global already has DEFAULT baked in). Pure. */
 export function applyHostOverride(global: SettingsData, override: Partial<SettingsData>): SettingsData {
   return { ...global, ...pickHostFields(override) };
+}
+
+/** The whole per-host store, validated to a plain object of allowlisted overrides. */
+export async function loadPerHostSettings(): Promise<Record<string, Partial<SettingsData>>> {
+  const result = (await chrome.storage.local.get(PER_HOST_SETTINGS_KEY)) as Record<string, unknown>;
+  const raw = asObject(result[PER_HOST_SETTINGS_KEY]);
+  const out: Record<string, Partial<SettingsData>> = {};
+  for (const [host, val] of Object.entries(raw)) {
+    if (host) out[host] = pickHostFields(val as Partial<SettingsData>);
+  }
+  return out;
+}
+
+/** The allowlisted override for one registrable-domain host ({} when absent). */
+export async function overrideForHost(host: string): Promise<Partial<SettingsData>> {
+  if (!host) return {};
+  const store = await loadPerHostSettings();
+  return store[host] ?? {};
+}
+
+let writeChain: Promise<void> = Promise.resolve();
+function serialize(task: () => Promise<void>): Promise<void> {
+  const run = writeChain.then(task, task);
+  writeChain = run.catch(() => undefined);
+  return run;
+}
+
+/** Persist an allowlisted override for a host. No-op for an empty host or an
+ *  empty (nothing-allowlisted) patch — never creates a "" or empty entry. */
+export async function savePerHostSettings(host: string, patch: Partial<SettingsData>): Promise<void> {
+  const picked = pickHostFields(patch);
+  if (!host || Object.keys(picked).length === 0) return;
+  return serialize(async () => {
+    const store = await loadPerHostSettings();
+    store[host] = picked;
+    await durableSet(PER_HOST_SETTINGS_KEY, store);
+  });
+}
+
+/** Clear a host's override entirely ("Reset this site"). */
+export async function clearPerHostSettings(host: string): Promise<void> {
+  if (!host) return;
+  return serialize(async () => {
+    const store = await loadPerHostSettings();
+    if (!(host in store)) return;
+    delete store[host];
+    await durableSet(PER_HOST_SETTINGS_KEY, store);
+  });
 }
