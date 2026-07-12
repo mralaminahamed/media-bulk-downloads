@@ -7,16 +7,61 @@
 import { MediaItem, DeepScanStopReason } from '@/types';
 import { canonicalSrcKey } from './canonical';
 
+const clamp = (x: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, x));
+
+/** Adaptive quiet-window bounds. next window is derived from an EMA of the
+ *  observed settle time (scroll → last mutation); every value is hard-clamped. */
+export const ADAPT_WINDOW = {
+  emaWeight: 0.5,        // weight on the newest settle sample
+  seedSettleMs: 400,     // EMA starting point
+  quietFactor: 1.5, quietMin: 250, quietMax: 1200,
+  hardCapFactor: 3, hardCapMin: 1500, hardCapMax: 4000,
+  defaultQuiet: 400, defaultHardCap: 2000, // round 1 (no EMA yet)
+} as const;
+
+/** Adaptive scroll-step bounds. multiplier = f(previous round's new-item count),
+ *  always within [min,max] so the scan never stalls or over-jumps. */
+export const ADAPT_STEP = {
+  denseYield: 15,          // >= this many new items = dense page
+  denseMultiplier: 0.6,    // dense → smaller step (don't skip lazy-mounted content)
+  zeroMultiplier: 1.75,    // zero yield → bigger step (cover ground)
+  normalMultiplier: 1.0,
+  min: 0.5, max: 2.0,
+} as const;
+
+/** Scroll-step multiplier for the NEXT round, from the previous round's yield. */
+export function stepMultiplier(added: number): number {
+  const m = added === 0
+    ? ADAPT_STEP.zeroMultiplier
+    : added >= ADAPT_STEP.denseYield
+      ? ADAPT_STEP.denseMultiplier
+      : ADAPT_STEP.normalMultiplier;
+  return clamp(m, ADAPT_STEP.min, ADAPT_STEP.max);
+}
+
+/** "Keep going when rich": when the scan hits maxScrolls but a round still added
+ *  at least `richThreshold` new items (and is under maxMs/maxItems), extend the
+ *  scroll cap by `grant`, up to `ceilingFactor × maxScrolls`. */
+export const ADAPT_CONTINUE = {
+  richThreshold: 5,
+  grant: 10,
+  ceilingFactor: 2,
+} as const;
+
 export interface DeepScanDeps {
   /** Full walk when called with no roots (the seed); otherwise scans only the
    *  given (opaque) subtrees. Roots are passed straight through from
    *  waitForQuiet — the pure loop never inspects them. */
   collect: (scanRoots?: readonly unknown[]) => MediaItem[];
-  scrollStep: () => void;
+  /** Scrolls by `multiplier` × the viewport; the loop derives the multiplier from
+   *  the previous round's yield (sparse → larger, dense → smaller). */
+  scrollStep: (multiplier: number) => void;
   atBottom: () => boolean;
-  /** Resolves after the DOM goes quiet, returning the subtrees that mutated
-   *  during the wait, or null to request a full walk (abort / busy-page cap). */
-  waitForQuiet: (signal: AbortSignal) => Promise<readonly unknown[] | null>;
+  /** Waits until the DOM goes quiet using the given window, returning the mutated
+   *  subtrees (or null → full walk on abort / hard cap) and the measured settle
+   *  time (scroll → last mutation) that feeds the loop's adaptive window. */
+  waitForQuiet: (signal: AbortSignal, quietWindow: { quiet: number; hardCap: number })
+    => Promise<{ roots: readonly unknown[] | null; settleMs: number }>;
   // `reason` is passed only on the final call, when the loop has stopped.
   onProgress: (found: number, scrolls: number, elapsedMs: number, reason?: DeepScanStopReason) => void;
   now: () => number;
@@ -68,23 +113,40 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
   // so an exit before the first scrollStep reports 0 rather than 1.
   let scrolls: number; // assigned by the for-init before any read
   let completed = 0;
+  let settleEma = ADAPT_WINDOW.seedSettleMs;
+  // Drives the NEXT scroll's multiplier: null only before the first scroll
+  // (which always steps at the normal 1.0), then the previous round's yield.
+  let lastAdded: number | null = null;
+  // Dynamic scroll cap: starts at maxScrolls, can be extended (bounded) while the
+  // scan is still richly yielding new items. maxMs/maxItems remain hard caps,
+  // checked at the loop top before this cap is ever consulted.
+  let scrollCap = opts.maxScrolls;
+  const scrollCeiling = ADAPT_CONTINUE.ceilingFactor * opts.maxScrolls;
 
   try {
     merge(); // seed from the current DOM
     deps.onProgress(found.size, 0, 0);
 
     let idle = 0;
-    for (scrolls = 1; scrolls <= opts.maxScrolls; scrolls++) {
+    for (scrolls = 1; scrolls <= scrollCap; scrolls++) {
       if (opts.signal.aborted) { reason = 'aborted'; break; }
       if (found.size >= opts.maxItems) { reason = 'max-items'; break; }
       if (deps.now() - start >= opts.maxMs) { reason = 'max-time'; break; }
 
-      deps.scrollStep();
-      const mutatedRoots = await deps.waitForQuiet(opts.signal);
+      const quietWindow = scrolls === 1
+        ? { quiet: ADAPT_WINDOW.defaultQuiet, hardCap: ADAPT_WINDOW.defaultHardCap }
+        : {
+            quiet: clamp(ADAPT_WINDOW.quietFactor * settleEma, ADAPT_WINDOW.quietMin, ADAPT_WINDOW.quietMax),
+            hardCap: clamp(ADAPT_WINDOW.hardCapFactor * settleEma, ADAPT_WINDOW.hardCapMin, ADAPT_WINDOW.hardCapMax),
+          };
+      deps.scrollStep(lastAdded === null ? ADAPT_STEP.normalMultiplier : stepMultiplier(lastAdded));
+      const { roots: mutatedRoots, settleMs } = await deps.waitForQuiet(opts.signal, quietWindow);
+      settleEma = (1 - ADAPT_WINDOW.emaWeight) * settleEma + ADAPT_WINDOW.emaWeight * settleMs;
       if (opts.signal.aborted) { reason = 'aborted'; break; }
       completed = scrolls; // a full scroll step finished this iteration
 
       const added = merge(mutatedRoots ?? undefined);
+      lastAdded = added;
       deps.onProgress(found.size, completed, deps.now() - start);
 
       if (found.size >= opts.maxItems) { reason = 'max-items'; break; }
@@ -94,10 +156,16 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
         if (deps.atBottom()) { reason = 'complete'; break; }
       } else {
         idle = 0;
+        // Keep going when rich: about to hit the cap but still yielding richly and
+        // under the hard caps → grant a bounded extension (maxMs/maxItems still stop
+        // first, checked at the loop top).
+        if (scrolls >= scrollCap && added >= ADAPT_CONTINUE.richThreshold && scrollCap < scrollCeiling) {
+          scrollCap = Math.min(scrollCap + ADAPT_CONTINUE.grant, scrollCeiling);
+        }
       }
     }
     // Loop ran to the last iteration without breaking → the scroll cap stopped it.
-    if (scrolls > opts.maxScrolls) reason = 'max-scrolls';
+    if (scrolls > scrollCap) reason = 'max-scrolls';
   } catch {
     // A throw from deps.collect()/scrollStep mid-scan must not discard what we've
     // already gathered — mark the run errored and return the partial set so the

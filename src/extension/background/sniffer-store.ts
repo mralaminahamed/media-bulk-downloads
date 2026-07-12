@@ -1,6 +1,7 @@
 import { ResolveHint, ResolvedMedia } from '@/types';
 import { resolveOriginal, NetDeps } from '../shared/resolvers/network';
 import { mediaIdFromPoster, pinTwimgUrl } from '../shared/resolvers/sniffers/x-media-sniff';
+import { retryingFetch } from '@/extension/shared/net/retry';
 
 /**
  * Real mp4/HLS media the page's own GraphQL responses exposed, per tab
@@ -113,11 +114,15 @@ function memoizeFetch(fetchFn: NetDeps['fetch']): NetDeps['fetch'] {
  * tweet can carry several unpainted photo cells — collapse to a single
  * `tweet-result?id=<sid>` fetch instead of one per photo index. Non-twitter
  * hints and hints for distinct ids are unaffected (different URLs, no shared
- * cache entry).
+ * cache entry). The DEFAULT `deps.fetch` is also wrapped in `retryingFetch`,
+ * applied BEFORE `memoizeFetch` above wraps it again — so retry runs inside
+ * the memo, and several hints sharing one deduped fetch also share its
+ * retries — so a transient 429/5xx/network blip on an opt-in
+ * original-resolution retries instead of permanently failing the item.
  */
 export async function resolveOriginalsBatch(
   hints: { src: string; hint: ResolveHint }[],
-  deps: NetDeps = { fetch: (...a) => fetch(...a) },
+  deps: NetDeps = { fetch: retryingFetch((...a) => fetch(...a)) },
   sniffed?: Map<string, ResolvedMedia>,
 ): Promise<Record<string, ResolvedMedia>> {
   const out: Record<string, ResolvedMedia> = {};

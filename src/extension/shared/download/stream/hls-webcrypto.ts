@@ -1,10 +1,15 @@
 import { DecryptFn, HlsDeps, HlsByteRange } from './hls';
+import { retryingFetch } from '@/extension/shared/net/retry';
 
 /**
  * AES-128-CBC decrypt via the platform WebCrypto. HLS segments are PKCS7-padded,
  * which `crypto.subtle.decrypt('AES-CBC')` validates and strips — matching the
  * node:crypto path used in tests/validation.
  */
+
+// Retry transient segment/manifest failures so one flaky fetch doesn't abort the
+// whole capture. Bound closure: the global fetch must not be invoked unbound.
+const netFetch = retryingFetch((...args: Parameters<typeof fetch>) => fetch(...args));
 /** A standalone ArrayBuffer copy — WebCrypto's BufferSource params reject the
  *  `ArrayBufferLike` of a plain Uint8Array under strict DOM types. */
 const buf = (u: Uint8Array): ArrayBuffer => u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength) as ArrayBuffer;
@@ -23,7 +28,7 @@ export const webcryptoDecrypt: DecryptFn = async (key, iv, data) => {
 export function browserHlsDeps(onProgress?: (done: number, total: number) => void): HlsDeps {
   return {
     fetchText: async (url) => {
-      const res = await fetch(url);
+      const res = await netFetch(url);
       if (!res.ok) throw new Error(`Manifest fetch failed (${res.status}).`);
       return res.text();
     },
@@ -31,7 +36,7 @@ export function browserHlsDeps(onProgress?: (done: number, total: number) => voi
       const init = range
         ? { headers: { Range: `bytes=${range.offset}-${range.offset + range.length - 1}` } }
         : undefined;
-      const res = await fetch(url, init);
+      const res = await netFetch(url, init);
       if (!res.ok && res.status !== 206) throw new Error(`Segment fetch failed (${res.status}).`);
       const bytes = new Uint8Array(await res.arrayBuffer());
       // A server may ignore the Range header and answer 200 with the WHOLE file.

@@ -19,18 +19,26 @@ function primaryScroller(): {
 }
 
 /**
- * Resolves ~400ms after the last DOM mutation (2s hard cap / abort). Returns the
- * element subtrees that mutated during the wait so a deep-scan round can rescan
- * only those; returns null to request a full walk — on abort, or when the 2s
- * hard cap fires mid-burst (mutation set is then unreliable).
+ * Resolves ~quietWindow.quiet ms after the last DOM mutation (quietWindow.hardCap
+ * ms hard cap / abort). Returns the element subtrees that mutated during the wait
+ * so a deep-scan round can rescan only those (null to request a full walk — on
+ * abort, or when the hard cap fires mid-burst, when the mutation set is
+ * unreliable) and the measured settle time (wait-start → last mutation) that
+ * feeds the loop's adaptive window for the next round.
  */
-export function waitForQuiet(signal: AbortSignal): Promise<readonly Element[] | null> {
+export function waitForQuiet(
+  signal: AbortSignal,
+  quietWindow: { quiet: number; hardCap: number },
+): Promise<{ roots: readonly Element[] | null; settleMs: number }> {
   return new Promise((resolve) => {
-    if (signal.aborted) return resolve(null);
+    const startedAt = Date.now();
+    let lastMutationAt = startedAt;
+    if (signal.aborted) return resolve({ roots: null, settleMs: 0 });
     const mutated = new Set<Element>();
     let hardCapped = false;
     let quiet: ReturnType<typeof setTimeout>;
     const obs = new MutationObserver((records) => {
+      lastMutationAt = Date.now();
       for (const rec of records) {
         if (rec.type === 'childList') {
           rec.addedNodes.forEach((n) => { if (n.nodeType === 1) mutated.add(n as Element); });
@@ -39,26 +47,27 @@ export function waitForQuiet(signal: AbortSignal): Promise<readonly Element[] | 
         }
       }
       clearTimeout(quiet);
-      quiet = setTimeout(done, 400);
+      quiet = setTimeout(done, quietWindow.quiet);
     });
-    const hard = setTimeout(() => { hardCapped = true; done(); }, 2000);
-    quiet = setTimeout(done, 400);
+    const hard = setTimeout(() => { hardCapped = true; done(); }, quietWindow.hardCap);
+    quiet = setTimeout(done, quietWindow.quiet);
     function done() {
       clearTimeout(quiet);
       clearTimeout(hard);
       obs.disconnect();
       signal.removeEventListener('abort', onAbort);
-      resolve(signal.aborted || hardCapped ? null : [...mutated]);
+      const settleMs = lastMutationAt - startedAt;
+      resolve({ roots: signal.aborted || hardCapped ? null : [...mutated], settleMs });
     }
     function onAbort() { done(); }
     signal.addEventListener('abort', onAbort, { once: true });
     // document.body can be null very early or on non-HTML documents; fall back to
-    // the root element, and if neither exists the 2s hard cap still resolves.
+    // the root element, and if neither exists the hard cap still resolves.
     const target = document.body ?? document.documentElement;
     // Watch attribute mutations too, not just added/removed nodes: most lazy
     // loaders hydrate by swapping data-src → src (or mutating srcset/style) on the
     // SAME node, which is an attribute change with no child added. Without this the
-    // quiet timer never resets for those pages and the 2s hard cap can fire before
+    // quiet timer never resets for those pages and the hard cap can fire before
     // images finish committing their real URLs.
     if (target) {
       obs.observe(target, {
@@ -133,10 +142,11 @@ export function buildDeepScanDeps(
   return {
     deps: {
       collect: (scanRoots) => collectMedia(scanRoots as ScanRoot[] | undefined),
-      scrollStep: () => {
-        scroller.by(window.innerHeight);
-        // Also advance any nested scroll pane that lazy-loads its own content.
-        for (const el of nestedScrollables()) el.scrollTop += el.clientHeight;
+      scrollStep: (multiplier: number) => {
+        scroller.by(window.innerHeight * multiplier);
+        // Also advance any nested scroll pane that lazy-loads its own content,
+        // by the same proportion.
+        for (const el of nestedScrollables()) el.scrollTop += el.clientHeight * multiplier;
         // Opt-in: click a bounded number of "load more" buttons.
         if (opts.clickLoadMore) {
           for (const btn of findLoadMoreButtons().slice(0, MAX_LOAD_MORE_CLICKS)) btn.click();

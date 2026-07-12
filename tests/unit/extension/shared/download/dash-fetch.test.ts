@@ -22,7 +22,10 @@ describe('browserDashDeps', () => {
   });
 
   it('fetchBytes throws with the status on a non-ok segment response', async () => {
-    (global as { fetch: unknown }).fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 });
+    // 500 is a retryable status for retryingFetch, which reads Retry-After off
+    // `res.headers` before deciding whether to retry — so the mock needs a
+    // Headers-shaped object, not just `{ ok, status }`.
+    (global as { fetch: unknown }).fetch = vi.fn().mockResolvedValue({ ok: false, status: 500, headers: new Headers() });
     const deps = browserDashDeps();
     await expect(deps.fetchBytes('https://x/s.m4s')).rejects.toThrow(/500/);
   });
