@@ -1,5 +1,5 @@
 import { MediaItem } from '@/types';
-import { collectMedia } from '@/extension/content/collect';
+import { collectMedia, type ScanRoot } from '@/extension/content/collect';
 import { runDeepScan, DeepScanDeps, DEEP_SCAN_DEFAULTS } from '@/extension/shared/collection/deepScan';
 
 /** Finds the element that actually scrolls the page, falling back to window. */
@@ -18,25 +18,40 @@ function primaryScroller(): {
   };
 }
 
-/** Resolves ~400ms after the last DOM mutation, or after a 2s hard cap / abort. */
-function waitForQuiet(signal: AbortSignal): Promise<void> {
+/**
+ * Resolves ~400ms after the last DOM mutation (2s hard cap / abort). Returns the
+ * element subtrees that mutated during the wait so a deep-scan round can rescan
+ * only those; returns null to request a full walk — on abort, or when the 2s
+ * hard cap fires mid-burst (mutation set is then unreliable).
+ */
+export function waitForQuiet(signal: AbortSignal): Promise<readonly Element[] | null> {
   return new Promise((resolve) => {
-    if (signal.aborted) return resolve();
+    if (signal.aborted) return resolve(null);
+    const mutated = new Set<Element>();
+    let hardCapped = false;
     let quiet: ReturnType<typeof setTimeout>;
-    const obs = new MutationObserver(() => {
+    const obs = new MutationObserver((records) => {
+      for (const rec of records) {
+        if (rec.type === 'childList') {
+          rec.addedNodes.forEach((n) => { if (n.nodeType === 1) mutated.add(n as Element); });
+        } else if (rec.type === 'attributes' && rec.target.nodeType === 1) {
+          mutated.add(rec.target as Element);
+        }
+      }
       clearTimeout(quiet);
       quiet = setTimeout(done, 400);
     });
-    const hard = setTimeout(done, 2000);
+    const hard = setTimeout(() => { hardCapped = true; done(); }, 2000);
     quiet = setTimeout(done, 400);
     function done() {
       clearTimeout(quiet);
       clearTimeout(hard);
       obs.disconnect();
-      signal.removeEventListener('abort', done);
-      resolve();
+      signal.removeEventListener('abort', onAbort);
+      resolve(signal.aborted || hardCapped ? null : [...mutated]);
     }
-    signal.addEventListener('abort', done, { once: true });
+    function onAbort() { done(); }
+    signal.addEventListener('abort', onAbort, { once: true });
     // document.body can be null very early or on non-HTML documents; fall back to
     // the root element, and if neither exists the 2s hard cap still resolves.
     const target = document.body ?? document.documentElement;
@@ -117,7 +132,7 @@ export function buildDeepScanDeps(
   const startY = scroller.top();
   return {
     deps: {
-      collect: () => collectMedia(),
+      collect: (scanRoots) => collectMedia(scanRoots as ScanRoot[] | undefined),
       scrollStep: () => {
         scroller.by(window.innerHeight);
         // Also advance any nested scroll pane that lazy-loads its own content.

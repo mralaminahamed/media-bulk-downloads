@@ -8,10 +8,15 @@ import { MediaItem, DeepScanStopReason } from '@/types';
 import { canonicalSrcKey } from './canonical';
 
 export interface DeepScanDeps {
-  collect: () => MediaItem[];
+  /** Full walk when called with no roots (the seed); otherwise scans only the
+   *  given (opaque) subtrees. Roots are passed straight through from
+   *  waitForQuiet — the pure loop never inspects them. */
+  collect: (scanRoots?: readonly unknown[]) => MediaItem[];
   scrollStep: () => void;
   atBottom: () => boolean;
-  waitForQuiet: (signal: AbortSignal) => Promise<void>;
+  /** Resolves after the DOM goes quiet, returning the subtrees that mutated
+   *  during the wait, or null to request a full walk (abort / busy-page cap). */
+  waitForQuiet: (signal: AbortSignal) => Promise<readonly unknown[] | null>;
   // `reason` is passed only on the final call, when the loop has stopped.
   onProgress: (found: number, scrolls: number, elapsedMs: number, reason?: DeepScanStopReason) => void;
   now: () => number;
@@ -37,9 +42,9 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
   const found = new Map<string, MediaItem>();
   const start = deps.now();
 
-  const merge = (): number => {
+  const merge = (scanRoots?: readonly unknown[]): number => {
     let added = 0;
-    for (const m of deps.collect()) {
+    for (const m of deps.collect(scanRoots)) {
       // Enforce the ceiling inside the merge — a single round (or the seed) can
       // return far more than maxItems, and the between-rounds guard alone would
       // let `found` blow past the documented cap.
@@ -75,11 +80,11 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
       if (deps.now() - start >= opts.maxMs) { reason = 'max-time'; break; }
 
       deps.scrollStep();
-      await deps.waitForQuiet(opts.signal);
+      const mutatedRoots = await deps.waitForQuiet(opts.signal);
       if (opts.signal.aborted) { reason = 'aborted'; break; }
       completed = scrolls; // a full scroll step finished this iteration
 
-      const added = merge();
+      const added = merge(mutatedRoots ?? undefined);
       deps.onProgress(found.size, completed, deps.now() - start);
 
       if (found.size >= opts.maxItems) { reason = 'max-items'; break; }
@@ -100,6 +105,23 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
     reason = 'error';
   } finally {
     deps.restoreScroll();
+  }
+
+  // Final safety sweep: incremental rounds only rescan MutationObserver-visible
+  // subtrees, which can't see mutations inside pre-existing shadow roots /
+  // same-origin iframes or media reachable only via the seeded page-JSON passes.
+  // When the scan finished naturally (not a cap/abort), do ONE full-document walk
+  // so the completed result matches a full scan — the incremental speedup is kept
+  // for every round up to here; only this closing sweep pays a full walk.
+  // A throw from the closing full-walk sweep (it reaches into shadow roots /
+  // same-origin iframes) must not discard everything the loop already gathered —
+  // same invariant the loop's own try/catch protects. On failure, keep the set.
+  if (reason === 'complete') {
+    try {
+      merge();
+    } catch {
+      /* keep the accumulated `found` set */
+    }
   }
 
   deps.onProgress(found.size, completed, deps.now() - start, reason);

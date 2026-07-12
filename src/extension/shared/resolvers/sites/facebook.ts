@@ -173,6 +173,7 @@ function fbidFromContext(ctx: ResolveContext): string | null {
 
 export const facebookResolver: Resolver = {
   id: 'facebook',
+  hosts: ['fbcdn.net', 'cdninstagram.com'],
   match: (u) => onFacebook() && FB_CDN.test(u.hostname),
   resolve: (u, ctx): MediaCandidate[] => {
     const fbid = fbidFromContext(ctx);

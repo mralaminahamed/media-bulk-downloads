@@ -32,4 +32,20 @@ describe('resolve — routes fbcdn media on facebook.com to facebookResolver', (
     });
     expect(out).toEqual([{ url: 'https://x.fbcdn.net/orig_n.jpg', kind: 'image', ext: 'jpg', width: 2048, height: 1536, mediaKey: 'fb:100' }]);
   });
+
+  // Regression: facebookResolver's match() gate (FB_CDN) accepts BOTH
+  // fbcdn.net AND cdninstagram.com, but its declared `hosts` previously only
+  // listed 'fbcdn.net'. candidatesFor() narrows by declared hosts before
+  // match() ever runs, so a cdninstagram.com-hosted tile on a facebook.com
+  // page fell through to genericResolver instead of ever reaching
+  // facebookResolver.match(). Asserts the real sniffed original (with
+  // mediaKey) comes back, not the generic passthrough.
+  it('returns the seeded original for a cdninstagram.com thumbnail on a facebook.com photo page', () => {
+    ingestSniffedFbMedia([{ fbid: '200', kind: 'image', url: 'https://scontent.cdninstagram.com/orig_n.jpg', ext: 'jpg', width: 2048, height: 1536 }]);
+    const out = resolve('https://scontent.cdninstagram.com/a_n.jpg', {
+      allowNetwork: false,
+      pageUrl: 'https://www.facebook.com/photo/?fbid=200',
+    });
+    expect(out).toEqual([{ url: 'https://scontent.cdninstagram.com/orig_n.jpg', kind: 'image', ext: 'jpg', width: 2048, height: 1536, mediaKey: 'fb:200' }]);
+  });
 });

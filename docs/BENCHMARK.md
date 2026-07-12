@@ -420,3 +420,21 @@ require active auto-scroll/mount, out of scope). No production code change was
 warranted; the behavior is locked in by
 `tests/unit/extension/content/collect-threads-video.test.ts` and the e2e
 `threads-video` spec. URL samples omitted (the safety filter strips CDN tokens).
+
+## J. Popup grid render performance
+
+**P1 (2026-07-12):** the popup's own results grid (`ImageList.tsx`) now sets
+`content-visibility: auto` + a per-axis `auto <length>` `contain-intrinsic-size`
+on every tile `<figure>` (falling back to a `thumbnailSize`-square box before
+first paint, then self-correcting to the tile's real measured height —
+thumbnail plus figcaption — once it has actually rendered), so the browser
+skips layout/paint for offscreen tiles instead of rendering the whole grid up
+front. Manual check at ~1000 items: the grid stays responsive to scroll with
+only the near-viewport tiles doing paint work; on-screen tile appearance is
+unchanged.
+
+## K. Deep-scan collection performance
+
+**P3 (2026-07-12):** deep-scan rounds after the seed rescan only
+`MutationObserver`-reported subtrees (full walk on the seed and on the
+busy-page hard cap); no change to media collected.

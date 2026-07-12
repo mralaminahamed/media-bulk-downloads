@@ -57,6 +57,7 @@ function widestCandidate(srcset: string): { url: string; width: number } | null 
 
 export const threadsResolver: Resolver = {
   id: 'threads',
+  hosts: ['cdninstagram.com', 'fbcdn.net'],
   match: (u, ctx) => META_CDN.test(u.hostname) && isThreadsPage(ctx.pageUrl),
   resolve: (u, ctx): MediaCandidate[] => {
     const el = ctx.el as HTMLImageElement | undefined;

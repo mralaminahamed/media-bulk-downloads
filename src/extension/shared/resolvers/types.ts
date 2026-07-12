@@ -29,6 +29,13 @@ export interface ResolveContext {
 
 export interface Resolver {
   id: string;
+  /** Domain suffixes this resolver's media URLs live under, used to build the
+   *  dispatch index. Omit for host-agnostic resolvers (matched by path / ctx /
+   *  id), which are always tried as a fallback. Each suffix is matched against
+   *  the candidate URL's hostname and every parent suffix, so 'cdninstagram.com'
+   *  catches 'scontent-x.cdninstagram.com'. match() still runs to confirm — the
+   *  index only narrows the candidate set. */
+  hosts?: string[];
   match(u: URL, ctx: ResolveContext): boolean;
   /** Tier A/B, synchronous, network-free. [] means "not mine / give up". */
   resolve(u: URL, ctx: ResolveContext): MediaCandidate[];

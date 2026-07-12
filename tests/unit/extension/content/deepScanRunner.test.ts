@@ -4,7 +4,7 @@ vi.mock('@/extension/shared/collection/deepScan', async () => {
   return { __esModule: true, ...actual, runDeepScan: vi.fn(() => Promise.resolve([])) };
 });
 
-import { buildDeepScanDeps, nestedScrollables, startDeepScan, findLoadMoreButtons } from '@/extension/content/deepScanRunner';
+import { buildDeepScanDeps, nestedScrollables, startDeepScan, findLoadMoreButtons, waitForQuiet } from '@/extension/content/deepScanRunner';
 import { runDeepScan, DEEP_SCAN_DEFAULTS } from '@/extension/shared/collection/deepScan';
 
 const mockMetrics = (el: HTMLElement, scrollHeight: number, clientHeight: number, scrollTop: number) => {
@@ -84,6 +84,24 @@ describe('buildDeepScanDeps', () => {
       ctrl.abort();
     } finally {
       global.MutationObserver = OrigMO;
+    }
+  });
+
+  it('waitForQuiet reports the elements that mutated during the wait', async () => {
+    vi.useFakeTimers();
+    try {
+      document.body.innerHTML = '';
+      const ac = new AbortController();
+      const p = waitForQuiet(ac.signal);
+      const added = document.createElement('div');
+      added.innerHTML = '<img src="https://c/new.jpg">';
+      document.body.appendChild(added); // childList mutation on body's subtree
+      await vi.advanceTimersByTimeAsync(500); // past the 400ms quiet window
+      const roots = await p;
+      expect(Array.isArray(roots)).toBe(true);
+      expect((roots as Element[]).some((el) => el === added || added.contains(el))).toBe(true);
+    } finally {
+      vi.useRealTimers();
     }
   });
 });

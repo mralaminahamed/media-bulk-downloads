@@ -28,6 +28,7 @@ function hasVideoSignal(el: Element | undefined): boolean {
  */
 export const artstationResolver: Resolver = {
   id: 'artstation',
+  hosts: ['artstation.com'],
   match: (u) => /^cdn[ab]\.artstation\.com$/i.test(u.hostname) && ASSET.test(u.pathname),
   resolve: (u, ctx): MediaCandidate[] => {
     if (hasVideoSignal(ctx.el)) {

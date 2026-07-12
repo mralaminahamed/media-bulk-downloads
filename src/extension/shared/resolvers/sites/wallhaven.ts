@@ -80,6 +80,7 @@ function dimsFrom(ctx: ResolveContext): { width: number; height: number } | null
 
 export const wallhavenResolver: Resolver = {
   id: 'wallhaven',
+  hosts: ['wallhaven.cc'],
   match: (u) => u.hostname === 'th.wallhaven.cc',
   resolve: (u, ctx): MediaCandidate[] => {
     const id = idFrom(u, ctx);

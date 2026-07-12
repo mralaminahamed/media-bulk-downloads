@@ -172,8 +172,13 @@ export function backgroundImageUrls(bgImage: string): string[] {
   return urls;
 }
 
+/** A root the DOM walk can scan: the whole document, an open shadow root, or —
+ *  for incremental deep-scan rounds — a single mutated element subtree. */
+export type ScanRoot = Document | ShadowRoot | Element;
+
 /** Collects information about all media (images, video, audio) on the page. */
-export function collectMedia(): MediaItem[] {
+export function collectMedia(scanRoots?: ScanRoot[]): MediaItem[] {
+  const incremental = scanRoots !== undefined;
   const media: MediaItem[] = [];
   // Dedup by CANONICAL src key, not the raw URL, so the same image served from
   // two rotating CDN edge hosts / signed queries in one scan yields one tile.
@@ -442,8 +447,8 @@ export function collectMedia(): MediaItem[] {
   // dedicated pass) and appended through addRoot, which dedups so a self- or
   // cross-referencing frame can't loop. Closed shadow roots and cross-origin
   // frames are inaccessible by design (contentDocument null/throws) and skipped.
-  const roots: (Document | ShadowRoot)[] = [document];
-  const seenRoots = new Set<Document | ShadowRoot>([document]);
+  const roots: ScanRoot[] = scanRoots ?? [document];
+  const seenRoots = new Set<ScanRoot>(roots);
   const addRoot = (r: Document | ShadowRoot | null | undefined): void => {
     if (r && !seenRoots.has(r)) {
       seenRoots.add(r);
@@ -451,10 +456,13 @@ export function collectMedia(): MediaItem[] {
     }
   };
 
-  const scanRoot = (root: Document | ShadowRoot): void => {
+  const scanRoot = (root: ScanRoot): void => {
     // Resolve computed style against the element's own window so background-image
     // reads work for elements in a same-origin frame document, not just the top one.
-    const ownerDoc = root.nodeType === 9 ? (root as Document) : (root as ShadowRoot).ownerDocument;
+    const isElement = root.nodeType === 1;
+    const ownerDoc = root.nodeType === 9
+      ? (root as Document)
+      : (root as ShadowRoot | Element).ownerDocument;
     const view = ownerDoc.defaultView ?? window;
 
     // ONE traversal per root. The '*' walk is mandatory anyway (background-image
@@ -472,7 +480,12 @@ export function collectMedia(): MediaItem[] {
     const iframes: HTMLIFrameElement[] = [];
     const backgrounds: [Element, string][] = [];
 
-    root.querySelectorAll<HTMLElement>('*').forEach((el) => {
+    // An element root includes ITSELF plus descendants; a Document/ShadowRoot
+    // root contributes only descendants (it cannot itself be media).
+    const els: HTMLElement[] = isElement
+      ? [root as HTMLElement, ...Array.from((root as Element).querySelectorAll<HTMLElement>('*'))]
+      : Array.from(root.querySelectorAll<HTMLElement>('*'));
+    els.forEach((el) => {
       // Discover open shadow roots regardless of layout (a not-rendered host can
       // still contain visible media once its component mounts) — EXCEPT our own
       // on-page bubble (mount.tsx's `#ibd-bubble-host`, an open shadow root by
@@ -640,65 +653,67 @@ export function collectMedia(): MediaItem[] {
   // Grows as scanRoot() discovers open shadow roots; the index loop picks them up.
   for (let i = 0; i < roots.length; i++) scanRoot(roots[i]);
 
-  // Meta / preload hero images: og:image, twitter:image, and preloaded images
-  // often point at the highest-resolution hero that never appears as an <img>
-  // on the page. These live in the top document head only; dedup + CDN upgrade
-  // run as usual via collectImageInfo.
-  const metaSel = [
-    'meta[property="og:image"]',
-    'meta[property="og:image:url"]',
-    'meta[property="og:image:secure_url"]',
-    'meta[name="twitter:image"]',
-    'meta[name="twitter:image:src"]',
-  ].join(',');
-  document.querySelectorAll(metaSel).forEach((m) => {
-    const content = m.getAttribute('content');
-    if (content) collectImageInfo(content);
-  });
-
-  // og:video: some pages (news, product, embeds) expose a direct downloadable
-  // mp4 in <meta property="og:video"> that never appears as a <video> element.
-  // collectAv surfaces streaming manifests (.m3u8/.mpd) as capturable stream
-  // items routed to the HLS/DASH engines; only blob: URLs and other
-  // undownloadable media are dropped. og:video:type supplies the mime;
-  // og:image is its poster.
-  const ogVideoType = document.querySelector('meta[property="og:video:type"]')?.getAttribute('content') || undefined;
-  const ogPoster = document
-    .querySelector('meta[property="og:image"], meta[property="og:image:secure_url"]')
-    ?.getAttribute('content');
-  const ogPosterUrl = ogPoster ? resolveUrl(ogPoster) : undefined;
-  document
-    .querySelectorAll('meta[property="og:video"], meta[property="og:video:url"], meta[property="og:video:secure_url"]')
-    .forEach((m) => {
+  if (!incremental) {
+    // Meta / preload hero images: og:image, twitter:image, and preloaded images
+    // often point at the highest-resolution hero that never appears as an <img>
+    // on the page. These live in the top document head only; dedup + CDN upgrade
+    // run as usual via collectImageInfo.
+    const metaSel = [
+      'meta[property="og:image"]',
+      'meta[property="og:image:url"]',
+      'meta[property="og:image:secure_url"]',
+      'meta[name="twitter:image"]',
+      'meta[name="twitter:image:src"]',
+    ].join(',');
+    document.querySelectorAll(metaSel).forEach((m) => {
       const content = m.getAttribute('content');
-      if (content) collectAv(content, 'video', ogVideoType, '', ogPosterUrl);
+      if (content) collectImageInfo(content);
     });
 
-  document.querySelectorAll('link[rel~="preload"][as="image"]').forEach((link) => {
-    const href = link.getAttribute('href');
-    if (href) collectImageInfo(href);
-    // <link rel=preload as=image imagesrcset> — take the highest-width candidate.
-    const imagesrcset = link.getAttribute('imagesrcset');
-    if (imagesrcset) {
-      const best = bestSrcsetUrl(imagesrcset);
-      if (best) collectImageInfo(best);
+    // og:video: some pages (news, product, embeds) expose a direct downloadable
+    // mp4 in <meta property="og:video"> that never appears as a <video> element.
+    // collectAv surfaces streaming manifests (.m3u8/.mpd) as capturable stream
+    // items routed to the HLS/DASH engines; only blob: URLs and other
+    // undownloadable media are dropped. og:video:type supplies the mime;
+    // og:image is its poster.
+    const ogVideoType = document.querySelector('meta[property="og:video:type"]')?.getAttribute('content') || undefined;
+    const ogPoster = document
+      .querySelector('meta[property="og:image"], meta[property="og:image:secure_url"]')
+      ?.getAttribute('content');
+    const ogPosterUrl = ogPoster ? resolveUrl(ogPoster) : undefined;
+    document
+      .querySelectorAll('meta[property="og:video"], meta[property="og:video:url"], meta[property="og:video:secure_url"]')
+      .forEach((m) => {
+        const content = m.getAttribute('content');
+        if (content) collectAv(content, 'video', ogVideoType, '', ogPosterUrl);
+      });
+
+    document.querySelectorAll('link[rel~="preload"][as="image"]').forEach((link) => {
+      const href = link.getAttribute('href');
+      if (href) collectImageInfo(href);
+      // <link rel=preload as=image imagesrcset> — take the highest-width candidate.
+      const imagesrcset = link.getAttribute('imagesrcset');
+      if (imagesrcset) {
+        const best = bestSrcsetUrl(imagesrcset);
+        if (best) collectImageInfo(best);
+      }
+    });
+
+    // Instagram single-post/reel pages: surface the whole post from its page JSON
+    // (all carousel slides + the real mp4), covering media the DOM hides —
+    // virtualized carousel slides and `blob:`-backed reel videos. No-ops on a
+    // profile grid (no shortcode in the URL); deduped against the walk above.
+    for (const cand of instagramPageMedia(pageUrl)) {
+      pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
     }
-  });
 
-  // Instagram single-post/reel pages: surface the whole post from its page JSON
-  // (all carousel slides + the real mp4), covering media the DOM hides —
-  // virtualized carousel slides and `blob:`-backed reel videos. No-ops on a
-  // profile grid (no shortcode in the URL); deduped against the walk above.
-  for (const cand of instagramPageMedia(pageUrl)) {
-    pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
-  }
-
-  // Facebook opened photo/video: surface the full-res original / real mp4 from
-  // the page's own GraphQL/hydration, covering media the DOM hides (viewer
-  // blob:, virtualized album). No-ops off a photo/video page; deduped by
-  // canonicalSrcKey against the walk above.
-  for (const cand of facebookPageMedia(pageUrl)) {
-    pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
+    // Facebook opened photo/video: surface the full-res original / real mp4 from
+    // the page's own GraphQL/hydration, covering media the DOM hides (viewer
+    // blob:, virtualized album). No-ops off a photo/video page; deduped by
+    // canonicalSrcKey against the walk above.
+    for (const cand of facebookPageMedia(pageUrl)) {
+      pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
+    }
   }
 
   // HLS manifests the MAIN-world sniffer caught (hls.js / native players fetch

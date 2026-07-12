@@ -18,6 +18,7 @@ const PHOTO = /^\/\d+\/(\d+)_[0-9a-z]+(?:_[a-z0-9]+)?\.(?:jpe?g|png|gif)$/i;
  */
 export const flickrResolver: Resolver = {
   id: 'flickr',
+  hosts: ['staticflickr.com'],
   match: (u) => u.hostname === 'staticflickr.com' || u.hostname.endsWith('.staticflickr.com'),
   resolve: (u): MediaCandidate[] => {
     const id = u.pathname.match(PHOTO)?.[1];

@@ -17,6 +17,7 @@ const UPGRADE: Record<string, string> = {
 
 export const bskyResolver: Resolver = {
   id: 'bsky',
+  hosts: ['bsky.app'],
   match: (u) => u.hostname === HOST,
   resolve: (u): MediaCandidate[] => {
     const m = IMG_RE.exec(u.pathname);

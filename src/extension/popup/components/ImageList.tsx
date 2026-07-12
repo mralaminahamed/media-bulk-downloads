@@ -209,7 +209,19 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
           <figure
             key={image.src}
             className={`card reveal mbd:group mbd:m-0 ${isSelected ? 'mbd:ring-2 mbd:ring-(--brand-ink)' : ''}`}
-            style={{ animationDelay: `${Math.min(index, 12) * 0.022}s` }}
+            style={{
+              animationDelay: `${Math.min(index, 12) * 0.022}s`,
+              // Skip layout + paint of offscreen tiles (native windowing). The figure
+              // is the square thumbnail PLUS a figcaption below it, so a bare
+              // `thumbnailSize` placeholder on both axes would under-measure it. Use
+              // the `auto <length>` form per axis instead: before first paint the
+              // browser falls back to `thumbnailSize`, but once a tile has actually
+              // rendered, the browser remembers its real measured size (thumbnail +
+              // caption) and uses that instead — self-correcting scroll height for
+              // skipped tiles rather than staying wrong for the life of the list.
+              contentVisibility: 'auto',
+              containIntrinsicSize: `auto ${thumbnailSize}px auto ${thumbnailSize}px`,
+            }}
           >
             <div className="checker mbd:relative mbd:aspect-square">
               {selectable && (

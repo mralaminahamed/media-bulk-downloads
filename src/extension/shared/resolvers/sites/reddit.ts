@@ -19,6 +19,7 @@ const VREDD_ID = /^\/([a-z0-9]+)\//i;
  */
 export const redditResolver: Resolver = {
   id: 'reddit',
+  hosts: ['redd.it'],
   match: (u) => u.hostname === 'i.redd.it' || u.hostname === 'preview.redd.it' || u.hostname === 'v.redd.it',
   resolve: (u): MediaCandidate[] => {
     if (u.hostname === 'v.redd.it') {
