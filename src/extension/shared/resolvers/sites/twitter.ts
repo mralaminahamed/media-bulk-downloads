@@ -37,6 +37,7 @@ function nearestStatusId(el: Element | undefined, pageUrl?: string): string | nu
 
 export const twitterResolver: Resolver = {
   id: 'twitter',
+  hosts: ['twimg.com'],
   match: (u) => u.hostname === 'pbs.twimg.com',
   resolve: (u, ctx): MediaCandidate[] => {
     const input = u.href;

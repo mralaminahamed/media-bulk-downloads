@@ -5,6 +5,7 @@ const PLUS_STRIP = ['w','h','dpr','fit','crop'];
 
 export const unsplashResolver: Resolver = {
   id: 'unsplash',
+  hosts: ['unsplash.com'],
   match: (u) => /(?:^|\.)(?:images|plus)\.unsplash\.com$/.test(u.hostname),
   resolve: (u, ctx): MediaCandidate[] => {
     const input = u.href;

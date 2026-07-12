@@ -37,6 +37,7 @@ function domSourceFrom(el: Element | undefined): string | null {
 
 export const behanceResolver: Resolver = {
   id: 'behance',
+  hosts: ['behance.net'],
   match: (u) => u.hostname === HOST,
   resolve: (u, ctx: ResolveContext): MediaCandidate[] => {
     const out = new URL(u.href);

@@ -153,6 +153,7 @@ function preferResolved(entries: IgMediaEntry[]): IgMediaEntry[] {
 
 export const instagramResolver: Resolver = {
   id: 'instagram',
+  hosts: ['cdninstagram.com', 'fbcdn.net'],
   match: (u) => IG_CDN.test(u.hostname),
   resolve: (_u, ctx): MediaCandidate[] => {
     const code = codeFromContext(ctx);

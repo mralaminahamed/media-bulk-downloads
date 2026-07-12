@@ -81,6 +81,7 @@ function variantsFromEl(el: Element | undefined): Variant[] {
 
 export const magnificResolver: Resolver = {
   id: 'magnific',
+  hosts: ['magnific.com'],
   match: (u) => u.hostname === CDN_HOST,
   resolve: (u, ctx: ResolveContext): MediaCandidate[] => {
     // The input URL is always a valid candidate (it's what the page loaded).

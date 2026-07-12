@@ -41,6 +41,7 @@ function hasVideoSignal(el: Element | undefined): boolean {
  */
 export const pinterestResolver: Resolver = {
   id: 'pinterest',
+  hosts: ['pinimg.com'],
   match: (u) => u.hostname === IMG_HOST,
   resolve: (u, ctx): MediaCandidate[] => {
     // Pinterest also serves video poster thumbnails under /videos/thumbnails/…;
