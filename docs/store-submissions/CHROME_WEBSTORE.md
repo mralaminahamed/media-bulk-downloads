@@ -225,10 +225,13 @@ Assets live in `assets/v2/`. The **screenshots are real captures** of the built
 extension: `assets/v2/src/capture-screenshots.mjs` loads `.output/chrome-mv3`
 into Chromium (Playwright), drives the on-page bubble over a local gallery page,
 and screenshots the genuine UI at exact 1280×800 (run it from the repo so
-`node_modules` resolves; `yarn build` first). The **promo tiles** (marquee,
-small, store-logo, opera) are brand art rendered from HTML via
-`assets/v2/src/render.js`. Seven screenshots are provided; the **Chrome Web
-Store shows up to 5**, so upload 1–5 there (Edge/Firefox allow more — add 6–7).
+`node_modules` resolves; `yarn build` first). The same harness also exports
+`panel-real.png` — the real panel on transparent alpha. The **promo tiles** are
+rendered from HTML via `assets/v2/src/render.js`: the marquee, small, and Opera
+tiles composite that **real captured panel** over the brand canvas (no mock UI);
+store-logo is pure brand art (icon + wordmark). Seven screenshots are provided;
+the **Chrome Web Store shows up to 5**, so upload 1–5 there (Edge/Firefox allow
+more — add 6–7).
 
 | Asset              | Size                | Required                 | File / shot                                                                     |
 |--------------------|---------------------|--------------------------|---------------------------------------------------------------------------------|
@@ -245,11 +248,12 @@ Store shows up to 5**, so upload 1–5 there (Edge/Firefox allow more — add 6�
 | Store logo (Edge)  | 300×300             | required (Edge)          | ✅ `assets/v2/store-logo-300x300.png`                                               |
 | Opera promo        | 300×188             | optional (Opera)         | ✅ `assets/v2/opera-promo-300x188.png`                                              |
 
-The two promo tiles carry the brand mark (the toolbar icon), the wordmark, and the
-"images · video · audio, original quality" message — regenerate them from the
-HTML source in `assets/v2/src/` (`node assets/v2/src/render.js`, with Playwright
-on `NODE_PATH`) if the branding ever changes. Tip: shoot each screenshot in
-both light and dark once and pick the stronger — the UI supports both.
+The promo tiles carry the brand mark (the toolbar icon), the wordmark, the
+"images · video · audio, original quality" message, and the real panel — to
+regenerate, run the capture harness first (produces `panel-real.png`) then
+`node assets/v2/src/render.js` from the repo so `node_modules` resolves. Tip:
+shoot each screenshot in both light and dark once and pick the stronger — the
+UI supports both.
 
 ---
 
