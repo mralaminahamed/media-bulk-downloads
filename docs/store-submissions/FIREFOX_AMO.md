@@ -185,19 +185,23 @@ already view — not an auth or paywall bypass.
 ## 5. Required visual assets
 
 AMO uses the **manifest icons** (no separate store logo). Add screenshots to make
-the listing land.
+the listing land. The seven real 1280×800 captures in `assets/v2/` from the
+Chrome/Edge packages are reused here as-is; AMO lets you add a **caption** per
+screenshot, so paste the ones below. AMO accepts up to 10 — all seven fit.
 
-| Asset        | Size                          | Required           | Suggested shot                                |
-|--------------|-------------------------------|--------------------|-----------------------------------------------|
-| Add-on icon  | 128×128                       | ✅ (from manifest)  | `src/public/icon/128.png`                     |
-| Screenshot 1 | 1280×800 (any ratio accepted) | ✅ (≥1 recommended) | Popup with a full media grid + type badges    |
-| Screenshot 2 | 1280×800                      | optional           | Filter toolbar in use (kind/format/size)      |
-| Screenshot 3 | 1280×800                      | optional           | Preview modal (with prev/next)                |
-| Screenshot 4 | 1280×800                      | optional           | Settings sheet                                |
-| Screenshot 5 | 1280×800                      | optional           | Download history with the open/reveal actions |
+| Asset        | Size     | Required           | File / caption                                                                                                                          |
+|--------------|----------|--------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| Add-on icon  | 128×128  | ✅ (from manifest)  | `src/public/icon/128.png`                                                                                                               |
+| Screenshot 1 | 1280×800 | ✅ (≥1 recommended) | `assets/v2/screenshot-1-grab-1280x800.png` — **Every image, video, and audio file on the page — in one grid, ready to download.**       |
+| Screenshot 2 | 1280×800 | optional           | `assets/v2/screenshot-2-preview-1280x800.png` — **Preview any item full-size with its dimensions, type, and source.**                   |
+| Screenshot 3 | 1280×800 | optional           | `assets/v2/screenshot-3-settings-1280x800.png` — **Sort downloads into folders with path tokens, naming rules, and format conversion.** |
+| Screenshot 4 | 1280×800 | optional           | `assets/v2/screenshot-4-filters-1280x800.png` — **Filter by format and size, search by name, and sort — narrow a busy page fast.**      |
+| Screenshot 5 | 1280×800 | optional           | `assets/v2/screenshot-5-favourites-1280x800.png` — **Star media to Favourites that stays with you across pages.**                       |
+| Screenshot 6 | 1280×800 | optional           | `assets/v2/screenshot-6-excluded-1280x800.png` — **Block sources you never want to see with the Excluded-sources list.**                |
+| Screenshot 7 | 1280×800 | optional           | `assets/v2/screenshot-7-history-1280x800.png` — **Re-download, open, or reveal anything from your download history.**                   |
 
-PNG or JPEG. The 1280×800 screenshots from the Chrome/Edge packages can be reused
-here as-is.
+PNG or JPEG, 1280×800. Order 1→7 tells the story: find → preview → organize →
+filter → favourite → exclude → history.
 
 ---
 
