@@ -1,4 +1,4 @@
-import { runDeepScan, DEEP_SCAN_DEFAULTS } from '@/extension/shared/collection/deepScan';
+import { runDeepScan, DEEP_SCAN_DEFAULTS, ADAPT_WINDOW } from '@/extension/shared/collection/deepScan';
 import { MediaItem, DeepScanStopReason } from '@/types';
 
 const item = (src: string): MediaItem =>
@@ -14,7 +14,7 @@ function makeDeps(rounds: MediaItem[][], collectFn?: (i: number) => MediaItem[])
       collect: () => (collectFn ? collectFn(i) : rounds[Math.min(i, rounds.length - 1)] ?? []),
       scrollStep: () => { i++; },
       atBottom: () => i >= rounds.length,
-      waitForQuiet: async () => { t += 100; return null; },
+      waitForQuiet: async () => { t += 100; return { roots: null, settleMs: 0 }; },
       onProgress: (found: number, scrolls: number, _elapsed: number, reason?: DeepScanStopReason) => {
         progress.push(found);
         lastScrolls = scrolls;
@@ -140,7 +140,7 @@ describe('stop reason', () => {
       collect: () => [item('a')],
       scrollStep: () => {},
       atBottom: () => false,
-      waitForQuiet: async () => { ac.abort(); return null; },
+      waitForQuiet: async () => { ac.abort(); return { roots: null, settleMs: 0 }; },
       onProgress: (_f: number, _s: number, _e: number, reason?: DeepScanStopReason) => {
         if (reason) lastReason = reason;
       },
@@ -162,7 +162,7 @@ describe('stop reason', () => {
       collect: () => (i === 0 ? [item('a')] : [item('a'), item('b'), item('c'), item('d')]),
       scrollStep: () => { i++; },
       atBottom: () => false,
-      waitForQuiet: async () => null,
+      waitForQuiet: async () => ({ roots: null, settleMs: 0 }),
       onProgress: (_f: number, _s: number, _e: number, reason?: DeepScanStopReason) => {
         if (reason) lastReason = reason;
       },
@@ -192,7 +192,7 @@ it('seeds with a full walk (no roots) and passes mutated roots to later rounds',
     atBottom: () => false,
     waitForQuiet: async () => {
       round++;
-      return round === 1 ? rootsForRound1 : null; // round 2 → full walk fallback
+      return { roots: round === 1 ? rootsForRound1 : null, settleMs: 0 }; // round 2 → full walk fallback
     },
     onProgress: () => {},
     now: () => 0,
@@ -203,6 +203,38 @@ it('seeds with a full walk (no roots) and passes mutated roots to later rounds',
   expect(calls[0]).toBeUndefined();            // seed = full walk
   expect(calls[1]).toBe(rootsForRound1);       // round 1 = mutated subtrees
   expect(calls[2]).toBeUndefined();            // round 2 null → full walk
+});
+
+it('adapts the quiet window from an EMA of observed settle time, within bounds', async () => {
+  const windows: Array<{ quiet: number; hardCap: number }> = [];
+  let round = 0;
+  const deps = {
+    collect: () => (round === 0 ? [{ src: 'https://c/s.jpg' } as any] : round < 3 ? [{ src: `https://c/${round}.jpg` } as any] : []),
+    scrollStep: () => {},
+    atBottom: () => false,
+    waitForQuiet: async (_s: AbortSignal, window: { quiet: number; hardCap: number }) => {
+      windows.push(window);
+      round++;
+      // Report a large settle time so the EMA climbs toward the hardCap ceiling.
+      return { roots: null, settleMs: 5000 };
+    },
+    onProgress: () => {},
+    now: () => 0,
+    restoreScroll: () => {},
+  };
+  await runDeepScan(deps as any, { maxScrolls: 6, maxMs: 1e9, maxItems: 1000, idleRounds: 3, signal: new AbortController().signal });
+
+  // Round 1 uses the defaults; later rounds are clamped into the adaptive bounds.
+  expect(windows[0]).toEqual({ quiet: ADAPT_WINDOW.defaultQuiet, hardCap: ADAPT_WINDOW.defaultHardCap });
+  for (const w of windows.slice(1)) {
+    expect(w.quiet).toBeGreaterThanOrEqual(ADAPT_WINDOW.quietMin);
+    expect(w.quiet).toBeLessThanOrEqual(ADAPT_WINDOW.quietMax);
+    expect(w.hardCap).toBeLessThanOrEqual(ADAPT_WINDOW.hardCapMax);
+  }
+  // With settleMs=5000 feeding the EMA, the window trends up to its ceilings.
+  const last = windows[windows.length - 1];
+  expect(last.quiet).toBe(ADAPT_WINDOW.quietMax);
+  expect(last.hardCap).toBe(ADAPT_WINDOW.hardCapMax);
 });
 
 describe('final full-walk safety sweep', () => {
@@ -218,7 +250,7 @@ describe('final full-walk safety sweep', () => {
           : [], // incremental round: never finds the shadow-root item
       scrollStep: () => {},
       atBottom: () => false,
-      waitForQuiet: async () => { mutated = true; return [{ tag: 'subtree' }]; },
+      waitForQuiet: async () => { mutated = true; return { roots: [{ tag: 'subtree' }], settleMs: 0 }; },
       onProgress: () => {},
       now: () => 0,
       restoreScroll: () => {},
@@ -236,7 +268,7 @@ describe('final full-walk safety sweep', () => {
           : [item('extra')], // keeps every round non-idle so the loop runs until the cap
       scrollStep: () => {},
       atBottom: () => false,
-      waitForQuiet: async () => { mutated = true; return [{ tag: 'subtree' }]; },
+      waitForQuiet: async () => { mutated = true; return { roots: [{ tag: 'subtree' }], settleMs: 0 }; },
       onProgress: () => {},
       now: () => 0,
       restoreScroll: () => {},
@@ -267,7 +299,7 @@ describe('final full-walk safety sweep', () => {
       },
       scrollStep: () => {},
       atBottom: () => false,
-      waitForQuiet: async () => [{ tag: 'subtree' }], // never null, so never the abort/full-walk fallback
+      waitForQuiet: async () => ({ roots: [{ tag: 'subtree' }], settleMs: 0 }), // never null, so never the abort/full-walk fallback
       onProgress: () => {},
       now: () => 0,
       restoreScroll: () => {},

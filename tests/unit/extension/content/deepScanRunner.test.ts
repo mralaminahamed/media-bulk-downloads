@@ -38,7 +38,7 @@ describe('buildDeepScanDeps', () => {
     const { deps } = buildDeepScanDeps(() => {});
     const ctrl = new AbortController();
     let settled = false;
-    const p = deps.waitForQuiet(ctrl.signal).then(() => { settled = true; });
+    const p = deps.waitForQuiet(ctrl.signal, { quiet: 400, hardCap: 2000 }).then(() => { settled = true; });
 
     // A DOM mutation fires the observer callback, which clears and re-arms the
     // 400ms quiet timer — so the wait is still pending after only microtasks flush.
@@ -74,7 +74,7 @@ describe('buildDeepScanDeps', () => {
       const { deps } = buildDeepScanDeps(() => {});
       const ctrl = new AbortController();
       // Kick off the quiet wait (resolves on abort below); we only inspect observe().
-      void deps.waitForQuiet(ctrl.signal);
+      void deps.waitForQuiet(ctrl.signal, { quiet: 400, hardCap: 2000 });
       expect(observeSpy).toHaveBeenCalledTimes(1);
       const options = observeSpy.mock.calls[0][1] as ObserveOptions;
       expect(options.attributes).toBe(true);
@@ -92,14 +92,33 @@ describe('buildDeepScanDeps', () => {
     try {
       document.body.innerHTML = '';
       const ac = new AbortController();
-      const p = waitForQuiet(ac.signal);
+      const p = waitForQuiet(ac.signal, { quiet: 400, hardCap: 2000 });
       const added = document.createElement('div');
       added.innerHTML = '<img src="https://c/new.jpg">';
       document.body.appendChild(added); // childList mutation on body's subtree
       await vi.advanceTimersByTimeAsync(500); // past the 400ms quiet window
-      const roots = await p;
+      const { roots } = await p;
       expect(Array.isArray(roots)).toBe(true);
       expect((roots as Element[]).some((el) => el === added || added.contains(el))).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reports a settleMs spanning the wait-start to the last mutation', async () => {
+    vi.useFakeTimers();
+    try {
+      document.body.innerHTML = '';
+      const p = waitForQuiet(new AbortController().signal, { quiet: 400, hardCap: 4000 });
+      await vi.advanceTimersByTimeAsync(100);
+      const d = document.createElement('div');
+      d.innerHTML = '<img src="https://c/n.jpg">';
+      document.body.appendChild(d); // a mutation ~100ms into the wait
+      await vi.advanceTimersByTimeAsync(500); // past the 400ms quiet window
+      const { roots, settleMs } = await p;
+      expect((roots as Element[]).length).toBeGreaterThan(0); // the added div is a mutated root
+      expect(settleMs).toBeGreaterThanOrEqual(100);           // mutation landed ~100ms into the wait
+      expect(settleMs).toBeLessThan(4000);                    // under the hard cap
     } finally {
       vi.useRealTimers();
     }

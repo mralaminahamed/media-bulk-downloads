@@ -7,6 +7,18 @@
 import { MediaItem, DeepScanStopReason } from '@/types';
 import { canonicalSrcKey } from './canonical';
 
+const clamp = (x: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, x));
+
+/** Adaptive quiet-window bounds. next window is derived from an EMA of the
+ *  observed settle time (scroll → last mutation); every value is hard-clamped. */
+export const ADAPT_WINDOW = {
+  emaWeight: 0.5,        // weight on the newest settle sample
+  seedSettleMs: 400,     // EMA starting point
+  quietFactor: 1.5, quietMin: 250, quietMax: 1200,
+  hardCapFactor: 3, hardCapMin: 1500, hardCapMax: 4000,
+  defaultQuiet: 400, defaultHardCap: 2000, // round 1 (no EMA yet)
+} as const;
+
 export interface DeepScanDeps {
   /** Full walk when called with no roots (the seed); otherwise scans only the
    *  given (opaque) subtrees. Roots are passed straight through from
@@ -14,9 +26,11 @@ export interface DeepScanDeps {
   collect: (scanRoots?: readonly unknown[]) => MediaItem[];
   scrollStep: () => void;
   atBottom: () => boolean;
-  /** Resolves after the DOM goes quiet, returning the subtrees that mutated
-   *  during the wait, or null to request a full walk (abort / busy-page cap). */
-  waitForQuiet: (signal: AbortSignal) => Promise<readonly unknown[] | null>;
+  /** Waits until the DOM goes quiet using the given window, returning the mutated
+   *  subtrees (or null → full walk on abort / hard cap) and the measured settle
+   *  time (scroll → last mutation) that feeds the loop's adaptive window. */
+  waitForQuiet: (signal: AbortSignal, window: { quiet: number; hardCap: number })
+    => Promise<{ roots: readonly unknown[] | null; settleMs: number }>;
   // `reason` is passed only on the final call, when the loop has stopped.
   onProgress: (found: number, scrolls: number, elapsedMs: number, reason?: DeepScanStopReason) => void;
   now: () => number;
@@ -68,6 +82,7 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
   // so an exit before the first scrollStep reports 0 rather than 1.
   let scrolls: number; // assigned by the for-init before any read
   let completed = 0;
+  let settleEma = ADAPT_WINDOW.seedSettleMs;
 
   try {
     merge(); // seed from the current DOM
@@ -79,8 +94,15 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
       if (found.size >= opts.maxItems) { reason = 'max-items'; break; }
       if (deps.now() - start >= opts.maxMs) { reason = 'max-time'; break; }
 
+      const window = scrolls === 1
+        ? { quiet: ADAPT_WINDOW.defaultQuiet, hardCap: ADAPT_WINDOW.defaultHardCap }
+        : {
+            quiet: clamp(ADAPT_WINDOW.quietFactor * settleEma, ADAPT_WINDOW.quietMin, ADAPT_WINDOW.quietMax),
+            hardCap: clamp(ADAPT_WINDOW.hardCapFactor * settleEma, ADAPT_WINDOW.hardCapMin, ADAPT_WINDOW.hardCapMax),
+          };
       deps.scrollStep();
-      const mutatedRoots = await deps.waitForQuiet(opts.signal);
+      const { roots: mutatedRoots, settleMs } = await deps.waitForQuiet(opts.signal, window);
+      settleEma = (1 - ADAPT_WINDOW.emaWeight) * settleEma + ADAPT_WINDOW.emaWeight * settleMs;
       if (opts.signal.aborted) { reason = 'aborted'; break; }
       completed = scrolls; // a full scroll step finished this iteration
 
