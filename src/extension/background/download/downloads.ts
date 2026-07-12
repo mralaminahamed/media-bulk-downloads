@@ -13,7 +13,7 @@ import { downloadedOnDiskKeys } from './downloaded-keys';
  */
 /** Outcome of a download batch, used to report the real status to the popup. */
 export interface DownloadResult {
-  /** How many items were eligible after filtering. */
+  /** How many items were actually attempted (eligible, after any duplicate skip). */
   total: number;
   /** How many downloads chrome actually started (returned a downloadId). */
   succeeded: number;
@@ -102,7 +102,7 @@ export function downloadStatusMessage(r: DownloadResult): string {
  * granted, so it's silent unless the user asked for it.
  */
 export function notifyBatchDone(result: DownloadResult): void {
-  if (!currentSettings.notifyOnComplete || !chrome.notifications || result.total === 0) return;
+  if (!currentSettings.notifyOnComplete || !chrome.notifications || (result.total === 0 && result.skipped === 0)) return;
   chrome.notifications.create(
     {
       type: 'basic',

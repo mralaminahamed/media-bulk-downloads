@@ -1023,6 +1023,9 @@ describe('completion notification', () => {
     (chrome.storage.local.set as Mock).mockReset().mockResolvedValue(undefined);
     (chrome.notifications.create as Mock).mockReset();
   });
+  // downloadedOnDiskKeys is spied on in the all-duplicates test below; never let
+  // that spy bleed into a sibling test.
+  afterEach(() => vi.restoreAllMocks());
 
   it('fires a toast after a batch when notifyOnComplete is on', async () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { notifyOnComplete: true } }));
@@ -1056,6 +1059,34 @@ describe('completion notification', () => {
       expect.objectContaining({ message: 'Downloaded 1 file.' }),
       expect.any(Function),
     );
+  });
+
+  it('fires a "nothing new" toast when a batch is entirely duplicates (total 0, skipped > 0)', async () => {
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { notifyOnComplete: true } }));
+    loadSettings();
+    // Every eligible image is already on disk, so skipDuplicates drops all of
+    // them: toDownload is empty (total 0) but skipped is 2 — still worth a toast.
+    vi.spyOn(dlKeys, 'downloadedOnDiskKeys').mockResolvedValue(
+      SrcKeySet.from(['https://c/a.jpg', 'https://c/b.jpg']),
+    );
+    const result = await downloadAndRecord(
+      [img('https://c/a.jpg'), img('https://c/b.jpg')],
+      undefined,
+      { skipDuplicates: true },
+    );
+    expect(result).toMatchObject({ total: 0, succeeded: 0, failed: 0, skipped: 2 });
+    expect(chrome.notifications.create).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('already saved') }),
+      expect.any(Function),
+    );
+  });
+
+  it('stays silent when there is nothing to download and nothing was skipped (total 0, skipped 0)', async () => {
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { notifyOnComplete: true } }));
+    loadSettings();
+    const result = await downloadAndRecord([], undefined);
+    expect(result).toMatchObject({ total: 0, succeeded: 0, failed: 0, skipped: 0 });
+    expect(chrome.notifications.create).not.toHaveBeenCalled();
   });
 });
 
