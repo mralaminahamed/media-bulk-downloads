@@ -438,3 +438,8 @@ unchanged.
 **P3 (2026-07-12):** deep-scan rounds after the seed rescan only
 `MutationObserver`-reported subtrees (full walk on the seed and on the
 busy-page hard cap); no change to media collected.
+
+**P4 (2026-07-12):** deep scan now seeds its settle-time and scroll-depth from
+a per-host memory of the previous run (local-only, on by default), so a repeat
+visit to the same site converges without re-learning from scratch; first-visit
+behavior on a new host is unchanged.
