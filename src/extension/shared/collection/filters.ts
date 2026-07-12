@@ -46,14 +46,22 @@ export function filterImagesBySettings(images: ImageInfo[], settings: SettingsDa
   return images.filter((img) => passesSettingsFilters(img, settings));
 }
 
+/** Classifies a known-positive largest edge into a size bucket. Callers handle
+ *  the edge <= 0 ("unknown dimensions") case themselves — this assumes edge > 0.
+ *  Single source of truth for the 256/1024 boundaries shared by inSizeBucket
+ *  and knownBucket. */
+function edgeToBucket(edge: number): Exclude<SizeBucket, 'all'> {
+  if (edge < 256) return 'small';
+  if (edge < 1024) return 'medium';
+  return 'large';
+}
+
 /** Whether an item falls in a dimension-based size bucket. Unknown dims pass. */
 function inSizeBucket(item: ImageInfo, bucket: SizeBucket): boolean {
   if (bucket === 'all') return true;
   const edge = Math.max(item.width, item.height);
   if (edge <= 0) return true; // unknown dimensions are never hidden
-  if (bucket === 'small') return edge < 256;
-  if (bucket === 'medium') return edge >= 256 && edge < 1024;
-  return edge >= 1024; // large
+  return edgeToBucket(edge) === bucket;
 }
 
 /** A readable filename for an item (basename from the URL, else the raw src). */
@@ -172,10 +180,7 @@ export const FORMAT_LABELS: Record<string, string> = {
  *  page of dimensionless items doesn't make every bucket appear present. */
 function knownBucket(item: ImageInfo): Exclude<SizeBucket, 'all'> | null {
   const edge = Math.max(item.width, item.height);
-  if (edge <= 0) return null;
-  if (edge < 256) return 'small';
-  if (edge < 1024) return 'medium';
-  return 'large';
+  return edge <= 0 ? null : edgeToBucket(edge);
 }
 
 /**

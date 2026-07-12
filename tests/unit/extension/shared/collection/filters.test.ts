@@ -428,6 +428,12 @@ describe('deriveFilterOptions', () => {
     expect(opts.kinds).toEqual(['all', 'image', 'video']);
   });
 
+  it('groups formats by kind (video family)', () => {
+    const opts = deriveFilterOptions([img({ kind: 'image', type: 'png' }), img({ kind: 'video', type: 'mp4' })]);
+    expect(opts.formats.video).toEqual(['all', 'mp4']);
+    expect(opts.formats.image).toEqual(['all', 'png']);
+  });
+
   it('lists present formats per kind in first-seen order, always including all', () => {
     const opts = deriveFilterOptions([
       img({ kind: 'image', type: 'png' }),
