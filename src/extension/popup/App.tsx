@@ -29,6 +29,7 @@ import { useSelection } from './hooks/useSelection';
 import { useSettings } from './hooks/useSettings';
 import { useMediaEngine } from './hooks/useMediaEngine';
 import { useDownloadActions } from './hooks/useDownloadActions';
+import { usePerHostSettings } from './hooks/usePerHostSettings';
 
 const App: React.FC<AppProps> = ({
   collect = collectFromActiveTab,
@@ -63,7 +64,8 @@ const App: React.FC<AppProps> = ({
   // Called here — between useFavourites (above) and useExcluded (below) — so
   // its sync 'settings' storage listener keeps its registration order
   // relative to the favourites/excluded local listeners (tests depend on it).
-  const { settings, setSettings, settingsRef, handleSettingsChange } = useSettings();
+  const { settings, handleSettingsChange } = useSettings();
+  const perHost = usePerHostSettings(currentSourcePage, settings);
 
   const { excludedMatch, excludedRef, applyExcludedOptimistic } = useExcluded();
 
@@ -95,9 +97,9 @@ const App: React.FC<AppProps> = ({
     resolveFailedSrcs,
     filterSeed,
   } = useMediaEngine({
-    settings,
-    settingsRef,
-    setSettings,
+    settings: perHost.effective,
+    settingsRef: perHost.effectiveRef,
+    loadSettings: perHost.loadEffective,
     excludedRef,
     excludedMatch,
     isDownloaded,
@@ -116,7 +118,7 @@ const App: React.FC<AppProps> = ({
     handleCopyLinks,
     handleExportLinks,
   } = useDownloadActions({
-    settings,
+    settings: perHost.effective,
     filteredImages: state.filteredImages,
     selectedSrcs,
     setState,
@@ -366,7 +368,17 @@ const App: React.FC<AppProps> = ({
       )}
 
       {showSettings && (
-        <Settings onClose={() => setShowSettings(false)} onSettingsChange={handleSettingsChange} settings={settings} />
+        <Settings
+          onClose={() => setShowSettings(false)}
+          onSettingsChange={handleSettingsChange}
+          settings={settings}
+          perHost={{
+            host: perHost.host,
+            hasOverride: perHost.hasOverride,
+            onSaveForSite: perHost.saveForThisSite,
+            onResetSite: perHost.resetThisSite,
+          }}
+        />
       )}
 
       {showHistory && <HistoryPanel onClose={() => setShowHistory(false)} />}

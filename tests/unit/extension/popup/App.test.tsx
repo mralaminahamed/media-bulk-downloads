@@ -118,6 +118,26 @@ describe('App Component', () => {
     expect(screen.queryByRole('button', { name: /download 2/i })).toBeNull();
   });
 
+  it('a per-host override drives the grid while the editor still edits global (#293)', async () => {
+    // Global min-size 0 (both pass); host override raises it to 500 → the tiny image
+    // is hidden, so only 1 of 2 is downloadable → "Download 1" (not "Download 2").
+    (chrome.storage.sync.get as Mock).mockImplementation(
+      (_k: unknown, cb: (r: { settings: unknown }) => void) => cb({ settings: { minimumImageSize: 0 } }),
+    );
+    await chrome.storage.local.set({ perHostSettings: { 'e.com': { minimumImageSize: 500 } } });
+    (chrome.tabs.query as Mock).mockResolvedValue([{ id: 1, url: 'https://e.com/gallery', title: 't' }]);
+    const collect = async () => [
+      image({ src: 'https://e.com/big.jpg', width: 800, height: 800 }),
+      image({ src: 'https://e.com/tiny.jpg', width: 10, height: 10 }),
+    ];
+    render(<App collect={collect} />);
+    await screen.findByText('Filters');
+    expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /download 2/i })).toBeNull();
+    await chrome.storage.local.clear();
+    (chrome.tabs.query as Mock).mockResolvedValue([]); // shared mock accumulates across the suite — restore the default
+  });
+
   it('shows the empty state when no images are found', async () => {
     render(<App collect={async () => []} />);
     expect(await screen.findByText('No media here')).toBeInTheDocument();
