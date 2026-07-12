@@ -297,6 +297,7 @@ describe('Background Script', () => {
         deepScanClickLoadMore: false,
         smartPageDefaults: false,
         rememberScanBehaviour: true,
+        skipDuplicateDownloads: true,
       };
       mockChrome.storage.sync.get.mockImplementation((_keys: string[], cb: (r: any) => void) =>
         cb({ settings: stored }),

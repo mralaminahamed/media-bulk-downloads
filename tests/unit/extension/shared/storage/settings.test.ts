@@ -118,3 +118,15 @@ describe('downloadConcurrency setting', () => {
     expect(withDefaults({}).downloadConcurrency).toBe(5);
   });
 });
+
+describe('skipDuplicateDownloads setting', () => {
+  it('defaults to true', () => {
+    expect(DEFAULT_SETTINGS.skipDuplicateDownloads).toBe(true);
+  });
+  it('withDefaults backfills it for old stored settings', () => {
+    expect(withDefaults({}).skipDuplicateDownloads).toBe(true);
+  });
+  it('preserves an explicit opt-out through withDefaults', () => {
+    expect(withDefaults({ skipDuplicateDownloads: false }).skipDuplicateDownloads).toBe(false);
+  });
+});

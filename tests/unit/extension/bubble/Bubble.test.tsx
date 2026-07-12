@@ -42,6 +42,7 @@ const settings: SettingsData = {
   deepScanClickLoadMore: false,
   smartPageDefaults: false,
   rememberScanBehaviour: true,
+  skipDuplicateDownloads: true,
 };
 
 // Persist now routes through the SET_SETTINGS message (single serialized writer

@@ -34,6 +34,7 @@ const base: SettingsData = {
   deepScanClickLoadMore: false,
   smartPageDefaults: false,
   rememberScanBehaviour: true,
+  skipDuplicateDownloads: true,
 };
 
 const img = (over: Partial<ImageInfo>): ImageInfo => ({

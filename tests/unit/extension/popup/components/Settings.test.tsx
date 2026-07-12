@@ -43,6 +43,7 @@ describe('Settings Component', () => {
     deepScanClickLoadMore: false,
     smartPageDefaults: false,
     rememberScanBehaviour: true,
+    skipDuplicateDownloads: true,
   };
 
   // jsdom does not implement
