@@ -110,11 +110,19 @@ chrome.runtime.onMessage.addListener(
     sendResponse: (response: ReturnType<typeof collectMedia> | ReturnType<typeof classifyPage>) => void,
   ) => {
     if (message === 'GET_IMAGES') {
-      sendResponse(collectMedia());
+      // Reads the smartPageDefaults setting first so collectMedia can reorder
+      // its hero-image pass ahead of the DOM walk on a single-media/article
+      // page (Task C4) — the setting isn't known until this async storage read
+      // resolves, so the channel must stay open for it.
+      chrome.storage.sync.get(['settings'], (result) => {
+        const s = withDefaults(result.settings);
+        sendResponse(collectMedia(undefined, { smartPageDefaults: s.smartPageDefaults }));
+      });
+      return true; // async response — keep the channel open
     } else if (message === 'GET_PAGE_TYPE') {
       sendResponse(classifyPage(collectPageSignals(document)));
+      // Synchronous response — no need to keep the channel open.
     }
-    // Synchronous response — no need to keep the channel open.
   },
 );
 

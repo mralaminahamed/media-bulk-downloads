@@ -439,6 +439,54 @@ describe('collectMedia — meta / preload hero sources', () => {
   });
 });
 
+describe('page-type hero reprioritisation', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+    document.head.querySelectorAll('meta, link').forEach((n) => n.remove());
+  });
+
+  // The brief's original example host (`?name=orig` / `?name=small`) does not
+  // canonically collapse: `name` is not a recognised transform/volatile param
+  // in canonical.ts's generic dynamic-path branch, so the two URLs would keep
+  // distinct canonical keys and this test couldn't exercise dedup at all.
+  // `w=` IS a recognised TRANSFORM_PARAM (canonical.ts), so both variants of
+  // this fictitious cdn.example.com asset collapse to one canonical key
+  // (`cdn.example.com/photo/abc123`) while remaining distinct literal URLs —
+  // exactly what's needed to observe which representation wins first-come dedup.
+  const HERO = 'https://cdn.example.com/photo/abc123?w=2000';
+  const THUMB = 'https://cdn.example.com/photo/abc123?w=300'; // same canonical asset
+
+  function singleMediaDoc() {
+    document.head.innerHTML =
+      `<meta property="og:type" content="article">` +
+      `<meta property="og:image" content="${HERO}">`;
+    document.body.innerHTML = `<img src="${THUMB}" width="1200" height="800">`;
+  }
+
+  it('keeps only one item (same canonical asset) regardless of order', () => {
+    singleMediaDoc();
+    const off = collectMedia(undefined, { smartPageDefaults: false });
+    const on = collectMedia(undefined, { smartPageDefaults: true });
+    const keys = (items: ReturnType<typeof collectMedia>) => new Set(items.map((i) => i.src.split('?')[0]));
+    expect(keys(on)).toEqual(keys(off)); // distinct-asset set unchanged
+    expect(on.filter((i) => i.src.split('?')[0] === 'https://cdn.example.com/photo/abc123').length).toBe(1);
+  });
+
+  it('with the flag off, today\'s DOM-first order is unchanged: the inline thumb wins', () => {
+    singleMediaDoc();
+    const off = collectMedia(undefined, { smartPageDefaults: false });
+    const item = off.find((i) => i.src.startsWith('https://cdn.example.com/photo/abc123'));
+    expect(item?.src).toBe(THUMB);
+  });
+
+  it('with the flag on, the hero (og:image) representation wins for an article/single page', () => {
+    singleMediaDoc();
+    const on = collectMedia(undefined, { smartPageDefaults: true });
+    const item = on.find((i) => i.src.startsWith('https://cdn.example.com/photo/abc123'));
+    expect(item?.src).toBe(HERO);
+  });
+});
+
 describe('collectMedia — same-origin iframes', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
