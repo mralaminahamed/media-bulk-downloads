@@ -58,18 +58,19 @@ export const SRC_KEY_RULES: SrcKeyRule[] = [
     // Cloudinary (res.cloudinary.com): the /upload/ (or /fetch/) path may carry a
     // multi-param transform segment (w_800,c_fill — requires >=2 comma-joined
     // key_value tokens right after upload/fetch, so a comma-named folder is never
-    // mistaken for one) and an auto-version segment (v + >=7-digit timestamp, only
-    // right after upload/fetch, so a hand-named /v2/ folder is never mistaken for
-    // one); both are renditions, the public id is the identity.
+    // mistaken for one) and an auto-version segment (v + exactly 10-digit Unix-epoch
+    // timestamp, only right after upload/fetch, so a hand-named /v2/ folder — or a
+    // 7-9 digit order-id/SKU folder — is never mistaken for one); both are
+    // renditions, the public id is the identity.
     match: (u) => /(?:^|\.)res\.cloudinary\.com$/i.test(u.hostname),
     key: (u) => {
       const stripped = u.pathname
         // multi-param transform segment: >=2 comma-joined key_value tokens (e.g. w_800,c_fill).
         // A comma-named folder ("folder,name") has no key_value tokens, so it is left intact.
         .replace(/\/(image|video|raw)\/(upload|fetch)\/(?:[a-z]+_[^/,]+,)+[a-z]+_[^/,]+\//, '/$1/$2/')
-        // Cloudinary auto-version: v + >=7-digit timestamp, only right after upload/fetch.
-        // A hand-named /v2/ folder (few digits, or not in this position) is left intact.
-        .replace(/\/(upload|fetch)\/v\d{7,}\//, '/$1/');
+        // Cloudinary auto-version: v + exactly 10-digit epoch, only right after upload/fetch.
+        // A hand-named /v2/ folder or a 7-9 digit order-id/SKU folder is left intact.
+        .replace(/\/(upload|fetch)\/v\d{10}\//, '/$1/');
       return `res.cloudinary.com${stripped}`;
     },
   },

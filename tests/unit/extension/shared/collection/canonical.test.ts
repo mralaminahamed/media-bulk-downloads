@@ -163,6 +163,12 @@ describe('SRC_KEY_RULES cross-CDN families', () => {
     const b = 'https://res.cloudinary.com/demo/image/upload/photo.jpg';
     expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
   });
+
+  it('keeps a cloudinary 7-digit vNNNNNNN folder distinct (not an auto-version)', () => {
+    const a = 'https://res.cloudinary.com/demo/image/upload/v1234567/hero.jpg';
+    const b = 'https://res.cloudinary.com/demo/image/upload/hero.jpg';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
 });
 
 describe('SrcKeySet', () => {
