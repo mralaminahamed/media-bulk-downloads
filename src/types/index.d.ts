@@ -522,6 +522,18 @@ export interface AvailableOptions {
   sizeBuckets: SizeBucket[];
 }
 
+/** A passive page-type prior derived from cheap DOM signals. */
+export type PageType = 'gallery' | 'feed' | 'article' | 'single-media' | 'unknown';
+
+export interface PageSignals {
+  imageCount: number;        // count of <img> on the page
+  density: number;           // images per viewport-area unit (0..~)
+  aspectSpread: number;      // variance of image aspect ratios (grid uniformity → low)
+  hasArticle: boolean;       // <article> present OR og:type === 'article'
+  dominantAreaRatio: number; // largest image area / total image area (0..1)
+  feedMarkers: boolean;      // role="feed" present, or many repeated card structures
+}
+
 // ── Component props ──────────────────────────────────────────────────────────
 // Central home for the popup React components' props, so each component is one
 // file that imports its props from here.
