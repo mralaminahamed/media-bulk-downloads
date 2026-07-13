@@ -3,8 +3,17 @@ import { HISTORY_KEY } from './history';
 import { FAVOURITES_KEY } from './favourites';
 import { EXCLUDED_KEY } from './excluded';
 import { QUEUE_KEY } from './download-queue';
+import { PER_HOST_SETTINGS_KEY } from './per-host-settings';
+import { PER_HOST_SCAN_MEMORY_KEY } from './per-host-scan-memory';
 
-export const MANAGED_KEYS = [HISTORY_KEY, FAVOURITES_KEY, EXCLUDED_KEY, QUEUE_KEY];
+// Both per-host keys write through durableSet (the IDB mirror). Include them here
+// so that mirror is actually read back on startup — otherwise a chrome.storage.local
+// eviction would silently drop learned per-host preferences and scan memory that
+// the code already pays to mirror.
+export const MANAGED_KEYS = [
+  HISTORY_KEY, FAVOURITES_KEY, EXCLUDED_KEY, QUEUE_KEY,
+  PER_HOST_SETTINGS_KEY, PER_HOST_SCAN_MEMORY_KEY,
+];
 
 /** Ask the browser to make our storage persistent (non-evictable). Guarded for
  *  environments without the Storage API (jsdom). Best-effort — never throws. */

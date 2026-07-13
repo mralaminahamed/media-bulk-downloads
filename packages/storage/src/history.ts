@@ -33,7 +33,7 @@ export function mergeHistory(existing: HistoryEntry[], added: HistoryEntry[]): H
     const prev = map.get(k);
     if (!prev || entry.time > prev.time) map.set(k, entry);
   }
-  for (const entry of existing) if (!map.has(canonicalSrcKey(entry.src))) map.set(canonicalSrcKey(entry.src), entry);
+  for (const entry of existing) { const k = canonicalSrcKey(entry.src); if (!map.has(k)) map.set(k, entry); }
   const ranked = [...map.values()].sort((a, b) => b.time - a.time).slice(0, HISTORY_CAP);
   return withinByteBudget(ranked, HISTORY_MAX_BYTES);
 }

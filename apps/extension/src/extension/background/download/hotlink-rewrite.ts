@@ -40,11 +40,35 @@ function originOf(u: string): string {
  * referer checks). Rule ids are allocated above the current max session-rule id
  * so a worker restart can't collide with a lingering rule.
  */
+// Monotonic session-rule id. The old "getSessionRules() then max+1" had an await
+// gap: the queue's pump() is re-entrant, so two overlapping loops could each read
+// the same max and allocate the SAME id, colliding on updateSessionRules. Seed
+// once (shared promise) above any pre-existing rules, then hand out ids with a
+// synchronous increment — no await between allocations, so no collision.
+let ruleIdSeq = 0;
+let ruleIdSeeded: Promise<void> | null = null;
+async function nextRuleId(): Promise<number> {
+  if (!ruleIdSeeded) {
+    ruleIdSeeded = chrome.declarativeNetRequest
+      .getSessionRules()
+      .then((rules) => { ruleIdSeq = rules.reduce((max, r) => Math.max(max, r.id), 0); })
+      .catch(() => { ruleIdSeq = 0; });
+  }
+  await ruleIdSeeded;
+  return ++ruleIdSeq;
+}
+
+/** Test-only: reset the id seed so a test re-seeds from its mocked session rules,
+ *  matching how the module starts fresh on each service-worker launch. */
+export function __resetRefererRuleIdsForTest(): void {
+  ruleIdSeq = 0;
+  ruleIdSeeded = null;
+}
+
 export async function applyRefererRule(url: string, refererPageUrl?: string): Promise<number> {
   const referer = refererPageUrl && originOf(refererPageUrl) ? refererPageUrl : originOf(url);
   const origin = originOf(referer);
-  const existing = await chrome.declarativeNetRequest.getSessionRules();
-  const id = existing.reduce((max, r) => Math.max(max, r.id), 0) + 1;
+  const id = await nextRuleId();
   const requestHeaders: chrome.declarativeNetRequest.ModifyHeaderInfo[] = [
     { header: 'referer', operation: 'set' as chrome.declarativeNetRequest.HeaderOperation, value: referer },
   ];

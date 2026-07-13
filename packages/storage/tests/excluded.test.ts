@@ -103,7 +103,9 @@ describe('storage round-trips', () => {
   });
   it('recovers the write chain after a rejected write, so a later write still applies', async () => {
     (chrome.storage.local.set as Mock).mockImplementationOnce(() => Promise.reject(new Error('quota exceeded')));
-    await expect(addExcluded(e('will-fail', 'url', 1))).rejects.toThrow('quota exceeded');
+    // durableSet swallows the quota rejection (logged, not thrown) so it never
+    // surfaces as an unhandled rejection; the write chain must not stay wedged.
+    await addExcluded(e('will-fail', 'url', 1));
     // The failed write must not leave writeChain permanently rejected — this
     // write, chained after it, has to still go through.
     await addExcluded(e('after-failure', 'url', 2));

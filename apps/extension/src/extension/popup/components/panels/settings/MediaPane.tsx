@@ -47,13 +47,18 @@ const MediaPane: React.FC<SettingsPaneProps> = ({
       checked={settings.resolveOriginals}
       onToggle={() => toggle('resolveOriginals')}
     />
-    <ToggleRow
-      id="set-captureHlsStreams"
-      label="Capture video streams (HLS & DASH)"
-      description="Surfaces .m3u8 and .mpd streams as capture items. Off by default — capturing fetches and assembles every segment, which is slow and memory-heavy."
-      checked={settings.captureHlsStreams}
-      onToggle={() => toggle('captureHlsStreams')}
-    />
+    {/* Stream capture assembles segments in a chrome.offscreen blob document,
+        which Firefox has no equivalent for, so the feature isn't offered there
+        (enabling it would only surface capture items that fail on click). */}
+    {!import.meta.env.FIREFOX && (
+      <ToggleRow
+        id="set-captureHlsStreams"
+        label="Capture video streams (HLS & DASH)"
+        description="Surfaces .m3u8 and .mpd streams as capture items. Off by default — capturing fetches and assembles every segment, which is slow and memory-heavy."
+        checked={settings.captureHlsStreams}
+        onToggle={() => toggle('captureHlsStreams')}
+      />
+    )}
     <ToggleRow
       id="set-smartPageDefaults"
       label="Smart page defaults"

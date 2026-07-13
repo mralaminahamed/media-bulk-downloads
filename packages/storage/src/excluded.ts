@@ -12,7 +12,9 @@ import { durableSet } from './idb';
  */
 export const EXCLUDED_KEY = 'excluded';
 export const EXCLUDED_CAP = 500;
-export const EXCLUDED_MAX_BYTES = 2_000_000;
+// Sized to co-exist under the shared ~5MB chrome.storage.local quota alongside
+// history (2MB) and favourites (1MB). See favourites.ts for the budget split.
+export const EXCLUDED_MAX_BYTES = 500_000;
 
 // URL entries dedup by canonical src key (so query/host-variant re-adds collapse);
 // host entries by their exact value.
@@ -39,7 +41,7 @@ export function mergeExcluded(existing: ExcludedEntry[], added: ExcludedEntry[])
     const prev = map.get(k);
     if (!prev || entry.time > prev.time) map.set(k, entry);
   }
-  for (const entry of existing) if (!map.has(keyOf(entry))) map.set(keyOf(entry), entry);
+  for (const entry of existing) { const k = keyOf(entry); if (!map.has(k)) map.set(k, entry); }
   const ranked = [...map.values()].sort((a, b) => b.time - a.time).slice(0, EXCLUDED_CAP);
   return withinByteBudget(ranked, EXCLUDED_MAX_BYTES);
 }

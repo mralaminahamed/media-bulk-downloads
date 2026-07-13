@@ -54,7 +54,9 @@ export function QueueRow({ item, onCancel, onRetry, onRetryReferer, onOpen }: Qu
           <ArrowTopRightOnSquareIcon className="mbd:h-3.5 mbd:w-3.5" />
         </button>
       )}
-      {item.status === 'failed' && (item.hotlink ? (
+      {/* The Referer retry uses declarativeNetRequest modifyHeaders session rules,
+          which Firefox doesn't support — fall back to a plain retry there. */}
+      {item.status === 'failed' && (item.hotlink && !import.meta.env.FIREFOX ? (
         <button type="button" onClick={() => onRetryReferer(item.id)} className="mbd:shrink-0 mbd:text-(--ink-3) mbd:hover:text-(--ink)"
           title="Retry sending this page as the Referer (asks for permission the first time)">Retry w/ referer</button>
       ) : (

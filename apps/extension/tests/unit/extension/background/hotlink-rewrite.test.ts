@@ -1,12 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   applyRefererRule, removeRefererRule, hasDnrPermission, requestDnrPermission,
+  __resetRefererRuleIdsForTest,
 } from '@/extension/background/download/hotlink-rewrite';
 
 let sessionRules: { id: number }[];
 let updateSessionRules: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
+  __resetRefererRuleIdsForTest();  // re-seed per test, as on a fresh SW launch
   sessionRules = [];
   updateSessionRules = vi.fn(async (o: { addRules?: { id: number }[]; removeRuleIds?: number[] }) => {
     if (o.removeRuleIds) sessionRules = sessionRules.filter((r) => !o.removeRuleIds!.includes(r.id));

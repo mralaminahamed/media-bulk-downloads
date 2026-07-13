@@ -85,17 +85,18 @@ describe('background DOWNLOAD_IMAGES handler', () => {
     expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Queued 2 downloads.' });
   });
 
-  it('responds with an error instead of hanging when the history write rejects', async () => {
-    // recordDownloads → storage.local.set rejecting (e.g. QUOTA_BYTES near the
-    // ~5MB local quota) must still respond — otherwise the port stays open and the
-    // popup hangs on "Sending…" forever.
+  it('still responds (never hangs) when a storage write rejects', async () => {
+    // A rejecting storage.local.set (e.g. QUOTA_BYTES near the ~5MB local quota)
+    // must not leave the port open — the popup would hang on "Sending…" forever.
+    // durableSet now swallows the rejection (logged, non-fatal), so the handler
+    // completes and responds; the download itself is unaffected.
     (chrome.storage.local.get as Mock).mockResolvedValue({ downloadHistory: [] });
     (chrome.storage.local.set as Mock).mockReset().mockRejectedValue(new Error('QUOTA_BYTES'));
     const sendResponse = vi.fn();
     onMessage({ type: 'DOWNLOAD_IMAGES', images: [img({ src: 'a.jpg' })] }, {}, sendResponse);
     await flush();
     await flush();
-    expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({ status: 'error' }));
+    expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({ status: expect.any(String) }));
   });
 
   it('applies the download path and prefix from settings', async () => {

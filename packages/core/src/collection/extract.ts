@@ -3,7 +3,7 @@
  * attributes, best-srcset, <noscript> fallbacks, and <a href> gallery links.
  * Returns raw (unresolved) URL strings; collect.ts resolves/upgrades/dedups.
  */
-import { parseSrcset, looksLikeMediaUrl, splitSrcsetCandidates } from '@mbd/core/collection/imageUrl';
+import { looksLikeMediaUrl, splitSrcsetCandidates } from '@mbd/core/collection/imageUrl';
 
 export interface UrlCandidate {
   url: string;
@@ -33,7 +33,12 @@ const LAZY_BG_ATTRS = ['data-bg', 'data-background', 'data-background-image'];
  * densest `x` instead of blindly returning the last entry.
  */
 export function bestSrcsetUrl(srcset: string): string | null {
-  const entries = splitSrcsetCandidates(srcset);
+  return bestSrcsetFrom(splitSrcsetCandidates(srcset));
+}
+
+/** Highest-resolution candidate from already-split srcset entries — lets
+ *  imageUrlsFromElement split a srcset once instead of twice (best + full list). */
+function bestSrcsetFrom(entries: string[]): string | null {
   if (!entries.length) return null;
   // A malformed descriptor (e.g. `1.2.3x`) parses to NaN; left as-is it poisons
   // best.w/x, and since every `NaN > best.w` comparison is false no later (valid,
@@ -66,8 +71,10 @@ export function imageUrlsFromElement(el: Element): string[] {
   for (const attr of LAZY_SRCSET_ATTRS) {
     const ss = el.getAttribute(attr);
     if (ss) {
-      push(bestSrcsetUrl(ss));
-      parseSrcset(ss).forEach(push);
+      // Split the srcset once, then derive both the best URL and the full list.
+      const cands = splitSrcsetCandidates(ss);
+      push(bestSrcsetFrom(cands));
+      for (const c of cands) push(c.split(/\s+/)[0]);
     }
   }
   for (const attr of LAZY_BG_ATTRS) {
