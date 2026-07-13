@@ -2,31 +2,31 @@
 
 ## Prerequisites
 
-- **Node 20.19+** (`.nvmrc` pins 22)
-- **Corepack-enabled Yarn** (the repo pins Yarn via `packageManager`)
-- A Chromium browser (Chrome/Edge) and/or Firefox 109+
+- Node 20.19 or newer. `.nvmrc` pins 22.
+- Yarn 4 through Corepack. The repo pins `yarn@4.17.0` via `packageManager`.
+- A Chromium browser (Chrome or Edge) and/or Firefox 140+.
 
 ```bash
 corepack enable
 yarn install
 ```
 
-> All scripts use Corepack Yarn. Do not use npm. The build is powered by
-> [WXT](https://wxt.dev), which targets Chrome, Firefox, and Edge from one codebase.
+Every script runs through Corepack Yarn. Do not use npm. WXT builds all three
+browser targets (Chrome, Firefox, Edge) from one codebase.
 
 ## Develop
 
 ```bash
 yarn dev            # Chrome
-# yarn dev:firefox  # Firefox
+yarn dev:firefox    # Firefox
 ```
 
-`yarn dev` builds `apps/extension/.output/chrome-mv3`, opens a browser with the extension loaded,
-and auto-reloads on change. To load a build manually:
+`yarn dev` builds `apps/extension/.output/chrome-mv3`, opens a browser with the
+extension loaded, and reloads on change. To load a build by hand:
 
 1. Open `chrome://extensions`.
-2. Enable **Developer mode** (top-right).
-3. Click **Load unpacked** and select `apps/extension/.output/chrome-mv3`.
+2. Turn on **Developer mode** (top-right).
+3. Click **Load unpacked** and pick `apps/extension/.output/chrome-mv3`.
 
 ## Build & package
 
@@ -36,55 +36,77 @@ yarn build:all      # chrome + firefox + edge
 yarn zip:all        # store-ready zips in apps/extension/.output/
 ```
 
-See the per-store upload matrix in the [README](../../README.md#build--package).
+Zips are named `media-bulk-downloads-<version>-<browser>.zip`. See the per-store
+upload matrix in the [README](../../README.md#build--package).
 
 ## Quality gates
 
 ```bash
-yarn type-check   # tsc -b packages/* (composite) + app wxt prepare + tsc --noEmit
-yarn lint         # eslint (flat config)
-yarn test         # vitest + Testing Library (jsdom), with coverage
+yarn type-check   # tsc -b core/storage/platform, then the test project, then the app's wxt prepare + tsc --noEmit
+yarn lint         # eslint . (flat config)
+yarn test         # vitest run --coverage across packages, then the extension's vitest suite
 yarn build        # production build
 ```
 
 ## First use
 
-The toolbar icon behaves in one of two ways depending on your settings:
+The toolbar icon does one of two things, depending on your settings:
 
-- **Popup mode (default):** clicking the icon opens the popup panel.
-- **Bubble mode:** clicking the icon toggles an in-page floating panel (enable
-  **Show on-page bubble** in Settings). See [In-page Bubble](./bubble.md).
+- **Popup (default):** clicking the icon opens the popup panel.
+- **Bubble:** with **Show floating bubble on pages** turned on, clicking the
+  icon toggles an in-page floating panel instead. See [In-page Bubble](./bubble.md).
 
-Once open:
+Once the panel is open:
 
-1. The panel **scans the active tab** and shows every image, video, and audio
-   file it found. The toolbar badge shows the eligible count per tab.
-2. **Filter** by kind (All / Images / Video / Audio), format, size bucket,
-   minimum size, or whether to include Base64 (inline `data:`) images.
-3. **Deep scan** (the ⇊ button) scrolls the page to surface virtualized or
-   lazy-loaded media — useful on infinite feeds and galleries. See
-   [Deep Scan](./deep-scan.md).
-4. **Download** a single item (hover → ⬇) or everything shown (footer button).
-5. **Download History** and **Favourites** are one click away from the popup
-   header — see [Download History](./history.md) and [Favourites](./favourites.md).
+1. It **scans the active tab** and lists every image, video, and audio file it
+   found. The toolbar badge shows the count per tab.
+2. **Filter** by type (All / Images / Video / Audio), by format, or by size.
+3. **Deep scan** scrolls the page to surface lazy-loaded and virtualized media
+   on infinite feeds and galleries. See [Deep Scan](./deep-scan.md).
+4. **Download** one item (hover its tile) or everything shown (footer button).
+5. **Download History** and **Favourites** open from the popup header. See
+   [Download History](./history.md) and [Favourites](./favourites.md).
 
 ## Settings
 
-Persisted with `chrome.storage.sync`:
+Stored in `chrome.storage.sync`. The Settings sheet has four tabs.
 
-- **Downloads** — subfolder inside `Downloads/`, filename mode
-  (original name vs. sequential prefix), "Ask where to save each file".
-- **Collection** — minimum image size, exclude base64, and **"Resolve exact
-  originals"** (off by default) — an opt-in toggle that lets the background
-  fetch a hinted item's exact original from one of 9 supported hosts
-  (Twitter/X, Wallhaven, Unsplash, Vimeo, Bluesky, Pinterest, Reddit, Flickr,
-  ArtStation). See [Resolve Originals](./resolve-originals.md).
-- **Deep scan** — max items (50–5000), max time (5–120 s), max scroll steps
-  (5–200), and **"Click 'Load more' buttons"** (off by default). These override
-  the built-in defaults per scan. See [Deep Scan](./deep-scan.md).
-- **Appearance** — thumbnail size, preview size, and **"Show image count on
-  icon"** (toolbar badge toggle).
-- **Panel** — popup size; on-page bubble enable, position, panel placement, size.
+**Downloads**
+- **Save to subfolder** inside `Downloads/`. Empty by default. Supports the
+  tokens `{host}`, `{domain}`, `{date}`, `{kind}`.
+- **File naming:** Prefixed (default) or Original. The prefix defaults to
+  `image_`, numbered per file (`image_1.jpg`).
+- **Convert images on download:** Keep original (default), PNG, or JPEG. When
+  converting, **Metadata** is Preserve (copy EXIF/XMP, default) or Strip.
+- **Ask where to save each file** (off).
+- Advanced: **Simultaneous downloads** (1–10, default 5) and **Notify when
+  downloads finish** (off).
+
+**Media**
+- **Minimum image size** in px (0–10000, default 0).
+- **Exclude Base64 images** (off) and **Exclude emoji** (off).
+- **Resolve exact originals (network requests)** (off). When on, the background
+  fetches a hinted item's exact original from one of 10 supported hosts:
+  Twitter/X, Wallhaven, Unsplash, Vimeo, Dailymotion, Bluesky, Pinterest,
+  Reddit, Flickr, ArtStation. See [Resolve Originals](./resolve-originals.md).
+- **Capture video streams (HLS & DASH)** (off). Surfaces `.m3u8` and `.mpd`
+  streams as capture items.
+- **Smart page defaults** (on), **Remember scan behaviour per site** (on),
+  **Skip images already downloaded** (on).
+- Advanced deep-scan caps: max items (50–5000, default 1000), max time in
+  seconds (5–120, default 20), max scroll steps (5–200, default 40), and
+  **Click "Load more" buttons** (off). See [Deep Scan](./deep-scan.md).
+
+**Display**
+- **Thumbnail size** in px (64–240, default 120).
+- **Show image count on toolbar icon** (on).
+- **Show floating bubble on pages** (off), plus its corner and panel position.
+- Advanced: popup width (320–800, default 460), popup height (400–600, default
+  600), preview size (240–900, default 360), and bubble width/height.
+
+**Data**
+- Export or import a full backup (settings, favourites, history, blocked
+  sources) as JSON.
 
 ## Where things live
 
@@ -102,7 +124,7 @@ packages/                       # each package: src/ + tests/ (its own Vitest pr
                                  #     paths · download-name (buildDownloadFilename)
       resolvers/                #   collection-time REGISTRY + opt-in network resolve:
         index.ts                 #     REGISTRY + resolve() dispatch
-        network.ts               #     opt-in fetch() dispatch (9 platforms)
+        network.ts               #     opt-in fetch() dispatch (10 platforms)
         sites/                   #     per-host resolvers (+ vimeo.ts id-extraction only)
         sniffers/                #     response/hls/ig/x/fb/pinterest MAIN-world sniffers
       download/                 #   zip · base64 · convert/ · stream/ (HLS/DASH byte-logic)
