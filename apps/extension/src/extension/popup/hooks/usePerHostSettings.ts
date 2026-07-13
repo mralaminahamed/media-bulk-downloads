@@ -62,11 +62,27 @@ export function usePerHostSettings(
 
   const saveForThisSite = useCallback((from: SettingsData) => {
     if (!host) return;
-    const patch = pickHostFields(from);
-    if (Object.keys(patch).length === 0) return;
+    // The Settings dialog is seeded from GLOBAL, so its untouched fields hold global
+    // values — snapshotting them all (the old `pickHostFields(from)`) would wipe out
+    // this host's OTHER overrides whenever the user saved one unrelated field (I12).
+    // Instead capture only the allowlisted fields that actually DIFFER from global —
+    // the user's real intent — and merge them over the existing override.
+    const delta: Record<string, unknown> = {};
+    const allowed = pickHostFields(from) as Record<string, unknown>;
+    const global = globalSettings as unknown as Record<string, unknown>;
+    for (const k of Object.keys(allowed)) {
+      if (JSON.stringify(allowed[k]) !== JSON.stringify(global[k])) delta[k] = allowed[k];
+    }
+    const patch = { ...override, ...delta } as Partial<SettingsData>;
+    if (Object.keys(patch).length === 0) {
+      // Nothing differs from global anymore — drop the override entirely.
+      sendRuntimeMessage({ type: 'SET_PER_HOST_SETTINGS', host, patch: null });
+      setOverride({});
+      return;
+    }
     sendRuntimeMessage({ type: 'SET_PER_HOST_SETTINGS', host, patch });
     setOverride(patch);
-  }, [host]);
+  }, [host, override, globalSettings]);
 
   const resetThisSite = useCallback(() => {
     if (!host) return;
