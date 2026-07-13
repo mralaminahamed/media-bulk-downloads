@@ -291,7 +291,7 @@ describe('Background Script', () => {
         bubblePanelPlacement: 'anchored',
         bubblePanelPoint: { x: 40, y: 40 },
         resolveOriginals: false,
-        captureHlsStreams: false, streamQuality: 'auto',
+        captureHlsStreams: false, streamQuality: 'auto', metadataSidecar: false,
         downloadConcurrency: 5,
         excludeEmoji: false,
         deepScanMaxItems: 1000,
@@ -765,6 +765,50 @@ describe('DOWNLOAD_IMAGES — settings gate (no ephemeral-worker default-setting
     );
     // History is NOT recorded on dispatch — only on chrome.downloads onChanged=complete.
     expect((local.downloadQueue as { items: { status: string }[] }).items[0].status).toBe('active');
+  });
+
+  it('writes a <name>.json metadata sidecar per item when metadataSidecar is on (#284)', async () => {
+    (chrome.storage.sync.get as Mock).mockImplementation((_keys, cb) => cb({ settings: { metadataSidecar: true } }));
+    loadSettings();
+    await new Promise((r) => setTimeout(r, 0)); // let currentSettings pick up the override
+    (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb(1));
+    const local: Record<string, unknown> = {};
+    (chrome.storage.local.get as Mock).mockImplementation(async (k: string) => (k in local ? { [k]: local[k] } : {}));
+    (chrome.storage.local.set as Mock).mockImplementation(async (o: Record<string, unknown>) => { Object.assign(local, o); });
+
+    messageHandler(
+      { type: 'DOWNLOAD_IMAGES', images: [img('https://c/a.jpg?token=SECRET')], sourcePage: { url: 'https://site/page', title: 'Page' } },
+      {},
+      vi.fn(),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    const sidecarCall = (chrome.downloads.download as Mock).mock.calls.find((c) => String(c[0].filename).endsWith('.json'));
+    expect(sidecarCall).toBeTruthy();
+    expect(sidecarCall![0].filename).toBe('image_1.jpg.json');
+    expect(sidecarCall![0].saveAs).toBe(false);
+    expect(String(sidecarCall![0].url)).toMatch(/^data:application\/json;base64,/);
+    // The written JSON has the page provenance and no leaked token.
+    const json = atob(String(sidecarCall![0].url).split(',')[1]);
+    expect(JSON.parse(json)).toMatchObject({ pageUrl: 'https://site/page', pageTitle: 'Page' });
+    expect(json).not.toContain('SECRET');
+  });
+
+  it('writes no sidecar when metadataSidecar is off (default)', async () => {
+    // Seed an explicit settings object: loadSettings only overwrites
+    // currentSettings when `result.settings` is truthy (state.ts), so an empty
+    // reply would leave a prior test's value in place.
+    (chrome.storage.sync.get as Mock).mockImplementation((_keys, cb) => cb({ settings: { metadataSidecar: false } }));
+    loadSettings();
+    (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb(1));
+    const local: Record<string, unknown> = {};
+    (chrome.storage.local.get as Mock).mockImplementation(async (k: string) => (k in local ? { [k]: local[k] } : {}));
+    (chrome.storage.local.set as Mock).mockImplementation(async (o: Record<string, unknown>) => { Object.assign(local, o); });
+
+    messageHandler({ type: 'DOWNLOAD_IMAGES', images: [img('https://c/a.jpg')], sourcePage: undefined }, {}, vi.fn());
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect((chrome.downloads.download as Mock).mock.calls.some((c) => String(c[0].filename).endsWith('.json'))).toBe(false);
   });
 });
 
