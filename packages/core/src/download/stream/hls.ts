@@ -517,9 +517,15 @@ export async function captureHls(
   let variant: HlsVariant | undefined;
   let audioRendition: HlsAudioRendition | undefined;
   if (isMasterPlaylist(rootText)) {
-    variant = selectVariant(parseMaster(rootText, url), opts.quality);
+    const variants = parseMaster(rootText, url);
+    variant = selectVariant(variants, opts.quality);
     mediaUrl = variant.uri;
-    audioRendition = selectAudioRendition(parseAudioRenditions(rootText, url), variant);
+    // For audio-only, resolve the AUDIO group from the highest-quality variant so
+    // the best available audio is used regardless of the user's video-quality
+    // preference (mirrors captureDash's selectRepresentation(manifest.audio,
+    // 'highest')). For a full capture the audio must pair with the chosen video.
+    const audioVariant = opts.audioOnly ? selectVariant(variants, 'highest') : variant;
+    audioRendition = selectAudioRendition(parseAudioRenditions(rootText, url), audioVariant);
   }
 
   const mediaText = mediaUrl === url && !variant ? rootText : await gd.fetchText(mediaUrl);

@@ -5,7 +5,7 @@
  * asks the page to scroll and re-reads the DOM.
  */
 import { MediaItem, DeepScanStopReason } from '@mbd/core/types';
-import { canonicalSrcKey } from '@mbd/core/collection/canonical';
+import { identity } from '@mbd/core/collection/merge';
 
 const clamp = (x: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, x));
 
@@ -101,12 +101,19 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
       // return far more than maxItems, and the between-rounds guard alone would
       // let `found` blow past the documented cap.
       if (found.size >= opts.maxItems) break;
-      // Key by canonical src so a rotating CDN edge host between rounds doesn't
-      // re-add the same media as a new item (double-counting + wasted budget).
-      const key = canonicalSrcKey(m.src);
-      if (!found.has(key)) {
+      // Key by mediaKey-or-canonical-src (the same identity mergeScannedMedia
+      // uses) so a rotating CDN edge host — or a mediaKey rendition that changes
+      // between rounds (thumbnail seen early, sniffed original arriving later) —
+      // isn't re-added as a new item (double-counting + wasted budget).
+      const key = identity(m);
+      const existing = found.get(key);
+      if (!existing) {
         found.set(key, m);
         added++;
+      } else if (m.mediaKey) {
+        // Same underlying media re-resolved this run: upgrade in place, keeping
+        // its slot and NOT counting it as a new item.
+        found.set(key, m);
       }
     }
     return added;

@@ -32,11 +32,19 @@ export interface ZipResult {
   failed: ImageInfo[];
 }
 
+/** Total in-memory bytes buildZip will accumulate before archiving. Mirrors the
+ *  stream-capture ceiling (STREAM_MAX_BYTES) so a huge selection can't exhaust the
+ *  popup/bubble page's memory and lose the whole batch — items past the cap are
+ *  reported in `failed` for individual download instead. */
+export const ZIP_MAX_BYTES = 1024 * 1024 * 1024; // 1 GB
+
 export interface ZipDeps {
   /** Injectable so tests don't hit the network. */
   fetch: typeof fetch;
   /** Bounded parallel fetches (default 6). */
   concurrency?: number;
+  /** Aggregate in-memory byte ceiling (default ZIP_MAX_BYTES); injectable for tests. */
+  maxBytes?: number;
   onProgress?: (done: number, total: number) => void;
   /** ISO timestamp for the metadata sidecars (#284); injectable for deterministic
    *  tests. Defaults to now. Only used when `settings.metadataSidecar` is on. */
@@ -104,18 +112,26 @@ export async function buildZip(
   const results: ZipItemResult[] = new Array(planned.length);
   const failed: ImageInfo[] = [];
   const limit = Math.max(1, deps.concurrency ?? 6);
+  const cap = deps.maxBytes ?? ZIP_MAX_BYTES;
   // #284: a sibling `<name>.json` beside each fetched item, in the same folder.
   const capturedAt = deps.capturedAt ?? new Date().toISOString();
   const encoder = new TextEncoder();
   let done = 0;
   let cursor = 0;
+  // Running total of media bytes already committed to `files`. Once an item would
+  // push it past `cap`, stop admitting items (`full`) — the rest are reported in
+  // `failed` for individual download, yielding a partial archive rather than an OOM.
+  let totalBytes = 0;
+  let full = false;
 
   async function worker(): Promise<void> {
     while (cursor < planned.length) {
       const i = cursor++;
       const { image, path } = planned[i];
-      const bytes = await fetchBytes(image.src, deps.fetch);
-      if (bytes) {
+      // Once the cap is hit, skip the fetch entirely for remaining items.
+      const bytes = full ? null : await fetchBytes(image.src, deps.fetch);
+      if (bytes && totalBytes + bytes.length <= cap) {
+        totalBytes += bytes.length;
         files[path] = bytes;
         if (settings.metadataSidecar) {
           files[sidecarName(path)] = encoder.encode(
@@ -124,6 +140,9 @@ export async function buildZip(
         }
         results[i] = { src: image.src, path, ok: true };
       } else {
+        // A fetched item that would breach the cap trips `full` so no further
+        // bytes are pulled into memory; a plain fetch miss (bytes === null) doesn't.
+        if (bytes) full = true;
         results[i] = { src: image.src, path: '', ok: false };
         failed.push(image);
       }

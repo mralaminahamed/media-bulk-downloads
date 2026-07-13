@@ -13,6 +13,7 @@ const refusal = (over: Partial<StreamRefusal> = {}): StreamRefusal => ({
   code: 'drm',
   referer: 'https://watch.example.com/video/42',
   audioOnly: false,
+  quality: 'auto',
   ...over,
 });
 
@@ -48,6 +49,13 @@ describe('StreamHandoff', () => {
     expect(cmd).toContain('ffmpeg');
     expect(cmd).toContain('-c copy');
     expect(cmd).toContain(`-headers 'Referer: https://watch.example.com/video/42'`);
+  });
+
+  it('applies the stream-quality preference to the yt-dlp handoff command (M5)', async () => {
+    render(<StreamHandoff refusal={refusal({ quality: '480' })} onDismiss={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /copy yt-dlp command/i }));
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    expect(writeText.mock.calls[0][0] as string).toContain(`-S 'res:480'`);
   });
 
   it('emits an audio-extraction yt-dlp command when the refusal was audio-only (I13)', async () => {

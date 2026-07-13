@@ -18,6 +18,9 @@ export interface StreamRefusal {
   code: string;
   referer: string;
   audioOnly: boolean;
+  /** The user's stream-quality preference at refusal time, so the copied handoff
+   *  command targets the same rendition the capture would have (not yt-dlp's best). */
+  quality: SettingsData['streamQuality'];
 }
 
 export interface UseDownloadActionsParams {
@@ -111,7 +114,7 @@ export function useDownloadActions({
       // A refused stream (DRM/live/SAMPLE-AES/unsupported, or audio-unavailable when
       // extracting audio) becomes a handoff: the page URL is the Referer for the
       // yt-dlp/ffmpeg command the user copies (#285).
-      if (refusal) onStreamRefused?.({ item, code: refusal.code, referer: sourcePage.url, audioOnly });
+      if (refusal) onStreamRefused?.({ item, code: refusal.code, referer: sourcePage.url, audioOnly, quality: settings.streamQuality });
     } finally {
       setProgress(null);
     }

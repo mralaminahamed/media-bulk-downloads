@@ -26,7 +26,11 @@ export * from '@/extension/content/collect';
 // <all_urls> page can't push a forged sniffer envelope — host-pinning downstream
 // already blocks non-CDN URLs, but this removes the listener surface entirely.
 const host = location.hostname;
-const onXHost = host === 'x.com' || host.endsWith('.x.com') || host === 'twitter.com' || host.endsWith('.twitter.com');
+// Bare hosts only — the X sniffer's `matches` are `*://x.com/*` / `*://twitter.com/*`
+// (no `*.` wildcard), so the relay's trust surface must mirror them exactly. (The
+// IG/FB gates below keep their `.host` subdomain checks because those sniffers DO
+// match subdomains.)
+const onXHost = host === 'x.com' || host === 'twitter.com';
 const onIgHost = host === 'instagram.com' || host.endsWith('.instagram.com');
 const onFbHost = host === 'facebook.com' || host.endsWith('.facebook.com');
 const onPinterestHost = isPinterestHost(host);
