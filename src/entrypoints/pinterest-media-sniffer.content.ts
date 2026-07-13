@@ -19,12 +19,15 @@ export default defineContentScript({
   world: 'MAIN',
   main() {
     const buffer: PinterestMediaEntry[] = [];
+    let relayReady = false;
     const emit = makeSnifferEmit<PinterestMediaEntry>({
       guard: (text) => text.indexOf('"images"') !== -1 || text.indexOf('video_list') !== -1,
       extract: extractPinterestMedia,
       envelope: (entries) => {
-        buffer.push(...entries);
-        if (buffer.length > 8000) buffer.splice(0, buffer.length - 8000);
+        if (!relayReady) {
+          buffer.push(...entries);
+          if (buffer.length > 8000) buffer.splice(0, buffer.length - 8000);
+        }
         return { source: 'ibd-pinterest-media', entries };
       },
     });
@@ -35,7 +38,8 @@ export default defineContentScript({
     });
     // Replay everything buffered so far when the isolated relay says it is ready.
     installReplayOnReady('ibd-pinterest-ready', () => {
-      if (buffer.length) window.postMessage({ source: 'ibd-pinterest-media', entries: buffer.slice() }, location.origin);
+      relayReady = true;
+      if (buffer.length) window.postMessage({ source: 'ibd-pinterest-media', entries: buffer.splice(0) }, location.origin);
     });
   },
 });

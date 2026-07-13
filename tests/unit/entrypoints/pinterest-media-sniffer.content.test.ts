@@ -32,4 +32,24 @@ describe('pinterest-media-sniffer entrypoint', () => {
     expect(emit.envelope([{ pinId: '1' }])).toEqual({ source: 'ibd-pinterest-media', entries: [{ pinId: '1' }] });
     expect(installReplayOnReady).toHaveBeenCalledWith('ibd-pinterest-ready', expect.any(Function));
   });
+
+  it('does not buffer entries emitted after the relay is ready (no double replay)', () => {
+    const posted: unknown[] = [];
+    (window.postMessage as unknown) = vi.fn((m: unknown) => posted.push(m));
+    (sniffer.main as () => void)();
+    const emit = (makeSnifferEmit as unknown as { mock: { calls: any[][] } }).mock.calls[0][0];
+    const replay = (installReplayOnReady as unknown as { mock: { calls: any[][] } }).mock.calls[0][1] as () => void;
+
+    // Before the relay is ready, entries are buffered.
+    emit.envelope([{ pinId: '1' }]);
+    emit.envelope([{ pinId: '2' }]);
+    replay();
+    expect(posted).toContainEqual({ source: 'ibd-pinterest-media', entries: [{ pinId: '1' }, { pinId: '2' }] });
+
+    // After ready, the buffer is drained, and further emits are not buffered.
+    posted.length = 0;
+    emit.envelope([{ pinId: '3' }]); // post-ready -> live only, not buffered
+    replay(); // buffer empty -> no stale re-post
+    expect(posted).toHaveLength(0);
+  });
 });
