@@ -145,12 +145,12 @@ describe('buildZip', () => {
     // media URL aimed at cloud metadata must never reach the network.
     const images = [img('https://cdn/a.jpg'), img('http://169.254.169.254/latest/meta-data/')];
     const fetched: string[] = [];
-    const fetch = (async (input: Parameters<typeof fetch>[0]) => {
+    const spyFetch = (async (input: Parameters<typeof fetch>[0]) => {
       fetched.push(String(input));
       return { ok: true, arrayBuffer: async () => new Uint8Array([9]).buffer } as Response;
     }) as unknown as typeof fetch;
 
-    const { ok, failed, results } = await buildZip(images, DEFAULT_SETTINGS, undefined, { fetch });
+    const { ok, failed, results } = await buildZip(images, DEFAULT_SETTINGS, undefined, { fetch: spyFetch });
 
     expect(ok).toBe(1);
     expect(failed.map((i) => i.src)).toEqual(['http://169.254.169.254/latest/meta-data/']);
@@ -168,11 +168,11 @@ describe('buildZip', () => {
 
   it('fetches with redirect:"error" so a 30x cannot smuggle the request to an internal host', async () => {
     const inits: Array<RequestInit | undefined> = [];
-    const fetch = (async (_input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+    const spyFetch = (async (_input: Parameters<typeof fetch>[0], init?: RequestInit) => {
       inits.push(init);
       return { ok: true, arrayBuffer: async () => new Uint8Array([1]).buffer } as Response;
     }) as unknown as typeof fetch;
-    await buildZip([img('https://cdn/a.jpg')], DEFAULT_SETTINGS, undefined, { fetch });
+    await buildZip([img('https://cdn/a.jpg')], DEFAULT_SETTINGS, undefined, { fetch: spyFetch });
     expect(inits[0]).toMatchObject({ redirect: 'error' });
   });
 
