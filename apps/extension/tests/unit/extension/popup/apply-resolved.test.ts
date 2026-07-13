@@ -37,4 +37,18 @@ describe('applyResolved', () => {
     const out = applyResolved(item, { url: 'https://pbs.twimg.com/media/AA?format=jpg&name=orig' }, false);
     expect(out).toMatchObject({ src: 'https://pbs.twimg.com/media/AA?format=jpg&name=orig', unresolvedImage: false, resolveHint: undefined });
   });
+
+  it('derives the format from the resolved URL for an unknown-type pending image (#287)', () => {
+    const item = { src: 'https://booru/post/1', kind: 'image', type: 'unknown', unresolvedImage: true,
+      resolveHint: { platform: 'gallery-page', id: 'https://booru/post/1' } } as any;
+    // A resolved .png must not download as .jpg.
+    expect(applyResolved(item, { url: 'https://cdn/full/1.png' }, false)).toMatchObject({ type: 'png' });
+    expect(applyResolved(item, { url: 'https://cdn/full/1.jpg' }, false)).toMatchObject({ type: 'jpeg' });
+  });
+
+  it('never overrides a type a resolver already set', () => {
+    const item = { src: 'x', kind: 'image', type: 'webp', unresolvedImage: true,
+      resolveHint: { platform: 'gallery-page', id: 'x' } } as any;
+    expect(applyResolved(item, { url: 'https://cdn/full/1.png' }, false)).toMatchObject({ type: 'webp' });
+  });
 });
