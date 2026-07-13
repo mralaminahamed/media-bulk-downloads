@@ -345,6 +345,26 @@ function guessContainer(segUri: string, hasInit: boolean): HlsCaptureResult['ext
   return 'ts'; // MPEG-TS is the overwhelming default
 }
 
+// Video codecs that can appear in a STREAM-INF CODECS list (h264/h265/vp9/av1/…).
+const VIDEO_CODEC = /(?:^|[,.\s])(?:avc1|avc3|hvc1|hev1|vp0?9|av01|dvh1|dvhe|mp4v)/i;
+
+/**
+ * Whether the SELECTED media playlist is itself the audio — i.e. the whole
+ * stream is audio, with no separate video to demux from. Used so an audio-only
+ * request on such a stream captures directly instead of demanding a distinct
+ * `#EXT-X-MEDIA:TYPE=AUDIO` rendition. Conservative: only says yes when it can
+ * confirm there is no video (an audio-only master variant, or a bare `.aac`
+ * media playlist), never for an ambiguous `.ts`/fMP4 playlist that might carry video.
+ */
+function mediaPlaylistIsAudioOnly(variant: HlsVariant | undefined, ext: HlsCaptureResult['ext']): boolean {
+  if (variant) {
+    if (variant.resolution) return false; // advertises a video resolution
+    if (variant.codecs) return !VIDEO_CODEC.test(variant.codecs); // codecs list carries no video codec
+    return false; // no codecs and no resolution — can't confirm; don't assume audio
+  }
+  return ext === 'aac'; // bare media playlist: only a clearly-audio container qualifies
+}
+
 const MIME: Record<HlsCaptureResult['ext'], string> = {
   ts: 'video/mp2t',
   mp4: 'video/mp4',
@@ -511,10 +531,16 @@ export async function captureHls(
   // distinct audio rendition). A single-muxed variant (MPEG-TS, or audio inside the
   // video fMP4) carries no separable track, so refuse rather than ship video or
   // transcode. The refusal runs after assertDownloadable, so DRM/live still refuse first.
-  if (opts.audioOnly) {
-    if (!audioRendition?.uri) {
+  if (opts.audioOnly && !audioRendition?.uri) {
+    // No separate demuxed audio rendition. If the media playlist is ITSELF audio
+    // (a bare `.aac` playlist, or an audio-only master variant), the whole stream
+    // is the audio — fall through to the normal single-track path below, which
+    // returns those bytes. Only refuse when we can't confirm it's audio-only.
+    const ext0 = guessContainer(playlist.segments[0]?.uri ?? '', !!playlist.initUri);
+    if (!mediaPlaylistIsAudioOnly(variant, ext0)) {
       throw new HlsError('audio-unavailable', 'This stream has no separate audio track to extract as audio-only.');
     }
+  } else if (opts.audioOnly && audioRendition?.uri) {
     const audioText = await gd.fetchText(audioRendition.uri);
     const audioPlaylist = parseMediaPlaylist(audioText, audioRendition.uri);
     assertDownloadable(audioPlaylist);
