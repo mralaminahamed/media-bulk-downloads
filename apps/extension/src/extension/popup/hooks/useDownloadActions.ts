@@ -161,12 +161,14 @@ export function useDownloadActions({
         const msg: DownloadBytesMessage = {
           type: 'DOWNLOAD_BYTES', filename, b64: u8ToBase64(converted.bytes), mime: converted.mime,
           // Carry the original identity so the background records it to history
-          // (the "already downloaded" mark + dedup), like a plain download.
+          // (the "already downloaded" mark + dedup), like a plain download — plus
+          // the alt/dimensions and output ext the metadata sidecar needs (#284).
           source: {
             src: img.src, kind: img.kind, type: img.type,
             ...(img.thumbnailSrc ?? img.poster ? { thumbnailSrc: img.thumbnailSrc ?? img.poster } : {}),
             sourcePageUrl: sourcePage.url,
             ...(sourcePage.title ? { sourcePageTitle: sourcePage.title } : {}),
+            alt: img.alt, width: img.width, height: img.height, fileSize: img.fileSize, ext: converted.ext,
           },
         };
         chrome.runtime.sendMessage(msg);

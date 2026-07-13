@@ -284,6 +284,14 @@ export interface DownloadBytesMessage {
     thumbnailSrc?: string;
     sourcePageUrl: string;
     sourcePageTitle?: string;
+    /** Provenance for the metadata sidecar (#284): the original alt/dimensions
+     *  and the output extension (so the sidecar's `format` reflects the saved
+     *  file). Absent → sidecar falls back to type / null dimensions. */
+    alt?: string;
+    width?: number;
+    height?: number;
+    fileSize?: number;
+    ext?: string;
   };
 }
 
@@ -540,6 +548,10 @@ export interface SettingsData {
   /** Skip re-downloading an image whose file is already on disk (matched by
    *  canonical src). Default on; explicit re-downloads always bypass it. */
   skipDuplicateDownloads: boolean;
+  /** Write a per-file `<name>.json` metadata sidecar next to each download
+   *  (source URL, page, alt, dimensions — #284). Off by default; serializes
+   *  already-collected local data, no new network. */
+  metadataSidecar: boolean;
 }
 
 export type SizeBucket = 'all' | 'small' | 'medium' | 'large';

@@ -13,6 +13,12 @@
  *     can't break out of its argument.
  */
 
+import { stripUrlSecrets } from '@mbd/core/net/url-secrets';
+
+// Re-exported so existing importers (and tests) keep resolving it here; the
+// implementation now lives in net/url-secrets so #284's sidecar shares it.
+export { stripUrlSecrets };
+
 export type StreamCommandEngine = 'yt-dlp' | 'ffmpeg';
 
 /** The engines offered in the UI, in display order (yt-dlp first — it handles
@@ -27,47 +33,6 @@ export interface StreamCommandInput {
   referer?: string;
   /** The browser's User-Agent, so the external tool presents the same client. */
   userAgent?: string;
-}
-
-// Query-param NAMES that carry auth material. Matched case-insensitively so
-// CloudFront's `Signature`/`Expires`/`Key-Pair-Id`/`Policy` and lowercase
-// variants are both caught. We strip aggressively: a leaked signing token is far
-// worse than a command the user must re-authenticate — the issue accepts that.
-const SECRET_PARAM_EXACT =
-  /^(?:__)?(?:token|access[-_]?token|auth|authorization|apikey|api[-_]?key|key|keyid|key[-_]?pair[-_]?id|sig|signature|signed|sign|hmac|secret|policy|credential|expires?|expiry|hdnts|hdnea|nva|nvb)(?:__)?$/i;
-// Whole presigned-URL families: the presence of ANY member means the URL is
-// signed, so drop every `x-amz-*` / `x-goog-*` param (AWS SigV4, GCS).
-const SECRET_PARAM_PREFIX = /^(?:x-amz-|x-goog-)/i;
-
-const isSecretParam = (name: string): boolean =>
-  SECRET_PARAM_EXACT.test(name) || SECRET_PARAM_PREFIX.test(name);
-
-/**
- * Remove secret-looking query params from a URL, keeping benign ones (e.g. a
- * `?res=720` variant selector). Returns the input untouched when it has no query
- * or nothing was stripped (so we never re-encode a URL needlessly), and returns
- * it as-is when it can't be parsed (a bare path can carry no query secret).
- */
-export function stripUrlSecrets(url: string): string {
-  let u: URL;
-  try {
-    u = new URL(url);
-  } catch {
-    return url;
-  }
-  if (!u.search) return url;
-  const kept = new URLSearchParams();
-  let removed = false;
-  for (const [key, value] of u.searchParams) {
-    if (isSecretParam(key)) {
-      removed = true;
-      continue;
-    }
-    kept.append(key, value);
-  }
-  if (!removed) return url;
-  u.search = kept.toString();
-  return u.toString();
 }
 
 /** POSIX single-quote a value so shell metacharacters in it are inert. */

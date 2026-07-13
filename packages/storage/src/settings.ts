@@ -34,6 +34,7 @@ export const DEFAULT_SETTINGS: SettingsData = {
   smartPageDefaults: true,
   rememberScanBehaviour: true,
   skipDuplicateDownloads: true,
+  metadataSidecar: false,
 };
 
 /** A plain object, or {} — so spreading a corrupt string/array/number legacy

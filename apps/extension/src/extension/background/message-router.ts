@@ -9,6 +9,7 @@ import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { partitionByDownloaded, uniquifyBatchNames } from '@mbd/core/collection/download-dedupe';
 import { downloadedOnDiskKeys } from './download/downloaded-keys';
 import { textToBase64 } from '@mbd/core/download/base64';
+import { buildMediaSidecar, serializeSidecar, sidecarName } from '@mbd/core/download/metadata-sidecar';
 import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk, DiskState } from '@mbd/storage/history';
 import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } from '@mbd/storage/favourites';
 import { addExcluded, removeExcluded, clearExcluded, restoreExcluded } from '@mbd/storage/excluded';
@@ -114,6 +115,21 @@ export const messageRouter: MessageRouter = {
           return { url: image.src, filename, history };
         });
         const queued = await enqueueDownloads(entries);
+        // #284: write a sibling <name>.json provenance sidecar per item, when
+        // enabled. A local data: URL (the SW has no URL.createObjectURL), fired
+        // directly — sidecars are instant and never fail network, so they skip
+        // the queue (and its history); saveAs is forced off so each .json
+        // doesn't prompt. Best-effort: paired to the pre-uniquify media name.
+        if (currentSettings.metadataSidecar) {
+          const capturedAt = new Date().toISOString();
+          toDownload.forEach((image, i) => {
+            const json = serializeSidecar(buildMediaSidecar(image, sourcePage, capturedAt));
+            chrome.downloads.download(
+              { url: `data:application/json;base64,${textToBase64(json)}`, filename: sidecarName(paths[i]), saveAs: false, conflictAction: 'uniquify' },
+              () => void chrome.runtime.lastError,
+            );
+          });
+        }
         respond({ status: 'success', message: queuedSkipMessage(queued, skipped) });
       } catch (e) {
         // Without this the port stays open and the popup hangs on "Sending…"
@@ -194,6 +210,20 @@ export const messageRouter: MessageRouter = {
     const { filename, b64, mime, source } = message;
     void settingsReady.then(() => {
       const url = `data:${mime};base64,${b64}`;
+      // #284: sidecar for the converted file. The source carries the original
+      // alt/dimensions + output ext, so the .json's `format` matches the saved
+      // file. Fired independently (data: URL, saveAs off) — see DOWNLOAD_IMAGES.
+      if (currentSettings.metadataSidecar && source) {
+        const json = serializeSidecar(buildMediaSidecar(
+          { src: source.src, alt: source.alt ?? '', width: source.width ?? 0, height: source.height ?? 0, type: source.type, kind: source.kind, ext: source.ext, fileSize: source.fileSize },
+          { url: source.sourcePageUrl, title: source.sourcePageTitle },
+          new Date().toISOString(),
+        ));
+        chrome.downloads.download(
+          { url: `data:application/json;base64,${textToBase64(json)}`, filename: sidecarName(filename), saveAs: false, conflictAction: 'uniquify' },
+          () => void chrome.runtime.lastError,
+        );
+      }
       chrome.downloads.download(
         { url, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
         (downloadId) => {

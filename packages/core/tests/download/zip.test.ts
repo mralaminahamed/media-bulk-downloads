@@ -38,6 +38,29 @@ describe('buildZip', () => {
     expect(results.map((r) => r.ok)).toEqual([true, true]);
   });
 
+  it('writes a co-located <name>.json sidecar per fetched item when enabled (#284)', async () => {
+    const images = [img('https://cdn/a.jpg?token=SECRET', { alt: 'first', width: 800, height: 600 })];
+    const fetch = makeFetch({ 'https://cdn/a.jpg?token=SECRET': [1, 2, 3] });
+    const settings: SettingsData = { ...DEFAULT_SETTINGS, metadataSidecar: true };
+
+    const { bytes } = await buildZip(images, settings, 'https://site/page', { fetch, capturedAt: '2026-07-13T12:00:00.000Z' });
+
+    const entries = unzipSync(bytes);
+    expect(Object.keys(entries).sort()).toEqual(['image_1.jpg', 'image_1.jpg.json']);
+    // Media bytes are the fetched ones; the sidecar is valid JSON beside them.
+    expect(Array.from(entries['image_1.jpg'])).toEqual([1, 2, 3]);
+    const meta = JSON.parse(new TextDecoder().decode(entries['image_1.jpg.json']));
+    expect(meta).toMatchObject({ alt: 'first', width: 800, height: 600, pageUrl: 'https://site/page', capturedAt: '2026-07-13T12:00:00.000Z' });
+    expect(meta.src).not.toContain('SECRET'); // secret query stripped
+  });
+
+  it('writes no sidecar when the setting is off (default)', async () => {
+    const images = [img('https://cdn/a.jpg')];
+    const fetch = makeFetch({ 'https://cdn/a.jpg': [1] });
+    const { bytes } = await buildZip(images, DEFAULT_SETTINGS, undefined, { fetch });
+    expect(keysOf(bytes)).toEqual(['image_1.jpg']);
+  });
+
   it('skips a fetch failure, keeps it in `failed`, and still zips the rest', async () => {
     const images = [img('https://cdn/a.jpg'), img('https://cdn/bad.jpg'), img('https://cdn/c.jpg')];
     const fetch = makeFetch({ 'https://cdn/a.jpg': [1], 'https://cdn/bad.jpg': 'fail', 'https://cdn/c.jpg': [2] });

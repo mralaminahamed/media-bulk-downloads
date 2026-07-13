@@ -1,7 +1,8 @@
 import { zipSync } from 'fflate';
 import { ImageInfo, SettingsData } from '@mbd/core/types';
-import { buildDownloadFilename } from '../collection/download-name';
-import { hostFromUrl, registrableDomain, sanitizePathSegment, todayISO } from '../collection/paths';
+import { buildDownloadFilename } from '@mbd/core/collection/download-name';
+import { hostFromUrl, registrableDomain, sanitizePathSegment, todayISO } from '@mbd/core/collection/paths';
+import { buildMediaSidecar, serializeSidecar, sidecarName } from '@mbd/core/download/metadata-sidecar';
 
 /**
  * Builds a single ZIP archive from collected media, run in the popup/bubble
@@ -36,6 +37,9 @@ export interface ZipDeps {
   /** Bounded parallel fetches (default 6). */
   concurrency?: number;
   onProgress?: (done: number, total: number) => void;
+  /** ISO timestamp for the metadata sidecars (#284); injectable for deterministic
+   *  tests. Defaults to now. Only used when `settings.metadataSidecar` is on. */
+  capturedAt?: string;
 }
 
 /**
@@ -91,6 +95,9 @@ export async function buildZip(
   const results: ZipItemResult[] = new Array(planned.length);
   const failed: ImageInfo[] = [];
   const limit = Math.max(1, deps.concurrency ?? 6);
+  // #284: a sibling `<name>.json` beside each fetched item, in the same folder.
+  const capturedAt = deps.capturedAt ?? new Date().toISOString();
+  const encoder = new TextEncoder();
   let done = 0;
   let cursor = 0;
 
@@ -101,6 +108,11 @@ export async function buildZip(
       const bytes = await fetchBytes(image.src, deps.fetch);
       if (bytes) {
         files[path] = bytes;
+        if (settings.metadataSidecar) {
+          files[sidecarName(path)] = encoder.encode(
+            serializeSidecar(buildMediaSidecar(image, { url: sourcePageUrl }, capturedAt)),
+          );
+        }
         results[i] = { src: image.src, path, ok: true };
       } else {
         results[i] = { src: image.src, path: '', ok: false };

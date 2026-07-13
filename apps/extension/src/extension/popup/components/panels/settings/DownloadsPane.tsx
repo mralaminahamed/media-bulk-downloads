@@ -145,6 +145,13 @@ const DownloadsPane: React.FC<DownloadsPaneProps> = ({
       checked={settings.saveAs}
       onToggle={() => toggle('saveAs')}
     />
+    <ToggleRow
+      id="set-metadataSidecar"
+      label="Save metadata sidecar (.json)"
+      description="Write a sibling <name>.json next to each download with its source URL, page, alt text, and dimensions — provenance for archiving. Off by default; offline, no extra network."
+      checked={settings.metadataSidecar}
+      onToggle={() => toggle('metadataSidecar')}
+    />
 
     <AdvancedDisclosure id="adv-downloads" defaultOpen={advancedDefaultOpen}>
       <NumberField
