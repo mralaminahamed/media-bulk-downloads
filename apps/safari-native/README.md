@@ -43,6 +43,22 @@ and routes browser-divergent APIs through the `@mbd/platform` seam
 The Safari manifest (via `wxt.config.ts`) drops the `downloads` and `offscreen`
 permissions and the optional `notifications`/`declarativeNetRequestWithHostAccess`.
 
+## Known limitations on Safari (not compensated)
+
+Unlike the differences above, these are Safari platform gaps the extension
+degrades around rather than routing through the seam:
+
+- **MAIN-world sniffers don't inject.** `world: "MAIN"` content scripts are
+  unsupported by the current Safari (`safari-web-extension-converter` warns:
+  *"the following keys in your manifest.json are not supported … `world`"*). The
+  five passive network sniffers (`fb` / `hls` / `ig` / `pinterest` /
+  `x-media-sniffer`) rely on MAIN-world injection to observe the page's own
+  GraphQL / `.m3u8` requests. On Safari they are inert, so Instagram / Facebook
+  full-resolution capture, HLS-via-player detection, and X / Pinterest / Threads
+  sniffing fall back to **DOM-only** collection — the same reduced coverage as
+  running with sniffers off. No error; just fewer / lower-resolution results on
+  those sites.
+
 ## Distribution
 
 See [`docs/store-submissions/SAFARI_APPSTORE.md`](../../docs/store-submissions/SAFARI_APPSTORE.md).
