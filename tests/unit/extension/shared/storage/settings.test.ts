@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, withDefaults } from '@/extension/shared/storage/settings';
+import { DEFAULT_SETTINGS, withDefaults } from '@mbd/storage/settings';
 
 describe('DEFAULT_SETTINGS naming/saveAs defaults', () => {
   it('defaults to prefixed naming and no save-as dialog', () => {

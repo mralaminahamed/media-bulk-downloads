@@ -2,7 +2,7 @@ import type { Mock } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import HistoryPanel from '@/extension/popup/components/panels/HistoryPanel';
-import * as history from '@/extension/shared/storage/history';
+import * as history from '@mbd/storage/history';
 
 const entry = {
   src: 'https://c/a.jpg', filename: 'a.jpg', kind: 'image' as const, type: 'jpeg',

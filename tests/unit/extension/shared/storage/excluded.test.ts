@@ -2,7 +2,7 @@ import type { Mock } from 'vitest';
 import {
   mergeExcluded, loadExcluded, addExcluded, removeExcluded, clearExcluded, restoreExcluded,
   excludedMatchers, EXCLUDED_KEY, EXCLUDED_CAP,
-} from '@/extension/shared/storage/excluded';
+} from '@mbd/storage/excluded';
 import { ExcludedEntry } from '@mbd/core/types';
 
 const e = (value: string, kind: 'url' | 'host', time = 1): ExcludedEntry => ({ value, kind, time });

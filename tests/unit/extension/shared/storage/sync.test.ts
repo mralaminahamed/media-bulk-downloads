@@ -1,7 +1,7 @@
-import { syncStores, persistStorage } from '@/extension/shared/storage/sync';
-import { idbGet, idbSet } from '@/extension/shared/storage/idb';
-import { HISTORY_KEY } from '@/extension/shared/storage/history';
-import { FAVOURITES_KEY } from '@/extension/shared/storage/favourites';
+import { syncStores, persistStorage } from '@mbd/storage/sync';
+import { idbGet, idbSet } from '@mbd/storage/idb';
+import { HISTORY_KEY } from '@mbd/storage/history';
+import { FAVOURITES_KEY } from '@mbd/storage/favourites';
 
 type Local = Record<string, unknown>;
 function mockLocal(initial: Local) {

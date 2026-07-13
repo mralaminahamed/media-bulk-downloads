@@ -1,4 +1,4 @@
-import { loadHistory, srcsStillOnDisk, DiskState } from '@/extension/shared/storage/history';
+import { loadHistory, srcsStillOnDisk, DiskState } from '@mbd/storage/history';
 import { SrcKeySet } from '@mbd/core/collection/canonical';
 
 /**

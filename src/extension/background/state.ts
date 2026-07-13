@@ -1,8 +1,8 @@
 import { SettingsData, SetSettingsMessage } from '@mbd/core/types';
 import { ExcludedMatchers } from '@mbd/core/collection/filters';
 import { SrcKeySet } from '@mbd/core/collection/canonical';
-import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
-import { excludedMatchers } from '../shared/storage/excluded';
+import { DEFAULT_SETTINGS, withDefaults } from '@mbd/storage/settings';
+import { excludedMatchers } from '@mbd/storage/excluded';
 
 /**
  * Shared background state + settings lifecycle. Every other background module

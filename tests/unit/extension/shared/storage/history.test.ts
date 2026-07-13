@@ -1,7 +1,7 @@
 import type { Mock } from 'vitest';
-import { mergeHistory, recordDownloads, removeEntry, clearHistory, restoreHistory, srcsStillOnDisk, loadHistory, HISTORY_CAP, HISTORY_MAX_BYTES } from '@/extension/shared/storage/history';
+import { mergeHistory, recordDownloads, removeEntry, clearHistory, restoreHistory, srcsStillOnDisk, loadHistory, HISTORY_CAP, HISTORY_MAX_BYTES } from '@mbd/storage/history';
 import { HistoryEntry } from '@mbd/core/types';
-import { idbGet } from '@/extension/shared/storage/idb';
+import { idbGet } from '@mbd/storage/idb';
 
 describe('loadHistory — corrupt storage', () => {
   it('drops entries without a string src and coerces a bad time to 0', async () => {

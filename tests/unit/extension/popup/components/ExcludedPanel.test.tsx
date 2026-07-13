@@ -2,7 +2,7 @@ import type { Mock } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ExcludedPanel from '@/extension/popup/components/panels/ExcludedPanel';
-import * as excluded from '@/extension/shared/storage/excluded';
+import * as excluded from '@mbd/storage/excluded';
 
 const urlEntry = { value: 'https://c/a.jpg', kind: 'url' as const, time: Date.now() };
 const hostEntry = { value: 'cdn.ads.com', kind: 'host' as const, time: Date.now() };

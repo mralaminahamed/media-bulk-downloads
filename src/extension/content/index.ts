@@ -13,8 +13,8 @@ import { ingestSniffedFbMedia } from '@mbd/core/resolvers/sites/facebook';
 import { ingestSniffedPinterestMedia } from '@mbd/core/resolvers/sites/pinterest';
 import { isPinterestHost } from '@mbd/core/resolvers/sniffers/pinterest-hosts';
 import { ingestSniffedHls } from '@mbd/core/resolvers/sniffers/hls-sniff';
-import { withDefaults } from '../shared/storage/settings';
-import { loadEffectiveSettingsForHost } from '../shared/storage/per-host-settings';
+import { withDefaults } from '@mbd/storage/settings';
+import { loadEffectiveSettingsForHost } from '@mbd/storage/per-host-settings';
 import { startDeepScan } from './deepScanRunner';
 import { classifyPage, collectPageSignals } from '@mbd/core/collection/pageType';
 

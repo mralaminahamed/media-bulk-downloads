@@ -869,13 +869,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mbd/core@workspace:packages/core":
+"@mbd/core@workspace:*, @mbd/core@workspace:packages/core":
   version: 0.0.0-use.local
   resolution: "@mbd/core@workspace:packages/core"
   dependencies:
     "@types/react": "npm:^19.2.17"
     fflate: "npm:^0.8.3"
     mp4box: "npm:^2.4.1"
+  languageName: unknown
+  linkType: soft
+
+"@mbd/storage@workspace:packages/storage":
+  version: 0.0.0-use.local
+  resolution: "@mbd/storage@workspace:packages/storage"
+  dependencies:
+    "@mbd/core": "workspace:*"
+    "@types/chrome": "npm:^0.2.2"
+    idb-keyval: "npm:^6.3.0"
   languageName: unknown
   linkType: soft
 

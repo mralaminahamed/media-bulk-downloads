@@ -2,7 +2,7 @@ import { MediaItem } from '@mbd/core/types';
 import { collectMedia, type ScanRoot } from '@/extension/content/collect';
 import { runDeepScan, DeepScanDeps, DEEP_SCAN_DEFAULTS } from '@mbd/core/collection/deepScan';
 import { registrableDomain } from '@mbd/core/collection/paths';
-import { loadScanMemoryForHost } from '@/extension/shared/storage/per-host-scan-memory';
+import { loadScanMemoryForHost } from '@mbd/storage/per-host-scan-memory';
 
 /** Finds the element that actually scrolls the page, falling back to window. */
 function primaryScroller(): {

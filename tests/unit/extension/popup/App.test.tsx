@@ -7,10 +7,10 @@ import { ImageInfo } from '@mbd/core/types';
 import { deepScanActiveTab } from '@/extension/shared/active-tab/deep-scan-active-tab';
 import { requestResolveOriginals } from '@/extension/shared/active-tab/resolve-originals-active';
 import { getPageType } from '@/extension/shared/active-tab/collect-active-tab';
-import { excludedMatchers, EXCLUDED_KEY } from '@/extension/shared/storage/excluded';
+import { excludedMatchers, EXCLUDED_KEY } from '@mbd/storage/excluded';
 import { SrcKeySet } from '@mbd/core/collection/canonical';
-import { HISTORY_KEY } from '@/extension/shared/storage/history';
-import { FAVOURITES_KEY } from '@/extension/shared/storage/favourites';
+import { HISTORY_KEY } from '@mbd/storage/history';
+import { FAVOURITES_KEY } from '@mbd/storage/favourites';
 import { buildZip } from '@mbd/core/download/zip';
 import { convertImage } from '@mbd/core/download/convert/convert';
 
@@ -38,7 +38,7 @@ vi.mock('@/extension/shared/active-tab/collect-active-tab', () => ({
   getPageType: vi.fn(async () => 'unknown'),
 }));
 
-vi.mock('@/extension/shared/storage/excluded', async () => {
+vi.mock('@mbd/storage/excluded', async () => {
   // urls must be a real SrcKeySet — the optimistic exclude path calls withAdded().
   const { SrcKeySet: KeySet } = await vi.importActual<typeof import('@mbd/core/collection/canonical')>('@mbd/core/collection/canonical');
   return {

@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { DEFAULT_SETTINGS, loadStoredSettings } from '@/extension/shared/storage/settings';
+import { DEFAULT_SETTINGS, loadStoredSettings } from '@mbd/storage/settings';
 import {
   HOST_OVERRIDE_FIELDS, PER_HOST_SETTINGS_KEY, pickHostFields, applyHostOverride,
   loadPerHostSettings, overrideForHost, savePerHostSettings, clearPerHostSettings,
   loadEffectiveSettingsForHost,
-} from '@/extension/shared/storage/per-host-settings';
+} from '@mbd/storage/per-host-settings';
 import type { Mock } from 'vitest';
 
 describe('per-host-settings — pure core', () => {

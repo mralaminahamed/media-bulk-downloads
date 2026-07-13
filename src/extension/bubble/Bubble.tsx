@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BubbleCorner, BubblePanelPlacement, DeepScanProgress, ImageInfo, SettingsData } from '@mbd/core/types';
-import { withDefaults } from '../shared/storage/settings';
+import { withDefaults } from '@mbd/storage/settings';
 import { collectMedia } from '../content/collect';
 import { startDeepScan } from '../content/deepScanRunner';
 import App from '../popup/App';

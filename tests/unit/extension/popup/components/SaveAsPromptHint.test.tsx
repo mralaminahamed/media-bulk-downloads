@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SaveAsPromptHint } from '@/extension/popup/components/SaveAsPromptHint';
-import * as store from '@/extension/shared/storage/save-as-hint';
+import * as store from '@mbd/storage/save-as-hint';
 
 it('renders nothing until seen', async () => {
   vi.spyOn(store, 'loadSaveAsHintState').mockResolvedValue({ seen: false, dismissed: false });

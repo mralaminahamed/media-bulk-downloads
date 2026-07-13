@@ -3,7 +3,7 @@ import { SettingsData } from '@mbd/core/types';
 import { hostFromUrl, registrableDomain } from '@mbd/core/collection/paths';
 import {
   applyHostOverride, pickHostFields, overrideForHost, loadEffectiveSettingsForHost,
-} from '../../shared/storage/per-host-settings';
+} from '@mbd/storage/per-host-settings';
 import { sendRuntimeMessage } from '../utils';
 
 export interface UsePerHostSettingsResult {

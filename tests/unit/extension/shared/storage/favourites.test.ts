@@ -2,7 +2,7 @@ import type { Mock } from 'vitest';
 import {
   mergeFavourites, addFavourite, removeFavourite, clearFavourites, restoreFavourites,
   favouriteSrcSet, loadFavourites, FAVOURITES_CAP,
-} from '@/extension/shared/storage/favourites';
+} from '@mbd/storage/favourites';
 import { FavouriteEntry } from '@mbd/core/types';
 
 const f = (src: string, time: number): FavouriteEntry =>

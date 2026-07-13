@@ -9,17 +9,17 @@ import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { partitionByDownloaded, uniquifyBatchNames } from '@mbd/core/collection/download-dedupe';
 import { downloadedOnDiskKeys } from './download/downloaded-keys';
 import { textToBase64 } from '@mbd/core/download/base64';
-import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk, DiskState } from '../shared/storage/history';
-import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } from '../shared/storage/favourites';
-import { addExcluded, removeExcluded, clearExcluded, restoreExcluded } from '../shared/storage/excluded';
-import { savePerHostSettings, clearPerHostSettings } from '../shared/storage/per-host-settings';
-import { clearScanMemoryForHost, saveScanMemoryForHost } from '../shared/storage/per-host-scan-memory';
+import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk, DiskState } from '@mbd/storage/history';
+import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } from '@mbd/storage/favourites';
+import { addExcluded, removeExcluded, clearExcluded, restoreExcluded } from '@mbd/storage/excluded';
+import { savePerHostSettings, clearPerHostSettings } from '@mbd/storage/per-host-settings';
+import { clearScanMemoryForHost, saveScanMemoryForHost } from '@mbd/storage/per-host-scan-memory';
 import { streamErrorMessage } from '@mbd/core/download/stream/stream-error-message';
 import {
   enqueueDownloads, pauseQueue, resumeQueue, cancelQueue, retryQueueItem, getQueueSnapshot,
   clearFinishedQueue, retryAllFailedQueue, openQueueItem,
 } from './download/download-queue';
-import type { HistoryDraft, QueueState } from '../shared/storage/download-queue';
+import type { HistoryDraft, QueueState } from '@mbd/storage/download-queue';
 import { currentSettings, excludedCache, settingsReady, excludedReady, writeSettingsPatch } from './state';
 import { storeSniffedMedia, snifferByTab, resolveOriginalsBatch } from './sniffer-store';
 import { captureStreamToFile, captureRunTabs } from './download/capture';

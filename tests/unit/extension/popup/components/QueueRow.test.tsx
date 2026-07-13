@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueueRow } from '@/extension/popup/components/QueueRow';
-import type { QueueItem } from '@/extension/shared/storage/download-queue';
+import type { QueueItem } from '@mbd/storage/download-queue';
 
 const item = (over: Partial<QueueItem>): QueueItem => ({
   id: 'a', url: 'u', filename: 'photo.jpg', status: 'queued', attempts: 0, readyAt: 0, addedAt: 0, ...over,

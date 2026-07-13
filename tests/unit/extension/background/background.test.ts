@@ -1,11 +1,11 @@
 import type { Mock } from 'vitest';
-vi.mock('@/extension/shared/storage/excluded', async () => ({
-  ...(await vi.importActual<typeof import('@/extension/shared/storage/excluded')>('@/extension/shared/storage/excluded')),
+vi.mock('@mbd/storage/excluded', async () => ({
+  ...(await vi.importActual<typeof import('@mbd/storage/excluded')>('@mbd/storage/excluded')),
   addExcluded: vi.fn().mockResolvedValue(undefined),
   removeExcluded: vi.fn().mockResolvedValue(undefined),
   clearExcluded: vi.fn().mockResolvedValue(undefined),
 }));
-import * as excludedMod from '@/extension/shared/storage/excluded';
+import * as excludedMod from '@mbd/storage/excluded';
 import * as dlKeys from '@/extension/background/download/downloaded-keys';
 import { SrcKeySet } from '@mbd/core/collection/canonical';
 

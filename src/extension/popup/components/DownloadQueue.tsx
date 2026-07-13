@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import { loadQueue, QUEUE_KEY, type QueueState } from '@/extension/shared/storage/download-queue';
+import { loadQueue, QUEUE_KEY, type QueueState } from '@mbd/storage/download-queue';
 import { sendRuntimeMessage } from '../utils';
 import { QueueRow } from './QueueRow';
 

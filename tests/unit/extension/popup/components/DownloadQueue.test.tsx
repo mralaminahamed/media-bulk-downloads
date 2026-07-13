@@ -1,9 +1,9 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DownloadQueue } from '@/extension/popup/components/DownloadQueue';
-import * as storage from '@/extension/shared/storage/download-queue';
+import * as storage from '@mbd/storage/download-queue';
 import * as utils from '@/extension/popup/utils';
-import type { QueueState } from '@/extension/shared/storage/download-queue';
+import type { QueueState } from '@mbd/storage/download-queue';
 
 const setQueue = (s: QueueState) => vi.spyOn(storage, 'loadQueue').mockResolvedValue(s);
 

@@ -1,8 +1,8 @@
 import { ChromeMessage, SettingsData } from '@mbd/core/types';
-import { withDefaults } from '../shared/storage/settings';
-import { EXCLUDED_KEY } from '../shared/storage/excluded';
-import { markSaveAsPromptSeen } from '../shared/storage/save-as-hint';
-import { persistStorage, syncStores } from '../shared/storage/sync';
+import { withDefaults } from '@mbd/storage/settings';
+import { EXCLUDED_KEY } from '@mbd/storage/excluded';
+import { markSaveAsPromptSeen } from '@mbd/storage/save-as-hint';
+import { persistStorage, syncStores } from '@mbd/storage/sync';
 import { initQueueDispatcher, reconcileQueue } from './download/download-queue';
 import {
   currentSettings, excludedReady, settingsReady,
@@ -142,7 +142,7 @@ chrome.runtime.onMessage.addListener(
 );
 
 // Re-exported for the background test suite, which imports these from the barrel.
-export { DEFAULT_SETTINGS } from '../shared/storage/settings';
+export { DEFAULT_SETTINGS } from '@mbd/storage/settings';
 export { sanitizePathSegment } from '@mbd/core/collection/paths';
 export { buildDownloadFilename, extensionForType, originalNameFromUrl } from '@mbd/core/collection/download-name';
 export { loadSettings } from './state';

@@ -3,8 +3,8 @@ import {
   emptyQueue, enqueue, claimNext, activeCount, markActive, markDone,
   markFailed, scheduleRetry, cancel, retryFailed, clearFinished,
   backoffMs, MAX_ATTEMPTS, setProgress, retryAllFailed,
-} from '@/extension/shared/storage/download-queue';
-import type { QueueState } from '@/extension/shared/storage/download-queue';
+} from '@mbd/storage/download-queue';
+import type { QueueState } from '@mbd/storage/download-queue';
 
 const T0 = 1_000_000;
 

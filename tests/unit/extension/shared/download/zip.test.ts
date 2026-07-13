@@ -1,6 +1,6 @@
 import { buildZip, zipFileName } from '@mbd/core/download/zip';
 import { unzipSync } from 'fflate';
-import { DEFAULT_SETTINGS } from '@/extension/shared/storage/settings';
+import { DEFAULT_SETTINGS } from '@mbd/storage/settings';
 import { ImageInfo, SettingsData } from '@mbd/core/types';
 
 const img = (src: string, extra: Partial<ImageInfo> = {}): ImageInfo =>

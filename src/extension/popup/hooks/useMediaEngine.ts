@@ -2,7 +2,7 @@ import { Dispatch, RefObject, SetStateAction, useCallback, useEffect, useRef, us
 import { AppState, DeepScanProgress, DeepScanStopReason, FilterOptions, ImageInfo, SettingsData } from '@mbd/core/types';
 import { filterImagesBySettings, applyToolbarFilters, filterExcluded, ExcludedMatchers } from '@mbd/core/collection/filters';
 import { mergeScannedMedia } from '@mbd/core/collection/merge';
-import { loadStoredSettings } from '../../shared/storage/settings';
+import { loadStoredSettings } from '@mbd/storage/settings';
 import { requestResolveOriginals } from '../../shared/active-tab/resolve-originals-active';
 import { getPageType } from '../../shared/active-tab/collect-active-tab';
 import { applyResolved } from '../apply-resolved';

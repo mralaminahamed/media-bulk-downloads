@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   loadSaveAsHintState, markSaveAsPromptSeen, dismissSaveAsHint,
-} from '@/extension/shared/storage/save-as-hint';
+} from '@mbd/storage/save-as-hint';
 
 describe('save-as-hint storage', () => {
   beforeEach(async () => { await chrome.storage.local.clear(); vi.restoreAllMocks(); });

@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const { recordDownloads } = vi.hoisted(() => ({ recordDownloads: vi.fn(async () => {}) }));
-vi.mock('@/extension/shared/storage/history', () => ({ recordDownloads }));
+vi.mock('@mbd/storage/history', () => ({ recordDownloads }));
 
 import {
   initQueueDispatcher, enqueueDownloads, handleDownloadChanged, getQueueSnapshot, reconcileQueue,
   pollProgressForTest, __setProgressTimerForTest,
 } from '@/extension/background/download/download-queue';
-import { QUEUE_KEY, saveQueue, loadQueue } from '@/extension/shared/storage/download-queue';
+import { QUEUE_KEY, saveQueue, loadQueue } from '@mbd/storage/download-queue';
 
 let store: Record<string, unknown>;
 let downloadCb: (() => void) | null;

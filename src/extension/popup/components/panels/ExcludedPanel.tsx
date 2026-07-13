@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { XMarkIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { ExcludedEntry } from '@mbd/core/types';
-import { loadExcluded, EXCLUDED_KEY } from '@/extension/shared/storage/excluded';
+import { loadExcluded, EXCLUDED_KEY } from '@mbd/storage/excluded';
 import { sendRuntimeMessage } from '../../utils';
 import { useDialog } from '../../hooks/useDialog';
 import { ClearAllButton } from '../fields/ClearAllButton';

@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import FilterToolbar from '@/extension/popup/components/FilterToolbar';
 import { AvailableOptions, SettingsData } from '@mbd/core/types';
-import { DEFAULT_SETTINGS } from '@/extension/shared/storage/settings';
+import { DEFAULT_SETTINGS } from '@mbd/storage/settings';
 
 const allAvailable: AvailableOptions = {
   kinds: ['all', 'image', 'video'],

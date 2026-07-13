@@ -1,6 +1,6 @@
 import type { Mock } from 'vitest';
 import { downloadedOnDiskKeys } from '@/extension/background/download/downloaded-keys';
-import * as history from '@/extension/shared/storage/history';
+import * as history from '@mbd/storage/history';
 
 describe('downloadedOnDiskKeys', () => {
   beforeEach(() => vi.restoreAllMocks());

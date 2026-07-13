@@ -1,8 +1,8 @@
 import {
   loadQueue, saveQueue, enqueue, claimNext, markActive, markDone, markFailed,
   scheduleRetry, cancel, retryFailed, setProgress, clearFinished, retryAllFailed, type EnqueueEntry, type QueueState,
-} from '@/extension/shared/storage/download-queue';
-import { recordDownloads } from '@/extension/shared/storage/history';
+} from '@mbd/storage/download-queue';
+import { recordDownloads } from '@mbd/storage/history';
 import { applyRefererRule, removeRefererRule, hasDnrPermission } from './hotlink-rewrite';
 
 interface Deps {

@@ -3,7 +3,7 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 import {
   loadSaveAsHintState, dismissSaveAsHint,
   SAVE_AS_PROMPT_SEEN_KEY, SAVE_AS_HINT_DISMISSED_KEY,
-} from '@/extension/shared/storage/save-as-hint';
+} from '@mbd/storage/save-as-hint';
 
 /**
  * One-time hint shown after Chrome prompts for a save location (its

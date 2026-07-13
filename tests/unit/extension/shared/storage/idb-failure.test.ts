@@ -1,4 +1,4 @@
-import { durableSet } from '@/extension/shared/storage/idb';
+import { durableSet } from '@mbd/storage/idb';
 
 vi.mock('idb-keyval', () => ({
   createStore: () => ({}),

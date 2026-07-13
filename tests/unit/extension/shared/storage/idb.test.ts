@@ -1,4 +1,4 @@
-import { idbGet, idbSet, idbDelete, durableSet } from '@/extension/shared/storage/idb';
+import { idbGet, idbSet, idbDelete, durableSet } from '@mbd/storage/idb';
 
 describe('idb key-value store', () => {
   it('round-trips a value through set/get and removes it with delete', async () => {

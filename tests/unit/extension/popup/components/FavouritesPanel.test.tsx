@@ -2,7 +2,7 @@ import type { Mock } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import FavouritesPanel from '@/extension/popup/components/panels/FavouritesPanel';
-import * as favourites from '@/extension/shared/storage/favourites';
+import * as favourites from '@mbd/storage/favourites';
 
 const entry = {
   src: 'https://c/a.jpg', kind: 'image' as const, type: 'jpeg',

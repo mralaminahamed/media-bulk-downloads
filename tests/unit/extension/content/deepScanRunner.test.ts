@@ -6,7 +6,7 @@ vi.mock('@mbd/core/collection/deepScan', async () => {
 
 import { buildDeepScanDeps, nestedScrollables, startDeepScan, findLoadMoreButtons, waitForQuiet } from '@/extension/content/deepScanRunner';
 import { runDeepScan, DEEP_SCAN_DEFAULTS } from '@mbd/core/collection/deepScan';
-import * as scanMem from '@/extension/shared/storage/per-host-scan-memory';
+import * as scanMem from '@mbd/storage/per-host-scan-memory';
 import * as loop from '@mbd/core/collection/deepScan';
 
 const mockMetrics = (el: HTMLElement, scrollHeight: number, clientHeight: number, scrollTop: number) => {

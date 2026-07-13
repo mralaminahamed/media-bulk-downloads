@@ -13,8 +13,8 @@
  */
 import type { Mock } from 'vitest';
 
-vi.mock('@/extension/shared/storage/save-as-hint', async () => ({
-  ...(await vi.importActual<typeof import('@/extension/shared/storage/save-as-hint')>('@/extension/shared/storage/save-as-hint')),
+vi.mock('@mbd/storage/save-as-hint', async () => ({
+  ...(await vi.importActual<typeof import('@mbd/storage/save-as-hint')>('@mbd/storage/save-as-hint')),
   markSaveAsPromptSeen: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -29,7 +29,7 @@ const loadBackground = async (): Promise<{ handlers: Handler[]; mark: Mock }> =>
   const handlers = addSpy.mock.calls.map((c) => c[0]) as Handler[];
   addSpy.mockRestore();
 
-  const hintMod = await import('@/extension/shared/storage/save-as-hint');
+  const hintMod = await import('@mbd/storage/save-as-hint');
   const mark = hintMod.markSaveAsPromptSeen as unknown as Mock;
   // vi.resetModules() reuses the vi.mock factory's fn (unlike jest.resetModules),
   // so its call history persists across loadBackground() calls — clear it per load.

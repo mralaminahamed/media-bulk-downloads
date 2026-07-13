@@ -1,7 +1,7 @@
 import { HistoryEntry, ImageInfo } from '@mbd/core/types';
 import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { partitionByDownloaded, uniquifyBatchNames } from '@mbd/core/collection/download-dedupe';
-import { recordDownloads } from '../../shared/storage/history';
+import { recordDownloads } from '@mbd/storage/history';
 import { currentSettings } from '../state';
 import { downloadedOnDiskKeys } from './downloaded-keys';
 

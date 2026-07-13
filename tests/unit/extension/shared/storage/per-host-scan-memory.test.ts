@@ -1,11 +1,11 @@
 import {
   clampMemory, blendMemory, evictToCap,
   SCAN_MEMORY_SETTLE_MAX, SCAN_MEMORY_SCROLLS_MAX, SCAN_MEMORY_MAX_HOSTS,
-} from '@/extension/shared/storage/per-host-scan-memory';
+} from '@mbd/storage/per-host-scan-memory';
 import {
   loadScanMemory, loadScanMemoryForHost, saveScanMemoryForHost, clearScanMemoryForHost,
   PER_HOST_SCAN_MEMORY_KEY,
-} from '@/extension/shared/storage/per-host-scan-memory';
+} from '@mbd/storage/per-host-scan-memory';
 
 describe('clampMemory', () => {
   it('accepts a valid entry, carrying updatedAt through', () => {

@@ -1,18 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('@/extension/shared/storage/per-host-settings', () => ({
+vi.mock('@mbd/storage/per-host-settings', () => ({
   savePerHostSettings: vi.fn(() => Promise.resolve()),
   clearPerHostSettings: vi.fn(() => Promise.resolve()),
 }));
 
-vi.mock('@/extension/shared/storage/per-host-scan-memory', () => ({
+vi.mock('@mbd/storage/per-host-scan-memory', () => ({
   clearScanMemoryForHost: vi.fn(() => Promise.resolve()),
   saveScanMemoryForHost: vi.fn(() => Promise.resolve()),
 }));
 
 import { messageRouter } from '@/extension/background/message-router';
-import { savePerHostSettings, clearPerHostSettings } from '@/extension/shared/storage/per-host-settings';
-import { clearScanMemoryForHost, saveScanMemoryForHost } from '@/extension/shared/storage/per-host-scan-memory';
+import { savePerHostSettings, clearPerHostSettings } from '@mbd/storage/per-host-settings';
+import { clearScanMemoryForHost, saveScanMemoryForHost } from '@mbd/storage/per-host-scan-memory';
 
 describe('SET_PER_HOST_SETTINGS router handler', () => {
   const noop = vi.fn();

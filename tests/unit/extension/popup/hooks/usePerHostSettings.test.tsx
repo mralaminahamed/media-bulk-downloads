@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import type { Mock } from 'vitest';
-import { DEFAULT_SETTINGS } from '@/extension/shared/storage/settings';
+import { DEFAULT_SETTINGS } from '@mbd/storage/settings';
 import { usePerHostSettings } from '@/extension/popup/hooks/usePerHostSettings';
 
 const src = (url: string) => () => Promise.resolve({ url });
