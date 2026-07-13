@@ -205,6 +205,8 @@ logged-out), **[G]** a known gap.
 | 65 | Mastodon (fediverse, host-agnostic) | */media_attachments/files/* (any instance host) | **resolver** — `/small/`→`/original/` size-folder swap; the `<hash>.<ext>` basename is identical across sizes so the upgrade is 404-safe (no ext guessing); gated to the media_attachments path shape, network-free | C⁵ |
 | 66 | Dailymotion | dailymotion.com / geo.dailymotion.com / dai.ly → dmcdn.net | **resolver** (Phase 2) — read the public player metadata (`player/metadata/video/<id>`); modern delivery is HLS-only, so return the `qualities.auto` `x-mpegURL` master to capture; DRM (`protected_delivery`) left unresolved | N⁵ |
 | 67 | Booru (Danbooru/Gelbooru/Safebooru/yande.re/Konachan) | booru image hosts (donmai.us, yande.re, konachan, gelbooru, safebooru) | **resolver** — reads the DOM's true original (`data-file-url` on Danbooru grid+post; the original-image link on Gelbooru/Moebooru post pages), element-scoped + host-pinned to the booru's own image host; grid coverage full on Danbooru, post-page on the others; network-free | C⁵ |
+| 68 | Pixiv | i.pximg.net | **resolver** — on an artwork page reads the embedded `#meta-preload-data` JSON for the exact `urls.original` (correct extension — the displayed `img-master` master is always `.jpg` even for `.png`/`.gif` uploads, so a blind rewrite would 404); multi-page derived by `_p0`→`_p<n>`; a `/c/<crop>/` feed crop of a `_master1200` master upgrades to the un-cropped master; host-pinned, network-free (pximg is `Referer`-gated — download uses the #197 referer opt-in) | C⁶ |
+| 69 | Newgrounds | art.ngfiles.com | **CDN rule** — the art view page already serves the true original under `/images/…<hash>.<ext>` (collected directly; thumb→full is not derivable — the full filename carries a content hash + slug absent from the `/thumbnails/` URL), so the rule only drops the `?f<ts>` cache-buster to canonicalise for de-dupe | C⁶ |
 
 ¹ Tumblr previously had a `/sWxH/` → `/s1280x1920/` rule; it was **removed** — modern
 `64.media.tumblr.com` pre-renders one size folder per image and every other size 404s,
@@ -249,6 +251,16 @@ opt-in Phase-2 (**N**) reading the public player metadata (HLS-only; no
 progressive MP4). Booru grid coverage is full on Danbooru (`data-file-url` in the
 grid DOM) and post-page-only on Gelbooru/Moebooru (their grids expose no
 original).
+
+⁶ Rows 68–69 added 2026-07-13 (#286, gallery-dl parity). Real samples verified
+live 2026-07-13. **Pixiv** — artwork is login-gated; when logged in the page
+embeds `#meta-preload-data` naming the exact original, which the resolver reads
+network-free (pximg is `Referer`-gated, so the fetch path can't reach it; the
+original still downloads via the #197 referer opt-in). **DeviantArt** (row: wixmp
+`/v1/fill/` token-cap upgrade, #101) and **Tumblr** (deliberately un-rewritten,
+¹/§D) were already covered, so #286 added no rule for them. **Sankaku** was
+deferred (see §D): its originals are signed-token/login-gated, so a passive
+rewrite would 404 — against the network-free-by-default, no-auth model.
 
 ## D. Gaps found
 
@@ -302,6 +314,8 @@ Reverted:
 Open (not upgradeable — signed / already-original):
 - **Guardian** `i.guim.co.uk` — HMAC `s=<hex>` per width; any change → 401.
 - **500px** `drscdn.500px.org` — signed URLs.
+- **Sankaku** (#286, deferred) — originals are signed-token + login-gated; a passive
+  preview→original rewrite would 404. Out of the no-auth, network-free-by-default model.
 - **preview.redd.it** — signed (left byte-identical by design, verified live).
 - **Giphy / Tenor** — already served at original size (no smaller-to-larger step).
 

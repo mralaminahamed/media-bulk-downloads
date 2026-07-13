@@ -11,6 +11,7 @@ import { instagramResolver } from '@mbd/core/resolvers/sites/instagram';
 import { magnificResolver } from '@mbd/core/resolvers/sites/magnific';
 import { mastodonResolver } from '@mbd/core/resolvers/sites/mastodon';
 import { pinterestResolver } from '@mbd/core/resolvers/sites/pinterest';
+import { pixivResolver } from '@mbd/core/resolvers/sites/pixiv';
 import { redditResolver } from '@mbd/core/resolvers/sites/reddit';
 import { threadsResolver } from '@mbd/core/resolvers/sites/threads';
 import { twitterResolver } from '@mbd/core/resolvers/sites/twitter';
@@ -18,7 +19,7 @@ import { unsplashResolver } from '@mbd/core/resolvers/sites/unsplash';
 import { wallhavenResolver } from '@mbd/core/resolvers/sites/wallhaven';
 import { youtubeResolver } from '@mbd/core/resolvers/sites/youtube';
 
-export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, facebookResolver, threadsResolver, unsplashResolver, wallhavenResolver, behanceResolver, bskyResolver, pinterestResolver, redditResolver, flickrResolver, artstationResolver, magnificResolver, arcxpResolver, youtubeResolver, mastodonResolver, booruResolver, genericResolver];
+export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, facebookResolver, threadsResolver, unsplashResolver, wallhavenResolver, behanceResolver, bskyResolver, pinterestResolver, redditResolver, flickrResolver, artstationResolver, pixivResolver, magnificResolver, arcxpResolver, youtubeResolver, mastodonResolver, booruResolver, genericResolver];
 
 // Suffix → resolvers that declared it, preserving REGISTRY order within a bucket.
 const hostIndex = new Map<string, Resolver[]>();
