@@ -113,6 +113,41 @@ http://localhost:8080/media.m3u8
   });
 });
 
+describe('captureHls — audio-only picks the best audio group (M6)', () => {
+  it('resolves the AUDIO group from the highest variant, not the video-quality pick', async () => {
+    const MASTER = `#EXTM3U
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="lo",NAME="lo",DEFAULT=YES,URI="audio-lo.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="hi",NAME="hi",DEFAULT=YES,URI="audio-hi.m3u8"
+#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=848x480,AUDIO="lo"
+video-480.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=6000000,RESOLUTION=1920x1080,AUDIO="hi"
+video-1080.m3u8`;
+    const VOD = `#EXTM3U
+#EXT-X-TARGETDURATION:4
+#EXT-X-MEDIA-SEQUENCE:0
+#EXTINF:4.0,
+seg0.ts
+#EXT-X-ENDLIST`;
+    const fetched: string[] = [];
+    const deps = fakeDeps({
+      fetchText: async (u) => {
+        fetched.push(u);
+        if (u.endsWith('master.m3u8')) return MASTER;
+        return VOD; // both the video and audio media playlists are plain TS VOD
+      },
+    });
+    // quality 720 → the video pick is the 480 variant (closest height), whose AUDIO
+    // group is "lo"; the fix must instead resolve audio from the highest variant ("hi").
+    // Plain-TS audio has no fMP4 init, so the capture ultimately refuses — but only
+    // AFTER choosing and fetching the audio rendition, which is what we assert.
+    await expect(
+      captureHls('https://cdn.test/master.m3u8', deps, { audioOnly: true, quality: 720 }),
+    ).rejects.toBeInstanceOf(HlsError);
+    expect(fetched.some((u) => u.endsWith('audio-hi.m3u8'))).toBe(true);
+    expect(fetched.some((u) => u.endsWith('audio-lo.m3u8'))).toBe(false);
+  });
+});
+
 describe('isMasterPlaylist / parseMaster / selectVariant', () => {
   it('detects a master vs a media playlist', () => {
     expect(isMasterPlaylist(MASTER)).toBe(true);

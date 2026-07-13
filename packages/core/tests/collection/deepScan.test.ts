@@ -35,6 +35,15 @@ it('dedups the same image across rounds by canonical key (rotating CDN edge host
   expect(out).toHaveLength(1);
 });
 
+it('upgrades a mediaKey item in place across rounds (thumbnail → original), not double-counted', async () => {
+  const thumb = { ...item('https://scontent-a.xx.fbcdn.net/thumb.jpg'), mediaKey: 'fb:123' };
+  const orig = { ...item('https://scontent-b.xx.fbcdn.net/original.jpg'), mediaKey: 'fb:123' };
+  const { deps } = makeDeps([[thumb], [orig], []]);
+  const out = await runDeepScan(deps, { ...DEEP_SCAN_DEFAULTS, idleRounds: 2, signal: new AbortController().signal });
+  expect(out).toHaveLength(1); // same mediaKey → one slot, not two
+  expect(out[0].src).toBe(orig.src); // later round's original replaces the thumbnail in place
+});
+
 it('stops after idleRounds with no new media and restores scroll', async () => {
   const { deps, state } = makeDeps([[item('a')], [item('a')], [item('a')], [item('a')]]);
   const out = await runDeepScan(deps, { ...DEEP_SCAN_DEFAULTS, idleRounds: 2, signal: new AbortController().signal });

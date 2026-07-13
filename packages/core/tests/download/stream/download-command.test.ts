@@ -34,6 +34,43 @@ describe('stripUrlSecrets', () => {
   });
 });
 
+describe('buildStreamCommand — stream-quality selector (yt-dlp -S)', () => {
+  const yt = (quality: 'auto' | 'best' | 'worst' | '1080' | '720' | '480', audioOnly = false) =>
+    buildStreamCommand({ manifestUrl: M, engine: 'yt-dlp', quality, audioOnly });
+
+  it('emits -S "res:<height>" for an exact-height preference', () => {
+    expect(yt('480')).toContain(`-S 'res:480'`);
+  });
+
+  it('maps auto to the target-height default (720)', () => {
+    expect(yt('auto')).toContain(`-S 'res:720'`);
+  });
+
+  it('emits no -S selector for best (yt-dlp already defaults to the best format)', () => {
+    expect(yt('best')).not.toContain('-S ');
+  });
+
+  it('emits -S "+res" (ascending → worst) for worst', () => {
+    expect(yt('worst')).toContain(`-S '+res'`);
+  });
+
+  it('does not apply a video-res selector on an audio-only handoff', () => {
+    const cmd = yt('480', true);
+    expect(cmd).toContain('-x');
+    expect(cmd).not.toContain('res:480');
+  });
+
+  it('omits the selector entirely when no quality is supplied (unchanged behaviour)', () => {
+    expect(buildStreamCommand({ manifestUrl: M, engine: 'yt-dlp' })).not.toContain('-S ');
+  });
+
+  it('ffmpeg ignores the quality preference (variant-by-height is not a simple flag)', () => {
+    const cmd = buildStreamCommand({ manifestUrl: M, engine: 'ffmpeg', quality: '480' });
+    expect(cmd).not.toContain('res:480');
+    expect(cmd).not.toContain('-S ');
+  });
+});
+
 describe('buildStreamCommand — yt-dlp', () => {
   const cmd = buildStreamCommand({ manifestUrl: M, engine: 'yt-dlp', referer: REF, userAgent: UA });
 

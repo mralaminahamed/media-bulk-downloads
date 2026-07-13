@@ -54,6 +54,26 @@ describe('buildZip', () => {
     expect(meta.src).not.toContain('SECRET'); // secret query stripped
   });
 
+  it('caps the archive at maxBytes: items past the ceiling go to `failed` (M7)', async () => {
+    const images = [img('https://cdn/a.jpg'), img('https://cdn/b.jpg'), img('https://cdn/c.jpg')];
+    const fetch = makeFetch({
+      'https://cdn/a.jpg': new Array(100).fill(1),
+      'https://cdn/b.jpg': new Array(100).fill(2),
+      'https://cdn/c.jpg': new Array(100).fill(3),
+    });
+    // concurrency 1 → strictly sequential so the byte cap bites deterministically.
+    const { bytes, ok, failed, results } = await buildZip(images, DEFAULT_SETTINGS, undefined, {
+      fetch,
+      concurrency: 1,
+      maxBytes: 250,
+    });
+    expect(ok).toBe(2); // a + b = 200B fit; c would push to 300B > 250 → skipped
+    expect(failed.map((f) => f.src)).toEqual(['https://cdn/c.jpg']);
+    expect(results.map((r) => r.ok)).toEqual([true, true, false]);
+    // the partial archive still contains the two that fit
+    expect(keysOf(bytes)).toEqual(['image_1.jpg', 'image_2.jpg']);
+  });
+
   it('writes no sidecar when the setting is off (default)', async () => {
     const images = [img('https://cdn/a.jpg')];
     const fetch = makeFetch({ 'https://cdn/a.jpg': [1] });
