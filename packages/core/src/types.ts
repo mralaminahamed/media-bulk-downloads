@@ -318,7 +318,8 @@ export interface CaptureRunMessage {
   manifestUrl: string;
   /** Which engine the offscreen host runs. */
   engine: 'hls' | 'dash';
-  quality: number;
+  /** Variant selector: a target height, or the bandwidth extremes (#288). */
+  quality: number | 'highest' | 'lowest';
   maxBytes: number;
 }
 
@@ -518,6 +519,11 @@ export interface SettingsData {
    *  segment (slow, memory-heavy), so it's an explicit opt-in rather than something
    *  the grid shows unasked. */
   captureHlsStreams: boolean;
+  /** Preferred rendition for a multi-variant stream capture (#288). `auto` keeps
+   *  the target-height default; `best`/`worst` take the bandwidth extremes; a
+   *  numeric tier ('1080'|'720'|'480') selects that height. Global, applied to
+   *  every capture; mapped to the engine selector by streamQualityToEngine. */
+  streamQuality: 'auto' | 'best' | 'worst' | '1080' | '720' | '480';
   /** Max simultaneous file downloads the queue dispatches (1–10). */
   downloadConcurrency: number;
   /** Deep-scan caps — the scan stops at whichever is reached first. */

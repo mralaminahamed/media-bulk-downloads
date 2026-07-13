@@ -112,6 +112,33 @@ const DownloadsPane: React.FC<DownloadsPaneProps> = ({
       </>
     )}
 
+    {/* Stream capture is Chrome-only (offscreen assembly), so the rendition
+        preference is only shown where it can take effect. */}
+    {!import.meta.env.FIREFOX && (
+      <>
+        <SelectField
+          id="set-streamQuality"
+          name="streamQuality"
+          label="Stream capture quality:"
+          value={settings.streamQuality}
+          onChange={(e) =>
+            setSettings((prev) => ({ ...prev, streamQuality: e.target.value as SettingsData['streamQuality'] }))
+          }
+        >
+          <option value="auto">Auto (recommended)</option>
+          <option value="best">Best available</option>
+          <option value="1080">1080p</option>
+          <option value="720">720p</option>
+          <option value="480">480p</option>
+          <option value="worst">Smallest (data saver)</option>
+        </SelectField>
+        <p className="mbd:text-[11px] mbd:leading-relaxed mbd:text-(--ink-3)">
+          Which rendition to capture from a multi-quality HLS/DASH stream. A fixed
+          resolution picks the closest the stream offers; single-quality streams ignore this.
+        </p>
+      </>
+    )}
+
     <ToggleRow
       id="set-saveAs"
       label="Ask where to save each file"
