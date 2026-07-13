@@ -77,6 +77,22 @@ describe('fb-media-sniffer content entrypoint', () => {
     expect(posted).toContainEqual({ source: 'ibd-fb-media', entries: [{ fbid: '1' }, { fbid: '2' }] });
   });
 
+  it('caps the pre-ready buffer so a relay that never readies cannot leak unbounded memory', () => {
+    const posted: Array<{ entries: Array<{ fbid: string }> }> = [];
+    (window.postMessage as unknown) = vi.fn((m: unknown) => posted.push(m as never));
+    const { emit } = runMain();
+
+    // Relay never becomes ready; FB streams responses for the whole session.
+    for (let i = 0; i < 8100; i++) emit.envelope([{ fbid: String(i) }]);
+
+    const replay = (installReplayOnReady as Mock).mock.calls.at(-1)![1] as () => void;
+    replay();
+    const drained = posted.at(-1)!.entries;
+    expect(drained).toHaveLength(8000); // capped, not 8100
+    expect(drained[0]).toEqual({ fbid: '100' }); // oldest 100 evicted
+    expect(drained.at(-1)).toEqual({ fbid: '8099' }); // newest kept
+  });
+
   it('does not buffer entries emitted after the relay is ready (no double replay)', () => {
     const posted: unknown[] = [];
     (window.postMessage as unknown) = vi.fn((m: unknown) => posted.push(m));
