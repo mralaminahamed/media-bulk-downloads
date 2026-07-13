@@ -1,5 +1,5 @@
 import { ImageInfo } from '@mbd/core/types';
-import { extractMetadata, injectMetadata, ImageMetadata } from './metadata';
+import { extractMetadata, injectMetadata, ImageMetadata } from '@mbd/core/download/convert/metadata';
 
 /**
  * Client-side image format conversion, run in the popup/bubble. The source image

@@ -7,7 +7,7 @@ import {
 import { filterImagesBySettings, filterExcluded } from '@mbd/core/collection/filters';
 import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { partitionByDownloaded, uniquifyBatchNames } from '@mbd/core/collection/download-dedupe';
-import { downloadedOnDiskKeys } from './download/downloaded-keys';
+import { downloadedOnDiskKeys } from '@/extension/background/download/downloaded-keys';
 import { textToBase64 } from '@mbd/core/download/base64';
 import { buildMediaSidecar, serializeSidecar, sidecarName } from '@mbd/core/download/metadata-sidecar';
 import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk, DiskState } from '@mbd/storage/history';
@@ -19,11 +19,11 @@ import { streamErrorMessage } from '@mbd/core/download/stream/stream-error-messa
 import {
   enqueueDownloads, pauseQueue, resumeQueue, cancelQueue, retryQueueItem, getQueueSnapshot,
   clearFinishedQueue, retryAllFailedQueue, openQueueItem,
-} from './download/download-queue';
+} from '@/extension/background/download/download-queue';
 import type { HistoryDraft, QueueState } from '@mbd/storage/download-queue';
-import { currentSettings, excludedCache, settingsReady, excludedReady, writeSettingsPatch } from './state';
-import { storeSniffedMedia, snifferByTab, resolveOriginalsBatch } from './sniffer-store';
-import { captureStreamToFile, captureRunTabs } from './download/capture';
+import { currentSettings, excludedCache, settingsReady, excludedReady, writeSettingsPatch } from '@/extension/background/state';
+import { storeSniffedMedia, snifferByTab, resolveOriginalsBatch } from '@/extension/background/sniffer-store';
+import { captureStreamToFile, captureRunTabs } from '@/extension/background/download/capture';
 
 /** Response callback shape for the background message router. */
 export type SendResponse = (

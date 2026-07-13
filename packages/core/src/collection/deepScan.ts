@@ -5,7 +5,7 @@
  * asks the page to scroll and re-reads the DOM.
  */
 import { MediaItem, DeepScanStopReason } from '@mbd/core/types';
-import { canonicalSrcKey } from './canonical';
+import { canonicalSrcKey } from '@mbd/core/collection/canonical';
 
 const clamp = (x: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, x));
 

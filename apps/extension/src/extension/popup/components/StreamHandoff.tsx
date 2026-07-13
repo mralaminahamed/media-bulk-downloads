@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { ExclamationTriangleIcon, XMarkIcon, ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { buildStreamCommand, STREAM_COMMAND_ENGINES, StreamCommandEngine } from '@mbd/core/download/stream/download-command';
 import { streamErrorMessage } from '@mbd/core/download/stream/stream-error-message';
-import { copyText } from '../utils';
-import { StreamRefusal } from '../hooks/useDownloadActions';
+import { copyText } from '@/extension/popup/utils';
+import { StreamRefusal } from '@/extension/popup/hooks/useDownloadActions';
 
 interface StreamHandoffProps {
   refusal: StreamRefusal;

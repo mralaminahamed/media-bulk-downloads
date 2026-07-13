@@ -1,4 +1,4 @@
-import { DecryptFn, HlsDeps, HlsByteRange } from './hls';
+import { DecryptFn, HlsDeps, HlsByteRange } from '@mbd/core/download/stream/hls';
 import { retryingFetch } from '@mbd/core/net/retry';
 
 /**

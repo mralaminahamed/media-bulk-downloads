@@ -1,7 +1,7 @@
 import { Dispatch, SetStateAction, useState } from 'react';
 import { ImageInfo } from '@mbd/core/types';
 import { isPendingOrStream } from '@mbd/core/collection/filters';
-import { downloadable } from '../lib/appHelpers';
+import { downloadable } from '@/extension/popup/lib/appHelpers';
 
 export interface UseSelectionResult {
   selectedSrcs: Set<string>;

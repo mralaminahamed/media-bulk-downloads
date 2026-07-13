@@ -1,4 +1,4 @@
-import { DashDeps } from './dash';
+import { DashDeps } from '@mbd/core/download/stream/dash';
 import { retryingFetch } from '@mbd/core/net/retry';
 
 /**

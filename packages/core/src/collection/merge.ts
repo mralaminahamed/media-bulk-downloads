@@ -1,4 +1,4 @@
-import { canonicalSrcKey } from './canonical';
+import { canonicalSrcKey } from '@mbd/core/collection/canonical';
 import type { ImageInfo } from '@mbd/core/types';
 
 /** Cross-scan identity: a resolver-supplied `mediaKey` (shared by a photo's

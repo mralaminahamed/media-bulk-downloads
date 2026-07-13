@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { FavouriteEntry, ImageInfo } from '@mbd/core/types';
 import { SrcKeySet } from '@mbd/core/collection/canonical';
 import { favouriteSrcSet, FAVOURITES_KEY } from '@mbd/storage/favourites';
-import { sendRuntimeMessage } from '../utils';
+import { sendRuntimeMessage } from '@/extension/popup/utils';
 
 export interface UseFavouritesResult {
   favouriteSrcs: SrcKeySet;

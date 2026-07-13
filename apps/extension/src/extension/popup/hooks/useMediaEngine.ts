@@ -3,14 +3,14 @@ import { AppState, DeepScanProgress, DeepScanStopReason, FilterOptions, ImageInf
 import { filterImagesBySettings, applyToolbarFilters, filterExcluded, ExcludedMatchers } from '@mbd/core/collection/filters';
 import { mergeScannedMedia } from '@mbd/core/collection/merge';
 import { loadStoredSettings } from '@mbd/storage/settings';
-import { requestResolveOriginals } from '../../shared/active-tab/resolve-originals-active';
-import { getPageType } from '../../shared/active-tab/collect-active-tab';
-import { applyResolved } from '../apply-resolved';
+import { requestResolveOriginals } from '@/extension/shared/active-tab/resolve-originals-active';
+import { getPageType } from '@/extension/shared/active-tab/collect-active-tab';
+import { applyResolved } from '@/extension/popup/apply-resolved';
 import { SrcKeySet } from '@mbd/core/collection/canonical';
 import { pageDefaults } from '@mbd/core/collection/pageType';
-import { DEFAULT_FILTERS } from '../components/FilterToolbar';
-import { getImageFileSize, mapWithConcurrency } from '../utils';
-import { SIZE_FETCH_CONCURRENCY, deepScanCapMessage, pendingVideos } from '../lib/appHelpers';
+import { DEFAULT_FILTERS } from '@/extension/popup/components/FilterToolbar';
+import { getImageFileSize, mapWithConcurrency } from '@/extension/popup/utils';
+import { SIZE_FETCH_CONCURRENCY, deepScanCapMessage, pendingVideos } from '@/extension/popup/lib/appHelpers';
 
 export interface UseMediaEngineParams {
   settings: SettingsData;

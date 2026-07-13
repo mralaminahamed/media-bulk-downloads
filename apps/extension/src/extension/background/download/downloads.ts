@@ -2,8 +2,8 @@ import { HistoryEntry, ImageInfo } from '@mbd/core/types';
 import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { partitionByDownloaded, uniquifyBatchNames } from '@mbd/core/collection/download-dedupe';
 import { recordDownloads } from '@mbd/storage/history';
-import { currentSettings } from '../state';
-import { downloadedOnDiskKeys } from './downloaded-keys';
+import { currentSettings } from '@/extension/background/state';
+import { downloadedOnDiskKeys } from '@/extension/background/download/downloaded-keys';
 
 /**
  * Downloads each eligible image and records the successful ones to history,

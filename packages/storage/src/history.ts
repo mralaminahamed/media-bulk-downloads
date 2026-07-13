@@ -1,6 +1,6 @@
 import { HistoryEntry } from '@mbd/core/types';
 import { canonicalSrcKey } from '@mbd/core/collection/canonical';
-import { durableSet } from './idb';
+import { durableSet } from '@mbd/storage/idb';
 
 export const HISTORY_KEY = 'downloadHistory';
 export const HISTORY_CAP = 500;

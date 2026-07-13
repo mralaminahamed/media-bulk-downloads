@@ -4,7 +4,7 @@ import { hostFromUrl, registrableDomain } from '@mbd/core/collection/paths';
 import {
   applyHostOverride, pickHostFields, overrideForHost, loadEffectiveSettingsForHost,
 } from '@mbd/storage/per-host-settings';
-import { sendRuntimeMessage } from '../utils';
+import { sendRuntimeMessage } from '@/extension/popup/utils';
 
 export interface UsePerHostSettingsResult {
   /** The active page's registrable domain; '' when unknown (no active tab). */

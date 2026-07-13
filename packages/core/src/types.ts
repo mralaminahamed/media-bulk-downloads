@@ -1,6 +1,6 @@
 import type React from 'react';
 import type { ReactNode, ChangeEvent, FocusEvent, MouseEvent, CSSProperties, HTMLAttributes } from 'react';
-import type { SrcKeySet } from './collection/canonical';
+import type { SrcKeySet } from '@mbd/core/collection/canonical';
 
 export type ResolvePlatform = 'twitter' | 'wallhaven' | 'unsplash' | 'vimeo' | 'bsky' | 'pinterest' | 'reddit' | 'flickr' | 'artstation' | 'dailymotion';
 export interface ResolveHint {

@@ -1,5 +1,5 @@
 import { BackupData, ExcludedEntry, FavouriteEntry, HistoryEntry, SettingsData } from '@mbd/core/types';
-import { withDefaults } from './settings';
+import { withDefaults } from '@mbd/storage/settings';
 
 /**
  * Import / export of the user's data (settings + favourites + history) as one

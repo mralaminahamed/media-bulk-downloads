@@ -1,5 +1,5 @@
 import { extensionFromUrl } from '@mbd/core/collection/mediaType';
-import { MediaCandidate, Resolver, ResolveContext } from '../types';
+import { MediaCandidate, Resolver, ResolveContext } from '@mbd/core/resolvers/types';
 
 // Boorus we support, keyed by the PAGE host (the collected media URL is on an
 // image CDN, so matching gates on ctx.pageUrl, not u.hostname).

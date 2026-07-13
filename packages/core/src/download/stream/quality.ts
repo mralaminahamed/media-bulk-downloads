@@ -1,5 +1,5 @@
-import { STREAM_TARGET_HEIGHT } from './capture-constants';
-import { SettingsData } from '../../types';
+import { STREAM_TARGET_HEIGHT } from '@mbd/core/download/stream/capture-constants';
+import { SettingsData } from '@mbd/core/types';
 
 /** The user's global "Stream quality" preference (#288). */
 export type StreamQuality = SettingsData['streamQuality'];

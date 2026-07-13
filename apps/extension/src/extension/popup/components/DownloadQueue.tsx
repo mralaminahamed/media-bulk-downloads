@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { loadQueue, QUEUE_KEY, type QueueState } from '@mbd/storage/download-queue';
-import { sendRuntimeMessage } from '../utils';
-import { QueueRow } from './QueueRow';
+import { sendRuntimeMessage } from '@/extension/popup/utils';
+import { QueueRow } from '@/extension/popup/components/QueueRow';
 
 // Persisted in chrome.storage.local so the collapsed choice survives the popup
 // remounting on every reopen (a long queue would otherwise re-expand each time).

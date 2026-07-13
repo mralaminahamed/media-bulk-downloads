@@ -1,4 +1,4 @@
-import { STREAM_MAX_BYTES } from './capture-constants';
+import { STREAM_MAX_BYTES } from '@mbd/core/download/stream/capture-constants';
 
 /**
  * A user-facing message for a failed stream capture (HLS or DASH), from the

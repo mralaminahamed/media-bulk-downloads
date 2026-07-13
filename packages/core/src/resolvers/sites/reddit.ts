@@ -1,5 +1,5 @@
 import { imageExtFromUrl } from '@mbd/core/collection/mediaType';
-import { MediaCandidate, Resolver } from '../types';
+import { MediaCandidate, Resolver } from '@mbd/core/resolvers/types';
 
 // v.redd.it path: /<id>/<file> — the id is the first segment (the same id the
 // public HLS/DASH masters are served under).

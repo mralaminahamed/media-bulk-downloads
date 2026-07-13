@@ -1,10 +1,10 @@
-import { idbGet, idbSet } from './idb';
-import { HISTORY_KEY } from './history';
-import { FAVOURITES_KEY } from './favourites';
-import { EXCLUDED_KEY } from './excluded';
-import { QUEUE_KEY } from './download-queue';
-import { PER_HOST_SETTINGS_KEY } from './per-host-settings';
-import { PER_HOST_SCAN_MEMORY_KEY } from './per-host-scan-memory';
+import { idbGet, idbSet } from '@mbd/storage/idb';
+import { HISTORY_KEY } from '@mbd/storage/history';
+import { FAVOURITES_KEY } from '@mbd/storage/favourites';
+import { EXCLUDED_KEY } from '@mbd/storage/excluded';
+import { QUEUE_KEY } from '@mbd/storage/download-queue';
+import { PER_HOST_SETTINGS_KEY } from '@mbd/storage/per-host-settings';
+import { PER_HOST_SCAN_MEMORY_KEY } from '@mbd/storage/per-host-scan-memory';
 
 // Both per-host keys write through durableSet (the IDB mirror). Include them here
 // so that mirror is actually read back on startup — otherwise a chrome.storage.local

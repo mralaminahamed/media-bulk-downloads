@@ -3,7 +3,7 @@ import {
   scheduleRetry, cancel, retryFailed, setProgress, clearFinished, retryAllFailed, type EnqueueEntry, type QueueState,
 } from '@mbd/storage/download-queue';
 import { recordDownloads } from '@mbd/storage/history';
-import { applyRefererRule, removeRefererRule, hasDnrPermission } from './hotlink-rewrite';
+import { applyRefererRule, removeRefererRule, hasDnrPermission } from '@/extension/background/download/hotlink-rewrite';
 
 interface Deps {
   getConcurrency: () => number;

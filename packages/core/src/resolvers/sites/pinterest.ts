@@ -1,6 +1,6 @@
 import { upgradeToOriginal } from '@mbd/core/collection/imageUrl';
 import { imageExtFromUrl } from '@mbd/core/collection/mediaType';
-import { MediaCandidate, Resolver } from '../types';
+import { MediaCandidate, Resolver } from '@mbd/core/resolvers/types';
 import { PinterestMediaEntry, pinPinimgUrl, pinIdFromUrl, PIN_EXT } from '@mbd/core/resolvers/sniffers/pinterest-media-sniff';
 
 const IMG_HOST = 'i.pinimg.com';

@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BubbleCorner, BubblePanelPlacement, DeepScanProgress, ImageInfo, SettingsData } from '@mbd/core/types';
 import { withDefaults } from '@mbd/storage/settings';
-import { collectMedia } from '../content/collect';
-import { startDeepScan } from '../content/deepScanRunner';
-import App from '../popup/App';
-import { BrandMark } from '../components/BrandMark';
+import { collectMedia } from '@/extension/content/collect';
+import { startDeepScan } from '@/extension/content/deepScanRunner';
+import App from '@/extension/popup/App';
+import { BrandMark } from '@/extension/components/BrandMark';
 
 interface BubbleProps {
   initialSettings: SettingsData;

@@ -1,5 +1,5 @@
 import { imageExtFromUrl } from '@mbd/core/collection/mediaType';
-import { MediaCandidate, Resolver, ResolveContext } from '../types';
+import { MediaCandidate, Resolver, ResolveContext } from '@mbd/core/resolvers/types';
 
 const HOST = 'mir-s3-cdn-cf.behance.net';
 const SOURCE_PATH_RE = /^\/project_modules\/(?:source|fs)\//;
