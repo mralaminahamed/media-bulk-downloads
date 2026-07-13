@@ -71,7 +71,7 @@ const isIgUrl = (u: string | undefined): boolean => {
 const isPendingReel = (img: ImageInfo): boolean =>
   isPendingVideo(img) && !img.resolveHint && (isIgUrl(img.src) || isIgUrl(img.poster));
 
-const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnailSize = 120, previewSize = 360, downloadedSrcs, favouriteSrcs, onToggleFavourite, onExclude, onFetchVideo, resolveFailedSrcs, fetchingSrcs, selectedSrcs, selectionActive, onToggleSelect, onSelectRange }) => {
+const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, onCaptureAudio, thumbnailSize = 120, previewSize = 360, downloadedSrcs, favouriteSrcs, onToggleFavourite, onExclude, onFetchVideo, resolveFailedSrcs, fetchingSrcs, selectedSrcs, selectionActive, onToggleSelect, onSelectRange }) => {
   // Track the previewed item by identity (src), not position: `images` re-sorts
   // and re-filters asynchronously (streaming sizes, resolved originals), so a
   // bare index would swap the modal to a different item — or unmount it — mid-view.
@@ -358,14 +358,26 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                     </button>
                   ) : null
                 ) : isPendingImage(image) ? null : (
-                  <button
-                    onClick={() => onImageDownload(image)}
-                    title={isHlsStream(image) ? 'Capture stream' : 'Download'}
-                    aria-label={isHlsStream(image) ? 'Capture stream' : 'Download'}
-                    className="mbd:grid mbd:h-8 mbd:w-8 mbd:place-items-center mbd:rounded-full mbd:bg-(--brand-ink) mbd:text-white mbd:ring-1 mbd:ring-(--ctl-ring) mbd:transition-transform mbd:hover:scale-105 mbd:active:scale-95"
-                  >
-                    <ArrowDownTrayIcon className="mbd:h-4 mbd:w-4" />
-                  </button>
+                  <>
+                    {isHlsStream(image) && onCaptureAudio && (
+                      <button
+                        onClick={() => onCaptureAudio(image)}
+                        title="Audio only (.m4a)"
+                        aria-label="Capture audio only"
+                        className="mbd:grid mbd:h-8 mbd:w-8 mbd:place-items-center mbd:rounded-full mbd:bg-(--panel) mbd:text-(--ink) mbd:ring-1 mbd:ring-(--ctl-ring) mbd:transition-transform mbd:hover:scale-105 mbd:active:scale-95"
+                      >
+                        <AudioIcon className="mbd:h-4 mbd:w-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => onImageDownload(image)}
+                      title={isHlsStream(image) ? 'Capture stream' : 'Download'}
+                      aria-label={isHlsStream(image) ? 'Capture stream' : 'Download'}
+                      className="mbd:grid mbd:h-8 mbd:w-8 mbd:place-items-center mbd:rounded-full mbd:bg-(--brand-ink) mbd:text-white mbd:ring-1 mbd:ring-(--ctl-ring) mbd:transition-transform mbd:hover:scale-105 mbd:active:scale-95"
+                    >
+                      <ArrowDownTrayIcon className="mbd:h-4 mbd:w-4" />
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -633,10 +645,18 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, thumbnai
                   This image hasn&apos;t been fetched yet — turn on &ldquo;Resolve exact originals&rdquo; in Settings to load it automatically.
                 </p>
               ) : (
-                <button onClick={() => onImageDownload(selectedImage)} title={isHlsStream(selectedImage) ? 'Capture stream' : 'Download'} aria-label={isHlsStream(selectedImage) ? 'Capture stream' : 'Download'} className="btn btn-primary mbd:w-full">
-                  <ArrowDownTrayIcon className="mbd:h-4 mbd:w-4" />
-                  <span>{isHlsStream(selectedImage) ? 'Capture stream' : 'Download'}</span>
-                </button>
+                <div className="mbd:flex mbd:w-full mbd:gap-2">
+                  <button onClick={() => onImageDownload(selectedImage)} title={isHlsStream(selectedImage) ? 'Capture stream' : 'Download'} aria-label={isHlsStream(selectedImage) ? 'Capture stream' : 'Download'} className="btn btn-primary mbd:flex-1">
+                    <ArrowDownTrayIcon className="mbd:h-4 mbd:w-4" />
+                    <span>{isHlsStream(selectedImage) ? 'Capture stream' : 'Download'}</span>
+                  </button>
+                  {isHlsStream(selectedImage) && onCaptureAudio && (
+                    <button onClick={() => onCaptureAudio(selectedImage)} title="Audio only (.m4a)" aria-label="Capture audio only" className="btn btn-ghost">
+                      <AudioIcon className="mbd:h-4 mbd:w-4" />
+                      <span>Audio</span>
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </div>

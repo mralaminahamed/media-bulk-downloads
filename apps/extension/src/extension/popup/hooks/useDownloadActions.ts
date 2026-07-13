@@ -42,6 +42,8 @@ export interface UseDownloadActionsResult {
   handleDownload: (images: ImageInfo | ImageInfo[]) => Promise<void>;
   handleBulkDownload: () => void;
   handleSingleImageDownload: (image: ImageInfo) => void;
+  /** Capture a stream item but keep only its audio track, saved as `.m4a` (#204). */
+  handleCaptureAudio: (image: ImageInfo) => void;
   handleDownloadZip: (images: ImageInfo[]) => Promise<void>;
   handleBulkDownloadZip: () => void;
   handleDownloadSelected: () => void;
@@ -89,20 +91,23 @@ export function useDownloadActions({
    * into the ProgressBar, and shows the status the background composes. The
    * capture completes even if the popup closes before this resolves.
    */
-  const captureStream = async (item: ImageInfo): Promise<void> => {
+  const captureStream = async (item: ImageInfo, audioOnly = false): Promise<void> => {
     const sourcePage = await currentSourcePage();
     // Clear any prior handoff banner before this attempt (#285).
     onStreamRefused?.(null);
-    setProgress({ label: 'Capturing stream', done: 0, total: 0 });
+    const label = audioOnly ? 'Extracting audio' : 'Capturing stream';
+    setProgress({ label, done: 0, total: 0 });
     try {
       const { status, refusal } = await requestCaptureStream(
         item,
         sourcePage,
-        (done, total) => setProgress({ label: 'Capturing stream', done, total }),
+        (done, total) => setProgress({ label, done, total }),
+        audioOnly,
       );
       setState((prev) => ({ ...prev, status }));
-      // A refused stream (DRM/live/SAMPLE-AES/unsupported) becomes a handoff: the
-      // page URL is the Referer for the yt-dlp/ffmpeg command the user copies.
+      // A refused stream (DRM/live/SAMPLE-AES/unsupported, or audio-unavailable when
+      // extracting audio) becomes a handoff: the page URL is the Referer for the
+      // yt-dlp/ffmpeg command the user copies (#285).
       if (refusal) onStreamRefused?.({ item, code: refusal.code, referer: sourcePage.url });
     } finally {
       setProgress(null);
@@ -197,6 +202,8 @@ export function useDownloadActions({
 
   const handleSingleImageDownload = (image: ImageInfo): void => void handleDownload(image);
 
+  const handleCaptureAudio = (image: ImageInfo): void => void captureStream(image, true);
+
   // ── Selective bulk download ────────────────────────────────────────────────
   const handleDownloadSelected = (): void => {
     const chosen = downloadable(filteredImages).filter((i) => selectedSrcs.has(i.src));
@@ -276,6 +283,7 @@ export function useDownloadActions({
     handleDownload,
     handleBulkDownload,
     handleSingleImageDownload,
+    handleCaptureAudio,
     handleDownloadZip,
     handleBulkDownloadZip,
     handleDownloadSelected,

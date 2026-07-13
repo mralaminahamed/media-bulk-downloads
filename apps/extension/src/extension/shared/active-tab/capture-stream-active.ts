@@ -20,6 +20,7 @@ export function requestCaptureStream(
   item: ImageInfo,
   sourcePage: { url: string; title?: string },
   onProgress: (done: number, total: number) => void,
+  audioOnly = false,
 ): Promise<{ status: string; refusal?: { code: string } }> {
   return new Promise((resolve) => {
     const runId = newCaptureRunId();
@@ -30,7 +31,7 @@ export function requestCaptureStream(
       if (p && p.type === 'CAPTURE_PROGRESS' && p.runId === runId) onProgress(p.done, p.total);
     };
     chrome.runtime.onMessage.addListener(listener);
-    const message: CaptureStreamMessage = { type: 'CAPTURE_STREAM', runId, item, sourcePage };
+    const message: CaptureStreamMessage = { type: 'CAPTURE_STREAM', runId, item, sourcePage, audioOnly };
     chrome.runtime.sendMessage(message, (response?: CaptureStreamResponse) => {
       chrome.runtime.onMessage.removeListener(listener);
       void chrome.runtime.lastError;

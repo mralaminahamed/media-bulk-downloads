@@ -15,8 +15,8 @@ import { CaptureRunMessage, CaptureRunResult } from '@mbd/core/types';
 export function installOffscreenCaptureHost(): void {
   chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
     if (!message || (message as { type?: unknown }).type !== 'CAPTURE_RUN') return;
-    const { runId, manifestUrl, engine, quality, maxBytes } = message as CaptureRunMessage;
-    void runCapture(runId, manifestUrl, engine, quality, maxBytes).then(sendResponse);
+    const { runId, manifestUrl, engine, quality, maxBytes, audioOnly } = message as CaptureRunMessage;
+    void runCapture(runId, manifestUrl, engine, quality, maxBytes, !!audioOnly).then(sendResponse);
     return true; // response is sent asynchronously
   });
 }
@@ -27,14 +27,15 @@ async function runCapture(
   engine: 'hls' | 'dash',
   quality: CaptureRunMessage['quality'],
   maxBytes: number,
+  audioOnly: boolean,
 ): Promise<CaptureRunResult> {
   const onProgress = (done: number, total: number): void => {
     void chrome.runtime.sendMessage({ type: 'CAPTURE_PROGRESS', runId, done, total });
   };
   try {
     const res = engine === 'dash'
-      ? await captureDash(manifestUrl, browserDashDeps(onProgress), { quality, maxBytes })
-      : await captureHls(manifestUrl, browserHlsDeps(onProgress), { quality, maxBytes });
+      ? await captureDash(manifestUrl, browserDashDeps(onProgress), { quality, maxBytes, audioOnly })
+      : await captureHls(manifestUrl, browserHlsDeps(onProgress), { quality, maxBytes, audioOnly });
     // A standalone ArrayBuffer copy — Blob rejects a plain Uint8Array's
     // ArrayBufferLike backing under strict DOM types.
     const ab = res.bytes.buffer.slice(res.bytes.byteOffset, res.bytes.byteOffset + res.bytes.byteLength) as ArrayBuffer;

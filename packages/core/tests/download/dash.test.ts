@@ -445,6 +445,40 @@ describe('captureDash — e2e mux', () => {
     expect(tracksOf(res.bytes)).toHaveLength(1);
   });
 
+  // ── audio-only (#204) ──────────────────────────────────────────────────────
+  it('audioOnly emits just the audio Representation → single-track .m4a', async () => {
+    const res = await captureDash('https://cdn.test/manifest.mpd', deps(), { audioOnly: true });
+    expect(res.ext).toBe('m4a');
+    expect(res.mime).toBe('audio/mp4');
+    expect(res.muxedAudio).toBe(false);
+    expect(String.fromCharCode(res.bytes[4], res.bytes[5], res.bytes[6], res.bytes[7])).toBe('ftyp');
+    const tracks = tracksOf(res.bytes);
+    expect(tracks).toHaveLength(1);
+    expect(tracks[0].type).toBe('audio');
+  });
+
+  it('audioOnly only fetches the audio segments, never the video', async () => {
+    const fetched: string[] = [];
+    const d: DashDeps = { fetchText: async () => VOD_MPD, fetchBytes: async (u: string) => { fetched.push(u.split('/').pop()!); return fx(u.split('/').pop()!); } };
+    await captureDash('https://cdn.test/manifest.mpd', d, { audioOnly: true });
+    expect(fetched.some((n) => n.startsWith('a_'))).toBe(true);
+    expect(fetched.some((n) => n.startsWith('v_'))).toBe(false);
+  });
+
+  it('audioOnly refuses audio-unavailable when the manifest has no audio Representation', async () => {
+    const videoOnly = VOD_MPD.replace(/<AdaptationSet mimeType="audio\/mp4">[\s\S]*?<\/AdaptationSet>/, '');
+    await expect(captureDash('https://cdn.test/manifest.mpd', deps(videoOnly), { audioOnly: true })).rejects.toMatchObject({
+      code: 'audio-unavailable',
+    });
+  });
+
+  it('audioOnly still refuses DRM first (refusal precedence unchanged)', async () => {
+    const drm = VOD_MPD.replace('<Representation id="v0"', '<ContentProtection schemeIdUri="urn:mpeg:dash:mp4protection:2011"/><Representation id="v0"');
+    await expect(captureDash('https://cdn.test/manifest.mpd', deps(drm), { audioOnly: true })).rejects.toMatchObject({
+      code: 'drm',
+    });
+  });
+
   it('throws too-large when the summed bytes exceed maxBytes', async () => {
     // v_seg1.m4v is ~90 KB; 1000 bytes forces the video track over budget.
     await expect(captureDash('https://cdn.test/manifest.mpd', deps(), { maxBytes: 1000 })).rejects.toMatchObject({

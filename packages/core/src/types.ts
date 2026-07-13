@@ -317,6 +317,8 @@ export interface CaptureStreamMessage {
   runId: string;
   item: ImageInfo;
   sourcePage: { url: string; title?: string };
+  /** Extract only the audio track as `.m4a` (#204). Per-item action, not a setting. */
+  audioOnly?: boolean;
 }
 
 /** Background → offscreen: run the engine with this capture policy. */
@@ -330,6 +332,8 @@ export interface CaptureRunMessage {
   /** Variant selector: a target height, or the bandwidth extremes (#288). */
   quality: number | 'highest' | 'lowest';
   maxBytes: number;
+  /** Extract only the audio track as `.m4a`, no re-encode (#204). */
+  audioOnly?: boolean;
 }
 
 /** Offscreen → all contexts (the popup listens): capture progress. */
@@ -633,6 +637,8 @@ export interface ImageListProps {
   onExclude?: (image: ImageInfo, kind: ExcludedKind) => void;
   /** Resolve one pending video's real file on demand (per-item "Get video"). */
   onFetchVideo?: (image: ImageInfo) => void;
+  /** Capture a stream item as audio-only `.m4a` (per-item "Audio only", #204). */
+  onCaptureAudio?: (image: ImageInfo) => void;
   /** Srcs whose on-demand resolve returned nothing (tombstone / failure). */
   resolveFailedSrcs?: Set<string>;
   /** Srcs currently being resolved (shows a spinner, disables the button). */

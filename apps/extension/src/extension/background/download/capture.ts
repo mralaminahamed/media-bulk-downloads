@@ -55,6 +55,7 @@ export async function captureStreamToFile(
   item: ImageInfo,
   sourcePage: { url: string; title?: string } | undefined,
   runId: string,
+  audioOnly = false,
 ): Promise<
   | { ok: true; filename: string; saved: boolean; segmentCount: number; muxedAudio: boolean }
   | { ok: false; code: string }
@@ -73,6 +74,7 @@ export async function captureStreamToFile(
     // target-height default, so nothing changes unless they pick a rendition.
     quality: streamQualityToEngine(currentSettings.streamQuality),
     maxBytes: STREAM_MAX_BYTES,
+    audioOnly,
   })) as CaptureRunResult | undefined;
   if (!result || !result.ok) return { ok: false, code: result?.ok === false ? result.code : 'unknown' };
   const filename = buildDownloadFilename({ ...item, ext: result.ext }, 0, currentSettings, sourcePage?.url);

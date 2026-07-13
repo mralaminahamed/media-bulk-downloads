@@ -116,6 +116,7 @@ const App: React.FC<AppProps> = ({
   const {
     handleBulkDownload,
     handleSingleImageDownload,
+    handleCaptureAudio,
     handleDownloadSelected,
     handleBulkDownloadZip,
     handleDownloadSelectedZip,
@@ -268,6 +269,7 @@ const App: React.FC<AppProps> = ({
           <ImageList
             images={state.filteredImages}
             onImageDownload={handleSingleImageDownload}
+            onCaptureAudio={handleCaptureAudio}
             thumbnailSize={settings.thumbnailSize}
             previewSize={settings.previewSize}
             downloadedSrcs={downloadedSrcs}
