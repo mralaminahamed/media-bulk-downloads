@@ -45,6 +45,24 @@ describe('usePerHostSettings', () => {
     expect(result.current.effective.minimumImageSize).toBe(800);
   });
 
+  it('saving one unrelated field preserves this host’s other overrides (no clobber, I12)', async () => {
+    // Host already has an excludeEmoji override; global has it off.
+    await chrome.storage.local.set({ perHostSettings: { 'booru.example': { excludeEmoji: true } } });
+    const global = { ...DEFAULT_SETTINGS, minimumImageSize: 0, excludeEmoji: false };
+    const { result } = renderHook(() => usePerHostSettings(src('https://booru.example/'), global));
+    await waitFor(() => expect(result.current.hasOverride).toBe(true));
+    expect(result.current.effective.excludeEmoji).toBe(true);
+
+    // The dialog is global-seeded (excludeEmoji shows off); the user only changes
+    // minimumImageSize and saves. The excludeEmoji override must NOT be wiped.
+    act(() => result.current.saveForThisSite({ ...global, minimumImageSize: 300 } as never));
+
+    const sent = (chrome.runtime.sendMessage as Mock).mock.calls[0][0];
+    expect(sent.patch).toMatchObject({ excludeEmoji: true, minimumImageSize: 300 });
+    await waitFor(() => expect(result.current.effective.minimumImageSize).toBe(300));
+    expect(result.current.effective.excludeEmoji).toBe(true); // preserved, not clobbered to false
+  });
+
   it('resetThisSite sends a null patch and clears optimistically', async () => {
     await chrome.storage.local.set({ perHostSettings: { 'booru.example': { excludeEmoji: true } } });
     const { result } = renderHook(() => usePerHostSettings(src('https://booru.example/'), DEFAULT_SETTINGS));

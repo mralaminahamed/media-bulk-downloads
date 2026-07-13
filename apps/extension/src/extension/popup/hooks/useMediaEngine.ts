@@ -305,8 +305,12 @@ export function useMediaEngine({
       // until a resolver sets mediaKey (Task 8).
       const merged = mergeScannedMedia(rawImagesRef.current, found);
       rawImagesRef.current = merged;
-      const eligible = filterExcluded(filterImagesBySettings(merged, settings), excludedRef.current);
-      applyResolution(eligible, settings);
+      // Use the LATEST settings, not the click-time closure: a deep scan runs for
+      // tens of seconds and the user can change minimumImageSize / excludeBase64Images
+      // in the still-reachable Settings panel meanwhile (matches fetchImages).
+      const latest = settingsRef.current;
+      const eligible = filterExcluded(filterImagesBySettings(merged, latest), excludedRef.current);
+      applyResolution(eligible, latest);
       // If a cap (not a natural finish) ended the scan, tell the user media may remain.
       const capMsg = deepScanCapMessage(stopReason, merged.length);
       if (capMsg) setState((prev) => ({ ...prev, status: capMsg }));
@@ -331,12 +335,16 @@ export function useMediaEngine({
   const handleFetchVideo = async (image: ImageInfo): Promise<void> => {
     if (!image.resolveHint) return;
     const src = image.src;
+    const generation = resolveGenRef.current; // snapshot: a rescan/deep-scan bumps this
     setFetchingSrcs((p) => new Set(p).add(src));
     setResolveFailedSrcs((p) => { const n = new Set(p); n.delete(src); return n; });
     const resolved = await requestResolveOriginals([{ src, hint: image.resolveHint }]);
     setFetchingSrcs((p) => { const n = new Set(p); n.delete(src); return n; });
+    // If a rescan replaced the grid while we were resolving, this result is stale —
+    // its src may now belong to a different item — so discard it (like enrichOriginals).
+    if (generation !== resolveGenRef.current) return;
     const r = resolved[src];
-    const swapped = r ? applyResolved(image, r, settings.captureHlsStreams) : null;
+    const swapped = r ? applyResolved(image, r, settingsRef.current.captureHlsStreams) : null;
     if (!swapped) {
       // A null result is either no-resolution or an HLS-only video with capture
       // off. Only mark a hard failure when nothing resolved; a gated HLS item
@@ -368,6 +376,7 @@ export function useMediaEngine({
   const handleFetchAllVideos = async (): Promise<void> => {
     const targets = pendingVideos(state.filteredImages);
     if (!targets.length) return;
+    const generation = resolveGenRef.current; // snapshot: a rescan/deep-scan bumps this
     const srcs = targets.map((t) => t.src);
     setFetchingAllVideos(true);
     setFetchingSrcs((p) => { const n = new Set(p); srcs.forEach((s) => n.add(s)); return n; });
@@ -385,6 +394,9 @@ export function useMediaEngine({
       setFetchingAllVideos(false);
       setFetchingSrcs((p) => { const n = new Set(p); srcs.forEach((s) => n.delete(s)); return n; });
     }
+    // If a rescan replaced the grid while we were resolving, these results are stale
+    // (their srcs may now belong to different items) — discard them (like enrichOriginals).
+    if (generation !== resolveGenRef.current) return;
     // Keyed on the raw resolver result: only truly-unresolved items are failures.
     // A gated HLS-only item (resolved, but capture off → applyResolved returns
     // null below) is NOT a failure — it stays quietly pending, same as the single
@@ -395,7 +407,7 @@ export function useMediaEngine({
     const byOldSrc = new Map<string, ImageInfo>();
     for (const t of targets) {
       const r = resolved[t.src];
-      const swapped = r ? applyResolved(t, r, settings.captureHlsStreams) : null;
+      const swapped = r ? applyResolved(t, r, settingsRef.current.captureHlsStreams) : null;
       if (swapped) byOldSrc.set(t.src, swapped);
     }
     if (!byOldSrc.size) return;
