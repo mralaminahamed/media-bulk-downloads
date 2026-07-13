@@ -21,14 +21,14 @@ identical so both stores match.
 ## 1. Pre-submission checklist
 
 - [ ] **Partner Center account** registered for the *Microsoft Edge* program (free — no registration fee).
-- [ ] `wxt.config.ts` name/description correct; version comes from `package.json`. `yarn build:edge` emits `.output/edge-mv3/manifest.json`.
+- [ ] `wxt.config.ts` name/description correct; version comes from `apps/extension/package.json`. `yarn build:edge` emits `apps/extension/.output/edge-mv3/manifest.json`.
 - [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`; optional `notifications` and
   `declarativeNetRequestWithHostAccess` (both requested at runtime).
 - [ ] Icons 16/32/48/128 present (`src/public/icon/`) — ✅ already in the build.
 - [ ] **Store logo 300×300 PNG** ready (Edge-specific, see §5) — ✅ `assets/v2/store-logo-300x300.png`.
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
 - [ ] At least **1 screenshot** at 1280×800 (or 640×480) (see §5).
-- [ ] `.output/media-bulk-downloads-<version>-edge.zip` produced by `yarn zip:edge`.
+- [ ] `apps/extension/.output/media-bulk-downloads-<version>-edge.zip` produced by `yarn zip:edge`.
 - [ ] Product description, category, search terms, privacy answers, and certification notes filled in (below).
 
 ---
@@ -222,7 +222,7 @@ server is required — all functionality is local.
 
 ## 5. Required visual assets
 
-Capture from the running extension (`yarn build:edge`, load `.output/edge-mv3`
+Capture from the running extension (`yarn build:edge`, load `apps/extension/.output/edge-mv3`
 unpacked via `edge://extensions` → **Load unpacked**), then crop to the exact
 sizes. PNG or JPEG.
 
@@ -281,13 +281,13 @@ are required.
 WXT packages a store-ready zip per browser:
 
 ```bash
-corepack yarn zip:edge     # edge    → .output/media-bulk-downloads-<version>-edge.zip
+corepack yarn zip:edge     # edge    → apps/extension/.output/media-bulk-downloads-<version>-edge.zip
 corepack yarn zip          # chrome  → …-chrome.zip
 corepack yarn zip:firefox  # firefox → …-firefox.zip (+ a -sources.zip for AMO)
 corepack yarn zip:all      # all of the above
 ```
 
-Version comes from `package.json` (WXT writes it into every manifest).
+Version comes from `apps/extension/package.json` (WXT writes it into every manifest).
 
 **Microsoft Edge Add-ons (Partner Center):**
 

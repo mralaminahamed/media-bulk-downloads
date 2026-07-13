@@ -7,7 +7,7 @@ discovers on real pages.
 
 ## Method
 
-- The real `src/extension/content/collect.ts` (with `extract.ts` / `imageUrl.ts` /
+- The real `apps/extension/src/extension/content/collect.ts` (with `extract.ts` / `imageUrl.ts` /
   `mediaType.ts` / `resolvers/*`) is bundled unchanged into an IIFE
   (`esbuild --bundle --format=iife --alias:@=./src`), injected into the page, and
   run once. No source is mocked or altered.
@@ -385,7 +385,7 @@ wraps XHR at `document_start`), so replica numbers are a **lower bound**.
 
 **Gate status — PARTIAL / definitive run pending.** For the authoritative
 per-surface >=80% figure across Photos/Reels/Page, load the built extension
-(`.output/chrome-mv3`, unpacked) in Chrome, open a real surface, run a full
+(`apps/extension/.output/chrome-mv3`, unpacked) in Chrome, open a real surface, run a full
 Deep scan (its `document_start` sniffer + scroll accumulation), and read the
 panel's per-item resolution. The e2e (`facebook-sniffer.spec.ts`) already proves
 the mechanism deterministically on data faithful to the real `text/html` NDJSON.
@@ -418,7 +418,7 @@ capture nothing. The feed/grid is virtualized — only the active tile mounts a
 and its mp4 is not passively reachable (the passive ceiling; forcing it would
 require active auto-scroll/mount, out of scope). No production code change was
 warranted; the behavior is locked in by
-`tests/unit/extension/content/collect-threads-video.test.ts` and the e2e
+`apps/extension/tests/unit/extension/content/collect-threads-video.test.ts` and the e2e
 `threads-video` spec. URL samples omitted (the safety filter strips CDN tokens).
 
 ## J. Popup grid render performance

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./src/public/icon/128.png" alt="Media Bulk Downloads icon" width="96" height="96">
+<img src="./apps/extension/src/public/icon/128.png" alt="Media Bulk Downloads icon" width="96" height="96">
 
 # Media Bulk Downloads
 
@@ -114,21 +114,21 @@ git clone https://github.com/mralaminahamed/media-bulk-downloads.git
 cd media-bulk-downloads
 corepack enable
 yarn install
-yarn dev            # Chrome: builds .output/chrome-mv3 and auto-reloads on change
-# yarn dev:firefox  # Firefox: builds .output/firefox-mv3 and opens a dev profile
+yarn dev            # Chrome: builds apps/extension/.output/chrome-mv3 and auto-reloads on change
+# yarn dev:firefox  # Firefox: builds apps/extension/.output/firefox-mv3 and opens a dev profile
 ```
 
 `yarn dev` opens a browser with the extension loaded. To load a build by hand:
 open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, and
-select `.output/chrome-mv3`.
+select `apps/extension/.output/chrome-mv3`.
 
 ## Build & package
 
 WXT produces an MV3 build and a store-ready zip per browser:
 
 ```bash
-yarn build:all      # chrome · firefox · edge  → .output/<browser>-mv3
-yarn zip:all        # store zips for all three  → .output/*.zip
+yarn build:all      # chrome · firefox · edge  → apps/extension/.output/<browser>-mv3
+yarn zip:all        # store zips for all three  → apps/extension/.output/*.zip
 ```
 
 | Store                  | Upload                                                            |
@@ -140,7 +140,7 @@ yarn zip:all        # store zips for all three  → .output/*.zip
 Per-browser scripts (`build:firefox`, `zip:edge`, …) exist too. Validate the Firefox
 package with `yarn lint:firefox`. To load it by hand:
 `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on…** → pick
-`.output/firefox-mv3/manifest.json`.
+`apps/extension/.output/firefox-mv3/manifest.json`.
 
 ## Usage
 
@@ -254,39 +254,43 @@ requests of its own.
 - **React 19** + **TypeScript** — type-safe UI
 - **Tailwind CSS v4** — utility-first styling on a small design-token system
 - **Vite** (via WXT) — fast bundling
-- **Vitest** + **Testing Library** — unit/integration suite (jsdom) under `tests/unit/`
-- **Playwright** — end-to-end tests under `tests/e2e/` that load the built
+- **Vitest** + **Testing Library** — unit/integration suite (jsdom) under `apps/extension/tests/unit/`
+- **Playwright** — end-to-end tests under `apps/extension/tests/e2e/` that load the built
   extension in real Chromium and drive the on-page bubble (`yarn test:e2e`)
 - **web-ext** — Firefox package validation
 
 ## Project structure
 
 ```
-media-bulk-downloads/
-├── wxt.config.ts             # WXT config: manifest, browser targets, zip naming
-├── web-ext.config.ts         # Dev browser-launch config (wxt dev)
-├── src/
-│   ├── entrypoints/          # WXT entrypoints → background · content ·
-│   │   │                      #   ig/x/fb/hls MAIN-world media sniffers · popup
-│   ├── extension/            # Grouped by execution context, then concern
-│   │   ├── background/       # MV3 service worker: downloads, history, messaging
-│   │   ├── content/          # In-page: index (listeners) · collect · deepScanRunner
-│   │   ├── shared/           # Cross-context logic:
-│   │   │   ├── active-tab/   #   popup↔content bridges (collect / deep-scan / resolve)
-│   │   │   ├── collection/   #   collect helpers · extract · imageUrl · deepScan · filters
-│   │   │   ├── resolvers/    #   per-site upgraders (instagram, twitter, unsplash, …) + sniffers
-│   │   │   └── storage/      #   history · favourites · settings
-│   │   ├── popup/            # React popup UI: grid, filters, preview, settings
-│   │   ├── components/       # Shared UI (BrandMark)
-│   │   └── bubble/           # On-page draggable panel
-│   ├── styles/               # Tailwind v4 entry + design tokens
-│   ├── public/icon/          # Extension icons (manifest inputs)
-│   └── types/                # Shared TypeScript types
-├── assets/                   # Icon master (SVG) + store screenshots
-├── docs/                     # Guides, benchmark, Chrome Web Store package
-├── tests/unit/               # Vitest unit/integration suites
-├── tests/e2e/                # Playwright e2e (loads the built extension)
-└── .output/                  # Per-browser build output + zips (generated)
+media-bulk-downloads/            # yarn-workspaces monorepo
+├── package.json                 # workspaces [packages/*, apps/*] + orchestration scripts
+├── tsconfig.base.json           # shared compiler options for the packages
+├── packages/
+│   ├── core/       @mbd/core     # browser-agnostic domain logic (zero chrome.*):
+│   │   └── src/                  #   collection · resolvers (+ sniffers) · download
+│   │                             #   (zip/base64/convert/stream byte-logic) · net · types
+│   ├── storage/    @mbd/storage  # persistence over chrome.storage + IndexedDB:
+│   │   └── src/                  #   settings · history · favourites · excluded · queue ·
+│   │                             #   per-host memory · backup · sync
+│   └── platform/   @mbd/platform # capability contracts + detectCapabilities()
+│       └── src/                  #   Downloader · Notifier · HeaderRules · StreamCaptureHost
+├── apps/
+│   └── extension/  @mbd/extension  # the WXT app (Chrome · Firefox · Edge · Opera)
+│       ├── wxt.config.ts        # WXT config: manifest, browser targets, zip naming
+│       ├── web-ext.config.ts    # dev browser-launch config (wxt dev)
+│       ├── src/
+│       │   ├── entrypoints/     # background · content · ig/x/fb/pinterest/hls sniffers ·
+│       │   │                     #   offscreen · popup
+│       │   ├── extension/       # background · content · popup · bubble · components ·
+│       │   │                     #   shared/active-tab (popup↔content bridges)
+│       │   ├── styles/          # Tailwind v4 entry + design tokens
+│       │   ├── public/icon/     # extension icons (manifest inputs)
+│       │   └── types/           # ambient CSS-module declarations
+│       ├── tests/unit/          # Vitest unit/integration suites
+│       ├── tests/e2e/           # Playwright e2e (loads the built extension)
+│       └── .output/             # per-browser build output + zips (generated)
+├── assets/                      # icon master (SVG) + store screenshots
+└── docs/                        # guides, architecture design record, benchmark, store package
 ```
 
 ## Documentation

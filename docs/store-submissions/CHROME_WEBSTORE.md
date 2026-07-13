@@ -13,7 +13,7 @@ Version at time of writing: **1.2.0** · Manifest **V3**.
 ## 1. Pre-submission checklist
 
 - [ ] One-time **$5 developer registration** paid on the [Developer Dashboard](https://chrome.google.com/webstore/devconsole).
-- [ ] `wxt.config.ts` name/description correct; version comes from `package.json`. `yarn build` emits `.output/chrome-mv3/manifest.json`.
+- [ ] `wxt.config.ts` name/description correct; version comes from `apps/extension/package.json`. `yarn build` emits `apps/extension/.output/chrome-mv3/manifest.json`.
 - [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`.
 - [ ] `minimum_chrome_version: 109` is set in the Chrome/Edge manifest (the `chrome.offscreen` floor for HLS/DASH capture); the Firefox manifest omits it and pins `gecko.strict_min_version` instead.
 - [ ] Optional permissions declared: `notifications` and `declarativeNetRequestWithHostAccess` (both requested at runtime, not at install — see §4).
@@ -22,7 +22,7 @@ Version at time of writing: **1.2.0** · Manifest **V3**.
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
 - [ ] At least **1 screenshot** at 1280×800 or 640×400 (see §5) — ✅ seven real captures in `assets/v2/` (`screenshot-1-grab` … `screenshot-7-history`); Chrome shows up to 5.
 - [ ] Promo tiles (optional): small 440×280 + marquee 1400×560 — ✅ in `assets/v2/` (`promo-small-440x280.png`, `promo-marquee-1400x560.png`).
-- [ ] `.output/media-bulk-downloads-<version>-chrome.zip` produced by `yarn zip`.
+- [ ] `apps/extension/.output/media-bulk-downloads-<version>-chrome.zip` produced by `yarn zip`.
 - [ ] Single-purpose description, permission justifications, and data disclosures filled in (below).
 
 > **Updating the existing listing (1.2.0 over the live 1.1.0):** 1.2.0 adds the
@@ -223,7 +223,7 @@ transmit page content for any other purpose.
 ## 5. Required visual assets
 
 Assets live in `assets/v2/`. The **screenshots are real captures** of the built
-extension: `assets/v2/src/capture-screenshots.mjs` loads `.output/chrome-mv3`
+extension: `assets/v2/src/capture-screenshots.mjs` loads `apps/extension/.output/chrome-mv3`
 into Chromium (Playwright), drives the on-page bubble over a local gallery page,
 and screenshots the genuine UI at exact 1280×800 (run it from the repo so
 `node_modules` resolves; `yarn build` first). The same harness also exports
@@ -295,13 +295,13 @@ executed at runtime.
 WXT packages a store-ready zip per browser:
 
 ```bash
-corepack yarn zip          # chrome  → .output/media-bulk-downloads-<version>-chrome.zip
+corepack yarn zip          # chrome  → apps/extension/.output/media-bulk-downloads-<version>-chrome.zip
 corepack yarn zip:edge     # edge    → …-edge.zip
 corepack yarn zip:firefox  # firefox → …-firefox.zip (+ a -sources.zip for AMO)
 corepack yarn zip:all      # all of the above
 ```
 
-Version comes from `package.json` (WXT writes it into every manifest).
+Version comes from `apps/extension/package.json` (WXT writes it into every manifest).
 
 **Chrome Web Store (first submission):**
 
