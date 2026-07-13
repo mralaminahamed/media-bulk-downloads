@@ -695,6 +695,13 @@ describe('image-CDN rule batch (2026-07-05)', () => {
     expect(orig('https://cdn.dribbble.com/userupload/48258936/file/7fc10d28ca5c.png?resize=400x300&vertical=center'))
       .toBe('https://cdn.dribbble.com/userupload/48258936/file/7fc10d28ca5c.png');
   });
+  it('Newgrounds art: drops the ?f<ts> cache-buster to canonicalise (real 2026-07-13 sample)', () => {
+    expect(orig('https://art.ngfiles.com/images/7911000/7911020_3470302_crisppyboat_untitled-7911020.931a76f2b3592b7c21538f41e26f3298.webp?f1783784331'))
+      .toBe('https://art.ngfiles.com/images/7911000/7911020_3470302_crisppyboat_untitled-7911020.931a76f2b3592b7c21538f41e26f3298.webp');
+    // thumbnails carry the same cache-buster
+    expect(orig('https://art.ngfiles.com/thumbnails/5438000/5438293_full.webp?f1783791402'))
+      .toBe('https://art.ngfiles.com/thumbnails/5438000/5438293_full.webp');
+  });
   it('Temu: drops the imageView2 transform query, leaving other kwcdn URLs alone', () => {
     // Real documented sample (temu.com). The bare object is the original.
     expect(orig('https://img.kwcdn.com/product/open/f43f2d8284a345788144669b6e550238-goods.jpeg?imageView2/2/w/800/q/70/format/webp'))
