@@ -1,4 +1,4 @@
-import { MediaCandidate, Resolver, ResolveContext } from '../types';
+import { MediaCandidate, Resolver, ResolveContext } from '@mbd/core/resolvers/types';
 
 const FULL_SRC = /w\.wallhaven\.cc\/full\/[a-z0-9]{2}\/wallhaven-([a-z0-9]+)\.(jpg|png|gif)/i;
 const THUMB_TIER = /^(https?:\/\/th\.wallhaven\.cc)\/(small|lg|orig)\/([a-z0-9]{2}\/[a-z0-9]+\.jpg)$/i;

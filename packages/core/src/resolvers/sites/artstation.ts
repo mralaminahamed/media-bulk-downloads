@@ -1,6 +1,6 @@
 import { upgradeToOriginal } from '@mbd/core/collection/imageUrl';
 import { imageExtFromUrl } from '@mbd/core/collection/mediaType';
-import { MediaCandidate, Resolver } from '../types';
+import { MediaCandidate, Resolver } from '@mbd/core/resolvers/types';
 
 // An ArtStation asset path carries a size bucket: /p/assets/…/images/…/<bucket>/<file>.
 const ASSET = /\/p\/assets\/.*\/images\/.*\/(micro_square|smaller_square|small_square|small|medium|large|4k)\//i;

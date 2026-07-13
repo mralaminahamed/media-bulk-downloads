@@ -1,7 +1,7 @@
 import { ExcludedEntry, ExcludedKind } from '@mbd/core/types';
 import { canonicalSrcKey, SrcKeySet } from '@mbd/core/collection/canonical';
 import { registrableDomain } from '@mbd/core/collection/paths';
-import { durableSet } from './idb';
+import { durableSet } from '@mbd/storage/idb';
 
 /**
  * Blocklist of excluded sources — exact media URLs and hosts — that the

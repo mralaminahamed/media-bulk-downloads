@@ -1,4 +1,4 @@
-import { MediaCandidate, Resolver, ResolveContext } from '../types';
+import { MediaCandidate, Resolver, ResolveContext } from '@mbd/core/resolvers/types';
 
 /**
  * Arc XP (Fusion) "resizer/v2" resolver — Reuters and many publishers built on

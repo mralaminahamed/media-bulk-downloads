@@ -1,4 +1,4 @@
-import { MediaCandidate, Resolver } from '../types';
+import { MediaCandidate, Resolver } from '@mbd/core/resolvers/types';
 
 const STRIP = ['w','h','fit','resize','q','quality','dpr','crop','ar','cs','fm','auto','bg','blend','blend-mode','blend-alpha','ixlib'];
 const PLUS_STRIP = ['w','h','dpr','fit','crop'];

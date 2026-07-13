@@ -1,5 +1,5 @@
 import { imageExtFromUrl } from '@mbd/core/collection/mediaType';
-import { MediaCandidate, Resolver } from '../types';
+import { MediaCandidate, Resolver } from '@mbd/core/resolvers/types';
 
 // A Mastodon (and compatible) attachment path, on any instance's media host:
 //   …/media_attachments/files/<nested digits>/<size>/<hash>.<ext>

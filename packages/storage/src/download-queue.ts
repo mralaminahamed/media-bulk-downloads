@@ -1,5 +1,5 @@
 import type { HistoryEntry } from '@mbd/core/types';
-import { durableSet } from './idb';
+import { durableSet } from '@mbd/storage/idb';
 
 export type QueueStatus = 'queued' | 'active' | 'done' | 'failed';
 export type HistoryDraft = Omit<HistoryEntry, 'time' | 'downloadId'>;

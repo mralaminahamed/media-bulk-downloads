@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ImageInfo, ImageListProps } from '@mbd/core/types';
-import { useDialog } from '../hooks/useDialog';
+import { useDialog } from '@/extension/popup/hooks/useDialog';
 import {
   EyeIcon,
   ArrowDownTrayIcon,
@@ -15,11 +15,11 @@ import {
   PhotoIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
-import { PlayBadge } from './icons/PlayBadge';
-import { FilmIcon } from './icons/FilmIcon';
-import { AudioIcon } from './icons/AudioIcon';
-import { LoadingImage } from './LoadingImage';
-import { SelectCheckbox } from './fields/SelectCheckbox';
+import { PlayBadge } from '@/extension/popup/components/icons/PlayBadge';
+import { FilmIcon } from '@/extension/popup/components/icons/FilmIcon';
+import { AudioIcon } from '@/extension/popup/components/icons/AudioIcon';
+import { LoadingImage } from '@/extension/popup/components/LoadingImage';
+import { SelectCheckbox } from '@/extension/popup/components/fields/SelectCheckbox';
 import { hostFromUrl, registrableDomain } from '@mbd/core/collection/paths';
 
 const SIZE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB'] as const;

@@ -3,18 +3,18 @@ import { withDefaults } from '@mbd/storage/settings';
 import { EXCLUDED_KEY } from '@mbd/storage/excluded';
 import { markSaveAsPromptSeen } from '@mbd/storage/save-as-hint';
 import { persistStorage, syncStores } from '@mbd/storage/sync';
-import { initQueueDispatcher, reconcileQueue } from './download/download-queue';
+import { initQueueDispatcher, reconcileQueue } from '@/extension/background/download/download-queue';
 import {
   currentSettings, excludedReady, settingsReady,
   loadSettings, reloadExcluded, resolveSettingsGate, setCurrentSettings, setApplySettingsHook,
-} from './state';
+} from '@/extension/background/state';
 import {
   applySettings, updateTabBadge, updateTabActionMode, updateAllTabsBadges, BADGE_COLOR,
-} from './badge';
-import { snifferByTab } from './sniffer-store';
-import { setupContextMenus } from './context-menu';
-import { onCommand, onContextMenuClick } from './commands';
-import { messageRouter, type SendResponse } from './message-router';
+} from '@/extension/background/badge';
+import { snifferByTab } from '@/extension/background/sniffer-store';
+import { setupContextMenus } from '@/extension/background/context-menu';
+import { onCommand, onContextMenuClick } from '@/extension/background/commands';
+import { messageRouter, type SendResponse } from '@/extension/background/message-router';
 
 // state.ts drives badge/action-mode updates through a hook so it never imports
 // badge.ts (keeps the module graph acyclic); wire it before the first load.
@@ -145,8 +145,8 @@ chrome.runtime.onMessage.addListener(
 export { DEFAULT_SETTINGS } from '@mbd/storage/settings';
 export { sanitizePathSegment } from '@mbd/core/collection/paths';
 export { buildDownloadFilename, extensionForType, originalNameFromUrl } from '@mbd/core/collection/download-name';
-export { loadSettings } from './state';
-export { isInjectableUrl, updateTabBadge } from './badge';
-export { downloadAndRecord, downloadStatusMessage } from './download/downloads';
-export { resolveOriginalsBatch, storeSniffedMedia } from './sniffer-store';
-export { setupContextMenus, mediaFromContext } from './context-menu';
+export { loadSettings } from '@/extension/background/state';
+export { isInjectableUrl, updateTabBadge } from '@/extension/background/badge';
+export { downloadAndRecord, downloadStatusMessage } from '@/extension/background/download/downloads';
+export { resolveOriginalsBatch, storeSniffedMedia } from '@/extension/background/sniffer-store';
+export { setupContextMenus, mediaFromContext } from '@/extension/background/context-menu';

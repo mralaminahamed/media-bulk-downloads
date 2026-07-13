@@ -1,7 +1,7 @@
 import { Dispatch, RefObject, SetStateAction, useEffect, useRef, useState } from 'react';
 import { SettingsData } from '@mbd/core/types';
 import { DEFAULT_SETTINGS, withDefaults, loadStoredSettings } from '@mbd/storage/settings';
-import { sendRuntimeMessage } from '../utils';
+import { sendRuntimeMessage } from '@/extension/popup/utils';
 
 export interface UseSettingsResult {
   settings: SettingsData;

@@ -1,5 +1,5 @@
 import { ImageInfo } from '@mbd/core/types';
-import { SrcKeySet } from './canonical';
+import { SrcKeySet } from '@mbd/core/collection/canonical';
 
 /**
  * De-duplication for downloads. Two independent concerns:

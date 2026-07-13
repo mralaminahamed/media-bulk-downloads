@@ -29,8 +29,8 @@
  * are refused too — they have no finite end, so there is no single file to save.
  */
 
-import { muxTracks } from './mux';
-import { assertSafeCaptureUrl } from './ssrf-guard';
+import { muxTracks } from '@mbd/core/download/stream/mux';
+import { assertSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
 
 export type HlsErrorCode =
   | 'no-variants' // master playlist had no usable EXT-X-STREAM-INF

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import FilterChip from './FilterChip';
+import FilterChip from '@/extension/popup/components/FilterChip';
 
 interface ChipFlyoutOption<T extends string> { value: T; label: string }
 interface ChipFlyoutProps<T extends string> {

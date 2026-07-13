@@ -1,8 +1,8 @@
 import React from 'react';
 import { SettingsPaneProps } from '@mbd/core/types';
-import { NumberField } from '../../fields/NumberField';
-import { ToggleRow } from '../../fields/ToggleRow';
-import { AdvancedDisclosure } from './AdvancedDisclosure';
+import { NumberField } from '@/extension/popup/components/fields/NumberField';
+import { ToggleRow } from '@/extension/popup/components/fields/ToggleRow';
+import { AdvancedDisclosure } from '@/extension/popup/components/panels/settings/AdvancedDisclosure';
 
 const MediaPane: React.FC<SettingsPaneProps> = ({
   settings,

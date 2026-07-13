@@ -7,13 +7,13 @@ import { loadFavourites } from '@mbd/storage/favourites';
 import { loadHistory } from '@mbd/storage/history';
 import { loadExcluded } from '@mbd/storage/excluded';
 import { DEFAULT_SETTINGS } from '@mbd/storage/settings';
-import { downloadText, sendRuntimeMessage } from '../../utils';
-import { useDialog } from '../../hooks/useDialog';
-import DownloadsPane from './settings/DownloadsPane';
-import MediaPane from './settings/MediaPane';
-import DisplayPane from './settings/DisplayPane';
-import DataPane from './settings/DataPane';
-import { SettingsTabs, SettingsTab } from './settings/SettingsTabs';
+import { downloadText, sendRuntimeMessage } from '@/extension/popup/utils';
+import { useDialog } from '@/extension/popup/hooks/useDialog';
+import DownloadsPane from '@/extension/popup/components/panels/settings/DownloadsPane';
+import MediaPane from '@/extension/popup/components/panels/settings/MediaPane';
+import DisplayPane from '@/extension/popup/components/panels/settings/DisplayPane';
+import DataPane from '@/extension/popup/components/panels/settings/DataPane';
+import { SettingsTabs, SettingsTab } from '@/extension/popup/components/panels/settings/SettingsTabs';
 
 const TABS: SettingsTab[] = [
   { id: 'downloads', label: 'Downloads' },

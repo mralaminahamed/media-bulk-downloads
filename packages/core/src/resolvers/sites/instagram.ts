@@ -1,4 +1,4 @@
-import { MediaCandidate, Resolver, ResolveContext } from '../types';
+import { MediaCandidate, Resolver, ResolveContext } from '@mbd/core/resolvers/types';
 import { IgMediaEntry, extractIgMedia, shortcodeFromUrl, pinIgUrl } from '@mbd/core/resolvers/sniffers/ig-media-sniff';
 
 /**

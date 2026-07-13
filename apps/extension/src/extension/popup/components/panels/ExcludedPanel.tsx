@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { XMarkIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { ExcludedEntry } from '@mbd/core/types';
 import { loadExcluded, EXCLUDED_KEY } from '@mbd/storage/excluded';
-import { sendRuntimeMessage } from '../../utils';
-import { useDialog } from '../../hooks/useDialog';
-import { ClearAllButton } from '../fields/ClearAllButton';
+import { sendRuntimeMessage } from '@/extension/popup/utils';
+import { useDialog } from '@/extension/popup/hooks/useDialog';
+import { ClearAllButton } from '@/extension/popup/components/fields/ClearAllButton';
 
 export interface ExcludedPanelProps {
   onClose: () => void;

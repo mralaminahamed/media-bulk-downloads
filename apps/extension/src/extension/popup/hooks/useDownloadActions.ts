@@ -5,9 +5,9 @@ import { convertImage, isConvertible } from '@mbd/core/download/convert/convert'
 import { u8ToBase64 } from '@mbd/core/download/base64';
 import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { hostFromUrl, registrableDomain, todayISO } from '@mbd/core/collection/paths';
-import { requestCaptureStream } from '../../shared/active-tab/capture-stream-active';
-import { copyText, downloadText, mapWithConcurrency } from '../utils';
-import { downloadable } from '../lib/appHelpers';
+import { requestCaptureStream } from '@/extension/shared/active-tab/capture-stream-active';
+import { copyText, downloadText, mapWithConcurrency } from '@/extension/popup/utils';
+import { downloadable } from '@/extension/popup/lib/appHelpers';
 
 /** A refused/undownloadable stream (#285): the item, the engine refusal code,
  *  and the page it was found on (→ the Referer for the copied command). */

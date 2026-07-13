@@ -1,4 +1,4 @@
-import { MediaCandidate, Resolver, ResolveContext } from '../types';
+import { MediaCandidate, Resolver, ResolveContext } from '@mbd/core/resolvers/types';
 
 /**
  * Magnific (magnific.com) stock-image resolver.

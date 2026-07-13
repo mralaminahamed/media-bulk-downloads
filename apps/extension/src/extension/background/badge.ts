@@ -1,6 +1,6 @@
 import { ImageInfo } from '@mbd/core/types';
 import { filterImagesBySettings, filterExcluded } from '@mbd/core/collection/filters';
-import { currentSettings, excludedCache, settingsReady, excludedReady } from './state';
+import { currentSettings, excludedCache, settingsReady, excludedReady } from '@/extension/background/state';
 
 export const BADGE_COLOR = '#4F46E5';
 

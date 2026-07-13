@@ -3,8 +3,8 @@ import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { recordDownloads } from '@mbd/storage/history';
 import { STREAM_MAX_BYTES } from '@mbd/core/download/stream/capture-constants';
 import { streamQualityToEngine } from '@mbd/core/download/stream/quality';
-import { currentSettings } from '../state';
-import { notifyBatchDone } from './downloads';
+import { currentSettings } from '@/extension/background/state';
+import { notifyBatchDone } from '@/extension/background/download/downloads';
 
 /**
  * Per-capture tab id, keyed by the capture's runId, so a CAPTURE_PROGRESS

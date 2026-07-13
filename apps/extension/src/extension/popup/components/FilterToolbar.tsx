@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { ChevronDownIcon, MagnifyingGlassIcon, BarsArrowUpIcon, BarsArrowDownIcon } from '@heroicons/react/24/outline';
 import { FilterOptions, SettingsData, AvailableOptions } from '@mbd/core/types';
 import { FORMAT_LABELS } from '@mbd/core/collection/filters';
-import ChipFlyout from './ChipFlyout';
-import FilterChip from './FilterChip';
+import ChipFlyout from '@/extension/popup/components/ChipFlyout';
+import FilterChip from '@/extension/popup/components/FilterChip';
 
 interface FilterToolbarProps {
   onFilterChange: (filters: FilterOptions) => void;

@@ -14,8 +14,8 @@
  * SegmentTimeline) is supported; SegmentList / SegmentBase-only is not.
  */
 
-import { muxTracks } from './mux';
-import { assertSafeCaptureUrl } from './ssrf-guard';
+import { muxTracks } from '@mbd/core/download/stream/mux';
+import { assertSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
 
 /** ISO-8601 media duration (`PT1H2M3.5S`) → seconds. 0 for anything unparseable.
  *  Only the `PT…` (hours/minutes/seconds) form is handled — the only form MPD

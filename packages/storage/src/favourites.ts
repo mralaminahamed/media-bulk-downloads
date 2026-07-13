@@ -1,6 +1,6 @@
 import { FavouriteEntry } from '@mbd/core/types';
 import { canonicalSrcKey, SrcKeySet } from '@mbd/core/collection/canonical';
-import { durableSet } from './idb';
+import { durableSet } from '@mbd/storage/idb';
 
 export const FAVOURITES_KEY = 'favourites';
 export const FAVOURITES_CAP = 500;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
 import { EmptyStateProps } from '@mbd/core/types';
-import { CenteredState } from './CenteredState';
+import { CenteredState } from '@/extension/popup/components/states/CenteredState';
 
 export const EmptyState: React.FC<EmptyStateProps> = ({ onRefresh }) => (
   <CenteredState

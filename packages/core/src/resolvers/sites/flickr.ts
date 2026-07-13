@@ -1,6 +1,6 @@
 import { upgradeToOriginal } from '@mbd/core/collection/imageUrl';
 import { imageExtFromUrl } from '@mbd/core/collection/mediaType';
-import { MediaCandidate, Resolver } from '../types';
+import { MediaCandidate, Resolver } from '@mbd/core/resolvers/types';
 
 // staticflickr path: /<server>/<photoid>_<secret>[_<size>].<ext>. The photo id is
 // the first digit run after the server; the secret differs per size class, so the

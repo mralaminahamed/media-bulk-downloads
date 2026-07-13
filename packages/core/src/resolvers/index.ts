@@ -1,22 +1,22 @@
-import { MediaCandidate, Resolver, ResolveContext } from './types';
-import { arcxpResolver } from './sites/arcxp';
-import { artstationResolver } from './sites/artstation';
-import { behanceResolver } from './sites/behance';
-import { booruResolver } from './sites/booru';
-import { bskyResolver } from './sites/bsky';
-import { facebookResolver } from './sites/facebook';
-import { flickrResolver } from './sites/flickr';
-import { genericResolver } from './sites/generic';
-import { instagramResolver } from './sites/instagram';
-import { magnificResolver } from './sites/magnific';
-import { mastodonResolver } from './sites/mastodon';
-import { pinterestResolver } from './sites/pinterest';
-import { redditResolver } from './sites/reddit';
-import { threadsResolver } from './sites/threads';
-import { twitterResolver } from './sites/twitter';
-import { unsplashResolver } from './sites/unsplash';
-import { wallhavenResolver } from './sites/wallhaven';
-import { youtubeResolver } from './sites/youtube';
+import { MediaCandidate, Resolver, ResolveContext } from '@mbd/core/resolvers/types';
+import { arcxpResolver } from '@mbd/core/resolvers/sites/arcxp';
+import { artstationResolver } from '@mbd/core/resolvers/sites/artstation';
+import { behanceResolver } from '@mbd/core/resolvers/sites/behance';
+import { booruResolver } from '@mbd/core/resolvers/sites/booru';
+import { bskyResolver } from '@mbd/core/resolvers/sites/bsky';
+import { facebookResolver } from '@mbd/core/resolvers/sites/facebook';
+import { flickrResolver } from '@mbd/core/resolvers/sites/flickr';
+import { genericResolver } from '@mbd/core/resolvers/sites/generic';
+import { instagramResolver } from '@mbd/core/resolvers/sites/instagram';
+import { magnificResolver } from '@mbd/core/resolvers/sites/magnific';
+import { mastodonResolver } from '@mbd/core/resolvers/sites/mastodon';
+import { pinterestResolver } from '@mbd/core/resolvers/sites/pinterest';
+import { redditResolver } from '@mbd/core/resolvers/sites/reddit';
+import { threadsResolver } from '@mbd/core/resolvers/sites/threads';
+import { twitterResolver } from '@mbd/core/resolvers/sites/twitter';
+import { unsplashResolver } from '@mbd/core/resolvers/sites/unsplash';
+import { wallhavenResolver } from '@mbd/core/resolvers/sites/wallhaven';
+import { youtubeResolver } from '@mbd/core/resolvers/sites/youtube';
 
 export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, facebookResolver, threadsResolver, unsplashResolver, wallhavenResolver, behanceResolver, bskyResolver, pinterestResolver, redditResolver, flickrResolver, artstationResolver, magnificResolver, arcxpResolver, youtubeResolver, mastodonResolver, booruResolver, genericResolver];
 
@@ -100,4 +100,4 @@ export function resolve(rawUrl: string, ctx: ResolveContext): MediaCandidate[] {
   return [{ url: u.href, kind: 'image' }];
 }
 
-export * from './types';
+export * from '@mbd/core/resolvers/types';
