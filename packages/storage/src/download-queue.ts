@@ -1,5 +1,6 @@
 import type { HistoryEntry } from '@mbd/core/types';
 import { durableSet } from '@mbd/storage/idb';
+import { withinByteBudget } from '@mbd/storage/byte-budget';
 
 export type QueueStatus = 'queued' | 'active' | 'done' | 'failed';
 export type HistoryDraft = Omit<HistoryEntry, 'time' | 'downloadId'>;
@@ -64,16 +65,20 @@ function makeId(now: number): string {
 
 const isLive = (i: QueueItem): boolean => i.status === 'queued' || i.status === 'active';
 
-/** Keep every live item and the most recent {@link FINISHED_CAP} finished
- *  (done/failed/cancelled) ones, so a long session can't grow the persisted
- *  queue without bound (each save re-serializes the whole array). */
+/** Keep every live item and the most recent finished (done/failed/cancelled)
+ *  ones, so a long session can't grow the persisted queue without bound (each
+ *  save re-serializes the whole array). Finished items are bounded by BOTH a
+ *  count cap and a serialized-byte cap — a QueueItem carries a base64-capable
+ *  history draft (src/thumbnailSrc) and a `url` that for a data: image duplicates
+ *  it again, so a count cap alone doesn't keep the queue under its share of the
+ *  ~5MB chrome.storage.local quota. Live items are never dropped. */
 export const FINISHED_CAP = 200;
+export const QUEUE_MAX_BYTES = 1_000_000;
 function pruneFinished(items: QueueItem[]): QueueItem[] {
-  const finished = items.filter((i) => !isLive(i));
-  if (finished.length <= FINISHED_CAP) return items;
-  const keep = new Set(
-    [...finished].sort((a, b) => b.addedAt - a.addedAt).slice(0, FINISHED_CAP),
-  );
+  const finishedNewestFirst = items.filter((i) => !isLive(i)).sort((a, b) => b.addedAt - a.addedAt);
+  const keptFinished = withinByteBudget(finishedNewestFirst.slice(0, FINISHED_CAP), QUEUE_MAX_BYTES);
+  if (keptFinished.length === finishedNewestFirst.length) return items; // nothing dropped
+  const keep = new Set(keptFinished);
   return items.filter((i) => isLive(i) || keep.has(i));
 }
 
@@ -100,7 +105,11 @@ export function claimNext(
   state: QueueState, max: number, now: number,
 ): { state: QueueState; item: QueueItem } | null {
   if (state.paused) return null;
-  if (activeCount(state) >= max) return null;
+  // Defensive: a corrupt `max` (0/negative → stalls forever; NaN → removes the
+  // cap and floods concurrent downloads) is clamped to a sane floor. The settings
+  // layer also clamps downloadConcurrency, so this is belt-and-braces.
+  const cap = Number.isFinite(max) && max >= 1 ? Math.floor(max) : 1;
+  if (activeCount(state) >= cap) return null;
   const idx = state.items.findIndex((i) => i.status === 'queued' && i.readyAt <= now);
   if (idx === -1) return null;
   const item: QueueItem = { ...state.items[idx], status: 'active' };
@@ -196,6 +205,7 @@ export async function loadQueue(): Promise<QueueState> {
   return emptyQueue();
 }
 
-export async function saveQueue(state: QueueState): Promise<void> {
-  await durableSet(QUEUE_KEY, state);
+/** Resolves to whether the write persisted (see durableSet). */
+export async function saveQueue(state: QueueState): Promise<boolean> {
+  return durableSet(QUEUE_KEY, state);
 }

@@ -177,3 +177,48 @@ describe('retryAllFailed', () => {
     expect(out.items[2]).toMatchObject({ id: 'c', status: 'queued', attempts: 0 });
   });
 });
+
+describe('claimNext — concurrency cap validation', () => {
+  const oneQueued: QueueState = {
+    paused: false,
+    items: [{ id: 'q1', url: 'u1', filename: '1.jpg', status: 'queued', attempts: 0, readyAt: T0, addedAt: T0 }],
+  };
+
+  it('does not stall on a corrupt cap of 0 / negative / NaN (floors to 1, one claim proceeds)', () => {
+    for (const bad of [0, -5, NaN]) {
+      expect(claimNext(oneQueued, bad, T0)).not.toBeNull();
+    }
+  });
+
+  it('a NaN cap does not REMOVE the cap — with one active, a second claim is still blocked', () => {
+    const oneActive: QueueState = {
+      paused: false,
+      items: [
+        { id: 'a', url: 'u', filename: 'a.jpg', status: 'active', attempts: 0, readyAt: T0, addedAt: T0 },
+        { id: 'q', url: 'u2', filename: 'q.jpg', status: 'queued', attempts: 0, readyAt: T0, addedAt: T0 },
+      ],
+    };
+    expect(claimNext(oneActive, NaN, T0)).toBeNull(); // floor 1, already at capacity
+  });
+});
+
+describe('enqueue — finished items bounded by serialized bytes (not only count)', () => {
+  it('drops the oldest finished items to keep the queue under its byte budget', () => {
+    // Each finished item carries a ~200KB data-URL payload, so a handful blows the
+    // byte budget even though the count is far under FINISHED_CAP.
+    const big = 'data:image/png;base64,' + 'A'.repeat(200_000);
+    const finished: QueueItem[] = Array.from({ length: 12 }, (_, i) => ({
+      id: `d${i}`, url: big, filename: `${i}.png`, status: 'done' as const,
+      attempts: 1, readyAt: T0, addedAt: T0 + i,
+    }));
+    const live: QueueItem = { id: 'q1', url: 'u', filename: 'live.jpg', status: 'queued', attempts: 0, readyAt: T0, addedAt: T0 };
+
+    const s = enqueue({ items: [...finished, live], paused: false }, [], T0 + 9999);
+    const done = s.items.filter((i) => i.status === 'done');
+
+    expect(done.length).toBeLessThan(12); // byte cap dropped some (count alone wouldn't)
+    expect(done.length).toBeGreaterThanOrEqual(1); // always keeps at least the newest
+    expect(Math.min(...done.map((i) => i.addedAt))).toBeGreaterThan(T0); // oldest dropped, newest kept
+    expect(s.items.some((i) => i.id === 'q1')).toBe(true); // the live item is never dropped
+  });
+});
