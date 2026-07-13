@@ -47,7 +47,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "lint:firefox": "web-ext lint --source-dir .output/firefox-mv3",
-    "type-check": "wxt prepare && tsc -b packages/core packages/storage && tsc --noEmit",
+    "type-check": "wxt prepare && tsc -b packages/core packages/storage packages/platform && tsc --noEmit",
     "test": "vitest run --coverage",
     "test:watch": "vitest",
     "test:e2e": "wxt build && playwright test",

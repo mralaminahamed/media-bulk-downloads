@@ -879,6 +879,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@mbd/platform@workspace:packages/platform":
+  version: 0.0.0-use.local
+  resolution: "@mbd/platform@workspace:packages/platform"
+  languageName: unknown
+  linkType: soft
+
 "@mbd/storage@workspace:packages/storage":
   version: 0.0.0-use.local
   resolution: "@mbd/storage@workspace:packages/storage"
