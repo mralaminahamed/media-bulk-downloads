@@ -30,7 +30,7 @@ export const StreamHandoff: React.FC<StreamHandoffProps> = ({ refusal, onDismiss
   if (!manifestUrl) return null;
 
   const copy = async (engine: StreamCommandEngine): Promise<void> => {
-    const command = buildStreamCommand({ manifestUrl, engine, referer: refusal.referer, userAgent });
+    const command = buildStreamCommand({ manifestUrl, engine, referer: refusal.referer, userAgent, audioOnly: refusal.audioOnly });
     setCopied((await copyText(command)) ? engine : null);
   };
 

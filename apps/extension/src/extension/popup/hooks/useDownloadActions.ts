@@ -10,11 +10,14 @@ import { copyText, downloadText, mapWithConcurrency } from '@/extension/popup/ut
 import { downloadable } from '@/extension/popup/lib/appHelpers';
 
 /** A refused/undownloadable stream (#285): the item, the engine refusal code,
- *  and the page it was found on (→ the Referer for the copied command). */
+ *  the page it was found on (→ the Referer for the copied command), and whether
+ *  the user asked for audio-only (→ the copied command extracts audio too, rather
+ *  than silently handing back a full-video download). */
 export interface StreamRefusal {
   item: ImageInfo;
   code: string;
   referer: string;
+  audioOnly: boolean;
 }
 
 export interface UseDownloadActionsParams {
@@ -108,7 +111,7 @@ export function useDownloadActions({
       // A refused stream (DRM/live/SAMPLE-AES/unsupported, or audio-unavailable when
       // extracting audio) becomes a handoff: the page URL is the Referer for the
       // yt-dlp/ffmpeg command the user copies (#285).
-      if (refusal) onStreamRefused?.({ item, code: refusal.code, referer: sourcePage.url });
+      if (refusal) onStreamRefused?.({ item, code: refusal.code, referer: sourcePage.url, audioOnly });
     } finally {
       setProgress(null);
     }

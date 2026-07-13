@@ -33,6 +33,9 @@ export interface StreamCommandInput {
   referer?: string;
   /** The browser's User-Agent, so the external tool presents the same client. */
   userAgent?: string;
+  /** The user asked for audio-only: emit an audio-extraction command (yt-dlp `-x`,
+   *  ffmpeg `-vn -c:a copy … out.m4a`) rather than a full-stream copy. */
+  audioOnly?: boolean;
 }
 
 /** POSIX single-quote a value so shell metacharacters in it are inert. */
@@ -44,7 +47,7 @@ const shellQuote = (s: string): string => `'${s.replace(/'/g, `'\\''`)}'`;
  * a single `-headers` string, then stream-copies the manifest to `out.mp4`.
  * Referer/User-Agent are omitted entirely when not supplied.
  */
-export function buildStreamCommand({ manifestUrl, engine, referer, userAgent }: StreamCommandInput): string {
+export function buildStreamCommand({ manifestUrl, engine, referer, userAgent, audioOnly }: StreamCommandInput): string {
   const url = stripUrlSecrets(manifestUrl);
   const ref = referer ? stripUrlSecrets(referer) : undefined;
 
@@ -52,11 +55,16 @@ export function buildStreamCommand({ manifestUrl, engine, referer, userAgent }: 
     const parts = ['ffmpeg'];
     if (userAgent) parts.push('-user_agent', shellQuote(userAgent));
     if (ref) parts.push('-headers', shellQuote(`Referer: ${ref}`));
-    parts.push('-i', shellQuote(url), '-c', 'copy', shellQuote('out.mp4'));
+    parts.push('-i', shellQuote(url));
+    // Audio-only: drop video and stream-copy the audio track to an .m4a; otherwise
+    // stream-copy the whole thing to .mp4. No re-encode either way (`-c copy`).
+    if (audioOnly) parts.push('-vn', '-c:a', 'copy', shellQuote('out.m4a'));
+    else parts.push('-c', 'copy', shellQuote('out.mp4'));
     return parts.join(' ');
   }
 
   const parts = ['yt-dlp'];
+  if (audioOnly) parts.push('-x'); // --extract-audio: keep only the audio track
   if (ref) parts.push('--referer', shellQuote(ref));
   if (userAgent) parts.push('--user-agent', shellQuote(userAgent));
   parts.push(shellQuote(url));

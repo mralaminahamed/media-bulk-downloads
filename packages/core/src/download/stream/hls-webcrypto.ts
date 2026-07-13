@@ -1,5 +1,6 @@
 import { DecryptFn, HlsDeps, HlsByteRange } from '@mbd/core/download/stream/hls';
 import { retryingFetch } from '@mbd/core/net/retry';
+import { readBounded, readBoundedText } from '@mbd/core/download/stream/bounded-fetch';
 
 /**
  * AES-128-CBC decrypt via the platform WebCrypto. HLS segments are PKCS7-padded,
@@ -38,7 +39,7 @@ export function browserHlsDeps(onProgress?: (done: number, total: number) => voi
     fetchText: async (url) => {
       const res = await netFetch(url);
       if (!res.ok) throw new Error(`Manifest fetch failed (${res.status}).`);
-      return res.text();
+      return readBoundedText(res);
     },
     fetchBytes: async (url, range?: HlsByteRange) => {
       const init = range
@@ -46,7 +47,7 @@ export function browserHlsDeps(onProgress?: (done: number, total: number) => voi
         : undefined;
       const res = await netFetch(url, init);
       if (!res.ok && res.status !== 206) throw new Error(`Segment fetch failed (${res.status}).`);
-      const bytes = new Uint8Array(await res.arrayBuffer());
+      const bytes = await readBounded(res);
       // A server may ignore the Range header and answer 200 with the WHOLE file.
       // Without this, every EXT-X-BYTERANGE "segment" would be the entire file →
       // the concatenated output is N copies of it, corrupt and oversized. Slice

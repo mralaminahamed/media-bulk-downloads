@@ -71,6 +71,28 @@ describe('buildStreamCommand — ffmpeg', () => {
   });
 });
 
+describe('buildStreamCommand — audio-only (I13)', () => {
+  it('yt-dlp adds -x (--extract-audio) and still carries the headers', () => {
+    const cmd = buildStreamCommand({ manifestUrl: M, engine: 'yt-dlp', referer: REF, userAgent: UA, audioOnly: true });
+    expect(cmd).toContain('yt-dlp -x');
+    expect(cmd).toContain(`--referer '${REF}'`);
+    expect(cmd).toContain(`'${M}'`);
+  });
+
+  it('ffmpeg drops video and copies audio to out.m4a (not a full-video out.mp4)', () => {
+    const cmd = buildStreamCommand({ manifestUrl: M, engine: 'ffmpeg', referer: REF, userAgent: UA, audioOnly: true });
+    expect(cmd).toContain('-vn');
+    expect(cmd).toContain('-c:a copy');
+    expect(cmd).toContain(`'out.m4a'`);
+    expect(cmd).not.toContain('out.mp4');
+  });
+
+  it('audioOnly false/omitted keeps the full-stream copy (unchanged)', () => {
+    expect(buildStreamCommand({ manifestUrl: M, engine: 'ffmpeg' })).toContain(`'out.mp4'`);
+    expect(buildStreamCommand({ manifestUrl: M, engine: 'yt-dlp' })).not.toContain('-x');
+  });
+});
+
 describe('buildStreamCommand — security', () => {
   it('never emits cookies for any engine', () => {
     for (const engine of STREAM_COMMAND_ENGINES) {

@@ -12,6 +12,7 @@ const refusal = (over: Partial<StreamRefusal> = {}): StreamRefusal => ({
   item: streamItem('https://cdn.example.com/live/master.m3u8'),
   code: 'drm',
   referer: 'https://watch.example.com/video/42',
+  audioOnly: false,
   ...over,
 });
 
@@ -47,6 +48,26 @@ describe('StreamHandoff', () => {
     expect(cmd).toContain('ffmpeg');
     expect(cmd).toContain('-c copy');
     expect(cmd).toContain(`-headers 'Referer: https://watch.example.com/video/42'`);
+  });
+
+  it('emits an audio-extraction yt-dlp command when the refusal was audio-only (I13)', async () => {
+    render(<StreamHandoff refusal={refusal({ audioOnly: true })} onDismiss={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /copy yt-dlp command/i }));
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    const cmd = writeText.mock.calls[0][0] as string;
+    expect(cmd).toContain('yt-dlp');
+    expect(cmd).toContain('-x'); // --extract-audio — not a full-video download
+  });
+
+  it('emits an audio-only ffmpeg command (drop video, copy audio to .m4a) for an audio-only refusal (I13)', async () => {
+    render(<StreamHandoff refusal={refusal({ audioOnly: true })} onDismiss={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /copy ffmpeg command/i }));
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    const cmd = writeText.mock.calls[0][0] as string;
+    expect(cmd).toContain('-vn');
+    expect(cmd).toContain('-c:a copy');
+    expect(cmd).toContain(`'out.m4a'`);
+    expect(cmd).not.toContain('out.mp4');
   });
 
   it('never leaks a signed token from the manifest URL', async () => {
