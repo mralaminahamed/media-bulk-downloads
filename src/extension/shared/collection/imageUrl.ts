@@ -3,7 +3,44 @@
  * type detection (extension or query param), dimension parsing, and CDN upgrade
  * to the original asset. No requests are ever issued here.
  */
-import { getImageType } from '@/extension/content/collect';
+/**
+ * Determines the image type from its URL, ignoring query strings and fragments.
+ * Returns a lowercase extension-style type, or 'unknown'.
+ */
+export function getImageType(src: string): string {
+  const path = src.split(/[?#]/)[0];
+  const lastSegment = path.split('/').pop() ?? '';
+  const dotIndex = lastSegment.lastIndexOf('.');
+  if (dotIndex === -1) return 'unknown';
+
+  const extension = lastSegment.slice(dotIndex + 1).toLowerCase();
+  switch (extension) {
+    case 'jpg':
+    case 'jpeg':
+    case 'jfif':
+      return 'jpeg';
+    case 'png':
+    case 'gif':
+    case 'webp':
+    case 'svg':
+    case 'avif':
+    case 'bmp':
+    case 'ico':
+      return extension;
+    default:
+      return 'unknown';
+  }
+}
+
+/**
+ * Parses a srcset attribute into an array of URLs. Splits only on commas that
+ * separate candidates — commas inside data: URIs or query strings are preserved.
+ */
+export function parseSrcset(srcset: string): string[] {
+  return splitSrcsetCandidates(srcset)
+    .map((candidate) => candidate.split(/\s+/)[0])
+    .filter(Boolean);
+}
 
 /**
  * Splits a srcset into raw candidate strings (each `URL [descriptor]`), the single

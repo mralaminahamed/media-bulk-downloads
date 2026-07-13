@@ -11,7 +11,7 @@
  */
 
 import { ImageInfo, MediaItem } from '@/types';
-import { detectType, parseUrlDimensions, splitSrcsetCandidates } from '@/extension/shared/collection/imageUrl';
+import { detectType, parseUrlDimensions } from '@/extension/shared/collection/imageUrl';
 import { classifyPage, collectPageSignals } from '@/extension/shared/collection/pageType';
 import { detectAvType, isUndownloadableMedia, isHlsManifest, isDashManifest } from '@/extension/shared/collection/mediaType';
 import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates, bestSrcsetUrl } from '@/extension/shared/collection/extract';
@@ -66,44 +66,11 @@ export function getImageDimensions(img: HTMLImageElement): { width: number; heig
   };
 }
 
-/**
- * Determines the image type from its URL, ignoring query strings and fragments.
- * Returns a lowercase extension-style type, or 'unknown'.
- */
-export function getImageType(src: string): string {
-  const path = src.split(/[?#]/)[0];
-  const lastSegment = path.split('/').pop() ?? '';
-  const dotIndex = lastSegment.lastIndexOf('.');
-  if (dotIndex === -1) return 'unknown';
-
-  const extension = lastSegment.slice(dotIndex + 1).toLowerCase();
-  switch (extension) {
-    case 'jpg':
-    case 'jpeg':
-    case 'jfif':
-      return 'jpeg';
-    case 'png':
-    case 'gif':
-    case 'webp':
-    case 'svg':
-    case 'avif':
-    case 'bmp':
-    case 'ico':
-      return extension;
-    default:
-      return 'unknown';
-  }
-}
-
-/**
- * Parses a srcset attribute into an array of URLs. Splits only on commas that
- * separate candidates — commas inside data: URIs or query strings are preserved.
- */
-export function parseSrcset(srcset: string): string[] {
-  return splitSrcsetCandidates(srcset)
-    .map((candidate) => candidate.split(/\s+/)[0])
-    .filter(Boolean);
-}
+// `getImageType` and `parseSrcset` are pure URL/string helpers that live in the
+// browser-agnostic collection layer. They are re-exported here so the content
+// script (and its tests) keep a stable import surface without the collection
+// layer having to depend back on the content script.
+export { getImageType, parseSrcset } from '@/extension/shared/collection/imageUrl';
 
 /**
  * Resolves a possibly-relative URL against the document base so downloads and
