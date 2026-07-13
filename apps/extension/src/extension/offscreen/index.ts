@@ -25,7 +25,7 @@ async function runCapture(
   runId: string,
   manifestUrl: string,
   engine: 'hls' | 'dash',
-  quality: number,
+  quality: CaptureRunMessage['quality'],
   maxBytes: number,
 ): Promise<CaptureRunResult> {
   const onProgress = (done: number, total: number): void => {

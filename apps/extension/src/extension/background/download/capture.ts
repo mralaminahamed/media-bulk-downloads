@@ -1,7 +1,8 @@
 import { CaptureRunResult, ImageInfo } from '@mbd/core/types';
 import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { recordDownloads } from '@mbd/storage/history';
-import { STREAM_MAX_BYTES, STREAM_TARGET_HEIGHT } from '@mbd/core/download/stream/capture-constants';
+import { STREAM_MAX_BYTES } from '@mbd/core/download/stream/capture-constants';
+import { streamQualityToEngine } from '@mbd/core/download/stream/quality';
 import { currentSettings } from '../state';
 import { notifyBatchDone } from './downloads';
 
@@ -68,7 +69,9 @@ export async function captureStreamToFile(
     runId,
     manifestUrl: item.hlsManifest,
     engine: item.type === 'mpd' ? 'dash' : 'hls',
-    quality: STREAM_TARGET_HEIGHT,
+    // The user's global "Stream quality" preference (#288); 'auto' keeps the
+    // target-height default, so nothing changes unless they pick a rendition.
+    quality: streamQualityToEngine(currentSettings.streamQuality),
     maxBytes: STREAM_MAX_BYTES,
   })) as CaptureRunResult | undefined;
   if (!result || !result.ok) return { ok: false, code: result?.ok === false ? result.code : 'unknown' };

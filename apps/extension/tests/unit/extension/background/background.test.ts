@@ -291,7 +291,7 @@ describe('Background Script', () => {
         bubblePanelPlacement: 'anchored',
         bubblePanelPoint: { x: 40, y: 40 },
         resolveOriginals: false,
-        captureHlsStreams: false,
+        captureHlsStreams: false, streamQuality: 'auto',
         downloadConcurrency: 5,
         excludeEmoji: false,
         deepScanMaxItems: 1000,
@@ -1190,6 +1190,25 @@ describe('CAPTURE_STREAM', () => {
     await new Promise((r) => setTimeout(r, 0));
 
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'CAPTURE_RUN', engine: 'hls' }));
+  });
+
+  it('maps the global streamQuality setting into CAPTURE_RUN.quality (#288)', async () => {
+    // A fixed-tier pick becomes that height; 'best'/'worst' → the bandwidth extremes.
+    for (const [setting, quality] of [['480', 480], ['best', 'highest'], ['worst', 'lowest']] as const) {
+      (chrome.runtime.sendMessage as Mock).mockReset().mockResolvedValue({
+        ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 1, muxedAudio: false,
+      } as CaptureRunResult);
+      (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(1));
+      (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { streamQuality: setting } }));
+      loadSettings(); // refresh currentSettings with the override
+      await new Promise((r) => setTimeout(r, 0));
+
+      messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, vi.fn());
+      await new Promise((r) => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'CAPTURE_RUN', quality }));
+    }
   });
 
   it('tolerates the concurrent-create race: createDocument rejects but a document now exists, so capture still proceeds', async () => {
