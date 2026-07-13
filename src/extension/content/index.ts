@@ -10,6 +10,8 @@ import { SettingsData, DeepScanProgress } from '@/types';
 import { collectMedia } from './collect';
 import { ingestSniffedIgMedia } from '../shared/resolvers/sites/instagram';
 import { ingestSniffedFbMedia } from '../shared/resolvers/sites/facebook';
+import { ingestSniffedPinterestMedia } from '../shared/resolvers/sites/pinterest';
+import { isPinterestHost } from '../shared/resolvers/sniffers/pinterest-hosts';
 import { ingestSniffedHls } from '../shared/resolvers/sniffers/hls-sniff';
 import { withDefaults } from '../shared/storage/settings';
 import { loadEffectiveSettingsForHost } from '../shared/storage/per-host-settings';
@@ -27,6 +29,7 @@ const host = location.hostname;
 const onXHost = host === 'x.com' || host.endsWith('.x.com') || host === 'twitter.com' || host.endsWith('.twitter.com');
 const onIgHost = host === 'instagram.com' || host.endsWith('.instagram.com');
 const onFbHost = host === 'facebook.com' || host.endsWith('.facebook.com');
+const onPinterestHost = isPinterestHost(host);
 
 // Relay the MAIN-world X/Twitter media sniffer's findings to the background.
 // The sniffer (x-media-sniffer.content.ts) runs in the page realm to read the
@@ -81,6 +84,28 @@ if (onFbHost) {
   // /api/graphql it captured before this relay registered (mirrors the HLS relay
   // below). The sniffer's replay listener validates same-window + same-origin.
   window.postMessage({ source: 'ibd-fb-ready' }, location.origin);
+}
+
+// Relay the MAIN-world Pinterest media sniffer's findings into the resolver. The
+// sniffer (pinterest-media-sniffer.content.ts) reads the page's own /resource/
+// responses (feed pages loaded on scroll) and postMessages the extracted pins
+// here. Like IG/FB, media resolves in-content (the real orig/mp4 is in the
+// response), so we feed the entries straight to the resolver's in-memory store —
+// collectMedia() then surfaces scroll-loaded pins with no network call. Validate
+// the envelope here; ingestSniffedPinterestMedia re-validates and host-pins every
+// entry (the payload crossed the page realm and is untrusted).
+if (onPinterestHost) {
+  window.addEventListener('message', (event: MessageEvent) => {
+    if (event.source !== window || event.origin !== location.origin) return;
+    const data = event.data as { source?: unknown; entries?: unknown } | null;
+    if (!data || data.source !== 'ibd-pinterest-media' || !Array.isArray(data.entries)) return;
+    ingestSniffedPinterestMedia(data.entries);
+  });
+
+  // Tell the MAIN-world sniffer we're listening now, so it replays any /resource/
+  // response captured before this relay registered (the initial feed loads at
+  // document_start). Mirrors the FB ready-replay.
+  window.postMessage({ source: 'ibd-pinterest-ready' }, location.origin);
 }
 
 // Relay the MAIN-world HLS/DASH sniffer's findings into the collector's store.
