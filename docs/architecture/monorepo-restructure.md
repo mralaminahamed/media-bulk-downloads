@@ -89,26 +89,27 @@ Import rewrites were unambiguous prefix substitutions driven by an explicit dire
 `yarn type-check` (packages composite build + app `--noEmit`), `yarn test` (2068 tests),
 `yarn build:all` (Chrome/Firefox/Edge), `yarn lint`. All green throughout the migration.
 
-## Known limitation — package coverage attribution
+## Testing & coverage
 
-`yarn test` runs the whole suite in one app-scoped Vitest pass (merged coverage), but because
-the package source resolves through the `node_modules/@mbd/*` symlink, Vitest's v8 provider
-treats it as `node_modules` and **omits it from the coverage report** — the tests still exercise
-that code, but the reported `%` reflects app glue only. There are no coverage thresholds, so
-nothing fails; the number is informational and must be read with this caveat.
+Each package owns its test suite under `packages/*/tests` and runs as its own Vitest project
+whose `resolve.alias` maps `@mbd/<pkg>` to the real `src/` path (not the `node_modules/@mbd/*`
+symlink), so v8 coverage **attributes the package source** instead of dropping it as node_modules.
+`core` runs under jsdom with a Blob/scroll polyfill; `storage` under jsdom with a chrome.storage
+mock + `fake-indexeddb`; `platform` under node. Shared setup lives in `tests/setup/`.
 
-The proper fix is a root Vitest `projects` config with a project per package whose `resolve.alias`
-maps `@mbd/*` to the real `src/` path (taking the files out of `node_modules`) and its tests
-co-located under `packages/*/tests`. This was deferred because co-location requires moving the
-shared fixtures and repairing three styles of fixture path reference (relative import,
-`__dirname`-relative, and CWD-relative string reads) — churn best done as its own change rather
-than folded into the structural migration.
+The root `vitest.config.ts` runs the three package projects with merged coverage. The WXT app
+(`@mbd/extension`) keeps its own `WxtVitest` run — WxtVitest does not compose as a Vitest
+sub-project (its `@/` alias resolves against the wrong cwd) — so the root `test` script chains
+both: `vitest run --coverage && yarn workspace @mbd/extension test`. Fixture reads are
+location-independent (HTML/m3u8 via vite `?raw` imports, binary via `__dirname`-relative reads),
+and `tsconfig.test.json` type-checks the relocated package tests.
+
+Result: package coverage is visible again (~96% statements across the package source), and each
+package is independently testable.
 
 ## Follow-ups
 
-1. **Package coverage attribution** — Vitest `projects` + per-package `resolve.alias` +
-   co-located tests + fixtures (see above).
-2. **Safari enablement (#307)** — implement `apps/extension/src/extension/platform/safari/*`
+1. **Safari enablement (#307)** — implement `apps/extension/src/extension/platform/safari/*`
    behind the `@mbd/platform` contracts (anchor-blob `Downloader`, no-op `Notifier`/`HeaderRules`,
    page-context `StreamCaptureHost`); add `apps/safari-native/` Xcode wrapper over `.output/safari-mv3`;
    gate on the #307 Phase 0 spike.

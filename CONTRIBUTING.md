@@ -41,8 +41,10 @@ yarn build        # wxt build → apps/extension/.output/chrome-mv3
 ## Tests
 
 This project is test-driven. New behavior needs a test; bug fixes start with a
-failing test that the fix makes pass. Tests live under `apps/extension/tests/`
-(`unit/` mirrors the source tree; `e2e/` holds the Playwright suite).
+failing test that the fix makes pass. Each package owns its tests under
+`packages/*/tests/`; the app's own unit tests live under `apps/extension/tests/unit/`
+and the Playwright e2e suite under `apps/extension/tests/e2e/`. Root `yarn test`
+runs the package projects (merged coverage) then the app suite.
 
 ## Proposing a change
 

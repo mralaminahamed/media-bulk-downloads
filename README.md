@@ -254,7 +254,8 @@ requests of its own.
 - **React 19** + **TypeScript** — type-safe UI
 - **Tailwind CSS v4** — utility-first styling on a small design-token system
 - **Vite** (via WXT) — fast bundling
-- **Vitest** + **Testing Library** — unit/integration suite (jsdom) under `apps/extension/tests/unit/`
+- **Vitest** + **Testing Library** — unit/integration suite; each package runs as its own
+  project (`packages/*/tests/`) with per-package coverage, the app under `apps/extension/tests/unit/`
 - **Playwright** — end-to-end tests under `apps/extension/tests/e2e/` that load the built
   extension in real Chromium and drive the on-page bubble (`yarn test:e2e`)
 - **web-ext** — Firefox package validation
@@ -267,13 +268,16 @@ media-bulk-downloads/            # yarn-workspaces monorepo
 ├── tsconfig.base.json           # shared compiler options for the packages
 ├── packages/
 │   ├── core/       @mbd/core     # browser-agnostic domain logic (zero chrome.*):
-│   │   └── src/                  #   collection · resolvers (+ sniffers) · download
-│   │                             #   (zip/base64/convert/stream byte-logic) · net · types
+│   │   ├── src/                  #   collection · resolvers (+ sniffers) · download
+│   │   │                         #   (zip/base64/convert/stream byte-logic) · net · types
+│   │   └── tests/                #   Vitest project (+ fixtures/)
 │   ├── storage/    @mbd/storage  # persistence over chrome.storage + IndexedDB:
-│   │   └── src/                  #   settings · history · favourites · excluded · queue ·
-│   │                             #   per-host memory · backup · sync
+│   │   ├── src/                  #   settings · history · favourites · excluded · queue ·
+│   │   │                         #   per-host memory · backup · sync
+│   │   └── tests/                #   Vitest project
 │   └── platform/   @mbd/platform # capability contracts + detectCapabilities()
-│       └── src/                  #   Downloader · Notifier · HeaderRules · StreamCaptureHost
+│       ├── src/                  #   Downloader · Notifier · HeaderRules · StreamCaptureHost
+│       └── tests/                #   Vitest project
 ├── apps/
 │   └── extension/  @mbd/extension  # the WXT app (Chrome · Firefox · Edge · Opera)
 │       ├── wxt.config.ts        # WXT config: manifest, browser targets, zip naming

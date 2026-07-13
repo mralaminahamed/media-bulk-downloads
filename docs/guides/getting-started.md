@@ -95,7 +95,7 @@ the WXT app in `apps/extension`. See [Architecture → Workspace layout](./archi
 package.json                    # workspaces root: [packages/*, apps/*] + orchestration scripts
 tsconfig.base.json              # shared compiler options for the packages
 
-packages/
+packages/                       # each package: src/ + tests/ (its own Vitest project)
   core/            @mbd/core    # browser-agnostic domain logic (zero chrome.*)
     src/
       collection/               #   extract · imageUrl · mediaType · deepScan · filters ·
@@ -108,11 +108,12 @@ packages/
       download/                 #   zip · base64 · convert/ · stream/ (HLS/DASH byte-logic)
       net/                      #   fetch retry
       types.ts                  #   shared TypeScript types (ChromeMessage, ImageInfo, …)
+    tests/                      #   Vitest specs + fixtures/ (jsdom project)
   storage/         @mbd/storage # persistence over chrome.storage + IndexedDB:
                                  #   settings · history · favourites · excluded · queue ·
-                                 #   per-host memory · backup · sync
+                                 #   per-host memory · backup · sync  (+ tests/)
   platform/        @mbd/platform# capability contracts (Downloader/Notifier/HeaderRules/
-                                 #   StreamCaptureHost) + detectCapabilities()
+                                 #   StreamCaptureHost) + detectCapabilities()  (+ tests/)
 
 apps/
   extension/       @mbd/extension
