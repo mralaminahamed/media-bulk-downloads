@@ -42,7 +42,7 @@ export function pinIdFromUrl(url: unknown): string | null {
   return url.match(/\/pin\/(?:[^/]*--)?(\d+)(?:\/|$)/)?.[1] ?? null;
 }
 
-const PIN_EXT = /^(?:jpe?g|png|webp|gif|avif|mp4|m3u8|mov|webm|m4v)$/i;
+export const PIN_EXT = /^(?:jpe?g|png|webp|gif|avif|mp4|m3u8|mov|webm|m4v)$/i;
 
 function extFromUrl(url: string, fallback: string): string {
   try {
@@ -74,8 +74,12 @@ function bestImage(images: unknown): { url: string; width: number; height: numbe
   return best;
 }
 
-/** Video URL from `videos.video_list` — mirrors network.ts:331-335. Progressive
- *  mp4 (V_720P) preferred; else the HLS master (V_HLSV4 ?? V_HLSV3_MOBILE). */
+/** Video URL from `videos.video_list`. Progressive mp4 (V_720P) preferred; else
+ *  the HLS master (V_HLSV4 ?? V_HLSV3_MOBILE), returned with `ext: 'm3u8'` — a
+ *  plain URL+ext pair, not the `{ hls: true }` shape network.ts's async tier
+ *  uses. The manifest → capture-engine routing (setting `hlsManifest` so it is
+ *  never handed to chrome.downloads directly) happens downstream in
+ *  `pushCandidate` (collect.ts), not here. */
 function bestVideo(videos: unknown): { url: string; ext: string } | null {
   const list = (videos as { video_list?: unknown } | undefined)?.video_list;
   if (!list || typeof list !== 'object') return null;
@@ -125,6 +129,7 @@ export function extractPinterestMedia(root: unknown): PinterestMediaEntry[] {
     seen.add(node as object);
     const obj = node as Record<string, unknown>;
 
+    // Pinterest pin ids are long numeric strings; 6 is a loose floor rejecting short board/user/other ids.
     const id = typeof obj.id === 'string' && /^\d{6,}$/.test(obj.id) ? obj.id : inheritedId;
     // Only pin-like objects emit: an explicit non-pin type (board/user/…) is skipped.
     const type = typeof obj.type === 'string' ? obj.type : null;

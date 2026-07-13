@@ -1,7 +1,7 @@
 import { upgradeToOriginal } from '@/extension/shared/collection/imageUrl';
 import { imageExtFromUrl } from '@/extension/shared/collection/mediaType';
 import { MediaCandidate, Resolver } from '../types';
-import { PinterestMediaEntry, pinPinimgUrl, pinIdFromUrl } from '@/extension/shared/resolvers/sniffers/pinterest-media-sniff';
+import { PinterestMediaEntry, pinPinimgUrl, pinIdFromUrl, PIN_EXT } from '@/extension/shared/resolvers/sniffers/pinterest-media-sniff';
 
 const IMG_HOST = 'i.pinimg.com';
 
@@ -34,8 +34,8 @@ let sniffed: PinterestMediaEntry[] = [];
 let sniffVersion = 0;
 let byPinCache: { key: number; map: Map<string, PinterestMediaEntry[]> } | null = null;
 
+// Pinterest pin ids are long numeric strings; 6 is a loose floor rejecting short board/user/other ids.
 const PIN_ID_STRICT = /^\d{6,}$/;
-const PIN_EXT = /^(?:jpe?g|png|webp|gif|avif|mp4|m3u8|mov|webm|m4v)$/i;
 
 /**
  * Feed media read from a sniffed /resource/ response into the resolver's store.
@@ -56,9 +56,10 @@ export function ingestSniffedPinterestMedia(entries: unknown): void {
     const entry: PinterestMediaEntry = { pinId: e.pinId, kind: e.kind, url, ext };
     if (typeof e.width === 'number') entry.width = e.width;
     if (typeof e.height === 'number') entry.height = e.height;
-    const poster = pinPinimgUrl(e.poster);
-    if (e.kind === 'video' && poster) entry.poster = poster;
-    if (e.pending === true) entry.pending = true;
+    if (e.kind === 'video') {
+      const poster = pinPinimgUrl(e.poster);
+      if (poster) entry.poster = poster;
+    }
     clean.push(entry);
   }
   if (!clean.length) return;

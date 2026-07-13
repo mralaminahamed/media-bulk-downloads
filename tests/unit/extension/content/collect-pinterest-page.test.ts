@@ -50,4 +50,32 @@ describe('collectMedia — Pinterest page media (opened pin page)', () => {
     const orig = collectMedia().filter((m) => m.src === ORIGINAL);
     expect(orig).toHaveLength(1);
   });
+
+  it('an HLS-master video pin (no progressive mp4) routes to the capture engine via hlsManifest', () => {
+    const HLS = 'https://v1.pinimg.com/videos/hls/aa/bb/cc/master.m3u8';
+    ingestSniffedPinterestMedia([
+      { pinId: '698058011039781102', kind: 'video', url: HLS, ext: 'm3u8' },
+    ]);
+
+    const item = collectMedia().find((m) => m.src === HLS);
+
+    expect(item).toBeDefined();
+    expect(item?.kind).toBe('video');
+    expect(item?.hlsManifest).toBe(HLS);
+    expect(item?.type).toBe('m3u8');
+  });
+
+  it('a progressive-mp4 video pin still produces a plain video item with no hlsManifest', () => {
+    const MP4 = 'https://v1.pinimg.com/videos/mc/720p/aa/bb/cc.mp4';
+    ingestSniffedPinterestMedia([
+      { pinId: '698058011039781102', kind: 'video', url: MP4, ext: 'mp4' },
+    ]);
+
+    const item = collectMedia().find((m) => m.src === MP4);
+
+    expect(item).toBeDefined();
+    expect(item?.kind).toBe('video');
+    expect(item?.hlsManifest).toBeUndefined();
+    expect(item?.type).toBe('mp4');
+  });
 });

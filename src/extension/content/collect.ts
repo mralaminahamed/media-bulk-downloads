@@ -200,10 +200,19 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     seenSources.add(cand.url);
 
     if (cand.kind === 'video' || cand.kind === 'gif') {
+      // A resolver can hand back a streaming manifest (Pinterest's HLS master when
+      // no progressive mp4 exists, etc.) as an ordinary video candidate — it is not
+      // a single downloadable file, so it must route through the same capture path
+      // (`hlsManifest`) as pushHls/pushDash, or it silently bypasses the user's
+      // captureHlsStreams opt-in and downloads as a broken manifest file.
+      const isHls = cand.ext === 'm3u8' || isHlsManifest(cand.url);
+      const isDash = cand.ext === 'mpd' || isDashManifest(cand.url);
       const item: MediaItem = {
         src: cand.url, alt, width: 0, height: 0,
-        type: cand.ext || detectAvType(cand.url), fileSize: 0, isBase64: false, kind: 'video',
+        type: isDash ? 'mpd' : isHls ? 'm3u8' : (cand.ext || detectAvType(cand.url)),
+        fileSize: 0, isBase64: false, kind: 'video',
       };
+      if (isHls || isDash) item.hlsManifest = cand.url;
       if (cand.poster) item.poster = cand.poster;
       if (cand.resolveHint) item.resolveHint = cand.resolveHint;
       if (cand.unresolvedVideo) item.unresolvedVideo = true;
