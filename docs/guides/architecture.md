@@ -1,6 +1,6 @@
 # Architecture
 
-The extension is a cross-browser (Chrome, Firefox 109+, Edge) Manifest V3 app.
+The extension is a cross-browser (Chrome, Firefox 140+, Edge) Manifest V3 app.
 Its surfaces talk over `chrome.runtime` / `chrome.tabs` messages: a background
 service worker, an isolated content script per tab, the popup, and the in-page
 bubble. Three kinds of helper surface back them — five MAIN-world media sniffers

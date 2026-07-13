@@ -58,8 +58,8 @@ flowchart LR
   already loaded, and stay on each image's own host (never the background badge
   path). **Resolve Originals** (`resolveOriginals`, off by default) is the only
   feature that contacts a host other than the page you're on: when on, the
-  background resolves the exact original from one of 9 supported hosts (Twitter/X,
-  Wallhaven, Unsplash, Vimeo, Bluesky, Pinterest, Reddit, Flickr, ArtStation).
+  background resolves the exact original from one of 10 supported hosts (Twitter/X,
+  Wallhaven, Unsplash, Vimeo, Dailymotion, Bluesky, Pinterest, Reddit, Flickr, ArtStation).
   See [Resolve Originals](./resolve-originals.md).
 - **Deep scan issues no requests of its own.** It scrolls and re-reads the DOM;
   the page loads its own media.
