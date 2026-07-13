@@ -203,7 +203,7 @@ view — it is not an auth or paywall bypass.
 The extension must read the media elements on whatever page the user runs it on,
 which can be any site. It activates only when the user opens the popup or enables
 the on-page panel. Small content scripts read the page's media; on a few sites
-(e.g. Instagram, X/Twitter) a passive script observes the page's own media
+(e.g. Instagram, X/Twitter, Facebook, Pinterest) a passive script observes the page's own media
 network responses so posted images/videos resolve to real downloadable files —
 it reads only the request URLs/JSON the page itself already loaded and never
 sends them off-device. When the optional "resolve originals" setting is on, or
@@ -213,8 +213,8 @@ transmit page content for any other purpose.
 ```
 
 > **Content scripts / `commands`:** the manifest also declares keyboard shortcuts
-> (`commands`) and four content scripts — a page collector plus MAIN-world media
-> sniffers scoped to `instagram.com`, `x.com`, and `twitter.com`. These are
+> (`commands`) and five content scripts — a page collector plus MAIN-world media
+> sniffers scoped to `instagram.com`, `x.com`, `twitter.com`, `facebook.com`, and `pinterest.com`. These are
 > manifest keys, not separate permissions, and are covered by the `<all_urls>`
 > justification above; mention them if a reviewer asks about the MAIN world.
 
