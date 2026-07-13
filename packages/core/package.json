@@ -1,0 +1,23 @@
+{
+  "name": "@mbd/core",
+  "version": "1.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser-agnostic domain library: media collection, per-site resolvers, HLS/DASH byte-logic, and shared types. Zero chrome.* APIs.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts",
+    "./collection/*": "./src/collection/*.ts",
+    "./resolvers": "./src/resolvers/index.ts",
+    "./resolvers/*": "./src/resolvers/*.ts",
+    "./net/*": "./src/net/*.ts",
+    "./download/*": "./src/download/*.ts"
+  },
+  "dependencies": {
+    "fflate": "^0.8.3",
+    "mp4box": "^2.4.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17"
+  }
+}

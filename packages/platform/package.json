@@ -1,0 +1,11 @@
+{
+  "name": "@mbd/platform",
+  "version": "1.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser-capability seam: contracts (Downloader, Notifier, HeaderRules, StreamCaptureHost) and runtime feature detection. Implementations live in the app layer.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  }
+}

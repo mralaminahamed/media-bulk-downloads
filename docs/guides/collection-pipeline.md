@@ -1,6 +1,6 @@
 # Collection Pipeline
 
-How a page's media is discovered, resolved to originals through a per-host
+How a page's media is found, resolved to its original through a per-host
 resolver registry, de-duplicated, and shown.
 
 ## End-to-end (popup scan)
@@ -30,272 +30,340 @@ sequenceDiagram
 
 ## Inside `collectMedia()`
 
-The collector runs several DOM passes over **multiple roots** — the top document
-plus every open shadow root and every reachable same-origin `<iframe>` document
-discovered during the walk (cross-origin frames are skipped) — then two
-top-document-only head passes (`<meta>` hero images and `<link rel=preload>`).
-Every raw, non-base64 URL is routed through `resolve()` — the resolver
-**registry** (`shared/resolvers/index.ts`) — before dedup.
-`<video>`/`<audio>` elements mostly bypass the registry (direct file sources
-only), except for a Twitter-specific poster check that can turn a `<video>` into
-an image-shaped candidate of `kind: 'video' | 'gif'`. On a single Instagram
-post/reel page a `collectMedia` tail-pass also pulls the whole post from its page
-JSON (`instagramPageMedia`), covering media the DOM hides — virtualized carousel
-slides and `blob:`-backed reel videos.
+`collectMedia()` walks **multiple roots**: the top document, every open shadow
+root, and every reachable same-origin `<iframe>` document. Shadow roots and
+frames are discovered while walking and appended to the root list, so nested
+ones are reached too. Closed shadow roots and cross-origin frames are
+unreachable and skipped.
 
-Element passes (IMG/BG/GAL/NS/AV) run **per root** — the top document plus every
-open shadow root and same-origin `<iframe>` document. The META and PRELOAD passes
-run on the top document only.
+Each root gets **one** `querySelectorAll('*')` traversal. That single pass
+buckets the media tags (`img`, `picture`, `video`, `audio`, `a`, `noscript`,
+`iframe`), reads each element's computed `background-image`, and discovers any
+open shadow root — instead of firing a separate full-subtree query per tag
+type. The buckets are then processed in a fixed order (img → picture →
+background → video → audio → link → noscript → frame) so first-seen dedup
+priority is stable.
+
+A base64 `data:image/` URL short-circuits: it becomes an `isBase64:true`
+`MediaItem` with its byte size computed locally, and never hits the network or
+the resolver. Every other raw URL goes through `resolve()` (the resolver
+registry) before dedup.
+
+`<video>`/`<audio>` take a separate path. For each `<video>` the collector
+tries `twitterGifCandidate()` (a GIF thumb that maps to a real `.mp4`), then
+`twitterVideoPending()` (a real-video poster that becomes a pending video), then
+the element's direct file sources via `collectAv()`. `collectAv()` routes
+`.m3u8`/`.mpd` manifests to the HLS/DASH capture path, drops `blob:` and other
+undownloadable schemes, and keeps only real http(s) files.
+
+`<a href>` links can produce media on their own: a gallery/lightbox link whose
+href `looksLikeMediaUrl` (with the inner `<img>` as its thumbnail), a YouTube
+link (poster thumbnail), a Vimeo or Dailymotion link (pending video), a direct
+HLS/DASH manifest link, or — on x.com/twitter.com — an unpainted grid-cell
+permalink (`/user/status/<id>/photo|video/<n>`) that never rendered its media,
+surfaced as a pending image or video keyed by the status id.
+
+After the DOM walk, a full scan runs top-document-only head and tail passes:
+
+- `<meta>` hero images (`og:image`, `og:image:url`, `og:image:secure_url`,
+  `twitter:image`, `twitter:image:src`).
+- `<meta property="og:video*">` — a direct downloadable `.mp4` (or a capturable
+  `.m3u8`/`.mpd`) that never appears as a `<video>`.
+- `<link rel=preload as=image>` — `href` plus the highest-width `imagesrcset`
+  candidate.
+- `instagramPageMedia()`, `facebookPageMedia()`, `pinterestPageMedia()` — pull
+  the whole post/photo/pin (every carousel slide, the real progressive `.mp4`)
+  from the page's own hydration JSON and the responses a MAIN-world sniffer
+  caught, covering media the DOM hides (virtualized slides, `blob:`-backed
+  players). Each no-ops off its own page type.
+- `sniffedHlsManifests()` — `.m3u8`/`.mpd` URLs the MAIN-world sniffer saw
+  hls.js/native players fetch, which never touch the DOM.
+
+Passing `smartPageDefaults` flips one thing: on a page classified
+`single-media` or `article`, the meta and preload hero passes run **before** the
+DOM walk so the hero image wins first-come dedup over an inline thumbnail of the
+same asset. Off, or unclassified, the hero passes run after the walk as usual.
+
+Deep-scan rounds call `collectMedia(scanRoots)` with an explicit root list; that
+incremental mode skips the head and tail passes (they only make sense on a full
+document scan).
+
+A perf guard skips the computed-`background-image` read for elements with no
+layout box (`offsetWidth === 0 && offsetHeight === 0`, e.g. `display:none`). The
+guard itself is gated on the document actually having layout, so jsdom (no
+layout engine, every element 0×0) is not wrongly emptied under test.
 
 ```mermaid
 flowchart TB
-  START["collectMedia()<br/>(per root: doc + shadow roots + same-origin frames)"] --> IMG["&lt;img&gt; / &lt;picture&gt;<br/>imageUrlsFromElement()"]
-  START --> BG["CSS background-image<br/>(computed + data-bg,<br/>image-set() → highest-res)"]
-  START --> GAL["gallery &lt;a href&gt;<br/>galleryLinkCandidate()"]
-  START --> NS["&lt;noscript&gt;<br/>noscriptImageCandidates()"]
-  START --> AV["&lt;video&gt; / &lt;audio&gt; / &lt;source&gt;<br/>+ poster"]
-  START --> META["&lt;meta&gt; hero (top doc)<br/>og:image* / twitter:image*"]
-  START --> PRE["&lt;link rel=preload as=image&gt; (top doc)<br/>href + imagesrcset"]
+  START["collectMedia(scanRoots?, opts?)<br/>one '*' walk per root:<br/>top doc + open shadow roots + same-origin frames"]
+
+  START --> IMG["&lt;img&gt; imageUrlsFromElement()"]
+  START --> PIC["&lt;picture&gt; &lt;source&gt; srcset"]
+  START --> BG["background-image<br/>(computed + data-bg, image-set → widest)"]
+  START --> NS["&lt;noscript&gt; noscriptImageCandidates()"]
+  START --> AV["&lt;video&gt; / &lt;audio&gt; / &lt;source&gt;"]
+  START --> GAL["&lt;a href&gt; links"]
+
+  subgraph HEADTAIL["top document only, full scans"]
+    META["&lt;meta&gt; og:image* / twitter:image*"]
+    OGV["&lt;meta&gt; og:video*"]
+    PRE["&lt;link rel=preload as=image&gt;"]
+    PAGE["instagram/facebook/pinterest PageMedia()"]
+    HLSS["sniffedHlsManifests() (MAIN-world)"]
+  end
+  START --> HEADTAIL
 
   IMG --> B64
+  PIC --> B64
   BG --> B64
-  GAL --> B64
   NS --> B64
   META --> B64
   PRE --> B64
+  PAGE --> B64
 
   B64{"data:image/ URL?"}
-  B64 -->|"yes"| MKB["MediaItem kind=image, isBase64:true<br/>size computed locally"]
-  B64 -->|"no"| RES["resolve(url, ctx)<br/>ctx.allowNetwork = false"]
+  B64 -->|yes| MKB["MediaItem kind=image, isBase64:true<br/>bytes computed locally"]
+  B64 -->|no| RES["resolve(url, {allowNetwork:false, pageUrl, el})"]
 
-  subgraph REG["shared/resolvers — REGISTRY, tried in order (15 entries)"]
-    direction TB
-    TW["twitterResolver<br/>pbs.twimg.com"] -->|"no candidate"| IG
-    IG["instagramResolver<br/>*.cdninstagram.com / *.fbcdn.net"] -->|"no candidate"| FB
-    FB["facebookResolver<br/>*.fbcdn.net / *.cdninstagram.com (on facebook.com)"] -->|"no candidate"| UNS
-    UNS["unsplashResolver<br/>images / plus.unsplash.com"] -->|"no candidate"| WH
-    WH["wallhavenResolver<br/>th.wallhaven.cc"] -->|"no candidate"| BEH
-    BEH["behanceResolver<br/>mir-s3-cdn-cf.behance.net"] -->|"no candidate"| BSKY
-    BSKY["bskyResolver<br/>cdn.bsky.app"] -->|"no candidate"| PIN
-    PIN["pinterestResolver<br/>i.pinimg.com"] -->|"no candidate"| RED
-    RED["redditResolver<br/>i.redd.it / preview.redd.it / v.redd.it"] -->|"no candidate"| FLI
-    FLI["flickrResolver<br/>*.staticflickr.com"] -->|"no candidate"| ART
-    ART["artstationResolver<br/>cdn[ab].artstation.com"] -->|"no candidate"| MAG
-    MAG["magnificResolver<br/>img.magnific.com"] -->|"no candidate"| ARC
-    ARC["arcxpResolver<br/>*/resizer/v2/…?auth="] -->|"no candidate"| YT
-    YT["youtubeResolver<br/>youtube.com / youtu.be watch-page links"] -->|"no candidate"| GEN
-    GEN["genericResolver (catch-all)<br/>deproxy() then upgradeToOriginal() / RULES"]
-  end
+  RES --> REG["resolver registry<br/>(host-indexed → fallback, see below)"]
+  REG --> CAND["MediaCandidate[] · kind image/video/gif"]
+  CAND --> DD1{"canonicalSrcKey(cand.url) seen?"}
+  DD1 -->|yes| SKIP1["skip"]
+  DD1 -->|no| KIND{cand.kind}
+  KIND -->|image| MK1["ImageInfo<br/>+ thumbnailSrc / resolveHint / ext / mediaKey"]
+  KIND -->|video or gif| MK2["MediaItem kind=video<br/>+ poster / resolveHint / unresolvedVideo / hlsManifest"]
 
-  RES --> REG
-  REG --> CAND["MediaCandidate[]<br/>kind: image, video, or gif"]
-  CAND --> DD1{"seen cand.url?"}
-  DD1 -->|"yes"| SKIP1["skip"]
-  DD1 -->|"no"| KIND{"cand.kind"}
-  KIND -->|"image"| MK1["ImageInfo<br/>+ thumbnailSrc / resolveHint"]
-  KIND -->|"video or gif"| MK2["MediaItem kind=video<br/>+ poster, resolveHint, unresolvedVideo"]
+  AV --> TWG["twitterGifCandidate() → mp4"]
+  AV --> TWV["twitterVideoPending() → pending video"]
+  AV --> AVR["direct sources → collectAv()"]
+  AVR --> SK{"kind of URL?"}
+  SK -->|".m3u8 / .mpd"| HLSCAP["capturable stream (hlsManifest)"]
+  SK -->|"blob: / non-http"| DROP["skip"]
+  SK -->|"real file"| MK3["MediaItem kind=video/audio<br/>type=detectAvType()"]
 
-  AV --> TWCHK{"video poster matches<br/>tweet_video_thumb /<br/>ext_tw_video_thumb / amplify_video_thumb?"}
-  TWCHK -->|"yes"| MK2
-  TWCHK -->|"no"| AVR["resolveUrl()"]
-  AVR --> SK{"isUndownloadableMedia?<br/>(blob: / .m3u8 / .mpd)"}
-  SK -->|"yes"| DROP["skip"]
-  SK -->|"no"| DD2{"seen?"}
-  DD2 -->|"no"| MK3["MediaItem kind=video/audio<br/>type=detectAvType()"]
-  DD2 -->|"yes"| SKIP2["skip"]
+  GAL --> GYT["gallery href · YouTube poster · Vimeo/Dailymotion pending"]
+  GAL --> GHLS["direct HLS/DASH link → capturable stream"]
+  GAL --> GTW["X unpainted /status/…/photo|video/n cell<br/>→ pending image/video"]
 
   MKB --> OUT["MediaItem[]"]
   MK1 --> OUT
   MK2 --> OUT
   MK3 --> OUT
+  HLSCAP --> OUT
+  HLSS --> OUT
+  GYT --> OUT
+  GHLS --> OUT
+  GTW --> OUT
 ```
 
-Only the **generic** resolver runs the pre-registry `deproxy()` →
-`upgradeToOriginal()` → `RULES` chain; it's the catch-all (`match: () => true`),
-so it always fires — either as the real handler for an unrecognized host, or as
-the fallback when a dedicated resolver upstream matched the host but returned no
-candidate for that particular path.
+### Extraction sources (`@mbd/core/collection/extract.ts`)
 
-### Extraction sources (`shared/collection/extract.ts`)
+| Source             | Attributes / pattern |
+|--------------------|----------------------|
+| Lazy `src`         | In preference order: `data-orig-file`, `data-large-file` (WordPress/Jetpack **true original** — surfaced first so it wins with no CDN rule), then `data-src`, `data-original`, `data-original-src`, `data-actualsrc`, `data-lazy-src`, `data-lazy`, `data-lazyload`, `data-hi-res-src`, `data-src-large`, `data-full-src`, `data-image`, `data-echo`, `data-flickity-lazyload`. `currentSrc`/`src` slots in after these. |
+| Srcset             | `srcset`, `data-srcset`, `data-lazy-srcset` — the widest `w` candidate (or densest `x` for a pure-density set) is kept, plus every candidate URL. |
+| Background         | `data-bg`, `data-background`, `data-background-image`, plus computed `background-image` (`image-set()`/`-webkit-image-set()` contribute only the highest-resolution candidate per layer). |
+| `<noscript>`       | Parsed with `DOMParser` (entities un-escaped first if needed); the real image often lives here for no-JS users. |
+| Gallery `<a href>` | Anchor whose href `looksLikeMediaUrl` → href is the original, inner `<img>` is the `thumbnailSrc`. |
 
-| Source             | Attributes / pattern                                                                                                                                                                                                                                                                                                                                                             |
-|--------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Lazy `src`         | In preference order: `data-orig-file`, `data-large-file` (WordPress/Jetpack **true original** — surfaced first so it wins without a CDN rule), then `data-src`, `data-original`, `data-original-src`, `data-actualsrc`, `data-lazy-src`, `data-lazy`, `data-lazyload`, `data-hi-res-src`, `data-src-large`, `data-full-src`, `data-image`, `data-echo`, `data-flickity-lazyload` |
-| Srcset             | `srcset`, `data-srcset`, `data-lazy-srcset` — **highest-width srcset candidate** kept ahead of its narrower siblings; a lazy-`src` attr above, when present, still takes primary (index 0, paired with DOM dimensions)                                                                                                                                                           |
-| Background         | `data-bg`, `data-background`, `data-background-image` + computed `background-image` (incl. `image-set()`/`-webkit-image-set()` — only the highest-resolution candidate of each layer is kept)                                                                                                                                                                                    |
-| `<noscript>`       | Parsed with `DOMParser`; the real image often lives here for no-JS users                                                                                                                                                                                                                                                                                                         |
-| Gallery `<a href>` | Anchor whose href `looksLikeMediaUrl` → href is the original, inner `<img>` is the `thumbnailSrc`                                                                                                                                                                                                                                                                                |
+`imageUrlsFromElement()` returns the primary candidate at index 0; `collect.ts`
+pairs index 0 with the element's DOM dimensions. When index 0 is a
+`data-orig-file`/`data-large-file` original (not what the element is displaying),
+those dimensions are withheld so the on-screen thumbnail's size doesn't mislabel
+the larger original and get it wrongly dropped by the minimum-size filter.
 
-### Root & head sources (`content/collect.ts`)
+## Resolver registry (`@mbd/core/resolvers/`)
 
-Beyond the per-element attrs above, `collectMedia()` widens where it looks:
+`resolve(rawUrl, ctx)` parses the URL and returns `[]` for any non-http(s)
+scheme (`javascript:`, `data:`, `blob:`, `file:`, …) so those never reach a
+download or tab-open sink. It then dispatches through a **host index**, not a
+flat scan: `candidatesFor()` collects the resolvers whose declared `hosts`
+suffix matches the URL's hostname (kept in `REGISTRY` order), appends the
+host-agnostic resolvers (those with no `hosts`), runs each one's `match()` to
+confirm, and returns the first non-empty `MediaCandidate[]`.
 
-| Source                         | What it does                                                                                  |
-|--------------------------------|-----------------------------------------------------------------------------------------------|
-| Open shadow roots              | Any element's `el.shadowRoot` is added as an extra root; all element passes re-run inside it  |
-| Same-origin `<iframe>`         | Reachable `iframe.contentDocument`s are added as extra roots; cross-origin frames are skipped |
-| `<meta>` hero (top doc only)   | `og:image`, `og:image:url`, `og:image:secure_url`, `twitter:image`, `twitter:image:src`       |
-| `<link rel=preload>` (top doc) | `rel=preload as=image` → `href` + `imagesrcset` (highest-width)                               |
+`REGISTRY` has **18 entries** — 17 dedicated resolvers plus the generic
+catch-all — in this order:
 
-A perf guard skips the computed-`background-image` pass for elements with no
-layout box (`offsetWidth === 0 && offsetHeight === 0`, e.g. `display:none`).
+`twitter → instagram → facebook → threads → unsplash → wallhaven → behance →
+bsky → pinterest → reddit → flickr → artstation → magnific → arcxp → youtube →
+mastodon → booru → generic`
 
-## Resolver registry (`shared/resolvers/`)
+Five are host-agnostic (no `hosts`, always tried as a fallback in registry
+order): `arcxp`, `youtube`, `mastodon`, `booru`, `generic`. `genericResolver`
+matches everything (`match: () => true`), so it always fires last — either as
+the real handler for an unrecognized host, or as the fallback when a dedicated
+resolver claimed the host but returned `[]` for that particular path.
 
-`resolve(rawUrl, ctx)` scheme-guards to http(s), then tries each `Resolver` in
-`REGISTRY` order — `twitterResolver → instagramResolver → facebookResolver →
-unsplashResolver → wallhavenResolver → behanceResolver → bskyResolver →
-pinterestResolver → redditResolver → flickrResolver → artstationResolver →
-magnificResolver → arcxpResolver → youtubeResolver → genericResolver` (14
-dedicated resolvers + the generic fallback, 15 entries total) — and returns
-the first non-empty `MediaCandidate[]`.
+```mermaid
+flowchart TB
+  R0["resolve(url, ctx) · http(s) only<br/>host-indexed dispatch, first non-empty wins"] --> HOSTED
+  subgraph HOSTED["host-matched (REGISTRY order)"]
+    direction TB
+    A["twitter · pbs.twimg.com"] --> B["instagram · *.cdninstagram.com / *.fbcdn.net"]
+    B --> C["facebook · same CDNs, only on facebook.com"]
+    C --> D["threads · same CDNs, only on threads.com/.net"]
+    D --> E["unsplash · images / plus.unsplash.com"]
+    E --> F["wallhaven · th.wallhaven.cc"]
+    F --> G["behance · mir-s3-cdn-cf.behance.net"]
+    G --> H["bsky · cdn.bsky.app"]
+    H --> I["pinterest · i.pinimg.com"]
+    I --> J["reddit · i / preview / v.redd.it"]
+    J --> K["flickr · *.staticflickr.com"]
+    K --> L["artstation · cdn[ab].artstation.com"]
+    L --> M["magnific · img.magnific.com"]
+  end
+  HOSTED --> FALL
+  subgraph FALL["host-agnostic fallback (REGISTRY order)"]
+    direction TB
+    N["arcxp · any host, /resizer/v2/…?auth="] --> O["youtube · watch/embed/shorts links"]
+    O --> P["mastodon · …/media_attachments/files/…"]
+    P --> Q["booru · danbooru/gelbooru/… (by page host)"]
+    Q --> Z["generic · catch-all: deproxy() + CDN RULES"]
+  end
+```
 
-| Resolver             | Matches                                                                                                                                                 | Behavior                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-|----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `twitterResolver`    | `pbs.twimg.com`                                                                                                                                         | `/media/<id>` → `name=orig` + real format (`webp`→`jpg`); `/profile_images/` and `/profile_banners/` → strip the size suffix; `/card_img/` → `name=orig`. GIF thumbs (`/tweet_video_thumb/<id>`) → `video.twimg.com/tweet_video/<id>.mp4`, `kind:'gif'`. Real-video posters (`/ext_tw_video_thumb/`, `/amplify_video_thumb/`) → `kind:'video'`, `unresolvedVideo:true`, plus `resolveHint:{platform:'twitter', id: statusId}` — the status id comes from a `/status/<id>` link the element sits inside (the media-grid cell), else the enclosing tweet `<article>`'s **own** permalink (the `<time>`-wrapped or `/photo`/`/video` link — chosen over any quoted/embedded tweet's link in the same article), falling back to the id in the page's own URL (e.g. a single-tweet detail page) when none is found                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `instagramResolver`  | `*.cdninstagram.com`, `*.fbcdn.net`                                                                                                                     | Reels/videos whose feed carries only a cover (`media_type` 2 with `image_versions2` but no `video_versions` — the reels-tab and profile grid) surface as **pending videos** (poster = cover); each resolves to its real mp4 once that reel's own response (with `video_versions`) is seen by the sniffer, i.e. when it plays/opens. Instagram's CDNs are **signed** (the `stp` size token is covered by the `oh` HMAC — stripping it 403s, verified live), so no URL rewrite is possible. Instead the resolver finds the post shortcode from the enclosing `/p\|reel\|tv/<code>` link (else `ctx.pageUrl`) and returns **every slide** of that post from the media graph Instagram ships in the page's own `<script type="application/json">` hydration and the GraphQL/`api/v1` responses it fetches on scroll: images at their largest `image_versions2.candidates`, videos as their real progressive-mp4 `video_versions` (the on-page `<video>` is a `blob:` MSE stream and undownloadable). The scroll responses are read by a passive MAIN-world sniffer (`ig-media-sniffer`) that wraps the page's `fetch`/`XHR` — read-only, forges nothing — and fed into the resolver via a host-pinning relay. Non-post images (avatars, tagged-user `/username/` links, UI chrome) return `[]` and fall through to the generic resolver |
-| `facebookResolver`   | `*.fbcdn.net`, `*.cdninstagram.com` (only on `facebook.com`)                                                                                            | Same signed-CDN problem as Instagram, so nothing is rewritten either. Finds the tile's owner fbid from the enclosing `/photo\|photos\|videos\|watch\|reel` link (else `ctx.pageUrl`) and returns every media entry known for that fbid — the largest sniffed image plus every video, pending cover-only ones included — tagged with a `mediaKey:'fb:<fbid>'` so a later-arriving original upgrade-replaces the row instead of duplicating it. The entries themselves come from a passive MAIN-world sniffer (`fb-media-sniffer`) that reads Facebook's `text/html`-content-type, multi-chunk-NDJSON GraphQL responses, plus this module's own read of the page's embedded hydration JSON. No fbid recoverable → `[]` (falls through to the generic resolver). See [BENCHMARK.md §G](../BENCHMARK.md#g-facebook-original-image-accuracy-passive-sniff--2026-07-10) for measured accuracy                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `unsplashResolver`   | `images.unsplash.com`, `plus.unsplash.com`                                                                                                              | Strips resize query params (`w`, `h`, `fit`, `resize`, `q`, `quality`, `dpr`, `crop`, `ar`, `cs`, `fm`, `auto`, `bg`, `blend*`, `ixlib` — a smaller subset on `plus.`); attaches `resolveHint:{platform:'unsplash', id}` when the element sits inside an `<a href="/photos/<id>">`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `wallhavenResolver`  | `th.wallhaven.cc`                                                                                                                                       | Reads the wallpaper id from the thumb path (`/{small\|lg\|orig}/<ab>/<id>.jpg`), a `figure[data-wallpaper-id]`, or the figure's `a.preview` `/w/<id>` link (id shape-validated). If the real extension is readable from the DOM (a full `<img>` on the page, or a `span.png`/`span.gif` badge on the figure — confirmed live, ~34% of a page are png), rewrites straight to `w.wallhaven.cc/full/<ab>/wallhaven-<id>.<ext>`; an unbadged figure is genuinely jpg (Wallhaven only badges non-jpg). With no DOM ext evidence at all it hands back the largest guaranteed-existing jpg — the `/orig/` thumb — plus `resolveHint:{platform:'wallhaven', id}` (never a blind full-file URL that could 404 for a png). The grid preview `thumbnailSrc` is bumped `/small`→`/lg` for sharpness (never downgraded), and it reads the figure's `span.wall-res` for the wallpaper's **true** full resolution (not the thumbnail's)                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `behanceResolver`    | `mir-s3-cdn-cf.behance.net`                                                                                                                             | Rewrites `/project_modules/<size>/` (`disp`/`max_1200`/`1400`/`fs`) → `/project_modules/source/`, and strips the search-grid's base64 crop token (`<hash>.<crop>.<ext>` → `<hash>.<ext>`); if the element (or its `srcset`/`data-src`, or a sibling `<source>`) already exposes a `source`/`fs` URL on the same host, that DOM value wins over the rewrite. Returns `[]` (falls through to `genericResolver`) only when the upgrade would leave the URL unchanged (e.g. element already at `source`) — the `fs→source` rewrite otherwise applies                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `bskyResolver`       | `cdn.bsky.app`                                                                                                                                          | Reads the atproto image-CDN rendition from the path (`/img/<rendition>/plain/<did>/<cid>@<fmt>`); network-free upgrades `feed_thumbnail`→`feed_fullsize` and `avatar_thumbnail`→`avatar` (already-max renditions pass through), plus a `resolveHint:{platform:'bsky', id:'blob <did> <cid>'}` so the opt-in tier can fetch the true uploaded original via `getBlob`. A `feed_video_blob` rendition (poster only) instead returns a pending video with `resolveHint:{platform:'bsky', id:'video <did> <cid>'}` for the HLS master                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `pinterestResolver`  | `i.pinimg.com`                                                                                                                                          | A still pin gets the same size-folder → `/originals/` upgrade the generic path would do (via `upgradeToOriginal`). A video-pin poster (a durable `<video>`/`aria-label` signal in the pin cell, plus a recoverable pin id from the enclosing `/pin/<id>` link or the page URL) becomes a pending video with `resolveHint:{platform:'pinterest', id}` for the opt-in tier's progressive-mp4/HLS lookup                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `redditResolver`     | `i.redd.it`, `preview.redd.it`, `v.redd.it`                                                                                                             | `preview.redd.it` (signed, resized) → the unsigned `i.redd.it` original (host swap, query dropped); `i.redd.it` → itself with tracking query stripped; `v.redd.it/<id>/…` → a pending video with `resolveHint:{platform:'reddit', id}` for the opt-in tier's signature-free HLS master (muxed with its separate audio rendition). `external-preview.redd.it` is left to the generic resolver                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `flickrResolver`     | `*.staticflickr.com`                                                                                                                                    | The same `_b` (1024) upgrade the generic `RULES` entry already does (via `upgradeToOriginal`), plus a `resolveHint:{platform:'flickr', id}` (the photo id) so the opt-in tier can fetch a genuinely larger size served under a different secret                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `artstationResolver` | `cdn[ab].artstation.com` (asset paths under a size bucket)                                                                                              | An image gets the `/large/` upgrade the generic rule already does, plus a `resolveHint:{platform:'artstation', id:'img <url>'}` so the opt-in tier can probe the bigger `/4k/` sibling. A video-clip artwork (durable video signal + a recoverable `/artwork/<hash>` id) becomes a pending video with `resolveHint:{platform:'artstation', id:'vid <hash>'}` for the opt-in tier's embed-page mp4 lookup                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `magnificResolver`   | `img.magnific.com`                                                                                                                                      | Magnific serves one photo at several signed, width-specific `srcset` URLs; collapses all same-host `srcset` variants on the element to the single widest one (largest wins, smaller becomes `thumbnailSrc`) without ever touching or inventing the page-issued signature/width — no network case                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `arcxpResolver`      | any host, path matching `/resizer/v2/…?auth=` (Arc XP/Fusion CMS, e.g. Reuters)                                                                         | Same idea as `magnificResolver`: collapses the element's same-host `srcset` resizer-URL variants to the widest, reusing the page-issued `auth` token verbatim (never forged, never a wider size than the page itself offered) — no network case                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `youtubeResolver`    | `youtube.com`/`www.`/`m.`/`music.`/`gaming.youtube.com`, `youtube-nocookie.com`, `youtu.be` (watch/embed/shorts/live/v/e links — not the thumbnail CDN) | Policy-compliant: never touches the ciphered video/audio stream. Turns any single-video URL into its public `hqdefault.jpg` poster (`mqdefault.jpg` as `thumbnailSrc`) — the largest thumbnail size guaranteed to exist for every video id                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `genericResolver`    | everything else (catch-all, `match: () => true`)                                                                                                        | Today's `deproxy()` → `upgradeToOriginal()` → `RULES` chain — see below                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Resolver | Matches | Behavior |
+|----------|---------|----------|
+| `twitterResolver` | `pbs.twimg.com` | `/media/<id>` → `name=orig` with the real format; `/profile_images/`, `/profile_banners/`, `/card_img/` normalized. GIF thumb (`/tweet_video_thumb/`) → `video.twimg.com/…mp4`, `kind:'gif'`. Real-video poster (`/ext_tw_video_thumb/`, `/amplify_video_thumb/`) → pending `kind:'video'` with `resolveHint:{platform:'twitter', id}`; the status id comes from a nearby `/status/<id>` link, else the enclosing tweet's own permalink, else the page URL. |
+| `instagramResolver` | `*.cdninstagram.com`, `*.fbcdn.net` | The CDN URLs are signed (the `stp` size token is covered by the `oh` HMAC), so nothing is rewritten. Finds the post shortcode from the enclosing `/p\|reel\|tv/<code>` link (else `ctx.pageUrl`) and returns every slide from the page's hydration JSON and the GraphQL/`api/v1` responses a passive MAIN-world sniffer (`ig-media-sniffer`) reads: images at their largest candidate, videos as their real progressive `.mp4`. Non-post images (avatars, UI chrome) return `[]` → generic. |
+| `facebookResolver` | `*.fbcdn.net`, `*.cdninstagram.com` (only on `facebook.com`) | Same signed-CDN problem, so nothing is rewritten. Recovers the tile's fbid from the enclosing `/photo\|photos\|videos\|watch\|reel` link (else `ctx.pageUrl`) and returns every media entry known for it from the `fb-media-sniffer` and the page hydration — largest image plus every video — tagged `mediaKey:'fb:<fbid>'` so a later original upgrade-replaces the row instead of duplicating it. No fbid → `[]` → generic. See [BENCHMARK.md §G](../BENCHMARK.md#g-facebook-original-image-accuracy-passive-sniff--2026-07-10). |
+| `threadsResolver` | `*.cdninstagram.com`, `*.fbcdn.net`, **only on `threads.com`/`threads.net`** | Threads runs on Instagram's CDNs but ships the full original directly in each grid `<img>`'s `srcset` (up to ~2610w). The generic path loses it (all srcset variants share one path, so `canonicalSrcKey` keeps the first-seen thumbnail); this returns the element's widest srcset candidate instead. Images only — a mounted Threads `<video>` already carries a real progressive `.mp4`. |
+| `unsplashResolver` | `images.unsplash.com`, `plus.unsplash.com` | Strips resize params (`w`, `h`, `fit`, `crop`, `q`, `quality`, `dpr`, `ar`, `cs`, `fm`, `auto`, `bg`, `blend*`, `ixlib`; a smaller set on `plus.`). A **signed** URL (has `s`, the imgix signature over the whole query) is left untouched — stripping params 403s it. Attaches `resolveHint:{platform:'unsplash', id}` when the element sits in an `<a href="/photos/<id>">`. |
+| `wallhavenResolver` | `th.wallhaven.cc` | Reads the wallpaper id from the thumb path or a `figure[data-wallpaper-id]`/`/w/<id>` link. If the real extension is readable from the DOM (a full `<img>`, or a `span.png`/`span.gif` badge), rewrites to `w.wallhaven.cc/full/<ab>/wallhaven-<id>.<ext>`; an unbadged figure is jpg. With no extension evidence it returns the guaranteed `/orig/` jpg plus `resolveHint:{platform:'wallhaven', id}` (never a blind full URL that could 404 for a png). Bumps the preview `/small`→`/lg` and reads `span.wall-res` for the true full resolution. |
+| `behanceResolver` | `mir-s3-cdn-cf.behance.net` | Rewrites `/project_modules/<size>/` (`disp`/`max_1200`/`1400`/`fs`) → `/project_modules/source/` and strips the search-grid base64 crop token. If the element's own `src`/`srcset`/`data-src` (or a sibling `<source>`) already exposes a host-pinned `source`/`fs` URL, that wins. Returns `[]` → generic only when the upgrade leaves the URL unchanged. |
+| `bskyResolver` | `cdn.bsky.app` | Reads the atproto rendition from `/img/<rendition>/plain/<did>/<cid>@<fmt>`. Network-free `feed_thumbnail`→`feed_fullsize` and `avatar_thumbnail`→`avatar`, plus `resolveHint:{platform:'bsky', id:'blob <did> <cid>'}` for the opt-in `getBlob` original. A `feed_video_blob` rendition (poster only) returns a pending video with `resolveHint id:'video <did> <cid>'`. |
+| `pinterestResolver` | `i.pinimg.com` | A still pin gets the size-folder → `/originals/` upgrade (via `upgradeToOriginal`). A video-pin poster (durable `<video>`/`aria-label` signal + a pin id from `/pin/<id>` or the page URL) becomes a pending video with `resolveHint:{platform:'pinterest', id}` for the opt-in progressive-mp4/HLS lookup. |
+| `redditResolver` | `i.redd.it`, `preview.redd.it`, `v.redd.it` | `preview.redd.it` (signed, resized) → the unsigned `i.redd.it` original (host swap, query dropped); `i.redd.it` → itself, query stripped; `v.redd.it/<id>/…` → a pending video with `resolveHint:{platform:'reddit', id}` for the signature-free HLS master (audio muxed back in). `external-preview.redd.it` is left to generic. |
+| `flickrResolver` | `*.staticflickr.com` | The `_b` (1024) upgrade `upgradeToOriginal` already does, plus `resolveHint:{platform:'flickr', id}` so the opt-in tier can fetch a genuinely larger size served under a different secret (not suffix-swappable). Non-photo assets (buddyicons, …) return `[]` → generic. |
+| `artstationResolver` | `cdn[ab].artstation.com` (asset paths under a size bucket) | An image gets the `/large/` upgrade the generic rule does, plus `resolveHint:{platform:'artstation', id:'img <url>'}` to probe the `/4k/` sibling (`/original/` is 403). A video-clip artwork (durable video signal + a `/artwork/<hash>` id) becomes a pending video with `resolveHint id:'vid <hash>'`. |
+| `magnificResolver` | `img.magnific.com` | One photo is served at several signed, width-specific `srcset` URLs; collapses the element's same-host variants to the single widest (largest wins, smaller becomes `thumbnailSrc`) without touching the page-issued signature/width. Network-free. |
+| `arcxpResolver` | any host, path matching `/resizer/v2/…?auth=` (Arc XP / Fusion CMS, e.g. Reuters) | Like magnific: collapses the element's same-host resizer `srcset` variants to the widest, reusing the page-issued `auth` token verbatim (the token signs the source, not a width, so any offered width is legitimate) — never forged, never wider than the page offered. Every candidate is pinned to the input host. Network-free. |
+| `youtubeResolver` | watch/embed/shorts/live/v/e links on `*.youtube.com`, `youtube-nocookie.com`, `youtu.be` (not the `i.ytimg.com` thumbnail CDN) | Never touches the ciphered stream (policy). Turns any single-video reference into its public `hqdefault.jpg` poster (`mqdefault.jpg` as `thumbnailSrc`) — the largest thumbnail guaranteed to exist for every id. |
+| `mastodonResolver` | any host, path matching `…/media_attachments/files/…/<size>/<hash>.<ext>` | The `<hash>.<ext>` basename is identical across sizes, so `/small/` → `/original/` is a 404-safe swap with no extension guessing. Already-`/original/` (or `/static/`) URLs return `[]`. |
+| `booruResolver` | danbooru/safebooru.donmai.us, gelbooru.com, safebooru.org, yande.re, konachan.com/.net (matched by **page host**, `ctx.pageUrl`) | Reads the true original from the DOM (`data-file-url`/`data-large-file-url` on the post/article, or a Moebooru/Gelbooru `#image` highres link), pins it to the site's allowed image-host suffix over https, and returns it (with a `booru <host> <id>` `mediaKey` and grid dimensions when present). No original, or already the original → `[]`. |
+| `genericResolver` | everything else (catch-all, `match: () => true`) | Calls `upgradeToOriginal()` — `deproxy()` then the first matching CDN rule. See below. |
 
-Twitter, Instagram, Facebook, Unsplash, Wallhaven, Behance, Bluesky, Pinterest,
-Reddit, Flickr, ArtStation, Magnific, Arc XP, and YouTube each get a
-**dedicated** resolver (14 total); every other host — including the 40+ CDN
-families in the coverage benchmark — falls through to the generic resolver.
+## Generic resolver: URL intelligence (`@mbd/core/collection/imageUrl.ts`)
 
-## Generic resolver: URL intelligence (`shared/collection/imageUrl.ts`)
-
-Reached for any host no dedicated resolver above claims, **plus** the rare
-fallthrough case: `twitterResolver.resolve()` returns `[]` for a
-`pbs.twimg.com` path it doesn't recognize, and the loop continues to
-`genericResolver`, whose `RULES` still carry a legacy `pbs.twimg.com` rewrite as
-a safety net for that case. (`unsplashResolver` and `wallhavenResolver`-with-a-known-id
-never return `[]` for their matched hosts, so the `RULES` entry below that also
-matches `images.unsplash.com`/`plus.unsplash.com` is effectively unreachable for
-those two hosts today — it's still live for the `*.imgix.net` hosts it shares a
-rule with, which no dedicated resolver claims.)
-
-Order: `deproxy()` first, then the first matching CDN rule.
+`genericResolver.resolve()` calls `upgradeToOriginal(url)`, which runs
+`deproxy()` first and then applies the first matching CDN rule from `RULES`.
+It's reached for any host no dedicated resolver above claims, plus the
+fall-through cases where a dedicated resolver matched the host but returned `[]`
+(a `pbs.twimg.com` path Twitter doesn't recognize, a Behance URL already at
+`source`, a non-photo Flickr asset, and so on). `RULES` still carries a legacy
+`pbs.twimg.com` `name=orig` rewrite as a safety net for the Twitter case.
 
 ### De-proxy (unwrap once)
 
-| Proxy            | Example                                            | Result                                    |
-|------------------|----------------------------------------------------|-------------------------------------------|
-| Next.js          | `/_next/image?url=<enc>&w=640`                     | decoded inner URL                         |
-| weserv           | `images.weserv.nl/?url=cdn.com%2Fb.png`            | `https://cdn.com/b.png`                   |
-| Cloudinary fetch | `/image/fetch/w_200/https://cdn.com/d.jpg`         | `https://cdn.com/d.jpg`                   |
-| Generic          | `?url=` / `?u=` / `?src=` / `?image=` / `?imgurl=` | inner URL **only if** `looksLikeMediaUrl` |
+`deproxy()` returns the inner URL only when it clearly points at media (a media
+extension, a known media-CDN host, or a real `format=`/`fm=` value — so
+`?format=csv` is rejected). A URL whose own path is already a media file
+(`…/photo.jpg?src=…`) is treated as a real asset, not a proxy, and left alone.
 
-`looksLikeMediaUrl` accepts a media file extension, a known media CDN host, or a
-`format=`/`fm=` param **whose value is a real media format** (so `?format=csv`
-is rejected).
+| Proxy | Example | Result |
+|-------|---------|--------|
+| Next.js | `/_next/image?url=<enc>&w=640` | decoded inner URL (absolute, or same-origin path resolved against the proxy host) |
+| weserv / wsrv.nl | `images.weserv.nl/?url=cdn.com%2Fb.png` | `https://cdn.com/b.png` |
+| Cloudinary fetch | `/image/fetch/w_200/https://cdn.com/d.jpg` | `https://cdn.com/d.jpg` |
+| Cloudflare Images | `/cdn-cgi/image/width=800,quality=75/https://cdn.com/e.jpg` | inner `<src>` (absolute or same-origin) |
+| Generic param | `?url=` / `?u=` / `?src=` / `?image=` / `?imgurl=` | inner URL, only if `looksLikeMediaUrl` |
 
 Substack's `substackcdn.com/image/fetch/$s_!sig!,w_160,…/https%3A%2F%2F…` fits
-the Cloudinary-fetch shape above unchanged — no Substack-specific branch was
-needed, just a regression test.
+the Cloudinary-fetch shape unchanged — no Substack-specific branch, just a
+regression test.
 
-### Safe path-based CDN upgrades
+### Safe path-based CDN upgrades (`RULES`)
 
-| Host                                                                             | Rewrite                                                                                                            |
-|----------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
-| `pbs.twimg.com` (Twitter/X) — **fallback only**, see above                       | `name=<size>` → `name=orig`                                                                                        |
-| `*.googleusercontent.com` / `*.ggpht.com`                                        | trailing `=s200` / `=w200-h200` → `=s0`                                                                            |
-| `i.pinimg.com`                                                                   | `/236x/` … `/736x/` → `/originals/`                                                                                |
-| `i.ytimg.com` / `img.youtube.com`                                                | small thumbs (`default`/`mqdefault`/`0`–`3`) → `hqdefault.jpg` (always-present max; maxres/sd 404 for many videos) |
-| `*.media-amazon.com` / `ssl-images-amazon.com`                                   | strip `._SX300_SY300_.` encoding segment                                                                           |
-| `miro.medium.com`                                                                | drop chained `resize/fit/format` transform segments                                                                |
-| `images`/`plus.unsplash.com` — **unreachable**, see above · `*.imgix.net` — live | strip resize query params                                                                                          |
-| WordPress/Jetpack, Shopify, Cloudinary, Wikimedia                                | (existing rules — see source)                                                                                      |
-| `images.pexels.com`                                                              | strips the resize query string                                                                                     |
-| `cdn.pixabay.com`                                                                | `_<size>` → `_1280` (capped — largest hotlinkable; true original is login-gated)                                   |
-| `*.staticflickr.com`                                                             | small size code (`s`/`q`/`t`/`m`/`n`/`w`/`z`/`c`) → `_b` (1024, capped); already-large sizes left alone            |
-| `ichef.bbci.co.uk`                                                               | width segment (`/news/<N>/`, `/ace/standard/<N>/`) → `2048` (1920 404s on the `/news/` path)                       |
-| `i.etsystatic.com`                                                               | `il_WxH` → `il_fullxfull`                                                                                          |
-| `i.ebayimg.com`                                                                  | `s-l<NNN>` → `s-l1600`                                                                                             |
-| `platform.theverge.com` (WP uploads)                                             | strip the resize query                                                                                             |
-| self-hosted WordPress (any host, `/wp-content/uploads/`)                         | drop resize query + strip `-WxH` / `-scaled` → original                                                            |
-| `*.scene7.com` (Adobe Scene7 — Target, REI, …)                                   | set `wid=2000`, drop `hei`/`qlt`/`fmt`/`resMode`/`op_usm`/`fit`                                                    |
-| `cdn*.artstation.com`                                                            | size bucket (`smaller_square`/`medium`/…) → `/large/`                                                              |
-| `static01.nyt.com`                                                               | editorial crop (`articleLarge`, `mediumThreeByTwo…`) → `-superJumbo`, clear query                                  |
-| `i.imgur.com`                                                                    | 8-char thumb suffix (`s`/`b`/`t`/`m`/`l`/`h`/`r`/`g`) → 7-char original id                                         |
-| `*.alicdn.com` / `*.aliexpress-media.com`                                        | strip transform suffix after the real ext (`.jpg_640x640.jpg_.webp` → `.jpg`)                                      |
-| `cdn.dribbble.com`                                                               | drop the `?resize=` query → original                                                                               |
-| `*.walmartimages.com`                                                            | drop `odnHeight`/`odnWidth`/`odnBg` query → full source                                                            |
-| `*.wixmp.com` (DeviantArt), `/v1/(fit\|fill)/`                                   | decode signed-token cap → `/v1/fill/w,h,q_100/` within cap (fail-safe: unchanged)                                  |
-| `photos.zillowstatic.com`                                                        | trailing `-<token>.<ext>` → `-uncropped_scaled_within_1536_1152.webp`                                              |
-| `cdn.stocksnap.io` (`/img-thumbs/`)                                              | `/img-thumbs/<token>/` → `/img-thumbs/960w/` (max whitelisted size)                                                |
-| `www.ikea.com` (`/images/`)                                                      | clear query, set `?imwidth=2000` (beats the `f=` ladder)                                                           |
-| `c1.neweggimages.com`                                                            | `…compressall<N>` → `…compressall1280` (max)                                                                       |
-| `img.kwcdn.com` (Temu, query has `imageView2`)                                   | drop the Qiniu `imageView2/…w/q/format` transform query → stored original                                          |
+`RULES` is an ordered list of over 50 host rules; `upgradeToOriginal()` applies
+the first whose `match` fits. Each rewrites the URL toward the largest openly
+served rendition. A rewrite that would empty the path or drop the last segment
+is discarded, and the rule never throws. The families:
 
-Wallhaven and Behance have **no** entry here — their upgrades live entirely in
-`wallhavenResolver` / `behanceResolver` above; a URL either resolver's `match`
-claims but can't upgrade (a Wallhaven thumb with no readable id, or a Behance
-URL already at `source`/`fs`) falls through and is collected unmodified by the
-generic resolver, since neither host has a `RULES` entry here.
+| Rule family | Hosts / shape | Rewrite |
+|-------------|---------------|---------|
+| Query-strip resizers | Unsplash + `*.imgix.net` + `images.rawpixel.com`, Pexels, NatGeo, IKEA, Dribbble, Walmart, Temu (`imageView2`), The Verge (WP uploads) | drop the resize/transform query → origin (delivery signatures, when present, are left intact) |
+| Strip-transform CDNs | Sanity, Contentful, Sirv, Storyblok, Uploadcare, ImageKit (bails on a signed `ik-s=` URL), Cloudinary, Wix, Squarespace | remove the transform segment/params → the stored master (dimensions live in the path/filename) |
+| Path size token → max | Shopify (`_WxH`), Pixabay (`_1280`), Flickr (`_b`), BBC (`2048`), Etsy (`il_fullxfull`), eBay (`s-l1600`), Amazon, NYT (`-superJumbo`), imgur (8→7-char id), AliExpress, Newegg, StockSnap, Zillow, Bandcamp (`_0`), Google usercontent/ggpht (`=s0`) | swap the size token/segment for the largest present |
+| Size folder → original | Pinterest (`/originals/`), YouTube thumbs (`hqdefault`), ArtStation (`/large/`), The Met (`/original/`), NASA (`~orig`), Bluesky (`feed_thumbnail`→`feed_fullsize`), Flaticon, pxhere (`!d`), AlphaCoders, WallpaperFlare | rewrite the folder/segment to the full rendition |
+| Custom-domain Cloudinary | Nike (`static.nike.com`), adidas (`assets.adidas.com`) | set/raise the width transform (`c_limit`/`if_w_gt` clamp at source) |
+| Host-agnostic specs | MediaWiki `/thumb/…px-…`, IIIF Image API `/{region}/{size}/{rotation}/{quality}.{fmt}`, self-hosted WordPress `/wp-content/uploads/` | strip the thumbnail/size segment → origin |
+| Signed-cap upgrade | DeviantArt (`*.wixmp.com`) | read the JWT's per-image cap, request that size at `q_100`, keep the token (fail-safe: unchanged) |
 
-**Signed hosts** (`*.fbcdn.net`, `preview.redd.it`, `*.cdninstagram.com`,
-`*.tiktokcdn.com`, `media.licdn.com`) get **no rule and no query strip** — their
-signature (an HMAC token bound to the URL, incl. the size on LinkedIn's
-`dms/image/v2` renditions) lives in the URL, so rewriting it would 401/403. They
-are still collected, just not "upgraded." Instagram/Facebook CDN URLs
-(`*.cdninstagram.com`, `*.fbcdn.net`) are the exception that proves the rule: the
-`instagramResolver` never rewrites them either — it instead **reads** the largest
-already-signed URL Instagram shipped in its own page JSON, so the full-res
-original is surfaced without touching the signature.
+The single IIIF rule rewrites the `{size}` segment to `full`, covering Met,
+Library of Congress, Rijksmuseum, Smithsonian, Harvard, Yale, Vatican, and most
+open-access library/museum programs. Its `{region}`/`{size}` grammar is
+validated so an ordinary `/2020/03/15/default.jpg`-shaped path is not mistaken
+for IIIF.
+
+**Wallhaven and Behance have no `RULES` entry** — their upgrades live entirely
+in their resolvers. A URL either resolver claims but can't upgrade falls through
+and is collected unmodified.
+
+**Signed hosts get no rule and no query strip** (`*.fbcdn.net`,
+`preview.redd.it`, `*.cdninstagram.com`, `*.tiktokcdn.com`, `media.licdn.com`).
+Their signature is an HMAC bound to the URL — including the size on LinkedIn's
+`dms/image/v2` renditions — so rewriting it would 401/403. They are still
+collected, just not upgraded. Instagram and Facebook are the deliberate
+exception: their resolvers never rewrite the signed URL either; they **read**
+the largest already-signed URL from the page's own JSON.
 
 Every upgrade returns `{ original, thumbnail: <input> }`, so the pre-upgrade URL
-is kept as `thumbnailSrc` and the grid preview renders even if the upgraded
+is kept as `thumbnailSrc` and the grid preview still renders if the upgraded
 original later fails to download.
 
-## `resolveHint` and `unresolvedVideo`
+## `resolveHint` and `unresolvedVideo` / `unresolvedImage`
 
-Some candidates can't be fully resolved without a network request — a Twitter
-real-video poster, an Unsplash photo whose exact master needs its own download
-endpoint, a Wallhaven thumb with no extension evidence in the DOM. Rather than
-fetch during collection — collection runs with `ctx.allowNetwork: false` and
-never issues a request of its own — the resolver attaches:
+Collection never issues a network request (`ctx.allowNetwork: false`). Some
+candidates can't be fully resolved without one — a Twitter real-video poster, an
+Unsplash photo whose exact master needs its own endpoint, a Wallhaven thumb with
+no extension evidence, a Vimeo/Dailymotion embed. Instead of fetching, the
+resolver attaches:
 
-- **`resolveHint: { platform, id }`** — enough (a Twitter status id, Wallhaven
-  wallpaper id, or Unsplash photo id) to look the real original up later, over
-  the network, if the user opts in.
-- **`unresolvedVideo: true`** — this item's only known `src` is a still-frame
-  poster, not a downloadable video file.
+- **`resolveHint: { platform, id }`** — enough to look the original up later,
+  over the network, if the user opts in (a Twitter status id, a Bluesky
+  `blob <did> <cid>`, a Vimeo id, and so on).
+- **`unresolvedVideo: true`** — this item's only known `src` is a still poster,
+  not a downloadable video file.
+- **`unresolvedImage: true`** — used for an X grid cell whose photo never
+  painted; its `src` is the status permalink, resolved to the real image on
+  demand.
 
-Collection itself never contacts these hosts. An `unresolvedVideo` item is
-still **shown** in the popup grid — poster image, ▶ badge, and (when it also
-carries a `resolveHint`) a "Get video" action — but it's excluded from the
-downloadable set until it resolves to a real file; a pending video with no
-`resolveHint` at all (no `/status/` link nearby and no status id in the page
-URL either) is shown with no action to take on it.
+A pending item is still **shown** in the popup grid — poster, ▶ badge, and (when
+it carries a `resolveHint`) a "Get video" action — but it's excluded from the
+downloadable set until it resolves. A pending video with no `resolveHint` at all
+is shown with no action.
 
-Getting from "hinted/pending" to "downloadable" happens over the network, and
-now two ways: automatically, if `resolveOriginals` is on, or on demand — one
-item at a time — via that "Get video" button, regardless of the setting. See
-[Resolve Originals](./resolve-originals.md) for both paths, the exact
-endpoints called, how the popup swaps the resolved URL into the displayed
-item, and how a resolve that comes back empty (e.g. a tombstoned,
-age-restricted tweet) is surfaced rather than silently dropped.
+Getting from pending to downloadable happens over the network two ways:
+automatically when `resolveOriginals` is on, or on demand via the per-item
+button regardless of the setting. See [Resolve Originals](./resolve-originals.md)
+for both paths, the exact endpoints, how the popup swaps the resolved URL in,
+and how an empty resolve (a tombstoned, age-restricted tweet) is surfaced rather
+than dropped.
 
 ## Dedup
 
-Both pipelines share one `seenSources` Set, keyed on the **resolved candidate
-URL** (`cand.url`) — whichever resolver in the registry produced it. Two
-different thumbnails/proxies that resolve to the same URL collapse to a single
-`MediaItem`.
+`collectMedia()` keeps one `Set` of **canonical src keys** for the whole scan.
+The key is `canonicalSrcKey(cand.url)` (`@mbd/core/collection/canonical.ts`), not
+the raw candidate URL. It collapses the volatile parts a CDN varies per request —
+rotating edge hosts, signed query tokens, cache-busters, resize transforms — so
+two thumbnails or proxies that resolve to the same underlying media dedup to one
+`MediaItem`. Per-host rules cover Facebook/Instagram (host collapsed, path is the
+identity), Photon `i0/i1/i2.wp.com`, Google usercontent `=size` suffixes, imgix,
+Cloudinary, Twitter, and Pinterest; everything else drops its query for a
+real-media-file path, or strips volatile/transform params for a dynamic
+(`.php`/extension-less) path.
+
+A resolver-supplied `mediaKey` overrides the canonical key for cross-scan merges
+(`merge.ts`): a later, upgraded rendition that repeats an existing `mediaKey`
+replaces the earlier row in place instead of adding a duplicate.
 
 ---
 
 Related: [Resolve Originals](./resolve-originals.md) (the opt-in network step
 for `resolveHint`/`unresolvedVideo` items) · [Deep Scan](./deep-scan.md) (each
 scan round re-runs this pipeline) · [Download](./download.md).
+
+---
+
+**[← All guides](./README.md)**

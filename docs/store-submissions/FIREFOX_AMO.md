@@ -30,7 +30,7 @@ so all three stores match.
 
 - [ ] **Firefox account** created and the AMO developer agreement accepted at [addons.mozilla.org/developers](https://addons.mozilla.org/developers/).
 - [ ] `wxt.config.ts` sets the Firefox `gecko.id`, `strict_min_version: '109.0'`, and `data_collection_permissions: { required: ['none'] }`. `yarn build:firefox` emits
-  `.output/firefox-mv3/manifest.json`.
+  `apps/extension/.output/firefox-mv3/manifest.json`.
 - [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, host `<all_urls>`; optional `notifications` and `declarativeNetRequestWithHostAccess` (both
   requested at runtime). Note: `offscreen` is **Chrome-only** — `wxt.config.ts` omits it from the Firefox build (Firefox has no `chrome.offscreen`, and AMO rejects the permission), so HLS/DASH stream
   capture is not available on Firefox.
@@ -38,7 +38,7 @@ so all three stores match.
 - [ ] `yarn lint` and `wxt build -b firefox` pass clean (AMO runs its own validator on upload too).
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
 - [ ] At least **1 screenshot** (see §5).
-- [ ] `.output/media-bulk-downloads-<version>-firefox.zip` **and** `…-firefox-sources.zip` produced by `yarn zip:firefox`.
+- [ ] `apps/extension/.output/media-bulk-downloads-<version>-firefox.zip` **and** `…-firefox-sources.zip` produced by `yarn zip:firefox`.
 - [ ] Reviewer **build instructions** ready to paste (§7).
 
 ---
@@ -64,7 +64,7 @@ Bulk-download images, video & audio from any web page. Smart type filters, insta
 **Tags:** `download`, `images`, `video`, `audio`, `bulk`, `gallery`
 
 **Homepage / Support site:** `https://github.com/mralaminahamed/media-bulk-downloads`
-**Support email:** `mrabir.ahamed@gmail.com`
+**Support email:** `alamin.ahamed.dev@gmail.com`
 
 **Description** (paste into the listing):
 
@@ -234,7 +234,7 @@ bundled, minified, or transpiled — which this one is (WXT + TypeScript + a
 bundler). When prompted during submission, upload the sources archive and paste
 the build steps so a reviewer can reproduce the exact package.
 
-**Upload:** `.output/media-bulk-downloads-<version>-firefox-sources.zip`
+**Upload:** `apps/extension/.output/media-bulk-downloads-<version>-firefox-sources.zip`
 (produced alongside the package by `yarn zip:firefox`).
 
 **Build instructions to paste (reviewer reproduces the package):**
@@ -251,9 +251,9 @@ Steps
 3. corepack yarn zip:firefox
 
 Output
-- Package:  .output/media-bulk-downloads-<version>-firefox.zip
-- Sources:  .output/media-bulk-downloads-<version>-firefox-sources.zip
-The unpacked build is .output/firefox-mv3/ ; its manifest.json matches the
+- Package:  apps/extension/.output/media-bulk-downloads-<version>-firefox.zip
+- Sources:  apps/extension/.output/media-bulk-downloads-<version>-firefox-sources.zip
+The unpacked build is apps/extension/.output/firefox-mv3/ ; its manifest.json matches the
 submitted package. Built with WXT (wxt.dev); no other tooling required.
 ```
 
@@ -283,7 +283,7 @@ corepack yarn zip:edge     # edge    → …-edge.zip
 corepack yarn zip:all      # all of the above
 ```
 
-Version comes from `package.json` (WXT writes it into every manifest).
+Version comes from `apps/extension/package.json` (WXT writes it into every manifest).
 
 **Firefox Add-ons (AMO):**
 

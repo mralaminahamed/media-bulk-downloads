@@ -869,6 +869,66 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@mbd/core@workspace:*, @mbd/core@workspace:packages/core":
+  version: 0.0.0-use.local
+  resolution: "@mbd/core@workspace:packages/core"
+  dependencies:
+    "@types/react": "npm:^19.2.17"
+    fflate: "npm:^0.8.3"
+    mp4box: "npm:^2.4.1"
+  languageName: unknown
+  linkType: soft
+
+"@mbd/extension@workspace:apps/extension":
+  version: 0.0.0-use.local
+  resolution: "@mbd/extension@workspace:apps/extension"
+  dependencies:
+    "@heroicons/react": "npm:^2.2.0"
+    "@mbd/core": "workspace:*"
+    "@mbd/platform": "workspace:*"
+    "@mbd/storage": "workspace:*"
+    "@playwright/test": "npm:^1.61.1"
+    "@tailwindcss/forms": "npm:^0.5.11"
+    "@tailwindcss/postcss": "npm:^4.3.2"
+    "@testing-library/dom": "npm:^10.4.1"
+    "@testing-library/jest-dom": "npm:^6.9.1"
+    "@testing-library/react": "npm:^16.3.2"
+    "@testing-library/user-event": "npm:^14.6.1"
+    "@types/chrome": "npm:^0.2.2"
+    "@types/react": "npm:^19.2.17"
+    "@types/react-dom": "npm:^19.2.3"
+    "@vitest/coverage-v8": "npm:^4.1.10"
+    "@wxt-dev/module-react": "npm:^1.2.2"
+    fake-indexeddb: "npm:^6.2.5"
+    fflate: "npm:^0.8.3"
+    jsdom: "npm:^29.1.1"
+    mp4box: "npm:^2.4.1"
+    postcss: "npm:^8.5.16"
+    react: "npm:^19.2.7"
+    react-dom: "npm:^19.2.7"
+    tailwindcss: "npm:^4.3.2"
+    vitest: "npm:^4.1.10"
+    web-ext: "npm:^10.5.0"
+    wxt: "npm:^0.20.27"
+  languageName: unknown
+  linkType: soft
+
+"@mbd/platform@workspace:*, @mbd/platform@workspace:packages/platform":
+  version: 0.0.0-use.local
+  resolution: "@mbd/platform@workspace:packages/platform"
+  languageName: unknown
+  linkType: soft
+
+"@mbd/storage@workspace:*, @mbd/storage@workspace:packages/storage":
+  version: 0.0.0-use.local
+  resolution: "@mbd/storage@workspace:packages/storage"
+  dependencies:
+    "@mbd/core": "workspace:*"
+    "@types/chrome": "npm:^0.2.2"
+    idb-keyval: "npm:^6.3.0"
+  languageName: unknown
+  linkType: soft
+
 "@mdn/browser-compat-data@npm:8.0.2":
   version: 8.0.2
   resolution: "@mdn/browser-compat-data@npm:8.0.2"
@@ -881,40 +941,17 @@ __metadata:
   resolution: "@mralaminahamed/media-bulk-downloads@workspace:."
   dependencies:
     "@eslint/js": "npm:^10.0.1"
-    "@heroicons/react": "npm:^2.2.0"
-    "@playwright/test": "npm:^1.61.1"
-    "@tailwindcss/forms": "npm:^0.5.11"
-    "@tailwindcss/postcss": "npm:^4.3.2"
-    "@testing-library/dom": "npm:^10.4.1"
-    "@testing-library/jest-dom": "npm:^6.9.1"
-    "@testing-library/react": "npm:^16.3.2"
-    "@testing-library/user-event": "npm:^14.6.1"
-    "@types/chrome": "npm:^0.2.2"
     "@types/node": "npm:^26.1.1"
-    "@types/react": "npm:^19.2.17"
-    "@types/react-dom": "npm:^19.2.3"
     "@typescript-eslint/eslint-plugin": "npm:^8.63.0"
     "@typescript-eslint/parser": "npm:^8.63.0"
     "@vitest/coverage-v8": "npm:^4.1.10"
-    "@wxt-dev/module-react": "npm:^1.2.2"
     eslint: "npm:^10.6.0"
     eslint-plugin-react: "npm:^7.37.5"
     eslint-plugin-react-hooks: "npm:^7.1.1"
-    fake-indexeddb: "npm:^6.2.5"
-    fflate: "npm:^0.8.3"
     globals: "npm:^17.7.0"
-    idb-keyval: "npm:^6.3.0"
-    jsdom: "npm:^29.1.1"
-    mp4box: "npm:^2.4.1"
-    postcss: "npm:^8.5.16"
-    react: "npm:^19.2.7"
-    react-dom: "npm:^19.2.7"
-    tailwindcss: "npm:^4.3.2"
     typescript: "npm:^7.0.2"
     vite: "npm:^8.1.4"
     vitest: "npm:^4.1.10"
-    web-ext: "npm:^10.5.0"
-    wxt: "npm:^0.20.27"
   languageName: unknown
   linkType: soft
 

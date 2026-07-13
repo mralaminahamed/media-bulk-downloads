@@ -25,14 +25,14 @@ the listing copy is intentionally identical so every store matches.
 ## 1. Pre-submission checklist
 
 - [ ] **Opera account** created and the developer agreement accepted at [addons.opera.com/developer](https://addons.opera.com/developer/).
-- [ ] `wxt.config.ts` name/description correct; version comes from `package.json`. `yarn zip` emits the Chromium package `.output/media-bulk-downloads-<version>-chrome.zip`.
+- [ ] `wxt.config.ts` name/description correct; version comes from `apps/extension/package.json`. `yarn zip` emits the Chromium package `apps/extension/.output/media-bulk-downloads-<version>-chrome.zip`.
 - [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`; optional `notifications` and
   `declarativeNetRequestWithHostAccess` (both requested at runtime).
 - [ ] Icons 16/32/48/128 present (`src/public/icon/`) — ✅ already in the build; Opera uses the manifest icons.
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
 - [ ] At least **1 screenshot** (see §5) — the 1280×800 shots from the Chrome package work as-is.
 - [ ] **Promotional picture 300×188 PNG** ready for the moderator (see §5) — ✅ `assets/v2/opera-promo-300x188.png`.
-- [ ] `.output/media-bulk-downloads-<version>-chrome.zip` produced by `yarn zip` (the Chrome zip is the Opera upload).
+- [ ] `apps/extension/.output/media-bulk-downloads-<version>-chrome.zip` produced by `yarn zip` (the Chrome zip is the Opera upload).
 - [ ] `…-firefox-sources.zip` on hand from `yarn zip:firefox` in case a reviewer requests source.
 - [ ] Product description, category, and privacy answers filled in (below).
 
@@ -215,7 +215,7 @@ server is required — all functionality is local.
 
 ## 5. Required visual assets
 
-Capture from the running extension (`yarn build`, load `.output/chrome-mv3`
+Capture from the running extension (`yarn build`, load `apps/extension/.output/chrome-mv3`
 unpacked via `opera://extensions` → **Developer mode** → **Load unpacked**), then
 crop to size. PNG or JPEG.
 
@@ -271,12 +271,12 @@ one that passes Chrome review), so no Opera-specific code changes are required.
 WXT packages a store-ready Chromium zip that Opera accepts directly:
 
 ```bash
-corepack yarn zip          # chrome  → .output/media-bulk-downloads-<version>-chrome.zip  ← the Opera upload
+corepack yarn zip          # chrome  → apps/extension/.output/media-bulk-downloads-<version>-chrome.zip  ← the Opera upload
 corepack yarn zip:firefox  # firefox → …-firefox.zip (+ a -sources.zip, handy if Opera asks for source)
 corepack yarn zip:all      # all packages at once
 ```
 
-Version comes from `package.json` (WXT writes it into every manifest). There is
+Version comes from `apps/extension/package.json` (WXT writes it into every manifest). There is
 **no `zip:opera`** — Opera runs the Chrome package.
 
 **Opera Add-ons (developer dashboard):**
@@ -394,8 +394,8 @@ Steps
 6. corepack yarn zip             # builds and packages the Chromium zip
 
 Output
-- Uploaded package: .output/media-bulk-downloads-1.2.0-chrome.zip
-- Unpacked build:   .output/chrome-mv3/  (its manifest.json matches the submitted package)
+- Uploaded package: apps/extension/.output/media-bulk-downloads-1.2.0-chrome.zip
+- Unpacked build:   apps/extension/.output/chrome-mv3/  (its manifest.json matches the submitted package)
 Built with WXT (https://wxt.dev); no other tooling required.
 ```
 

@@ -1,0 +1,12 @@
+{
+  // Browser-agnostic leaf package: no project references, no chrome/node/vitest
+  // ambient globals. DOM lib (fetch/URL/Blob/crypto) comes from tsconfig.base.
+  // React types are pulled in only via the explicit `import type React` in
+  // types.ts (@types/react is a devDependency).
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "types": []
+  },
+  "include": ["src"]
+}

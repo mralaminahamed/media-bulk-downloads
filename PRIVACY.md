@@ -71,4 +71,4 @@ above.
 
 ## Contact
 
-Questions about this policy: mrabir.ahamed@gmail.com
+Questions about this policy: alamin.ahamed.dev@gmail.com
