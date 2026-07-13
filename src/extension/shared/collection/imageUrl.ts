@@ -570,10 +570,15 @@ const RULES: CdnRule[] = [
     },
   },
   {
-    // Pinterest: /<NNNx>/ or /<NNNxNNN>/ size folder -> /originals/.
+    // Pinterest: /<NNNx>/, /<NNNxNNN>/, or a responsive smart-crop /<NNNxNNN>_RS/
+    // size folder -> /originals/. The `_RS` variants (30x30_RS, 75x75_RS,
+    // 280x280_RS, …) are square-cropped thumbnails Pinterest serves for board
+    // covers and avatars; they share the same hash path as the full image, so
+    // /originals/ resolves for them too (verified against a real board). Without
+    // the `_RS` branch these passed through un-upgraded — the user got a tiny crop.
     match: (u) => u.hostname === 'i.pinimg.com',
     rewrite: (u) => {
-      u.pathname = u.pathname.replace(/^\/\d+x(?:\d+)?\//, '/originals/');
+      u.pathname = u.pathname.replace(/^\/\d+x(?:\d+)?(?:_RS)?\//, '/originals/');
     },
   },
   {

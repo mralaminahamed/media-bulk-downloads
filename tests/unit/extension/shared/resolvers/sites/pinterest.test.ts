@@ -49,12 +49,16 @@ describe('pinterestResolver — images', () => {
     expect(c.thumbnailSrc).toBeUndefined();
   });
 
-  it('leaves the /75x75_RS/ rounded-square crop untouched (does not match the size-folder rule)', () => {
-    const rs = 'https://i.pinimg.com/75x75_RS/2b/75/61/2b7561fe7f8385ba7d88f469c91e7aef.jpg';
-    const [c] = resolve(rs);
-    expect(c.url).toBe(rs);
-    expect(c.thumbnailSrc).toBeUndefined();
-  });
+  it.each(['30x30_RS', '75x75_RS', '140x140_RS', '280x280_RS'])(
+    'upgrades the responsive smart-crop folder %s -> originals', (folder) => {
+      // `_RS` folders (board covers, avatars, section covers) share the same hash
+      // path as the full image, so /originals/ resolves for them too (verified
+      // HTTP 200 against a real board). Upgrade them like any other size folder.
+      const [c] = resolve(img(folder));
+      expect(c).toMatchObject({ kind: 'image', url: ORIGINALS });
+      expect(c.thumbnailSrc).toBe(img(folder));
+    },
+  );
 
   it('carries the real file extension', () => {
     expect(resolve(img('736x'))[0].ext).toBe('jpg');
