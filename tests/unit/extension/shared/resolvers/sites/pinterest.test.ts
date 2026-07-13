@@ -1,4 +1,4 @@
-import { pinterestResolver } from '@/extension/shared/resolvers/sites/pinterest';
+import { pinterestResolver, ingestSniffedPinterestMedia, pinterestPageMedia, __resetPinterestSniffed } from '@/extension/shared/resolvers/sites/pinterest';
 import { ResolveContext } from '@/extension/shared/resolvers/types';
 
 // Real image hash + size folders captured from a live pin (2026-07-09): one image
@@ -148,5 +148,44 @@ describe('pinterestResolver — edge cases', () => {
     const [c] = resolve(img('564x'), { allowNetwork: false, el: cell.querySelector('img')! });
     expect(c.kind).toBe('image'); // no id → falls back to the image
     expect(c.url).toBe(ORIGINALS);
+  });
+});
+
+describe('pinterestResolver — sniffed store', () => {
+  beforeEach(() => __resetPinterestSniffed());
+
+  const imgEntry = { pinId: '698058011039781102', kind: 'image', url: 'https://i.pinimg.com/originals/aa/bb/cc.jpg', ext: 'jpg', width: 1000, height: 1500 };
+
+  it('ingest host-pins and pinterestPageMedia returns the pin media for a /pin/ url', () => {
+    ingestSniffedPinterestMedia([imgEntry, { pinId: '9', kind: 'image', url: 'https://evil.com/x.jpg', ext: 'jpg' }]);
+    const media = pinterestPageMedia('https://www.pinterest.com/pin/698058011039781102/');
+    expect(media).toEqual([{ url: 'https://i.pinimg.com/originals/aa/bb/cc.jpg', kind: 'image', ext: 'jpg', width: 1000, height: 1500 }]);
+  });
+
+  it('pinterestPageMedia returns [] off a pin page and for an unknown pin', () => {
+    ingestSniffedPinterestMedia([imgEntry]);
+    expect(pinterestPageMedia('https://www.pinterest.com/someuser/')).toEqual([]);
+    expect(pinterestPageMedia('https://www.pinterest.com/pin/000000000000/')).toEqual([]);
+  });
+
+  it('a DOM tile whose /pin/ link matches a sniffed pin resolves to the sniffed orig', () => {
+    ingestSniffedPinterestMedia([imgEntry]);
+    const a = document.createElement('a');
+    a.setAttribute('href', '/pin/698058011039781102/');
+    const im = document.createElement('img');
+    a.appendChild(im);
+    const [c] = pinterestResolver.resolve(new URL('https://i.pinimg.com/236x/zz/zz/zz.jpg'), { el: im, allowNetwork: false });
+    expect(c).toMatchObject({ url: 'https://i.pinimg.com/originals/aa/bb/cc.jpg', kind: 'image' });
+  });
+
+  it('a video pin resolves to the sniffed mp4 with poster (no network)', () => {
+    ingestSniffedPinterestMedia([{ pinId: '698058011039781102', kind: 'video', url: 'https://v1.pinimg.com/videos/720p/x.mp4', ext: 'mp4', poster: 'https://i.pinimg.com/originals/aa/bb/cc.jpg' }]);
+    const [c] = pinterestPageMedia('https://www.pinterest.com/pin/698058011039781102/');
+    expect(c).toMatchObject({ kind: 'video', url: 'https://v1.pinimg.com/videos/720p/x.mp4', poster: 'https://i.pinimg.com/originals/aa/bb/cc.jpg' });
+  });
+
+  it('a tile with no sniffed match still upgrades via the existing /originals/ path', () => {
+    const [c] = pinterestResolver.resolve(new URL('https://i.pinimg.com/236x/zz/zz/zz.jpg'), { allowNetwork: false });
+    expect(c.url).toBe('https://i.pinimg.com/originals/zz/zz/zz.jpg');
   });
 });

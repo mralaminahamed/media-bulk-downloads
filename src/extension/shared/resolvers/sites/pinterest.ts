@@ -1,6 +1,7 @@
 import { upgradeToOriginal } from '@/extension/shared/collection/imageUrl';
 import { imageExtFromUrl } from '@/extension/shared/collection/mediaType';
 import { MediaCandidate, Resolver } from '../types';
+import { PinterestMediaEntry, pinPinimgUrl, pinIdFromUrl } from '@/extension/shared/resolvers/sniffers/pinterest-media-sniff';
 
 const IMG_HOST = 'i.pinimg.com';
 
@@ -27,6 +28,86 @@ function hasVideoSignal(el: Element | undefined): boolean {
   return !!cell?.querySelector?.('video, [data-test-id*="video" i], [aria-label*="video" i]');
 }
 
+// Sniffed /resource/ media accumulates here across the SPA session. Bounded; newest wins.
+const SNIFF_CAP = 4000;
+let sniffed: PinterestMediaEntry[] = [];
+let sniffVersion = 0;
+let byPinCache: { key: number; map: Map<string, PinterestMediaEntry[]> } | null = null;
+
+const PIN_ID_STRICT = /^\d{6,}$/;
+const PIN_EXT = /^(?:jpe?g|png|webp|gif|avif|mp4|m3u8|mov|webm|m4v)$/i;
+
+/**
+ * Feed media read from a sniffed /resource/ response into the resolver's store.
+ * The payload crossed the MAIN→isolated postMessage boundary, so it is UNTRUSTED
+ * — re-validate every field and host-pin every URL to the pinimg family here.
+ */
+export function ingestSniffedPinterestMedia(entries: unknown): void {
+  if (!Array.isArray(entries)) return;
+  const clean: PinterestMediaEntry[] = [];
+  for (const raw of entries) {
+    if (!raw || typeof raw !== 'object') continue;
+    const e = raw as Record<string, unknown>;
+    if (typeof e.pinId !== 'string' || !PIN_ID_STRICT.test(e.pinId)) continue;
+    if (e.kind !== 'image' && e.kind !== 'video') continue;
+    const url = pinPinimgUrl(e.url);
+    if (!url) continue;
+    const ext = typeof e.ext === 'string' && PIN_EXT.test(e.ext) ? e.ext.toLowerCase() : e.kind === 'video' ? 'mp4' : 'jpg';
+    const entry: PinterestMediaEntry = { pinId: e.pinId, kind: e.kind, url, ext };
+    if (typeof e.width === 'number') entry.width = e.width;
+    if (typeof e.height === 'number') entry.height = e.height;
+    const poster = pinPinimgUrl(e.poster);
+    if (e.kind === 'video' && poster) entry.poster = poster;
+    if (e.pending === true) entry.pending = true;
+    clean.push(entry);
+  }
+  if (!clean.length) return;
+  sniffed.push(...clean);
+  if (sniffed.length > SNIFF_CAP) sniffed = sniffed.slice(sniffed.length - SNIFF_CAP);
+  sniffVersion++;
+  byPinCache = null;
+}
+
+/** Test-only: drop all sniffed state + cache so cases start clean. */
+export function __resetPinterestSniffed(): void {
+  sniffed = [];
+  sniffVersion = 0;
+  byPinCache = null;
+}
+
+function byPin(): Map<string, PinterestMediaEntry[]> {
+  if (byPinCache && byPinCache.key === sniffVersion) return byPinCache.map;
+  const map = new Map<string, PinterestMediaEntry[]>();
+  const seen = new Set<string>();
+  for (const e of sniffed) {
+    const dedup = `${e.pinId}\n${e.url}`;
+    if (seen.has(dedup)) continue;
+    seen.add(dedup);
+    const list = map.get(e.pinId);
+    if (list) list.push(e);
+    else map.set(e.pinId, [e]);
+  }
+  byPinCache = { key: sniffVersion, map };
+  return map;
+}
+
+function toCandidate(e: PinterestMediaEntry): MediaCandidate {
+  const c: MediaCandidate = { url: e.url, kind: e.kind, ext: e.ext };
+  if (typeof e.width === 'number') c.width = e.width;
+  if (typeof e.height === 'number') c.height = e.height;
+  if (e.kind === 'video' && e.poster) c.poster = e.poster;
+  if (e.pending) c.unresolvedVideo = true;
+  return c;
+}
+
+/** Every sniffed media for the pin at `pageUrl` (a /pin/<id>/ URL), or []. */
+export function pinterestPageMedia(pageUrl?: string): MediaCandidate[] {
+  const id = pinIdFromUrl(pageUrl);
+  if (!id) return [];
+  const list = byPin().get(id);
+  return list ? list.map(toCandidate) : [];
+}
+
 /**
  * Pinterest. Owns `i.pinimg.com` so it runs before the generic resolver:
  *  - a still pin → the same size-folder → /originals/ upgrade the generic path
@@ -44,6 +125,16 @@ export const pinterestResolver: Resolver = {
   hosts: ['pinimg.com'],
   match: (u) => u.hostname === IMG_HOST,
   resolve: (u, ctx): MediaCandidate[] => {
+    // A DOM tile whose pin id is already in the sniffed store resolves straight to
+    // the sniffed original / real video (network-free), superseding the /originals/
+    // upgrade and the opt-in widget path for video. Every slide of a carousel pin
+    // is returned (deduped downstream by canonicalSrcKey).
+    const sniffedId = pinIdFrom(ctx.el, ctx.pageUrl);
+    if (sniffedId) {
+      const hit = byPin().get(sniffedId);
+      if (hit && hit.length) return hit.map(toCandidate);
+    }
+
     // Pinterest also serves video poster thumbnails under /videos/thumbnails/…;
     // those are stills, handled by the image path below like any other pin image.
     if (hasVideoSignal(ctx.el)) {
