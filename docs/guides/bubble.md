@@ -1,16 +1,19 @@
 # In-page Bubble
 
-The bubble is an optional floating launcher injected into the page. It opens the
-full app in-place inside an isolated **Shadow DOM**, so the extension's styles and
-the page's styles don't collide. The popup remains a full fallback (it always
-works, including on pages where content scripts can't run).
+The bubble is an optional floating launcher injected into the page. It renders the
+same popup UI (`popup/App.tsx`) inside an isolated **Shadow DOM**, so the page's
+styles and the extension's styles can't collide. The toolbar popup stays as a
+fallback and works everywhere, including pages where content scripts can't run.
 
 ## Lifecycle (enable / disable)
+
+The content script mounts and unmounts the bubble. It reads `settings.bubbleEnabled`
+on load, then watches `chrome.storage.sync` for later changes.
 
 ```mermaid
 sequenceDiagram
   autonumber
-  participant CS as content.ts
+  participant CS as content/index.ts
   participant ST as chrome.storage.sync
   participant M as bubble/mount (lazy import)
   participant SD as Shadow DOM
@@ -19,8 +22,8 @@ sequenceDiagram
   CS->>ST: get(["settings"])
   ST-->>CS: settings
   alt bubbleEnabled
-    CS->>M: dynamic import ./bubble/mount
-    M->>SD: mount React app in a Shadow root
+    CS->>M: dynamic import ../bubble/mount
+    M->>SD: createRoot + render <Bubble> in a shadow root
   else disabled
     CS->>CS: no bubble mounted
   end
@@ -30,58 +33,77 @@ sequenceDiagram
   CS->>CS: applyBubble(newSettings) → mount or unmount
 ```
 
-The heavy bubble UI is code-split behind a dynamic `import()`, so pages without
-the bubble enabled stay lightweight.
+Mount builds one host element, `<div id="ibd-bubble-host">`, and appends it to
+`<html>` with `all: initial` and the max z-index. It attaches an open shadow root,
+injects the compiled app CSS into that root, and renders `<Bubble>` through a React
+root. Unmount calls `root.unmount()` and removes the host element. `mountBubble` in
+the content script guards against mounting twice.
+
+The bubble UI is code-split behind a dynamic `import()`, so pages with the bubble
+disabled never load it.
 
 ## Open / close (icon click)
 
-When bubble mode is on, `background.ts` sets the action popup to empty, so
-clicking the toolbar icon fires `action.onClicked` instead of opening a popup:
+Mounting the bubble does not open its panel. The panel starts closed and opens on
+demand.
+
+When the bubble is enabled on an injectable page, the background clears that tab's
+toolbar popup: `updateTabActionMode` in `background/badge.ts` sets
+`chrome.action.setPopup` to `''`. A toolbar click then fires `action.onClicked`
+instead of opening a popup. `isInjectableUrl` gates this — it's true for `http`,
+`https`, and `file` URLs, and false for the Chrome Web Store, AMO, and browser
+pages. On a non-injectable tab the popup stays as the fallback.
 
 ```mermaid
 sequenceDiagram
   autonumber
   actor U as User
   participant CH as Chrome
-  participant SW as background.ts
+  participant SW as background
   participant B as Bubble.tsx
 
   U->>CH: click toolbar icon
   CH->>SW: action.onClicked(tab)
-  SW->>B: sendMessage("TOGGLE_BUBBLE")
+  SW->>B: tabs.sendMessage(tab.id, "TOGGLE_BUBBLE")
   B->>B: setOpen(o => !o)  → panel shows / hides
 ```
 
-The user can also open/close the panel from the bubble's own launcher button.
+Clicking the launcher button toggles the panel too. Bubble.tsx treats a press with
+little pointer travel as a click and flips `open`; more travel is a drag.
 
 ## Placement & sizing
 
-Persisted in settings (`chrome.storage.sync`):
+Four settings hold the bubble's layout:
 
 | Setting                        | Meaning                                                                          |
 |--------------------------------|----------------------------------------------------------------------------------|
-| `bubblePosition`               | Launcher corner + offset                                                         |
+| `bubblePosition`               | Launcher corner + offset (`{ corner, x, y }`)                                    |
 | `bubblePanelPlacement`         | `anchored` (beside the button), `center`, a viewport corner, or `free` (dragged) |
 | `bubblePanelPoint`             | Top-left coordinates for the `free` placement                                    |
-| `bubbleWidth` / `bubbleHeight` | Panel size (corner-grip resizable)                                               |
+| `bubbleWidth` / `bubbleHeight` | Panel size (corner-grip resizable)                                              |
 
-Settings isn't the only writer: `Bubble.tsx`'s own in-page handlers persist these
-directly to `chrome.storage.sync` as the user interacts with the bubble —
-dragging the launcher writes `bubblePosition`, dragging the panel header sets
-`bubblePanelPlacement` to `free` and writes `bubblePanelPoint`, and dragging the
-resize grip writes `bubbleWidth`/`bubbleHeight`. Settings is just the other
-place these same fields can be edited (via the dropdowns/number fields).
+Two surfaces edit these fields. The popup Settings panel edits them through its
+dropdowns and number fields. Bubble.tsx also writes them as the user manipulates
+the bubble: dragging the launcher writes `bubblePosition`, dragging the panel
+header sets `bubblePanelPlacement` to `free` and writes `bubblePanelPoint`, and
+dragging the resize grip writes `bubbleWidth`/`bubbleHeight`.
+
+Neither surface writes `chrome.storage.sync` directly. Both send
+`{ type: 'SET_SETTINGS', patch }` to the background, which applies the patch through
+one serialized writer. That ordering keeps a bubble drag and a popup Settings save
+from clobbering each other.
 
 ## Why Shadow DOM
 
-- Page CSS can't leak in and restyle the panel; the panel's Tailwind/tokens can't
-  leak out and restyle the page.
-- Design tokens are declared on `:host` as well as `:root`, so the same theme
-  (including dark mode via `prefers-color-scheme`) applies inside the shadow root.
+- The page's CSS can't reach in and restyle the panel. The panel's Tailwind and
+  design tokens can't leak out and restyle the page.
+- Design tokens are declared on `:host` as well as `:root`, so the theme applies
+  inside the shadow root, dark mode (`prefers-color-scheme`) included.
 
-Inside the panel, collection, filtering, deep scan, and download behave exactly as
-in the popup — the bubble passes in-page implementations of `collect` and
-`deepScan` to the shared `App`. See [Architecture](./architecture.md) and
+The panel renders the same `App` component as the popup. The bubble passes in-page
+implementations of `collect`, `deepScan`, and `abortDeepScan`, plus
+`surface="bubble"`, so collection, filtering, deep scan, and download behave as
+they do in the popup. See [Architecture](./architecture.md) and
 [Deep Scan](./deep-scan.md).
 
 ---
