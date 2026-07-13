@@ -57,30 +57,18 @@ xcrun safari-web-extension-converter "$BUILD_DIR" \
 
 PROJECT_DIR="$OUT_DIR/$APP_NAME"
 PBXPROJ="$PROJECT_DIR/$APP_NAME.xcodeproj/project.pbxproj"
-BUILD_BASENAME="$(basename "$BUILD_DIR")"
 
-# Fix the converter's off-by-one resource paths. In a nested monorepo layout it
-# computes each build reference from the App-Extension subfolder depth, yet the
-# Resources group is anchored at SOURCE_ROOT (the project dir) — one level
-# shallower — so every reference (manifest.json, background.js, content-scripts,
-# …) is one "../" too deep and Xcode can't find it (the wrapper would build with
-# NO extension inside). Strip exactly one leading "../" from the paths that point
-# at our build output, keyed on the build dir's basename so the app target's own
-# resources are left untouched. macOS/BSD sed (this script is macOS-only).
+# The converter derives the app target's bundle id from --app-name (a dashed slug
+# like com.org.My-App) but the embedded extension's from --bundle-identifier
+# (com.org.myapp.Extension), so they don't share a prefix — Xcode then refuses to
+# embed the appex: "Embedded binary's bundle identifier is not prefixed with the
+# parent app's bundle identifier." Force every non-extension bundle id to
+# $BUNDLE_ID so the extension ($BUNDLE_ID.Extension) stays correctly prefixed.
+# (The converter's resource reference paths are correct as-is — they resolve from
+# the App-Extension group's on-disk location, verified by an actual xcodebuild.)
+# macOS/BSD sed (this script is macOS-only).
 if [[ -f "$PBXPROJ" ]]; then
-  sed -i '' -E "/$BUILD_BASENAME/ s#(path = \")\.\./#\1#" "$PBXPROJ"
-fi
-
-# Sanity: every build reference must now resolve from the project dir. Fail loud
-# rather than emit a wrapper that silently builds without the extension.
-missing=0
-while IFS= read -r rel; do
-  [[ -e "$PROJECT_DIR/$rel" ]] || { echo "  unresolved reference: $rel" >&2; missing=$((missing+1)); }
-done < <(grep -oE "path = \"[^\"]*$BUILD_BASENAME[^\"]*\"" "$PBXPROJ" | sed 's/path = "//;s/"$//')
-if [[ "$missing" -gt 0 ]]; then
-  echo "error: $missing extension resource reference(s) do not resolve after the path-fix." >&2
-  echo "       The converter's layout assumptions may have changed — inspect $PBXPROJ." >&2
-  exit 1
+  sed -i '' -E "/\.Extension;/! s#(PRODUCT_BUNDLE_IDENTIFIER = )[^;]+;#\1$BUNDLE_ID;#" "$PBXPROJ"
 fi
 
 echo
