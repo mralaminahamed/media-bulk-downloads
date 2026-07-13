@@ -126,6 +126,35 @@ describe('extractIgMedia', () => {
     ]);
   });
 
+  it('falls back to a pending video when video_versions is present but empty (transcoding)', () => {
+    // A reel whose video_versions is [] (still transcoding) but which ships a cover
+    // must surface as a pending video, not silently vanish (regression: it used to
+    // `return` unconditionally after the failed video extraction).
+    const out = extractIgMedia({
+      code: 'REEL',
+      media_type: 2,
+      video_versions: [],
+      image_versions2: { candidates: [{ url: 'https://x.cdninstagram.com/REEL_cover_n.jpg', width: 640, height: 1136 }] },
+    });
+    expect(out).toEqual([
+      { code: 'REEL', kind: 'video', url: 'https://x.cdninstagram.com/REEL_cover_n.jpg', ext: 'mp4', poster: 'https://x.cdninstagram.com/REEL_cover_n.jpg', pending: true, width: 640, height: 1136 },
+    ]);
+  });
+
+  it('falls back to the cover image when every video variant fails the CDN host-pin', () => {
+    // video_versions present but all off-CDN → bestSized returns null; the node must
+    // still surface its cover rather than dropping the slide.
+    const out = extractIgMedia({
+      code: 'HP',
+      media_type: 1,
+      video_versions: [{ url: 'https://evil.example.com/x.mp4', width: 720, height: 720, type: 101 }],
+      image_versions2: { candidates: [{ url: 'https://x.cdninstagram.com/HP_cover_n.jpg', width: 720, height: 720 }] },
+    });
+    expect(out).toEqual([
+      { code: 'HP', kind: 'image', url: 'https://x.cdninstagram.com/HP_cover_n.jpg', ext: 'jpg', width: 720, height: 720 },
+    ]);
+  });
+
   it('flattens a carousel into one entry per slide, all under the parent code, ignoring the parent cover', () => {
     // Real IG carousel children carry no `code` of their own — they inherit the
     // parent post's shortcode. That inheritance is what this asserts.
