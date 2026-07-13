@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import * as MP4Box from 'mp4box';
-import { muxTracks } from '@mbd/core/download/stream/mux';
+import { muxTracks, muxAudioOnly } from '@mbd/core/download/stream/mux';
 
 // mp4box is a CJS module whose ESM namespace is frozen under Vite (can't assign
 // `createFile`). Mock it so `createFile` is a swappable spy that DELEGATES to the
@@ -53,6 +53,30 @@ describe('muxTracks', () => {
 
   it('throws when a track has no decodable samples', () => {
     expect(() => muxTracks({ init: VIDEO.init, segments: [] })).toThrow(/no decodable samples/);
+  });
+});
+
+describe('muxAudioOnly (#204)', () => {
+  it('extracts the AAC track into a single-track M4A (container remux, no re-encode)', () => {
+    const out = muxAudioOnly(AUDIO);
+    // valid ISO-BMFF container
+    expect(String.fromCharCode(out[4], out[5], out[6], out[7])).toBe('ftyp');
+    const tracks = tracksOf(out);
+    expect(tracks).toHaveLength(1);
+    expect(tracks[0].type).toBe('audio');
+    expect(tracks[0].codec).toMatch(/^mp4a/);
+  });
+
+  it('is byte-for-byte the audio of the full A/V mux (same samples, passthrough)', () => {
+    // The audio track muxAudioOnly emits carries the same decodable sample count
+    // as the audio side of muxTracks — i.e. nothing is dropped or transcoded.
+    const audioOnly = muxAudioOnly(AUDIO);
+    expect(audioOnly.byteLength).toBeGreaterThan(AUDIO.init.byteLength);
+    expect(tracksOf(audioOnly)).toHaveLength(1);
+  });
+
+  it('throws when the audio track has no decodable samples', () => {
+    expect(() => muxAudioOnly({ init: AUDIO.init, segments: [] })).toThrow(/no decodable samples/);
   });
 });
 

@@ -6,6 +6,7 @@ describe('streamErrorMessage', () => {
     expect(streamErrorMessage('drm')).toMatch(/DRM/i);
     expect(streamErrorMessage('sample-aes')).toMatch(/SAMPLE-AES/i);
     expect(streamErrorMessage('demuxed-unsupported')).toMatch(/separately/i);
+    expect(streamErrorMessage('audio-unavailable')).toMatch(/no separate audio/i);
     expect(streamErrorMessage('too-large')).toMatch(/1 GB/);
   });
   it('falls back for an unknown code', () => {

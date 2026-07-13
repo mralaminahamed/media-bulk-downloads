@@ -352,7 +352,7 @@ export const messageRouter: MessageRouter = {
   },
 
   CAPTURE_STREAM: (message, sender, respond) => {
-    const { runId, item, sourcePage } = message;
+    const { runId, item, sourcePage, audioOnly } = message;
     // Track the originating tab under this run's id (unset for popup captures,
     // whose sender.tab is undefined) so a CAPTURE_PROGRESS broadcast is relayed
     // to it — and only it — even while other captures run concurrently.
@@ -361,7 +361,7 @@ export const messageRouter: MessageRouter = {
     // dependency on the popup, so the download completes even if it closes.
     void settingsReady.then(async () => {
       try {
-        const cap = await captureStreamToFile(item, sourcePage, runId);
+        const cap = await captureStreamToFile(item, sourcePage, runId, audioOnly);
         captureRunTabs.delete(runId);
         if (!cap.ok) {
           // Refused/undownloadable — surface the code so the popup can offer the
@@ -369,7 +369,7 @@ export const messageRouter: MessageRouter = {
           respond({ status: streamErrorMessage(cap.code), refusal: { code: cap.code } });
           return;
         }
-        const audioNote = cap.muxedAudio ? ' (video + audio)' : '';
+        const audioNote = audioOnly ? ' (audio only)' : cap.muxedAudio ? ' (video + audio)' : '';
         respond({
           status: cap.saved
             ? `Captured ${cap.filename} — ${cap.segmentCount} segments${audioNote}.`

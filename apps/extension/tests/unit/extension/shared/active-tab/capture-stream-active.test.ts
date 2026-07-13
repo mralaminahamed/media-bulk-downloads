@@ -40,6 +40,14 @@ describe('requestCaptureStream', () => {
       expect.any(Function),
     );
     expect(chrome.runtime.onMessage.removeListener).toHaveBeenCalledWith(listener);
+    expect(sent.audioOnly).toBe(false); // default: full A/V capture
+  });
+
+  it('sets audioOnly on the CAPTURE_STREAM message when requested (#204)', async () => {
+    (chrome.runtime.sendMessage as Mock).mockImplementation((_msg, cb) => cb({ status: 'Captured foo.m4a — 3 segments (audio only).' }));
+    await requestCaptureStream(item, { url: 'https://x/watch' }, vi.fn(), true);
+    const sent = (chrome.runtime.sendMessage as Mock).mock.calls.find((c) => c[0]?.type === 'CAPTURE_STREAM')![0];
+    expect(sent.audioOnly).toBe(true);
   });
 
   it('ignores non-progress messages on its listener', () => {

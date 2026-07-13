@@ -720,4 +720,47 @@ video/v.m3u8
     expect(res.muxedAudio).toBeFalsy();
     expect(res.ext).toBe('mp4'); // fMP4 concat (EXT-X-MAP present), not muxed
   });
+
+  // ── audio-only (#204) ──────────────────────────────────────────────────────
+  it('audioOnly extracts just the audio rendition → single-track .m4a', async () => {
+    const res = await captureHls('https://cdn.test/master.m3u8', deps(), { audioOnly: true });
+    expect(res.ext).toBe('m4a');
+    expect(res.mime).toBe('audio/mp4');
+    expect(res.muxedAudio).toBe(false);
+    expect(String.fromCharCode(res.bytes[4], res.bytes[5], res.bytes[6], res.bytes[7])).toBe('ftyp');
+    const tracks = tracksOf(res.bytes);
+    expect(tracks).toHaveLength(1);
+    expect(tracks[0].type).toBe('audio');
+  });
+
+  it('audioOnly only fetches the audio track, never the video segments', async () => {
+    const fetched: string[] = [];
+    const d: HlsDeps = { ...deps(), fetchBytes: async (u: string) => { fetched.push(u.split('/').pop()!); return fx(u.split('/').pop()!); } };
+    await captureHls('https://cdn.test/master.m3u8', d, { audioOnly: true });
+    expect(fetched).toContain('a_seg1.m4a');
+    expect(fetched).not.toContain('v_seg1.m4v');
+  });
+
+  it('audioOnly refuses audio-unavailable when audio is muxed into the video (no separate rendition)', async () => {
+    // A plain single media playlist (no master → no audio rendition) has nothing to extract.
+    const d = fakeDeps({}, { 'index.m3u8': MEDIA_TS });
+    await expect(captureHls('https://cdn.test/v/index.m3u8', d, { audioOnly: true })).rejects.toMatchObject({
+      code: 'audio-unavailable',
+    });
+  });
+
+  it('audioOnly still refuses DRM first (refusal precedence unchanged)', async () => {
+    const DRM_PL = `#EXTM3U
+#EXT-X-TARGETDURATION:6
+#EXT-X-MEDIA-SEQUENCE:0
+#EXT-X-KEY:METHOD=SAMPLE-AES,URI="skd://x"
+#EXTINF:6.0,
+seg0.ts
+#EXT-X-ENDLIST
+`;
+    const d = fakeDeps({}, { 'index.m3u8': DRM_PL });
+    await expect(captureHls('https://cdn.test/v/index.m3u8', d, { audioOnly: true })).rejects.toMatchObject({
+      code: 'sample-aes',
+    });
+  });
 });
