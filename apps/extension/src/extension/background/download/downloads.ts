@@ -1,9 +1,11 @@
 import { HistoryEntry, ImageInfo } from '@mbd/core/types';
 import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { partitionByDownloaded, uniquifyBatchNames } from '@mbd/core/collection/download-dedupe';
+import { buildMediaSidecar, serializeSidecar } from '@mbd/core/download/metadata-sidecar';
 import { recordDownloads } from '@mbd/storage/history';
 import { currentSettings } from '@/extension/background/state';
 import { downloadedOnDiskKeys } from '@/extension/background/download/downloaded-keys';
+import { scheduleSidecar } from '@/extension/background/download/sidecar-writer';
 
 /**
  * Downloads each eligible image and records the successful ones to history,
@@ -41,6 +43,10 @@ export async function downloadAndRecord(
   const paths = uniquifyBatchNames(
     toDownload.map((image, index) => buildDownloadFilename(image, index, currentSettings, sourcePage?.url)),
   );
+  // #284: this keyboard-shortcut / context-menu surface honours the metadata
+  // sidecar setting too (I5 — it used to ignore it entirely). Written on
+  // completion, named from the file's ACTUAL on-disk name so it can't diverge (I6).
+  const capturedAt = new Date().toISOString();
   const entries = await Promise.all(
     toDownload.map(
       (image, index) =>
@@ -52,6 +58,9 @@ export async function downloadAndRecord(
               if (chrome.runtime.lastError || downloadId === undefined) {
                 resolve(null);
                 return;
+              }
+              if (currentSettings.metadataSidecar) {
+                scheduleSidecar(downloadId, filename, serializeSidecar(buildMediaSidecar(image, sourcePage, capturedAt)));
               }
               resolve({
                 src: image.src,

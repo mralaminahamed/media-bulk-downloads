@@ -6,6 +6,13 @@ vi.mock('@mbd/storage/excluded', async () => ({
   clearExcluded: vi.fn().mockResolvedValue(undefined),
 }));
 import * as excludedMod from '@mbd/storage/excluded';
+// The completion-driven sidecar writer is covered in sidecar-writer.test.ts; here we
+// only assert the download surfaces SCHEDULE a sidecar with the right args (#284, I5/I6).
+vi.mock('@/extension/background/download/sidecar-writer', () => ({
+  scheduleSidecar: vi.fn(),
+  __resetSidecarWriter: vi.fn(),
+}));
+import { scheduleSidecar } from '@/extension/background/download/sidecar-writer';
 import * as dlKeys from '@/extension/background/download/downloaded-keys';
 import { SrcKeySet } from '@mbd/core/collection/canonical';
 
@@ -656,6 +663,34 @@ describe('downloadAndRecord', () => {
     expect(chrome.storage.local.set as Mock).not.toHaveBeenCalled();
   });
 
+  it('#284 (I5): schedules a sidecar for the keyboard/context-menu surface when metadataSidecar is on', async () => {
+    (scheduleSidecar as Mock).mockClear();
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { metadataSidecar: true } }));
+    loadSettings();
+    await new Promise((r) => setTimeout(r, 0));
+    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(50));
+
+    await downloadAndRecord([img('https://c/a.jpg?token=SECRET')], { url: 'https://p', title: 'T' });
+
+    // Scheduled against the media download's id + requested filename (so the writer
+    // can name it from the ACTUAL on-disk name); NOT fired directly at dispatch.
+    expect(scheduleSidecar).toHaveBeenCalledWith(50, 'image_1.jpg', expect.stringContaining('"pageUrl": "https://p"'));
+    const json = (scheduleSidecar as Mock).mock.calls[0][2] as string;
+    expect(json).not.toContain('SECRET'); // token stripped from the provenance record
+
+    // Restore defaults so sibling tests see metadataSidecar off again.
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: {} }));
+    loadSettings();
+    await new Promise((r) => setTimeout(r, 0));
+  });
+
+  it('#284: does NOT schedule a sidecar when metadataSidecar is off (default)', async () => {
+    (scheduleSidecar as Mock).mockClear();
+    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(1));
+    await downloadAndRecord([img('https://c/a.jpg')], undefined);
+    expect(scheduleSidecar).not.toHaveBeenCalled();
+  });
+
   it('skips already-downloaded srcs when skipDuplicates is set', async () => {
     vi.spyOn(dlKeys, 'downloadedOnDiskKeys').mockResolvedValue(SrcKeySet.from(['https://x/a.png']));
     (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(11));
@@ -767,7 +802,7 @@ describe('DOWNLOAD_IMAGES — settings gate (no ephemeral-worker default-setting
     expect((local.downloadQueue as { items: { status: string }[] }).items[0].status).toBe('active');
   });
 
-  it('writes a <name>.json metadata sidecar per item when metadataSidecar is on (#284)', async () => {
+  it('attaches a metadata sidecar to the queued item when metadataSidecar is on (#284)', async () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_keys, cb) => cb({ settings: { metadataSidecar: true } }));
     loadSettings();
     await new Promise((r) => setTimeout(r, 0)); // let currentSettings pick up the override
@@ -783,18 +818,17 @@ describe('DOWNLOAD_IMAGES — settings gate (no ephemeral-worker default-setting
     );
     await new Promise((r) => setTimeout(r, 0));
 
-    const sidecarCall = (chrome.downloads.download as Mock).mock.calls.find((c) => String(c[0].filename).endsWith('.json'));
-    expect(sidecarCall).toBeTruthy();
-    expect(sidecarCall![0].filename).toBe('image_1.jpg.json');
-    expect(sidecarCall![0].saveAs).toBe(false);
-    expect(String(sidecarCall![0].url)).toMatch(/^data:application\/json;base64,/);
-    // The written JSON has the page provenance and no leaked token.
-    const json = atob(String(sidecarCall![0].url).split(',')[1]);
-    expect(JSON.parse(json)).toMatchObject({ pageUrl: 'https://site/page', pageTitle: 'Page' });
-    expect(json).not.toContain('SECRET');
+    // The sidecar rides on the queue item; the dispatcher writes it beside the file
+    // under its ACTUAL on-disk name on completion (see sidecar-writer) — never a
+    // guessed name fired at dispatch (I6). So NO .json download at dispatch time.
+    expect((chrome.downloads.download as Mock).mock.calls.some((c) => String(c[0].filename).endsWith('.json'))).toBe(false);
+    const item = (local.downloadQueue as { items: { sidecar?: string }[] }).items[0];
+    expect(item.sidecar).toBeTruthy();
+    expect(JSON.parse(item.sidecar!)).toMatchObject({ pageUrl: 'https://site/page', pageTitle: 'Page' });
+    expect(item.sidecar).not.toContain('SECRET'); // the signing token is stripped
   });
 
-  it('writes no sidecar when metadataSidecar is off (default)', async () => {
+  it('attaches no sidecar to the queued item when metadataSidecar is off (default)', async () => {
     // Seed an explicit settings object: loadSettings only overwrites
     // currentSettings when `result.settings` is truthy (state.ts), so an empty
     // reply would leave a prior test's value in place.
@@ -809,6 +843,8 @@ describe('DOWNLOAD_IMAGES — settings gate (no ephemeral-worker default-setting
     await new Promise((r) => setTimeout(r, 0));
 
     expect((chrome.downloads.download as Mock).mock.calls.some((c) => String(c[0].filename).endsWith('.json'))).toBe(false);
+    const item = (local.downloadQueue as { items: { sidecar?: string }[] }).items[0];
+    expect(item?.sidecar).toBeUndefined();
   });
 });
 

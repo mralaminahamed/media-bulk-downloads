@@ -9,7 +9,7 @@ import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { partitionByDownloaded, uniquifyBatchNames } from '@mbd/core/collection/download-dedupe';
 import { downloadedOnDiskKeys } from '@/extension/background/download/downloaded-keys';
 import { textToBase64 } from '@mbd/core/download/base64';
-import { buildMediaSidecar, serializeSidecar, sidecarName } from '@mbd/core/download/metadata-sidecar';
+import { buildMediaSidecar, serializeSidecar } from '@mbd/core/download/metadata-sidecar';
 import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk, DiskState } from '@mbd/storage/history';
 import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } from '@mbd/storage/favourites';
 import { addExcluded, removeExcluded, clearExcluded, restoreExcluded } from '@mbd/storage/excluded';
@@ -20,7 +20,8 @@ import {
   enqueueDownloads, pauseQueue, resumeQueue, cancelQueue, retryQueueItem, getQueueSnapshot,
   clearFinishedQueue, retryAllFailedQueue, openQueueItem,
 } from '@/extension/background/download/download-queue';
-import type { HistoryDraft, QueueState } from '@mbd/storage/download-queue';
+import { scheduleSidecar } from '@/extension/background/download/sidecar-writer';
+import type { HistoryDraft, EnqueueEntry, QueueState } from '@mbd/storage/download-queue';
 import { currentSettings, excludedCache, settingsReady, excludedReady, writeSettingsPatch } from '@/extension/background/state';
 import { storeSniffedMedia, snifferByTab, resolveOriginalsBatch } from '@/extension/background/sniffer-store';
 import { captureStreamToFile, captureRunTabs } from '@/extension/background/download/capture';
@@ -101,7 +102,12 @@ export const messageRouter: MessageRouter = {
         const paths = uniquifyBatchNames(
           toDownload.map((image, index) => buildDownloadFilename(image, index, currentSettings, sourcePage?.url)),
         );
-        const entries = toDownload.map((image, i) => {
+        // #284: attach a serialized <name>.json provenance sidecar to each queue
+        // entry when enabled. The dispatcher writes it beside the file under its
+        // ACTUAL on-disk name on completion (see sidecar-writer), so it can't
+        // diverge from a media file Chrome uniquified (I6).
+        const capturedAt = new Date().toISOString();
+        const entries: EnqueueEntry[] = toDownload.map((image, i) => {
           const filename = paths[i];
           const history: HistoryDraft = {
             src: image.src,
@@ -112,24 +118,11 @@ export const messageRouter: MessageRouter = {
             sourcePageUrl: sourcePage?.url ?? '',
             sourcePageTitle: sourcePage?.title,
           };
-          return { url: image.src, filename, history };
+          const entry: EnqueueEntry = { url: image.src, filename, history };
+          if (currentSettings.metadataSidecar) entry.sidecar = serializeSidecar(buildMediaSidecar(image, sourcePage, capturedAt));
+          return entry;
         });
         const queued = await enqueueDownloads(entries);
-        // #284: write a sibling <name>.json provenance sidecar per item, when
-        // enabled. A local data: URL (the SW has no URL.createObjectURL), fired
-        // directly — sidecars are instant and never fail network, so they skip
-        // the queue (and its history); saveAs is forced off so each .json
-        // doesn't prompt. Best-effort: paired to the pre-uniquify media name.
-        if (currentSettings.metadataSidecar) {
-          const capturedAt = new Date().toISOString();
-          toDownload.forEach((image, i) => {
-            const json = serializeSidecar(buildMediaSidecar(image, sourcePage, capturedAt));
-            chrome.downloads.download(
-              { url: `data:application/json;base64,${textToBase64(json)}`, filename: sidecarName(paths[i]), saveAs: false, conflictAction: 'uniquify' },
-              () => void chrome.runtime.lastError,
-            );
-          });
-        }
         respond({ status: 'success', message: queuedSkipMessage(queued, skipped) });
       } catch (e) {
         // Without this the port stays open and the popup hangs on "Sending…"
@@ -210,27 +203,26 @@ export const messageRouter: MessageRouter = {
     const { filename, b64, mime, source } = message;
     void settingsReady.then(() => {
       const url = `data:${mime};base64,${b64}`;
-      // #284: sidecar for the converted file. The source carries the original
-      // alt/dimensions + output ext, so the .json's `format` matches the saved
-      // file. Fired independently (data: URL, saveAs off) — see DOWNLOAD_IMAGES.
-      if (currentSettings.metadataSidecar && source) {
-        const json = serializeSidecar(buildMediaSidecar(
-          { src: source.src, alt: source.alt ?? '', width: source.width ?? 0, height: source.height ?? 0, type: source.type, kind: source.kind, ext: source.ext, fileSize: source.fileSize },
-          { url: source.sourcePageUrl, title: source.sourcePageTitle },
-          new Date().toISOString(),
-        ));
-        chrome.downloads.download(
-          { url: `data:application/json;base64,${textToBase64(json)}`, filename: sidecarName(filename), saveAs: false, conflictAction: 'uniquify' },
-          () => void chrome.runtime.lastError,
-        );
-      }
+      // #284: provenance sidecar for the converted file. The source carries the
+      // original alt/dimensions + output ext, so the .json's `format` matches the
+      // saved file. Built here; WRITTEN by sidecar-writer once the media download
+      // completes, named from its ACTUAL on-disk name so it can't diverge (I6).
+      const sidecarJson = currentSettings.metadataSidecar && source
+        ? serializeSidecar(buildMediaSidecar(
+            { src: source.src, alt: source.alt ?? '', width: source.width ?? 0, height: source.height ?? 0, type: source.type, kind: source.kind, ext: source.ext, fileSize: source.fileSize },
+            { url: source.sourcePageUrl, title: source.sourcePageTitle },
+            new Date().toISOString(),
+          ))
+        : undefined;
       chrome.downloads.download(
         { url, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
         (downloadId) => {
+          if (chrome.runtime.lastError || downloadId === undefined) return;
+          if (sidecarJson) scheduleSidecar(downloadId, filename, sidecarJson);
           // Record the ORIGINAL src so a converted image gets the "already
           // downloaded" mark + dedup like a plain download (history was silently
           // skipped for the whole convert-on-download path).
-          if (chrome.runtime.lastError || downloadId === undefined || !source) return;
+          if (!source) return;
           void recordDownloads([{
             src: source.src,
             filename: filename.split('/').pop() ?? filename,
