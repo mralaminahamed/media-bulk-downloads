@@ -1,4 +1,5 @@
 import { ResolveHint, ResolvedMedia } from '@mbd/core/types';
+import { isSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
 
 export interface NetDeps { fetch: typeof fetch }
 
@@ -236,6 +237,11 @@ async function resolvePdsHost(did: string, deps: NetDeps): Promise<string | null
     docUrl = `https://${domain}/.well-known/did.json`;
   }
   if (!docUrl) return null;
+  // The did:web domain is page-controlled, so the doc fetch runs through the
+  // same SSRF guard the capture engines use — a bare-hostname check alone would
+  // still allow did:web:169.254.169.254 / localhost / 10.0.0.1 to steer this
+  // fetch (from the <all_urls>, CORS-free background realm) at an internal host.
+  if (!isSafeCaptureUrl(docUrl)) return null;
   const r = await deps.fetch(docUrl);
   if (!r.ok) return null;
   return pdsFromDoc((await r.json()) as DidDoc);
@@ -262,6 +268,10 @@ async function bsky(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
     const pds = await resolvePdsHost(did, deps);
     if (!pds) return null;
     const url = `${pds}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
+    // The PDS origin comes from the (page-influenced) did document's
+    // serviceEndpoint, so guard the getBlob URL too before it becomes a download
+    // target — a malicious did:web doc could otherwise point it at an internal host.
+    if (!isSafeCaptureUrl(url)) return null;
     return pinnedUrl(url, new URL(pds).hostname) ? { url } : null;
   } catch {
     return null;

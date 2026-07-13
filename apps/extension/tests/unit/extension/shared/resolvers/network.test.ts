@@ -381,6 +381,27 @@ describe('resolveOriginal — bsky (getBlob)', () => {
     expect(fetch.calls).toEqual([]);
   });
 
+  // SSRF guard: a did:web domain steers the .well-known/did.json fetch, so an
+  // internal/loopback/link-local host must be rejected before any request.
+  it.each([
+    'did:web:169.254.169.254', // link-local (cloud metadata)
+    'did:web:localhost',
+    'did:web:127.0.0.1',
+    'did:web:10.0.0.1', // private
+    'did:web:2130706433', // decimal-encoded 127.0.0.1
+  ])('blocks did:web pointing at an internal host (%s), without fetching', async (did) => {
+    const fetch = capturingFetch(pdsDoc);
+    expect(await resolveOriginal({ platform: 'bsky', id: `blob ${did} bafcid` }, { fetch })).toBeNull();
+    expect(fetch.calls).toEqual([]);
+  });
+
+  it('blocks a did:web whose DID document serviceEndpoint points at an internal host', async () => {
+    const fetch = capturingFetch({
+      service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: 'https://169.254.169.254' }],
+    });
+    expect(await resolveOriginal({ platform: 'bsky', id: 'blob did:web:example.com bafcid' }, { fetch })).toBeNull();
+  });
+
   it('returns null for a malformed hint id (wrong part count), without fetching', async () => {
     const fetch = capturingFetch(pdsDoc);
     expect(await resolveOriginal({ platform: 'bsky', id: 'blob did:plc:abc' }, { fetch })).toBeNull();

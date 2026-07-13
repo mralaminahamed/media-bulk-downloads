@@ -33,7 +33,16 @@ function extensionApis(): ExtensionGlobals | undefined {
   return g.chrome ?? g.browser;
 }
 
-/** Detect the current target's capabilities from the available extension APIs. */
+/**
+ * Detect the current target's capabilities from the available extension APIs.
+ *
+ * These flags report API-namespace PRESENCE, not full functionality. Notably
+ * `hasHeaderRules` is true on Firefox — `browser.declarativeNetRequest` exists
+ * there — even though the dynamic `modifyHeaders` session rules the hotlink
+ * retry needs are unsupported. Consumers must therefore also honour the chosen
+ * implementation's own `available` flag (see HeaderRules) rather than gating on
+ * this descriptor alone.
+ */
 export function detectCapabilities(): Capabilities {
   const api = extensionApis();
   return {

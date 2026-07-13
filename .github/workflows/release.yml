@@ -104,7 +104,7 @@ jobs:
         with:
           name: ${{ github.ref_name }}
           body_path: RELEASE_NOTES.md
-          files: .output/*.zip
+          files: apps/extension/.output/*.zip
           fail_on_unmatched_files: true
 
   publish-chrome:
@@ -152,8 +152,8 @@ jobs:
           REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
         run: |
           set -euo pipefail
-          VERSION="$(node -p "require('./package.json').version")"
-          ZIP=".output/media-bulk-downloads-${VERSION}-chrome.zip"
+          VERSION="$(node -p "require('./apps/extension/package.json').version")"
+          ZIP="apps/extension/.output/media-bulk-downloads-${VERSION}-chrome.zip"
           [ -f "$ZIP" ] || { echo "::error::$ZIP not found"; exit 1; }
 
           echo "Requesting access token…"
