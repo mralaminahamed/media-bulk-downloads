@@ -567,7 +567,7 @@ describe('selectAudioRendition', () => {
   });
 });
 
-const fx = (name: string) => new Uint8Array(readFileSync(join(__dirname, '../../../fixtures/dash', name)));
+const fx = (name: string) => new Uint8Array(readFileSync(join(__dirname, '../fixtures/dash', name)));
 
 /** Parse an MP4's tracks back out to assert what captureHls muxed. */
 function tracksOf(bytes: Uint8Array): { type: 'video' | 'audio' }[] {

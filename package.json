@@ -46,9 +46,9 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "lint:firefox": "yarn workspace @mbd/extension lint:firefox",
-    "type-check": "tsc -b packages/core packages/storage packages/platform && yarn workspace @mbd/extension type-check",
-    "test": "yarn workspace @mbd/extension test",
-    "test:watch": "yarn workspace @mbd/extension test:watch",
+    "type-check": "tsc -b packages/core packages/storage packages/platform && tsc --noEmit -p tsconfig.test.json && yarn workspace @mbd/extension type-check",
+    "test": "vitest run --coverage && yarn workspace @mbd/extension test",
+    "test:watch": "vitest",
     "test:e2e": "yarn workspace @mbd/extension test:e2e",
     "test:e2e:headed": "yarn workspace @mbd/extension test:e2e:headed"
   },
@@ -57,12 +57,14 @@
     "@types/node": "^26.1.1",
     "@typescript-eslint/eslint-plugin": "^8.63.0",
     "@typescript-eslint/parser": "^8.63.0",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^10.6.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.7.0",
     "typescript": "^7.0.2",
-    "vite": "^8.1.4"
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10"
   },
   "resolutions": {
     "@types/node": "^26.1.0",

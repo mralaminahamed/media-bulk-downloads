@@ -15,7 +15,7 @@ import {
   DashError,
 } from '@mbd/core/download/stream/dash';
 
-const fx = (name: string) => new Uint8Array(readFileSync(join(__dirname, '../../../fixtures/dash', name)));
+const fx = (name: string) => new Uint8Array(readFileSync(join(__dirname, '../fixtures/dash', name)));
 
 function tracksOf(bytes: Uint8Array): { type: 'video' | 'audio' }[] {
   const file = MP4Box.createFile() as any;

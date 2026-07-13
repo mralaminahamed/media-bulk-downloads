@@ -21,6 +21,7 @@ const chromeMockSetupLast = {
 export default defineConfig({
   plugins: [WxtVitest(), chromeMockSetupLast],
   test: {
+    name: 'extension',
     // Unit/integration suite lives under tests/unit; the Playwright e2e specs
     // live under tests/e2e (run separately via `yarn test:e2e`). Scoping the
     // include to tests/unit keeps Vitest from ever collecting the e2e specs.
@@ -31,9 +32,6 @@ export default defineConfig({
     testTimeout: 15000,
     // setupFiles intentionally omitted here — registered via the trailing
     // plugin above so it runs after WxtVitest's fakeBrowser stub.
-    // Bound workers so the memory-heavy mp4box muxer test (~2 MB) can't
-    // over-subscribe RAM and flake sibling workers — mirrors Jest's `50%`.
-    maxWorkers: '50%',
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'lcov'],

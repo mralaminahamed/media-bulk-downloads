@@ -1,22 +1,21 @@
-import { readFileSync } from 'node:fs';
 import { resolveOriginal } from '@mbd/core/resolvers/network';
-import pinWidget from '../../../fixtures/pinterest/pin-video-widget.json';
-import asProject from '../../../fixtures/artstation/project.json';
-import tweetResultVideo from '../../../fixtures/twitter/tweet-result-video.json';
-import tweetResultPhoto from '../../../fixtures/twitter/tweet-result-photo.json';
-import wallhavenWallpaper from '../../../fixtures/wallhaven/wallpaper.json';
-import bskyDidDoc from '../../../fixtures/bsky/did-plc-doc.json';
-import bskyDidWebDoc from '../../../fixtures/bsky/did-web-doc.json';
-import vimeoConfig from '../../../fixtures/vimeo/player-config.json';
-import vimeoHlsConfig from '../../../fixtures/vimeo/player-config-hls.json';
-import redditVideo from '../../../fixtures/reddit/reddit-video.json';
-import tweetResultHls from '../../../fixtures/twitter/tweet-result-hls.json';
-import pinHlsWidget from '../../../fixtures/pinterest/pin-hls-widget.json';
+import pinWidget from '../fixtures/pinterest/pin-video-widget.json';
+import asProject from '../fixtures/artstation/project.json';
+import tweetResultVideo from '../fixtures/twitter/tweet-result-video.json';
+import tweetResultPhoto from '../fixtures/twitter/tweet-result-photo.json';
+import wallhavenWallpaper from '../fixtures/wallhaven/wallpaper.json';
+import bskyDidDoc from '../fixtures/bsky/did-plc-doc.json';
+import bskyDidWebDoc from '../fixtures/bsky/did-web-doc.json';
+import vimeoConfig from '../fixtures/vimeo/player-config.json';
+import vimeoHlsConfig from '../fixtures/vimeo/player-config-hls.json';
+import redditVideo from '../fixtures/reddit/reddit-video.json';
+import tweetResultHls from '../fixtures/twitter/tweet-result-hls.json';
+import pinHlsWidget from '../fixtures/pinterest/pin-hls-widget.json';
 
-// Vitest cwd is the project root; jsdom's import.meta.url is an http URL, so read
-// the captured HTML fixtures from cwd rather than the module URL.
-const flickrSizesHtml = readFileSync('tests/unit/fixtures/flickr/sizes-6k.html', 'utf8');
-const asEmbed = readFileSync('tests/unit/fixtures/artstation/embed.html', 'utf8');
+// HTML fixtures imported as raw strings (vite `?raw`) so the read is location-
+// and cwd-independent — works under the package's own Vitest project.
+import flickrSizesHtml from '../fixtures/flickr/sizes-6k.html?raw';
+import asEmbed from '../fixtures/artstation/embed.html?raw';
 
 const mockFetch = (payload: unknown, ok = true) =>
   (async () => ({ ok, json: async () => payload })) as unknown as typeof fetch;

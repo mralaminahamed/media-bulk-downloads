@@ -15,7 +15,7 @@ vi.mock('mp4box', async () => {
 // Real fragmented-MP4 tracks (Big Buck Bunny, lowest rendition): a demuxed
 // video-only .m4v and audio-only .m4a init + one segment each. Muxing these is
 // exactly the DASH/demuxed-HLS case.
-const fx = (name: string) => new Uint8Array(readFileSync(join(__dirname, '../../../fixtures/dash', name)));
+const fx = (name: string) => new Uint8Array(readFileSync(join(__dirname, '../fixtures/dash', name)));
 const VIDEO = { init: fx('v_init.m4v'), segments: [fx('v_seg1.m4v')] };
 const AUDIO = { init: fx('a_init.m4a'), segments: [fx('a_seg1.m4a')] };
 

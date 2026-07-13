@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import master from '../../fixtures/reddit/hls-master.m3u8?raw';
 import { redditResolver } from '@mbd/core/resolvers/sites/reddit';
 import { parseMaster, parseAudioRenditions, selectVariant, selectAudioRendition, isMasterPlaylist } from '@mbd/core/download/stream/hls';
 
@@ -60,9 +60,6 @@ describe('redditResolver — video', () => {
 });
 
 describe('reddit HLS master (real fixture) — the engine can mux the separate audio', () => {
-  // Vitest runs with cwd at the project root; jsdom's import.meta.url is an http
-  // URL, so resolve the fixture from cwd rather than the module URL.
-  const master = readFileSync('tests/unit/fixtures/reddit/hls-master.m3u8', 'utf8');
   const base = `https://v.redd.it/${VID}/HLSPlaylist.m3u8`;
 
   it('is recognised as a master with demuxed audio renditions', () => {

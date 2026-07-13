@@ -944,12 +944,14 @@ __metadata:
     "@types/node": "npm:^26.1.1"
     "@typescript-eslint/eslint-plugin": "npm:^8.63.0"
     "@typescript-eslint/parser": "npm:^8.63.0"
+    "@vitest/coverage-v8": "npm:^4.1.10"
     eslint: "npm:^10.6.0"
     eslint-plugin-react: "npm:^7.37.5"
     eslint-plugin-react-hooks: "npm:^7.1.1"
     globals: "npm:^17.7.0"
     typescript: "npm:^7.0.2"
     vite: "npm:^8.1.4"
+    vitest: "npm:^4.1.10"
   languageName: unknown
   linkType: soft
 
