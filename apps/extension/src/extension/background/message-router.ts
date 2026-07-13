@@ -334,7 +334,9 @@ export const messageRouter: MessageRouter = {
         const cap = await captureStreamToFile(item, sourcePage, runId);
         captureRunTabs.delete(runId);
         if (!cap.ok) {
-          respond({ status: streamErrorMessage(cap.code) });
+          // Refused/undownloadable — surface the code so the popup can offer the
+          // "Copy download command" handoff (#285) instead of a dead end.
+          respond({ status: streamErrorMessage(cap.code), refusal: { code: cap.code } });
           return;
         }
         const audioNote = cap.muxedAudio ? ' (video + audio)' : '';

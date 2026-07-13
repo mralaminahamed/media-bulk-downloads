@@ -9,6 +9,14 @@ import { requestCaptureStream } from '../../shared/active-tab/capture-stream-act
 import { copyText, downloadText, mapWithConcurrency } from '../utils';
 import { downloadable } from '../lib/appHelpers';
 
+/** A refused/undownloadable stream (#285): the item, the engine refusal code,
+ *  and the page it was found on (→ the Referer for the copied command). */
+export interface StreamRefusal {
+  item: ImageInfo;
+  code: string;
+  referer: string;
+}
+
 export interface UseDownloadActionsParams {
   settings: SettingsData;
   /** The currently shown (filtered) image set — owned by the scan/resolution engine (useMediaEngine). */
@@ -21,6 +29,13 @@ export interface UseDownloadActionsParams {
    * duplicated here — the same instance App already passes to useFavourites.
    */
   currentSourcePage: () => Promise<{ url: string; title?: string }>;
+  /**
+   * Reports a stream capture that was *refused* (DRM / live / SAMPLE-AES /
+   * unsupported), so App can offer the "Copy download command" handoff (#285).
+   * Called with the refusal on refusal, and with null at the start of each
+   * capture attempt to clear a stale banner.
+   */
+  onStreamRefused?: (refusal: StreamRefusal | null) => void;
 }
 
 export interface UseDownloadActionsResult {
@@ -50,6 +65,7 @@ export function useDownloadActions({
   setState,
   setProgress,
   currentSourcePage,
+  onStreamRefused,
 }: UseDownloadActionsParams): UseDownloadActionsResult {
   const handleDownload = async (images: ImageInfo | ImageInfo[]): Promise<void> => {
     const list = Array.isArray(images) ? images : [images];
@@ -75,14 +91,19 @@ export function useDownloadActions({
    */
   const captureStream = async (item: ImageInfo): Promise<void> => {
     const sourcePage = await currentSourcePage();
+    // Clear any prior handoff banner before this attempt (#285).
+    onStreamRefused?.(null);
     setProgress({ label: 'Capturing stream', done: 0, total: 0 });
     try {
-      const status = await requestCaptureStream(
+      const { status, refusal } = await requestCaptureStream(
         item,
         sourcePage,
         (done, total) => setProgress({ label: 'Capturing stream', done, total }),
       );
       setState((prev) => ({ ...prev, status }));
+      // A refused stream (DRM/live/SAMPLE-AES/unsupported) becomes a handoff: the
+      // page URL is the Referer for the yt-dlp/ffmpeg command the user copies.
+      if (refusal) onStreamRefused?.({ item, code: refusal.code, referer: sourcePage.url });
     } finally {
       setProgress(null);
     }

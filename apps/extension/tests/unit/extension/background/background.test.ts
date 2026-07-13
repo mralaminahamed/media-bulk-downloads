@@ -1249,7 +1249,9 @@ describe('CAPTURE_STREAM', () => {
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
     expect(chrome.downloads.download).not.toHaveBeenCalled();
-    expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringMatching(/1 GB/) });
+    // Refusal now also carries the code so the popup can offer the "Copy download
+    // command" handoff (#285).
+    expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringMatching(/1 GB/), refusal: { code: 'too-large' } });
   });
 
   // The offscreen doc broadcasts CAPTURE_PROGRESS via chrome.runtime.sendMessage,
