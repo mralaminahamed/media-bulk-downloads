@@ -7,7 +7,10 @@ export const FAVOURITES_CAP = 500;
 // A count cap alone doesn't bound bytes: an entry's `src` can be a full base64
 // data URL, so 500 of them can blow the shared chrome.storage.local quota (~5MB,
 // no unlimitedStorage). Also bound the newest-first list by serialized size.
-export const FAVOURITES_MAX_BYTES = 2_000_000;
+// The per-store byte caps are sized to co-exist under the shared quota:
+// history 2MB + favourites 1MB + excluded 0.5MB = 3.5MB, leaving headroom for
+// the queue, per-host, and settings keys.
+export const FAVOURITES_MAX_BYTES = 1_000_000;
 
 /** Keep newest-first entries until the byte budget is hit; always keeps at least one. */
 function withinByteBudget<T>(entries: T[], maxBytes: number): T[] {
@@ -37,7 +40,7 @@ export function mergeFavourites(
     const prev = map.get(k);
     if (!prev || entry.time > prev.time) map.set(k, entry);
   }
-  for (const entry of existing) if (!map.has(canonicalSrcKey(entry.src))) map.set(canonicalSrcKey(entry.src), entry);
+  for (const entry of existing) { const k = canonicalSrcKey(entry.src); if (!map.has(k)) map.set(k, entry); }
   const ranked = [...map.values()].sort((a, b) => b.time - a.time).slice(0, FAVOURITES_CAP);
   return withinByteBudget(ranked, FAVOURITES_MAX_BYTES);
 }

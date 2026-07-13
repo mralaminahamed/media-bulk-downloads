@@ -64,6 +64,19 @@ function makeId(now: number): string {
 
 const isLive = (i: QueueItem): boolean => i.status === 'queued' || i.status === 'active';
 
+/** Keep every live item and the most recent {@link FINISHED_CAP} finished
+ *  (done/failed/cancelled) ones, so a long session can't grow the persisted
+ *  queue without bound (each save re-serializes the whole array). */
+export const FINISHED_CAP = 200;
+function pruneFinished(items: QueueItem[]): QueueItem[] {
+  const finished = items.filter((i) => !isLive(i));
+  if (finished.length <= FINISHED_CAP) return items;
+  const keep = new Set(
+    [...finished].sort((a, b) => b.addedAt - a.addedAt).slice(0, FINISHED_CAP),
+  );
+  return items.filter((i) => isLive(i) || keep.has(i));
+}
+
 export function enqueue(state: QueueState, entries: EnqueueEntry[], now: number): QueueState {
   const seen = new Set(state.items.filter(isLive).map((i) => `${i.url} ${i.filename}`));
   const additions: QueueItem[] = [];
@@ -76,7 +89,7 @@ export function enqueue(state: QueueState, entries: EnqueueEntry[], now: number)
       attempts: 0, readyAt: now, addedAt: now, history: e.history,
     });
   }
-  return { ...state, items: [...state.items, ...additions] };
+  return { ...state, items: pruneFinished([...state.items, ...additions]) };
 }
 
 export function activeCount(state: QueueState): number {

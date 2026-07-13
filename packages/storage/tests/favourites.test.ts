@@ -85,7 +85,9 @@ describe('favourites storage helpers', () => {
   });
   it('recovers the write chain after a rejected write, so a later write still applies', async () => {
     (chrome.storage.local.set as Mock).mockImplementationOnce(() => Promise.reject(new Error('quota exceeded')));
-    await expect(addFavourite(f('will-fail', 9))).rejects.toThrow('quota exceeded');
+    // durableSet swallows the quota rejection (logged, not thrown); the chain
+    // must not stay wedged, so the next write still applies.
+    await addFavourite(f('will-fail', 9));
     // The failed write must not leave writeChain permanently rejected — this
     // write, chained after it, has to still go through against the base mock.
     await addFavourite(f('after-failure', 10));

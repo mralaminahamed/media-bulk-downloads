@@ -2,13 +2,28 @@ import { describe, it, expect } from 'vitest';
 import {
   emptyQueue, enqueue, claimNext, activeCount, markActive, markDone,
   markFailed, scheduleRetry, cancel, retryFailed, clearFinished,
-  backoffMs, MAX_ATTEMPTS, setProgress, retryAllFailed,
+  backoffMs, MAX_ATTEMPTS, setProgress, retryAllFailed, FINISHED_CAP,
 } from '@mbd/storage/download-queue';
-import type { QueueState } from '@mbd/storage/download-queue';
+import type { QueueState, QueueItem } from '@mbd/storage/download-queue';
 
 const T0 = 1_000_000;
 
 describe('download-queue reducer', () => {
+  it('enqueue caps finished (done/failed) items at FINISHED_CAP but keeps every live one', () => {
+    const finished: QueueItem[] = Array.from({ length: FINISHED_CAP + 50 }, (_, i) => ({
+      id: `d${i}`, url: `https://x/${i}.jpg`, filename: `${i}.jpg`, status: 'done' as const,
+      attempts: 1, readyAt: T0, addedAt: T0 + i,
+    }));
+    const live: QueueItem[] = [
+      { id: 'q1', url: 'https://x/live.jpg', filename: 'live.jpg', status: 'queued', attempts: 0, readyAt: T0, addedAt: T0 },
+    ];
+    const s = enqueue({ items: [...finished, ...live], paused: false }, [{ url: 'https://x/new.jpg', filename: 'new.jpg' }], T0 + 9999);
+    const done = s.items.filter((i) => i.status === 'done');
+    expect(done).toHaveLength(FINISHED_CAP);            // oldest 50 finished dropped
+    expect(done.every((i) => i.addedAt >= T0 + 50)).toBe(true); // newest kept
+    expect(s.items.filter((i) => i.status === 'queued')).toHaveLength(2); // both live items survive
+  });
+
   it('enqueue appends queued items and dedupes by url+filename against live items', () => {
     let s = emptyQueue();
     s = enqueue(s, [{ url: 'https://x/a.jpg', filename: 'a.jpg' }], T0);
