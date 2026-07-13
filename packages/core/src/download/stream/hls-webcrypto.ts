@@ -9,7 +9,15 @@ import { retryingFetch } from '@mbd/core/net/retry';
 
 // Retry transient segment/manifest failures so one flaky fetch doesn't abort the
 // whole capture. Bound closure: the global fetch must not be invoked unbound.
-const netFetch = retryingFetch((...args: Parameters<typeof fetch>) => fetch(...args));
+//
+// `redirect: 'error'` closes an SSRF-guard bypass: assertSafeCaptureUrl only
+// validates the pre-fetch URL, so a manifest/segment host that passes the guard
+// could 302 to an internal target (169.254.169.254, localhost, a LAN service)
+// that the default redirect:'follow' would then GET from this <all_urls> context.
+// Failing the redirect never issues that internal request; a rare legit
+// redirect just degrades to a fetch error.
+const netFetch = retryingFetch((url: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) =>
+  fetch(url, { ...init, redirect: 'error' }));
 /** A standalone ArrayBuffer copy — WebCrypto's BufferSource params reject the
  *  `ArrayBufferLike` of a plain Uint8Array under strict DOM types. */
 const buf = (u: Uint8Array): ArrayBuffer => u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength) as ArrayBuffer;

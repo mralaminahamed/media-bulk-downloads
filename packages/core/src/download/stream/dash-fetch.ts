@@ -9,7 +9,12 @@ import { retryingFetch } from '@mbd/core/net/retry';
 
 // Retry transient segment/manifest failures so one flaky fetch doesn't abort the
 // whole capture. Bound closure: the global fetch must not be invoked unbound.
-const netFetch = retryingFetch((...args: Parameters<typeof fetch>) => fetch(...args));
+//
+// `redirect: 'error'` closes an SSRF-guard bypass (see browserHlsDeps): the guard
+// checks only the pre-fetch URL, so following a redirect could GET an internal
+// host from this <all_urls> context. Failing the redirect prevents that request.
+const netFetch = retryingFetch((url: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) =>
+  fetch(url, { ...init, redirect: 'error' }));
 
 export function browserDashDeps(onProgress?: (done: number, total: number) => void): DashDeps {
   return {

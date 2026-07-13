@@ -122,7 +122,10 @@ function memoizeFetch(fetchFn: NetDeps['fetch']): NetDeps['fetch'] {
  */
 export async function resolveOriginalsBatch(
   hints: { src: string; hint: ResolveHint }[],
-  deps: NetDeps = { fetch: retryingFetch((...a) => fetch(...a)) },
+  // redirect:'error' — the resolver tier fetches page-influenced hosts from the
+  // background's <all_urls> context; refusing redirects stops a 3xx from steering
+  // a request at an internal host (the extracted URLs are host-pinned separately).
+  deps: NetDeps = { fetch: retryingFetch((url, init) => fetch(url, { ...init, redirect: 'error' })) },
   sniffed?: Map<string, ResolvedMedia>,
 ): Promise<Record<string, ResolvedMedia>> {
   const out: Record<string, ResolvedMedia> = {};
