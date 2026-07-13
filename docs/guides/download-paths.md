@@ -96,3 +96,7 @@ can never point outside `Downloads/`.
 A template with no tokens behaves exactly as the old static subfolder did — an
 existing `downloadPath` like `Media` keeps saving to `Downloads/Media/`. No
 migration.
+
+---
+
+**[← All guides](./README.md)** · [Download](./download.md) · [Download History](./history.md)

@@ -210,3 +210,7 @@ Workflow detail: [Getting Started](./getting-started.md) ·
 [Download paths](./download-paths.md) ·
 [Download History](./history.md) · [Favourites](./favourites.md) ·
 [Badge](./badge.md) · [Bubble](./bubble.md).
+
+---
+
+**[← All guides](./README.md)**

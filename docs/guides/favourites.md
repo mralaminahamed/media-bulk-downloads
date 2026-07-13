@@ -60,3 +60,7 @@ Implementation: `packages/storage/src/favourites.ts`,
 
 See also: [Download](./download.md) · [Download History](./history.md) ·
 [Architecture](./architecture.md).
+
+---
+
+**[← All guides](./README.md)**

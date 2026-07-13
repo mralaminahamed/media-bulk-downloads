@@ -189,3 +189,7 @@ longer tombstoned, or after a transient network blip.
 Related: [Collection Pipeline](./collection-pipeline.md) (the `resolve()`
 registry and passive resolution) · [Deep Scan](./deep-scan.md) (merged results
 carry the same hints) · [Architecture](./architecture.md) · [Download](./download.md).
+
+---
+
+**[← All guides](./README.md)**

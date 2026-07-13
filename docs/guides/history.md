@@ -78,3 +78,7 @@ the `CLEAR_HISTORY` / `REMOVE_HISTORY_ENTRY` / `OPEN_DOWNLOAD_FILE` /
 
 See also: [Download](./download.md) · [Favourites](./favourites.md) ·
 [Architecture](./architecture.md).
+
+---
+
+**[← All guides](./README.md)**

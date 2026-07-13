@@ -141,3 +141,7 @@ docs/architecture/              # monorepo-restructure design record
 ```
 
 Next: [Architecture](./architecture.md).
+
+---
+
+**[← All guides](./README.md)** · [Architecture](./architecture.md) · [Download](./download.md)

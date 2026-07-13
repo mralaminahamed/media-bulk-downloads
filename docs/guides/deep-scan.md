@@ -150,3 +150,7 @@ can say *why* a scan ended early:
 
 Pipeline that each scan round feeds into: [Collection Pipeline](./collection-pipeline.md) ·
 [Resolve Originals](./resolve-originals.md).
+
+---
+
+**[← All guides](./README.md)**

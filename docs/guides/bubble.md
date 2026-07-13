@@ -83,3 +83,7 @@ Inside the panel, collection, filtering, deep scan, and download behave exactly 
 in the popup — the bubble passes in-page implementations of `collect` and
 `deepScan` to the shared `App`. See [Architecture](./architecture.md) and
 [Deep Scan](./deep-scan.md).
+
+---
+
+**[← All guides](./README.md)**

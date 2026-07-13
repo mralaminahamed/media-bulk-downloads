@@ -102,3 +102,8 @@ always runs against the user's actual settings.
   `DOWNLOAD_IMAGES` message — a synthesized `ImageInfo` plus the entry's stored
   `sourcePage` — so the same eligibility check, naming, and
   [download-path](./download-paths.md) tokens apply as any other download.
+
+
+---
+
+**[← All guides](./README.md)** · [Download paths](./download-paths.md) · [Download History](./history.md)

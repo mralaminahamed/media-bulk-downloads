@@ -299,3 +299,7 @@ different thumbnails/proxies that resolve to the same URL collapse to a single
 Related: [Resolve Originals](./resolve-originals.md) (the opt-in network step
 for `resolveHint`/`unresolvedVideo` items) · [Deep Scan](./deep-scan.md) (each
 scan round re-runs this pipeline) · [Download](./download.md).
+
+---
+
+**[← All guides](./README.md)**

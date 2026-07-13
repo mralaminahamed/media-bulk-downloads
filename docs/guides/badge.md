@@ -58,3 +58,7 @@ flowchart LR
 surface that works everywhere.
 
 See [In-page Bubble](./bubble.md) for what `TOGGLE_BUBBLE` does.
+
+---
+
+**[← All guides](./README.md)** · [In-page Bubble](./bubble.md) · [Deep Scan](./deep-scan.md)
