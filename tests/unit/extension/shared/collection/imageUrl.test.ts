@@ -557,6 +557,16 @@ describe('CDN rules — path-based upgrades', () => {
   });
   it('Pinterest size folder -> originals', () => {
     expect(orig('https://i.pinimg.com/564x/aa/bb/cc.jpg')).toBe('https://i.pinimg.com/originals/aa/bb/cc.jpg');
+    // WxH folder (e.g. /200x150/) upgrades too.
+    expect(orig('https://i.pinimg.com/200x150/aa/bb/cc.jpg')).toBe('https://i.pinimg.com/originals/aa/bb/cc.jpg');
+    // Responsive smart-crop folders carry an `_RS` suffix (/30x30_RS/, /75x75_RS/,
+    // /280x280_RS/). These are still keyed by the same hash, so /originals/ exists
+    // (verified HTTP 200 against a real board) — upgrade them like any other size.
+    expect(orig('https://i.pinimg.com/280x280_RS/aa/bb/cc.jpg')).toBe('https://i.pinimg.com/originals/aa/bb/cc.jpg');
+    expect(orig('https://i.pinimg.com/75x75_RS/aa/bb/cc.jpg')).toBe('https://i.pinimg.com/originals/aa/bb/cc.jpg');
+    expect(orig('https://i.pinimg.com/30x30_RS/aa/bb/cc.jpg')).toBe('https://i.pinimg.com/originals/aa/bb/cc.jpg');
+    // Already-original URLs are left untouched (idempotent).
+    expect(orig('https://i.pinimg.com/originals/aa/bb/cc.jpg')).toBe('https://i.pinimg.com/originals/aa/bb/cc.jpg');
   });
   it('YouTube small thumb -> hqdefault; larger variants left untouched', () => {
     // hqdefault is the largest variant guaranteed to exist; maxres/sd often 404
