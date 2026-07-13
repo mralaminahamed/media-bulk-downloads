@@ -61,9 +61,13 @@ IndexedDB, which is not silently evicted:
   `chrome.storage.local` **and** fires a best-effort IndexedDB write. Every mutation
   of a managed store goes through `durableSet` instead of a raw
   `chrome.storage.local.set`.
-- **Fire-and-forget.** `durableSet` returns the *local* set's promise and does
-  **not** await the IDB write (it `.catch`es and warns). Awaiting it would break the
-  single-flush timing of serialized history/queue writes. Don't make it await.
+- **Fire-and-forget mirror, surfaced local outcome.** `durableSet` awaits ONLY the
+  `chrome.storage.local` write and resolves to a `boolean` — `true` if that write
+  persisted, `false` if it rejected (quota) — instead of swallowing the failure; it
+  never rejects. The IDB mirror is NOT awaited (it `.catch`es and warns), because
+  awaiting it would break the single-flush timing of serialized history/queue writes.
+  Don't make it await the mirror. The primary user-action stores (favourites/history/
+  excluded/queue) propagate the boolean so an upper layer can warn on "storage full".
 - **`packages/storage/src/sync.ts`** — at startup `apps/extension/src/extension/background/index.ts` calls
   `persistStorage()` (guarded `navigator.storage.persist()` — best effort) and
   `syncStores()`. `syncStores` reconciles each `MANAGED_KEYS`
