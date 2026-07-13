@@ -102,5 +102,34 @@ describe('threadsResolver', () => {
       document.body.appendChild(img);
       expect(threadsResolver.resolve(u(THUMB), ctx({ el: img }))[0].url).toContain('s2610x2610');
     });
+
+    it('rejects a widest srcset candidate on a non-Meta host and falls back to the input url', () => {
+      // A sponsored/mutated tile whose widest candidate points at a third-party ad
+      // server: it must NOT be surfaced as the "resolved original".
+      document.body.innerHTML = '';
+      const img = document.createElement('img');
+      img.setAttribute('srcset', [
+        'https://ads.evil-cdn.com/tracker.jpg 4000w', // widest, but NOT a Meta CDN host
+        `${BASE}?stp=dst-jpg_e35_s1080x1080&_nc=1 1080w`,
+      ].join(', '));
+      document.body.appendChild(img);
+      const out = threadsResolver.resolve(u(THUMB), ctx({ el: img }));
+      expect(out[0].url).toBe(THUMB); // the Meta-CDN input, not the ad host
+      expect(out[0].url).not.toContain('evil-cdn');
+      expect(out[0].width).toBeUndefined(); // no width from a rejected candidate
+    });
+
+    it('accepts the widest candidate when it IS on a Meta CDN, ignoring lower non-Meta noise', () => {
+      document.body.innerHTML = '';
+      const img = document.createElement('img');
+      img.setAttribute('srcset', [
+        `${BASE}?stp=dst-jpg_e35_s2610x2610&_nc=1 2610w`, // widest + Meta → accepted
+        'https://ads.evil-cdn.com/x.jpg 640w', // smaller, non-Meta → irrelevant to the pick
+      ].join(', '));
+      document.body.appendChild(img);
+      const out = threadsResolver.resolve(u(THUMB), ctx({ el: img }));
+      expect(out[0].url).toContain('s2610x2610');
+      expect(out[0].width).toBe(2610);
+    });
   });
 });
