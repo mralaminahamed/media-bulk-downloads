@@ -9,7 +9,7 @@
   "description": "Cross-browser (Chrome, Firefox, Edge) Manifest V3 extension to bulk-download media from any web page — images (srcset, <picture>, CSS backgrounds), video, and audio — at original quality via per-site resolvers (X/Twitter, Instagram, Facebook, Threads, Bluesky, Mastodon, Pinterest, Reddit, Flickr, Vimeo, Dailymotion, and 50+ more) plus HLS/DASH stream capture. Smart type filters, instant preview, and a resilient download queue. Network-free by default.",
   "type": "module",
   "license": "MIT",
-  "author": "Al Amin Ahamed <mrabir.ahamed@gmail.com>",
+  "author": "Al Amin Ahamed <alamin.ahamed.dev@gmail.com>",
   "homepage": "https://github.com/mralaminahamed/media-bulk-downloads#readme",
   "repository": {
     "type": "git",

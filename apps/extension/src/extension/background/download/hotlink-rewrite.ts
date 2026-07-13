@@ -56,10 +56,12 @@ export async function applyRefererRule(url: string, refererPageUrl?: string): Pr
       {
         id,
         priority: 1,
-        // urlFilter is a substring match; the rule lives only for this one retry,
-        // so the blast radius is a single in-flight download window. resourceTypes
-        // omitted → DNR matches all non-frame types, including the download's `other`.
-        condition: { urlFilter: url },
+        // Anchor the filter to the START of the URL (leading `|`) so it matches
+        // only the download itself, not a concurrent request that merely embeds
+        // this URL as a substring (e.g. a proxy `…?u=<url>`). The rule still lives
+        // only for this one in-flight retry window. resourceTypes omitted → DNR
+        // matches all non-frame types, including the download's `other`.
+        condition: { urlFilter: `|${url}` },
         action: {
           type: 'modifyHeaders' as chrome.declarativeNetRequest.RuleActionType,
           requestHeaders,

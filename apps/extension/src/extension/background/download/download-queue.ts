@@ -288,10 +288,10 @@ export async function reconcileQueue(): Promise<void> {
     } catch {
       // search unavailable → treat as needing a requeue rather than losing the item.
     }
-    await withState(async (s) => {
+    const doneItem = await withState(async (s) => {
       const cur = s.items.find((i) => i.id === item.id);
       if (!cur || cur.status !== 'active') return { state: s, value: null };
-      if (completed) return { state: markDone(s, item.id), value: null };
+      if (completed) return { state: markDone(s, item.id), value: cur };
       const items = s.items.map((i) =>
         i.id === item.id
           ? { ...i, status: 'queued' as const, downloadId: undefined, readyAt: Date.now(), bytesReceived: undefined, totalBytes: undefined }
@@ -299,6 +299,12 @@ export async function reconcileQueue(): Promise<void> {
       );
       return { state: { ...s, items }, value: null };
     });
+    // If the SW died after Chrome finished the file, the onChanged:complete event
+    // was never delivered, so record history here — otherwise the file is on disk
+    // but missing from History and the on-disk dedupe set (silently re-downloadable).
+    if (doneItem?.history) {
+      void recordDownloads([{ ...doneItem.history, time: Date.now(), downloadId: item.downloadId }]);
+    }
   }
   void pump();
 }

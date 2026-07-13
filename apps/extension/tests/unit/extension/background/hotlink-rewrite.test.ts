@@ -29,7 +29,7 @@ describe('hotlink-rewrite', () => {
     const id = await applyRefererRule('https://cdn.example.com/img/a.jpg?x=1', 'https://gallery.example.org/album');
     const rule = updateSessionRules.mock.calls[0][0].addRules[0];
     expect(rule.id).toBe(id);
-    expect(rule.condition.urlFilter).toBe('https://cdn.example.com/img/a.jpg?x=1');
+    expect(rule.condition.urlFilter).toBe('|https://cdn.example.com/img/a.jpg?x=1');
     expect(rule.action.type).toBe('modifyHeaders');
     const headers = Object.fromEntries(
       rule.action.requestHeaders.map((h: { header: string; value: string }) => [h.header, h.value]),

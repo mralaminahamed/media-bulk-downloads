@@ -45,7 +45,7 @@ individual is officially representing the community in public spaces.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community leaders responsible for enforcement at
-**mrabir.ahamed@gmail.com**. All complaints will be reviewed and investigated
+**alamin.ahamed.dev@gmail.com**. All complaints will be reviewed and investigated
 promptly and fairly.
 
 ## Attribution

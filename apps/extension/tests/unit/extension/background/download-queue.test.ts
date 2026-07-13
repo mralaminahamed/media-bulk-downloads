@@ -245,6 +245,21 @@ describe('reconcile on restart', () => {
     expect(snap.items[0].status).toBe('done');
   });
 
+  it('records history when the SW-dead completion is reconciled (else the file is missing from History + on-disk dedupe)', async () => {
+    store[QUEUE_KEY] = { paused: false, items: [
+      {
+        id: 'd', url: 'u4', filename: 'f4', status: 'active', attempts: 0, downloadId: 400, readyAt: 0, addedAt: 0,
+        history: { src: 'u4', filename: 'f4', kind: 'image', type: 'image/jpeg', thumbnailSrc: 'u4', sourcePageUrl: '' },
+      },
+    ] };
+    (chrome.downloads.search as ReturnType<typeof vi.fn>).mockResolvedValueOnce([{ id: 400, state: 'complete' }]);
+    await reconcileQueue();
+    await flush();
+    expect((await getQueueSnapshot()).items[0].status).toBe('done');
+    expect(recordDownloads).toHaveBeenCalledOnce();
+    expect(recordDownloads).toHaveBeenCalledWith([expect.objectContaining({ src: 'u4', downloadId: 400 })]);
+  });
+
   it('requeues active→queued when the download is missing/interrupted', async () => {
     store[QUEUE_KEY] = { paused: false, items: [
       { id: 'b', url: 'u2', filename: 'f2', status: 'active', attempts: 0, downloadId: 200, readyAt: 0, addedAt: 0 },
