@@ -554,6 +554,9 @@ describe('sniffer cap eviction + no-sender-tab resolve fallback', () => {
     expect(resolved[kept]).toEqual({ url: 'https://video.twimg.com/801.mp4' }); // most-recent kept
     expect(resolved[evicted]).toBeUndefined(); // oldest evicted → not served from the sniffer
     expect(fetchSpy).toHaveBeenCalled(); // the evicted id fell through to the (default) network dep
+    // ...and the default resolver fetch refuses redirects (SSRF-guard: a 3xx must not
+    // steer this <all_urls> request at an internal host) — the redirect:'error' init (I9).
+    expect(fetchSpy).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ redirect: 'error' }));
     (global as unknown as { fetch: unknown }).fetch = realFetch;
   });
 
@@ -1189,6 +1192,40 @@ describe('DOWNLOAD_BYTES router', () => {
     expect(arg.url).toBe('data:image/png;base64,UEsDBA==');
     expect(arg.conflictAction).toBe('uniquify');
   });
+
+  it('schedules a metadata sidecar mapped from `source` when metadataSidecar is on (#284, I8)', async () => {
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { metadataSidecar: true } }));
+    loadSettings();
+    await new Promise((r) => setTimeout(r, 0));
+    (scheduleSidecar as Mock).mockClear();
+    (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb?.(88));
+
+    messageHandler(
+      {
+        type: 'DOWNLOAD_BYTES', filename: 'sub/pic.png', b64: 'AAAA', mime: 'image/png',
+        source: {
+          src: 'https://cdn/x.webp?token=SECRET', alt: 'a cat', width: 800, height: 600,
+          type: 'webp', kind: 'image', ext: 'png', fileSize: 1234,
+          sourcePageUrl: 'https://site/p', sourcePageTitle: 'P',
+        },
+      },
+      {},
+      vi.fn(),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    // Scheduled against the converted file's downloadId + requested name; the JSON is
+    // built from the `source` mapping — output `format` = its ext, token stripped.
+    expect(scheduleSidecar).toHaveBeenCalledWith(88, 'sub/pic.png', expect.any(String));
+    const json = JSON.parse((scheduleSidecar as Mock).mock.calls[0][2] as string);
+    expect(json).toMatchObject({ alt: 'a cat', width: 800, height: 600, format: 'png', pageUrl: 'https://site/p', pageTitle: 'P' });
+    expect((scheduleSidecar as Mock).mock.calls[0][2]).not.toContain('SECRET');
+
+    // Restore default settings so sibling tests see metadataSidecar off.
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({}));
+    loadSettings();
+    await new Promise((r) => setTimeout(r, 0));
+  });
 });
 
 describe('CAPTURE_STREAM', () => {
@@ -1222,6 +1259,27 @@ describe('CAPTURE_STREAM', () => {
     );
     expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringContaining('9 segments') });
     expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringContaining('(video + audio)') });
+  });
+
+  it('forwards audioOnly to the offscreen engine and labels the result "(audio only)" (I7)', async () => {
+    (chrome.runtime.sendMessage as Mock).mockResolvedValue({
+      ok: true, blobUrl: 'blob:cap', ext: 'm4a', mime: 'audio/mp4', segmentCount: 5, muxedAudio: false,
+    } as CaptureRunResult);
+    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(7));
+    const sendResponse = vi.fn();
+
+    messageHandler(
+      { type: 'CAPTURE_STREAM', runId: 'run-audio', manifestUrl: item.hlsManifest, item, sourcePage, audioOnly: true },
+      {},
+      sendResponse,
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    // The user's 'Extract audio' click reaches the offscreen engine call...
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'CAPTURE_RUN', audioOnly: true }));
+    // ...and the success note reflects it (not '(video + audio)').
+    expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringContaining('(audio only)') });
   });
 
   it('records the captured stream to history (downloaded mark + dedup, previously skipped)', async () => {
