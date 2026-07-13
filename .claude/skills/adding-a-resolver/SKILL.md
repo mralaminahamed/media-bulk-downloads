@@ -1,17 +1,17 @@
 ---
 name: adding-a-resolver
-description: Add or modify a platform/CDN media resolver (upgrade a thumbnail URL to its original, recognize a video poster, or fetch an exact original). Use when adding support for a new site (Twitter/X, Unsplash, Wallhaven, Pinterest, Shopify, etc.), fixing a wrong "original" URL, or touching src/extension/shared/resolvers or imageUrl.ts.
+description: Add or modify a platform/CDN media resolver (upgrade a thumbnail URL to its original, recognize a video poster, or fetch an exact original). Use when adding support for a new site (Twitter/X, Unsplash, Wallhaven, Pinterest, Shopify, etc.), fixing a wrong "original" URL, or touching packages/core/src/resolvers or imageUrl.ts.
 ---
 
 # Adding a media resolver
 
 The collection engine turns a raw URL into `MediaCandidate[]`. Two layers:
 
-1. **Generic upgrades** — `src/extension/shared/collection/imageUrl.ts`:
+1. **Generic upgrades** — `packages/core/src/collection/imageUrl.ts`:
    `deproxy()` (unwrap Next.js/weserv/Cloudinary), `upgradeToOriginal()` (rewrite
    CDN thumbnails to full size), `parseUrlDimensions()`, `detectType()`,
    `looksLikeMediaUrl()`. Add host-agnostic CDN rules here.
-2. **Platform resolvers** — `src/extension/shared/resolvers/`. The registry in
+2. **Platform resolvers** — `packages/core/src/resolvers/`. The registry in
    `index.ts` runs platform resolvers first, then the generic one last.
 
 ## The Resolver contract (`resolvers/types.ts`)
@@ -66,7 +66,7 @@ interface MediaCandidate {
   emits `unresolvedVideo: true` + `resolveHint: { platform, id }`; the real stream
   is fetched in **Phase-2 `resolvers/network.ts`** (Dailymotion: `player/metadata`
   → the `qualities.auto` HLS master, host-pinned). Add the platform to
-  `ResolvePlatform` in `src/types` when you add a case.
+  `ResolvePlatform` in `packages/core/src/types.ts` when you add a case.
 
 ## Rules
 
@@ -74,8 +74,8 @@ interface MediaCandidate {
   re-add them.
 - Shape-validate any page-controlled value (e.g. a `data-*` id) before putting it
   in a URL path (`/^[a-z0-9]+$/i`).
-- Add tests in `tests/unit/extension/shared/resolvers/<site>.test.ts` (call the
-  resolver directly) and, for collection wiring, `tests/unit/extension/content/collect.test.ts`.
+- Add tests in `packages/core/tests/resolvers/sites/<site>.test.ts` (call the
+  resolver directly) and, for collection wiring, `apps/extension/tests/unit/extension/content/collect.test.ts`.
 - Verify live: bundle the real `collectMedia()` into an IIFE exposing
   `window.__bench` via a Vite/esbuild lib build, inject it into the target page
   with the browser javascript tool, and run it once. Strip query strings from any
@@ -85,8 +85,8 @@ interface MediaCandidate {
 ## References
 
 - Collection pipeline (this repo) — `docs/guides/collection-pipeline.md`,
-  `docs/BENCHMARK.md`
-- Resolver source — `src/extension/shared/resolvers/` and `imageUrl.ts`
+  `docs/guides/resolve-originals.md` (the opt-in network tier), `docs/BENCHMARK.md`
+- Resolver source — `packages/core/src/resolvers/` and `imageUrl.ts`
 - URL API — https://developer.mozilla.org/en-US/docs/Web/API/URL
 - fetch() (network tier runs in the background worker) — https://developer.mozilla.org/en-US/docs/Web/API/fetch
 - Content scripts read the page DOM — https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts

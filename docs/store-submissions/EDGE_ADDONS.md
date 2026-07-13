@@ -24,7 +24,7 @@ identical so both stores match.
 - [ ] `wxt.config.ts` name/description correct; version comes from `apps/extension/package.json`. `yarn build:edge` emits `apps/extension/.output/edge-mv3/manifest.json`.
 - [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`; optional `notifications` and
   `declarativeNetRequestWithHostAccess` (both requested at runtime).
-- [ ] Icons 16/32/48/128 present (`src/public/icon/`) — ✅ already in the build.
+- [ ] Icons 16/32/48/128 present (`apps/extension/src/public/icon/`) — ✅ already in the build.
 - [ ] **Store logo 300×300 PNG** ready (Edge-specific, see §5) — ✅ `assets/v2/store-logo-300x300.png`.
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
 - [ ] At least **1 screenshot** at 1280×800 (or 640×480) (see §5).
