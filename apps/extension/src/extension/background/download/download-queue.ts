@@ -4,6 +4,7 @@ import {
 } from '@mbd/storage/download-queue';
 import { recordDownloads } from '@mbd/storage/history';
 import { applyRefererRule, removeRefererRule, hasDnrPermission } from '@/extension/background/download/hotlink-rewrite';
+import { scheduleSidecar } from '@/extension/background/download/sidecar-writer';
 
 interface Deps {
   getConcurrency: () => number;
@@ -87,6 +88,8 @@ export async function pump(): Promise<void> {
       }));
       scheduleNudge();
     } else {
+      // #284: pair a provenance sidecar to THIS download's real on-disk name (I6).
+      if (claimed.sidecar) scheduleSidecar(downloadId, claimed.filename, claimed.sidecar);
       await withState(async (s) => ({ state: markActive(s, claimed.id, downloadId), value: null }));
       ensureProgressPoll();
     }

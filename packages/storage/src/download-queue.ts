@@ -17,6 +17,9 @@ export interface QueueItem {
   addedAt: number;
   /** Opaque to the reducer; the dispatcher uses it to write history on completion. */
   history?: HistoryDraft;
+  /** Opaque to the reducer; a serialized metadata sidecar (#284) the dispatcher
+   *  writes beside the file — named from its ACTUAL on-disk name — on completion. */
+  sidecar?: string;
   /** Apply the Referer-rewrite DNR rule on this item's next dispatch (#197). Set
    *  after a 403 when the rewrite retry is authorised. */
   useReferer?: boolean;
@@ -42,6 +45,8 @@ export interface EnqueueEntry {
   url: string;
   filename: string;
   history?: HistoryDraft;
+  /** Serialized metadata sidecar (#284), written on completion; see QueueItem.sidecar. */
+  sidecar?: string;
 }
 
 export const MAX_ATTEMPTS = 3;
@@ -91,7 +96,7 @@ export function enqueue(state: QueueState, entries: EnqueueEntry[], now: number)
     seen.add(key);
     additions.push({
       id: makeId(now), url: e.url, filename: e.filename, status: 'queued',
-      attempts: 0, readyAt: now, addedAt: now, history: e.history,
+      attempts: 0, readyAt: now, addedAt: now, history: e.history, sidecar: e.sidecar,
     });
   }
   return { ...state, items: pruneFinished([...state.items, ...additions]) };
