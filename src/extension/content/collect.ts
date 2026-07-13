@@ -20,6 +20,7 @@ import { resolve, MediaCandidate } from '@/extension/shared/resolvers';
 import { twitterGifCandidate, twitterVideoPending } from '@/extension/shared/resolvers/sites/twitter';
 import { instagramPageMedia } from '@/extension/shared/resolvers/sites/instagram';
 import { facebookPageMedia } from '@/extension/shared/resolvers/sites/facebook';
+import { pinterestPageMedia } from '@/extension/shared/resolvers/sites/pinterest';
 import { youtubeVideoId } from '@/extension/shared/resolvers/sites/youtube';
 import { vimeoVideoId } from '@/extension/shared/resolvers/sites/vimeo';
 import { dailymotionVideoId } from '@/extension/shared/resolvers/sites/dailymotion';
@@ -199,10 +200,19 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     seenSources.add(cand.url);
 
     if (cand.kind === 'video' || cand.kind === 'gif') {
+      // A resolver can hand back a streaming manifest (Pinterest's HLS master when
+      // no progressive mp4 exists, etc.) as an ordinary video candidate — it is not
+      // a single downloadable file, so it must route through the same capture path
+      // (`hlsManifest`) as pushHls/pushDash, or it silently bypasses the user's
+      // captureHlsStreams opt-in and downloads as a broken manifest file.
+      const isHls = cand.ext === 'm3u8' || isHlsManifest(cand.url);
+      const isDash = cand.ext === 'mpd' || isDashManifest(cand.url);
       const item: MediaItem = {
         src: cand.url, alt, width: 0, height: 0,
-        type: cand.ext || detectAvType(cand.url), fileSize: 0, isBase64: false, kind: 'video',
+        type: isDash ? 'mpd' : isHls ? 'm3u8' : (cand.ext || detectAvType(cand.url)),
+        fileSize: 0, isBase64: false, kind: 'video',
       };
+      if (isHls || isDash) item.hlsManifest = cand.url;
       if (cand.poster) item.poster = cand.poster;
       if (cand.resolveHint) item.resolveHint = cand.resolveHint;
       if (cand.unresolvedVideo) item.unresolvedVideo = true;
@@ -749,6 +759,14 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     // blob:, virtualized album). No-ops off a photo/video page; deduped by
     // canonicalSrcKey against the walk above.
     for (const cand of facebookPageMedia(pageUrl)) {
+      pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
+    }
+
+    // Pinterest opened pin / feed: surface the sniffed pins (orig image, real mp4,
+    // every carousel slide) for the pin at the page URL, covering media the
+    // virtualized/unhydrated grid hides. No-ops off a /pin/ page; deduped by
+    // canonicalSrcKey against the walk above.
+    for (const cand of pinterestPageMedia(pageUrl)) {
       pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
     }
   }

@@ -86,6 +86,16 @@ export const SRC_KEY_RULES: SrcKeyRule[] = [
     match: (u) => /(?:^|\.)twimg\.com$/i.test(u.hostname),
     key: (u) => `${u.hostname.toLowerCase()}${u.pathname.replace(/:(?:thumb|small|medium|large|orig)$/i, '')}`,
   },
+  {
+    // Pinterest (i.pinimg.com): the leading size folder (236x / 474x / 564x /
+    // <W>x<H> / <W>x<H>_RS) and /originals/ are renditions of one asset — the hash
+    // path (/44/0b/38/<hash>.jpg) is the identity. Mirrors the imageUrl.ts upgrade
+    // regex so a sniffed `orig` and a residual DOM thumbnail dedup to one row.
+    // custom_covers/… and upload/… (distinct, non-upgradeable artifacts) are left
+    // whole by the anchored regex.
+    match: (u) => u.hostname === 'i.pinimg.com',
+    key: (u) => `i.pinimg.com${u.pathname.replace(/^\/(?:\d+x(?:\d+)?(?:_RS)?|originals)\//, '/')}`,
+  },
 ];
 
 /**
