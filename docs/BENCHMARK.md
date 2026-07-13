@@ -9,7 +9,7 @@ discovers on real pages.
 
 - The real `apps/extension/src/extension/content/collect.ts` (with `extract.ts` / `imageUrl.ts` /
   `mediaType.ts` / `resolvers/*`) is bundled unchanged into an IIFE
-  (`esbuild --bundle --format=iife --alias:@=./src`), injected into the page, and
+  (`esbuild --bundle --format=iife --alias:@=./apps/extension/src`), injected into the page, and
   run once. No source is mocked or altered.
 - **Read-only and network-free** — the collector only reads the DOM and rewrites
   URL strings. Nothing is fetched, clicked, or submitted. (Opt-in Phase-2 network
@@ -324,7 +324,8 @@ Bundle the real collector and inject it:
 ```bash
 # bench-entry.ts:  import { collectMedia } from '@/extension/content/collect';
 #                  (window as any).__bench = () => tally(collectMedia());  // by kind/upgraded/hints
-esbuild bench-entry.ts --bundle --format=iife --alias:@=./src --outfile=bench.js
+# Run from the repo root so the `@mbd/*` workspace packages resolve via node_modules.
+esbuild bench-entry.ts --bundle --format=iife --alias:@=./apps/extension/src --outfile=bench.js
 # Inject bench.js into a live page (first viewport, logged-out), scroll to trigger
 # lazy-load, then read JSON.stringify(window.__bench()).
 # Virtualized grids (X /media) mount ~20–24 tiles at once — wait before injecting.
