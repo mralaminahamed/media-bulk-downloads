@@ -1,4 +1,8 @@
 # Generated Xcode wrapper (produced on macOS by convert.sh) — not committed.
+# convert.sh passes --app-name "Media Bulk Downloads"; the converter names the
+# emitted folder after that. Ignore both the spaced form and a space-stripped
+# form so the wrapper never leaks regardless of how the converter renders it.
+/Media Bulk Downloads/
 /MediaBulkDownloads/
 *.xcodeproj/
 *.xcworkspace/
