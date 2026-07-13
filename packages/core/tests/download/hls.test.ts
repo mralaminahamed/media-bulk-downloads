@@ -475,6 +475,40 @@ b.ts
     expect(res.mime).toBe('audio/aac');
   });
 
+  it('audioOnly captures a bare (already-audio) .aac media playlist directly, not refusing', async () => {
+    // The whole stream IS the audio — an audioOnly request should return it, not
+    // demand a separate #EXT-X-MEDIA rendition.
+    const aac = `#EXTM3U
+#EXTINF:4,
+0.aac
+#EXT-X-ENDLIST`;
+    const deps = fakeDeps({}, { 'index.m3u8': aac });
+    const res = await captureHls('https://cdn.test/a/index.m3u8', deps, { audioOnly: true });
+    expect(res.ext).toBe('aac');
+  });
+
+  it('audioOnly captures an audio-only master variant (mp4a codec, no RESOLUTION) directly', async () => {
+    const master = `#EXTM3U
+#EXT-X-STREAM-INF:BANDWIDTH=128000,CODECS="mp4a.40.2"
+audio/a.m3u8
+`;
+    const audio = `#EXTM3U
+#EXTINF:4,
+0.aac
+#EXT-X-ENDLIST`;
+    const deps = fakeDeps({}, { 'master.m3u8': master, 'audio/a.m3u8': audio });
+    const res = await captureHls('https://cdn.test/master.m3u8', deps, { audioOnly: true });
+    expect(res.ext).toBe('aac');
+  });
+
+  it('audioOnly still refuses an ambiguous .ts media playlist with no separate audio rendition', async () => {
+    // .ts can carry video; without a confirming signal we must not ship it as "audio".
+    const deps = fakeDeps({}, { 'index.m3u8': MEDIA_TS });
+    await expect(captureHls('https://cdn.test/v/index.m3u8', deps, { audioOnly: true })).rejects.toMatchObject({
+      code: 'audio-unavailable',
+    });
+  });
+
   it('throws fetch-failed when the AES-128 key is not 16 bytes', async () => {
     const enc = `#EXTM3U
 #EXT-X-KEY:METHOD=AES-128,URI="enc.key"

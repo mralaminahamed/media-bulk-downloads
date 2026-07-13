@@ -273,10 +273,17 @@ export function selectRepresentation(
   return byBw[byBw.length - 1];
 }
 
-/** Refuses live / DRM / video-less manifests before any bytes are fetched. */
-export function assertDownloadable(m: DashManifest): void {
+/** Refuses live / DRM / empty manifests before any bytes are fetched. When
+ *  `audioOnly` is requested, the manifest need only carry an audio Representation
+ *  — a video-less (podcast/radio-style) MPD is legitimately extractable as audio,
+ *  so the video-required guard would wrongly refuse it. */
+export function assertDownloadable(m: DashManifest, audioOnly = false): void {
   if (m.isLive) throw new DashError('live', 'This is a live (dynamic) stream — there is no single file to save.');
   if (m.hasDrm) throw new DashError('drm', 'This stream is DRM-protected and cannot be captured.');
+  if (audioOnly) {
+    if (!m.audio.length) throw new DashError('audio-unavailable', 'This stream has no audio track to extract as audio-only.');
+    return;
+  }
   if (!m.video.length) throw new DashError('no-representations', 'The manifest has no video representation.');
 }
 
@@ -348,7 +355,7 @@ export async function captureDash(url: string, deps: DashDeps, opts: DashCapture
   };
   const xml = await gd.fetchText(url);
   const manifest = parseMpd(xml, url);
-  assertDownloadable(manifest);
+  assertDownloadable(manifest, opts.audioOnly);
 
   // Audio-only (#204): emit just the highest audio Representation as `.m4a`, no
   // re-encode. DASH is always demuxed, so the audio track is directly muxable.

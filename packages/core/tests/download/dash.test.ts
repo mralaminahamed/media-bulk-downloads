@@ -419,6 +419,16 @@ describe('assertDownloadable', () => {
   it('accepts a clear VOD manifest with video', () => {
     expect(() => assertDownloadable({ ...base, video: withVideo })).not.toThrow();
   });
+  it('with audioOnly, checks the AUDIO track instead of requiring video', () => {
+    const withAudio = [{ id: 'a', bandwidth: 1, contentType: 'audio', baseUrl: 'https://x/', template: { startNumber: 1, timescale: 1 } }] as never;
+    // video-less but audio-bearing → allowed for audioOnly, refused otherwise.
+    expect(() => assertDownloadable({ ...base, video: [] as never, audio: withAudio }, true)).not.toThrow();
+    expect(() => assertDownloadable({ ...base, video: [] as never, audio: withAudio })).toThrow(/no video|representation/i);
+    // still refuses when there is no audio either.
+    expect(() => assertDownloadable({ ...base, video: [] as never, audio: [] as never }, true)).toThrow(/audio/i);
+    // DRM/live still refuse first, even with audioOnly.
+    expect(() => assertDownloadable({ ...base, hasDrm: true, video: [] as never, audio: withAudio }, true)).toThrow(/DRM/i);
+  });
 });
 
 describe('captureDash — e2e mux', () => {
@@ -469,6 +479,24 @@ describe('captureDash — e2e mux', () => {
     const videoOnly = VOD_MPD.replace(/<AdaptationSet mimeType="audio\/mp4">[\s\S]*?<\/AdaptationSet>/, '');
     await expect(captureDash('https://cdn.test/manifest.mpd', deps(videoOnly), { audioOnly: true })).rejects.toMatchObject({
       code: 'audio-unavailable',
+    });
+  });
+
+  it('audioOnly extracts a video-LESS (audio-only) MPD instead of refusing no-representations', async () => {
+    // A podcast/radio-style MPD: only an audio AdaptationSet, no video at all.
+    const audioOnlyMpd = VOD_MPD.replace(/<AdaptationSet mimeType="video\/mp4">[\s\S]*?<\/AdaptationSet>/, '');
+    const res = await captureDash('https://cdn.test/manifest.mpd', deps(audioOnlyMpd), { audioOnly: true });
+    expect(res.ext).toBe('m4a');
+    expect(res.muxedAudio).toBe(false);
+    const tracks = tracksOf(res.bytes);
+    expect(tracks).toHaveLength(1);
+    expect(tracks[0].type).toBe('audio');
+  });
+
+  it('a video-less MPD still refuses (no-representations) for a normal — non-audioOnly — download', async () => {
+    const audioOnlyMpd = VOD_MPD.replace(/<AdaptationSet mimeType="video\/mp4">[\s\S]*?<\/AdaptationSet>/, '');
+    await expect(captureDash('https://cdn.test/manifest.mpd', deps(audioOnlyMpd))).rejects.toMatchObject({
+      code: 'no-representations',
     });
   });
 
