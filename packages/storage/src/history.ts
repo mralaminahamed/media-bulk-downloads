@@ -1,25 +1,14 @@
 import { HistoryEntry } from '@mbd/core/types';
 import { canonicalSrcKey } from '@mbd/core/collection/canonical';
 import { durableSet } from '@mbd/storage/idb';
+import { withinByteBudget } from '@mbd/storage/byte-budget';
 
 export const HISTORY_KEY = 'downloadHistory';
 export const HISTORY_CAP = 500;
 // A count cap alone doesn't bound bytes: an entry's `src` can be a full base64
 // data URL, so 500 of them can blow the shared chrome.storage.local quota (~5MB,
-// no unlimitedStorage). Also bound the newest-first list by serialized size.
+// no unlimitedStorage). Also bound the newest-first list by serialized UTF-8 size.
 export const HISTORY_MAX_BYTES = 2_000_000;
-
-/** Keep newest-first entries until the byte budget is hit; always keeps at least one. */
-function withinByteBudget<T>(entries: T[], maxBytes: number): T[] {
-  let total = 0;
-  const out: T[] = [];
-  for (const entry of entries) {
-    total += JSON.stringify(entry).length;
-    if (total > maxBytes && out.length) break;
-    out.push(entry);
-  }
-  return out;
-}
 
 /** Merge new entries into existing: dedup by src (newest wins, front), sorted
  *  newest-first, capped by count and by serialized size. Pure. */
@@ -51,18 +40,19 @@ export async function loadHistory(): Promise<HistoryEntry[]> {
 }
 
 // Serialize read-modify-write ops so concurrent mutations can't clobber each other.
-let writeChain: Promise<void> = Promise.resolve();
-function serialize(task: () => Promise<void>): Promise<void> {
+let writeChain: Promise<unknown> = Promise.resolve();
+function serialize<T>(task: () => Promise<T>): Promise<T> {
   const run = writeChain.then(task, task);
   writeChain = run.catch(() => undefined);
   return run;
 }
 
-export async function recordDownloads(added: HistoryEntry[]): Promise<void> {
-  if (!added.length) return;
+/** Resolves to whether the write persisted (see durableSet); `true` on an empty no-op. */
+export async function recordDownloads(added: HistoryEntry[]): Promise<boolean> {
+  if (!added.length) return true;
   return serialize(async () => {
     const merged = mergeHistory(await loadHistory(), added);
-    await durableSet(HISTORY_KEY, merged);
+    return durableSet(HISTORY_KEY, merged);
   });
 }
 

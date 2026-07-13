@@ -20,4 +20,19 @@ describe('durableSet', () => {
     await new Promise((r) => setTimeout(r, 0)); // let the fire-and-forget mirror write land
     expect(await idbGet('downloadHistory')).toEqual([{ src: 'x' }]);
   });
+
+  it('resolves true when the local write persists', async () => {
+    await expect(durableSet('favourites', [1])).resolves.toBe(true);
+  });
+
+  it('resolves false (never rejects) when the local write is rejected — e.g. QUOTA_BYTES', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    (chrome.storage.local.set as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('QUOTA_BYTES quota exceeded'),
+    );
+    // The outcome is surfaced to the caller instead of being swallowed as success.
+    await expect(durableSet('favourites', [1])).resolves.toBe(false);
+    expect(err).toHaveBeenCalled();
+    err.mockRestore();
+  });
 });
