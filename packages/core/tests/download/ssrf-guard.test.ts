@@ -73,6 +73,30 @@ describe('isSafeCaptureUrl — SSRF guard for stream capture', () => {
     expect(isSafeCaptureUrl('http://printer.local/x')).toBe(false);
   });
 
+  it('rejects wildcard-DNS names that embed a blocked IP (nip.io / sslip.io class)', () => {
+    // These resolve, on the FIRST and only lookup, to the embedded internal IP —
+    // not DNS rebinding, just a name that statically points at a blocked range.
+    // dotted forms
+    expect(isSafeCaptureUrl('http://169.254.169.254.nip.io/latest/meta-data/')).toBe(false);
+    expect(isSafeCaptureUrl('http://127.0.0.1.nip.io/x')).toBe(false);
+    expect(isSafeCaptureUrl('http://10.0.0.1.sslip.io/x')).toBe(false);
+    // a blocked quad not at the head of the name
+    expect(isSafeCaptureUrl('http://sub.192.168.1.1.nip.io/x')).toBe(false);
+    // dashed forms (nip.io / sslip.io / plex.direct LAN form)
+    expect(isSafeCaptureUrl('http://10-0-0-1.sslip.io/x')).toBe(false);
+    expect(isSafeCaptureUrl('http://192-168-1-100.abc123.plex.direct/x')).toBe(false);
+    // 8-hex-digit label (sslip.io hex form) — 7f000001 === 127.0.0.1
+    expect(isSafeCaptureUrl('http://7f000001.sslip.io/x')).toBe(false);
+  });
+
+  it('still allows DNS names that merely contain digits or a PUBLIC embedded IP', () => {
+    expect(isSafeCaptureUrl('http://cdn123.example.com/seg.ts')).toBe(true);
+    expect(isSafeCaptureUrl('http://8.8.8.8.nip.io/x')).toBe(true); // public embedded IP
+    expect(isSafeCaptureUrl('http://1.2.3.4.example.com/x')).toBe(true);
+    expect(isSafeCaptureUrl('http://video-720.cdn.example.com/x')).toBe(true);
+    expect(isSafeCaptureUrl('http://deadbeef.example.com/x')).toBe(true); // 8 hex → 222.173.190.239, public
+  });
+
   it('rejects unparseable input', () => {
     expect(isSafeCaptureUrl('not a url')).toBe(false);
     expect(isSafeCaptureUrl('')).toBe(false);

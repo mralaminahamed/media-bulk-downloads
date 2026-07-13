@@ -3,6 +3,7 @@ import { ImageInfo, SettingsData } from '@mbd/core/types';
 import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { hostFromUrl, registrableDomain, sanitizePathSegment, todayISO } from '@mbd/core/collection/paths';
 import { buildMediaSidecar, serializeSidecar, sidecarName } from '@mbd/core/download/metadata-sidecar';
+import { isSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
 
 /**
  * Builds a single ZIP archive from collected media, run in the popup/bubble
@@ -65,10 +66,18 @@ function uniquePath(path: string, used: Set<string>): string {
   return candidate;
 }
 
-/** Fetch a URL's bytes, or null on any failure (non-ok status, network, empty). */
+/**
+ * Fetch a URL's bytes, or null on any failure (blocked host, non-ok status,
+ * network, empty). This fetch runs with the popup/bubble's `<all_urls>` grant
+ * and bypasses CORS, so a page-controlled media `src` is an SSRF vector — the
+ * same one the stream-capture engines guard against. Refuse a disallowed host
+ * up front, and refuse redirects so a public URL can't 30x into an internal one.
+ * A blocked item returns null and lands in `failed` like any other fetch miss.
+ */
 async function fetchBytes(url: string, doFetch: typeof fetch): Promise<Uint8Array | null> {
+  if (!isSafeCaptureUrl(url)) return null;
   try {
-    const res = await doFetch(url);
+    const res = await doFetch(url, { redirect: 'error' });
     if (!res.ok) return null;
     const buf = await res.arrayBuffer();
     return buf.byteLength > 0 ? new Uint8Array(buf) : null;

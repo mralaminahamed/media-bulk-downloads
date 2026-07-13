@@ -140,6 +140,42 @@ describe('buildZip', () => {
     expect(keysOf(bytes)).toEqual(['photo (2).jpg', 'photo (3).jpg', 'photo.jpg']);
   });
 
+  it('refuses an internal/SSRF target up front and reports it failed — without fetching it', async () => {
+    // The popup/bubble fetch holds <all_urls> and bypasses CORS, so a page-controlled
+    // media URL aimed at cloud metadata must never reach the network.
+    const images = [img('https://cdn/a.jpg'), img('http://169.254.169.254/latest/meta-data/')];
+    const fetched: string[] = [];
+    const fetch = (async (input: Parameters<typeof fetch>[0]) => {
+      fetched.push(String(input));
+      return { ok: true, arrayBuffer: async () => new Uint8Array([9]).buffer } as Response;
+    }) as unknown as typeof fetch;
+
+    const { ok, failed, results } = await buildZip(images, DEFAULT_SETTINGS, undefined, { fetch });
+
+    expect(ok).toBe(1);
+    expect(failed.map((i) => i.src)).toEqual(['http://169.254.169.254/latest/meta-data/']);
+    expect(fetched).toEqual(['https://cdn/a.jpg']); // metadata URL never fetched
+    expect(results[1]).toMatchObject({ ok: false, path: '' });
+  });
+
+  it('rejects a nip.io-style name that embeds an internal IP', async () => {
+    const images = [img('http://169.254.169.254.nip.io/x')];
+    const fetch = makeFetch({ 'http://169.254.169.254.nip.io/x': [1, 2, 3] }); // would succeed if reached
+    const { ok, failed } = await buildZip(images, DEFAULT_SETTINGS, undefined, { fetch });
+    expect(ok).toBe(0);
+    expect(failed.map((i) => i.src)).toEqual(['http://169.254.169.254.nip.io/x']);
+  });
+
+  it('fetches with redirect:"error" so a 30x cannot smuggle the request to an internal host', async () => {
+    const inits: Array<RequestInit | undefined> = [];
+    const fetch = (async (_input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      inits.push(init);
+      return { ok: true, arrayBuffer: async () => new Uint8Array([1]).buffer } as Response;
+    }) as unknown as typeof fetch;
+    await buildZip([img('https://cdn/a.jpg')], DEFAULT_SETTINGS, undefined, { fetch });
+    expect(inits[0]).toMatchObject({ redirect: 'error' });
+  });
+
   it('reports progress once per item', async () => {
     const images = [img('https://cdn/a.jpg'), img('https://cdn/b.jpg')];
     const fetch = makeFetch({ 'https://cdn/a.jpg': [1], 'https://cdn/b.jpg': [2] });

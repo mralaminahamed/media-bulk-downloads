@@ -10,10 +10,17 @@
  * downloads. That is a blind server-side request forgery.
  *
  * Every fetch the capture engines make is routed through `assertSafeCaptureUrl`
- * first. The policy: only http(s), and never a host that resolves (literally, by
- * IP form) to a private, loopback, link-local, CGNAT, or multicast range. A
- * plain DNS name is allowed — we can't resolve it here without a network call,
- * and DNS-rebinding is out of scope for a client that fetches once and discards.
+ * first. The policy: only http(s), and never a host that targets a private,
+ * loopback, link-local, CGNAT, or multicast range — whether written as an IP
+ * literal (decimal/hex/octal/IPv6 too) OR embedded in a wildcard-DNS name such
+ * as `169.254.169.254.nip.io` / `10-0-0-1.sslip.io`, which resolve on the first
+ * and only lookup straight to the embedded internal address (see
+ * `hasEmbeddedBlockedV4`). A plain DNS name with no embedded blocked IP is
+ * allowed. What this canNOT catch, without a runtime DNS lookup we can't perform
+ * in this pure module, is a fully custom domain whose A record points at a
+ * private range; that residual gap needs resolution at fetch time, and true DNS
+ * rebinding (a name that flips between lookups) remains out of scope for a
+ * client that fetches once and discards.
  */
 
 const BLOCKED_HOST_EXACT = new Set(['localhost', 'ip6-localhost', 'ip6-loopback']);
@@ -78,9 +85,41 @@ function isBlockedV6(raw: string): boolean {
 }
 
 /**
+ * A DNS name is not a bare IP literal, but wildcard-DNS services (nip.io,
+ * sslip.io, plex.direct, …) resolve an IP *embedded in the name* right back to
+ * that IP: `169.254.169.254.nip.io`, `10-0-0-1.sslip.io`, and `7f000001.sslip.io`
+ * all point at an internal address on the first (and only) lookup, so the
+ * literal-IP checks above never see it. Scan the labels for an embedded IPv4 in
+ * dotted, dashed, or 8-hex form and block if any decodes to a disallowed range.
+ * An embedded PUBLIC IP (`8.8.8.8.nip.io`) stays allowed.
+ */
+function hasEmbeddedBlockedV4(host: string): boolean {
+  const labels = host.split('.');
+  const blocked = (parts: number[]): boolean => parts.every((p) => p <= 255) && isBlockedV4(parts);
+  // Four consecutive numeric labels forming a dotted quad, anywhere in the name.
+  for (let i = 0; i + 3 < labels.length; i++) {
+    const win = labels.slice(i, i + 4);
+    if (win.every((l) => /^\d{1,3}$/.test(l)) && blocked(win.map(Number))) return true;
+  }
+  for (const label of labels) {
+    // Dashed quad inside one label (10-0-0-1, 192-168-1-100).
+    for (const m of label.matchAll(/(\d{1,3})-(\d{1,3})-(\d{1,3})-(\d{1,3})/g)) {
+      if (blocked([m[1], m[2], m[3], m[4]].map(Number))) return true;
+    }
+    // A single 8-hex-digit label is a packed 32-bit IPv4 (7f000001 → 127.0.0.1).
+    if (/^[0-9a-f]{8}$/i.test(label)) {
+      const n = parseInt(label, 16);
+      if (isBlockedV4([(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255])) return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Whether a URL is safe for the capture engines to fetch. Rejects non-http(s)
- * schemes and any host that (by literal form) targets an internal range. A
- * normal public DNS name or public IP returns true.
+ * schemes and any host that targets an internal range — as an IP literal or as
+ * a wildcard-DNS name embedding one. A normal public DNS name or public IP
+ * returns true.
  */
 export function isSafeCaptureUrl(rawUrl: string): boolean {
   let u: URL;
@@ -102,7 +141,8 @@ export function isSafeCaptureUrl(rawUrl: string): boolean {
   const v4 = dottedV4(host) ?? numericV4(host);
   if (v4) return !isBlockedV4(v4);
 
-  return true; // an ordinary DNS name
+  // An ordinary DNS name — allowed unless it embeds a blocked IP (nip.io class).
+  return !hasEmbeddedBlockedV4(host);
 }
 
 /** Throws if the URL is not safe for the capture engines to fetch. */
