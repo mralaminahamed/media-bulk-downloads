@@ -35,7 +35,7 @@ plus every open shadow root and every reachable same-origin `<iframe>` document
 discovered during the walk (cross-origin frames are skipped) — then two
 top-document-only head passes (`<meta>` hero images and `<link rel=preload>`).
 Every raw, non-base64 URL is routed through `resolve()` — the resolver
-**registry** (`shared/resolvers/index.ts`) — before dedup.
+**registry** (`@mbd/core/resolvers/index.ts`) — before dedup.
 `<video>`/`<audio>` elements mostly bypass the registry (direct file sources
 only), except for a Twitter-specific poster check that can turn a `<video>` into
 an image-shaped candidate of `kind: 'video' | 'gif'`. On a single Instagram
@@ -68,7 +68,7 @@ flowchart TB
   B64 -->|"yes"| MKB["MediaItem kind=image, isBase64:true<br/>size computed locally"]
   B64 -->|"no"| RES["resolve(url, ctx)<br/>ctx.allowNetwork = false"]
 
-  subgraph REG["shared/resolvers — REGISTRY, tried in order (15 entries)"]
+  subgraph REG["@mbd/core/resolvers — REGISTRY, tried in order (15 entries)"]
     direction TB
     TW["twitterResolver<br/>pbs.twimg.com"] -->|"no candidate"| IG
     IG["instagramResolver<br/>*.cdninstagram.com / *.fbcdn.net"] -->|"no candidate"| FB
@@ -116,7 +116,7 @@ so it always fires — either as the real handler for an unrecognized host, or a
 the fallback when a dedicated resolver upstream matched the host but returned no
 candidate for that particular path.
 
-### Extraction sources (`shared/collection/extract.ts`)
+### Extraction sources (`@mbd/core/collection/extract.ts`)
 
 | Source             | Attributes / pattern                                                                                                                                                                                                                                                                                                                                                             |
 |--------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -140,7 +140,7 @@ Beyond the per-element attrs above, `collectMedia()` widens where it looks:
 A perf guard skips the computed-`background-image` pass for elements with no
 layout box (`offsetWidth === 0 && offsetHeight === 0`, e.g. `display:none`).
 
-## Resolver registry (`shared/resolvers/`)
+## Resolver registry (`@mbd/core/resolvers/`)
 
 `resolve(rawUrl, ctx)` scheme-guards to http(s), then tries each `Resolver` in
 `REGISTRY` order — `twitterResolver → instagramResolver → facebookResolver →
@@ -173,7 +173,7 @@ Reddit, Flickr, ArtStation, Magnific, Arc XP, and YouTube each get a
 **dedicated** resolver (14 total); every other host — including the 40+ CDN
 families in the coverage benchmark — falls through to the generic resolver.
 
-## Generic resolver: URL intelligence (`shared/collection/imageUrl.ts`)
+## Generic resolver: URL intelligence (`@mbd/core/collection/imageUrl.ts`)
 
 Reached for any host no dedicated resolver above claims, **plus** the rare
 fallthrough case: `twitterResolver.resolve()` returns `[]` for a

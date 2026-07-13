@@ -70,7 +70,7 @@ sequenceDiagram
   R-->>B: MediaItem[] → merge → render
 ```
 
-## The loop (`shared/collection/deepScan.ts` — pure)
+## The loop (`@mbd/core/collection/deepScan.ts` — pure)
 
 ```mermaid
 flowchart TB

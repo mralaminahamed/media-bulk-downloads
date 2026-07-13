@@ -21,19 +21,19 @@ yarn dev            # Chrome
 # yarn dev:firefox  # Firefox
 ```
 
-`yarn dev` builds `.output/chrome-mv3`, opens a browser with the extension loaded,
+`yarn dev` builds `apps/extension/.output/chrome-mv3`, opens a browser with the extension loaded,
 and auto-reloads on change. To load a build manually:
 
 1. Open `chrome://extensions`.
 2. Enable **Developer mode** (top-right).
-3. Click **Load unpacked** and select `.output/chrome-mv3`.
+3. Click **Load unpacked** and select `apps/extension/.output/chrome-mv3`.
 
 ## Build & package
 
 ```bash
-yarn build          # wxt build → .output/chrome-mv3
+yarn build          # wxt build → apps/extension/.output/chrome-mv3
 yarn build:all      # chrome + firefox + edge
-yarn zip:all        # store-ready zips in .output/
+yarn zip:all        # store-ready zips in apps/extension/.output/
 ```
 
 See the per-store upload matrix in the [README](../../README.md#build--package).
@@ -41,7 +41,7 @@ See the per-store upload matrix in the [README](../../README.md#build--package).
 ## Quality gates
 
 ```bash
-yarn type-check   # wxt prepare + tsc --noEmit
+yarn type-check   # tsc -b packages/* (composite) + app wxt prepare + tsc --noEmit
 yarn lint         # eslint (flat config)
 yarn test         # vitest + Testing Library (jsdom), with coverage
 yarn build        # production build
@@ -88,56 +88,55 @@ Persisted with `chrome.storage.sync`:
 
 ## Where things live
 
+The repo is a yarn-workspaces monorepo: browser-agnostic logic in `packages/*`,
+the WXT app in `apps/extension`. See [Architecture → Workspace layout](./architecture.md#workspace-layout).
+
 ```
-wxt.config.ts                   # WXT build config (manifest fn, targets, zip)
-src/
-  entrypoints/                  # WXT entrypoints → background · content ·
-                                 #   ig/x/fb/hls MAIN-world media sniffers ·
-                                 #   offscreen (HLS/DASH capture) · popup
-  public/icon/                  # extension icons
-  types/                        # shared TypeScript types
-  extension/
-    background/                # MV3 service worker, split by concern:
-      index.ts                 #   wiring + re-exports (badge.ts, download-name.ts)
-      badge.ts                 #   per-tab badge, isInjectableUrl(), popup/bubble mode
-      commands.ts               #   keyboard-shortcut handling
-      context-menu.ts           #   right-click actions
-      message-router.ts         #   ChromeMessage dispatch table
-      state.ts                  #   settings/excluded cache + readiness gates
-      download/                 #   queue, zip/text/bytes downloads, HLS/DASH capture,
-                                 #     hotlink-referer retry
-    content/index.ts            # content-script logic: GET_IMAGES, DEEP_SCAN, bubble mount
-    content/collect.ts          # collectMedia(): DOM -> MediaItem[]
-    content/deepScanRunner.ts   # real-DOM deep-scan bindings
-    components/BrandMark.tsx    # shared icon mark (popup header + bubble launcher)
-    shared/                     # Cross-context logic:
+package.json                    # workspaces root: [packages/*, apps/*] + orchestration scripts
+tsconfig.base.json              # shared compiler options for the packages
+
+packages/
+  core/            @mbd/core    # browser-agnostic domain logic (zero chrome.*)
+    src/
       collection/               #   extract · imageUrl · mediaType · deepScan · filters ·
-                                 #     paths · download-name.ts (buildDownloadFilename)
-      storage/                  #   settings · history · favourites · excluded · backup
-      active-tab/               #   popup↔content bridges: collect / deep-scan /
-                                 #     resolve-originals / capture-stream
-      download/                  #   zip · base64 · convert/ · stream/ (shared helpers)
-      resolvers/                 #   collection-time REGISTRY + opt-in network resolve:
-        index.ts                 #     REGISTRY (15 entries) + resolve() dispatch
-        network.ts                #     opt-in fetch() dispatch (9 platforms)
-        sites/                    #     twitter, instagram, facebook, unsplash, wallhaven,
-                                   #       behance, bsky, pinterest, reddit, flickr,
-                                   #       artstation, magnific, arcxp, youtube, generic
-                                   #       (+ vimeo.ts, id-extraction only)
-        sniffers/                 #     response/hls/ig-media/x-media/fb-media MAIN-world sniffers
-    popup/
-      App.tsx                   # popup shell: grid, filters, header actions
-      components/panels/        # ImageList, FilterToolbar, Settings, HistoryPanel,
-                                 #   FavouritesPanel
-      hooks/useDialog.ts        # shared modal focus-trap/Escape hook
-      utils.ts
-    bubble/
-      Bubble.tsx                # launcher + drag/resize + panel placement
-      mount.tsx                 # Shadow DOM host + React root mount/unmount
-  styles/index.css              # Tailwind v4 + design tokens
-tests/unit/                     # Vitest specs mirroring src/
-tests/e2e/                      # Playwright e2e (real extension in Chromium)
+                                 #     paths · download-name (buildDownloadFilename)
+      resolvers/                #   collection-time REGISTRY + opt-in network resolve:
+        index.ts                 #     REGISTRY + resolve() dispatch
+        network.ts               #     opt-in fetch() dispatch (9 platforms)
+        sites/                   #     per-host resolvers (+ vimeo.ts id-extraction only)
+        sniffers/                #     response/hls/ig/x/fb/pinterest MAIN-world sniffers
+      download/                 #   zip · base64 · convert/ · stream/ (HLS/DASH byte-logic)
+      net/                      #   fetch retry
+      types.ts                  #   shared TypeScript types (ChromeMessage, ImageInfo, …)
+  storage/         @mbd/storage # persistence over chrome.storage + IndexedDB:
+                                 #   settings · history · favourites · excluded · queue ·
+                                 #   per-host memory · backup · sync
+  platform/        @mbd/platform# capability contracts (Downloader/Notifier/HeaderRules/
+                                 #   StreamCaptureHost) + detectCapabilities()
+
+apps/
+  extension/       @mbd/extension
+    wxt.config.ts               # WXT build config (manifest fn, targets, zip)
+    src/
+      entrypoints/              # background · content · ig/x/fb/pinterest/hls MAIN-world
+                                 #   sniffers · offscreen (HLS/DASH capture) · popup
+      public/icon/              # extension icons
+      types/                    # ambient CSS-module declarations
+      extension/
+        background/             # MV3 service worker (badge, commands, context-menu,
+                                 #   message-router, state, download/ queue+capture)
+        content/               # collect.ts (DOM → MediaItem[]) · deepScanRunner · bubble mount
+        components/BrandMark.tsx
+        shared/active-tab/     # popup↔content bridges: collect / deep-scan /
+                                 #   resolve-originals / capture-stream
+        popup/                 # React popup: App.tsx, components/panels/, hooks/
+        bubble/                # in-page bubble (Shadow DOM host + React root)
+      styles/index.css          # Tailwind v4 + design tokens
+    tests/unit/                 # Vitest specs
+    tests/e2e/                  # Playwright e2e (real extension in Chromium)
+
 docs/guides/                    # you are here
+docs/architecture/              # monorepo-restructure design record
 ```
 
 Next: [Architecture](./architecture.md).

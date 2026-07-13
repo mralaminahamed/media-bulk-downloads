@@ -29,7 +29,7 @@ job locally, by attaching a `resolveHint` (or marking a video
 ## What it contacts
 
 Phase two is `resolveOriginal(hint, deps)` in
-`src/extension/shared/resolvers/network.ts`, called from the background
+`packages/core/src/resolvers/network.ts`, called from the background
 service worker only (never from a content script or the popup directly):
 
 | Platform     | Endpoint                                                                                                                                                                                                                                                                   | What it fetches                                                                                                                                                                                                                                                                                                      |
@@ -169,17 +169,17 @@ longer tombstoned, or after a transient network blip.
 
 ## Adding a new resolver
 
-1. Implement the `Resolver` interface (`src/extension/shared/resolvers/types.ts`):
+1. Implement the `Resolver` interface (`packages/core/src/resolvers/types.ts`):
    a `match(u, ctx)` guard and a synchronous, network-free `resolve(u, ctx)`
    that returns `MediaCandidate[]` (`[]` means "not mine / give up, try the
    next one").
-2. Add it to `REGISTRY` in `src/extension/shared/resolvers/index.ts`, **before**
+2. Add it to `REGISTRY` in `packages/core/src/resolvers/index.ts`, **before**
    `genericResolver` — order matters, since the first resolver to return a
    non-empty array wins.
 3. If the exact original needs a network fetch, add the platform to
-   `ResolvePlatform` (`src/types/index.d.ts`), attach a `resolveHint` from
+   `ResolvePlatform` (`packages/core/src/types.ts`), attach a `resolveHint` from
    `resolve()`, and add a case to `resolveOriginal()`
-   (`src/extension/shared/resolvers/network.ts`) — run any URL pulled from a
+   (`packages/core/src/resolvers/network.ts`) — run any URL pulled from a
    response through `pinnedUrl()` before returning it.
 4. A resolver that only needs DOM evidence (no network case at all) can skip
    step 3 entirely — see `wallhavenResolver` when it has extension evidence.
