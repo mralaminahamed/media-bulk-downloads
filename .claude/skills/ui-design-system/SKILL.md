@@ -1,11 +1,11 @@
 ---
 name: ui-design-system
-description: Style the popup / on-page bubble consistently using this repo's "precision-utility" design system (tokens, component classes, radius/height scale, dark mode). Use when editing any React component under src/extension/popup or src/extension/bubble, adding UI, changing colors/spacing/sizing, or when a height/width/color class "isn't applying".
+description: Style the popup / on-page bubble consistently using this repo's "precision-utility" design system (tokens, component classes, radius/height scale, dark mode). Use when editing any React component under apps/extension/src/extension/popup or apps/extension/src/extension/bubble, adding UI, changing colors/spacing/sizing, or when a height/width/color class "isn't applying".
 ---
 
 # UI design system ("precision utility")
 
-Tokens and component classes live in `src/styles/index.css`. Tailwind v4 utilities
+Tokens and component classes live in `apps/extension/src/styles/index.css`. Tailwind v4 utilities
 are available; theme values are CSS variables on `:root, :host` (also inside the
 bubble's Shadow DOM), with a `@media (prefers-color-scheme: dark)` override.
 
@@ -81,7 +81,7 @@ utility carries the `mbd:` prefix — see the prefix section above):
   layout widths (e.g. `mbd:w-[380px]`) as arbitrary — px is the clearer intent there.
 - This shorthand is for Tailwind **class strings only**. CSS-in-JS
   (`style={{ background: 'var(--panel)' }}`) and SVG attributes keep real
-  `var(--…)` — see `src/extension/bubble/Bubble.tsx`.
+  `var(--…)` — see `apps/extension/src/extension/bubble/Bubble.tsx`.
 
 ## Patterns
 
@@ -95,7 +95,7 @@ utility carries the `mbd:` prefix — see the prefix section above):
 
 ## References
 
-- Design tokens + component classes (this repo) — `src/styles/index.css`
+- Design tokens + component classes (this repo) — `apps/extension/src/styles/index.css`
 - Tailwind CSS v4 — https://tailwindcss.com/docs
 - Tailwind v4 CSS-variable shorthand & arbitrary values — https://tailwindcss.com/docs/adding-custom-styles#using-arbitrary-values
 - Tailwind v4 theme variables (how `rounded-*` maps to `--radius-*`) — https://tailwindcss.com/docs/theme

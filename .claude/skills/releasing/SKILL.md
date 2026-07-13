@@ -1,6 +1,6 @@
 ---
 name: releasing
-description: Cut a release and publish this extension to the Chrome Web Store, Microsoft Edge Add-ons, and Firefox Add-ons (AMO). Use when bumping the version, packaging store zips, updating listing/store metadata, tagging a release, working on the tag-triggered release.yml workflow, or debugging a Chrome Web Store API publish failure (unauthorized_client, invalid_grant, publisherId, Unauthorized). Covers the OAuth/credential setup the CWS publish needs.
+description: Ship this extension — cut a release and publish to the Chrome Web Store, Microsoft Edge Add-ons, and Firefox Add-ons (AMO) — and reason about its permissions and privacy posture. Use when bumping the version, packaging store zips, updating listing/store metadata, tagging a release, working on the tag-triggered release.yml workflow, debugging a Chrome Web Store API publish failure (unauthorized_client, invalid_grant, publisherId, Unauthorized), editing manifest permissions, adding an API that needs a new permission, writing store justifications, or answering "what data does it collect / is this private". Covers the OAuth/credential setup the CWS publish needs.
 ---
 
 # Releasing & publishing
@@ -16,7 +16,7 @@ into every browser's manifest.
    ```bash
    corepack yarn zip:all
    ```
-   Produces in `.output/`:
+   Produces in `apps/extension/.output/`:
    - `media-bulk-downloads-<version>-chrome.zip`
    - `media-bulk-downloads-<version>-edge.zip`
    - `media-bulk-downloads-<version>-firefox.zip` **+** `-sources.zip`
@@ -84,13 +84,56 @@ set from one client*): `CHROME_CLIENT_ID`, `CHROME_CLIENT_SECRET`,
 | `unauthorized_client` (token step) | `CLIENT_ID`/`CLIENT_SECRET` don't match the client that issued the refresh token, **or** the client isn't a "Web application". Regenerate all three as a matched set from one Web-application client. |
 | `Unauthorized` (upload step) | The token is valid but the account isn't authorized for the item: it must **own** the item, the Chrome Web Store API must be **enabled**, and after any Developer-Dashboard change you must **publish manually once** before the API will publish. |
 
+## Permissions & privacy (keep in sync with the store justifications)
+
+Declared in `apps/extension/wxt.config.ts` (manifest function). Keep this list and
+`docs/store-submissions/CHROME_WEBSTORE.md` §4 in sync.
+
+| Permission | Why |
+|---|---|
+| `downloads` | Save selected media via `chrome.downloads.download` |
+| `downloads.open` | Open a downloaded file from in-app history (`chrome.downloads.open`) |
+| `storage` | Settings (`storage.sync`) + history (`storage.local`), on-device |
+| `tabs` | Read active tab URL/title to label downloads and open a source URL |
+| `contextMenus` | Right-click actions (download all / this image, favourites) |
+| `offscreen` | Assemble HLS/DASH streams in an offscreen document |
+| host `<all_urls>` | Read media on any page; opt-in original-resolution fetches to media CDNs |
+
+Optional (requested at runtime when the feature enables, never at install):
+
+| Permission | Why |
+|---|---|
+| `notifications` | Desktop toast when a batch finishes (Settings → Downloads) |
+| `declarativeNetRequestWithHostAccess` | "Retry w/ referer" on a hotlink-403: a short-lived single-URL session rule sets the source page as `Referer`/`Origin`, torn down immediately. Must be this variant — Chrome drops plain `declarativeNetRequest` from `optional_permissions`. |
+
+**Before adding a permission:** can an existing one do it? (`activeTab` vs
+`<all_urls>` — but this extension genuinely needs all-URLs for the badge +
+on-any-page collection.) Adding one (esp. `downloads.open`) triggers a
+re-permission prompt on update and needs a store justification — add both. Firefox
+MV3 also needs `browser_specific_settings.gecko.data_collection_permissions` (this
+extension declares `['none']`).
+
+**Privacy stance (must stay true):**
+
+- **Network-free by default** — collection only reads what the page already loaded.
+  The one opt-in exception (`resolveOriginals`) fetches higher-res originals
+  **directly from the media's own CDN**, host-pinned, only while downloading.
+- **No servers, no analytics, no accounts.** Settings/history never leave the
+  device (sync settings stay in the user's own Chrome sync). The durable IndexedDB
+  mirror of history/favourites/excluded/queue (via `navigator.storage.persist()`)
+  is on-device and needs **no** manifest permission.
+- **Scheme allowlist:** only `http(s)` (and `data:image`) is surfaced;
+  page-supplied ids are shape-validated before URL interpolation, API-JSON URLs
+  pinned to https + expected host. `PRIVACY.md` is the published policy — update it
+  if data handling ever changes.
+
 ## Store listing assets & copy
 
 The full submission package — paste-ready name/summary/description, category,
 per-permission justifications, privacy/data disclosures, screenshot specs — lives
 in `docs/store-submissions/CHROME_WEBSTORE.md`. Privacy policy: `PRIVACY.md` (hosted at the repo's
 public URL). Screenshots: 1280×800 or 640×400, 24-bit PNG, no alpha (there's a
-`assets/screenshot-1280x800.png`). Other Chromium browsers (Brave/Opera/Vivaldi)
+`assets/v1/screenshot-1280x800.png`). Other Chromium browsers (Brave/Opera/Vivaldi)
 use the Chrome zip.
 
 ## References
@@ -104,3 +147,7 @@ use the Chrome zip.
 - Edge Add-ons submission — https://learn.microsoft.com/en-us/microsoft-edge/extensions-chromium/publish/publish-extension
 - Firefox AMO submission — https://extensionworkshop.com/documentation/publish/submitting-an-add-on/
 - Semantic Versioning — https://semver.org/
+- Permissions — declare https://developer.chrome.com/docs/extensions/develop/concepts/declare-permissions ·
+  list https://developer.chrome.com/docs/extensions/reference/permissions-list ·
+  CWS user-data policy https://developer.chrome.com/docs/webstore/program-policies/user-data-faq ·
+  Firefox data-collection permissions https://extensionworkshop.com/documentation/develop/data-collection-permissions/
