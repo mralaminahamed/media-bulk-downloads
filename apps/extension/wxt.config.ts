@@ -27,16 +27,16 @@ export default defineConfig({
     name: 'Media Bulk Downloads',
     description:
       'Bulk-download images, video & audio from any web page. Smart type filters, instant preview, original quality — fast and private.',
-    // `offscreen` is Chrome-only (HLS/DASH capture assembles segments in an
-    // offscreen blob doc). Firefox has no chrome.offscreen, and AMO rejects the
-    // permission as invalid — so omit it from the Firefox build.
+    // Safari Web Extensions have no `downloads` or `offscreen` API — omit both
+    // there (the platform seam falls back to an anchor-blob download and an
+    // in-page capture host). `offscreen` is also Chrome-only vs Firefox (AMO
+    // rejects it), so Firefox omits it too.
     permissions: [
-      'downloads',
-      'downloads.open',
+      ...(browser === 'safari' ? [] : ['downloads', 'downloads.open']),
       'storage',
       'tabs',
       'contextMenus',
-      ...(browser === 'firefox' ? [] : ['offscreen']),
+      ...(browser === 'firefox' || browser === 'safari' ? [] : ['offscreen']),
     ],
     // Requested at runtime, so neither shows an install-time permission prompt:
     // `notifications` when the user turns on finish notifications, and
@@ -47,7 +47,9 @@ export default defineConfig({
     // runtime request would never grant. The WithHostAccess variant gives the same
     // chrome.declarativeNetRequest API; its actions apply only to hosts we can access,
     // which is fine since we hold `<all_urls>` as a required host permission.
-    optional_permissions: ['notifications', 'declarativeNetRequestWithHostAccess'],
+    // Safari supports neither notifications nor dynamic DNR header rules, so it
+    // gets no optional permissions (the seam reports both unavailable there).
+    optional_permissions: browser === 'safari' ? [] : ['notifications', 'declarativeNetRequestWithHostAccess'],
     host_permissions: ['<all_urls>'],
     // Chrome/Edge install floor. The hard requirement is `chrome.offscreen`
     // (createDocument/hasDocument, used for HLS/DASH capture) — stable in Chrome
@@ -55,7 +57,7 @@ export default defineConfig({
     // we use no 116+ API (no chrome.runtime.getContexts). Firefox declares its own
     // floor via browser_specific_settings.gecko.strict_min_version below, so this
     // Chromium-only key is omitted there (web-ext would flag it as unknown).
-    ...(browser === 'firefox' ? {} : { minimum_chrome_version: '109' }),
+    ...(browser === 'firefox' || browser === 'safari' ? {} : { minimum_chrome_version: '109' }),
     icons: {
       16: 'icon/16.png',
       32: 'icon/32.png',

@@ -1,0 +1,6 @@
+# Generated Xcode wrapper (produced on macOS by convert.sh) — not committed.
+/MediaBulkDownloads/
+*.xcodeproj/
+*.xcworkspace/
+build/
+DerivedData/
