@@ -17,5 +17,5 @@
     "noEmit": true,
     "types": ["vitest/globals", "node", "chrome"]
   },
-  "include": ["packages/*/tests/**/*.ts", "types/test-modules.d.ts"]
+  "include": ["packages/*/tests/**/*.ts", "tests/test-modules.d.ts"]
 }
