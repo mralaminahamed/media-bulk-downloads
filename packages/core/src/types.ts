@@ -337,9 +337,13 @@ export type CaptureRunResult =
   | { ok: true; blobUrl: string; ext: string; segmentCount: number; muxedAudio: boolean }
   | { ok: false; code: string };
 
-/** Background → popup: the fully-composed status line for a capture. */
+/** Background → popup: the fully-composed status line for a capture. On a
+ *  *refused* capture (DRM / live / SAMPLE-AES / unsupported), `refusal` carries
+ *  the engine code so the popup can offer the "Copy download command" handoff
+ *  (#285) — a header-correct yt-dlp/ffmpeg string the user runs elsewhere. */
 export interface CaptureStreamResponse {
   status: string;
+  refusal?: { code: string };
 }
 
 /**

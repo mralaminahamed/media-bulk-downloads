@@ -20,7 +20,7 @@ export function requestCaptureStream(
   item: ImageInfo,
   sourcePage: { url: string; title?: string },
   onProgress: (done: number, total: number) => void,
-): Promise<string> {
+): Promise<{ status: string; refusal?: { code: string } }> {
   return new Promise((resolve) => {
     const runId = newCaptureRunId();
     const listener = (msg: unknown): void => {
@@ -34,7 +34,7 @@ export function requestCaptureStream(
     chrome.runtime.sendMessage(message, (response?: CaptureStreamResponse) => {
       chrome.runtime.onMessage.removeListener(listener);
       void chrome.runtime.lastError;
-      resolve(response?.status ?? 'Couldn’t capture the stream.');
+      resolve({ status: response?.status ?? 'Couldn’t capture the stream.', refusal: response?.refusal });
     });
   });
 }

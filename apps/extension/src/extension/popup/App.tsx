@@ -6,6 +6,7 @@ import FavouritesPanel from './components/panels/FavouritesPanel';
 import ExcludedPanel from './components/panels/ExcludedPanel';
 import FilterToolbar from './components/FilterToolbar';
 import { DownloadButton } from './components/DownloadButton';
+import { StreamHandoff } from './components/StreamHandoff';
 import { ProgressBar } from './components/ProgressBar';
 import { DownloadQueue } from './components/DownloadQueue';
 import { SaveAsPromptHint } from './components/SaveAsPromptHint';
@@ -28,7 +29,7 @@ import { useExcluded } from './hooks/useExcluded';
 import { useSelection } from './hooks/useSelection';
 import { useSettings } from './hooks/useSettings';
 import { useMediaEngine } from './hooks/useMediaEngine';
-import { useDownloadActions } from './hooks/useDownloadActions';
+import { useDownloadActions, StreamRefusal } from './hooks/useDownloadActions';
 import { usePerHostSettings } from './hooks/usePerHostSettings';
 
 const App: React.FC<AppProps> = ({
@@ -44,6 +45,9 @@ const App: React.FC<AppProps> = ({
   const { downloadedSrcs, isDownloaded } = useDownloadHistory();
   const [showFavourites, setShowFavourites] = useState(false);
   const [showExcluded, setShowExcluded] = useState(false);
+  // A refused stream capture (#285) → the "Copy download command" handoff banner.
+  // Set by useDownloadActions on refusal, cleared on a new attempt or a rescan.
+  const [streamRefusal, setStreamRefusal] = useState<StreamRefusal | null>(null);
   // Selective bulk download: srcs the user has ticked. Scoped to what's shown —
   // pruned whenever the filtered view changes (see the effect below).
   const { selectedSrcs, setSelectedSrcs, handleToggleSelect, handleSelectRange, handleSelectAllShown, handleClearSelection } = useSelection();
@@ -124,6 +128,7 @@ const App: React.FC<AppProps> = ({
     setState,
     setProgress,
     currentSourcePage,
+    onStreamRefused: setStreamRefusal,
   });
 
   const selectedDownloadable = (): ImageInfo[] => downloadable(state.filteredImages).filter((i) => selectedSrcs.has(i.src));
@@ -235,7 +240,7 @@ const App: React.FC<AppProps> = ({
                 className={`mbd:h-4.5 mbd:w-4.5 ${deepScanning ? 'mbd:animate-pulse' : ''}`}
               />
             </button>
-            <button onClick={fetchImages} className="iconbtn" title="Rescan page" aria-label="Rescan page">
+            <button onClick={() => { setStreamRefusal(null); fetchImages(); }} className="iconbtn" title="Rescan page" aria-label="Rescan page">
               <ArrowPathIcon className={`mbd:h-4.5 mbd:w-4.5 ${state.isLoading ? 'mbd:animate-[spin_0.9s_linear_infinite]' : ''}`} />
             </button>
           </div>
@@ -285,6 +290,11 @@ const App: React.FC<AppProps> = ({
       {/* Persistent download queue: per-file status + pause/resume/cancel/retry
           (#196). Renders nothing when the queue is empty. */}
       <DownloadQueue />
+
+      {/* Refused-stream handoff (#285): copy a yt-dlp / ffmpeg command instead. */}
+      {streamRefusal && (
+        <StreamHandoff key={`${streamRefusal.item.src}:${streamRefusal.code}`} refusal={streamRefusal} onDismiss={() => setStreamRefusal(null)} />
+      )}
 
       {/* Action bar */}
       {hasImages && !state.isLoading && (
