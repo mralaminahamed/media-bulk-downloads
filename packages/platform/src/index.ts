@@ -13,6 +13,6 @@
 export type { Downloader, DownloadRequest, DownloadRecord, DownloadQuery, DownloadChangeListener } from './downloader';
 export type { Notifier, NotificationOptions } from './notifier';
 export type { HeaderRules, HeaderOverride } from './header-rules';
-export type { StreamCaptureHost } from './stream-capture';
+export type { StreamCaptureHost, CaptureRunRequest, CaptureRunResult } from './stream-capture';
 export type { Capabilities } from './capabilities';
 export { detectCapabilities } from './capabilities';
