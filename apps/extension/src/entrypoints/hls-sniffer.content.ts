@@ -19,6 +19,11 @@ export default defineContentScript({
   runAt: 'document_start',
   world: 'MAIN',
   main() {
+    // Runs on <all_urls>, so a page with many distinct manifest-shaped request URLs
+    // (rotating DVR query params, or an adversarial `fetch('x'+i+'.m3u8')` loop) would
+    // otherwise grow `seen` without bound in the page's own heap. Cap it, evicting the
+    // oldest (Set preserves insertion order) — mirrors hls-sniff.ts's CAP=500 downstream.
+    const SEEN_CAP = 500;
     const seen = new Set<string>(); // avoid re-posting the same manifest
     const post = (urls: string[]): void => window.postMessage({ source: 'ibd-hls', urls }, location.origin);
     installUrlSniffer({
@@ -26,6 +31,7 @@ export default defineContentScript({
       onUrl: (url) => {
         if (seen.has(url)) return;
         seen.add(url);
+        if (seen.size > SEEN_CAP) seen.delete(seen.values().next().value as string);
         post([url]);
       },
     });

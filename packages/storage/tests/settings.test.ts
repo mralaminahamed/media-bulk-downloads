@@ -117,6 +117,18 @@ describe('downloadConcurrency setting', () => {
   it('falls back to default when absent', () => {
     expect(withDefaults({}).downloadConcurrency).toBe(5);
   });
+  it('clamps a corrupt (synced or imported) value to a sane range', () => {
+    // 0 / negative would stall the queue forever; clamp up to the floor of 1.
+    expect(withDefaults({ downloadConcurrency: 0 as never }).downloadConcurrency).toBe(1);
+    expect(withDefaults({ downloadConcurrency: -3 as never }).downloadConcurrency).toBe(1);
+    // NaN / non-numeric would remove the cap entirely; fall back to the default.
+    expect(withDefaults({ downloadConcurrency: 'many' as never }).downloadConcurrency).toBe(5);
+    expect(withDefaults({ downloadConcurrency: NaN as never }).downloadConcurrency).toBe(5);
+    // An absurdly large value is capped so it can't flood concurrent downloads.
+    expect(withDefaults({ downloadConcurrency: 999 as never }).downloadConcurrency).toBe(20);
+    // A fractional value is floored to an integer.
+    expect(withDefaults({ downloadConcurrency: 3.9 as never }).downloadConcurrency).toBe(3);
+  });
 });
 
 describe('skipDuplicateDownloads setting', () => {

@@ -5,8 +5,8 @@ import {
   hostFromUrl,
   registrableDomain,
   todayISO,
-} from './paths';
-import { avExtensionForType, extensionFromUrl } from './mediaType';
+} from '@mbd/core/collection/paths';
+import { avExtensionForType, extensionFromUrl } from '@mbd/core/collection/mediaType';
 
 /**
  * Naming and folder-path derivation for downloads. Kept in `shared/` (not the

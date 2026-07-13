@@ -34,7 +34,7 @@ so all three stores match.
 - [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, host `<all_urls>`; optional `notifications` and `declarativeNetRequestWithHostAccess` (both
   requested at runtime). Note: `offscreen` is **Chrome-only** — `wxt.config.ts` omits it from the Firefox build (Firefox has no `chrome.offscreen`, and AMO rejects the permission), so HLS/DASH stream
   capture is not available on Firefox.
-- [ ] Icons 16/32/48/128 present (`src/public/icon/`) — ✅ already in the build; AMO uses the manifest icons (no separate store logo).
+- [ ] Icons 16/32/48/128 present (`apps/extension/src/public/icon/`) — ✅ already in the build; AMO uses the manifest icons (no separate store logo).
 - [ ] `yarn lint` and `wxt build -b firefox` pass clean (AMO runs its own validator on upload too).
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
 - [ ] At least **1 screenshot** (see §5).
@@ -191,7 +191,7 @@ screenshot, so paste the ones below. AMO accepts up to 10 — all seven fit.
 
 | Asset        | Size     | Required           | File / caption                                                                                                                          |
 |--------------|----------|--------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
-| Add-on icon  | 128×128  | ✅ (from manifest)  | `src/public/icon/128.png`                                                                                                               |
+| Add-on icon  | 128×128  | ✅ (from manifest)  | `apps/extension/src/public/icon/128.png`                                                                                                               |
 | Screenshot 1 | 1280×800 | ✅ (≥1 recommended) | `assets/v2/screenshot-1-grab-1280x800.png` — **Every image, video, and audio file on the page — in one grid, ready to download.**       |
 | Screenshot 2 | 1280×800 | optional           | `assets/v2/screenshot-2-preview-1280x800.png` — **Preview any item full-size with its dimensions, type, and source.**                   |
 | Screenshot 3 | 1280×800 | optional           | `assets/v2/screenshot-3-settings-1280x800.png` — **Sort downloads into folders with path tokens, naming rules, and format conversion.** |

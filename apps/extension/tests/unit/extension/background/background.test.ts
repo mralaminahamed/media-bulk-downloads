@@ -6,6 +6,13 @@ vi.mock('@mbd/storage/excluded', async () => ({
   clearExcluded: vi.fn().mockResolvedValue(undefined),
 }));
 import * as excludedMod from '@mbd/storage/excluded';
+// The completion-driven sidecar writer is covered in sidecar-writer.test.ts; here we
+// only assert the download surfaces SCHEDULE a sidecar with the right args (#284, I5/I6).
+vi.mock('@/extension/background/download/sidecar-writer', () => ({
+  scheduleSidecar: vi.fn(),
+  __resetSidecarWriter: vi.fn(),
+}));
+import { scheduleSidecar } from '@/extension/background/download/sidecar-writer';
 import * as dlKeys from '@/extension/background/download/downloaded-keys';
 import { SrcKeySet } from '@mbd/core/collection/canonical';
 
@@ -291,7 +298,7 @@ describe('Background Script', () => {
         bubblePanelPlacement: 'anchored',
         bubblePanelPoint: { x: 40, y: 40 },
         resolveOriginals: false,
-        captureHlsStreams: false,
+        captureHlsStreams: false, streamQuality: 'auto', metadataSidecar: false,
         downloadConcurrency: 5,
         excludeEmoji: false,
         deepScanMaxItems: 1000,
@@ -547,6 +554,9 @@ describe('sniffer cap eviction + no-sender-tab resolve fallback', () => {
     expect(resolved[kept]).toEqual({ url: 'https://video.twimg.com/801.mp4' }); // most-recent kept
     expect(resolved[evicted]).toBeUndefined(); // oldest evicted → not served from the sniffer
     expect(fetchSpy).toHaveBeenCalled(); // the evicted id fell through to the (default) network dep
+    // ...and the default resolver fetch refuses redirects (SSRF-guard: a 3xx must not
+    // steer this <all_urls> request at an internal host) — the redirect:'error' init (I9).
+    expect(fetchSpy).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ redirect: 'error' }));
     (global as unknown as { fetch: unknown }).fetch = realFetch;
   });
 
@@ -654,6 +664,34 @@ describe('downloadAndRecord', () => {
     });
     await downloadAndRecord([img('https://c/b.jpg')], undefined);
     expect(chrome.storage.local.set as Mock).not.toHaveBeenCalled();
+  });
+
+  it('#284 (I5): schedules a sidecar for the keyboard/context-menu surface when metadataSidecar is on', async () => {
+    (scheduleSidecar as Mock).mockClear();
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { metadataSidecar: true } }));
+    loadSettings();
+    await new Promise((r) => setTimeout(r, 0));
+    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(50));
+
+    await downloadAndRecord([img('https://c/a.jpg?token=SECRET')], { url: 'https://p', title: 'T' });
+
+    // Scheduled against the media download's id + requested filename (so the writer
+    // can name it from the ACTUAL on-disk name); NOT fired directly at dispatch.
+    expect(scheduleSidecar).toHaveBeenCalledWith(50, 'image_1.jpg', expect.stringContaining('"pageUrl": "https://p"'));
+    const json = (scheduleSidecar as Mock).mock.calls[0][2] as string;
+    expect(json).not.toContain('SECRET'); // token stripped from the provenance record
+
+    // Restore defaults so sibling tests see metadataSidecar off again.
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: {} }));
+    loadSettings();
+    await new Promise((r) => setTimeout(r, 0));
+  });
+
+  it('#284: does NOT schedule a sidecar when metadataSidecar is off (default)', async () => {
+    (scheduleSidecar as Mock).mockClear();
+    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(1));
+    await downloadAndRecord([img('https://c/a.jpg')], undefined);
+    expect(scheduleSidecar).not.toHaveBeenCalled();
   });
 
   it('skips already-downloaded srcs when skipDuplicates is set', async () => {
@@ -765,6 +803,51 @@ describe('DOWNLOAD_IMAGES — settings gate (no ephemeral-worker default-setting
     );
     // History is NOT recorded on dispatch — only on chrome.downloads onChanged=complete.
     expect((local.downloadQueue as { items: { status: string }[] }).items[0].status).toBe('active');
+  });
+
+  it('attaches a metadata sidecar to the queued item when metadataSidecar is on (#284)', async () => {
+    (chrome.storage.sync.get as Mock).mockImplementation((_keys, cb) => cb({ settings: { metadataSidecar: true } }));
+    loadSettings();
+    await new Promise((r) => setTimeout(r, 0)); // let currentSettings pick up the override
+    (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb(1));
+    const local: Record<string, unknown> = {};
+    (chrome.storage.local.get as Mock).mockImplementation(async (k: string) => (k in local ? { [k]: local[k] } : {}));
+    (chrome.storage.local.set as Mock).mockImplementation(async (o: Record<string, unknown>) => { Object.assign(local, o); });
+
+    messageHandler(
+      { type: 'DOWNLOAD_IMAGES', images: [img('https://c/a.jpg?token=SECRET')], sourcePage: { url: 'https://site/page', title: 'Page' } },
+      {},
+      vi.fn(),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    // The sidecar rides on the queue item; the dispatcher writes it beside the file
+    // under its ACTUAL on-disk name on completion (see sidecar-writer) — never a
+    // guessed name fired at dispatch (I6). So NO .json download at dispatch time.
+    expect((chrome.downloads.download as Mock).mock.calls.some((c) => String(c[0].filename).endsWith('.json'))).toBe(false);
+    const item = (local.downloadQueue as { items: { sidecar?: string }[] }).items[0];
+    expect(item.sidecar).toBeTruthy();
+    expect(JSON.parse(item.sidecar!)).toMatchObject({ pageUrl: 'https://site/page', pageTitle: 'Page' });
+    expect(item.sidecar).not.toContain('SECRET'); // the signing token is stripped
+  });
+
+  it('attaches no sidecar to the queued item when metadataSidecar is off (default)', async () => {
+    // Seed an explicit settings object: loadSettings only overwrites
+    // currentSettings when `result.settings` is truthy (state.ts), so an empty
+    // reply would leave a prior test's value in place.
+    (chrome.storage.sync.get as Mock).mockImplementation((_keys, cb) => cb({ settings: { metadataSidecar: false } }));
+    loadSettings();
+    (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb(1));
+    const local: Record<string, unknown> = {};
+    (chrome.storage.local.get as Mock).mockImplementation(async (k: string) => (k in local ? { [k]: local[k] } : {}));
+    (chrome.storage.local.set as Mock).mockImplementation(async (o: Record<string, unknown>) => { Object.assign(local, o); });
+
+    messageHandler({ type: 'DOWNLOAD_IMAGES', images: [img('https://c/a.jpg')], sourcePage: undefined }, {}, vi.fn());
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect((chrome.downloads.download as Mock).mock.calls.some((c) => String(c[0].filename).endsWith('.json'))).toBe(false);
+    const item = (local.downloadQueue as { items: { sidecar?: string }[] }).items[0];
+    expect(item?.sidecar).toBeUndefined();
   });
 });
 
@@ -1109,6 +1192,40 @@ describe('DOWNLOAD_BYTES router', () => {
     expect(arg.url).toBe('data:image/png;base64,UEsDBA==');
     expect(arg.conflictAction).toBe('uniquify');
   });
+
+  it('schedules a metadata sidecar mapped from `source` when metadataSidecar is on (#284, I8)', async () => {
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { metadataSidecar: true } }));
+    loadSettings();
+    await new Promise((r) => setTimeout(r, 0));
+    (scheduleSidecar as Mock).mockClear();
+    (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb?.(88));
+
+    messageHandler(
+      {
+        type: 'DOWNLOAD_BYTES', filename: 'sub/pic.png', b64: 'AAAA', mime: 'image/png',
+        source: {
+          src: 'https://cdn/x.webp?token=SECRET', alt: 'a cat', width: 800, height: 600,
+          type: 'webp', kind: 'image', ext: 'png', fileSize: 1234,
+          sourcePageUrl: 'https://site/p', sourcePageTitle: 'P',
+        },
+      },
+      {},
+      vi.fn(),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    // Scheduled against the converted file's downloadId + requested name; the JSON is
+    // built from the `source` mapping — output `format` = its ext, token stripped.
+    expect(scheduleSidecar).toHaveBeenCalledWith(88, 'sub/pic.png', expect.any(String));
+    const json = JSON.parse((scheduleSidecar as Mock).mock.calls[0][2] as string);
+    expect(json).toMatchObject({ alt: 'a cat', width: 800, height: 600, format: 'png', pageUrl: 'https://site/p', pageTitle: 'P' });
+    expect((scheduleSidecar as Mock).mock.calls[0][2]).not.toContain('SECRET');
+
+    // Restore default settings so sibling tests see metadataSidecar off.
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({}));
+    loadSettings();
+    await new Promise((r) => setTimeout(r, 0));
+  });
 });
 
 describe('CAPTURE_STREAM', () => {
@@ -1142,6 +1259,27 @@ describe('CAPTURE_STREAM', () => {
     );
     expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringContaining('9 segments') });
     expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringContaining('(video + audio)') });
+  });
+
+  it('forwards audioOnly to the offscreen engine and labels the result "(audio only)" (I7)', async () => {
+    (chrome.runtime.sendMessage as Mock).mockResolvedValue({
+      ok: true, blobUrl: 'blob:cap', ext: 'm4a', mime: 'audio/mp4', segmentCount: 5, muxedAudio: false,
+    } as CaptureRunResult);
+    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(7));
+    const sendResponse = vi.fn();
+
+    messageHandler(
+      { type: 'CAPTURE_STREAM', runId: 'run-audio', manifestUrl: item.hlsManifest, item, sourcePage, audioOnly: true },
+      {},
+      sendResponse,
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    // The user's 'Extract audio' click reaches the offscreen engine call...
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'CAPTURE_RUN', audioOnly: true }));
+    // ...and the success note reflects it (not '(video + audio)').
+    expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringContaining('(audio only)') });
   });
 
   it('records the captured stream to history (downloaded mark + dedup, previously skipped)', async () => {
@@ -1190,6 +1328,25 @@ describe('CAPTURE_STREAM', () => {
     await new Promise((r) => setTimeout(r, 0));
 
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'CAPTURE_RUN', engine: 'hls' }));
+  });
+
+  it('maps the global streamQuality setting into CAPTURE_RUN.quality (#288)', async () => {
+    // A fixed-tier pick becomes that height; 'best'/'worst' → the bandwidth extremes.
+    for (const [setting, quality] of [['480', 480], ['best', 'highest'], ['worst', 'lowest']] as const) {
+      (chrome.runtime.sendMessage as Mock).mockReset().mockResolvedValue({
+        ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 1, muxedAudio: false,
+      } as CaptureRunResult);
+      (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(1));
+      (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { streamQuality: setting } }));
+      loadSettings(); // refresh currentSettings with the override
+      await new Promise((r) => setTimeout(r, 0));
+
+      messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-x', manifestUrl: item.hlsManifest, item, sourcePage }, {}, vi.fn());
+      await new Promise((r) => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'CAPTURE_RUN', quality }));
+    }
   });
 
   it('tolerates the concurrent-create race: createDocument rejects but a document now exists, so capture still proceeds', async () => {
@@ -1249,7 +1406,9 @@ describe('CAPTURE_STREAM', () => {
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
     expect(chrome.downloads.download).not.toHaveBeenCalled();
-    expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringMatching(/1 GB/) });
+    // Refusal now also carries the code so the popup can offer the "Copy download
+    // command" handoff (#285).
+    expect(sendResponse).toHaveBeenCalledWith({ status: expect.stringMatching(/1 GB/), refusal: { code: 'too-large' } });
   });
 
   // The offscreen doc broadcasts CAPTURE_PROGRESS via chrome.runtime.sendMessage,

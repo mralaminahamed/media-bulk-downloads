@@ -1,5 +1,6 @@
-import { DashDeps } from './dash';
+import { DashDeps } from '@mbd/core/download/stream/dash';
 import { retryingFetch } from '@mbd/core/net/retry';
+import { readBounded, readBoundedText } from '@mbd/core/download/stream/bounded-fetch';
 
 /**
  * DASH engine deps backed by the browser: an extension page's CORS-free `fetch`
@@ -21,12 +22,12 @@ export function browserDashDeps(onProgress?: (done: number, total: number) => vo
     fetchText: async (url) => {
       const res = await netFetch(url);
       if (!res.ok) throw new Error(`Manifest fetch failed (${res.status}).`);
-      return res.text();
+      return readBoundedText(res);
     },
     fetchBytes: async (url) => {
       const res = await netFetch(url);
       if (!res.ok) throw new Error(`Segment fetch failed (${res.status}).`);
-      return new Uint8Array(await res.arrayBuffer());
+      return readBounded(res);
     },
     concurrency: 6,
     onProgress,

@@ -83,6 +83,38 @@ describe('hls-sniffer content entrypoint', () => {
     }
   });
 
+  it('caps the seen-set on <all_urls> so a page cannot grow it without bound', () => {
+    const post = vi.spyOn(window, 'postMessage').mockImplementation(() => {});
+    try {
+      const { onUrl } = runMain();
+      for (let i = 0; i < 600; i++) onUrl(`https://cdn.example.com/${i}.m3u8`);
+      post.mockClear();
+      const replay = (installReplayOnReady as Mock).mock.calls.at(-1)![1] as () => void;
+      replay();
+      const urls = (post.mock.calls.at(-1)![0] as { urls: string[] }).urls;
+      expect(urls).toHaveLength(500); // capped, not 600
+      expect(urls).toContain('https://cdn.example.com/599.m3u8'); // newest kept
+      expect(urls).not.toContain('https://cdn.example.com/0.m3u8'); // oldest evicted
+    } finally {
+      post.mockRestore();
+    }
+  });
+
+  it('re-posts a manifest whose seen-entry was evicted by the cap (no permanent suppression)', () => {
+    const post = vi.spyOn(window, 'postMessage').mockImplementation(() => {});
+    try {
+      const { onUrl } = runMain();
+      onUrl('https://cdn.example.com/first.m3u8'); // becomes the oldest, later evicted
+      for (let i = 0; i < 600; i++) onUrl(`https://cdn.example.com/f${i}.m3u8`);
+      post.mockClear();
+      onUrl('https://cdn.example.com/first.m3u8'); // evicted → treated as new → posts again
+      expect(post).toHaveBeenCalledTimes(1);
+      expect(post).toHaveBeenCalledWith({ source: 'ibd-hls', urls: ['https://cdn.example.com/first.m3u8'] }, location.origin);
+    } finally {
+      post.mockRestore();
+    }
+  });
+
   it('does not replay when nothing has been seen yet', () => {
     const post = vi.spyOn(window, 'postMessage').mockImplementation(() => {});
     try {

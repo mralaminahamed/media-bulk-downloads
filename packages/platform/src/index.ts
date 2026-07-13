@@ -10,9 +10,9 @@
  * seam is not yet wired — the background still calls chrome.* directly (see the
  * "wire the capability seam" follow-up in docs/architecture/monorepo-restructure.md).
  */
-export type { Downloader, DownloadRequest, DownloadRecord, DownloadQuery, DownloadChangeListener } from './downloader';
-export type { Notifier, NotificationOptions } from './notifier';
-export type { HeaderRules, HeaderOverride } from './header-rules';
-export type { StreamCaptureHost, CaptureRunRequest, CaptureRunResult } from './stream-capture';
-export type { Capabilities } from './capabilities';
-export { detectCapabilities } from './capabilities';
+export type { Downloader, DownloadRequest, DownloadRecord, DownloadQuery, DownloadChangeListener } from '@mbd/platform/downloader';
+export type { Notifier, NotificationOptions } from '@mbd/platform/notifier';
+export type { HeaderRules, HeaderOverride } from '@mbd/platform/header-rules';
+export type { StreamCaptureHost, CaptureRunRequest, CaptureRunResult } from '@mbd/platform/stream-capture';
+export type { Capabilities } from '@mbd/platform/capabilities';
+export { detectCapabilities } from '@mbd/platform/capabilities';

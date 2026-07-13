@@ -12,7 +12,7 @@
  * capped to bound memory on long-lived SPA sessions.
  */
 
-import { isHlsManifest, isDashManifest } from '../../collection/mediaType';
+import { isHlsManifest, isDashManifest } from '@mbd/core/collection/mediaType';
 
 const CAP = 500;
 const manifests = new Set<string>();

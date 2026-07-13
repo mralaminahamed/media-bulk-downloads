@@ -765,6 +765,17 @@ const RULES: CdnRule[] = [
     rewrite: (u) => { u.search = ''; },
   },
   {
+    // Newgrounds art CDN (art.ngfiles.com): the `?f<ts>`/`?<ts>` query is a
+    // cache-buster the CDN ignores — the file is served from the path alone. The
+    // art view page already serves the true original under /images/… (the thumb→full
+    // path is NOT derivable: the /images/ filename carries a content hash + slug
+    // absent from the /thumbnails/ URL), so there is no size upgrade to make; just
+    // drop the cache-buster to canonicalise the URL (helps de-duplication). Verified
+    // live 2026-07-13. See #286.
+    match: (u) => u.hostname === 'art.ngfiles.com',
+    rewrite: (u) => { u.search = ''; },
+  },
+  {
     // DeviantArt (images-wixmp-*.wixmp.com): images carry a /v1/(fit|fill)/w_,h_,
     // q_,strp/ transform and a signed ?token=<JWT>. Upgrade to the token's
     // per-image cap (read from the JWT payload) as /v1/fill/ at q_100, keeping the

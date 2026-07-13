@@ -5,9 +5,23 @@ import { convertImage, isConvertible } from '@mbd/core/download/convert/convert'
 import { u8ToBase64 } from '@mbd/core/download/base64';
 import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { hostFromUrl, registrableDomain, todayISO } from '@mbd/core/collection/paths';
-import { requestCaptureStream } from '../../shared/active-tab/capture-stream-active';
-import { copyText, downloadText, mapWithConcurrency } from '../utils';
-import { downloadable } from '../lib/appHelpers';
+import { requestCaptureStream } from '@/extension/shared/active-tab/capture-stream-active';
+import { copyText, downloadText, mapWithConcurrency } from '@/extension/popup/utils';
+import { downloadable } from '@/extension/popup/lib/appHelpers';
+
+/** A refused/undownloadable stream (#285): the item, the engine refusal code,
+ *  the page it was found on (→ the Referer for the copied command), and whether
+ *  the user asked for audio-only (→ the copied command extracts audio too, rather
+ *  than silently handing back a full-video download). */
+export interface StreamRefusal {
+  item: ImageInfo;
+  code: string;
+  referer: string;
+  audioOnly: boolean;
+  /** The user's stream-quality preference at refusal time, so the copied handoff
+   *  command targets the same rendition the capture would have (not yt-dlp's best). */
+  quality: SettingsData['streamQuality'];
+}
 
 export interface UseDownloadActionsParams {
   settings: SettingsData;
@@ -21,12 +35,21 @@ export interface UseDownloadActionsParams {
    * duplicated here — the same instance App already passes to useFavourites.
    */
   currentSourcePage: () => Promise<{ url: string; title?: string }>;
+  /**
+   * Reports a stream capture that was *refused* (DRM / live / SAMPLE-AES /
+   * unsupported), so App can offer the "Copy download command" handoff (#285).
+   * Called with the refusal on refusal, and with null at the start of each
+   * capture attempt to clear a stale banner.
+   */
+  onStreamRefused?: (refusal: StreamRefusal | null) => void;
 }
 
 export interface UseDownloadActionsResult {
   handleDownload: (images: ImageInfo | ImageInfo[]) => Promise<void>;
   handleBulkDownload: () => void;
   handleSingleImageDownload: (image: ImageInfo) => void;
+  /** Capture a stream item but keep only its audio track, saved as `.m4a` (#204). */
+  handleCaptureAudio: (image: ImageInfo) => void;
   handleDownloadZip: (images: ImageInfo[]) => Promise<void>;
   handleBulkDownloadZip: () => void;
   handleDownloadSelected: () => void;
@@ -50,6 +73,7 @@ export function useDownloadActions({
   setState,
   setProgress,
   currentSourcePage,
+  onStreamRefused,
 }: UseDownloadActionsParams): UseDownloadActionsResult {
   const handleDownload = async (images: ImageInfo | ImageInfo[]): Promise<void> => {
     const list = Array.isArray(images) ? images : [images];
@@ -73,16 +97,24 @@ export function useDownloadActions({
    * into the ProgressBar, and shows the status the background composes. The
    * capture completes even if the popup closes before this resolves.
    */
-  const captureStream = async (item: ImageInfo): Promise<void> => {
+  const captureStream = async (item: ImageInfo, audioOnly = false): Promise<void> => {
     const sourcePage = await currentSourcePage();
-    setProgress({ label: 'Capturing stream', done: 0, total: 0 });
+    // Clear any prior handoff banner before this attempt (#285).
+    onStreamRefused?.(null);
+    const label = audioOnly ? 'Extracting audio' : 'Capturing stream';
+    setProgress({ label, done: 0, total: 0 });
     try {
-      const status = await requestCaptureStream(
+      const { status, refusal } = await requestCaptureStream(
         item,
         sourcePage,
-        (done, total) => setProgress({ label: 'Capturing stream', done, total }),
+        (done, total) => setProgress({ label, done, total }),
+        audioOnly,
       );
       setState((prev) => ({ ...prev, status }));
+      // A refused stream (DRM/live/SAMPLE-AES/unsupported, or audio-unavailable when
+      // extracting audio) becomes a handoff: the page URL is the Referer for the
+      // yt-dlp/ffmpeg command the user copies (#285).
+      if (refusal) onStreamRefused?.({ item, code: refusal.code, referer: sourcePage.url, audioOnly, quality: settings.streamQuality });
     } finally {
       setProgress(null);
     }
@@ -140,12 +172,14 @@ export function useDownloadActions({
         const msg: DownloadBytesMessage = {
           type: 'DOWNLOAD_BYTES', filename, b64: u8ToBase64(converted.bytes), mime: converted.mime,
           // Carry the original identity so the background records it to history
-          // (the "already downloaded" mark + dedup), like a plain download.
+          // (the "already downloaded" mark + dedup), like a plain download — plus
+          // the alt/dimensions and output ext the metadata sidecar needs (#284).
           source: {
             src: img.src, kind: img.kind, type: img.type,
             ...(img.thumbnailSrc ?? img.poster ? { thumbnailSrc: img.thumbnailSrc ?? img.poster } : {}),
             sourcePageUrl: sourcePage.url,
             ...(sourcePage.title ? { sourcePageTitle: sourcePage.title } : {}),
+            alt: img.alt, width: img.width, height: img.height, fileSize: img.fileSize, ext: converted.ext,
           },
         };
         chrome.runtime.sendMessage(msg);
@@ -173,6 +207,8 @@ export function useDownloadActions({
   };
 
   const handleSingleImageDownload = (image: ImageInfo): void => void handleDownload(image);
+
+  const handleCaptureAudio = (image: ImageInfo): void => void captureStream(image, true);
 
   // ── Selective bulk download ────────────────────────────────────────────────
   const handleDownloadSelected = (): void => {
@@ -253,6 +289,7 @@ export function useDownloadActions({
     handleDownload,
     handleBulkDownload,
     handleSingleImageDownload,
+    handleCaptureAudio,
     handleDownloadZip,
     handleBulkDownloadZip,
     handleDownloadSelected,

@@ -7,8 +7,9 @@ import {
 import { filterImagesBySettings, filterExcluded } from '@mbd/core/collection/filters';
 import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { partitionByDownloaded, uniquifyBatchNames } from '@mbd/core/collection/download-dedupe';
-import { downloadedOnDiskKeys } from './download/downloaded-keys';
+import { downloadedOnDiskKeys } from '@/extension/background/download/downloaded-keys';
 import { textToBase64 } from '@mbd/core/download/base64';
+import { buildMediaSidecar, serializeSidecar } from '@mbd/core/download/metadata-sidecar';
 import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk, DiskState } from '@mbd/storage/history';
 import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } from '@mbd/storage/favourites';
 import { addExcluded, removeExcluded, clearExcluded, restoreExcluded } from '@mbd/storage/excluded';
@@ -18,11 +19,12 @@ import { streamErrorMessage } from '@mbd/core/download/stream/stream-error-messa
 import {
   enqueueDownloads, pauseQueue, resumeQueue, cancelQueue, retryQueueItem, getQueueSnapshot,
   clearFinishedQueue, retryAllFailedQueue, openQueueItem,
-} from './download/download-queue';
-import type { HistoryDraft, QueueState } from '@mbd/storage/download-queue';
-import { currentSettings, excludedCache, settingsReady, excludedReady, writeSettingsPatch } from './state';
-import { storeSniffedMedia, snifferByTab, resolveOriginalsBatch } from './sniffer-store';
-import { captureStreamToFile, captureRunTabs } from './download/capture';
+} from '@/extension/background/download/download-queue';
+import { scheduleSidecar } from '@/extension/background/download/sidecar-writer';
+import type { HistoryDraft, EnqueueEntry, QueueState } from '@mbd/storage/download-queue';
+import { currentSettings, excludedCache, settingsReady, excludedReady, writeSettingsPatch } from '@/extension/background/state';
+import { storeSniffedMedia, snifferByTab, resolveOriginalsBatch } from '@/extension/background/sniffer-store';
+import { captureStreamToFile, captureRunTabs } from '@/extension/background/download/capture';
 
 /** Response callback shape for the background message router. */
 export type SendResponse = (
@@ -100,7 +102,12 @@ export const messageRouter: MessageRouter = {
         const paths = uniquifyBatchNames(
           toDownload.map((image, index) => buildDownloadFilename(image, index, currentSettings, sourcePage?.url)),
         );
-        const entries = toDownload.map((image, i) => {
+        // #284: attach a serialized <name>.json provenance sidecar to each queue
+        // entry when enabled. The dispatcher writes it beside the file under its
+        // ACTUAL on-disk name on completion (see sidecar-writer), so it can't
+        // diverge from a media file Chrome uniquified (I6).
+        const capturedAt = new Date().toISOString();
+        const entries: EnqueueEntry[] = toDownload.map((image, i) => {
           const filename = paths[i];
           const history: HistoryDraft = {
             src: image.src,
@@ -111,7 +118,9 @@ export const messageRouter: MessageRouter = {
             sourcePageUrl: sourcePage?.url ?? '',
             sourcePageTitle: sourcePage?.title,
           };
-          return { url: image.src, filename, history };
+          const entry: EnqueueEntry = { url: image.src, filename, history };
+          if (currentSettings.metadataSidecar) entry.sidecar = serializeSidecar(buildMediaSidecar(image, sourcePage, capturedAt));
+          return entry;
         });
         const queued = await enqueueDownloads(entries);
         respond({ status: 'success', message: queuedSkipMessage(queued, skipped) });
@@ -194,13 +203,26 @@ export const messageRouter: MessageRouter = {
     const { filename, b64, mime, source } = message;
     void settingsReady.then(() => {
       const url = `data:${mime};base64,${b64}`;
+      // #284: provenance sidecar for the converted file. The source carries the
+      // original alt/dimensions + output ext, so the .json's `format` matches the
+      // saved file. Built here; WRITTEN by sidecar-writer once the media download
+      // completes, named from its ACTUAL on-disk name so it can't diverge (I6).
+      const sidecarJson = currentSettings.metadataSidecar && source
+        ? serializeSidecar(buildMediaSidecar(
+            { src: source.src, alt: source.alt ?? '', width: source.width ?? 0, height: source.height ?? 0, type: source.type, kind: source.kind, ext: source.ext, fileSize: source.fileSize },
+            { url: source.sourcePageUrl, title: source.sourcePageTitle },
+            new Date().toISOString(),
+          ))
+        : undefined;
       chrome.downloads.download(
         { url, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
         (downloadId) => {
+          if (chrome.runtime.lastError || downloadId === undefined) return;
+          if (sidecarJson) scheduleSidecar(downloadId, filename, sidecarJson);
           // Record the ORIGINAL src so a converted image gets the "already
           // downloaded" mark + dedup like a plain download (history was silently
           // skipped for the whole convert-on-download path).
-          if (chrome.runtime.lastError || downloadId === undefined || !source) return;
+          if (!source) return;
           void recordDownloads([{
             src: source.src,
             filename: filename.split('/').pop() ?? filename,
@@ -322,7 +344,7 @@ export const messageRouter: MessageRouter = {
   },
 
   CAPTURE_STREAM: (message, sender, respond) => {
-    const { runId, item, sourcePage } = message;
+    const { runId, item, sourcePage, audioOnly } = message;
     // Track the originating tab under this run's id (unset for popup captures,
     // whose sender.tab is undefined) so a CAPTURE_PROGRESS broadcast is relayed
     // to it — and only it — even while other captures run concurrently.
@@ -331,13 +353,15 @@ export const messageRouter: MessageRouter = {
     // dependency on the popup, so the download completes even if it closes.
     void settingsReady.then(async () => {
       try {
-        const cap = await captureStreamToFile(item, sourcePage, runId);
+        const cap = await captureStreamToFile(item, sourcePage, runId, audioOnly);
         captureRunTabs.delete(runId);
         if (!cap.ok) {
-          respond({ status: streamErrorMessage(cap.code) });
+          // Refused/undownloadable — surface the code so the popup can offer the
+          // "Copy download command" handoff (#285) instead of a dead end.
+          respond({ status: streamErrorMessage(cap.code), refusal: { code: cap.code } });
           return;
         }
-        const audioNote = cap.muxedAudio ? ' (video + audio)' : '';
+        const audioNote = audioOnly ? ' (audio only)' : cap.muxedAudio ? ' (video + audio)' : '';
         respond({
           status: cap.saved
             ? `Captured ${cap.filename} — ${cap.segmentCount} segments${audioNote}.`

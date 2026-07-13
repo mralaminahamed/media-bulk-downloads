@@ -1,18 +1,16 @@
 import { upgradeToOriginal } from '@mbd/core/collection/imageUrl';
 import { imageExtFromUrl } from '@mbd/core/collection/mediaType';
-import { MediaCandidate, Resolver } from '../types';
+import { MediaCandidate, Resolver } from '@mbd/core/resolvers/types';
 import { PinterestMediaEntry, pinPinimgUrl, pinIdFromUrl, PIN_EXT } from '@mbd/core/resolvers/sniffers/pinterest-media-sniff';
 
 const IMG_HOST = 'i.pinimg.com';
 
-// A pin permalink: /pin/<digits>/ or /pin/<slug>--<digits>/. The id is the
-// trailing run of digits (a slug may itself contain digits/dashes, so anchor on
-// the final `--` and the closing slash).
-const PIN_ID = /\/pin\/(?:[^/]*--)?(\d+)(?:\/|$)/;
-
+// Pin id from the poster's own `/pin/` anchor, else the page url. Reuses
+// pinIdFromUrl (the single source of the /pin/<id> pattern) so the DOM path and
+// the sniffer path can't drift — both accept a slash/query/hash/end terminator.
 function pinIdFrom(el: Element | undefined, pageUrl: string | undefined): string | null {
   const href = el?.closest?.('a[href*="/pin/"]')?.getAttribute('href');
-  return href?.match(PIN_ID)?.[1] ?? pageUrl?.match(PIN_ID)?.[1] ?? null;
+  return pinIdFromUrl(href) ?? pinIdFromUrl(pageUrl);
 }
 
 /**

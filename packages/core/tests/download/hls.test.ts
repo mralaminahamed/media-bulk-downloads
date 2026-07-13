@@ -113,6 +113,41 @@ http://localhost:8080/media.m3u8
   });
 });
 
+describe('captureHls — audio-only picks the best audio group (M6)', () => {
+  it('resolves the AUDIO group from the highest variant, not the video-quality pick', async () => {
+    const MASTER = `#EXTM3U
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="lo",NAME="lo",DEFAULT=YES,URI="audio-lo.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="hi",NAME="hi",DEFAULT=YES,URI="audio-hi.m3u8"
+#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=848x480,AUDIO="lo"
+video-480.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=6000000,RESOLUTION=1920x1080,AUDIO="hi"
+video-1080.m3u8`;
+    const VOD = `#EXTM3U
+#EXT-X-TARGETDURATION:4
+#EXT-X-MEDIA-SEQUENCE:0
+#EXTINF:4.0,
+seg0.ts
+#EXT-X-ENDLIST`;
+    const fetched: string[] = [];
+    const deps = fakeDeps({
+      fetchText: async (u) => {
+        fetched.push(u);
+        if (u.endsWith('master.m3u8')) return MASTER;
+        return VOD; // both the video and audio media playlists are plain TS VOD
+      },
+    });
+    // quality 720 → the video pick is the 480 variant (closest height), whose AUDIO
+    // group is "lo"; the fix must instead resolve audio from the highest variant ("hi").
+    // Plain-TS audio has no fMP4 init, so the capture ultimately refuses — but only
+    // AFTER choosing and fetching the audio rendition, which is what we assert.
+    await expect(
+      captureHls('https://cdn.test/master.m3u8', deps, { audioOnly: true, quality: 720 }),
+    ).rejects.toBeInstanceOf(HlsError);
+    expect(fetched.some((u) => u.endsWith('audio-hi.m3u8'))).toBe(true);
+    expect(fetched.some((u) => u.endsWith('audio-lo.m3u8'))).toBe(false);
+  });
+});
+
 describe('isMasterPlaylist / parseMaster / selectVariant', () => {
   it('detects a master vs a media playlist', () => {
     expect(isMasterPlaylist(MASTER)).toBe(true);
@@ -475,6 +510,40 @@ b.ts
     expect(res.mime).toBe('audio/aac');
   });
 
+  it('audioOnly captures a bare (already-audio) .aac media playlist directly, not refusing', async () => {
+    // The whole stream IS the audio — an audioOnly request should return it, not
+    // demand a separate #EXT-X-MEDIA rendition.
+    const aac = `#EXTM3U
+#EXTINF:4,
+0.aac
+#EXT-X-ENDLIST`;
+    const deps = fakeDeps({}, { 'index.m3u8': aac });
+    const res = await captureHls('https://cdn.test/a/index.m3u8', deps, { audioOnly: true });
+    expect(res.ext).toBe('aac');
+  });
+
+  it('audioOnly captures an audio-only master variant (mp4a codec, no RESOLUTION) directly', async () => {
+    const master = `#EXTM3U
+#EXT-X-STREAM-INF:BANDWIDTH=128000,CODECS="mp4a.40.2"
+audio/a.m3u8
+`;
+    const audio = `#EXTM3U
+#EXTINF:4,
+0.aac
+#EXT-X-ENDLIST`;
+    const deps = fakeDeps({}, { 'master.m3u8': master, 'audio/a.m3u8': audio });
+    const res = await captureHls('https://cdn.test/master.m3u8', deps, { audioOnly: true });
+    expect(res.ext).toBe('aac');
+  });
+
+  it('audioOnly still refuses an ambiguous .ts media playlist with no separate audio rendition', async () => {
+    // .ts can carry video; without a confirming signal we must not ship it as "audio".
+    const deps = fakeDeps({}, { 'index.m3u8': MEDIA_TS });
+    await expect(captureHls('https://cdn.test/v/index.m3u8', deps, { audioOnly: true })).rejects.toMatchObject({
+      code: 'audio-unavailable',
+    });
+  });
+
   it('throws fetch-failed when the AES-128 key is not 16 bytes', async () => {
     const enc = `#EXTM3U
 #EXT-X-KEY:METHOD=AES-128,URI="enc.key"
@@ -719,5 +788,48 @@ video/v.m3u8
     const res = await captureHls('https://cdn.test/master.m3u8', d);
     expect(res.muxedAudio).toBeFalsy();
     expect(res.ext).toBe('mp4'); // fMP4 concat (EXT-X-MAP present), not muxed
+  });
+
+  // ── audio-only (#204) ──────────────────────────────────────────────────────
+  it('audioOnly extracts just the audio rendition → single-track .m4a', async () => {
+    const res = await captureHls('https://cdn.test/master.m3u8', deps(), { audioOnly: true });
+    expect(res.ext).toBe('m4a');
+    expect(res.mime).toBe('audio/mp4');
+    expect(res.muxedAudio).toBe(false);
+    expect(String.fromCharCode(res.bytes[4], res.bytes[5], res.bytes[6], res.bytes[7])).toBe('ftyp');
+    const tracks = tracksOf(res.bytes);
+    expect(tracks).toHaveLength(1);
+    expect(tracks[0].type).toBe('audio');
+  });
+
+  it('audioOnly only fetches the audio track, never the video segments', async () => {
+    const fetched: string[] = [];
+    const d: HlsDeps = { ...deps(), fetchBytes: async (u: string) => { fetched.push(u.split('/').pop()!); return fx(u.split('/').pop()!); } };
+    await captureHls('https://cdn.test/master.m3u8', d, { audioOnly: true });
+    expect(fetched).toContain('a_seg1.m4a');
+    expect(fetched).not.toContain('v_seg1.m4v');
+  });
+
+  it('audioOnly refuses audio-unavailable when audio is muxed into the video (no separate rendition)', async () => {
+    // A plain single media playlist (no master → no audio rendition) has nothing to extract.
+    const d = fakeDeps({}, { 'index.m3u8': MEDIA_TS });
+    await expect(captureHls('https://cdn.test/v/index.m3u8', d, { audioOnly: true })).rejects.toMatchObject({
+      code: 'audio-unavailable',
+    });
+  });
+
+  it('audioOnly still refuses DRM first (refusal precedence unchanged)', async () => {
+    const DRM_PL = `#EXTM3U
+#EXT-X-TARGETDURATION:6
+#EXT-X-MEDIA-SEQUENCE:0
+#EXT-X-KEY:METHOD=SAMPLE-AES,URI="skd://x"
+#EXTINF:6.0,
+seg0.ts
+#EXT-X-ENDLIST
+`;
+    const d = fakeDeps({}, { 'index.m3u8': DRM_PL });
+    await expect(captureHls('https://cdn.test/v/index.m3u8', d, { audioOnly: true })).rejects.toMatchObject({
+      code: 'sample-aes',
+    });
   });
 });

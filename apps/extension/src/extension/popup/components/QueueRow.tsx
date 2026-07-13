@@ -2,7 +2,7 @@ import {
   ArrowPathIcon, CheckCircleIcon, XCircleIcon, ClockIcon, XMarkIcon, ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
 import type { QueueItem, QueueStatus } from '@mbd/storage/download-queue';
-import { formatFileSize } from './ImageList';
+import { formatFileSize } from '@/extension/popup/components/ImageList';
 
 export interface QueueRowProps {
   item: QueueItem;

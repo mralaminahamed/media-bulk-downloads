@@ -1,6 +1,6 @@
 import { upgradeToOriginal } from '@mbd/core/collection/imageUrl';
 import { imageExtFromUrl } from '@mbd/core/collection/mediaType';
-import { MediaCandidate, Resolver } from '../types';
+import { MediaCandidate, Resolver } from '@mbd/core/resolvers/types';
 
 /** Fallback resolver: today's de-proxy + CDN-rule engine, image-only. */
 export const genericResolver: Resolver = {

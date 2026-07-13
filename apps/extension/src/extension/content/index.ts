@@ -7,7 +7,7 @@
  */
 
 import { SettingsData, DeepScanProgress } from '@mbd/core/types';
-import { collectMedia } from './collect';
+import { collectMedia } from '@/extension/content/collect';
 import { ingestSniffedIgMedia } from '@mbd/core/resolvers/sites/instagram';
 import { ingestSniffedFbMedia } from '@mbd/core/resolvers/sites/facebook';
 import { ingestSniffedPinterestMedia } from '@mbd/core/resolvers/sites/pinterest';
@@ -15,18 +15,22 @@ import { isPinterestHost } from '@mbd/core/resolvers/sniffers/pinterest-hosts';
 import { ingestSniffedHls } from '@mbd/core/resolvers/sniffers/hls-sniff';
 import { withDefaults } from '@mbd/storage/settings';
 import { loadEffectiveSettingsForHost } from '@mbd/storage/per-host-settings';
-import { startDeepScan } from './deepScanRunner';
+import { startDeepScan } from '@/extension/content/deepScanRunner';
 import { classifyPage, collectPageSignals } from '@mbd/core/collection/pageType';
 
 // Re-export the pure collection API (kept for tests and other importers).
-export * from './collect';
+export * from '@/extension/content/collect';
 
 // The MAIN-world sniffers only run on their own platforms, so the relay listeners
 // they postMessage to are useful only there. Gate each by host so an unrelated
 // <all_urls> page can't push a forged sniffer envelope — host-pinning downstream
 // already blocks non-CDN URLs, but this removes the listener surface entirely.
 const host = location.hostname;
-const onXHost = host === 'x.com' || host.endsWith('.x.com') || host === 'twitter.com' || host.endsWith('.twitter.com');
+// Bare hosts only — the X sniffer's `matches` are `*://x.com/*` / `*://twitter.com/*`
+// (no `*.` wildcard), so the relay's trust surface must mirror them exactly. (The
+// IG/FB gates below keep their `.host` subdomain checks because those sniffers DO
+// match subdomains.)
+const onXHost = host === 'x.com' || host === 'twitter.com';
 const onIgHost = host === 'instagram.com' || host.endsWith('.instagram.com');
 const onFbHost = host === 'facebook.com' || host.endsWith('.facebook.com');
 const onPinterestHost = isPinterestHost(host);
@@ -140,7 +144,7 @@ chrome.runtime.onMessage.addListener(
       // (#293). smartPageDefaults may reorder collectMedia's hero pass; the
       // channel stays open for the async storage read.
       void loadEffectiveSettingsForHost(location.hostname).then((s) => {
-        sendResponse(collectMedia(undefined, { smartPageDefaults: s.smartPageDefaults }));
+        sendResponse(collectMedia(undefined, { smartPageDefaults: s.smartPageDefaults, resolveOriginals: s.resolveOriginals }));
       });
       return true; // async response — keep the channel open
     } else if (message === 'GET_PAGE_TYPE') {
@@ -191,7 +195,7 @@ let bubbleController: { unmount: () => void } | null = null;
 
 async function mountBubble(settings: SettingsData): Promise<void> {
   if (bubbleController) return;
-  const { mountBubble: mount } = await import('../bubble/mount');
+  const { mountBubble: mount } = await import('@/extension/bubble/mount');
   // A concurrent unmount may have raced in while the chunk loaded.
   if (bubbleController) return;
   bubbleController = mount(settings);

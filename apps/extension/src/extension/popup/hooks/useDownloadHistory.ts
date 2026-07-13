@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ImageInfo } from '@mbd/core/types';
 import { SrcKeySet } from '@mbd/core/collection/canonical';
 import { HISTORY_KEY } from '@mbd/storage/history';
-import { fetchDownloadedOnDisk } from '../utils';
+import { fetchDownloadedOnDisk } from '@/extension/popup/utils';
 
 export interface UseDownloadHistoryResult {
   downloadedSrcs: SrcKeySet;

@@ -419,6 +419,16 @@ describe('assertDownloadable', () => {
   it('accepts a clear VOD manifest with video', () => {
     expect(() => assertDownloadable({ ...base, video: withVideo })).not.toThrow();
   });
+  it('with audioOnly, checks the AUDIO track instead of requiring video', () => {
+    const withAudio = [{ id: 'a', bandwidth: 1, contentType: 'audio', baseUrl: 'https://x/', template: { startNumber: 1, timescale: 1 } }] as never;
+    // video-less but audio-bearing → allowed for audioOnly, refused otherwise.
+    expect(() => assertDownloadable({ ...base, video: [] as never, audio: withAudio }, true)).not.toThrow();
+    expect(() => assertDownloadable({ ...base, video: [] as never, audio: withAudio })).toThrow(/no video|representation/i);
+    // still refuses when there is no audio either.
+    expect(() => assertDownloadable({ ...base, video: [] as never, audio: [] as never }, true)).toThrow(/audio/i);
+    // DRM/live still refuse first, even with audioOnly.
+    expect(() => assertDownloadable({ ...base, hasDrm: true, video: [] as never, audio: withAudio }, true)).toThrow(/DRM/i);
+  });
 });
 
 describe('captureDash — e2e mux', () => {
@@ -443,6 +453,58 @@ describe('captureDash — e2e mux', () => {
     const res = await captureDash('https://cdn.test/manifest.mpd', deps(videoOnly));
     expect(res.muxedAudio).toBe(false);
     expect(tracksOf(res.bytes)).toHaveLength(1);
+  });
+
+  // ── audio-only (#204) ──────────────────────────────────────────────────────
+  it('audioOnly emits just the audio Representation → single-track .m4a', async () => {
+    const res = await captureDash('https://cdn.test/manifest.mpd', deps(), { audioOnly: true });
+    expect(res.ext).toBe('m4a');
+    expect(res.mime).toBe('audio/mp4');
+    expect(res.muxedAudio).toBe(false);
+    expect(String.fromCharCode(res.bytes[4], res.bytes[5], res.bytes[6], res.bytes[7])).toBe('ftyp');
+    const tracks = tracksOf(res.bytes);
+    expect(tracks).toHaveLength(1);
+    expect(tracks[0].type).toBe('audio');
+  });
+
+  it('audioOnly only fetches the audio segments, never the video', async () => {
+    const fetched: string[] = [];
+    const d: DashDeps = { fetchText: async () => VOD_MPD, fetchBytes: async (u: string) => { fetched.push(u.split('/').pop()!); return fx(u.split('/').pop()!); } };
+    await captureDash('https://cdn.test/manifest.mpd', d, { audioOnly: true });
+    expect(fetched.some((n) => n.startsWith('a_'))).toBe(true);
+    expect(fetched.some((n) => n.startsWith('v_'))).toBe(false);
+  });
+
+  it('audioOnly refuses audio-unavailable when the manifest has no audio Representation', async () => {
+    const videoOnly = VOD_MPD.replace(/<AdaptationSet mimeType="audio\/mp4">[\s\S]*?<\/AdaptationSet>/, '');
+    await expect(captureDash('https://cdn.test/manifest.mpd', deps(videoOnly), { audioOnly: true })).rejects.toMatchObject({
+      code: 'audio-unavailable',
+    });
+  });
+
+  it('audioOnly extracts a video-LESS (audio-only) MPD instead of refusing no-representations', async () => {
+    // A podcast/radio-style MPD: only an audio AdaptationSet, no video at all.
+    const audioOnlyMpd = VOD_MPD.replace(/<AdaptationSet mimeType="video\/mp4">[\s\S]*?<\/AdaptationSet>/, '');
+    const res = await captureDash('https://cdn.test/manifest.mpd', deps(audioOnlyMpd), { audioOnly: true });
+    expect(res.ext).toBe('m4a');
+    expect(res.muxedAudio).toBe(false);
+    const tracks = tracksOf(res.bytes);
+    expect(tracks).toHaveLength(1);
+    expect(tracks[0].type).toBe('audio');
+  });
+
+  it('a video-less MPD still refuses (no-representations) for a normal — non-audioOnly — download', async () => {
+    const audioOnlyMpd = VOD_MPD.replace(/<AdaptationSet mimeType="video\/mp4">[\s\S]*?<\/AdaptationSet>/, '');
+    await expect(captureDash('https://cdn.test/manifest.mpd', deps(audioOnlyMpd))).rejects.toMatchObject({
+      code: 'no-representations',
+    });
+  });
+
+  it('audioOnly still refuses DRM first (refusal precedence unchanged)', async () => {
+    const drm = VOD_MPD.replace('<Representation id="v0"', '<ContentProtection schemeIdUri="urn:mpeg:dash:mp4protection:2011"/><Representation id="v0"');
+    await expect(captureDash('https://cdn.test/manifest.mpd', deps(drm), { audioOnly: true })).rejects.toMatchObject({
+      code: 'drm',
+    });
   });
 
   it('throws too-large when the summed bytes exceed maxBytes', async () => {

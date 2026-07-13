@@ -29,8 +29,8 @@
  * are refused too — they have no finite end, so there is no single file to save.
  */
 
-import { muxTracks } from './mux';
-import { assertSafeCaptureUrl } from './ssrf-guard';
+import { muxTracks, muxAudioOnly } from '@mbd/core/download/stream/mux';
+import { assertSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
 
 export type HlsErrorCode =
   | 'no-variants' // master playlist had no usable EXT-X-STREAM-INF
@@ -39,6 +39,7 @@ export type HlsErrorCode =
   | 'sample-aes' // SAMPLE-AES — DRM-adjacent, not plain AES-128
   | 'unsupported-key' // an EXT-X-KEY METHOD we don't implement
   | 'demuxed-unsupported' // separate audio that isn't fMP4, or mp4box couldn't mux
+  | 'audio-unavailable' // audio-only asked, but the audio is muxed into the video (no separate track)
   | 'empty' // playlist had no segments, or nothing downloaded
   | 'too-large' // assembled bytes exceeded opts.maxBytes
   | 'fetch-failed'; // a segment or key could not be fetched
@@ -119,11 +120,15 @@ export interface HlsCaptureOptions {
   quality?: 'highest' | 'lowest' | number;
   /** Refuse once the running assembled size would exceed this (bytes). */
   maxBytes?: number;
+  /** Extract just the audio track as `.m4a` (#204). Only the demuxed case (a
+   *  separate audio rendition) is supported — a single-muxed variant (MPEG-TS or
+   *  audio inside the video fMP4) has no separable track and is refused. */
+  audioOnly?: boolean;
 }
 
 export interface HlsCaptureResult {
   bytes: Uint8Array;
-  ext: 'ts' | 'mp4' | 'aac';
+  ext: 'ts' | 'mp4' | 'aac' | 'm4a';
   mime: string;
   variant?: HlsVariant;
   muxedAudio?: boolean; // true when a separate audio rendition was muxed in
@@ -340,10 +345,31 @@ function guessContainer(segUri: string, hasInit: boolean): HlsCaptureResult['ext
   return 'ts'; // MPEG-TS is the overwhelming default
 }
 
+// Video codecs that can appear in a STREAM-INF CODECS list (h264/h265/vp9/av1/…).
+const VIDEO_CODEC = /(?:^|[,.\s])(?:avc1|avc3|hvc1|hev1|vp0?9|av01|dvh1|dvhe|mp4v)/i;
+
+/**
+ * Whether the SELECTED media playlist is itself the audio — i.e. the whole
+ * stream is audio, with no separate video to demux from. Used so an audio-only
+ * request on such a stream captures directly instead of demanding a distinct
+ * `#EXT-X-MEDIA:TYPE=AUDIO` rendition. Conservative: only says yes when it can
+ * confirm there is no video (an audio-only master variant, or a bare `.aac`
+ * media playlist), never for an ambiguous `.ts`/fMP4 playlist that might carry video.
+ */
+function mediaPlaylistIsAudioOnly(variant: HlsVariant | undefined, ext: HlsCaptureResult['ext']): boolean {
+  if (variant) {
+    if (variant.resolution) return false; // advertises a video resolution
+    if (variant.codecs) return !VIDEO_CODEC.test(variant.codecs); // codecs list carries no video codec
+    return false; // no codecs and no resolution — can't confirm; don't assume audio
+  }
+  return ext === 'aac'; // bare media playlist: only a clearly-audio container qualifies
+}
+
 const MIME: Record<HlsCaptureResult['ext'], string> = {
   ts: 'video/mp2t',
   mp4: 'video/mp4',
   aac: 'audio/aac',
+  m4a: 'audio/mp4',
 };
 
 function concat(chunks: Uint8Array[]): Uint8Array {
@@ -491,14 +517,64 @@ export async function captureHls(
   let variant: HlsVariant | undefined;
   let audioRendition: HlsAudioRendition | undefined;
   if (isMasterPlaylist(rootText)) {
-    variant = selectVariant(parseMaster(rootText, url), opts.quality);
+    const variants = parseMaster(rootText, url);
+    variant = selectVariant(variants, opts.quality);
     mediaUrl = variant.uri;
-    audioRendition = selectAudioRendition(parseAudioRenditions(rootText, url), variant);
+    // For audio-only, resolve the AUDIO group from the highest-quality variant so
+    // the best available audio is used regardless of the user's video-quality
+    // preference (mirrors captureDash's selectRepresentation(manifest.audio,
+    // 'highest')). For a full capture the audio must pair with the chosen video.
+    const audioVariant = opts.audioOnly ? selectVariant(variants, 'highest') : variant;
+    audioRendition = selectAudioRendition(parseAudioRenditions(rootText, url), audioVariant);
   }
 
   const mediaText = mediaUrl === url && !variant ? rootText : await gd.fetchText(mediaUrl);
   const playlist = parseMediaPlaylist(mediaText, mediaUrl);
   assertDownloadable(playlist);
+
+  // Audio-only (#204): extract just the audio as `.m4a`, no re-encode. This needs a
+  // separately-fetchable fMP4 audio track, which exists only in the demuxed case (a
+  // distinct audio rendition). A single-muxed variant (MPEG-TS, or audio inside the
+  // video fMP4) carries no separable track, so refuse rather than ship video or
+  // transcode. The refusal runs after assertDownloadable, so DRM/live still refuse first.
+  if (opts.audioOnly && !audioRendition?.uri) {
+    // No separate demuxed audio rendition. If the media playlist is ITSELF audio
+    // (a bare `.aac` playlist, or an audio-only master variant), the whole stream
+    // is the audio — fall through to the normal single-track path below, which
+    // returns those bytes. Only refuse when we can't confirm it's audio-only.
+    const ext0 = guessContainer(playlist.segments[0]?.uri ?? '', !!playlist.initUri);
+    if (!mediaPlaylistIsAudioOnly(variant, ext0)) {
+      throw new HlsError('audio-unavailable', 'This stream has no separate audio track to extract as audio-only.');
+    }
+  } else if (opts.audioOnly && audioRendition?.uri) {
+    const audioText = await gd.fetchText(audioRendition.uri);
+    const audioPlaylist = parseMediaPlaylist(audioText, audioRendition.uri);
+    assertDownloadable(audioPlaylist);
+    if (!audioPlaylist.initUri) {
+      throw new HlsError('demuxed-unsupported', 'This stream delivers audio in a format that can’t be extracted.');
+    }
+    const totalA = audioPlaylist.segments.length;
+    let doneA = 0;
+    const onSegmentA = (): void => deps.onProgress?.(++doneA, totalA);
+    const budgetA: FetchBudget = { used: 0, max: opts.maxBytes };
+    const audioTrack = await fetchTrack(audioPlaylist, gd, onSegmentA, budgetA);
+    let m4a: Uint8Array;
+    try {
+      m4a = muxAudioOnly({ init: audioTrack.init!, segments: audioTrack.segments });
+    } catch {
+      throw new HlsError('demuxed-unsupported', 'Could not extract this stream’s audio track.');
+    }
+    if (!m4a.length) throw new HlsError('empty', 'Nothing was downloaded from the stream.');
+    return {
+      bytes: m4a,
+      ext: 'm4a',
+      mime: MIME.m4a,
+      variant,
+      muxedAudio: false,
+      segmentCount: totalA,
+      durationSec: Math.round(audioPlaylist.totalDuration),
+    };
+  }
 
   // Demuxed stream: audio ships as its own rendition (separate URI), so the video
   // variant is video-only. mp4box can recombine fMP4 tracks; anything else fails

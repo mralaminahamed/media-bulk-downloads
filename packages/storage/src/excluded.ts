@@ -1,7 +1,8 @@
 import { ExcludedEntry, ExcludedKind } from '@mbd/core/types';
 import { canonicalSrcKey, SrcKeySet } from '@mbd/core/collection/canonical';
 import { registrableDomain } from '@mbd/core/collection/paths';
-import { durableSet } from './idb';
+import { durableSet } from '@mbd/storage/idb';
+import { withinByteBudget } from '@mbd/storage/byte-budget';
 
 /**
  * Blocklist of excluded sources — exact media URLs and hosts — that the
@@ -19,17 +20,6 @@ export const EXCLUDED_MAX_BYTES = 500_000;
 // URL entries dedup by canonical src key (so query/host-variant re-adds collapse);
 // host entries by their exact value.
 const keyOf = (e: ExcludedEntry): string => `${e.kind} ${e.kind === 'url' ? canonicalSrcKey(e.value) : e.value}`;
-
-function withinByteBudget(entries: ExcludedEntry[], maxBytes: number): ExcludedEntry[] {
-  let total = 0;
-  const out: ExcludedEntry[] = [];
-  for (const entry of entries) {
-    total += JSON.stringify(entry).length;
-    if (total > maxBytes && out.length) break;
-    out.push(entry);
-  }
-  return out;
-}
 
 /** Merge added into existing: dedup by kind+value (newest wins, front),
  *  newest-first, capped by count then serialized size. Pure. */
@@ -58,17 +48,18 @@ export async function loadExcluded(): Promise<ExcludedEntry[]> {
     .map((e) => ({ value: (e as ExcludedEntry).value, kind: (e as ExcludedEntry).kind, time: Number((e as ExcludedEntry).time) || 0 }));
 }
 
-let writeChain: Promise<void> = Promise.resolve();
-function serialize(task: () => Promise<void>): Promise<void> {
+let writeChain: Promise<unknown> = Promise.resolve();
+function serialize<T>(task: () => Promise<T>): Promise<T> {
   const run = writeChain.then(task, task);
   writeChain = run.catch(() => undefined);
   return run;
 }
 
-export async function addExcluded(entry: ExcludedEntry): Promise<void> {
+/** Resolves to whether the write persisted (see durableSet). */
+export async function addExcluded(entry: ExcludedEntry): Promise<boolean> {
   return serialize(async () => {
     const merged = mergeExcluded(await loadExcluded(), [entry]);
-    await durableSet(EXCLUDED_KEY, merged);
+    return durableSet(EXCLUDED_KEY, merged);
   });
 }
 

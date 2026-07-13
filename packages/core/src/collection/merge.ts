@@ -1,9 +1,11 @@
-import { canonicalSrcKey } from './canonical';
+import { canonicalSrcKey } from '@mbd/core/collection/canonical';
 import type { ImageInfo } from '@mbd/core/types';
 
 /** Cross-scan identity: a resolver-supplied `mediaKey` (shared by a photo's
- *  thumbnail and its original) when present, else the canonical src key. */
-const identity = (m: ImageInfo): string => m.mediaKey ?? canonicalSrcKey(m.src);
+ *  thumbnail and its original) when present, else the canonical src key.
+ *  Exported so deep-scan's own round-to-round accumulation dedups on the same
+ *  identity this merge uses (structural param → accepts ImageInfo or MediaItem). */
+export const identity = (m: { mediaKey?: string; src: string }): string => m.mediaKey ?? canonicalSrcKey(m.src);
 
 /**
  * Merge a fresh deep-scan result into the already-collected set.

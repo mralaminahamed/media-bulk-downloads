@@ -1,7 +1,7 @@
 import { SettingsData } from '@mbd/core/types';
 import { registrableDomain } from '@mbd/core/collection/paths';
-import { durableSet } from './idb';
-import { loadStoredSettings } from './settings';
+import { durableSet } from '@mbd/storage/idb';
+import { loadStoredSettings } from '@mbd/storage/settings';
 
 /**
  * Per-host preference overrides (#293). A Record<registrableDomain,

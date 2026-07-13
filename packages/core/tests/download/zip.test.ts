@@ -38,6 +38,49 @@ describe('buildZip', () => {
     expect(results.map((r) => r.ok)).toEqual([true, true]);
   });
 
+  it('writes a co-located <name>.json sidecar per fetched item when enabled (#284)', async () => {
+    const images = [img('https://cdn/a.jpg?token=SECRET', { alt: 'first', width: 800, height: 600 })];
+    const fetch = makeFetch({ 'https://cdn/a.jpg?token=SECRET': [1, 2, 3] });
+    const settings: SettingsData = { ...DEFAULT_SETTINGS, metadataSidecar: true };
+
+    const { bytes } = await buildZip(images, settings, 'https://site/page', { fetch, capturedAt: '2026-07-13T12:00:00.000Z' });
+
+    const entries = unzipSync(bytes);
+    expect(Object.keys(entries).sort()).toEqual(['image_1.jpg', 'image_1.jpg.json']);
+    // Media bytes are the fetched ones; the sidecar is valid JSON beside them.
+    expect(Array.from(entries['image_1.jpg'])).toEqual([1, 2, 3]);
+    const meta = JSON.parse(new TextDecoder().decode(entries['image_1.jpg.json']));
+    expect(meta).toMatchObject({ alt: 'first', width: 800, height: 600, pageUrl: 'https://site/page', capturedAt: '2026-07-13T12:00:00.000Z' });
+    expect(meta.src).not.toContain('SECRET'); // secret query stripped
+  });
+
+  it('caps the archive at maxBytes: items past the ceiling go to `failed` (M7)', async () => {
+    const images = [img('https://cdn/a.jpg'), img('https://cdn/b.jpg'), img('https://cdn/c.jpg')];
+    const fetch = makeFetch({
+      'https://cdn/a.jpg': new Array(100).fill(1),
+      'https://cdn/b.jpg': new Array(100).fill(2),
+      'https://cdn/c.jpg': new Array(100).fill(3),
+    });
+    // concurrency 1 → strictly sequential so the byte cap bites deterministically.
+    const { bytes, ok, failed, results } = await buildZip(images, DEFAULT_SETTINGS, undefined, {
+      fetch,
+      concurrency: 1,
+      maxBytes: 250,
+    });
+    expect(ok).toBe(2); // a + b = 200B fit; c would push to 300B > 250 → skipped
+    expect(failed.map((f) => f.src)).toEqual(['https://cdn/c.jpg']);
+    expect(results.map((r) => r.ok)).toEqual([true, true, false]);
+    // the partial archive still contains the two that fit
+    expect(keysOf(bytes)).toEqual(['image_1.jpg', 'image_2.jpg']);
+  });
+
+  it('writes no sidecar when the setting is off (default)', async () => {
+    const images = [img('https://cdn/a.jpg')];
+    const fetch = makeFetch({ 'https://cdn/a.jpg': [1] });
+    const { bytes } = await buildZip(images, DEFAULT_SETTINGS, undefined, { fetch });
+    expect(keysOf(bytes)).toEqual(['image_1.jpg']);
+  });
+
   it('skips a fetch failure, keeps it in `failed`, and still zips the rest', async () => {
     const images = [img('https://cdn/a.jpg'), img('https://cdn/bad.jpg'), img('https://cdn/c.jpg')];
     const fetch = makeFetch({ 'https://cdn/a.jpg': [1], 'https://cdn/bad.jpg': 'fail', 'https://cdn/c.jpg': [2] });
@@ -115,6 +158,42 @@ describe('buildZip', () => {
     const { bytes, ok } = await buildZip(images, settings, undefined, { fetch });
     expect(ok).toBe(3);
     expect(keysOf(bytes)).toEqual(['photo (2).jpg', 'photo (3).jpg', 'photo.jpg']);
+  });
+
+  it('refuses an internal/SSRF target up front and reports it failed — without fetching it', async () => {
+    // The popup/bubble fetch holds <all_urls> and bypasses CORS, so a page-controlled
+    // media URL aimed at cloud metadata must never reach the network.
+    const images = [img('https://cdn/a.jpg'), img('http://169.254.169.254/latest/meta-data/')];
+    const fetched: string[] = [];
+    const spyFetch = (async (input: Parameters<typeof fetch>[0]) => {
+      fetched.push(String(input));
+      return { ok: true, arrayBuffer: async () => new Uint8Array([9]).buffer } as Response;
+    }) as unknown as typeof fetch;
+
+    const { ok, failed, results } = await buildZip(images, DEFAULT_SETTINGS, undefined, { fetch: spyFetch });
+
+    expect(ok).toBe(1);
+    expect(failed.map((i) => i.src)).toEqual(['http://169.254.169.254/latest/meta-data/']);
+    expect(fetched).toEqual(['https://cdn/a.jpg']); // metadata URL never fetched
+    expect(results[1]).toMatchObject({ ok: false, path: '' });
+  });
+
+  it('rejects a nip.io-style name that embeds an internal IP', async () => {
+    const images = [img('http://169.254.169.254.nip.io/x')];
+    const fetch = makeFetch({ 'http://169.254.169.254.nip.io/x': [1, 2, 3] }); // would succeed if reached
+    const { ok, failed } = await buildZip(images, DEFAULT_SETTINGS, undefined, { fetch });
+    expect(ok).toBe(0);
+    expect(failed.map((i) => i.src)).toEqual(['http://169.254.169.254.nip.io/x']);
+  });
+
+  it('fetches with redirect:"error" so a 30x cannot smuggle the request to an internal host', async () => {
+    const inits: Array<RequestInit | undefined> = [];
+    const spyFetch = (async (_input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      inits.push(init);
+      return { ok: true, arrayBuffer: async () => new Uint8Array([1]).buffer } as Response;
+    }) as unknown as typeof fetch;
+    await buildZip([img('https://cdn/a.jpg')], DEFAULT_SETTINGS, undefined, { fetch: spyFetch });
+    expect(inits[0]).toMatchObject({ redirect: 'error' });
   });
 
   it('reports progress once per item', async () => {

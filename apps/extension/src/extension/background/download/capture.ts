@@ -1,9 +1,10 @@
 import { CaptureRunResult, ImageInfo } from '@mbd/core/types';
 import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { recordDownloads } from '@mbd/storage/history';
-import { STREAM_MAX_BYTES, STREAM_TARGET_HEIGHT } from '@mbd/core/download/stream/capture-constants';
-import { currentSettings } from '../state';
-import { notifyBatchDone } from './downloads';
+import { STREAM_MAX_BYTES } from '@mbd/core/download/stream/capture-constants';
+import { streamQualityToEngine } from '@mbd/core/download/stream/quality';
+import { currentSettings } from '@/extension/background/state';
+import { notifyBatchDone } from '@/extension/background/download/downloads';
 
 /**
  * Per-capture tab id, keyed by the capture's runId, so a CAPTURE_PROGRESS
@@ -54,6 +55,7 @@ export async function captureStreamToFile(
   item: ImageInfo,
   sourcePage: { url: string; title?: string } | undefined,
   runId: string,
+  audioOnly = false,
 ): Promise<
   | { ok: true; filename: string; saved: boolean; segmentCount: number; muxedAudio: boolean }
   | { ok: false; code: string }
@@ -68,8 +70,11 @@ export async function captureStreamToFile(
     runId,
     manifestUrl: item.hlsManifest,
     engine: item.type === 'mpd' ? 'dash' : 'hls',
-    quality: STREAM_TARGET_HEIGHT,
+    // The user's global "Stream quality" preference (#288); 'auto' keeps the
+    // target-height default, so nothing changes unless they pick a rendition.
+    quality: streamQualityToEngine(currentSettings.streamQuality),
     maxBytes: STREAM_MAX_BYTES,
+    audioOnly,
   })) as CaptureRunResult | undefined;
   if (!result || !result.ok) return { ok: false, code: result?.ok === false ? result.code : 'unknown' };
   const filename = buildDownloadFilename({ ...item, ext: result.ext }, 0, currentSettings, sourcePage?.url);

@@ -1,8 +1,8 @@
 import React from 'react';
 import { SettingsPaneProps } from '@mbd/core/types';
-import { NumberField } from '../../fields/NumberField';
-import { ToggleRow } from '../../fields/ToggleRow';
-import { AdvancedDisclosure } from './AdvancedDisclosure';
+import { NumberField } from '@/extension/popup/components/fields/NumberField';
+import { ToggleRow } from '@/extension/popup/components/fields/ToggleRow';
+import { AdvancedDisclosure } from '@/extension/popup/components/panels/settings/AdvancedDisclosure';
 
 const MediaPane: React.FC<SettingsPaneProps> = ({
   settings,
@@ -43,7 +43,7 @@ const MediaPane: React.FC<SettingsPaneProps> = ({
     <ToggleRow
       id="set-resolveOriginals"
       label="Resolve exact originals (network requests)"
-      description="Fetches Twitter videos and exact Wallhaven/Unsplash originals. Off by default — keeps collection private."
+      description="Fetches Twitter videos, exact Wallhaven/Unsplash originals, and follows gallery thumbnail links to their full-size images. Off by default — keeps collection private."
       checked={settings.resolveOriginals}
       onToggle={() => toggle('resolveOriginals')}
     />

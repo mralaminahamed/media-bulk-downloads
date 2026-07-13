@@ -5,10 +5,10 @@
  */
 
 import { ImageInfo, SettingsData, FilterOptions, SizeBucket, SortKey, SortDir, AvailableOptions } from '@mbd/core/types';
-import { originalNameFromUrl } from './download-name';
-import { isEmojiUrl } from './emoji';
-import { SrcKeySet } from './canonical';
-import { hostFromUrl, registrableDomain } from './paths';
+import { originalNameFromUrl } from '@mbd/core/collection/download-name';
+import { isEmojiUrl } from '@mbd/core/collection/emoji';
+import { SrcKeySet } from '@mbd/core/collection/canonical';
+import { hostFromUrl, registrableDomain } from '@mbd/core/collection/paths';
 
 /**
  * Whether an image passes the global user settings (minimum size + base64

@@ -1,5 +1,5 @@
 import { ScanMemory } from '@mbd/core/types';
-import { durableSet } from './idb';
+import { durableSet } from '@mbd/storage/idb';
 
 /**
  * Per-host learned deep-scan behaviour (phase-2, follows #293). A

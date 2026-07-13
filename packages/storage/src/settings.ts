@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS: SettingsData = {
   bubblePanelPoint: { x: 40, y: 40 },
   resolveOriginals: false,
   captureHlsStreams: false,
+  streamQuality: 'auto',
   downloadConcurrency: 5,
   deepScanMaxItems: 1000,
   deepScanMaxSeconds: 20,
@@ -33,12 +34,22 @@ export const DEFAULT_SETTINGS: SettingsData = {
   smartPageDefaults: true,
   rememberScanBehaviour: true,
   skipDuplicateDownloads: true,
+  metadataSidecar: false,
 };
 
 /** A plain object, or {} — so spreading a corrupt string/array/number legacy
  *  value can't inject junk index keys into a nested settings object. */
 const asObject = (v: unknown): Record<string, unknown> =>
   v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+
+/** Coerce to a finite integer clamped to [min, max]; NaN / non-numeric / a string
+ *  like "many" falls back to `fallback`. Guards fields whose value drives a loop
+ *  bound or concurrency cap, where a corrupt (synced or hand-edited/imported)
+ *  value would otherwise hang or unbound the affected subsystem. */
+const clampInt = (v: unknown, min: number, max: number, fallback: number): number => {
+  const n = Math.floor(Number(v));
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+};
 
 /** Merge stored settings over defaults, tolerating partial/legacy/unknown shapes. */
 export function withDefaults(stored: unknown): SettingsData {
@@ -48,6 +59,9 @@ export function withDefaults(stored: unknown): SettingsData {
     ...s,
     bubblePosition: { ...DEFAULT_SETTINGS.bubblePosition, ...asObject(s.bubblePosition) },
     bubblePanelPoint: { ...DEFAULT_SETTINGS.bubblePanelPoint, ...asObject(s.bubblePanelPoint) },
+    // Drives the download-queue concurrency cap (claimNext): 0/negative stalls the
+    // queue forever, NaN/"many" removes the cap entirely. Clamp to a sane range.
+    downloadConcurrency: clampInt(s.downloadConcurrency, 1, 20, DEFAULT_SETTINGS.downloadConcurrency),
   };
 }
 

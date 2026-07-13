@@ -146,7 +146,32 @@ export function backgroundImageUrls(bgImage: string): string[] {
 export type ScanRoot = Document | ShadowRoot | Element;
 
 /** Collects information about all media (images, video, audio) on the page. */
-export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?: boolean }): MediaItem[] {
+/** Max same-origin gallery/"view" pages to queue for link-following per scan
+ *  (#287) — bounds the opt-in network fetches to a sane count on a large index. */
+const GALLERY_PAGE_CAP = 60;
+
+/** Below this (px, larger dimension) a wrapped `<img>` is an avatar/icon/glyph,
+ *  not a gallery thumbnail — used to keep byline/nav links out of the follow list. */
+const GALLERY_MIN_THUMB = 64;
+
+/** First path segment of routes that are navigation/taxonomy/account, not a media
+ *  detail page. A same-origin `<a>` wrapping an `<img>` that points at one of these
+ *  (author bylines, tag/category pills, pagination, search, login…) must NOT be
+ *  followed as a gallery "view" page. Cuts the bulk of #287 false positives; can't
+ *  perfectly exclude a "related article" card whose href looks like a real permalink. */
+const NON_CONTENT_PATH =
+  /^\/(?:authors?|tags?|categor(?:y|ies)|topics?|users?|profiles?|members?|about|contact|search|explore|login|sign[-_]?in|sign[-_]?up|register|account|settings|feeds?|rss|pages?|cart|checkout|privacy|terms|help|faq|share|subscribe|newsletter)(?:\/|$)/i;
+
+/** The `<img>`'s largest KNOWN dimension (intrinsic if loaded, else the width/height
+ *  attributes), or 0 when the size can't be determined (lazy image, no attributes). */
+function knownThumbSize(img: HTMLImageElement | null): number {
+  if (!img) return 0;
+  const intrinsic = Math.max(img.naturalWidth || 0, img.naturalHeight || 0);
+  if (intrinsic) return intrinsic;
+  return Math.max(Number(img.getAttribute('width')) || 0, Number(img.getAttribute('height')) || 0);
+}
+
+export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?: boolean; resolveOriginals?: boolean }): MediaItem[] {
   const incremental = scanRoots !== undefined;
   const media: MediaItem[] = [];
   // Dedup by CANONICAL src key, not the raw URL, so the same image served from
@@ -382,6 +407,44 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     }
   };
 
+  // Generic gallery link-following (#287, opt-in): an <a> that wraps a thumbnail
+  // <img> and points at a SAME-ORIGIN host/"view" page (not a direct media file —
+  // those are handled by galleryLinkCandidate). Emit a PENDING item carrying the
+  // page URL as its resolveHint, for the opt-in resolve pass to fetch and extract
+  // the real original from (network.ts galleryPage). Same-origin only (never
+  // follow a cross-origin link the user didn't opt into), and capped. Gated on
+  // resolveOriginals so the default, network-free scan is unchanged.
+  let galleryPageCount = 0;
+  const pushGalleryPage = (a: HTMLAnchorElement, resolvedHref: string): void => {
+    if (galleryPageCount >= GALLERY_PAGE_CAP) return;
+    let u: URL;
+    try {
+      u = new URL(resolvedHref);
+    } catch {
+      return;
+    }
+    if (u.origin !== location.origin) return; // same-origin only
+    if (NON_CONTENT_PATH.test(u.pathname)) return; // nav/taxonomy/account link, not a media page
+    const img = a.querySelector('img');
+    const thumbRaw = img ? (img as HTMLImageElement).currentSrc || img.getAttribute('src') : null;
+    if (!thumbRaw) return; // must wrap a real thumbnail, else it's just a text link
+    const size = knownThumbSize(img as HTMLImageElement | null);
+    if (size && size < GALLERY_MIN_THUMB) return; // a known-small img is an avatar/icon, not a thumb
+    if (!seenSources.addIfNew(resolvedHref)) return;
+    galleryPageCount++;
+    const thumb = resolveUrl(thumbRaw) || thumbRaw;
+    media.push({
+      src: resolvedHref, alt: img?.getAttribute('alt') || '', width: 0, height: 0,
+      type: 'unknown', fileSize: 0, isBase64: false, kind: 'image',
+      thumbnailSrc: thumb, unresolvedImage: true,
+      // Share the thumbnail's canonical key as this pending item's identity, so once
+      // it resolves to the original it upgrade-replaces (rather than duplicates) the
+      // standalone thumbnail — and dedups across deep-scan rounds via mergeScannedMedia.
+      mediaKey: canonicalSrcKey(thumb),
+      resolveHint: { platform: 'gallery-page', id: resolvedHref },
+    });
+  };
+
   const collectAv = (
     rawSrc: string,
     kind: 'video' | 'audio',
@@ -591,6 +654,10 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       // An X/Twitter status permalink (`/user/status/<id>/photo|video/<n>`) whose
       // cell never painted its media — surface a pending item resolved on demand.
       else if (isTwitterPage && resolvedHref) pushTwitterPending(a, resolvedHref);
+      // A same-origin host/"view" page wrapping a thumbnail (#287) — surface a
+      // pending item the opt-in resolve pass follows to the original. `!c` skips
+      // links galleryLinkCandidate already collected as direct media.
+      else if (opts?.resolveOriginals && !c && resolvedHref) pushGalleryPage(a, resolvedHref);
     });
 
     // <noscript> fallbacks (real image often lives here for no-JS users).
@@ -740,6 +807,22 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
   for (const manifest of sniffedHlsManifests()) {
     if (isDashManifest(manifest)) pushDash(manifest, '');
     else pushHls(manifest, '');
+  }
+
+  // #287 dedup: a gallery-page pending item and the standalone thumbnail <img> it
+  // wraps are the same photo. The pending item's mediaKey IS that thumbnail's
+  // canonical key, so drop the now-duplicate plain thumbnail — the single tile shows
+  // the thumbnail as its poster and upgrades to the original once the resolve pass
+  // runs (instead of the grid showing thumbnail AND original as two tiles).
+  const galleryKeys = new Set<string>();
+  for (const m of media) if (m.resolveHint?.platform === 'gallery-page' && m.mediaKey) galleryKeys.add(m.mediaKey);
+  if (galleryKeys.size) {
+    for (let i = media.length - 1; i >= 0; i--) {
+      const m = media[i];
+      if (m.resolveHint?.platform !== 'gallery-page' && !m.mediaKey && galleryKeys.has(canonicalSrcKey(m.src))) {
+        media.splice(i, 1);
+      }
+    }
   }
 
   return media;

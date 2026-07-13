@@ -1,35 +1,36 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import ImageList from './components/ImageList';
-import Settings from './components/panels/Settings';
-import HistoryPanel from './components/panels/HistoryPanel';
-import FavouritesPanel from './components/panels/FavouritesPanel';
-import ExcludedPanel from './components/panels/ExcludedPanel';
-import FilterToolbar from './components/FilterToolbar';
-import { DownloadButton } from './components/DownloadButton';
-import { ProgressBar } from './components/ProgressBar';
-import { DownloadQueue } from './components/DownloadQueue';
-import { SaveAsPromptHint } from './components/SaveAsPromptHint';
-import { SelectCheckbox } from './components/fields/SelectCheckbox';
-import { BrandMark } from '../components/BrandMark';
-import { SkeletonGrid } from './components/states/SkeletonGrid';
-import { EmptyState } from './components/states/EmptyState';
-import { ErrorState } from './components/states/ErrorState';
+import ImageList from '@/extension/popup/components/ImageList';
+import Settings from '@/extension/popup/components/panels/Settings';
+import HistoryPanel from '@/extension/popup/components/panels/HistoryPanel';
+import FavouritesPanel from '@/extension/popup/components/panels/FavouritesPanel';
+import ExcludedPanel from '@/extension/popup/components/panels/ExcludedPanel';
+import FilterToolbar from '@/extension/popup/components/FilterToolbar';
+import { DownloadButton } from '@/extension/popup/components/DownloadButton';
+import { StreamHandoff } from '@/extension/popup/components/StreamHandoff';
+import { ProgressBar } from '@/extension/popup/components/ProgressBar';
+import { DownloadQueue } from '@/extension/popup/components/DownloadQueue';
+import { SaveAsPromptHint } from '@/extension/popup/components/SaveAsPromptHint';
+import { SelectCheckbox } from '@/extension/popup/components/fields/SelectCheckbox';
+import { BrandMark } from '@/extension/components/BrandMark';
+import { SkeletonGrid } from '@/extension/popup/components/states/SkeletonGrid';
+import { EmptyState } from '@/extension/popup/components/states/EmptyState';
+import { ErrorState } from '@/extension/popup/components/states/ErrorState';
 import { AppProps, ExcludedKind, ImageInfo } from '@mbd/core/types';
-import { collectFromActiveTab } from '../shared/active-tab/collect-active-tab';
+import { collectFromActiveTab } from '@/extension/shared/active-tab/collect-active-tab';
 import { deriveFilterOptions } from '@mbd/core/collection/filters';
-import { deepScanActiveTab, abortDeepScanActiveTab } from '../shared/active-tab/deep-scan-active-tab';
+import { deepScanActiveTab, abortDeepScanActiveTab } from '@/extension/shared/active-tab/deep-scan-active-tab';
 import { hostFromUrl, registrableDomain } from '@mbd/core/collection/paths';
-import { sendRuntimeMessage } from './utils';
+import { sendRuntimeMessage } from '@/extension/popup/utils';
 import { Cog6ToothIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon, NoSymbolIcon } from '@heroicons/react/24/outline';
-import { downloadable, pendingVideos } from './lib/appHelpers';
-import { useDownloadHistory } from './hooks/useDownloadHistory';
-import { useFavourites } from './hooks/useFavourites';
-import { useExcluded } from './hooks/useExcluded';
-import { useSelection } from './hooks/useSelection';
-import { useSettings } from './hooks/useSettings';
-import { useMediaEngine } from './hooks/useMediaEngine';
-import { useDownloadActions } from './hooks/useDownloadActions';
-import { usePerHostSettings } from './hooks/usePerHostSettings';
+import { downloadable, pendingVideos } from '@/extension/popup/lib/appHelpers';
+import { useDownloadHistory } from '@/extension/popup/hooks/useDownloadHistory';
+import { useFavourites } from '@/extension/popup/hooks/useFavourites';
+import { useExcluded } from '@/extension/popup/hooks/useExcluded';
+import { useSelection } from '@/extension/popup/hooks/useSelection';
+import { useSettings } from '@/extension/popup/hooks/useSettings';
+import { useMediaEngine } from '@/extension/popup/hooks/useMediaEngine';
+import { useDownloadActions, StreamRefusal } from '@/extension/popup/hooks/useDownloadActions';
+import { usePerHostSettings } from '@/extension/popup/hooks/usePerHostSettings';
 
 const App: React.FC<AppProps> = ({
   collect = collectFromActiveTab,
@@ -44,6 +45,9 @@ const App: React.FC<AppProps> = ({
   const { downloadedSrcs, isDownloaded } = useDownloadHistory();
   const [showFavourites, setShowFavourites] = useState(false);
   const [showExcluded, setShowExcluded] = useState(false);
+  // A refused stream capture (#285) → the "Copy download command" handoff banner.
+  // Set by useDownloadActions on refusal, cleared on a new attempt or a rescan.
+  const [streamRefusal, setStreamRefusal] = useState<StreamRefusal | null>(null);
   // Selective bulk download: srcs the user has ticked. Scoped to what's shown —
   // pruned whenever the filtered view changes (see the effect below).
   const { selectedSrcs, setSelectedSrcs, handleToggleSelect, handleSelectRange, handleSelectAllShown, handleClearSelection } = useSelection();
@@ -112,6 +116,7 @@ const App: React.FC<AppProps> = ({
   const {
     handleBulkDownload,
     handleSingleImageDownload,
+    handleCaptureAudio,
     handleDownloadSelected,
     handleBulkDownloadZip,
     handleDownloadSelectedZip,
@@ -124,6 +129,7 @@ const App: React.FC<AppProps> = ({
     setState,
     setProgress,
     currentSourcePage,
+    onStreamRefused: setStreamRefusal,
   });
 
   const selectedDownloadable = (): ImageInfo[] => downloadable(state.filteredImages).filter((i) => selectedSrcs.has(i.src));
@@ -235,7 +241,7 @@ const App: React.FC<AppProps> = ({
                 className={`mbd:h-4.5 mbd:w-4.5 ${deepScanning ? 'mbd:animate-pulse' : ''}`}
               />
             </button>
-            <button onClick={fetchImages} className="iconbtn" title="Rescan page" aria-label="Rescan page">
+            <button onClick={() => { setStreamRefusal(null); fetchImages(); }} className="iconbtn" title="Rescan page" aria-label="Rescan page">
               <ArrowPathIcon className={`mbd:h-4.5 mbd:w-4.5 ${state.isLoading ? 'mbd:animate-[spin_0.9s_linear_infinite]' : ''}`} />
             </button>
           </div>
@@ -263,6 +269,7 @@ const App: React.FC<AppProps> = ({
           <ImageList
             images={state.filteredImages}
             onImageDownload={handleSingleImageDownload}
+            onCaptureAudio={handleCaptureAudio}
             thumbnailSize={settings.thumbnailSize}
             previewSize={settings.previewSize}
             downloadedSrcs={downloadedSrcs}
@@ -285,6 +292,11 @@ const App: React.FC<AppProps> = ({
       {/* Persistent download queue: per-file status + pause/resume/cancel/retry
           (#196). Renders nothing when the queue is empty. */}
       <DownloadQueue />
+
+      {/* Refused-stream handoff (#285): copy a yt-dlp / ffmpeg command instead. */}
+      {streamRefusal && (
+        <StreamHandoff key={`${streamRefusal.item.src}:${streamRefusal.code}`} refusal={streamRefusal} onDismiss={() => setStreamRefusal(null)} />
+      )}
 
       {/* Action bar */}
       {hasImages && !state.isLoading && (

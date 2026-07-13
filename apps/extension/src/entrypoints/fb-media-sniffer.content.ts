@@ -33,7 +33,14 @@ export default defineContentScript({
           text.indexOf('fbcdn') !== -1 || text.indexOf('playable_url') !== -1 || text.indexOf('progressive_url') !== -1,
         extract: extractFbMedia,
         envelope: (entries) => {
-          if (!relayReady) buffer.push(...entries);
+          if (!relayReady) {
+            buffer.push(...entries);
+            // If the isolated relay never readies (its content script failed to run,
+            // was blocked, or threw before the FB branch), FB's SPA keeps streaming
+            // for the whole session — cap the bridge buffer so it can't leak the
+            // page's heap without bound. Mirrors the Pinterest sniffer. Newest wins.
+            if (buffer.length > 8000) buffer.splice(0, buffer.length - 8000);
+          }
           return { source: 'ibd-fb-media', entries };
         },
         ndjson: true,

@@ -1,12 +1,13 @@
 import type React from 'react';
 import type { ReactNode, ChangeEvent, FocusEvent, MouseEvent, CSSProperties, HTMLAttributes } from 'react';
-import type { SrcKeySet } from './collection/canonical';
+import type { SrcKeySet } from '@mbd/core/collection/canonical';
 
-export type ResolvePlatform = 'twitter' | 'wallhaven' | 'unsplash' | 'vimeo' | 'bsky' | 'pinterest' | 'reddit' | 'flickr' | 'artstation' | 'dailymotion';
+export type ResolvePlatform = 'twitter' | 'wallhaven' | 'unsplash' | 'vimeo' | 'bsky' | 'pinterest' | 'reddit' | 'flickr' | 'artstation' | 'dailymotion' | 'gallery-page';
 export interface ResolveHint {
   platform: ResolvePlatform;
   /** Opaque per-platform id: statusId | wallpaper id | photo shortid | for
-   *  bsky, a space-delimited `'<blob|video> <did> <cid>'` triple. */
+   *  bsky, a space-delimited `'<blob|video> <did> <cid>'` triple | for
+   *  `gallery-page` (#287), the same-origin host/"view" page URL to follow. */
   id: string;
 }
 
@@ -284,6 +285,14 @@ export interface DownloadBytesMessage {
     thumbnailSrc?: string;
     sourcePageUrl: string;
     sourcePageTitle?: string;
+    /** Provenance for the metadata sidecar (#284): the original alt/dimensions
+     *  and the output extension (so the sidecar's `format` reflects the saved
+     *  file). Absent → sidecar falls back to type / null dimensions. */
+    alt?: string;
+    width?: number;
+    height?: number;
+    fileSize?: number;
+    ext?: string;
   };
 }
 
@@ -308,6 +317,8 @@ export interface CaptureStreamMessage {
   runId: string;
   item: ImageInfo;
   sourcePage: { url: string; title?: string };
+  /** Extract only the audio track as `.m4a` (#204). Per-item action, not a setting. */
+  audioOnly?: boolean;
 }
 
 /** Background → offscreen: run the engine with this capture policy. */
@@ -318,8 +329,11 @@ export interface CaptureRunMessage {
   manifestUrl: string;
   /** Which engine the offscreen host runs. */
   engine: 'hls' | 'dash';
-  quality: number;
+  /** Variant selector: a target height, or the bandwidth extremes (#288). */
+  quality: number | 'highest' | 'lowest';
   maxBytes: number;
+  /** Extract only the audio track as `.m4a`, no re-encode (#204). */
+  audioOnly?: boolean;
 }
 
 /** Offscreen → all contexts (the popup listens): capture progress. */
@@ -337,9 +351,13 @@ export type CaptureRunResult =
   | { ok: true; blobUrl: string; ext: string; segmentCount: number; muxedAudio: boolean }
   | { ok: false; code: string };
 
-/** Background → popup: the fully-composed status line for a capture. */
+/** Background → popup: the fully-composed status line for a capture. On a
+ *  *refused* capture (DRM / live / SAMPLE-AES / unsupported), `refusal` carries
+ *  the engine code so the popup can offer the "Copy download command" handoff
+ *  (#285) — a header-correct yt-dlp/ffmpeg string the user runs elsewhere. */
 export interface CaptureStreamResponse {
   status: string;
+  refusal?: { code: string };
 }
 
 /**
@@ -514,6 +532,11 @@ export interface SettingsData {
    *  segment (slow, memory-heavy), so it's an explicit opt-in rather than something
    *  the grid shows unasked. */
   captureHlsStreams: boolean;
+  /** Preferred rendition for a multi-variant stream capture (#288). `auto` keeps
+   *  the target-height default; `best`/`worst` take the bandwidth extremes; a
+   *  numeric tier ('1080'|'720'|'480') selects that height. Global, applied to
+   *  every capture; mapped to the engine selector by streamQualityToEngine. */
+  streamQuality: 'auto' | 'best' | 'worst' | '1080' | '720' | '480';
   /** Max simultaneous file downloads the queue dispatches (1–10). */
   downloadConcurrency: number;
   /** Deep-scan caps — the scan stops at whichever is reached first. */
@@ -530,6 +553,10 @@ export interface SettingsData {
   /** Skip re-downloading an image whose file is already on disk (matched by
    *  canonical src). Default on; explicit re-downloads always bypass it. */
   skipDuplicateDownloads: boolean;
+  /** Write a per-file `<name>.json` metadata sidecar next to each download
+   *  (source URL, page, alt, dimensions — #284). Off by default; serializes
+   *  already-collected local data, no new network. */
+  metadataSidecar: boolean;
 }
 
 export type SizeBucket = 'all' | 'small' | 'medium' | 'large';
@@ -610,6 +637,8 @@ export interface ImageListProps {
   onExclude?: (image: ImageInfo, kind: ExcludedKind) => void;
   /** Resolve one pending video's real file on demand (per-item "Get video"). */
   onFetchVideo?: (image: ImageInfo) => void;
+  /** Capture a stream item as audio-only `.m4a` (per-item "Audio only", #204). */
+  onCaptureAudio?: (image: ImageInfo) => void;
   /** Srcs whose on-demand resolve returned nothing (tombstone / failure). */
   resolveFailedSrcs?: Set<string>;
   /** Srcs currently being resolved (shows a spinner, disables the button). */

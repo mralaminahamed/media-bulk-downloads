@@ -1,4 +1,4 @@
-import { MediaCandidate, Resolver, ResolveContext } from '../types';
+import { MediaCandidate, Resolver, ResolveContext } from '@mbd/core/resolvers/types';
 import { FbMediaEntry, pinFbUrl, fbidFromUrl, extractFbMedia } from '@mbd/core/resolvers/sniffers/fb-media-sniff';
 
 /**

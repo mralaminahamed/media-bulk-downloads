@@ -114,6 +114,26 @@ export function muxTracks(video: MuxTrack, audio?: MuxTrack | null): Uint8Array 
     copySamples(dst, aId, a);
   }
 
+  return serialize(dst);
+}
+
+/**
+ * Extract just the audio track into an MP4/M4A container's bytes (#204). The AAC
+ * (or Opus) samples and their codec box (esds) are copied VERBATIM — a container
+ * remux, never a re-encode — so the output is the exact source audio, losslessly,
+ * in a single-track `.m4a`. Throws if the audio track has no decodable samples
+ * (same guard as the A/V mux). MP3 transcode is deliberately out of scope here.
+ */
+export function muxAudioOnly(audio: MuxTrack): Uint8Array {
+  const a = demux(audio);
+  const dst = MP4Box.createFile() as AnyFile;
+  const aId = addTrack(dst, a, 'audio');
+  copySamples(dst, aId, a);
+  return serialize(dst);
+}
+
+/** Flush the destination file to its final MP4 byte buffer. */
+function serialize(dst: AnyFile): Uint8Array {
   const ds = dst.getBuffer() as unknown as { buffer: ArrayBuffer; byteLength?: number; position?: number };
   const len = ds.byteLength ?? ds.position ?? ds.buffer.byteLength;
   return new Uint8Array(ds.buffer.slice(0, len));

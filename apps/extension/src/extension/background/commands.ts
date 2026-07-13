@@ -1,11 +1,11 @@
 import { FavouriteEntry, ImageInfo } from '@mbd/core/types';
 import { filterImagesBySettings, filterExcluded, isPendingOrStream } from '@mbd/core/collection/filters';
-import { newCaptureRunId } from '../shared/active-tab/capture-stream-active';
+import { newCaptureRunId } from '@/extension/shared/active-tab/capture-stream-active';
 import { addFavourite } from '@mbd/storage/favourites';
-import { currentSettings, excludedCache, settingsReady, excludedReady } from './state';
-import { downloadAndRecord } from './download/downloads';
-import { captureStreamToFile, captureRunTabs } from './download/capture';
-import { MENU, mediaFromContext } from './context-menu';
+import { currentSettings, excludedCache, settingsReady, excludedReady } from '@/extension/background/state';
+import { downloadAndRecord } from '@/extension/background/download/downloads';
+import { captureStreamToFile, captureRunTabs } from '@/extension/background/download/capture';
+import { MENU, mediaFromContext } from '@/extension/background/context-menu';
 
 /**
  * Collect the given tab's media (via its content script) and download the set

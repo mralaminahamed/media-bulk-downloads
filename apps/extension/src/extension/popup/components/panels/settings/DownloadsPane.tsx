@@ -1,10 +1,10 @@
 import React from 'react';
 import { DownloadsPaneProps, SettingsData } from '@mbd/core/types';
-import { TextField } from '../../fields/TextField';
-import { NumberField } from '../../fields/NumberField';
-import { SelectField } from '../../fields/SelectField';
-import { ToggleRow } from '../../fields/ToggleRow';
-import { AdvancedDisclosure } from './AdvancedDisclosure';
+import { TextField } from '@/extension/popup/components/fields/TextField';
+import { NumberField } from '@/extension/popup/components/fields/NumberField';
+import { SelectField } from '@/extension/popup/components/fields/SelectField';
+import { ToggleRow } from '@/extension/popup/components/fields/ToggleRow';
+import { AdvancedDisclosure } from '@/extension/popup/components/panels/settings/AdvancedDisclosure';
 
 const DownloadsPane: React.FC<DownloadsPaneProps> = ({
   settings,
@@ -112,11 +112,45 @@ const DownloadsPane: React.FC<DownloadsPaneProps> = ({
       </>
     )}
 
+    {/* Stream capture is Chrome-only (offscreen assembly), so the rendition
+        preference is only shown where it can take effect. */}
+    {!import.meta.env.FIREFOX && (
+      <>
+        <SelectField
+          id="set-streamQuality"
+          name="streamQuality"
+          label="Stream capture quality:"
+          value={settings.streamQuality}
+          onChange={(e) =>
+            setSettings((prev) => ({ ...prev, streamQuality: e.target.value as SettingsData['streamQuality'] }))
+          }
+        >
+          <option value="auto">Auto (recommended)</option>
+          <option value="best">Best available</option>
+          <option value="1080">1080p</option>
+          <option value="720">720p</option>
+          <option value="480">480p</option>
+          <option value="worst">Smallest (data saver)</option>
+        </SelectField>
+        <p className="mbd:text-[11px] mbd:leading-relaxed mbd:text-(--ink-3)">
+          Which rendition to capture from a multi-quality HLS/DASH stream. A fixed
+          resolution picks the closest the stream offers; single-quality streams ignore this.
+        </p>
+      </>
+    )}
+
     <ToggleRow
       id="set-saveAs"
       label="Ask where to save each file"
       checked={settings.saveAs}
       onToggle={() => toggle('saveAs')}
+    />
+    <ToggleRow
+      id="set-metadataSidecar"
+      label="Save metadata sidecar (.json)"
+      description="Write a sibling <name>.json next to each download with its source URL, page, alt text, and dimensions — provenance for archiving. Off by default; offline, no extra network."
+      checked={settings.metadataSidecar}
+      onToggle={() => toggle('metadataSidecar')}
     />
 
     <AdvancedDisclosure id="adv-downloads" defaultOpen={advancedDefaultOpen}>

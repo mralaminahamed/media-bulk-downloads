@@ -14,8 +14,8 @@
  * SegmentTimeline) is supported; SegmentList / SegmentBase-only is not.
  */
 
-import { muxTracks } from './mux';
-import { assertSafeCaptureUrl } from './ssrf-guard';
+import { muxTracks, muxAudioOnly } from '@mbd/core/download/stream/mux';
+import { assertSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
 
 /** ISO-8601 media duration (`PT1H2M3.5S`) → seconds. 0 for anything unparseable.
  *  Only the `PT…` (hours/minutes/seconds) form is handled — the only form MPD
@@ -51,6 +51,7 @@ export type DashErrorCode =
   | 'live' // MPD@type="dynamic"
   | 'drm' // a <ContentProtection> element is present
   | 'unsupported' // SegmentList / SegmentBase-only, or an undecodable mux
+  | 'audio-unavailable' // audio-only asked, but the manifest has no audio Representation
   | 'empty' // nothing downloaded
   | 'too-large' // assembled bytes exceeded opts.maxBytes
   | 'fetch-failed'; // a segment could not be fetched
@@ -248,6 +249,9 @@ export interface DashCaptureOptions {
   /** 'highest' (default) or 'lowest' bandwidth, or a target height (e.g. 720). */
   quality?: 'highest' | 'lowest' | number;
   maxBytes?: number;
+  /** Extract just the audio Representation as `.m4a` (#204), no re-encode. DASH is
+   *  always demuxed, so the audio track is directly emittable when present. */
+  audioOnly?: boolean;
 }
 
 /** Picks the representation matching the quality preference (mirrors hls.ts). */
@@ -269,10 +273,17 @@ export function selectRepresentation(
   return byBw[byBw.length - 1];
 }
 
-/** Refuses live / DRM / video-less manifests before any bytes are fetched. */
-export function assertDownloadable(m: DashManifest): void {
+/** Refuses live / DRM / empty manifests before any bytes are fetched. When
+ *  `audioOnly` is requested, the manifest need only carry an audio Representation
+ *  — a video-less (podcast/radio-style) MPD is legitimately extractable as audio,
+ *  so the video-required guard would wrongly refuse it. */
+export function assertDownloadable(m: DashManifest, audioOnly = false): void {
   if (m.isLive) throw new DashError('live', 'This is a live (dynamic) stream — there is no single file to save.');
   if (m.hasDrm) throw new DashError('drm', 'This stream is DRM-protected and cannot be captured.');
+  if (audioOnly) {
+    if (!m.audio.length) throw new DashError('audio-unavailable', 'This stream has no audio track to extract as audio-only.');
+    return;
+  }
   if (!m.video.length) throw new DashError('no-representations', 'The manifest has no video representation.');
 }
 
@@ -288,7 +299,7 @@ export interface DashDeps {
 
 export interface DashCaptureResult {
   bytes: Uint8Array;
-  ext: 'mp4';
+  ext: 'mp4' | 'm4a';
   mime: string;
   video?: DashRepresentation;
   muxedAudio?: boolean;
@@ -344,7 +355,43 @@ export async function captureDash(url: string, deps: DashDeps, opts: DashCapture
   };
   const xml = await gd.fetchText(url);
   const manifest = parseMpd(xml, url);
-  assertDownloadable(manifest);
+  assertDownloadable(manifest, opts.audioOnly);
+
+  // Audio-only (#204): emit just the highest audio Representation as `.m4a`, no
+  // re-encode. DASH is always demuxed, so the audio track is directly muxable.
+  // After assertDownloadable, so DRM/live still refuse first.
+  if (opts.audioOnly) {
+    const audioRep = manifest.audio.length ? selectRepresentation(manifest.audio, 'highest') : undefined;
+    if (!audioRep) throw new DashError('audio-unavailable', 'This stream has no separate audio track to extract as audio-only.');
+    const aExp = expandSegments(audioRep, manifest.durationSec);
+    const totalA = aExp.segmentUris.length;
+    let doneA = 0;
+    const onSegmentA = (): void => deps.onProgress?.(++doneA, totalA);
+    const budgetA: DashBudget = { used: 0, max: opts.maxBytes };
+    let audioTrack: { init?: Uint8Array; segments: Uint8Array[] };
+    try {
+      audioTrack = await fetchDashTrack(aExp, gd, onSegmentA, budgetA);
+    } catch (e) {
+      if (e instanceof DashError) throw e;
+      throw new DashError('fetch-failed', 'A segment could not be fetched.');
+    }
+    if (!audioTrack.init) throw new DashError('unsupported', 'The audio representation has no initialization segment.');
+    let m4a: Uint8Array;
+    try {
+      m4a = muxAudioOnly({ init: audioTrack.init, segments: audioTrack.segments });
+    } catch {
+      throw new DashError('unsupported', 'Could not extract this stream’s audio track.');
+    }
+    if (!m4a.length) throw new DashError('empty', 'Nothing was downloaded from the stream.');
+    return {
+      bytes: m4a,
+      ext: 'm4a',
+      mime: 'audio/mp4',
+      muxedAudio: false,
+      segmentCount: totalA,
+      durationSec: Math.round(manifest.durationSec),
+    };
+  }
 
   const video = selectRepresentation(manifest.video, opts.quality)!;
   const audio = manifest.audio.length ? selectRepresentation(manifest.audio, 'highest') : undefined;

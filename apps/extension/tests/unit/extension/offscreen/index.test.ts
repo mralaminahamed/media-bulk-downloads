@@ -54,11 +54,20 @@ describe('offscreen capture host', () => {
     expect(ret).toBe(true); // async response
     await new Promise((r) => setTimeout(r, 0));
 
-    expect(captureHls).toHaveBeenCalledWith('https://x/m.m3u8', expect.anything(), { quality: 720, maxBytes: 1000 });
+    expect(captureHls).toHaveBeenCalledWith('https://x/m.m3u8', expect.anything(), { quality: 720, maxBytes: 1000, audioOnly: false });
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'CAPTURE_PROGRESS', runId: 'run-1', done: 3, total: 7 });
     expect(sendResponse).toHaveBeenCalledWith({
       ok: true, blobUrl: 'blob:test', ext: 'mp4', segmentCount: 5, muxedAudio: true,
     });
+  });
+
+  it('threads audioOnly through to the engine (#204)', async () => {
+    (captureHls as Mock).mockResolvedValue({ bytes: new Uint8Array([1]), ext: 'm4a', mime: 'audio/mp4', segmentCount: 3, muxedAudio: false });
+    const sendResponse = vi.fn();
+    getListener()({ type: 'CAPTURE_RUN', runId: 'run-1', engine: 'hls', manifestUrl: 'https://x/m.m3u8', quality: 720, maxBytes: 1000, audioOnly: true }, {}, sendResponse);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(captureHls).toHaveBeenCalledWith('https://x/m.m3u8', expect.anything(), { quality: 720, maxBytes: 1000, audioOnly: true });
+    expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({ ok: true, ext: 'm4a' }));
   });
 
   it('returns the error code when the engine throws HlsError', async () => {
@@ -74,7 +83,7 @@ describe('offscreen capture host', () => {
     const sendResponse = vi.fn();
     getListener()({ type: 'CAPTURE_RUN', runId: 'run-1', engine: 'dash', manifestUrl: 'https://x/m.mpd', quality: 720, maxBytes: 1000 }, {}, sendResponse);
     await new Promise((r) => setTimeout(r, 0));
-    expect(captureDash).toHaveBeenCalledWith('https://x/m.mpd', expect.anything(), { quality: 720, maxBytes: 1000 });
+    expect(captureDash).toHaveBeenCalledWith('https://x/m.mpd', expect.anything(), { quality: 720, maxBytes: 1000, audioOnly: false });
     expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({ ok: true, blobUrl: 'blob:test', ext: 'mp4', muxedAudio: true }));
   });
 
