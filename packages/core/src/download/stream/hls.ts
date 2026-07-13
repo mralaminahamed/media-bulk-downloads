@@ -558,9 +558,11 @@ export async function captureHls(
   const budget: FetchBudget = { used: 0, max: opts.maxBytes };
 
   const track = await fetchTrack(playlist, gd, onSegment, budget);
-  const chunks: Uint8Array[] = [];
-  if (track.init) chunks.push(track.init);
-  chunks.push(...track.segments);
+  // Build with a loop, not `push(...segments)`: a long VOD can have tens of
+  // thousands of segments, and spreading them as call args can hit the engine's
+  // argument-count limit (RangeError).
+  const chunks: Uint8Array[] = track.init ? [track.init] : [];
+  for (const seg of track.segments) chunks.push(seg);
   const bytes = concat(chunks);
   if (!bytes.length) throw new HlsError('empty', 'Nothing was downloaded from the stream.');
 

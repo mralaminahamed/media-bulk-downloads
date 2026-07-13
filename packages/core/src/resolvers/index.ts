@@ -62,15 +62,21 @@ function suffixKeys(hostname: string): string[] {
 
 // Resolvers to try for a URL: host-indexed matches (REGISTRY order, de-duped)
 // then the host-agnostic fallback. Narrows the candidate set; match() still gates.
+// Memoized by hostname — the result is deterministic per host, and a page pulls
+// media from only a handful of hosts, so this drops the per-URL Set/filter/concat.
+const candidatesCache = new Map<string, Resolver[]>();
 function candidatesFor(u: URL): Resolver[] {
   buildIndex();
+  const cached = candidatesCache.get(u.hostname);
+  if (cached) return cached;
   const picked = new Set<Resolver>();
   for (const key of suffixKeys(u.hostname)) {
     const bucket = hostIndex.get(key);
     if (bucket) for (const r of bucket) picked.add(r);
   }
-  const ordered = REGISTRY.filter((r) => picked.has(r));
-  return ordered.concat(fallback);
+  const ordered = REGISTRY.filter((r) => picked.has(r)).concat(fallback);
+  candidatesCache.set(u.hostname, ordered);
+  return ordered;
 }
 
 export function resolve(rawUrl: string, ctx: ResolveContext): MediaCandidate[] {

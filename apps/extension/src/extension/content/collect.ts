@@ -153,8 +153,14 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
   // two rotating CDN edge hosts / signed queries in one scan yields one tile.
   const seenKeys = new Set<string>();
   const seenSources = {
-    has: (url: string): boolean => seenKeys.has(canonicalSrcKey(url)),
-    add: (url: string): void => { seenKeys.add(canonicalSrcKey(url)); },
+    // Canonicalize once per candidate (the hot path): true if newly added,
+    // false if already seen — replaces a has()+add() pair that keyed twice.
+    addIfNew: (url: string): boolean => {
+      const k = canonicalSrcKey(url);
+      if (seenKeys.has(k)) return false;
+      seenKeys.add(k);
+      return true;
+    },
   };
   const pageUrl = location.href;
 
@@ -163,8 +169,7 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
   const pushCandidate = (
     cand: MediaCandidate, resolved: string, alt: string, width: number, height: number, thumbnailOverride?: string,
   ): void => {
-    if (seenSources.has(cand.url)) return;
-    seenSources.add(cand.url);
+    if (!seenSources.addIfNew(cand.url)) return;
 
     if (cand.kind === 'video' || cand.kind === 'gif') {
       // A resolver can hand back a streaming manifest (Pinterest's HLS master when
@@ -231,8 +236,7 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     const resolved = resolveUrl(rawSrc);
 
     if (isBase64Image(resolved)) {
-      if (seenSources.has(resolved)) return;
-      seenSources.add(resolved);
+      if (!seenSources.addIfNew(resolved)) return;
       media.push({
         src: resolved,
         alt,
@@ -265,8 +269,7 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
   // manifest URL for preview/keying; `hlsManifest` marks it for the capture path
   // so it is never handed to chrome.downloads directly.
   const pushHls = (resolved: string, alt: string, posterUrl?: string): void => {
-    if (seenSources.has(resolved)) return;
-    seenSources.add(resolved);
+    if (!seenSources.addIfNew(resolved)) return;
     const item: MediaItem = {
       src: resolved, alt, width: 0, height: 0,
       type: 'm3u8', fileSize: 0, isBase64: false, kind: 'video',
@@ -279,8 +282,7 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
   /** A DASH manifest (.mpd) surfaced as a capturable video — same as pushHls but
    *  tagged `type:'mpd'` so the capture path routes it to the DASH engine. */
   const pushDash = (resolved: string, alt: string, posterUrl?: string): void => {
-    if (seenSources.has(resolved)) return;
-    seenSources.add(resolved);
+    if (!seenSources.addIfNew(resolved)) return;
     const item: MediaItem = {
       src: resolved, alt, width: 0, height: 0,
       type: 'mpd', fileSize: 0, isBase64: false, kind: 'video',
@@ -296,8 +298,7 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
   // watch URL so an embed + a link to the same video collapse to one item.
   const pushVimeo = (id: string): void => {
     const watch = `https://vimeo.com/${id}`;
-    if (seenSources.has(watch)) return;
-    seenSources.add(watch);
+    if (!seenSources.addIfNew(watch)) return;
     media.push({
       src: watch, alt: '', width: 0, height: 0, type: 'mp4',
       fileSize: 0, isBase64: false, kind: 'video',
@@ -312,8 +313,7 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
   // to the same video collapse to one item.
   const pushDailymotion = (id: string): void => {
     const watch = `https://www.dailymotion.com/video/${id}`;
-    if (seenSources.has(watch)) return;
-    seenSources.add(watch);
+    if (!seenSources.addIfNew(watch)) return;
     media.push({
       src: watch, alt: '', width: 0, height: 0, type: 'mp4',
       fileSize: 0, isBase64: false, kind: 'video',
@@ -366,8 +366,7 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       [...a.querySelectorAll('video[poster]')].some((v) => TWITTER_PAINTED_MEDIA.test(v.getAttribute('poster') || ''));
     if (painted) return;
 
-    if (seenSources.has(resolvedHref)) return;
-    seenSources.add(resolvedHref);
+    if (!seenSources.addIfNew(resolvedHref)) return;
     if (kind === 'photo') {
       media.push({
         src: resolvedHref, alt: '', width: 0, height: 0, type: 'unknown', fileSize: 0, isBase64: false,
@@ -407,8 +406,7 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     // Only real http(s) files are downloadable; drop javascript:/data:/other
     // schemes that isUndownloadableMedia (blob/streams only) doesn't cover.
     if (!/^https?:\/\//i.test(resolved)) return;
-    if (seenSources.has(resolved)) return;
-    seenSources.add(resolved);
+    if (!seenSources.addIfNew(resolved)) return;
     const item: MediaItem = {
       src: resolved, alt, width: 0, height: 0,
       type: detectAvType(resolved, mime),
@@ -533,8 +531,7 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
 
     videos.forEach((video) => {
       const gif = twitterGifCandidate(video);
-      if (gif && !seenSources.has(gif.url)) {
-        seenSources.add(gif.url);
+      if (gif && seenSources.addIfNew(gif.url)) {
         media.push({
           src: gif.url, alt: '', width: 0, height: 0,
           type: 'mp4', fileSize: 0, isBase64: false, kind: 'video', poster: gif.poster,
@@ -542,8 +539,7 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       }
 
       const pendingVid = twitterVideoPending(video, pageUrl);
-      if (pendingVid && !seenSources.has(pendingVid.url)) {
-        seenSources.add(pendingVid.url);
+      if (pendingVid && seenSources.addIfNew(pendingVid.url)) {
         media.push({
           src: pendingVid.url, alt: '', width: 0, height: 0, type: 'mp4', fileSize: 0, isBase64: false,
           kind: 'video', poster: pendingVid.poster, resolveHint: pendingVid.resolveHint, unresolvedVideo: true,
