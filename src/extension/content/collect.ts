@@ -20,6 +20,7 @@ import { resolve, MediaCandidate } from '@/extension/shared/resolvers';
 import { twitterGifCandidate, twitterVideoPending } from '@/extension/shared/resolvers/sites/twitter';
 import { instagramPageMedia } from '@/extension/shared/resolvers/sites/instagram';
 import { facebookPageMedia } from '@/extension/shared/resolvers/sites/facebook';
+import { pinterestPageMedia } from '@/extension/shared/resolvers/sites/pinterest';
 import { youtubeVideoId } from '@/extension/shared/resolvers/sites/youtube';
 import { vimeoVideoId } from '@/extension/shared/resolvers/sites/vimeo';
 import { dailymotionVideoId } from '@/extension/shared/resolvers/sites/dailymotion';
@@ -749,6 +750,14 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     // blob:, virtualized album). No-ops off a photo/video page; deduped by
     // canonicalSrcKey against the walk above.
     for (const cand of facebookPageMedia(pageUrl)) {
+      pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
+    }
+
+    // Pinterest opened pin / feed: surface the sniffed pins (orig image, real mp4,
+    // every carousel slide) for the pin at the page URL, covering media the
+    // virtualized/unhydrated grid hides. No-ops off a /pin/ page; deduped by
+    // canonicalSrcKey against the walk above.
+    for (const cand of pinterestPageMedia(pageUrl)) {
       pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
     }
   }
