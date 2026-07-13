@@ -136,8 +136,10 @@ after a manual `yarn build`, hit **Reload ↻** on the extension card.
 
 - Monorepo design — `docs/architecture/monorepo-restructure.md`; package manifests
   `packages/{core,storage,platform}/package.json`, `apps/extension/package.json`
-- In-repo guides — `docs/guides/` (architecture, collection-pipeline, deep-scan,
-  download, badge, bubble); `docs/BENCHMARK.md` for collection cost numbers
+- In-repo guides — `docs/guides/`: `getting-started.md`, `architecture.md`,
+  `collection-pipeline.md`, `deep-scan.md`, `download.md`, `download-paths.md`,
+  `badge.md`, `bubble.md`, `history.md`, `favourites.md`, `resolve-originals.md`;
+  `docs/BENCHMARK.md` for collection cost numbers
 - WXT — installation https://wxt.dev/guide/installation · project structure
   https://wxt.dev/guide/essentials/project-structure · entrypoints
   https://wxt.dev/guide/essentials/entrypoints · config/manifest

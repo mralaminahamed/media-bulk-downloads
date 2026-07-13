@@ -85,7 +85,7 @@ interface MediaCandidate {
 ## References
 
 - Collection pipeline (this repo) — `docs/guides/collection-pipeline.md`,
-  `docs/BENCHMARK.md`
+  `docs/guides/resolve-originals.md` (the opt-in network tier), `docs/BENCHMARK.md`
 - Resolver source — `packages/core/src/resolvers/` and `imageUrl.ts`
 - URL API — https://developer.mozilla.org/en-US/docs/Web/API/URL
 - fetch() (network tier runs in the background worker) — https://developer.mozilla.org/en-US/docs/Web/API/fetch

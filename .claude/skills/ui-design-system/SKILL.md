@@ -96,6 +96,7 @@ utility carries the `mbd:` prefix — see the prefix section above):
 ## References
 
 - Design tokens + component classes (this repo) — `apps/extension/src/styles/index.css`
+- Bubble surface guide (this repo) — `docs/guides/bubble.md` (Shadow-DOM host, backdrop)
 - Tailwind CSS v4 — https://tailwindcss.com/docs
 - Tailwind v4 CSS-variable shorthand & arbitrary values — https://tailwindcss.com/docs/adding-custom-styles#using-arbitrary-values
 - Tailwind v4 theme variables (how `rounded-*` maps to `--radius-*`) — https://tailwindcss.com/docs/theme

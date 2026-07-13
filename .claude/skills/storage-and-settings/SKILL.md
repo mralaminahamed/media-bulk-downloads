@@ -96,6 +96,7 @@ detection, never treat "browser doesn't know this id" as "deleted".
 - Settings + history source (this repo) — `packages/storage/src/settings.ts`,
   `packages/storage/src/history.ts`, `packages/storage/src/idb.ts`,
   `packages/storage/src/sync.ts`, `packages/core/src/types.ts`
+- Store guides (this repo) — `docs/guides/history.md`, `docs/guides/favourites.md`
 - idb-keyval — https://github.com/jakearchibald/idb-keyval
 - StorageManager.persist() — https://developer.mozilla.org/en-US/docs/Web/API/StorageManager/persist
 - chrome.storage — https://developer.chrome.com/docs/extensions/reference/api/storage
