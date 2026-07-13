@@ -16,7 +16,7 @@ into every browser's manifest.
    ```bash
    corepack yarn zip:all
    ```
-   Produces in `.output/`:
+   Produces in `apps/extension/.output/`:
    - `media-bulk-downloads-<version>-chrome.zip`
    - `media-bulk-downloads-<version>-edge.zip`
    - `media-bulk-downloads-<version>-firefox.zip` **+** `-sources.zip`
@@ -90,7 +90,7 @@ The full submission package — paste-ready name/summary/description, category,
 per-permission justifications, privacy/data disclosures, screenshot specs — lives
 in `docs/store-submissions/CHROME_WEBSTORE.md`. Privacy policy: `PRIVACY.md` (hosted at the repo's
 public URL). Screenshots: 1280×800 or 640×400, 24-bit PNG, no alpha (there's a
-`assets/screenshot-1280x800.png`). Other Chromium browsers (Brave/Opera/Vivaldi)
+`assets/v1/screenshot-1280x800.png`). Other Chromium browsers (Brave/Opera/Vivaldi)
 use the Chrome zip.
 
 ## References

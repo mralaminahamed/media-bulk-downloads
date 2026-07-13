@@ -28,7 +28,7 @@ the listing copy is intentionally identical so every store matches.
 - [ ] `wxt.config.ts` name/description correct; version comes from `apps/extension/package.json`. `yarn zip` emits the Chromium package `apps/extension/.output/media-bulk-downloads-<version>-chrome.zip`.
 - [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`; optional `notifications` and
   `declarativeNetRequestWithHostAccess` (both requested at runtime).
-- [ ] Icons 16/32/48/128 present (`src/public/icon/`) — ✅ already in the build; Opera uses the manifest icons.
+- [ ] Icons 16/32/48/128 present (`apps/extension/src/public/icon/`) — ✅ already in the build; Opera uses the manifest icons.
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
 - [ ] At least **1 screenshot** (see §5) — the 1280×800 shots from the Chrome package work as-is.
 - [ ] **Promotional picture 300×188 PNG** ready for the moderator (see §5) — ✅ `assets/v2/opera-promo-300x188.png`.
@@ -221,7 +221,7 @@ crop to size. PNG or JPEG.
 
 | Asset                   | Size        | Required      | Suggested shot                                                                                                                                 |
 |-------------------------|-------------|---------------|------------------------------------------------------------------------------------------------------------------------------------------------|
-| Icon                    | 64×64       | ✅ (manifest)  | Ships in the build — `src/public/icon/64.png` (rendered from `assets/v1/icon.svg`); Opera reads the manifest icons, no separate store logo needed |
+| Icon                    | 64×64       | ✅ (manifest)  | Ships in the build — `apps/extension/src/public/icon/64.png` (rendered from `assets/v1/icon.svg`); Opera reads the manifest icons, no separate store logo needed |
 | Screenshot 1            | 1280×800    | ✅ (≥1)        | Popup with a full media grid + type badges                                                                                                     |
 | Screenshot 2            | 1280×800    | optional      | Filter toolbar in use (kind/format/size)                                                                                                       |
 | Screenshot 3            | 1280×800    | optional      | Preview modal (with prev/next)                                                                                                                 |

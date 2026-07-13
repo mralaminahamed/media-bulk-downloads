@@ -25,8 +25,8 @@ change; after a manual `yarn build`, hit **Reload ↻** on the extension card.
 
 ## Common failure modes seen here
 
-- **Wrong build loaded** — a stale `.output` or the old `dist/` (which no longer
-  exists). Rebuild and reload; load `.output/chrome-mv3` (or `firefox-mv3`).
+- **Wrong build loaded** — a stale `apps/extension/.output` or the old `dist/` (which no longer
+  exists). Rebuild and reload; load `apps/extension/.output/chrome-mv3` (or `firefox-mv3`).
 - **First download after worker wake uses defaults** — the settings gate
   (`settingsReady`) fixes this; if a download ignores settings, check that gate.
 - **Popup blends into a white page** (bubble surface) — that's the on-page bubble;

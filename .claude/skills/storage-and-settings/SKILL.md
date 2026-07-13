@@ -1,6 +1,6 @@
 ---
 name: storage-and-settings
-description: Work with this extension's persisted state — user settings (chrome.storage.sync), the bulk stores (download history, favourites, excluded, download queue in chrome.storage.local), and their durable IndexedDB write-through mirror — including defaults, tolerating legacy/corrupt shapes, the single-writer rule, the ephemeral-worker settings gate, durableSet, and the startup heal. Use when adding a setting, changing the history/favourites/queue model, touching anything under shared/storage/ (settings.ts, history.ts, idb.ts, sync.ts, ...), or reasoning about persistence/durability/migrations.
+description: Work with this extension's persisted state — user settings (chrome.storage.sync), the bulk stores (download history, favourites, excluded, download queue in chrome.storage.local), and their durable IndexedDB write-through mirror — including defaults, tolerating legacy/corrupt shapes, the single-writer rule, the ephemeral-worker settings gate, durableSet, and the startup heal. Use when adding a setting, changing the history/favourites/queue model, touching anything under packages/storage/src/ (settings.ts, history.ts, idb.ts, sync.ts, ...), or reasoning about persistence/durability/migrations.
 ---
 
 # Storage & settings
@@ -8,13 +8,13 @@ description: Work with this extension's persisted state — user settings (chrom
 Two realms, several stores:
 
 - **Settings → `chrome.storage.sync`** (key `settings`). Follows the user's Chrome
-  profile. `SettingsData` in `src/types`. Defaults + merge in `shared/storage/settings.ts`.
+  profile. `SettingsData` in `packages/core/src/types.ts`. Defaults + merge in `packages/storage/src/settings.ts`.
 - **Bulk state → `chrome.storage.local`**, one module per store:
-  - Download history (`downloadHistory`, `shared/storage/history.ts`) — cap
+  - Download history (`downloadHistory`, `packages/storage/src/history.ts`) — cap
     `HISTORY_CAP = 500`, also byte-bounded to `HISTORY_MAX_BYTES = 2_000_000`.
-  - Favourites (`shared/storage/favourites.ts`), excluded sources
-    (`shared/storage/excluded.ts`), the download queue
-    (`shared/storage/download-queue.ts`).
+  - Favourites (`packages/storage/src/favourites.ts`), excluded sources
+    (`packages/storage/src/excluded.ts`), the download queue
+    (`packages/storage/src/download-queue.ts`).
   - `backup.ts` (manual JSON export/import) and `save-as-hint.ts` (one-time hint
     dismissal).
 
@@ -25,7 +25,7 @@ IndexedDB is the durable backstop.
 
 ## Adding / changing a setting
 
-1. Add the field to `SettingsData` and to `DEFAULT_SETTINGS` (`shared/storage/settings.ts`).
+1. Add the field to `SettingsData` and to `DEFAULT_SETTINGS` (`packages/storage/src/settings.ts`).
 2. `withDefaults(stored)` merges stored over defaults and is the migration path —
    it backfills missing fields for old users and **guards nested objects**
    (`bubblePosition`, `bubblePanelPoint`) so a corrupt non-object value can't inject
@@ -56,7 +56,7 @@ IndexedDB is the durable backstop.
 users have lost history/favourites. The fix is a write-through mirror to
 IndexedDB, which is not silently evicted:
 
-- **`shared/storage/idb.ts`** — a tiny `idb-keyval` binding (one DB
+- **`packages/storage/src/idb.ts`** — a tiny `idb-keyval` binding (one DB
   `media-bulk-downloads`, store `kv`) plus **`durableSet(key, value)`**: it writes
   `chrome.storage.local` **and** fires a best-effort IndexedDB write. Every mutation
   of a managed store goes through `durableSet` instead of a raw
@@ -64,7 +64,7 @@ IndexedDB, which is not silently evicted:
 - **Fire-and-forget.** `durableSet` returns the *local* set's promise and does
   **not** await the IDB write (it `.catch`es and warns). Awaiting it would break the
   single-flush timing of serialized history/queue writes. Don't make it await.
-- **`shared/storage/sync.ts`** — at startup `background/index.ts` calls
+- **`packages/storage/src/sync.ts`** — at startup `apps/extension/src/extension/background/index.ts` calls
   `persistStorage()` (guarded `navigator.storage.persist()` — best effort) and
   `syncStores()`. `syncStores` reconciles each `MANAGED_KEYS`
   (history / favourites / excluded / queue): **local wins if present**, otherwise
@@ -89,9 +89,9 @@ detection, never treat "browser doesn't know this id" as "deleted".
 
 ## References
 
-- Settings + history source (this repo) — `src/extension/shared/storage/settings.ts`,
-  `src/extension/shared/storage/history.ts`, `src/extension/shared/storage/idb.ts`,
-  `src/extension/shared/storage/sync.ts`, `src/types/index.d.ts`
+- Settings + history source (this repo) — `packages/storage/src/settings.ts`,
+  `packages/storage/src/history.ts`, `packages/storage/src/idb.ts`,
+  `packages/storage/src/sync.ts`, `packages/core/src/types.ts`
 - idb-keyval — https://github.com/jakearchibald/idb-keyval
 - StorageManager.persist() — https://developer.mozilla.org/en-US/docs/Web/API/StorageManager/persist
 - chrome.storage — https://developer.chrome.com/docs/extensions/reference/api/storage

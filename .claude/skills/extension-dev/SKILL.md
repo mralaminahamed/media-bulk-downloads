@@ -11,32 +11,32 @@ use **Corepack Yarn**, never npm. Node **20.19+** (`.nvmrc` pins 22).
 ## Commands
 
 ```bash
-yarn dev            # Chrome dev (HMR) → .output/chrome-mv3
+yarn dev            # Chrome dev (HMR) → apps/extension/.output/chrome-mv3
 yarn dev:firefox    # Firefox dev profile
-yarn build          # .output/chrome-mv3       (also :firefox, :edge, :all)
-yarn zip            # store zip in .output/     (also :firefox, :edge, :all)
+yarn build          # apps/extension/.output/chrome-mv3       (also :firefox, :edge, :all)
+yarn zip            # store zip in apps/extension/.output/     (also :firefox, :edge, :all)
 yarn type-check     # wxt prepare + tsc --noEmit   ← run before trusting tsc
 yarn lint           # eslint
 yarn test           # vitest + coverage
 ```
 
-Zips: `.output/media-bulk-downloads-<version>-<browser>.zip` (Firefox also emits
+Zips: `apps/extension/.output/media-bulk-downloads-<version>-<browser>.zip` (Firefox also emits
 a `-sources.zip` for AMO). Version comes from `package.json`. Load unpacked:
-`.output/chrome-mv3` (or `firefox-mv3`). There is **no** `dist/` or `release/`.
+`apps/extension/.output/chrome-mv3` (or `firefox-mv3`). There is **no** `dist/` or `release/`.
 
 ## Structure
 
-- `wxt.config.ts` — `srcDir: 'src'`, `publicDir: 'src/public'`, `manifestVersion: 3`
+- `apps/extension/wxt.config.ts` — `srcDir: 'src'`, `publicDir: 'src/public'`, `manifestVersion: 3`
   (Firefox too), `imports: false` (no auto-imports — use explicit imports and the
   `chrome.*` namespace), React via `@wxt-dev/module-react`, Tailwind via
   `postcss.config.js`. The manifest is a **function of `browser`** — Firefox gets
   `browser_specific_settings.gecko` (id, `strict_min_version`,
   `data_collection_permissions`).
-- `src/entrypoints/{background,content,popup}` — thin WXT wrappers that
-  side-effect-import the real modules under `src/extension/`.
-- `src/extension/` — background worker, content script, `popup/` + `bubble/` React UI.
+- `apps/extension/src/entrypoints/{background,content,popup}` — thin WXT wrappers that
+  side-effect-import the real modules under `apps/extension/src/extension/`.
+- `apps/extension/src/extension/` — background worker, content script, `popup/` + `bubble/` React UI.
 
-Permissions (keep in sync with `wxt.config.ts`): `downloads`, `downloads.open`,
+Permissions (keep in sync with `apps/extension/wxt.config.ts`): `downloads`, `downloads.open`,
 `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`, plus **optional**
 `notifications` and `declarativeNetRequestWithHostAccess` requested at runtime. See
 the `permissions-and-privacy` skill for the full table + justifications.
