@@ -36,10 +36,13 @@ export function pinPinimgUrl(url: unknown): string | null {
   }
 }
 
-/** The numeric pin id from a /pin/<id>/ url or slug (…--<id>/), or null. */
+/** The numeric pin id from a /pin/<id> url or slug (…--<id>), or null. The id run
+ *  may be terminated by a slash, a query (`?`), a hash (`#`), or end-of-string —
+ *  a tracking-decorated anchor or pushState url can append `?…` with no trailing
+ *  slash. Single source of truth: pinterest.ts's resolver reuses this. */
 export function pinIdFromUrl(url: unknown): string | null {
   if (typeof url !== 'string') return null;
-  return url.match(/\/pin\/(?:[^/]*--)?(\d+)(?:\/|$)/)?.[1] ?? null;
+  return url.match(/\/pin\/(?:[^/]*--)?(\d+)(?:[/?#]|$)/)?.[1] ?? null;
 }
 
 export const PIN_EXT = /^(?:jpe?g|png|webp|gif|avif|mp4|m3u8|mov|webm|m4v)$/i;

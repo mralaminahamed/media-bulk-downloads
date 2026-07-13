@@ -96,4 +96,11 @@ describe('pinIdFromUrl', () => {
     expect(pinIdFromUrl('/pin/some-slug--698058011039781102/')).toBe('698058011039781102');
     expect(pinIdFromUrl('https://www.pinterest.com/user/')).toBeNull();
   });
+  it('extracts the id when a query or hash follows the digits with NO trailing slash', () => {
+    // tracking-decorated anchors / pushState urls append `?…`/`#…` without a slash.
+    expect(pinIdFromUrl('https://www.pinterest.com/pin/84301824269690044?invite_code=abc')).toBe('84301824269690044');
+    expect(pinIdFromUrl('https://www.pinterest.com/pin/84301824269690044?utm_source=x')).toBe('84301824269690044');
+    expect(pinIdFromUrl('https://www.pinterest.com/pin/84301824269690044#comments')).toBe('84301824269690044');
+    expect(pinIdFromUrl('/pin/recipe--454933999867625815?ref=1')).toBe('454933999867625815');
+  });
 });

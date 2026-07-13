@@ -134,6 +134,15 @@ describe('pinterestResolver — edge cases', () => {
     expect(c.resolveHint).toEqual({ platform: 'pinterest', id: '84301824269690044' });
   });
 
+  it('extracts the pin id when the /pin/ link has a query with NO trailing slash', () => {
+    // A tracking-decorated anchor: /pin/<id>?invite_code=… with no slash before `?`.
+    const cell = document.createElement('div');
+    cell.innerHTML = '<a href="/pin/84301824269690044?invite_code=abc"><img alt="p"><video></video></a>';
+    const [c] = resolve(img('736x'), { allowNetwork: false, el: cell.querySelector('img')! });
+    expect(c.kind).toBe('video');
+    expect(c.resolveHint).toEqual({ platform: 'pinterest', id: '84301824269690044' });
+  });
+
   it('detects a <video> elsewhere in the pin cell, not only inside the anchor', () => {
     const cell = document.createElement('div');
     cell.setAttribute('data-test-id', 'pin');

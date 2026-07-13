@@ -94,13 +94,19 @@ export function bestIgImage(candidates: unknown): { url: string; width: number; 
 function emitLeaf(node: Record<string, unknown>, code: string, out: IgMediaEntry[], seenUrls: Set<string>): void {
   if (node.video_versions) {
     const best = bestSized(node.video_versions);
-    if (!best || seenUrls.has(best.url)) return;
-    seenUrls.add(best.url);
-    const poster = bestIgImage((node.image_versions2 as { candidates?: unknown } | undefined)?.candidates);
-    const entry: IgMediaEntry = { code, kind: 'video', url: best.url, ext: 'mp4', width: best.width, height: best.height };
-    if (poster) entry.poster = poster.url;
-    out.push(entry);
-    return;
+    if (best) {
+      if (seenUrls.has(best.url)) return; // this video is already emitted — skip (dedup)
+      seenUrls.add(best.url);
+      const poster = bestIgImage((node.image_versions2 as { candidates?: unknown } | undefined)?.candidates);
+      const entry: IgMediaEntry = { code, kind: 'video', url: best.url, ext: 'mp4', width: best.width, height: best.height };
+      if (poster) entry.poster = poster.url;
+      out.push(entry);
+      return;
+    }
+    // `video_versions` is present but unusable (empty/`[]` during transcoding, or
+    // every variant failed the CDN host-pin so bestSized returned null): fall
+    // through to the cover in `image_versions2` rather than dropping the slide —
+    // for a reel (media_type 2) that surfaces as a pending video below.
   }
   if (node.image_versions2) {
     const img = bestIgImage((node.image_versions2 as { candidates?: unknown }).candidates);
