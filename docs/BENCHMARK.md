@@ -5,6 +5,9 @@ websites. It measures what the extension's **actual** `collectMedia()` pipeline
 (deep DOM extraction → native resolvers → URL de-proxy → CDN upgrade → dedup)
 discovers on real pages.
 
+> For the plain-language summary of these results, see the
+> [Feature one-pager](./marketing/one-pager.md).
+
 ## Method
 
 - The real `apps/extension/src/extension/content/collect.ts` (with `extract.ts` / `imageUrl.ts` /

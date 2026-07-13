@@ -63,3 +63,9 @@ flowchart LR
 - **Conservative URL upgrading.** Only safe path-based CDN rewrites; signed hosts
   (`fbcdn.net`, `preview.redd.it`) are left byte-identical; every upgrade keeps
   the pre-upgrade URL as a `thumbnailSrc` fallback.
+
+## See also
+
+- [Feature one-pager](../marketing/one-pager.md) — plain-language overview
+- [Collection Benchmark](../BENCHMARK.md) — live, reproducible upgrade measurements
+- [Monorepo restructure](../architecture/monorepo-restructure.md) — packages/app design record

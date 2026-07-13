@@ -313,6 +313,10 @@ media-bulk-downloads/            # yarn-workspaces monorepo
 | [Badge](./docs/guides/badge.md)                             | The per-tab media count on the toolbar icon    |
 | [In-page Bubble](./docs/guides/bubble.md)                   | The Shadow-DOM launcher lifecycle              |
 
+**Reference:** [Feature one-pager](./docs/marketing/one-pager.md) — at-a-glance overview ·
+[Collection Benchmark](./docs/BENCHMARK.md) — live, reproducible upgrade measurements ·
+[Monorepo restructure](./docs/architecture/monorepo-restructure.md) — packages/app design record
+
 ## Contributing
 
 Contributions are welcome — please read the [Contributing Guide](./CONTRIBUTING.md) first.
