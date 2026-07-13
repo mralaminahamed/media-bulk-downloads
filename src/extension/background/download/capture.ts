@@ -1,7 +1,7 @@
-import { CaptureRunResult, ImageInfo } from '@/types';
-import { buildDownloadFilename } from '../../shared/collection/download-name';
+import { CaptureRunResult, ImageInfo } from '@mbd/core/types';
+import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { recordDownloads } from '../../shared/storage/history';
-import { STREAM_MAX_BYTES, STREAM_TARGET_HEIGHT } from '../../shared/download/stream/capture-constants';
+import { STREAM_MAX_BYTES, STREAM_TARGET_HEIGHT } from '@mbd/core/download/stream/capture-constants';
 import { currentSettings } from '../state';
 import { notifyBatchDone } from './downloads';
 

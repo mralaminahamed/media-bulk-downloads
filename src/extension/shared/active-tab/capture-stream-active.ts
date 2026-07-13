@@ -1,4 +1,4 @@
-import { CaptureProgressMessage, CaptureStreamMessage, CaptureStreamResponse, ImageInfo } from '@/types';
+import { CaptureProgressMessage, CaptureStreamMessage, CaptureStreamResponse, ImageInfo } from '@mbd/core/types';
 
 /**
  * A unique id for one capture run. Deliberately NOT crypto.randomUUID — that is

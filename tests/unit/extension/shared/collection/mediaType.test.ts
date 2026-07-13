@@ -6,7 +6,7 @@ import {
   imageExtFromUrl,
   isDashManifest,
   isHlsManifest,
-} from '@/extension/shared/collection/mediaType';
+} from '@mbd/core/collection/mediaType';
 
 describe('imageExtFromUrl', () => {
   it('returns the literal image extension, preserving jpg vs jpeg', () => {

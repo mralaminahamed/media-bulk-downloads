@@ -1,5 +1,5 @@
-import { magnificResolver } from '@/extension/shared/resolvers/sites/magnific';
-import { resolve } from '@/extension/shared/resolvers';
+import { magnificResolver } from '@mbd/core/resolvers/sites/magnific';
+import { resolve } from '@mbd/core/resolvers';
 
 const ctx = { allowNetwork: false };
 const run = (s: string, c = ctx) => magnificResolver.resolve(new URL(s), c);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pinFbUrl, fbidFromUrl, extFromPath, numOr, extractFbMedia } from '@/extension/shared/resolvers/sniffers/fb-media-sniff';
+import { pinFbUrl, fbidFromUrl, extFromPath, numOr, extractFbMedia } from '@mbd/core/resolvers/sniffers/fb-media-sniff';
 
 describe('pinFbUrl', () => {
   it('accepts https fbcdn / cdninstagram hosts', () => {

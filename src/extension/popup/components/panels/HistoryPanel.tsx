@@ -7,7 +7,7 @@ import {
   PhotoIcon,
   FolderOpenIcon,
 } from '@heroicons/react/24/outline';
-import { HistoryEntry } from '@/types';
+import { HistoryEntry } from '@mbd/core/types';
 import { loadHistory, HISTORY_KEY } from '@/extension/shared/storage/history';
 import { relativeTime, sendRuntimeMessage } from '../../utils';
 import { LoadingImage } from '../LoadingImage';

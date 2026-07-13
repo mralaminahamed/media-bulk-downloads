@@ -4,12 +4,12 @@ import type { Mock } from 'vitest';
 // installing the real fetch/XHR hooks (those are covered by response-sniffer's
 // own tests). This isolates the entrypoint-owned logic: the manifest regex, the
 // dedup, the postMessage envelope, and the replay wiring.
-vi.mock('@/extension/shared/resolvers/sniffers/response-sniffer', () => ({
+vi.mock('@mbd/core/resolvers/sniffers/response-sniffer', () => ({
   installUrlSniffer: vi.fn(),
   installReplayOnReady: vi.fn(),
 }));
 
-import { installUrlSniffer, installReplayOnReady } from '@/extension/shared/resolvers/sniffers/response-sniffer';
+import { installUrlSniffer, installReplayOnReady } from '@mbd/core/resolvers/sniffers/response-sniffer';
 import hlsSniffer from '@/entrypoints/hls-sniffer.content';
 
 type UrlCfg = { isMatch: (url: string) => boolean; onUrl: (url: string) => void };

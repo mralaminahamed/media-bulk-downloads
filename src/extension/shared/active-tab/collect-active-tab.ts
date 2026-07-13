@@ -1,4 +1,4 @@
-import { ImageInfo, PageType } from '@/types';
+import { ImageInfo, PageType } from '@mbd/core/types';
 
 /**
  * Collects images from the active tab by messaging its content script.

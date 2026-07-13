@@ -1,8 +1,8 @@
-import { captureHls, HlsError } from '@/extension/shared/download/stream/hls';
-import { captureDash, DashError } from '@/extension/shared/download/stream/dash';
-import { browserHlsDeps } from '@/extension/shared/download/stream/hls-webcrypto';
-import { browserDashDeps } from '@/extension/shared/download/stream/dash-fetch';
-import { CaptureRunMessage, CaptureRunResult } from '@/types';
+import { captureHls, HlsError } from '@mbd/core/download/stream/hls';
+import { captureDash, DashError } from '@mbd/core/download/stream/dash';
+import { browserHlsDeps } from '@mbd/core/download/stream/hls-webcrypto';
+import { browserDashDeps } from '@mbd/core/download/stream/dash-fetch';
+import { CaptureRunMessage, CaptureRunResult } from '@mbd/core/types';
 
 /**
  * The offscreen document's capture host. The offscreen realm has DOM APIs

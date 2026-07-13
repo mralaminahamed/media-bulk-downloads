@@ -1,6 +1,6 @@
 import { buildBackup, parseBackup, BACKUP_APP, BACKUP_VERSION } from '@/extension/shared/storage/backup';
 import { DEFAULT_SETTINGS } from '@/extension/shared/storage/settings';
-import { FavouriteEntry, HistoryEntry } from '@/types';
+import { FavouriteEntry, HistoryEntry } from '@mbd/core/types';
 
 const fav: FavouriteEntry = { src: 'https://a', kind: 'image', type: 'jpeg', sourcePageUrl: 'p', time: 1 };
 const hist: HistoryEntry = { src: 'https://h', filename: 'x.jpg', kind: 'image', type: 'jpeg', sourcePageUrl: 'p', time: 2 };

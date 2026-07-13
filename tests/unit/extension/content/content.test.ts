@@ -1,15 +1,15 @@
 import type { Mock, MockInstance } from 'vitest';
-import { registrableDomain } from '@/extension/shared/collection/paths';
+import { registrableDomain } from '@mbd/core/collection/paths';
 // The relay listeners forward sniffer payloads into these resolver functions.
 // Spy on just those two entry points (keep the rest of each module real so the
 // collectMedia tests, which pull sniffedHlsManifests / instagramPageMedia from
 // the same modules, are unaffected).
-vi.mock('@/extension/shared/resolvers/sites/instagram', async () => ({
-  ...(await vi.importActual<typeof import('@/extension/shared/resolvers/sites/instagram')>('@/extension/shared/resolvers/sites/instagram')),
+vi.mock('@mbd/core/resolvers/sites/instagram', async () => ({
+  ...(await vi.importActual<typeof import('@mbd/core/resolvers/sites/instagram')>('@mbd/core/resolvers/sites/instagram')),
   ingestSniffedIgMedia: vi.fn(),
 }));
-vi.mock('@/extension/shared/resolvers/sniffers/hls-sniff', async () => ({
-  ...(await vi.importActual<typeof import('@/extension/shared/resolvers/sniffers/hls-sniff')>('@/extension/shared/resolvers/sniffers/hls-sniff')),
+vi.mock('@mbd/core/resolvers/sniffers/hls-sniff', async () => ({
+  ...(await vi.importActual<typeof import('@mbd/core/resolvers/sniffers/hls-sniff')>('@mbd/core/resolvers/sniffers/hls-sniff')),
   ingestSniffedHls: vi.fn(),
 }));
 // The deep-scan runner is a heavy DOM-scrolling driver; the content script only
@@ -601,8 +601,8 @@ describe('Sniffer relay listeners (generic host)', () => {
       .map((c) => c[1] as Handler);
     addSpy.mockRestore();
 
-    const igMod = await import('@/extension/shared/resolvers/sites/instagram');
-    const hlsMod = await import('@/extension/shared/resolvers/sniffers/hls-sniff');
+    const igMod = await import('@mbd/core/resolvers/sites/instagram');
+    const hlsMod = await import('@mbd/core/resolvers/sniffers/hls-sniff');
     // vi.resetModules() re-imports the module graph but reuses the vi.mock
     // factory's fns (unlike jest.resetModules, which rebuilds them), so their
     // call history persists across loadContent() calls. Clear it per load.

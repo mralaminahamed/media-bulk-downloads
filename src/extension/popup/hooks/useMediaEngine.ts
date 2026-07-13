@@ -1,13 +1,13 @@
 import { Dispatch, RefObject, SetStateAction, useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, DeepScanProgress, DeepScanStopReason, FilterOptions, ImageInfo, SettingsData } from '@/types';
-import { filterImagesBySettings, applyToolbarFilters, filterExcluded, ExcludedMatchers } from '../../shared/collection/filters';
-import { mergeScannedMedia } from '../../shared/collection/merge';
+import { AppState, DeepScanProgress, DeepScanStopReason, FilterOptions, ImageInfo, SettingsData } from '@mbd/core/types';
+import { filterImagesBySettings, applyToolbarFilters, filterExcluded, ExcludedMatchers } from '@mbd/core/collection/filters';
+import { mergeScannedMedia } from '@mbd/core/collection/merge';
 import { loadStoredSettings } from '../../shared/storage/settings';
 import { requestResolveOriginals } from '../../shared/active-tab/resolve-originals-active';
 import { getPageType } from '../../shared/active-tab/collect-active-tab';
 import { applyResolved } from '../apply-resolved';
-import { SrcKeySet } from '../../shared/collection/canonical';
-import { pageDefaults } from '../../shared/collection/pageType';
+import { SrcKeySet } from '@mbd/core/collection/canonical';
+import { pageDefaults } from '@mbd/core/collection/pageType';
 import { DEFAULT_FILTERS } from '../components/FilterToolbar';
 import { getImageFileSize, mapWithConcurrency } from '../utils';
 import { SIZE_FETCH_CONCURRENCY, deepScanCapMessage, pendingVideos } from '../lib/appHelpers';

@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { resolveOriginal } from '@/extension/shared/resolvers/network';
+import { resolveOriginal } from '@mbd/core/resolvers/network';
 import pinWidget from '../../../fixtures/pinterest/pin-video-widget.json';
 import asProject from '../../../fixtures/artstation/project.json';
 import tweetResultVideo from '../../../fixtures/twitter/tweet-result-video.json';

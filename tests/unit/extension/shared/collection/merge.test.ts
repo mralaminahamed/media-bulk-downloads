@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { mergeScannedMedia } from '@/extension/shared/collection/merge';
-import type { ImageInfo } from '@/types';
+import { mergeScannedMedia } from '@mbd/core/collection/merge';
+import type { ImageInfo } from '@mbd/core/types';
 
 const img = (src: string, extra: Partial<ImageInfo> = {}): ImageInfo => ({
   src, alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image', ...extra,

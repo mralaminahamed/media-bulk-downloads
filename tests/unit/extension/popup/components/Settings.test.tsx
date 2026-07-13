@@ -4,7 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Settings from '@/extension/popup/components/panels/Settings';
 import { DEFAULT_SETTINGS } from '@/extension/shared/storage/settings';
-import { SettingsData } from '@/types';
+import { SettingsData } from '@mbd/core/types';
 
 describe('Settings Component', () => {
   const mockOnClose = vi.fn();

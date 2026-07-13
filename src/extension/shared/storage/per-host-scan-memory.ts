@@ -1,4 +1,4 @@
-import { ScanMemory } from '@/types';
+import { ScanMemory } from '@mbd/core/types';
 import { durableSet } from './idb';
 
 /**

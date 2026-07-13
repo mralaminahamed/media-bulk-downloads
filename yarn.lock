@@ -869,6 +869,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@mbd/core@workspace:packages/core":
+  version: 0.0.0-use.local
+  resolution: "@mbd/core@workspace:packages/core"
+  dependencies:
+    "@types/react": "npm:^19.2.17"
+    fflate: "npm:^0.8.3"
+    mp4box: "npm:^2.4.1"
+  languageName: unknown
+  linkType: soft
+
 "@mdn/browser-compat-data@npm:8.0.2":
   version: 8.0.2
   resolution: "@mdn/browser-compat-data@npm:8.0.2"

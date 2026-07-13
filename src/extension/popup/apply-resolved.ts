@@ -1,4 +1,4 @@
-import { ImageInfo, ResolvedMedia } from '@/types';
+import { ImageInfo, ResolvedMedia } from '@mbd/core/types';
 
 /**
  * Turn a resolve result into the swapped grid item. A direct URL swaps in place

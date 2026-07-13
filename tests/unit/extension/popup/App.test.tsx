@@ -3,16 +3,16 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from '@/extension/popup/App';
-import { ImageInfo } from '@/types';
+import { ImageInfo } from '@mbd/core/types';
 import { deepScanActiveTab } from '@/extension/shared/active-tab/deep-scan-active-tab';
 import { requestResolveOriginals } from '@/extension/shared/active-tab/resolve-originals-active';
 import { getPageType } from '@/extension/shared/active-tab/collect-active-tab';
 import { excludedMatchers, EXCLUDED_KEY } from '@/extension/shared/storage/excluded';
-import { SrcKeySet } from '@/extension/shared/collection/canonical';
+import { SrcKeySet } from '@mbd/core/collection/canonical';
 import { HISTORY_KEY } from '@/extension/shared/storage/history';
 import { FAVOURITES_KEY } from '@/extension/shared/storage/favourites';
-import { buildZip } from '@/extension/shared/download/zip';
-import { convertImage } from '@/extension/shared/download/convert/convert';
+import { buildZip } from '@mbd/core/download/zip';
+import { convertImage } from '@mbd/core/download/convert/convert';
 
 vi.mock('@/extension/shared/active-tab/deep-scan-active-tab', () => ({
   deepScanActiveTab: vi.fn(async (onProgress) => {
@@ -40,7 +40,7 @@ vi.mock('@/extension/shared/active-tab/collect-active-tab', () => ({
 
 vi.mock('@/extension/shared/storage/excluded', async () => {
   // urls must be a real SrcKeySet — the optimistic exclude path calls withAdded().
-  const { SrcKeySet: KeySet } = await vi.importActual<typeof import('@/extension/shared/collection/canonical')>('@/extension/shared/collection/canonical');
+  const { SrcKeySet: KeySet } = await vi.importActual<typeof import('@mbd/core/collection/canonical')>('@mbd/core/collection/canonical');
   return {
     excludedMatchers: vi.fn(async () => ({ urls: new KeySet(), hosts: new Set() })),
     // ExcludedPanel (opened from the header) loads the raw list; keep it empty.
@@ -51,7 +51,7 @@ vi.mock('@/extension/shared/storage/excluded', async () => {
 
 // ZIP is built in the popup context — mock so tests drive the ok/partial/total-fail
 // branches without hitting the network. zipFileName is deterministic here.
-vi.mock('@/extension/shared/download/zip', () => ({
+vi.mock('@mbd/core/download/zip', () => ({
   buildZip: vi.fn(),
   zipFileName: vi.fn(() => 'example.com-media-2026-07-07.zip'),
 }));
@@ -59,8 +59,8 @@ vi.mock('@/extension/shared/download/zip', () => ({
 // Keep the real isConvertible (a pure classifier the download path branches on) so
 // the passthrough/convert split is exercised for real; only the canvas-backed
 // convertImage (unavailable under jsdom) is mocked.
-vi.mock('@/extension/shared/download/convert/convert', async () => ({
-  ...(await vi.importActual<typeof import('@/extension/shared/download/convert/convert')>('@/extension/shared/download/convert/convert')),
+vi.mock('@mbd/core/download/convert/convert', async () => ({
+  ...(await vi.importActual<typeof import('@mbd/core/download/convert/convert')>('@mbd/core/download/convert/convert')),
   convertImage: vi.fn(),
 }));
 

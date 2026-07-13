@@ -1,4 +1,4 @@
-import { browserDashDeps } from '@/extension/shared/download/stream/dash-fetch';
+import { browserDashDeps } from '@mbd/core/download/stream/dash-fetch';
 
 describe('browserDashDeps', () => {
   afterEach(() => { (global as { fetch?: unknown }).fetch = undefined; });

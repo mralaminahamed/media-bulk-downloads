@@ -1,6 +1,6 @@
 import React from 'react';
 import { ArrowDownTrayIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
-import { DataPaneProps } from '@/types';
+import { DataPaneProps } from '@mbd/core/types';
 
 const DataPane: React.FC<DataPaneProps> = ({ onExport, onImportFile, fileInputRef, backupNote }) => (
   <section

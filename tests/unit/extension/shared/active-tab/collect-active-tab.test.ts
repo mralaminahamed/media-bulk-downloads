@@ -1,6 +1,6 @@
 import type { Mock } from 'vitest';
 import { collectFromActiveTab, getPageType } from '@/extension/shared/active-tab/collect-active-tab';
-import { ImageInfo } from '@/types';
+import { ImageInfo } from '@mbd/core/types';
 
 describe('collectFromActiveTab', () => {
   const sample: ImageInfo[] = [

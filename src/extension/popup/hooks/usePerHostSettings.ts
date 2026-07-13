@@ -1,6 +1,6 @@
 import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { SettingsData } from '@/types';
-import { hostFromUrl, registrableDomain } from '../../shared/collection/paths';
+import { SettingsData } from '@mbd/core/types';
+import { hostFromUrl, registrableDomain } from '@mbd/core/collection/paths';
 import {
   applyHostOverride, pickHostFields, overrideForHost, loadEffectiveSettingsForHost,
 } from '../../shared/storage/per-host-settings';

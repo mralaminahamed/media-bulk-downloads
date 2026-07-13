@@ -1,4 +1,4 @@
-import { installReplayOnReady, installResponseSniffer, installUrlSniffer, makeSnifferEmit } from '@/extension/shared/resolvers/sniffers/response-sniffer';
+import { installReplayOnReady, installResponseSniffer, installUrlSniffer, makeSnifferEmit } from '@mbd/core/resolvers/sniffers/response-sniffer';
 
 // jsdom does not implement `Request`, so `input instanceof Request` (the sniffers'
 // check for a Request-shaped fetch argument) would throw a bare ReferenceError —

@@ -1,7 +1,7 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import { extractPinterestMedia, PinterestMediaEntry } from '@/extension/shared/resolvers/sniffers/pinterest-media-sniff';
-import { installResponseSniffer, makeSnifferEmit, installReplayOnReady } from '@/extension/shared/resolvers/sniffers/response-sniffer';
-import { PINTEREST_MATCHES } from '@/extension/shared/resolvers/sniffers/pinterest-hosts';
+import { extractPinterestMedia, PinterestMediaEntry } from '@mbd/core/resolvers/sniffers/pinterest-media-sniff';
+import { installResponseSniffer, makeSnifferEmit, installReplayOnReady } from '@mbd/core/resolvers/sniffers/response-sniffer';
+import { PINTEREST_MATCHES } from '@mbd/core/resolvers/sniffers/pinterest-hosts';
 
 /**
  * MAIN-world content script for Pinterest. Runs in the page realm at

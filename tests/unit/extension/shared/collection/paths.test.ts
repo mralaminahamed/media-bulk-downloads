@@ -4,7 +4,7 @@ import {
   hostFromUrl,
   registrableDomain,
   PathTokens,
-} from '@/extension/shared/collection/paths';
+} from '@mbd/core/collection/paths';
 
 describe('hostFromUrl', () => {
   it('returns the hostname of an http(s) URL', () => {

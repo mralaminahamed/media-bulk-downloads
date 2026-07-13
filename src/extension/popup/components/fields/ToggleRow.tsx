@@ -1,5 +1,5 @@
 import React from 'react';
-import { ToggleRowProps } from '@/types';
+import { ToggleRowProps } from '@mbd/core/types';
 
 export const ToggleRow: React.FC<ToggleRowProps> = ({ id, label, description, checked, onToggle }) => (
   <div className="mbd:py-1.5">

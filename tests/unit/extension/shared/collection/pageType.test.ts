@@ -1,5 +1,5 @@
-import { classifyPage, pageDefaults, collectPageSignals } from '@/extension/shared/collection/pageType';
-import { PageSignals } from '@/types';
+import { classifyPage, pageDefaults, collectPageSignals } from '@mbd/core/collection/pageType';
+import { PageSignals } from '@mbd/core/types';
 
 const sig = (over: Partial<PageSignals>): PageSignals => ({
   imageCount: 0, density: 0, aspectSpread: 0, hasArticle: false, dominantAreaRatio: 0, feedMarkers: false, ...over,

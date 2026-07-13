@@ -1,5 +1,5 @@
-import { FavouriteEntry, ImageInfo } from '@/types';
-import { filterImagesBySettings, filterExcluded, isPendingOrStream } from '../shared/collection/filters';
+import { FavouriteEntry, ImageInfo } from '@mbd/core/types';
+import { filterImagesBySettings, filterExcluded, isPendingOrStream } from '@mbd/core/collection/filters';
 import { newCaptureRunId } from '../shared/active-tab/capture-stream-active';
 import { addFavourite } from '../shared/storage/favourites';
 import { currentSettings, excludedCache, settingsReady, excludedReady } from './state';

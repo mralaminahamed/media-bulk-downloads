@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
-import { browserHlsDeps } from '@/extension/shared/download/stream/hls-webcrypto';
-import { browserDashDeps } from '@/extension/shared/download/stream/dash-fetch';
+import { browserHlsDeps } from '@mbd/core/download/stream/hls-webcrypto';
+import { browserDashDeps } from '@mbd/core/download/stream/dash-fetch';
 
 function transientThenOk(bytes: Uint8Array) {
   let n = 0;

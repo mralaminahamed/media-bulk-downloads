@@ -1,5 +1,5 @@
 import { deepScanCapMessage, downloadable, pendingVideos } from '@/extension/popup/lib/appHelpers';
-import { ImageInfo } from '@/types';
+import { ImageInfo } from '@mbd/core/types';
 
 const img = (over: Partial<ImageInfo>): ImageInfo => ({
   src: 'x.jpg', alt: '', width: 100, height: 100, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image', ...over,

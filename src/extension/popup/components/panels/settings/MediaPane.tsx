@@ -1,5 +1,5 @@
 import React from 'react';
-import { SettingsPaneProps } from '@/types';
+import { SettingsPaneProps } from '@mbd/core/types';
 import { NumberField } from '../../fields/NumberField';
 import { ToggleRow } from '../../fields/ToggleRow';
 import { AdvancedDisclosure } from './AdvancedDisclosure';

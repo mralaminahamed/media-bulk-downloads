@@ -1,6 +1,6 @@
 import type { Mock } from 'vitest';
 import { deepScanActiveTab, abortDeepScanActiveTab } from '@/extension/shared/active-tab/deep-scan-active-tab';
-import { DeepScanProgress } from '@/types';
+import { DeepScanProgress } from '@mbd/core/types';
 
 describe('deep-scan-active-tab — abort targets the scanning tab', () => {
   beforeEach(() => {

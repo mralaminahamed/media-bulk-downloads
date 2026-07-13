@@ -1,5 +1,5 @@
 import React from 'react';
-import { IconProps } from '@/types';
+import { IconProps } from '@mbd/core/types';
 
 /** Placeholder tile icon for videos with no poster. */
 export const FilmIcon: React.FC<IconProps> = ({ className }) => (

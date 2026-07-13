@@ -1,4 +1,4 @@
-import { dailymotionVideoId } from '@/extension/shared/resolvers/sites/dailymotion';
+import { dailymotionVideoId } from '@mbd/core/resolvers/sites/dailymotion';
 
 describe('dailymotionVideoId', () => {
   it.each([

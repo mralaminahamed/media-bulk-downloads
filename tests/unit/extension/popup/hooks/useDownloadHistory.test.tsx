@@ -1,7 +1,7 @@
 import type { Mock } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useDownloadHistory } from '@/extension/popup/hooks/useDownloadHistory';
-import { ImageInfo } from '@/types';
+import { ImageInfo } from '@mbd/core/types';
 
 const image = (over: Partial<ImageInfo>): ImageInfo => ({
   src: 'test.jpg', alt: 'Test', width: 100, height: 100, type: 'jpeg', fileSize: 1024, isBase64: false, kind: 'image', ...over,

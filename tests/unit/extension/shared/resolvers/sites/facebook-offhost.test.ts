@@ -9,7 +9,7 @@
  * The "on facebook.com" half lives in the sibling facebook.test.ts, which pins
  * the location to https://www.facebook.com/.
  */
-import { facebookResolver, __resetFbResolver } from '@/extension/shared/resolvers/sites/facebook';
+import { facebookResolver, __resetFbResolver } from '@mbd/core/resolvers/sites/facebook';
 
 beforeEach(() => __resetFbResolver());
 

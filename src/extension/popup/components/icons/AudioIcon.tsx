@@ -1,5 +1,5 @@
 import React from 'react';
-import { IconProps } from '@/types';
+import { IconProps } from '@mbd/core/types';
 
 /** Placeholder tile icon for audio items. */
 export const AudioIcon: React.FC<IconProps> = ({ className }) => (

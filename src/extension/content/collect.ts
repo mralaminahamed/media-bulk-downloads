@@ -10,21 +10,21 @@
  * reported as unknown (0); base64 sizes are computed locally.
  */
 
-import { ImageInfo, MediaItem } from '@/types';
-import { detectType, parseUrlDimensions } from '@/extension/shared/collection/imageUrl';
-import { classifyPage, collectPageSignals } from '@/extension/shared/collection/pageType';
-import { detectAvType, isUndownloadableMedia, isHlsManifest, isDashManifest } from '@/extension/shared/collection/mediaType';
-import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates, bestSrcsetUrl } from '@/extension/shared/collection/extract';
-import { canonicalSrcKey } from '@/extension/shared/collection/canonical';
-import { resolve, MediaCandidate } from '@/extension/shared/resolvers';
-import { twitterGifCandidate, twitterVideoPending } from '@/extension/shared/resolvers/sites/twitter';
-import { instagramPageMedia } from '@/extension/shared/resolvers/sites/instagram';
-import { facebookPageMedia } from '@/extension/shared/resolvers/sites/facebook';
-import { pinterestPageMedia } from '@/extension/shared/resolvers/sites/pinterest';
-import { youtubeVideoId } from '@/extension/shared/resolvers/sites/youtube';
-import { vimeoVideoId } from '@/extension/shared/resolvers/sites/vimeo';
-import { dailymotionVideoId } from '@/extension/shared/resolvers/sites/dailymotion';
-import { sniffedHlsManifests } from '@/extension/shared/resolvers/sniffers/hls-sniff';
+import { ImageInfo, MediaItem } from '@mbd/core/types';
+import { detectType, parseUrlDimensions } from '@mbd/core/collection/imageUrl';
+import { classifyPage, collectPageSignals } from '@mbd/core/collection/pageType';
+import { detectAvType, isUndownloadableMedia, isHlsManifest, isDashManifest } from '@mbd/core/collection/mediaType';
+import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates, bestSrcsetUrl } from '@mbd/core/collection/extract';
+import { canonicalSrcKey } from '@mbd/core/collection/canonical';
+import { resolve, MediaCandidate } from '@mbd/core/resolvers';
+import { twitterGifCandidate, twitterVideoPending } from '@mbd/core/resolvers/sites/twitter';
+import { instagramPageMedia } from '@mbd/core/resolvers/sites/instagram';
+import { facebookPageMedia } from '@mbd/core/resolvers/sites/facebook';
+import { pinterestPageMedia } from '@mbd/core/resolvers/sites/pinterest';
+import { youtubeVideoId } from '@mbd/core/resolvers/sites/youtube';
+import { vimeoVideoId } from '@mbd/core/resolvers/sites/vimeo';
+import { dailymotionVideoId } from '@mbd/core/resolvers/sites/dailymotion';
+import { sniffedHlsManifests } from '@mbd/core/resolvers/sniffers/hls-sniff';
 import { HOST_ID } from '@/extension/bubble/mount';
 
 /** Determines if a URL is a base64-encoded image. */
@@ -70,7 +70,7 @@ export function getImageDimensions(img: HTMLImageElement): { width: number; heig
 // browser-agnostic collection layer. They are re-exported here so the content
 // script (and its tests) keep a stable import surface without the collection
 // layer having to depend back on the content script.
-export { getImageType, parseSrcset } from '@/extension/shared/collection/imageUrl';
+export { getImageType, parseSrcset } from '@mbd/core/collection/imageUrl';
 
 /**
  * Resolves a possibly-relative URL against the document base so downloads and

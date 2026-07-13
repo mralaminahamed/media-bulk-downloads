@@ -1,5 +1,5 @@
 import React from 'react';
-import { DownloadsPaneProps, SettingsData } from '@/types';
+import { DownloadsPaneProps, SettingsData } from '@mbd/core/types';
 import { TextField } from '../../fields/TextField';
 import { NumberField } from '../../fields/NumberField';
 import { SelectField } from '../../fields/SelectField';

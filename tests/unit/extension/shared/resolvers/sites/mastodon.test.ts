@@ -1,4 +1,4 @@
-import { mastodonResolver } from '@/extension/shared/resolvers/sites/mastodon';
+import { mastodonResolver } from '@mbd/core/resolvers/sites/mastodon';
 
 const run = (href: string) => mastodonResolver.resolve(new URL(href), { allowNetwork: false });
 const m = (host: string, size: string, name = 'f7ec49acc7176b5b.jpg') =>

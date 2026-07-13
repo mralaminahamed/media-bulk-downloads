@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import * as MP4Box from 'mp4box';
-import * as mux from '@/extension/shared/download/stream/mux';
+import * as mux from '@mbd/core/download/stream/mux';
 import {
   parseIso8601Duration,
   substituteTemplate,
@@ -13,7 +13,7 @@ import {
   captureDash,
   DashDeps,
   DashError,
-} from '@/extension/shared/download/stream/dash';
+} from '@mbd/core/download/stream/dash';
 
 const fx = (name: string) => new Uint8Array(readFileSync(join(__dirname, '../../../fixtures/dash', name)));
 

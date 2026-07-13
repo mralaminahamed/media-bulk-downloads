@@ -3,7 +3,7 @@ import {
   mergeFavourites, addFavourite, removeFavourite, clearFavourites, restoreFavourites,
   favouriteSrcSet, loadFavourites, FAVOURITES_CAP,
 } from '@/extension/shared/storage/favourites';
-import { FavouriteEntry } from '@/types';
+import { FavouriteEntry } from '@mbd/core/types';
 
 const f = (src: string, time: number): FavouriteEntry =>
   ({ src, kind: 'image', type: 'jpeg', sourcePageUrl: 'https://p', time });

@@ -5,7 +5,7 @@ import {
   ArrowDownTrayIcon,
   ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
-import { FavouriteEntry } from '@/types';
+import { FavouriteEntry } from '@mbd/core/types';
 import { loadFavourites, FAVOURITES_KEY } from '@/extension/shared/storage/favourites';
 import { relativeTime, sendRuntimeMessage } from '../../utils';
 import { LoadingImage } from '../LoadingImage';

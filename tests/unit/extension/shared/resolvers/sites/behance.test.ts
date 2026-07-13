@@ -1,4 +1,4 @@
-import { behanceResolver } from '@/extension/shared/resolvers/sites/behance';
+import { behanceResolver } from '@mbd/core/resolvers/sites/behance';
 
 const run = (href: string, el?: Element) =>
   behanceResolver.resolve(new URL(href), { el, allowNetwork: false });

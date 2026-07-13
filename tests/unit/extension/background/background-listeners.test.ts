@@ -5,9 +5,9 @@ import type { Mock } from 'vitest';
  * a per-test replacement so the captured listeners see the same chrome object.
  */
 import '@/extension/background';
-import { ImageInfo, SettingsData } from '@/types';
+import { ImageInfo, SettingsData } from '@mbd/core/types';
 import * as dlKeys from '@/extension/background/download/downloaded-keys';
-import { SrcKeySet } from '@/extension/shared/collection/canonical';
+import { SrcKeySet } from '@mbd/core/collection/canonical';
 
 const img = (over: Partial<ImageInfo>): ImageInfo => ({
   src: 'x.jpg', alt: '', width: 100, height: 100, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image', ...over,

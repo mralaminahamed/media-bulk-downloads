@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot, Root } from 'react-dom/client';
-import { SettingsData } from '@/types';
+import { SettingsData } from '@mbd/core/types';
 import Bubble from './Bubble';
 // Compiled app CSS as a string, injected into the Shadow DOM so the page's
 // styles can't leak in and ours can't leak out.

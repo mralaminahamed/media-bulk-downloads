@@ -2,14 +2,14 @@ import type { Mock } from 'vitest';
 
 // Capture what the entrypoint wires into the shared sniffer rather than
 // installing the real fetch/XHR hooks (covered by response-sniffer's own tests).
-vi.mock('@/extension/shared/resolvers/sniffers/response-sniffer', () => ({
+vi.mock('@mbd/core/resolvers/sniffers/response-sniffer', () => ({
   installResponseSniffer: vi.fn(),
   makeSnifferEmit: vi.fn(() => () => {}),
   installReplayOnReady: vi.fn(),
 }));
 
-import { installResponseSniffer, makeSnifferEmit, installReplayOnReady } from '@/extension/shared/resolvers/sniffers/response-sniffer';
-import { extractFbMedia } from '@/extension/shared/resolvers/sniffers/fb-media-sniff';
+import { installResponseSniffer, makeSnifferEmit, installReplayOnReady } from '@mbd/core/resolvers/sniffers/response-sniffer';
+import { extractFbMedia } from '@mbd/core/resolvers/sniffers/fb-media-sniff';
 import fbSniffer from '@/entrypoints/fb-media-sniffer.content';
 
 type RespCfg = { urlKey: string; isApi: (url: string) => boolean; contentTypeOk?: (ct: string) => boolean; emit: unknown };

@@ -1,6 +1,6 @@
 import type { Mock } from 'vitest';
 import { mergeHistory, recordDownloads, removeEntry, clearHistory, restoreHistory, srcsStillOnDisk, loadHistory, HISTORY_CAP, HISTORY_MAX_BYTES } from '@/extension/shared/storage/history';
-import { HistoryEntry } from '@/types';
+import { HistoryEntry } from '@mbd/core/types';
 import { idbGet } from '@/extension/shared/storage/idb';
 
 describe('loadHistory — corrupt storage', () => {

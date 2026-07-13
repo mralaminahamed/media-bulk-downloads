@@ -7,7 +7,7 @@ vi.mock('@/extension/shared/storage/excluded', async () => ({
 }));
 import * as excludedMod from '@/extension/shared/storage/excluded';
 import * as dlKeys from '@/extension/background/download/downloaded-keys';
-import { SrcKeySet } from '@/extension/shared/collection/canonical';
+import { SrcKeySet } from '@mbd/core/collection/canonical';
 
 import {
   updateTabBadge,
@@ -24,7 +24,7 @@ import {
   setupContextMenus,
   mediaFromContext,
 } from '@/extension/background';
-import { CaptureRunResult, ImageInfo, SettingsData } from '@/types';
+import { CaptureRunResult, ImageInfo, SettingsData } from '@mbd/core/types';
 
 // The runtime.onMessage handler is registered against the setupTests chrome
 // mock at import time; capture it before any describe swaps global.chrome.

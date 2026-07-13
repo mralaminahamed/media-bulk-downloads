@@ -1,4 +1,4 @@
-import { vimeoVideoId } from '@/extension/shared/resolvers/sites/vimeo';
+import { vimeoVideoId } from '@mbd/core/resolvers/sites/vimeo';
 
 describe('vimeoVideoId', () => {
   it.each([

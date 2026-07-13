@@ -1,5 +1,5 @@
 import React from 'react';
-import { CenteredStateProps } from '@/types';
+import { CenteredStateProps } from '@mbd/core/types';
 
 /** Shared centered layout for the empty / error states. */
 export const CenteredState: React.FC<CenteredStateProps> = ({ icon, title, body, action, tone = 'neutral' }) => (

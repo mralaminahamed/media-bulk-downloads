@@ -2,10 +2,10 @@ import type { Mock } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { SrcKeySet } from '@/extension/shared/collection/canonical';
+import { SrcKeySet } from '@mbd/core/collection/canonical';
 import '@testing-library/jest-dom';
 import ImageList, { formatFileSize } from '@/extension/popup/components/ImageList';
-import { ImageInfo } from '@/types';
+import { ImageInfo } from '@mbd/core/types';
 
 const mockImages: ImageInfo[] = [
   { src: 'test1.jpg', alt: 'Test Image 1', width: 100, height: 100, type: 'jpeg', fileSize: 1024, isBase64: false, kind: 'image' },

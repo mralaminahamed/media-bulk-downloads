@@ -1,4 +1,4 @@
-import { instagramResolver, instagramPageMedia, ingestSniffedIgMedia, __resetIgResolver } from '@/extension/shared/resolvers/sites/instagram';
+import { instagramResolver, instagramPageMedia, ingestSniffedIgMedia, __resetIgResolver } from '@mbd/core/resolvers/sites/instagram';
 
 const CDN = 'https://scontent-del2-3.cdninstagram.com';
 

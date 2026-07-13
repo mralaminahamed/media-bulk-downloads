@@ -1,4 +1,4 @@
-import { wallhavenResolver } from '@/extension/shared/resolvers/sites/wallhaven';
+import { wallhavenResolver } from '@mbd/core/resolvers/sites/wallhaven';
 
 const u = (s: string) => new URL(s);
 const THUMB = 'https://th.wallhaven.cc/small/ab/abcdef.jpg';

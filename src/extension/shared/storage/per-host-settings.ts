@@ -1,5 +1,5 @@
-import { SettingsData } from '@/types';
-import { registrableDomain } from '../collection/paths';
+import { SettingsData } from '@mbd/core/types';
+import { registrableDomain } from '@mbd/core/collection/paths';
 import { durableSet } from './idb';
 import { loadStoredSettings } from './settings';
 

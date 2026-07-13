@@ -6,17 +6,17 @@
  * bubble surface (dynamically imported) when the user has enabled it.
  */
 
-import { SettingsData, DeepScanProgress } from '@/types';
+import { SettingsData, DeepScanProgress } from '@mbd/core/types';
 import { collectMedia } from './collect';
-import { ingestSniffedIgMedia } from '../shared/resolvers/sites/instagram';
-import { ingestSniffedFbMedia } from '../shared/resolvers/sites/facebook';
-import { ingestSniffedPinterestMedia } from '../shared/resolvers/sites/pinterest';
-import { isPinterestHost } from '../shared/resolvers/sniffers/pinterest-hosts';
-import { ingestSniffedHls } from '../shared/resolvers/sniffers/hls-sniff';
+import { ingestSniffedIgMedia } from '@mbd/core/resolvers/sites/instagram';
+import { ingestSniffedFbMedia } from '@mbd/core/resolvers/sites/facebook';
+import { ingestSniffedPinterestMedia } from '@mbd/core/resolvers/sites/pinterest';
+import { isPinterestHost } from '@mbd/core/resolvers/sniffers/pinterest-hosts';
+import { ingestSniffedHls } from '@mbd/core/resolvers/sniffers/hls-sniff';
 import { withDefaults } from '../shared/storage/settings';
 import { loadEffectiveSettingsForHost } from '../shared/storage/per-host-settings';
 import { startDeepScan } from './deepScanRunner';
-import { classifyPage, collectPageSignals } from '../shared/collection/pageType';
+import { classifyPage, collectPageSignals } from '@mbd/core/collection/pageType';
 
 // Re-export the pure collection API (kept for tests and other importers).
 export * from './collect';

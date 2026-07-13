@@ -1,5 +1,5 @@
 import React from 'react';
-import { SkeletonGridProps } from '@/types';
+import { SkeletonGridProps } from '@mbd/core/types';
 
 /**
  * Scanning state — a skeleton grid that mirrors the real thumbnail layout, so

@@ -12,7 +12,7 @@
  * pinterestPageMedia() into the collection.
  */
 import { collectMedia } from '@/extension/content/collect';
-import { ingestSniffedPinterestMedia, __resetPinterestSniffed } from '@/extension/shared/resolvers/sites/pinterest';
+import { ingestSniffedPinterestMedia, __resetPinterestSniffed } from '@mbd/core/resolvers/sites/pinterest';
 
 const ORIGINAL = 'https://i.pinimg.com/originals/aa/bb/cc.jpg';
 

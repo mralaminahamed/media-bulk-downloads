@@ -12,7 +12,7 @@
  * seeded entry round-trips through facebookPageMedia() into the collection.
  */
 import { collectMedia } from '@/extension/content/collect';
-import { ingestSniffedFbMedia, __resetFbResolver } from '@/extension/shared/resolvers/sites/facebook';
+import { ingestSniffedFbMedia, __resetFbResolver } from '@mbd/core/resolvers/sites/facebook';
 
 const THUMB = 'https://x.fbcdn.net/thumb_n.jpg';
 const ORIGINAL = 'https://x.fbcdn.net/orig_n.jpg';

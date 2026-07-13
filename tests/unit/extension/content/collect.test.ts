@@ -4,13 +4,13 @@ import type { Mock } from 'vitest';
 // store — ingestSniffedHls only accepts .m3u8, see hls-sniff.ts). Every other test
 // keeps the real behavior: ingestSniffedHls/resetSniffedHls are spread through
 // untouched, and the default implementation just delegates to the actual function.
-vi.mock('@/extension/shared/resolvers/sniffers/hls-sniff', async () => {
-  const actual = await vi.importActual<typeof import('@/extension/shared/resolvers/sniffers/hls-sniff')>('@/extension/shared/resolvers/sniffers/hls-sniff');
+vi.mock('@mbd/core/resolvers/sniffers/hls-sniff', async () => {
+  const actual = await vi.importActual<typeof import('@mbd/core/resolvers/sniffers/hls-sniff')>('@mbd/core/resolvers/sniffers/hls-sniff');
   return { __esModule: true, ...actual, sniffedHlsManifests: vi.fn(actual.sniffedHlsManifests) };
 });
 
 import { collectMedia, backgroundImageUrls } from '@/extension/content/collect';
-import { ingestSniffedHls, resetSniffedHls, sniffedHlsManifests } from '@/extension/shared/resolvers/sniffers/hls-sniff';
+import { ingestSniffedHls, resetSniffedHls, sniffedHlsManifests } from '@mbd/core/resolvers/sniffers/hls-sniff';
 import { HOST_ID } from '@/extension/bubble/mount';
 
 const setBody = (html: string) => {

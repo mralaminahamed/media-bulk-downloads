@@ -1,4 +1,4 @@
-import { isEmojiUrl } from '@/extension/shared/collection/emoji';
+import { isEmojiUrl } from '@mbd/core/collection/emoji';
 
 describe('isEmojiUrl', () => {
   it('flags twemoji served by known CDNs', () => {

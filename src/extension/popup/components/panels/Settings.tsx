@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { SettingsData, SettingsProps } from '@/types';
-import { expandPathTemplate, todayISO } from '@/extension/shared/collection/paths';
+import { SettingsData, SettingsProps } from '@mbd/core/types';
+import { expandPathTemplate, todayISO } from '@mbd/core/collection/paths';
 import { buildBackup, parseBackup } from '@/extension/shared/storage/backup';
 import { loadFavourites } from '@/extension/shared/storage/favourites';
 import { loadHistory } from '@/extension/shared/storage/history';

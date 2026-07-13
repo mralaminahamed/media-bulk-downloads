@@ -1,6 +1,6 @@
-import { isConvertible, convertImage, isAnimatedImage, ConvertDeps } from '@/extension/shared/download/convert/convert';
-import { extractMetadata } from '@/extension/shared/download/convert/metadata';
-import { ImageInfo } from '@/types';
+import { isConvertible, convertImage, isAnimatedImage, ConvertDeps } from '@mbd/core/download/convert/convert';
+import { extractMetadata } from '@mbd/core/download/convert/metadata';
+import { ImageInfo } from '@mbd/core/types';
 
 const img = (o: Partial<ImageInfo>): ImageInfo =>
   ({ src: 'x', alt: '', width: 0, height: 0, type: 'webp', fileSize: 0, isBase64: false, kind: 'image', ...o });

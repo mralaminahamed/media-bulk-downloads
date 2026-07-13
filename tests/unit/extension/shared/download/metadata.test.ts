@@ -1,4 +1,4 @@
-import { extractMetadata, injectMetadata } from '@/extension/shared/download/convert/metadata';
+import { extractMetadata, injectMetadata } from '@mbd/core/download/convert/metadata';
 
 // ---- byte builders ---------------------------------------------------------
 

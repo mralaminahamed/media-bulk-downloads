@@ -1,5 +1,5 @@
 import React from 'react';
-import { SelectFieldProps } from '@/types';
+import { SelectFieldProps } from '@mbd/core/types';
 
 /** Label + native select. */
 export const SelectField: React.FC<SelectFieldProps> = ({ id, name, label, value, onChange, children }) => (

@@ -1,4 +1,4 @@
-import { MediaItem, DeepScanProgress } from '@/types';
+import { MediaItem, DeepScanProgress } from '@mbd/core/types';
 
 // The tab a scan is running in, so Abort targets that tab even if the user has
 // since switched to another one.

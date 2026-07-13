@@ -1,5 +1,5 @@
-import { artstationResolver } from '@/extension/shared/resolvers/sites/artstation';
-import { ResolveContext } from '@/extension/shared/resolvers/types';
+import { artstationResolver } from '@mbd/core/resolvers/sites/artstation';
+import { ResolveContext } from '@mbd/core/resolvers/types';
 
 const resolve = (href: string, ctx: ResolveContext = { allowNetwork: false }) =>
   artstationResolver.resolve(new URL(href), ctx);

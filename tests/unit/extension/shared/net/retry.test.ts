@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { retryingFetch } from '@/extension/shared/net/retry';
+import { retryingFetch } from '@mbd/core/net/retry';
 
 // A fetch stub that yields the given outcomes in order. Each outcome is either a
 // status number (→ a Response with that status) or the string 'reject' (→ throws).

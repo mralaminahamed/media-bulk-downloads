@@ -1,4 +1,4 @@
-import { booruResolver } from '@/extension/shared/resolvers/sites/booru';
+import { booruResolver } from '@mbd/core/resolvers/sites/booru';
 
 const PAGE = { danbooru: 'https://danbooru.donmai.us/posts/12345', gel: 'https://gelbooru.com/index.php?page=post&s=view&id=1', yan: 'https://yande.re/post/show/1' };
 const ctx = (el: Element | undefined, pageUrl: string) => ({ el, allowNetwork: false as const, pageUrl });

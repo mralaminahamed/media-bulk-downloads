@@ -1,5 +1,5 @@
 import { applyResolved } from '@/extension/popup/apply-resolved';
-import { ImageInfo } from '@/types';
+import { ImageInfo } from '@mbd/core/types';
 
 const base = {
   src: 'poster.jpg', alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0,

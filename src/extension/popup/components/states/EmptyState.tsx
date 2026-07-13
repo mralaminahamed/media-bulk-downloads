@@ -1,6 +1,6 @@
 import React from 'react';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
-import { EmptyStateProps } from '@/types';
+import { EmptyStateProps } from '@mbd/core/types';
 import { CenteredState } from './CenteredState';
 
 export const EmptyState: React.FC<EmptyStateProps> = ({ onRefresh }) => (

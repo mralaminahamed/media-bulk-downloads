@@ -3,7 +3,7 @@ import {
   mergeExcluded, loadExcluded, addExcluded, removeExcluded, clearExcluded, restoreExcluded,
   excludedMatchers, EXCLUDED_KEY, EXCLUDED_CAP,
 } from '@/extension/shared/storage/excluded';
-import { ExcludedEntry } from '@/types';
+import { ExcludedEntry } from '@mbd/core/types';
 
 const e = (value: string, kind: 'url' | 'host', time = 1): ExcludedEntry => ({ value, kind, time });
 

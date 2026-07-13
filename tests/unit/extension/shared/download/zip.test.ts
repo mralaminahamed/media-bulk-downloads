@@ -1,7 +1,7 @@
-import { buildZip, zipFileName } from '@/extension/shared/download/zip';
+import { buildZip, zipFileName } from '@mbd/core/download/zip';
 import { unzipSync } from 'fflate';
 import { DEFAULT_SETTINGS } from '@/extension/shared/storage/settings';
-import { ImageInfo, SettingsData } from '@/types';
+import { ImageInfo, SettingsData } from '@mbd/core/types';
 
 const img = (src: string, extra: Partial<ImageInfo> = {}): ImageInfo =>
   ({ src, alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image', ...extra });

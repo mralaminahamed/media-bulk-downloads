@@ -11,7 +11,7 @@
  * the seeded entry round-trips through instagramPageMedia() into the collection.
  */
 import { collectMedia } from '@/extension/content/collect';
-import { ingestSniffedIgMedia, __resetIgResolver } from '@/extension/shared/resolvers/sites/instagram';
+import { ingestSniffedIgMedia, __resetIgResolver } from '@mbd/core/resolvers/sites/instagram';
 
 const HERO = 'https://scontent.cdninstagram.com/hero.jpg';
 const REEL_MP4 = 'https://scontent.cdninstagram.com/reel.mp4';

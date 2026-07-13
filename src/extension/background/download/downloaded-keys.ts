@@ -1,5 +1,5 @@
 import { loadHistory, srcsStillOnDisk, DiskState } from '@/extension/shared/storage/history';
-import { SrcKeySet } from '@/extension/shared/collection/canonical';
+import { SrcKeySet } from '@mbd/core/collection/canonical';
 
 /**
  * Canonical keys of every history entry whose file is still on disk (or whose

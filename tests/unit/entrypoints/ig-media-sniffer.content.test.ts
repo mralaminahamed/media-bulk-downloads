@@ -4,13 +4,13 @@ import type { Mock } from 'vitest';
 // installing the real fetch/XHR hooks (covered by response-sniffer's own tests).
 // This isolates the entrypoint-owned logic: the API-URL predicate, the JSON
 // guard, the envelope shape, and which extractor is used.
-vi.mock('@/extension/shared/resolvers/sniffers/response-sniffer', () => ({
+vi.mock('@mbd/core/resolvers/sniffers/response-sniffer', () => ({
   installResponseSniffer: vi.fn(),
   makeSnifferEmit: vi.fn(() => () => {}),
 }));
 
-import { installResponseSniffer, makeSnifferEmit } from '@/extension/shared/resolvers/sniffers/response-sniffer';
-import { extractIgMedia } from '@/extension/shared/resolvers/sniffers/ig-media-sniff';
+import { installResponseSniffer, makeSnifferEmit } from '@mbd/core/resolvers/sniffers/response-sniffer';
+import { extractIgMedia } from '@mbd/core/resolvers/sniffers/ig-media-sniff';
 import igSniffer from '@/entrypoints/ig-media-sniffer.content';
 
 type RespCfg = { urlKey: string; isApi: (url: string) => boolean; emit: unknown };

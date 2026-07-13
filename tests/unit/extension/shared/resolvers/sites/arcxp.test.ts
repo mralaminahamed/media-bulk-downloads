@@ -1,5 +1,5 @@
-import { arcxpResolver } from '@/extension/shared/resolvers/sites/arcxp';
-import { resolve } from '@/extension/shared/resolvers';
+import { arcxpResolver } from '@mbd/core/resolvers/sites/arcxp';
+import { resolve } from '@mbd/core/resolvers';
 
 const ctx = { allowNetwork: false };
 const run = (s: string, c = ctx) => arcxpResolver.resolve(new URL(s), c);

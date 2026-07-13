@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { XMarkIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { ExcludedEntry } from '@/types';
+import { ExcludedEntry } from '@mbd/core/types';
 import { loadExcluded, EXCLUDED_KEY } from '@/extension/shared/storage/excluded';
 import { sendRuntimeMessage } from '../../utils';
 import { useDialog } from '../../hooks/useDialog';

@@ -1,4 +1,4 @@
-import { canonicalSrcKey, SrcKeySet } from '@/extension/shared/collection/canonical';
+import { canonicalSrcKey, SrcKeySet } from '@mbd/core/collection/canonical';
 
 describe('canonicalSrcKey', () => {
   // Two loads of the SAME Facebook photo: different edge PoP host AND different

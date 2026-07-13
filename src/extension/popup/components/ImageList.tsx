@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ImageInfo, ImageListProps } from '@/types';
+import { ImageInfo, ImageListProps } from '@mbd/core/types';
 import { useDialog } from '../hooks/useDialog';
 import {
   EyeIcon,
@@ -20,7 +20,7 @@ import { FilmIcon } from './icons/FilmIcon';
 import { AudioIcon } from './icons/AudioIcon';
 import { LoadingImage } from './LoadingImage';
 import { SelectCheckbox } from './fields/SelectCheckbox';
-import { hostFromUrl, registrableDomain } from '@/extension/shared/collection/paths';
+import { hostFromUrl, registrableDomain } from '@mbd/core/collection/paths';
 
 const SIZE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
 

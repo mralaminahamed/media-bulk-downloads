@@ -1,6 +1,6 @@
-import { ExcludedEntry, ExcludedKind } from '@/types';
-import { canonicalSrcKey, SrcKeySet } from '../collection/canonical';
-import { registrableDomain } from '../collection/paths';
+import { ExcludedEntry, ExcludedKind } from '@mbd/core/types';
+import { canonicalSrcKey, SrcKeySet } from '@mbd/core/collection/canonical';
+import { registrableDomain } from '@mbd/core/collection/paths';
 import { durableSet } from './idb';
 
 /**

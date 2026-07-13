@@ -1,5 +1,5 @@
 import React from 'react';
-import { BubbleCorner, BubblePanelPlacement, SettingsPaneProps } from '@/types';
+import { BubbleCorner, BubblePanelPlacement, SettingsPaneProps } from '@mbd/core/types';
 import { NumberField } from '../../fields/NumberField';
 import { SelectField } from '../../fields/SelectField';
 import { ToggleRow } from '../../fields/ToggleRow';

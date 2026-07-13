@@ -1,4 +1,4 @@
-import { resolve, REGISTRY } from '@/extension/shared/resolvers';
+import { resolve, REGISTRY } from '@mbd/core/resolvers';
 
 const ctx = { allowNetwork: false };
 

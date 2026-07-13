@@ -1,4 +1,4 @@
-import { flickrResolver } from '@/extension/shared/resolvers/sites/flickr';
+import { flickrResolver } from '@mbd/core/resolvers/sites/flickr';
 
 const resolve = (href: string) => flickrResolver.resolve(new URL(href), { allowNetwork: false });
 const m = (href: string) => flickrResolver.match(new URL(href), { allowNetwork: false });

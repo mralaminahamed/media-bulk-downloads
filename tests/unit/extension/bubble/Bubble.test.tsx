@@ -4,7 +4,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import '@testing-library/jest-dom';
 import Bubble from '@/extension/bubble/Bubble';
 import { startDeepScan } from '@/extension/content/deepScanRunner';
-import { SettingsData } from '@/types';
+import { SettingsData } from '@mbd/core/types';
 
 // Never-resolving deep scan so we can observe its abort signal on panel close.
 vi.mock('@/extension/content/deepScanRunner', () => ({

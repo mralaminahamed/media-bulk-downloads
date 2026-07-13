@@ -1,6 +1,6 @@
-import { partitionByDownloaded, uniquifyBatchNames } from '@/extension/shared/collection/download-dedupe';
-import { SrcKeySet } from '@/extension/shared/collection/canonical';
-import { ImageInfo } from '@/types';
+import { partitionByDownloaded, uniquifyBatchNames } from '@mbd/core/collection/download-dedupe';
+import { SrcKeySet } from '@mbd/core/collection/canonical';
+import { ImageInfo } from '@mbd/core/types';
 
 const img = (src: string): ImageInfo => ({ src, kind: 'image', type: 'png' } as ImageInfo);
 

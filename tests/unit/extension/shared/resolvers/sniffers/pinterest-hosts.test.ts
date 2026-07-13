@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PINTEREST_DOMAINS, PINTEREST_MATCHES, isPinterestHost } from '@/extension/shared/resolvers/sniffers/pinterest-hosts';
+import { PINTEREST_DOMAINS, PINTEREST_MATCHES, isPinterestHost } from '@mbd/core/resolvers/sniffers/pinterest-hosts';
 
 describe('pinterest-hosts', () => {
   it('matches the apex and subdomains of every listed domain', () => {

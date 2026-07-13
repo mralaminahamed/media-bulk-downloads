@@ -1,4 +1,4 @@
-import { ResolveHint, ResolvedMedia, ResolveOriginalsResponse } from '@/types';
+import { ResolveHint, ResolvedMedia, ResolveOriginalsResponse } from '@mbd/core/types';
 
 /**
  * Asks the background to resolve original media URLs for the given hints

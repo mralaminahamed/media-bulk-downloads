@@ -1,7 +1,7 @@
 import { RefObject, useEffect, useRef, useState } from 'react';
-import { ExcludedKind } from '@/types';
-import { SrcKeySet } from '../../shared/collection/canonical';
-import { ExcludedMatchers } from '../../shared/collection/filters';
+import { ExcludedKind } from '@mbd/core/types';
+import { SrcKeySet } from '@mbd/core/collection/canonical';
+import { ExcludedMatchers } from '@mbd/core/collection/filters';
 import { excludedMatchers, EXCLUDED_KEY } from '../../shared/storage/excluded';
 
 export interface UseExcludedResult {

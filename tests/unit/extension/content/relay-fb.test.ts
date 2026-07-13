@@ -12,8 +12,8 @@
  */
 import type { Mock } from 'vitest';
 
-vi.mock('@/extension/shared/resolvers/sites/facebook', async () => ({
-  ...(await vi.importActual<typeof import('@/extension/shared/resolvers/sites/facebook')>('@/extension/shared/resolvers/sites/facebook')),
+vi.mock('@mbd/core/resolvers/sites/facebook', async () => ({
+  ...(await vi.importActual<typeof import('@mbd/core/resolvers/sites/facebook')>('@mbd/core/resolvers/sites/facebook')),
   ingestSniffedFbMedia: vi.fn(),
 }));
 
@@ -33,7 +33,7 @@ const loadContent = async (): Promise<{ messageHandlers: Handler[]; ingestSniffe
     .map((c) => c[1] as Handler);
   addSpy.mockRestore();
 
-  const fbMod = await import('@/extension/shared/resolvers/sites/facebook');
+  const fbMod = await import('@mbd/core/resolvers/sites/facebook');
   const ingestSniffedFbMedia = fbMod.ingestSniffedFbMedia as unknown as Mock;
   // vi.resetModules() reuses the vi.mock factory's fn (unlike jest.resetModules),
   // so its call history persists across loadContent() calls — clear it per load.

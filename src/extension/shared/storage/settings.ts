@@ -1,4 +1,4 @@
-import { SettingsData } from '@/types';
+import { SettingsData } from '@mbd/core/types';
 
 /** Default user settings, shared by the popup, background worker, and bubble. */
 export const DEFAULT_SETTINGS: SettingsData = {

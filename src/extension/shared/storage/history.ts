@@ -1,5 +1,5 @@
-import { HistoryEntry } from '@/types';
-import { canonicalSrcKey } from '../collection/canonical';
+import { HistoryEntry } from '@mbd/core/types';
+import { canonicalSrcKey } from '@mbd/core/collection/canonical';
 import { durableSet } from './idb';
 
 export const HISTORY_KEY = 'downloadHistory';

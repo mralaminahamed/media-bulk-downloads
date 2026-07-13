@@ -1,5 +1,5 @@
 import React from 'react';
-import { SelectCheckboxProps } from '@/types';
+import { SelectCheckboxProps } from '@mbd/core/types';
 
 /**
  * The selection checkbox shared by the media grid (per item) and the action

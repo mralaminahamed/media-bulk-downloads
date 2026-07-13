@@ -1,7 +1,7 @@
-import { ResolveHint, ResolvedMedia } from '@/types';
-import { resolveOriginal, NetDeps } from '../shared/resolvers/network';
-import { mediaIdFromPoster, pinTwimgUrl } from '../shared/resolvers/sniffers/x-media-sniff';
-import { retryingFetch } from '@/extension/shared/net/retry';
+import { ResolveHint, ResolvedMedia } from '@mbd/core/types';
+import { resolveOriginal, NetDeps } from '@mbd/core/resolvers/network';
+import { mediaIdFromPoster, pinTwimgUrl } from '@mbd/core/resolvers/sniffers/x-media-sniff';
+import { retryingFetch } from '@mbd/core/net/retry';
 
 /**
  * Real mp4/HLS media the page's own GraphQL responses exposed, per tab

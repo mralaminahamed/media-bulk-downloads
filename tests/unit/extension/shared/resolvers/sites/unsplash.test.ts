@@ -1,4 +1,4 @@
-import { unsplashResolver } from '@/extension/shared/resolvers/sites/unsplash';
+import { unsplashResolver } from '@mbd/core/resolvers/sites/unsplash';
 
 const ctx = { allowNetwork: false };
 const one = (s: string) => unsplashResolver.resolve(new URL(s), ctx)[0];

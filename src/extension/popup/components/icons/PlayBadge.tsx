@@ -1,5 +1,5 @@
 import React from 'react';
-import { IconProps } from '@/types';
+import { IconProps } from '@mbd/core/types';
 
 /** Centered ▶ badge overlaid on a video thumbnail that has a poster. */
 export const PlayBadge: React.FC<IconProps> = ({ className }) => (

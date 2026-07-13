@@ -7,8 +7,8 @@
  * path through the shared `resolve()` — same pattern as
  * sites/facebook.test.ts / relay-ig.test.ts / relay-x.test.ts.
  */
-import { resolve, REGISTRY } from '@/extension/shared/resolvers';
-import { ingestSniffedFbMedia, __resetFbResolver } from '@/extension/shared/resolvers/sites/facebook';
+import { resolve, REGISTRY } from '@mbd/core/resolvers';
+import { ingestSniffedFbMedia, __resetFbResolver } from '@mbd/core/resolvers/sites/facebook';
 
 beforeEach(() => {
   __resetFbResolver();

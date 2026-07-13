@@ -1,4 +1,4 @@
-import { u8ToBase64, base64ToU8, textToBase64 } from '@/extension/shared/download/base64';
+import { u8ToBase64, base64ToU8, textToBase64 } from '@mbd/core/download/base64';
 
 describe('base64 <-> Uint8Array', () => {
   it('encodes a known byte vector (ZIP magic "PK\\x03\\x04")', () => {

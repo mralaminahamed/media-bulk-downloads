@@ -1,5 +1,5 @@
 import React from 'react';
-import { TextFieldProps } from '@/types';
+import { TextFieldProps } from '@mbd/core/types';
 
 const hintId = (id: string) => `${id}-hint`;
 

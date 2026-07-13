@@ -1,5 +1,5 @@
 import React from 'react';
-import { NumberFieldProps } from '@/types';
+import { NumberFieldProps } from '@mbd/core/types';
 
 /** Label + number input that clamps to [min, max] on blur. */
 export const NumberField: React.FC<NumberFieldProps> = ({ id, name, label, value, min, max, onChange, onBlur }) => (

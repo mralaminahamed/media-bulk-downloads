@@ -1,10 +1,10 @@
 import { Dispatch, SetStateAction } from 'react';
-import { AppState, DownloadBytesMessage, DownloadMessage, DownloadResponse, DownloadZipMessage, ImageInfo, SettingsData } from '@/types';
-import { buildZip, zipFileName } from '../../shared/download/zip';
-import { convertImage, isConvertible } from '../../shared/download/convert/convert';
-import { u8ToBase64 } from '../../shared/download/base64';
-import { buildDownloadFilename } from '../../shared/collection/download-name';
-import { hostFromUrl, registrableDomain, todayISO } from '../../shared/collection/paths';
+import { AppState, DownloadBytesMessage, DownloadMessage, DownloadResponse, DownloadZipMessage, ImageInfo, SettingsData } from '@mbd/core/types';
+import { buildZip, zipFileName } from '@mbd/core/download/zip';
+import { convertImage, isConvertible } from '@mbd/core/download/convert/convert';
+import { u8ToBase64 } from '@mbd/core/download/base64';
+import { buildDownloadFilename } from '@mbd/core/collection/download-name';
+import { hostFromUrl, registrableDomain, todayISO } from '@mbd/core/collection/paths';
 import { requestCaptureStream } from '../../shared/active-tab/capture-stream-active';
 import { copyText, downloadText, mapWithConcurrency } from '../utils';
 import { downloadable } from '../lib/appHelpers';

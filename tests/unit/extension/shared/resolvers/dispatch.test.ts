@@ -7,7 +7,7 @@
  * new suffix index. Written to pass against the CURRENT linear scan first, so a
  * green run here BEFORE the index change is the no-regression baseline.
  */
-import { resolve, REGISTRY } from '@/extension/shared/resolvers';
+import { resolve, REGISTRY } from '@mbd/core/resolvers';
 
 const ctx = { allowNetwork: false } as const;
 

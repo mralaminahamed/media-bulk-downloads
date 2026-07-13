@@ -1,6 +1,6 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import { extractVideoPairs } from '@/extension/shared/resolvers/sniffers/x-media-sniff';
-import { installResponseSniffer, makeSnifferEmit } from '@/extension/shared/resolvers/sniffers/response-sniffer';
+import { extractVideoPairs } from '@mbd/core/resolvers/sniffers/x-media-sniff';
+import { installResponseSniffer, makeSnifferEmit } from '@mbd/core/resolvers/sniffers/response-sniffer';
 
 /**
  * MAIN-world content script for x.com / twitter.com. Runs in the page's own realm

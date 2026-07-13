@@ -1,4 +1,4 @@
-import { bskyResolver } from '@/extension/shared/resolvers/sites/bsky';
+import { bskyResolver } from '@mbd/core/resolvers/sites/bsky';
 
 const run = (href: string) => bskyResolver.resolve(new URL(href), { allowNetwork: false });
 

@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import * as MP4Box from 'mp4box';
-import * as mux from '@/extension/shared/download/stream/mux';
+import * as mux from '@mbd/core/download/stream/mux';
 import {
   captureHls,
   assertDownloadable,
@@ -16,7 +16,7 @@ import {
   parseMediaPlaylist,
   selectAudioRendition,
   selectVariant,
-} from '@/extension/shared/download/stream/hls';
+} from '@mbd/core/download/stream/hls';
 
 const MASTER = `#EXTM3U
 #EXT-X-STREAM-INF:BANDWIDTH=246440,RESOLUTION=320x184,CODECS="mp4a.40.5,avc1.42000d",NAME="240"

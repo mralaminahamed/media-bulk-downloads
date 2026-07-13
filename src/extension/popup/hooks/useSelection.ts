@@ -1,6 +1,6 @@
 import { Dispatch, SetStateAction, useState } from 'react';
-import { ImageInfo } from '@/types';
-import { isPendingOrStream } from '../../shared/collection/filters';
+import { ImageInfo } from '@mbd/core/types';
+import { isPendingOrStream } from '@mbd/core/collection/filters';
 import { downloadable } from '../lib/appHelpers';
 
 export interface UseSelectionResult {

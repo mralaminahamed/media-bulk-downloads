@@ -3,8 +3,8 @@ import {
   originalNameFromUrl,
   extensionForType,
   buildDownloadFilename,
-} from '@/extension/shared/collection/download-name';
-import { ImageInfo, SettingsData } from '@/types';
+} from '@mbd/core/collection/download-name';
+import { ImageInfo, SettingsData } from '@mbd/core/types';
 
 describe('downloadExtension', () => {
   it('honors an explicit ext override on a video item even though the type maps to a different extension', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractPinterestMedia, pinPinimgUrl, pinIdFromUrl } from '@/extension/shared/resolvers/sniffers/pinterest-media-sniff';
+import { extractPinterestMedia, pinPinimgUrl, pinIdFromUrl } from '@mbd/core/resolvers/sniffers/pinterest-media-sniff';
 
 const imageMap = (hash: string) => ({
   '236x': { width: 236, height: 354, url: `https://i.pinimg.com/236x/${hash}.jpg` },

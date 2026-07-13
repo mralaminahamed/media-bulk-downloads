@@ -1,6 +1,6 @@
-import { passesSettingsFilters, filterImagesBySettings, applyToolbarFilters, isExcluded, filterExcluded, isPendingOrStream, ExcludedMatchers, deriveFilterOptions } from '@/extension/shared/collection/filters';
-import { ImageInfo, SettingsData, FilterOptions } from '@/types';
-import { SrcKeySet } from '@/extension/shared/collection/canonical';
+import { passesSettingsFilters, filterImagesBySettings, applyToolbarFilters, isExcluded, filterExcluded, isPendingOrStream, ExcludedMatchers, deriveFilterOptions } from '@mbd/core/collection/filters';
+import { ImageInfo, SettingsData, FilterOptions } from '@mbd/core/types';
+import { SrcKeySet } from '@mbd/core/collection/canonical';
 import { DEFAULT_FILTERS } from '@/extension/popup/components/FilterToolbar';
 
 const base: SettingsData = {

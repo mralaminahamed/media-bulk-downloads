@@ -1,4 +1,4 @@
-import type { HistoryEntry } from '@/types';
+import type { HistoryEntry } from '@mbd/core/types';
 import { durableSet } from './idb';
 
 export type QueueStatus = 'queued' | 'active' | 'done' | 'failed';

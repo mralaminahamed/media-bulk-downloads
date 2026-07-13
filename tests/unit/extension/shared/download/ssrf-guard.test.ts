@@ -1,4 +1,4 @@
-import { isSafeCaptureUrl, assertSafeCaptureUrl } from '@/extension/shared/download/stream/ssrf-guard';
+import { isSafeCaptureUrl, assertSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
 
 describe('isSafeCaptureUrl — SSRF guard for stream capture', () => {
   it('allows ordinary public http(s) hosts', () => {

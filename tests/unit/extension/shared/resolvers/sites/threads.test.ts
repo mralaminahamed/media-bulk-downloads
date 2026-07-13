@@ -1,5 +1,5 @@
-import { threadsResolver } from '@/extension/shared/resolvers/sites/threads';
-import { ResolveContext } from '@/extension/shared/resolvers/types';
+import { threadsResolver } from '@mbd/core/resolvers/sites/threads';
+import { ResolveContext } from '@mbd/core/resolvers/types';
 
 const u = (s: string) => new URL(s);
 

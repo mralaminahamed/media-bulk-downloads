@@ -1,5 +1,5 @@
 import { Dispatch, RefObject, SetStateAction, useEffect, useRef, useState } from 'react';
-import { SettingsData } from '@/types';
+import { SettingsData } from '@mbd/core/types';
 import { DEFAULT_SETTINGS, withDefaults, loadStoredSettings } from '../../shared/storage/settings';
 import { sendRuntimeMessage } from '../utils';
 

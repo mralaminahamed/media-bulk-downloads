@@ -1,13 +1,13 @@
 import type { Mock } from 'vitest';
-vi.mock('@/extension/shared/collection/deepScan', async () => {
-  const actual = await vi.importActual<typeof import('@/extension/shared/collection/deepScan')>('@/extension/shared/collection/deepScan');
+vi.mock('@mbd/core/collection/deepScan', async () => {
+  const actual = await vi.importActual<typeof import('@mbd/core/collection/deepScan')>('@mbd/core/collection/deepScan');
   return { __esModule: true, ...actual, runDeepScan: vi.fn(() => Promise.resolve([])) };
 });
 
 import { buildDeepScanDeps, nestedScrollables, startDeepScan, findLoadMoreButtons, waitForQuiet } from '@/extension/content/deepScanRunner';
-import { runDeepScan, DEEP_SCAN_DEFAULTS } from '@/extension/shared/collection/deepScan';
+import { runDeepScan, DEEP_SCAN_DEFAULTS } from '@mbd/core/collection/deepScan';
 import * as scanMem from '@/extension/shared/storage/per-host-scan-memory';
-import * as loop from '@/extension/shared/collection/deepScan';
+import * as loop from '@mbd/core/collection/deepScan';
 
 const mockMetrics = (el: HTMLElement, scrollHeight: number, clientHeight: number, scrollTop: number) => {
   Object.defineProperty(el, 'scrollHeight', { configurable: true, value: scrollHeight });

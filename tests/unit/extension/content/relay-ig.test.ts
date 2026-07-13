@@ -12,8 +12,8 @@
  */
 import type { Mock } from 'vitest';
 
-vi.mock('@/extension/shared/resolvers/sites/instagram', async () => ({
-  ...(await vi.importActual<typeof import('@/extension/shared/resolvers/sites/instagram')>('@/extension/shared/resolvers/sites/instagram')),
+vi.mock('@mbd/core/resolvers/sites/instagram', async () => ({
+  ...(await vi.importActual<typeof import('@mbd/core/resolvers/sites/instagram')>('@mbd/core/resolvers/sites/instagram')),
   ingestSniffedIgMedia: vi.fn(),
 }));
 
@@ -33,7 +33,7 @@ const loadContent = async (): Promise<{ messageHandlers: Handler[]; ingestSniffe
     .map((c) => c[1] as Handler);
   addSpy.mockRestore();
 
-  const igMod = await import('@/extension/shared/resolvers/sites/instagram');
+  const igMod = await import('@mbd/core/resolvers/sites/instagram');
   const ingestSniffedIgMedia = igMod.ingestSniffedIgMedia as unknown as Mock;
   // vi.resetModules() reuses the vi.mock factory's fn (unlike jest.resetModules),
   // so its call history persists across loadContent() calls — clear it per load.

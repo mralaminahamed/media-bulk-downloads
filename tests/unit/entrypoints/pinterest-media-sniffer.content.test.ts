@@ -2,13 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // The entrypoint calls installResponseSniffer + installReplayOnReady; spy on them
 // to assert the wiring (isApi gate, guard, envelope) rather than re-patching fetch.
-vi.mock('@/extension/shared/resolvers/sniffers/response-sniffer', () => ({
+vi.mock('@mbd/core/resolvers/sniffers/response-sniffer', () => ({
   installResponseSniffer: vi.fn(),
   makeSnifferEmit: vi.fn((opts) => opts), // return opts so we can inspect guard/extract/envelope
   installReplayOnReady: vi.fn(),
 }));
 
-import { installResponseSniffer, makeSnifferEmit, installReplayOnReady } from '@/extension/shared/resolvers/sniffers/response-sniffer';
+import { installResponseSniffer, makeSnifferEmit, installReplayOnReady } from '@mbd/core/resolvers/sniffers/response-sniffer';
 import sniffer from '@/entrypoints/pinterest-media-sniffer.content';
 
 describe('pinterest-media-sniffer entrypoint', () => {

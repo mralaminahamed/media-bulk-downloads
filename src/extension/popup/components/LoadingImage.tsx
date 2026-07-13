@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LoadingImageProps } from '@/types';
+import { LoadingImageProps } from '@mbd/core/types';
 
 /**
  * Image with a shimmer skeleton underneath until it decodes. `onError` also

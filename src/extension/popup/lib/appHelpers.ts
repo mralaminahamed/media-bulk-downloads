@@ -1,5 +1,5 @@
-import { DeepScanStopReason, ImageInfo } from '@/types';
-import { isPendingOrStream } from '../../shared/collection/filters';
+import { DeepScanStopReason, ImageInfo } from '@mbd/core/types';
+import { isPendingOrStream } from '@mbd/core/collection/filters';
 
 // Concurrent HEAD requests when enriching remote image sizes.
 export const SIZE_FETCH_CONCURRENCY = 6;

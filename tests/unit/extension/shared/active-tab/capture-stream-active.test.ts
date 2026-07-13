@@ -1,6 +1,6 @@
 import type { Mock } from 'vitest';
 import { newCaptureRunId, requestCaptureStream } from '@/extension/shared/active-tab/capture-stream-active';
-import { ImageInfo } from '@/types';
+import { ImageInfo } from '@mbd/core/types';
 
 describe('newCaptureRunId', () => {
   it('returns a non-empty, unique id each call (no crypto.randomUUID — runs in http content scripts)', () => {

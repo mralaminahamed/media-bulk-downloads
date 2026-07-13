@@ -1,6 +1,6 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import { extractFbMedia, FbMediaEntry } from '@/extension/shared/resolvers/sniffers/fb-media-sniff';
-import { installResponseSniffer, makeSnifferEmit, installReplayOnReady } from '@/extension/shared/resolvers/sniffers/response-sniffer';
+import { extractFbMedia, FbMediaEntry } from '@mbd/core/resolvers/sniffers/fb-media-sniff';
+import { installResponseSniffer, makeSnifferEmit, installReplayOnReady } from '@mbd/core/resolvers/sniffers/response-sniffer';
 
 /**
  * MAIN-world content script for facebook.com. Runs at document_start so it wraps

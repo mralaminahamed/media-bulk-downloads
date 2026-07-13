@@ -1,5 +1,5 @@
-import { pinterestResolver, ingestSniffedPinterestMedia, pinterestPageMedia, __resetPinterestSniffed } from '@/extension/shared/resolvers/sites/pinterest';
-import { ResolveContext } from '@/extension/shared/resolvers/types';
+import { pinterestResolver, ingestSniffedPinterestMedia, pinterestPageMedia, __resetPinterestSniffed } from '@mbd/core/resolvers/sites/pinterest';
+import { ResolveContext } from '@mbd/core/resolvers/types';
 
 // Real image hash + size folders captured from a live pin (2026-07-09): one image
 // served at many /<size>/ folders plus /originals/.

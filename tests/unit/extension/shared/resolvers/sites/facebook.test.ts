@@ -10,7 +10,7 @@
  * half of the match gate is covered in the sibling file facebook-offhost.test.ts,
  * which stays at jsdom's default (non-facebook) location.
  */
-import { ingestSniffedFbMedia, __resetFbResolver, facebookResolver, facebookPageMedia } from '@/extension/shared/resolvers/sites/facebook';
+import { ingestSniffedFbMedia, __resetFbResolver, facebookResolver, facebookPageMedia } from '@mbd/core/resolvers/sites/facebook';
 
 const CDN = 'https://x.fbcdn.net';
 

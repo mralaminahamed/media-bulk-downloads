@@ -4,7 +4,7 @@ import {
   looksLikeMediaUrl,
   parseUrlDimensions,
   upgradeToOriginal,
-} from '@/extension/shared/collection/imageUrl';
+} from '@mbd/core/collection/imageUrl';
 
 describe('detectType', () => {
   it('reads a plain extension', () => {

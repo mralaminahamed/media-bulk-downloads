@@ -3,7 +3,7 @@ import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import FilterToolbar from '@/extension/popup/components/FilterToolbar';
-import { AvailableOptions, SettingsData } from '@/types';
+import { AvailableOptions, SettingsData } from '@mbd/core/types';
 import { DEFAULT_SETTINGS } from '@/extension/shared/storage/settings';
 
 const allAvailable: AvailableOptions = {

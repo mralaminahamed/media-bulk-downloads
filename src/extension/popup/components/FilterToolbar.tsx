@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDownIcon, MagnifyingGlassIcon, BarsArrowUpIcon, BarsArrowDownIcon } from '@heroicons/react/24/outline';
-import { FilterOptions, SettingsData, AvailableOptions } from '@/types';
-import { FORMAT_LABELS } from '@/extension/shared/collection/filters';
+import { FilterOptions, SettingsData, AvailableOptions } from '@mbd/core/types';
+import { FORMAT_LABELS } from '@mbd/core/collection/filters';
 import ChipFlyout from './ChipFlyout';
 import FilterChip from './FilterChip';
 

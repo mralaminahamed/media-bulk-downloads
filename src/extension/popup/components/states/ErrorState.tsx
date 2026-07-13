@@ -1,6 +1,6 @@
 import React from 'react';
 import { ArrowPathIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
-import { ErrorStateProps } from '@/types';
+import { ErrorStateProps } from '@mbd/core/types';
 import { CenteredState } from './CenteredState';
 
 export const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry }) => (

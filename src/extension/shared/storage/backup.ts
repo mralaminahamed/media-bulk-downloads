@@ -1,4 +1,4 @@
-import { BackupData, ExcludedEntry, FavouriteEntry, HistoryEntry, SettingsData } from '@/types';
+import { BackupData, ExcludedEntry, FavouriteEntry, HistoryEntry, SettingsData } from '@mbd/core/types';
 import { withDefaults } from './settings';
 
 /**

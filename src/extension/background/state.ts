@@ -1,6 +1,6 @@
-import { SettingsData, SetSettingsMessage } from '@/types';
-import { ExcludedMatchers } from '../shared/collection/filters';
-import { SrcKeySet } from '../shared/collection/canonical';
+import { SettingsData, SetSettingsMessage } from '@mbd/core/types';
+import { ExcludedMatchers } from '@mbd/core/collection/filters';
+import { SrcKeySet } from '@mbd/core/collection/canonical';
 import { DEFAULT_SETTINGS, withDefaults } from '../shared/storage/settings';
 import { excludedMatchers } from '../shared/storage/excluded';
 

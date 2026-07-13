@@ -1,5 +1,5 @@
-import { runDeepScan, DEEP_SCAN_DEFAULTS, ADAPT_WINDOW, ADAPT_STEP, stepMultiplier, ADAPT_CONTINUE } from '@/extension/shared/collection/deepScan';
-import { MediaItem, DeepScanStopReason } from '@/types';
+import { runDeepScan, DEEP_SCAN_DEFAULTS, ADAPT_WINDOW, ADAPT_STEP, stepMultiplier, ADAPT_CONTINUE } from '@mbd/core/collection/deepScan';
+import { MediaItem, DeepScanStopReason } from '@mbd/core/types';
 
 const item = (src: string): MediaItem =>
   ({ src, alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' });
