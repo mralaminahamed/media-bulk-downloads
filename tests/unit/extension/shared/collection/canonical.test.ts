@@ -140,6 +140,23 @@ describe('SRC_KEY_RULES cross-CDN families', () => {
     expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
   });
 
+  it('Pinterest: size variants + _RS + originals collapse to one hash identity', () => {
+    const key = (s: string) => canonicalSrcKey(s);
+    const id = 'i.pinimg.com/44/0b/38/440b389ffd307cf37d1f51b7bcad5f84.jpg';
+    expect(key('https://i.pinimg.com/236x/44/0b/38/440b389ffd307cf37d1f51b7bcad5f84.jpg')).toBe(id);
+    expect(key('https://i.pinimg.com/474x/44/0b/38/440b389ffd307cf37d1f51b7bcad5f84.jpg')).toBe(id);
+    expect(key('https://i.pinimg.com/564x/44/0b/38/440b389ffd307cf37d1f51b7bcad5f84.jpg')).toBe(id);
+    expect(key('https://i.pinimg.com/280x280_RS/44/0b/38/440b389ffd307cf37d1f51b7bcad5f84.jpg')).toBe(id);
+    expect(key('https://i.pinimg.com/originals/44/0b/38/440b389ffd307cf37d1f51b7bcad5f84.jpg')).toBe(id);
+  });
+
+  it('Pinterest: custom_covers and upload artifacts are NOT collapsed', () => {
+    expect(canonicalSrcKey('https://i.pinimg.com/custom_covers/200x150/698_1683.jpg'))
+      .toBe('i.pinimg.com/custom_covers/200x150/698_1683.jpg');
+    expect(canonicalSrcKey('https://i.pinimg.com/upload/698_board_thumbnail_x.jpg'))
+      .toBe('i.pinimg.com/upload/698_board_thumbnail_x.jpg');
+  });
+
   it('keeps distinct googleusercontent multi-= tokens distinct', () => {
     const a = 'https://lh3.googleusercontent.com/a/AAtokenPART1=AAtokenPART2=s96-c';
     const b = 'https://lh3.googleusercontent.com/a/AAtokenPART1=BBtokenPART2=s96-c';
