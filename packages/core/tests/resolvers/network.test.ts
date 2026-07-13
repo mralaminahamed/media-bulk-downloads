@@ -701,3 +701,58 @@ describe('resolveOriginal — artstation (keyless /4k/ + video)', () => {
     expect(await resolveOriginal({ platform: 'artstation', id: `img ${LARGE}` }, { fetch: throwing })).toBeNull();
   });
 });
+
+describe('resolveOriginal — gallery-page (#287)', () => {
+  const PAGE = 'https://booru.example/post/123';
+  const htmlFetch = (html: string, ok = true) =>
+    (async () => ({ ok, text: async () => html })) as unknown as typeof fetch;
+  const resolve = (html: string, ok = true, id = PAGE) =>
+    resolveOriginal({ platform: 'gallery-page', id }, { fetch: htmlFetch(html, ok) });
+
+  it('extracts og:image (property-before-content)', async () => {
+    const r = await resolve('<meta property="og:image" content="https://cdn.example/full/123.jpg">');
+    expect(r).toEqual({ url: 'https://cdn.example/full/123.jpg' });
+  });
+
+  it('extracts og:image (content-before-property order)', async () => {
+    const r = await resolve('<meta content="https://cdn.example/full/9.png" property="og:image" />');
+    expect(r).toEqual({ url: 'https://cdn.example/full/9.png' });
+  });
+
+  it('falls back to twitter:image, then link rel=image_src, then largest <img>', async () => {
+    expect(await resolve('<meta name="twitter:image" content="https://cdn.example/t.jpg">'))
+      .toEqual({ url: 'https://cdn.example/t.jpg' });
+    expect(await resolve('<link rel="image_src" href="https://cdn.example/ls.jpg">'))
+      .toEqual({ url: 'https://cdn.example/ls.jpg' });
+    expect(await resolve('<img src="https://cdn.example/small.jpg" width="80"><img src="https://cdn.example/big.jpg" width="1600">'))
+      .toEqual({ url: 'https://cdn.example/big.jpg' });
+  });
+
+  it('resolves a relative image URL against the page URL', async () => {
+    const r = await resolve('<meta property="og:image" content="/media/orig/123.jpg">');
+    expect(r).toEqual({ url: 'https://booru.example/media/orig/123.jpg' });
+  });
+
+  it('strips query tokens from the extracted URL', async () => {
+    const r = await resolve('<meta property="og:image" content="https://cdn.example/x.jpg?token=SECRET&w=1600">');
+    expect(r!.url).toContain('w=1600');
+    expect(r!.url).not.toContain('SECRET');
+  });
+
+  it('returns null on a non-ok fetch or when no image is found', async () => {
+    expect(await resolve('<meta property="og:image" content="https://cdn.example/x.jpg">', false)).toBeNull();
+    expect(await resolve('<p>no images here</p>')).toBeNull();
+  });
+
+  it('refuses an SSRF page URL and an SSRF-pointing extracted image', async () => {
+    // Internal page URL → guarded before any fetch.
+    expect(await resolve('<meta property="og:image" content="https://cdn.example/x.jpg">', true, 'http://localhost/post/1')).toBeNull();
+    // Public page, but og:image points at an internal host.
+    expect(await resolve('<meta property="og:image" content="http://169.254.169.254/latest">')).toBeNull();
+  });
+
+  it('returns null when fetch throws', async () => {
+    const throwing = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
+    expect(await resolveOriginal({ platform: 'gallery-page', id: PAGE }, { fetch: throwing })).toBeNull();
+  });
+});

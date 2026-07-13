@@ -140,7 +140,7 @@ chrome.runtime.onMessage.addListener(
       // (#293). smartPageDefaults may reorder collectMedia's hero pass; the
       // channel stays open for the async storage read.
       void loadEffectiveSettingsForHost(location.hostname).then((s) => {
-        sendResponse(collectMedia(undefined, { smartPageDefaults: s.smartPageDefaults }));
+        sendResponse(collectMedia(undefined, { smartPageDefaults: s.smartPageDefaults, resolveOriginals: s.resolveOriginals }));
       });
       return true; // async response — keep the channel open
     } else if (message === 'GET_PAGE_TYPE') {

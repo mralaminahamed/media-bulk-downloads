@@ -1,5 +1,6 @@
 import { ResolveHint, ResolvedMedia } from '@mbd/core/types';
 import { isSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
+import { stripUrlSecrets } from '@mbd/core/net/url-secrets';
 
 export interface NetDeps { fetch: typeof fetch }
 
@@ -407,9 +408,72 @@ async function artstation(id: string, deps: NetDeps): Promise<ResolvedMedia | nu
   }
 }
 
+const IMG_EXT_RE = /\.(?:jpe?g|png|webp|avif|gif|bmp|tiff?)(?:$|[?#])/i;
+
+/** Read a `<meta property|name="<prop>" content="...">` value, tolerating either
+ *  attribute order (content-first is common). */
+function metaContent(html: string, prop: string): string | null {
+  const p = prop.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return (
+    html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${p}["'][^>]*\\bcontent=["']([^"']+)["']`, 'i'))?.[1] ??
+    html.match(new RegExp(`<meta[^>]+\\bcontent=["']([^"']+)["'][^>]*(?:property|name)=["']${p}["']`, 'i'))?.[1] ??
+    null
+  );
+}
+
+/** The largest `<img>` by declared width attribute (image-extension src only) — a
+ *  last-resort fallback when no social-card meta names the main image. */
+function largestImg(html: string): string | null {
+  let best: string | null = null;
+  let bestW = -1;
+  for (const m of html.matchAll(/<img\b[^>]*>/gi)) {
+    const src = m[0].match(/\bsrc=["']([^"']+)["']/i)?.[1];
+    if (!src || !IMG_EXT_RE.test(src)) continue;
+    const w = Number(m[0].match(/\bwidth=["']?(\d+)/i)?.[1] ?? 0);
+    if (w > bestW) { bestW = w; best = src; }
+  }
+  return best;
+}
+
+/** Extract the main image from a host/"view" page's HTML (regex only — no
+ *  DOMParser in the service worker), preferring social-card metadata, then a
+ *  `<link rel=image_src>`, then the largest declared `<img>`. */
+function extractMainImage(html: string, baseUrl: string): string | null {
+  const candidate =
+    metaContent(html, 'og:image:secure_url') ??
+    metaContent(html, 'og:image') ??
+    metaContent(html, 'twitter:image') ??
+    metaContent(html, 'twitter:image:src') ??
+    html.match(/<link[^>]+rel=["']image_src["'][^>]*\bhref=["']([^"']+)["']/i)?.[1] ??
+    largestImg(html);
+  if (!candidate) return null;
+  try { return new URL(candidate, baseUrl).href; } catch { return null; }
+}
+
+/**
+ * Generic gallery-link follower (#287). The hint id is a same-origin host/"view"
+ * page URL captured in collect.ts. Fetch it (opt-in resolve pass only), extract
+ * its main image by regex, and return that as the original. Both the page fetch
+ * AND the extracted image URL are page-controlled, so each is SSRF-guarded like
+ * the did:web/bsky fetches; query tokens are stripped from the result.
+ */
+async function galleryPage(pageUrl: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  try {
+    if (!/^https?:\/\//i.test(pageUrl) || !isSafeCaptureUrl(pageUrl)) return null;
+    const r = await deps.fetch(pageUrl);
+    if (!r.ok) return null;
+    const img = extractMainImage(await r.text(), pageUrl);
+    if (!img || !isSafeCaptureUrl(img)) return null;
+    return { url: stripUrlSecrets(img) };
+  } catch {
+    return null;
+  }
+}
+
 /** Resolve one hint to a final media target, or null on failure. Never throws. */
 export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise<ResolvedMedia | null> {
   switch (hint.platform) {
+    case 'gallery-page': return galleryPage(hint.id, deps);
     case 'twitter': return twitter(hint.id, deps);
     case 'wallhaven': { const u = await wallhaven(hint.id, deps); return u ? { url: u } : null; }
     case 'unsplash': return { url: unsplash(hint.id) };

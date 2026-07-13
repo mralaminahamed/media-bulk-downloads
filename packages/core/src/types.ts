@@ -2,11 +2,12 @@ import type React from 'react';
 import type { ReactNode, ChangeEvent, FocusEvent, MouseEvent, CSSProperties, HTMLAttributes } from 'react';
 import type { SrcKeySet } from '@mbd/core/collection/canonical';
 
-export type ResolvePlatform = 'twitter' | 'wallhaven' | 'unsplash' | 'vimeo' | 'bsky' | 'pinterest' | 'reddit' | 'flickr' | 'artstation' | 'dailymotion';
+export type ResolvePlatform = 'twitter' | 'wallhaven' | 'unsplash' | 'vimeo' | 'bsky' | 'pinterest' | 'reddit' | 'flickr' | 'artstation' | 'dailymotion' | 'gallery-page';
 export interface ResolveHint {
   platform: ResolvePlatform;
   /** Opaque per-platform id: statusId | wallpaper id | photo shortid | for
-   *  bsky, a space-delimited `'<blob|video> <did> <cid>'` triple. */
+   *  bsky, a space-delimited `'<blob|video> <did> <cid>'` triple | for
+   *  `gallery-page` (#287), the same-origin host/"view" page URL to follow. */
   id: string;
 }
 
