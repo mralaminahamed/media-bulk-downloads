@@ -277,15 +277,18 @@ describe('Bubble', () => {
     expect(screen.getByRole('heading', { name: 'Media Bulk Downloads' })).toBeInTheDocument();
   });
 
-  it('Escape from a focused text field does not collapse the panel (clears the field instead)', async () => {
+  it('Escape while a text field is focused does not collapse the panel, even when the event retargets away from it', async () => {
     render(<Bubble initialSettings={settings} />);
     await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
-    // Escape originating from a text input (e.g. the search box) must not close
-    // the whole panel — the capture handler bails when the target is editable.
+    // The window-capture listener sees a shadow-retargeted event whose target is
+    // the shadow host, NOT the focused input — so fire on `window` with an input
+    // focused. The guard must consult the root's activeElement (not e.target),
+    // else Escape-while-typing collapses the whole panel.
     const input = document.createElement('input');
     document.body.appendChild(input);
-    fireEvent.keyDown(input, { key: 'Escape' });
+    input.focus();
+    fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.getByRole('heading', { name: 'Media Bulk Downloads' })).toBeInTheDocument();
     input.remove();
   });

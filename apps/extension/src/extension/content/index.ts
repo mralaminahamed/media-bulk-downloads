@@ -143,9 +143,14 @@ chrome.runtime.onMessage.addListener(
       // Effective settings = global merged with this host's per-host override
       // (#293). smartPageDefaults may reorder collectMedia's hero pass; the
       // channel stays open for the async storage read.
-      void loadEffectiveSettingsForHost(location.hostname).then((s) => {
-        sendResponse(collectMedia(undefined, { smartPageDefaults: s.smartPageDefaults, resolveOriginals: s.resolveOriginals }));
-      });
+      void loadEffectiveSettingsForHost(location.hostname)
+        .then((s) => {
+          sendResponse(collectMedia(undefined, { smartPageDefaults: s.smartPageDefaults, resolveOriginals: s.resolveOriginals }));
+        })
+        // If the per-host settings read rejects, still answer (best-effort default
+        // collection) — the channel is held open by `return true`, so never
+        // calling sendResponse would hang the popup's await forever.
+        .catch(() => sendResponse(collectMedia()));
       return true; // async response — keep the channel open
     } else if (message === 'GET_PAGE_TYPE') {
       sendResponse(classifyPage(collectPageSignals(document)));
@@ -170,17 +175,22 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
       });
     };
     // Read this host's effective deep-scan caps before starting (#293).
-    void loadEffectiveSettingsForHost(location.hostname).then((s) => {
-      startDeepScan(onProgress, signal, {
-        maxItems: s.deepScanMaxItems,
-        maxMs: s.deepScanMaxSeconds * 1000,
-        maxScrolls: s.deepScanMaxScrolls,
-        clickLoadMore: s.deepScanClickLoadMore,
-        rememberScanBehaviour: s.rememberScanBehaviour,
+    void loadEffectiveSettingsForHost(location.hostname)
+      .then((s) => {
+        startDeepScan(onProgress, signal, {
+          maxItems: s.deepScanMaxItems,
+          maxMs: s.deepScanMaxSeconds * 1000,
+          maxScrolls: s.deepScanMaxScrolls,
+          clickLoadMore: s.deepScanClickLoadMore,
+          rememberScanBehaviour: s.rememberScanBehaviour,
+        })
+          .then((media) => sendResponse(media))
+          .catch(() => sendResponse([]));
       })
-        .then((media) => sendResponse(media))
-        .catch(() => sendResponse([]));
-    });
+      // Also answer if the settings read itself rejects — the inner catch only
+      // covers startDeepScan, so without this the held-open channel would hang the
+      // popup's deep-scan await forever on a transient storage error.
+      .catch(() => sendResponse([]));
     return true; // async response
   }
   if (message === 'DEEP_SCAN_ABORT') {
@@ -192,12 +202,19 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
 
 // ── On-page bubble lifecycle ────────────────────────────────────────────────
 let bubbleController: { unmount: () => void } | null = null;
+// Desired state, tracked separately from the live controller. A disable that
+// arrives while the bubble chunk is still importing finds bubbleController null,
+// so unmountBubble is a no-op — without this flag the mount would then complete
+// and the bubble would appear against the user's last (disabled) setting until the
+// next toggle. mountBubble re-checks it after the import resolves.
+let bubbleWanted = false;
 
 async function mountBubble(settings: SettingsData): Promise<void> {
   if (bubbleController) return;
   const { mountBubble: mount } = await import('@/extension/bubble/mount');
-  // A concurrent unmount may have raced in while the chunk loaded.
-  if (bubbleController) return;
+  // A concurrent unmount/disable may have raced in while the chunk loaded — bail
+  // if the bubble is no longer wanted (or another mount already won).
+  if (bubbleController || !bubbleWanted) return;
   bubbleController = mount(settings);
 }
 
@@ -207,6 +224,7 @@ function unmountBubble(): void {
 }
 
 function applyBubble(settings: SettingsData): void {
+  bubbleWanted = settings.bubbleEnabled;
   if (settings.bubbleEnabled) {
     void mountBubble(settings);
   } else {

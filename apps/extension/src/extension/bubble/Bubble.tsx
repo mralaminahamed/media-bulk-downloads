@@ -211,8 +211,15 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
       // panel: an open modal (preview/side panels), an open dropdown menu (the
       // download options), or a focused text field (clear the search box).
       if (panelRef.current?.querySelector('[role="dialog"][aria-modal="true"], [role="menu"]')) return;
-      const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      // Resolve the focused node from the panel's own root, NOT e.target: this
+      // listener is on window (light DOM), outside the bubble's shadow root, so
+      // shadow-DOM retargeting makes e.target the shadow HOST (a div) — the field
+      // check would never match and Escape-while-typing would collapse the panel.
+      // getRootNode() is the shadow root in production (activeElement scoped to the
+      // bubble) and the document under jsdom.
+      const root = panelRef.current?.getRootNode() as ShadowRoot | Document | null;
+      const active = root?.activeElement as HTMLElement | null;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
       setOpen(false);
     };
     window.addEventListener('keydown', onKey, true);

@@ -85,6 +85,16 @@ describe('content bubble lifecycle (message-driven)', () => {
     expect(controller.unmount).toHaveBeenCalled();
   });
 
+  it('does not mount when a disable races in during the bubble chunk import', async () => {
+    // enable() suspends mountBubble at `await import(...)`; a disable arriving
+    // before the import resolves must cancel the pending mount (desired-state
+    // guard), not leave the bubble mounted against the disabled setting.
+    pushSettings(true);
+    pushSettings(false);
+    await flush();
+    expect(mountBubble).not.toHaveBeenCalled();
+  });
+
   it('ignores unrelated runtime messages', async () => {
     const listeners = (chrome.runtime.onMessage.addListener as Mock).mock.calls.map((c) => c[0]);
     listeners.forEach((l) => l({ type: 'NOT_SETTINGS' }));
