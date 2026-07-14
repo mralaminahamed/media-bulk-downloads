@@ -84,6 +84,8 @@ It reads only what the page already loaded, so nothing leaves your device.
   `{domain}`, `{date}`, `{kind}` tokens save each site to its own folder
 - **Copy or export links** — copy the shown/selected URLs to the clipboard, or
   export them as a `.txt`, from the download button's menu
+- **Download queue** — batches run through a persistent queue with a popup panel;
+  it survives closing the popup and resumes interrupted items
 - **Download history** with open-file, reveal-in-folder, and re-download actions
 - **Favourites** — star media to a saved list that persists across sessions,
   re-downloadable anytime
@@ -115,7 +117,7 @@ Chrome build too.
 
 **From Firefox Add-ons (AMO)** —
 [**install Media Bulk Downloads**](https://addons.mozilla.org/en-US/firefox/addon/media-bulk-downloads/)
-for Firefox 109+.
+for Firefox 140+.
 
 **From source** — requires **Node 20.19+** and Corepack Yarn (`.nvmrc` pins 22). The
 build runs on [WXT](https://wxt.dev), which targets every browser from one codebase:
@@ -219,12 +221,14 @@ upgrade rules for:
 | Vimeo                               | Embeds / links → direct progressive MP4 (via config) |
 | Reddit                             | Gallery `<a href>` → direct `i.redd.it` original    |
 | Unsplash                           | Strip resize params → native-format master          |
+| Flickr                             | Size suffix → largest keyless rendition (`_k` / `_6k`) via `/sizes/` |
 | Pinterest                          | `/NNNx/` → `/originals/`                            |
 | Shopify stores                     | Drop `?width=` size queries                         |
 | WordPress (self-hosted)            | `/wp-content/uploads/` resize + `-WxH` → original   |
 | Google (Photos, Blogger)           | `=s88-…` → `=s0`                                    |
 | Adobe Scene7 (Target, REI, …)      | `?wid=` → large rendition                           |
 | ArtStation                         | Size bucket (`medium`, …) → `/large/`               |
+| Pixiv                              | Artwork page → original master (`i.pximg.net`, Referer-gated) |
 | Behance                            | `/project_modules/<size>/` → `/source/` (DOM-aware) |
 | Amazon / eBay / Etsy / Walmart / Newegg | Strip size tokens → full product image         |
 | DeviantArt (wixmp)                 | Decode token cap → largest within-cap render        |
@@ -245,15 +249,17 @@ upgrade rules for:
 
 …and 50+ more CDN families — see the live [coverage benchmark](./docs/BENCHMARK.md).
 
-## HLS stream capture
+## HLS & DASH stream capture
 
-When a page exposes an HLS manifest (`.m3u8`) — a native `<video>`/`<source>`,
-an `og:video`, or a direct link — it appears in the grid tagged **HLS · capture**.
-**Capture** fetches the manifest and every segment, decrypts standard **AES-128**
-where present, and assembles them into a single file: MPEG-TS `.ts`, or `.mp4` for
-fragmented-MP4 streams. It selects the ~720p variant by default and runs in the
-background service worker plus a hidden **offscreen document** — capture
-keeps running even if you close the popup.
+When a page exposes an adaptive-streaming manifest — **HLS** (`.m3u8`) or **DASH**
+(`.mpd`) — via a native `<video>`/`<source>`, an `og:video`, or a direct link, it
+appears in the grid tagged **HLS · capture**. **Capture** fetches the manifest and every
+segment, decrypts standard **AES-128** where present, and assembles them into a
+single file: MPEG-TS `.ts` or `.mp4` for video (audio muxed in), or `.m4a` / AAC for
+audio-only streams. It selects the variant closest to 720p by default — change this
+under **Settings → Stream capture quality** (auto / best / worst / 1080 / 720 / 480) —
+and runs in the background service worker plus a hidden **offscreen document**, so
+capture keeps running even if you close the popup.
 
 **Not captured, by design:** **DRM** (Widevine / PlayReady / FairPlay,
 `SAMPLE-AES`) and **live** streams — capturing them would breach the stream's DRM
@@ -268,8 +274,8 @@ requests of its own.
 
 ## Tech stack
 
-- **[WXT](https://wxt.dev)** — multi-browser MV3 build (Chrome · Firefox · Edge) from one
-  codebase, with dev auto-reload and per-browser zips
+- **[WXT](https://wxt.dev)** — multi-browser MV3 build (Chrome · Firefox · Edge · Safari)
+  from one codebase, with dev auto-reload and per-browser zips
 - **React 19** + **TypeScript** — type-safe UI
 - **Tailwind CSS v4** — utility-first styling on a small design-token system
 - **Vite** (via WXT) — fast bundling
