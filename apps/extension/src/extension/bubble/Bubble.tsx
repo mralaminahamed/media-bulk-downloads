@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { BubbleCorner, BubblePanelPlacement, DeepScanProgress, ImageInfo, SettingsData } from '@mbd/core/types';
+import { BubbleCorner, BubblePanelPlacement, DeepScanProgress, ImageInfo, SettingsData, SettingsChangedMessage } from '@mbd/core/types';
 import { withDefaults } from '@mbd/storage/settings';
 import { collectMedia } from '@/extension/content/collect';
 import { startDeepScan } from '@/extension/content/deepScanRunner';
@@ -165,11 +165,20 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const panelDrag = useRef<{ sx: number; sy: number; left: number; top: number; w: number; h: number } | null>(null);
 
-  // Keep corner/position in sync when changed from the popup settings.
+  // Keep corner/position/size in sync when settings change elsewhere (the popup,
+  // or the same bubble on another tab). Driven by the background's SETTINGS_CHANGED
+  // broadcast, not chrome.storage.onChanged: Safari content scripts don't receive
+  // sync storage events, so a storage listener here would never fire there.
   useEffect(() => {
-    const listener = (changes: { [k: string]: chrome.storage.StorageChange }, area: string) => {
-      if (area !== 'sync' || !changes.settings) return;
-      const next = withDefaults(changes.settings.newValue as Partial<SettingsData>);
+    const listener = (message: unknown) => {
+      if (
+        typeof message !== 'object' ||
+        message === null ||
+        (message as { type?: string }).type !== 'SETTINGS_CHANGED'
+      ) {
+        return;
+      }
+      const next = withDefaults((message as SettingsChangedMessage).settings);
       settingsRef.current = next; // keep deep-scan caps + Load-more toggle live
       setCorner(next.bubblePosition.corner);
       setPos({ x: next.bubblePosition.x, y: next.bubblePosition.y });
@@ -177,8 +186,8 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
       setPlacement(next.bubblePanelPlacement);
       setPanelPoint({ x: next.bubblePanelPoint.x, y: next.bubblePanelPoint.y });
     };
-    chrome.storage.onChanged.addListener(listener);
-    return () => chrome.storage.onChanged.removeListener(listener);
+    chrome.runtime.onMessage.addListener(listener);
+    return () => chrome.runtime.onMessage.removeListener(listener);
   }, []);
 
   // Toolbar-icon clicks (when the popup is disabled) toggle the panel.
