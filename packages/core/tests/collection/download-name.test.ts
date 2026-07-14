@@ -162,6 +162,7 @@ describe('buildDownloadFilename', () => {
     resolveOriginals: false,
     captureHlsStreams: false,
     streamQuality: 'auto',
+    audioFormat: 'm4a',
     metadataSidecar: false,
     nearDuplicateThreshold: 8,
     downloadConcurrency: 5,

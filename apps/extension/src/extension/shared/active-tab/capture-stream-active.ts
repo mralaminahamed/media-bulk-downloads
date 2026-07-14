@@ -1,4 +1,4 @@
-import { CaptureProgressMessage, CaptureStreamMessage, CaptureStreamResponse, ImageInfo } from '@mbd/core/types';
+import { AudioFormat, CaptureProgressMessage, CaptureStreamMessage, CaptureStreamResponse, ImageInfo } from '@mbd/core/types';
 
 /**
  * A unique id for one capture run. Deliberately NOT crypto.randomUUID — that is
@@ -21,6 +21,7 @@ export function requestCaptureStream(
   sourcePage: { url: string; title?: string },
   onProgress: (done: number, total: number) => void,
   audioOnly = false,
+  audioFormat?: AudioFormat,
 ): Promise<{ status: string; refusal?: { code: string } }> {
   return new Promise((resolve) => {
     const runId = newCaptureRunId();
@@ -31,7 +32,8 @@ export function requestCaptureStream(
       if (p && p.type === 'CAPTURE_PROGRESS' && p.runId === runId) onProgress(p.done, p.total);
     };
     chrome.runtime.onMessage.addListener(listener);
-    const message: CaptureStreamMessage = { type: 'CAPTURE_STREAM', runId, item, sourcePage, audioOnly };
+    // Only send an override; absent → the background applies the global default.
+    const message: CaptureStreamMessage = { type: 'CAPTURE_STREAM', runId, item, sourcePage, audioOnly, ...(audioFormat ? { audioFormat } : {}) };
     chrome.runtime.sendMessage(message, (response?: CaptureStreamResponse) => {
       chrome.runtime.onMessage.removeListener(listener);
       void chrome.runtime.lastError;

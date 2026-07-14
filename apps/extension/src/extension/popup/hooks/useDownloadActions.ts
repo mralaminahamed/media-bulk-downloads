@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction } from 'react';
-import { AppState, DownloadBytesMessage, DownloadMessage, DownloadResponse, DownloadZipMessage, ImageInfo, SettingsData } from '@mbd/core/types';
+import { AppState, AudioFormat, DownloadBytesMessage, DownloadMessage, DownloadResponse, DownloadZipMessage, ImageInfo, SettingsData } from '@mbd/core/types';
 import { buildZip, zipFileName } from '@mbd/core/download/zip';
 import { convertImage, isConvertible } from '@mbd/core/download/convert/convert';
 import { u8ToBase64 } from '@mbd/core/download/base64';
@@ -48,8 +48,9 @@ export interface UseDownloadActionsResult {
   handleDownload: (images: ImageInfo | ImageInfo[]) => Promise<void>;
   handleBulkDownload: () => void;
   handleSingleImageDownload: (image: ImageInfo) => void;
-  /** Capture a stream item but keep only its audio track, saved as `.m4a` (#204). */
-  handleCaptureAudio: (image: ImageInfo) => void;
+  /** Capture a stream item's audio track (#204). Saved as `.m4a`, or re-encoded to
+   *  MP3 (#321) — `formatOverride` beats the global default for this one capture. */
+  handleCaptureAudio: (image: ImageInfo, formatOverride?: AudioFormat) => void;
   handleDownloadZip: (images: ImageInfo[]) => Promise<void>;
   handleBulkDownloadZip: () => void;
   handleDownloadSelected: () => void;
@@ -97,7 +98,7 @@ export function useDownloadActions({
    * into the ProgressBar, and shows the status the background composes. The
    * capture completes even if the popup closes before this resolves.
    */
-  const captureStream = async (item: ImageInfo, audioOnly = false): Promise<void> => {
+  const captureStream = async (item: ImageInfo, audioOnly = false, audioFormat?: AudioFormat): Promise<void> => {
     const sourcePage = await currentSourcePage();
     // Clear any prior handoff banner before this attempt (#285).
     onStreamRefused?.(null);
@@ -109,6 +110,7 @@ export function useDownloadActions({
         sourcePage,
         (done, total) => setProgress({ label, done, total }),
         audioOnly,
+        audioFormat,
       );
       setState((prev) => ({ ...prev, status }));
       // A refused stream (DRM/live/SAMPLE-AES/unsupported, or audio-unavailable when
@@ -208,7 +210,7 @@ export function useDownloadActions({
 
   const handleSingleImageDownload = (image: ImageInfo): void => void handleDownload(image);
 
-  const handleCaptureAudio = (image: ImageInfo): void => void captureStream(image, true);
+  const handleCaptureAudio = (image: ImageInfo, formatOverride?: AudioFormat): void => void captureStream(image, true, formatOverride);
 
   // ── Selective bulk download ────────────────────────────────────────────────
   const handleDownloadSelected = (): void => {

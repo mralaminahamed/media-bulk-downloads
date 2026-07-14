@@ -85,6 +85,20 @@ describe('deep-scan cap settings', () => {
   });
 });
 
+describe('audioFormat setting (#321)', () => {
+  it('defaults to the M4A passthrough (no re-encode)', () => {
+    expect(DEFAULT_SETTINGS.audioFormat).toBe('m4a');
+    expect(withDefaults({}).audioFormat).toBe('m4a');
+  });
+  it('preserves a valid stored format', () => {
+    expect(withDefaults({ audioFormat: 'mp3-320' }).audioFormat).toBe('mp3-320');
+  });
+  it('falls back to m4a for an unknown/corrupt value rather than driving the encoder on garbage', () => {
+    expect(withDefaults({ audioFormat: 'mp3-256' as never }).audioFormat).toBe('m4a');
+    expect(withDefaults({ audioFormat: 42 as never }).audioFormat).toBe('m4a');
+  });
+});
+
 describe('withDefaults — corrupt shapes', () => {
   it('ignores a non-object nested value instead of injecting junk index keys', () => {
     const s = withDefaults({ bubblePosition: 'oops', bubblePanelPoint: [1, 2] } as unknown);

@@ -392,6 +392,7 @@ const App: React.FC<AppProps> = ({
             images={state.filteredImages}
             onImageDownload={handleSingleImageDownload}
             onCaptureAudio={handleCaptureAudio}
+            audioFormat={settings.audioFormat}
             thumbnailSize={settings.thumbnailSize}
             previewSize={settings.previewSize}
             downloadedSrcs={downloadedSrcs}
