@@ -83,8 +83,11 @@ export function loadSettings(): void {
  *  (instead of each doing a bare storage.sync get→set) stops a concurrent write
  *  from clobbering the other's fields. */
 let settingsWriteChain: Promise<void> = Promise.resolve();
-export function writeSettingsPatch(patch: SetSettingsMessage['patch']): void {
-  const run = settingsWriteChain.then(() => new Promise<void>((resolve) => {
+/** Resolves with the merged settings that were written, so the caller can push
+ *  them to content scripts (SETTINGS_CHANGED) — Safari content scripts don't see
+ *  storage.sync changes, so they rely on that broadcast, not storage.onChanged. */
+export function writeSettingsPatch(patch: SetSettingsMessage['patch']): Promise<SettingsData> {
+  const run = settingsWriteChain.then(() => new Promise<SettingsData>((resolve) => {
     chrome.storage.sync.get(['settings'], (result) => {
       const stored = withDefaults(result.settings);
       const { bubblePosition: bp, bubblePanelPoint: bpp, ...top } = patch;
@@ -94,8 +97,9 @@ export function writeSettingsPatch(patch: SetSettingsMessage['patch']): void {
         bubblePosition: { ...stored.bubblePosition, ...(bp ?? {}) },
         ...(bpp !== undefined ? { bubblePanelPoint: bpp } : {}),
       };
-      chrome.storage.sync.set({ settings: merged }, () => resolve());
+      chrome.storage.sync.set({ settings: merged }, () => resolve(merged));
     });
   }));
-  settingsWriteChain = run.catch(() => undefined);
+  settingsWriteChain = run.then(() => undefined, () => undefined);
+  return run;
 }

@@ -1,56 +1,93 @@
 import type { Mock } from 'vitest';
 /**
- * Verifies the content script mounts/unmounts the bubble from storage-driven
- * settings. The heavy bubble module is mocked so we don't load React here.
+ * The content script gets settings from the background (GET_SETTINGS) and applies
+ * bubble changes pushed to it as SETTINGS_CHANGED. It no longer reads
+ * chrome.storage.sync directly — Safari content scripts don't reliably see the
+ * popup's sync writes, nor fire storage.onChanged for them, so the bubble would
+ * never mount. The heavy bubble module is mocked so we don't load React here.
  */
 vi.mock('@/extension/bubble/mount', () => ({
   mountBubble: vi.fn(() => ({ unmount: vi.fn() })),
 }));
 
 import { mountBubble } from '@/extension/bubble/mount';
-import '@/extension/content';
 
-const onChanged = (chrome.storage.onChanged.addListener as Mock).mock.calls[0][0];
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
 const settings = (bubbleEnabled: boolean) => ({
-  settings: { newValue: { bubbleEnabled, bubblePosition: { corner: 'bottom-right', x: 20, y: 20 } } },
+  bubbleEnabled,
+  bubblePosition: { corner: 'bottom-right', x: 20, y: 20 },
 });
 
-describe('content bubble lifecycle', () => {
+// Dispatches a SETTINGS_CHANGED push to the content script's runtime.onMessage
+// listeners — the live mount/unmount channel that replaces storage.onChanged.
+let pushSettings: (bubbleEnabled: boolean) => void;
+let mountedOnLoad = 0;
+
+beforeAll(async () => {
+  // The content script's first act is to ask the background for settings. Answer
+  // as a page reload would with the bubble already enabled, so we can assert it
+  // mounts from that initial response (not only from a live change).
+  (chrome.runtime.sendMessage as Mock).mockImplementation(
+    (message: unknown, cb?: (s: unknown) => void) => {
+      if ((message as { type?: string })?.type === 'GET_SETTINGS' && cb) cb(settings(true));
+    },
+  );
+
+  await import('@/extension/content');
+  await flush();
+  mountedOnLoad = (mountBubble as Mock).mock.calls.length;
+
+  const listeners = (chrome.runtime.onMessage.addListener as Mock).mock.calls.map((c) => c[0]);
+  pushSettings = (bubbleEnabled) =>
+    listeners.forEach((l) => l({ type: 'SETTINGS_CHANGED', settings: settings(bubbleEnabled) }));
+});
+
+describe('content bubble lifecycle (message-driven)', () => {
   beforeEach(async () => {
-    // Reset to unmounted between tests (module state persists).
-    onChanged(settings(false), 'sync');
+    pushSettings(false); // reset to unmounted (module state persists across tests)
     await flush();
     (mountBubble as Mock).mockClear();
   });
 
-  it('mounts the bubble when enabled', async () => {
-    onChanged(settings(true), 'sync');
+  it('asks the background for settings on load (not storage.sync)', () => {
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      { type: 'GET_SETTINGS' },
+      expect.any(Function),
+    );
+  });
+
+  it('mounts from the initial GET_SETTINGS response when enabled', () => {
+    expect(mountedOnLoad).toBe(1);
+  });
+
+  it('mounts the bubble when a SETTINGS_CHANGED push enables it', async () => {
+    pushSettings(true);
     await flush();
     expect(mountBubble).toHaveBeenCalledTimes(1);
   });
 
   it('does not mount twice while already mounted', async () => {
-    onChanged(settings(true), 'sync');
+    pushSettings(true);
     await flush();
-    onChanged(settings(true), 'sync');
+    pushSettings(true);
     await flush();
     expect(mountBubble).toHaveBeenCalledTimes(1);
   });
 
   it('unmounts the bubble when disabled', async () => {
-    onChanged(settings(true), 'sync');
+    pushSettings(true);
     await flush();
     const controller = (mountBubble as Mock).mock.results[0].value;
 
-    onChanged(settings(false), 'sync');
+    pushSettings(false);
     await flush();
     expect(controller.unmount).toHaveBeenCalled();
   });
 
-  it('ignores changes in other storage areas', async () => {
-    onChanged(settings(true), 'local');
+  it('ignores unrelated runtime messages', async () => {
+    const listeners = (chrome.runtime.onMessage.addListener as Mock).mock.calls.map((c) => c[0]);
+    listeners.forEach((l) => l({ type: 'NOT_SETTINGS' }));
     await flush();
     expect(mountBubble).not.toHaveBeenCalled();
   });

@@ -395,6 +395,21 @@ export interface SaveScanMemoryMessage {
   sample: { settleMs: number; scrolls: number };
 }
 
+/** A content script asks the background for the current settings instead of
+ *  reading chrome.storage.sync itself: Safari content scripts don't reliably see
+ *  the sync writes the popup makes (nor fire storage.onChanged for them), so the
+ *  bubble would never mount. The response is the current SettingsData. */
+export type GetSettingsMessage = { type: 'GET_SETTINGS' };
+
+/** The background pushes the merged settings to a tab's content script after
+ *  every SET_SETTINGS write, so the on-page bubble mounts/unmounts live. This
+ *  replaces the content script's storage.onChanged listener, which does not fire
+ *  for sync changes on Safari. */
+export interface SettingsChangedMessage {
+  type: 'SETTINGS_CHANGED';
+  settings: SettingsData;
+}
+
 export type QueuePauseMessage = { type: 'QUEUE_PAUSE' };
 export type QueueResumeMessage = { type: 'QUEUE_RESUME' };
 export interface QueueCancelMessage {
@@ -437,6 +452,8 @@ export type ChromeMessage =
   | DownloadTextMessage
   | DownloadBytesMessage
   | RestoreDataMessage
+  | GetSettingsMessage
+  | SettingsChangedMessage
   | GetImagesMessage
   | ToggleBubbleMessage
   | DeepScanMessage

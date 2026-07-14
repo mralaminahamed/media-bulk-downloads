@@ -6,7 +6,7 @@
  * bubble surface (dynamically imported) when the user has enabled it.
  */
 
-import { SettingsData, DeepScanProgress } from '@mbd/core/types';
+import { SettingsData, DeepScanProgress, SettingsChangedMessage } from '@mbd/core/types';
 import { collectMedia } from '@/extension/content/collect';
 import { ingestSniffedIgMedia } from '@mbd/core/resolvers/sites/instagram';
 import { ingestSniffedFbMedia } from '@mbd/core/resolvers/sites/facebook';
@@ -216,11 +216,25 @@ function applyBubble(settings: SettingsData): void {
 
 // Don't inject into framed documents — only the top-level page.
 if (window.top === window.self) {
-  chrome.storage.sync.get(['settings'], (result) => applyBubble(withDefaults(result.settings)));
+  // Get settings from the background rather than reading chrome.storage.sync
+  // here: Safari content scripts don't reliably see the sync writes the popup
+  // makes, nor fire storage.onChanged for them, so the bubble would never mount.
+  // The background owns settings and pushes SETTINGS_CHANGED after every write —
+  // message passing works across Chrome/Firefox/Edge/Safari alike.
+  chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }, (settings?: Partial<SettingsData>) => {
+    // No receiver (worker still waking): fall back to defaults; a SETTINGS_CHANGED
+    // push or the next navigation's GET_SETTINGS will mount it once available.
+    void chrome.runtime.lastError;
+    applyBubble(withDefaults(settings));
+  });
 
-  chrome.storage.onChanged.addListener((changes, namespace) => {
-    if (namespace === 'sync' && changes.settings) {
-      applyBubble(withDefaults(changes.settings.newValue as Partial<SettingsData>));
+  chrome.runtime.onMessage.addListener((message: unknown) => {
+    if (
+      typeof message === 'object' &&
+      message !== null &&
+      (message as { type?: string }).type === 'SETTINGS_CHANGED'
+    ) {
+      applyBubble(withDefaults((message as SettingsChangedMessage).settings));
     }
   });
 }

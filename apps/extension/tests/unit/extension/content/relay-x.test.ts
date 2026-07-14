@@ -25,6 +25,10 @@ const loadContent = async (): Promise<{ messageHandlers: Handler[]; postSpy: Moc
   sendMessage.mockReturnValue(Promise.resolve(undefined));
 
   await import('@/extension/content');
+  // The content module asks the background for settings on load
+  // (sendMessage GET_SETTINGS); drop that call so the relay assertions below see
+  // only what the message handlers forward.
+  sendMessage.mockClear();
 
   const messageHandlers = addSpy.mock.calls
     .filter((c) => c[0] === 'message')

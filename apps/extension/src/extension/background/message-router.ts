@@ -3,6 +3,7 @@ import {
   DownloadResponse,
   ResolveOriginalsResponse,
   CaptureStreamResponse,
+  SettingsData,
 } from '@mbd/core/types';
 import { filterImagesBySettings, filterExcluded } from '@mbd/core/collection/filters';
 import { buildDownloadFilename } from '@mbd/core/collection/download-name';
@@ -28,7 +29,7 @@ import { captureStreamToFile, captureRunTabs } from '@/extension/background/down
 
 /** Response callback shape for the background message router. */
 export type SendResponse = (
-  response: DownloadResponse | ResolveOriginalsResponse | string[] | CaptureStreamResponse | QueueState,
+  response: DownloadResponse | ResolveOriginalsResponse | string[] | CaptureStreamResponse | QueueState | SettingsData,
 ) => void;
 
 /**
@@ -240,9 +241,33 @@ export const messageRouter: MessageRouter = {
   },
 
   // Persist a settings patch through the single serialized writer (see
-  // writeSettingsPatch) so popup + bubble writes never clobber each other.
+  // writeSettingsPatch) so popup + bubble writes never clobber each other, then
+  // push the merged result to every tab's content script (SETTINGS_CHANGED) so
+  // the on-page bubble applies live. Safari content scripts don't fire
+  // storage.onChanged for sync writes, so this broadcast — not the storage event
+  // — is what drives them (Chrome/Firefox get it the same way, uniformly).
   SET_SETTINGS: (message) => {
-    writeSettingsPatch(message.patch);
+    void writeSettingsPatch(message.patch).then((settings) => {
+      chrome.tabs.query({}, (tabs) => {
+        for (const t of tabs) {
+          if (t.id != null) {
+            void chrome.tabs
+              .sendMessage(t.id, { type: 'SETTINGS_CHANGED', settings })
+              .catch(() => {
+                /* tab has no content script / was closed */
+              });
+          }
+        }
+      });
+    });
+  },
+
+  // A content script's initial settings read. Content scripts can't reliably read
+  // chrome.storage.sync on Safari, so the bubble asks the background (the settings
+  // owner) instead. Await the gate so a cold worker never answers DEFAULT_SETTINGS.
+  GET_SETTINGS: (_message, _sender, respond) => {
+    void settingsReady.then(() => respond(currentSettings));
+    return true; // response sent asynchronously
   },
 
   // Persist or clear a per-host settings override (#293). A separate key in a
