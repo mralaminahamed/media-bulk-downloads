@@ -216,6 +216,18 @@ describe('buildDownloadFilename', () => {
     expect(result).toBe('Media/example.com/image/image_1.jpg');
   });
 
+  it("prefers the item's own sourcePage over the batch URL for {domain} (#283 multi-tab)", () => {
+    // A multi-tab item carries its origin tab; that must win over the batch-level
+    // active-tab URL so each item lands in its own site folder.
+    const result = buildDownloadFilename(
+      image({ kind: 'image', sourcePage: { url: 'https://shop.example.org/p/1' } }),
+      0,
+      { ...settings, downloadPath: 'Media/{domain}' },
+      'https://www.active-tab.com/page',
+    );
+    expect(result).toBe('Media/example.org/image_1.jpg');
+  });
+
   it('collapses an empty {host} token segment but still returns dir/fileName', () => {
     // No sourcePageUrl -> host '' -> the {host} segment collapses away, leaving a
     // shorter (but non-empty) directory.

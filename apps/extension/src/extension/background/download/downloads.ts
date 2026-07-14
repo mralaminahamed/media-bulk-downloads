@@ -68,8 +68,10 @@ export async function downloadAndRecord(
                 kind: image.kind,
                 type: image.type,
                 thumbnailSrc: image.thumbnailSrc ?? image.poster ?? image.src,
-                sourcePageUrl: sourcePage?.url ?? '',
-                sourcePageTitle: sourcePage?.title,
+                // Multi-tab items (#283) carry their own origin — record it so the
+                // history row points at the true source tab, not the batch default.
+                sourcePageUrl: image.sourcePage?.url ?? sourcePage?.url ?? '',
+                sourcePageTitle: image.sourcePage?.title ?? sourcePage?.title,
                 time: Date.now(),
                 downloadId,
               });

@@ -95,8 +95,8 @@ export async function captureStreamToFile(
       kind: item.kind,
       type: result.ext ?? item.type,
       thumbnailSrc: item.thumbnailSrc ?? item.poster ?? item.src,
-      sourcePageUrl: sourcePage?.url ?? '',
-      sourcePageTitle: sourcePage?.title,
+      sourcePageUrl: item.sourcePage?.url ?? sourcePage?.url ?? '',
+      sourcePageTitle: item.sourcePage?.title ?? sourcePage?.title,
       time: Date.now(),
       downloadId,
     }]);

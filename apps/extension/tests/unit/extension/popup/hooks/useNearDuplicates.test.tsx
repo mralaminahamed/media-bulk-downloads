@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { createRef } from 'react';
 import type { RefObject } from 'react';
 import { AppState, FilterOptions, ImageInfo, SettingsData } from '@mbd/core/types';
 import { ExcludedMatchers } from '@mbd/core/collection/filters';
