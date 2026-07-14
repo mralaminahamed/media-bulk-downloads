@@ -6,7 +6,102 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **"Can't read this page" in the on-page bubble.** With smart page defaults on by
+  default, the bubble surface (which runs inside the page, where `chrome.tabs` is
+  unavailable) crashed its scan with "Cannot read properties of undefined (reading
+  'query')". Page-type classification now degrades to "unknown" in that context
+  instead of throwing.
+- **Duplicate files on download (`image.png`, `image (2).png`).** Bulk downloads
+  now skip images already saved to disk, and give distinct images that derive the
+  same filename clean unique names within a batch (`image.png`, `image-2.png`)
+  instead of the browser's " (2)" suffix. Controlled by a new "Skip images already
+  downloaded" setting (on by default); re-downloads from Favourites/History always
+  go through.
+
 ### Added
+- **Per-site learned deep scan.** The adaptive deep scan now remembers how long
+  each site takes to settle and how deep it scrolls, and seeds those on the next
+  visit so a repeat scan on the same site starts warm instead of re-learning.
+  Local only (nothing is uploaded), on by default, and controlled by a new
+  "Remember scan behaviour per site" setting; "Reset this site" clears it.
+
+### Changed
+- **Smart page defaults are now on by default.** The extension detects the page
+  type (gallery, feed, article, single) and primes sensible filter defaults out of
+  the box. Nothing is hidden — active defaults show as clearable chips, and the
+  behaviour can be turned off in Settings. Existing users who had explicitly toggled
+  the setting keep their choice.
+
+## [1.2.0] - 2026-07-11
+
+### Added
+- **Many new site resolvers.** Bulk collection now recognises and upgrades media
+  from a wide set of new platforms and CDNs, each returning the true original
+  (not a thumbnail):
+  - **Social / media:** Pinterest (`/originals/` + video pins), Reddit
+    (`i.redd.it`/`preview.redd.it` → original, `v.redd.it` video with audio mux),
+    Flickr (largest `_k`/`_6k` size), ArtStation (keyless `/4k/` images + video),
+    Bluesky (`cdn.bsky.app`, `getBlob`, video HLS), Facebook (Photos/Reels/Page),
+    Threads (full-resolution media + mounted video), Mastodon (any instance,
+    `/small/` → `/original/`), Dailymotion (HLS via player metadata), and the
+    Booru family (Danbooru/Gelbooru/Moebooru originals).
+  - **Stock / art / museum / retail:** the IIIF Image API and `images.rawpixel.com`;
+    the strip-transform CDN family (Sanity, Storyblok, Uploadcare, ImageKit, Sirv,
+    Contentful, Cloudflare Images); The Met, NASA, National Geographic, Nike,
+    adidas, and Arc XP sites; and the free-tier stock/icon/wallpaper set
+    (Flaticon, pxhere, AlphaCoders, WallpaperFlare).
+  - **Site-builder / misc CDN upgrade rules:** Squarespace, Wix, and Bandcamp.
+
+  See [BENCHMARK.md](./docs/BENCHMARK.md) for per-site coverage. All resolvers are
+  passive and network-free by default; no new permissions.
+- **X / Twitter — recover unpainted media** (#270): photos and videos in status
+  cells that the timeline hasn't painted yet are now collected via opt-in
+  status-link resolution (max-resolution `name=orig` for images; poster-only
+  pending videos are never shown until resolved, so a still frame never leaks).
+- **Tabbed settings sheet** (#262): the settings panel is reorganised into tabs
+  (Display / Downloads / Media / Data / Advanced) so options are easier to find.
+- **Chip-based filter toolbar + Downloaded filter** (#259, #260): the filter row
+  is redesigned around type/size chips, and a new **Downloaded / Not-downloaded**
+  filter lets you hide media you've already saved (or show only what you haven't).
+- **Live download queue** (#257, #273): the queue shows per-file status icons and
+  live progress with **Clear / Retry-all / Open** actions, and its panel is now
+  **collapsible**. Downloads that hit 100% but never fired a completion event are
+  now settled by a progress backstop instead of blocking the queue.
+- **Durable storage** (#275): download history, favourites, excluded sources, and
+  the download queue are now write-through **mirrored to IndexedDB** (with
+  `navigator.storage.persist()`), so Chrome evicting `storage.local` can no longer
+  silently wipe them. Existing data is auto-seeded into the mirror on first run.
+  Fully on-device; no new permissions.
+- **Universal, rotation-proof source exclusion** (#228): excluding a source now
+  hides it instantly and stays excluded even when the site rotates the media URL.
+- **Save-As prompt hint**: when Chrome's own "Ask where to save each file before
+  downloading" setting forces the OS Save-As dialog — which an extension cannot
+  read or override — the popup now surfaces a one-time, dismissible hint linking
+  straight to `chrome://settings/downloads` so you can turn it off for silent
+  saves. Cancelling that dialog no longer makes the download queue re-try (and
+  re-prompt); a user-cancelled item is marked failed and left for a manual retry.
+
+- **Facebook original-image accuracy + multi-surface support**: the Facebook
+  resolver and its passive MAIN-world sniffer (`fb-media-sniffer`) now cover
+  Photos, Reels, and the Page surface with **77–90% original-image accuracy**
+  (up from ~5%). Facebook streams its media graph from `/api/graphql` over XHR
+  as **`text/html`-content-type, multi-chunk NDJSON** — the shared sniffer
+  previously dropped all of it at its json-only content-type and single-parse
+  gates. Both gates are now configurable (Facebook opts in; Instagram/X sniffing
+  is unchanged), the extractor learned the reel `progressive_url` video key and
+  the `/photo(s)/<id>` fbid path, and every candidate is tagged with a
+  `mediaKey` so an already-rendered tile upgrades in place once the real
+  original streams in, instead of adding a duplicate row. See
+  [BENCHMARK.md §G](./docs/BENCHMARK.md#g-facebook-original-image-accuracy-passive-sniff--2026-07-10)
+  for the full measurement. Passive, read-only; no new permissions.
+- **Fixed: "Notify when downloads finish" setting not persisting** (#255):
+  toggling the notification setting on requests the optional `notifications`
+  permission, and Chrome closes the action popup while that permission prompt
+  has focus — which used to drop the unsaved toggle along with the popup, since
+  it was only written on the Settings panel's Save button. The toggle is now
+  persisted immediately (a direct `SET_SETTINGS` write) the moment it's
+  flipped, so enabling it survives the popup closing for the permission prompt.
 - **Persistent download queue** (#196): bulk downloads now run through a
   concurrency-capped queue that tracks each file's real outcome
   (queued / downloading / done / failed), retries transient failures with
@@ -56,6 +151,37 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   never touches magnific's login or licensed-download flow; licensing and
   attribution under magnific's terms remain the user's responsibility. No new
   permissions.
+
+### Fixed
+- **Downloaded mark survives clearing Chrome's download history** (#275): a file
+  you already downloaded no longer reverts to "not downloaded" when you clear
+  Chrome's own download list — the mark now drops only when the browser
+  *positively* reports the file deleted, not when it has simply forgotten the record.
+- **Firefox add-on (AMO) validation warnings cleared** (#272): the offscreen
+  document is now Chrome-only and the Firefox minimum version was raised for the
+  data-collection declaration, so the AMO submission validates cleanly.
+- **Facebook UI-icon false positives** (#261): reaction/emoji/control glyphs from
+  Facebook's sprite CDN are no longer mistaken for downloadable media.
+- **Facebook/Instagram emoji CDN URLs** (#219): emoji served from the FB/IG CDNs
+  are excluded from collection.
+- **On-page bubble menu** (#236): fixed a Shadow-DOM menu bug and improved the
+  bubble's accessibility.
+- **Security hardening**: closed a Behance host-bypass in a resolver (#230) and
+  hardened the HLS/DASH segment fetchers against SSRF (#235); plus 25 correctness
+  fixes from two code audits (#229, #230).
+- **HLS/DASH streams in bulk downloads** (#210): streaming videos are now captured
+  correctly when part of a bulk download, and a Cloudinary folder-path 404 was fixed.
+- **No more duplicate grid tiles + reliable settings** (#218): a canonical
+  source-key system dedupes the same media served under multiple URLs/renditions
+  so it appears once, and settings now persist reliably through a unified dispatch
+  router.
+
+### Changed
+- **Test runner migrated from Jest to Vitest** (#233) — contributor-facing.
+- **Tailwind utilities namespaced under the `mbd:` prefix** (#276) —
+  contributor-facing; no visual change.
+- **Internal restructuring**: the background service worker and the popup were
+  split into focused modules/hooks (#251, #252, #253, #271) with no behaviour change.
 
 ## [1.1.0] - 2026-07-07
 

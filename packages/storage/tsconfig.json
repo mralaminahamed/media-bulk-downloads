@@ -1,0 +1,11 @@
+{
+  // Persistence package: depends on @mbd/core (project reference) and uses the
+  // chrome.storage / IndexedDB APIs, so it needs the `chrome` ambient types.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "types": ["chrome"]
+  },
+  "references": [{ "path": "../core" }],
+  "include": ["src"]
+}

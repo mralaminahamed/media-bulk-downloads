@@ -5,7 +5,7 @@ through the [Opera developer dashboard](https://addons.opera.com/developer/):
 copy-paste listing fields, per-permission justifications, the privacy
 disclosures, required visual assets, and the packaging steps.
 
-Version at time of writing: **1.1.0** · Manifest **V3** (Chromium — the **same
+Version at time of writing: **1.2.0** · Manifest **V3** (Chromium — the **same
 package as the Chrome build**). This is the Opera sibling of
 [CHROME_WEBSTORE.md](./CHROME_WEBSTORE.md) and [EDGE_ADDONS.md](./EDGE_ADDONS.md);
 the listing copy is intentionally identical so every store matches.
@@ -13,11 +13,11 @@ the listing copy is intentionally identical so every store matches.
 > **Different from Chrome / Edge — don't miss these:**
 > - Opera registration is **free** (Chrome charges a one-time $5).
 > - You upload the **`…-chrome.zip`** — there is **no separate Opera build target**
->   in WXT; Opera runs the Chromium MV3 package as-is.
+    > in WXT; Opera runs the Chromium MV3 package as-is.
 > - Review is **manual and can be slow** (days to a few weeks), unlike Chrome's
->   mostly-automated pass.
+    > mostly-automated pass.
 > - If reviewers ask for readable (un-minified) source, hand them the AMO
->   **`…-firefox-sources.zip`** you already produce — same tree, unbundled.
+    > **`…-firefox-sources.zip`** you already produce — same tree, unbundled.
 > - Opera has **no per-permission field** and **no native shields.io badge**.
 
 ---
@@ -25,12 +25,14 @@ the listing copy is intentionally identical so every store matches.
 ## 1. Pre-submission checklist
 
 - [ ] **Opera account** created and the developer agreement accepted at [addons.opera.com/developer](https://addons.opera.com/developer/).
-- [ ] `wxt.config.ts` name/description correct; version comes from `package.json`. `yarn zip` emits the Chromium package `.output/media-bulk-downloads-<version>-chrome.zip`.
-- [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`; optional `notifications` and `declarativeNetRequestWithHostAccess` (both requested at runtime).
-- [ ] Icons 16/32/48/128 present (`src/public/icon/`) — ✅ already in the build; Opera uses the manifest icons.
+- [ ] `wxt.config.ts` name/description correct; version comes from `apps/extension/package.json`. `yarn zip` emits the Chromium package `apps/extension/.output/media-bulk-downloads-<version>-chrome.zip`.
+- [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`; optional `notifications` and
+  `declarativeNetRequestWithHostAccess` (both requested at runtime).
+- [ ] Icons 16/32/48/128 present (`apps/extension/src/public/icon/`) — ✅ already in the build; Opera uses the manifest icons.
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
 - [ ] At least **1 screenshot** (see §5) — the 1280×800 shots from the Chrome package work as-is.
-- [ ] `.output/media-bulk-downloads-<version>-chrome.zip` produced by `yarn zip` (the Chrome zip is the Opera upload).
+- [ ] **Promotional picture 300×188 PNG** ready for the moderator (see §5) — ✅ `assets/v2/opera-promo-300x188.png`.
+- [ ] `apps/extension/.output/media-bulk-downloads-<version>-chrome.zip` produced by `yarn zip` (the Chrome zip is the Opera upload).
 - [ ] `…-firefox-sources.zip` on hand from `yarn zip:firefox` in case a reviewer requests source.
 - [ ] Product description, category, and privacy answers filled in (below).
 
@@ -39,11 +41,13 @@ the listing copy is intentionally identical so every store matches.
 ## 2. Store listing fields
 
 **Name / title** (≤ 45 chars)
+
 ```
 Media Bulk Downloads
 ```
 
 **Short / summary description** (≤ 132 chars) — reuse the manifest description:
+
 ```
 Bulk-download images, video & audio from any web page. Smart type filters, instant preview, original quality — fast and private.
 ```
@@ -53,6 +57,7 @@ Bulk-download images, video & audio from any web page. Smart type filters, insta
 **Language:** English
 
 **Detailed description** (paste into the listing):
+
 ```
 Media Bulk Downloads finds every image, video, and audio file on the page you're
 viewing and lets you preview, filter, and download them in bulk — quickly, and
@@ -74,6 +79,24 @@ FILTER AND DOWNLOAD
 • Download one item or the whole filtered set, with correct file extensions
 • Choose a subfolder, a naming scheme, and whether to be asked where to save
 • A download history with one-click re-download, open file, or reveal in folder
+
+WORKS ON THE SITES YOU USE
+• Original-quality resolvers for X/Twitter, Instagram, Facebook, Threads,
+  Bluesky, Mastodon, Pinterest, Reddit, Flickr, ArtStation, Behance, Unsplash,
+  and Wallhaven
+• Video from Vimeo, Dailymotion, YouTube poster frames, and the Booru art sites
+• Museum, stock & CDN coverage: the IIIF Image API, rawpixel, and image CDNs such
+  as Cloudinary, Sanity, Uploadcare, ImageKit, Contentful, and Cloudflare — plus
+  50+ more families
+• Capture standard HLS (.m3u8) and DASH (.mpd) video streams to a single file
+  (no DRM, no live)
+• Optional WebP/AVIF → PNG/JPEG conversion that preserves EXIF/XMP metadata
+
+RELIABLE DOWNLOADS
+• A resilient download queue tracks each file and resumes after the popup closes —
+  pause, resume, cancel, retry, and a "simultaneous downloads" cap
+• "Retry with page referer" recovers hotlink-protected files that return 403
+• Filter by Downloaded / Not-downloaded, and exclude sources you never want to see
 
 PRIVATE BY DESIGN
 • Network-free by default: it only reads what the page already loaded
@@ -101,24 +124,28 @@ Opera has no per-permission field. Put these in the **submission's comment /
 "notes to the moderator"** so the reviewer can map each permission to a use.
 
 **downloads**
+
 ```
 Saves the images, video, and audio the user selects to their computer through
 the browser's download manager. This is the extension's core action.
 ```
 
 **downloads.open**
+
 ```
 Lets the user open a file they previously downloaded through the extension,
 directly from the in-extension download history.
 ```
 
 **storage**
+
 ```
 Stores the user's own preferences (chrome.storage.sync) and their local download
 history (chrome.storage.local) on their device. No content is transmitted.
 ```
 
 **tabs**
+
 ```
 Reads the active tab's URL and title to (1) label each download with the page it
 came from in the history, and (2) open a media item's source page in a new tab
@@ -126,6 +153,7 @@ when the user asks. No browsing history is collected or sent.
 ```
 
 **contextMenus**
+
 ```
 Adds right-click menu items — "Download all media on this page", and, on an
 image/video/audio element, "Download this media", "Download image (original
@@ -134,6 +162,7 @@ the popup. The items only trigger the same local download the popup performs.
 ```
 
 **offscreen**
+
 ```
 Runs an offscreen document to carry out media assembly that the short-lived
 service worker and the popup cannot hold open on their own — such as capturing a
@@ -142,6 +171,7 @@ on the user's device. No page content is transmitted.
 ```
 
 **Host permissions — `<all_urls>`**
+
 ```
 The extension must read the media elements on whatever page the user runs it on,
 which can be any site. It activates only when the user opens the popup or enables
@@ -151,6 +181,7 @@ media's own CDN. It does not read or transmit page content for any other purpose
 ```
 
 **notifications (optional)**
+
 ```
 Optional, off until the user turns it on. Shows a desktop notification reporting
 the result of a download batch — the only feedback available when the user
@@ -159,6 +190,7 @@ is requested at runtime the first time it is enabled, never at install.
 ```
 
 **declarativeNetRequestWithHostAccess (optional)**
+
 ```
 Optional, off until the user turns it on. Fixes hotlink-protected downloads: some
 CDNs reject a file request whose Referer header doesn't match the page it is shown
@@ -172,6 +204,7 @@ view — it is not an auth or paywall bypass.
 ```
 
 **Testing note for the reviewer**
+
 ```
 Open any image-heavy page (e.g. a Wikipedia gallery or a news article), click the
 toolbar icon, and the popup lists every media item found. No sign-in, account, or
@@ -182,18 +215,24 @@ server is required — all functionality is local.
 
 ## 5. Required visual assets
 
-Capture from the running extension (`yarn build`, load `.output/chrome-mv3`
+Capture from the running extension (`yarn build`, load `apps/extension/.output/chrome-mv3`
 unpacked via `opera://extensions` → **Developer mode** → **Load unpacked**), then
 crop to size. PNG or JPEG.
 
-| Asset          | Size               | Required | Suggested shot                                                     |
-|----------------|--------------------|----------|--------------------------------------------------------------------|
-| Icon           | 64×64              | ✅ (manifest) | Ships in the build — `src/public/icon/64.png` (rendered from `assets/icon.svg`); Opera reads the manifest icons, no separate store logo needed |
-| Screenshot 1   | 1280×800           | ✅ (≥1)   | Popup with a full media grid + type badges                        |
-| Screenshot 2   | 1280×800           | optional | Filter toolbar in use (kind/format/size)                          |
-| Screenshot 3   | 1280×800           | optional | Preview modal (with prev/next)                                    |
-| Screenshot 4   | 1280×800           | optional | Settings sheet                                                    |
-| Screenshot 5   | 1280×800           | optional | Download history with the open/reveal actions                    |
+| Asset                   | Size        | Required      | Suggested shot                                                                                                                                 |
+|-------------------------|-------------|---------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| Icon                    | 64×64       | ✅ (manifest)  | Ships in the build — `apps/extension/src/public/icon/64.png` (rendered from `assets/v1/icon.svg`); Opera reads the manifest icons, no separate store logo needed |
+| Screenshot 1            | 1280×800    | ✅ (≥1)        | Popup with a full media grid + type badges                                                                                                     |
+| Screenshot 2            | 1280×800    | optional      | Filter toolbar in use (kind/format/size)                                                                                                       |
+| Screenshot 3            | 1280×800    | optional      | Preview modal (with prev/next)                                                                                                                 |
+| Screenshot 4            | 1280×800    | optional      | Settings sheet                                                                                                                                 |
+| Screenshot 5            | 1280×800    | optional      | Download history with the open/reveal actions                                                                                                  |
+| **Promotional picture** | **300×188** | ✅ (moderator) | ✅ `assets/v2/opera-promo-300x188.png` — brand mark + wordmark + "image, video & audio" tagline                                                    |
+
+> **Opera-specific:** the moderator asks for a **300×188** promotional picture.
+> It ships in the repo (`assets/v2/opera-promo-300x188.png`, mirrors the Chrome
+> small-promo tile). Attach it in the submission or send it when the moderator
+> requests it.
 
 Tip: the 1280×800 screenshots from the Chrome package can be reused here as-is.
 Opera accepts common screenshot sizes (612×408 minimum); 1280×800 is well within
@@ -205,9 +244,11 @@ supports both.
 ## 6. Privacy & data disclosures
 
 **Privacy policy URL:**
+
 ```
 https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md
 ```
+
 (The repository is public, so this resolves for reviewers. Keep it current by
 editing `PRIVACY.md` on `main`.)
 
@@ -230,15 +271,16 @@ one that passes Chrome review), so no Opera-specific code changes are required.
 WXT packages a store-ready Chromium zip that Opera accepts directly:
 
 ```bash
-corepack yarn zip          # chrome  → .output/media-bulk-downloads-<version>-chrome.zip  ← the Opera upload
+corepack yarn zip          # chrome  → apps/extension/.output/media-bulk-downloads-<version>-chrome.zip  ← the Opera upload
 corepack yarn zip:firefox  # firefox → …-firefox.zip (+ a -sources.zip, handy if Opera asks for source)
 corepack yarn zip:all      # all packages at once
 ```
 
-Version comes from `package.json` (WXT writes it into every manifest). There is
+Version comes from `apps/extension/package.json` (WXT writes it into every manifest). There is
 **no `zip:opera`** — Opera runs the Chrome package.
 
 **Opera Add-ons (developer dashboard):**
+
 1. [addons.opera.com/developer](https://addons.opera.com/developer/) → open your **Media Bulk Downloads** extension (or **Upload new package / Add extension** for the first submission).
 2. **Upload package** → `…-chrome.zip`.
 3. **Listing** (per language) → paste the name, short + detailed description (§2), category (§2), and screenshots (§5).
@@ -248,9 +290,9 @@ Version comes from `package.json` (WXT writes it into every manifest). There is
 
 ### Identifiers (from the dashboard, after the first submission)
 
-| Field    | Value                                                                 | Used for                          |
-|----------|-----------------------------------------------------------------------|-----------------------------------|
-| **Slug** | `media-bulk-downloads` *(Opera assigns it from the name — confirm)*   | Share link (below)                |
+| Field    | Value                                                               | Used for           |
+|----------|---------------------------------------------------------------------|--------------------|
+| **Slug** | `media-bulk-downloads` *(Opera assigns it from the name — confirm)* | Share link (below) |
 
 **Share link:** `https://addons.opera.com/en/extensions/details/media-bulk-downloads/`
 (the slug is fixed once Opera assigns it — confirm the exact one in the dashboard
@@ -283,7 +325,7 @@ HOW TO TEST
 CONDITIONAL / NON-OBVIOUS FEATURES
 - On-page bubble: a draggable panel with the same tools, without opening the popup. Enable it in Settings ("Show on-page bubble").
 - Deep scan: an optional, bounded auto-scroll (button in the popup) that surfaces media on infinite-scroll / virtualized pages.
-- Resolve exact originals: OFF by default (Settings). When on, it fetches the highest-resolution file for a few supported hosts (Twitter, Wallhaven, Unsplash) directly from that media's own CDN. This is the only feature that contacts a host other than the current page.
+- Resolve exact originals: OFF by default (Settings). When on, it fetches the highest-resolution file for several supported media hosts (e.g. Twitter, Wallhaven, Unsplash, Vimeo, Reddit, Bluesky, Pinterest, Flickr, ArtStation) directly from that media's own CDN. This is the only feature that contacts a host other than the current page.
 - Download history: re-download, open file, or reveal in folder.
 
 PERMISSIONS
@@ -302,19 +344,23 @@ to paste (or why to leave a field blank). After filling these, go to **General �
 Submit changes** to send the version to moderation.
 
 **Service website URL** — *leave blank.*
+
 ```
 (blank)
 ```
+
 > Only for extensions connected to a service you own/develop for. Media Bulk
 > Downloads is a standalone tool with no backing service, so this stays empty
 > (Opera's note explicitly excludes personal repos/profiles).
 
 **Extension support page URL**
+
 ```
 https://github.com/mralaminahamed/media-bulk-downloads/issues
 ```
 
 **Extension source code URL (public)**
+
 ```
 https://github.com/mralaminahamed/media-bulk-downloads
 ```
@@ -322,14 +368,17 @@ https://github.com/mralaminahamed/media-bulk-downloads
 **Extension source code URL (required only for Opera moderators)** — the package
 is bundled/minified by WXT, so Opera requires this. Pin it to the tag matching the
 uploaded version:
+
 ```
-https://github.com/mralaminahamed/media-bulk-downloads/tree/v1.1.0
+https://github.com/mralaminahamed/media-bulk-downloads/tree/v1.2.0
 ```
+
 > Bump the tag each release so it always corresponds to the current package
 > (`git tag v<version> && git push --tags`).
 
 **Build instructions** — paste this so a reviewer can reproduce the uploaded
 Chromium package from source:
+
 ```
 Build environment
 - OS: macOS, Linux, or Windows (WXT is cross-platform; the OS does not affect output)
@@ -339,28 +388,32 @@ Build environment
 Steps
 1. git clone https://github.com/mralaminahamed/media-bulk-downloads.git
 2. cd media-bulk-downloads
-3. git checkout v1.1.0            # the tag matching the uploaded version
+3. git checkout v1.2.0            # the tag matching the uploaded version
 4. corepack enable
 5. corepack yarn install --immutable
 6. corepack yarn zip             # builds and packages the Chromium zip
 
 Output
-- Uploaded package: .output/media-bulk-downloads-1.1.0-chrome.zip
-- Unpacked build:   .output/chrome-mv3/  (its manifest.json matches the submitted package)
+- Uploaded package: apps/extension/.output/media-bulk-downloads-1.2.0-chrome.zip
+- Unpacked build:   apps/extension/.output/chrome-mv3/  (its manifest.json matches the submitted package)
 Built with WXT (https://wxt.dev); no other tooling required.
 ```
 
 **License URL** (EULA section — MIT)
+
 ```
 https://github.com/mralaminahamed/media-bulk-downloads/blob/main/LICENSE
 ```
+
 > Use the URL **or** paste the full MIT text into *Full license text* — not both
 > needed. The URL is enough since the repo is public.
 
 **Privacy policy URL**
+
 ```
 https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md
 ```
+
 > Use the URL **or** paste the full text into *Full privacy policy text*. The URL
 > is enough. This satisfies Opera's requirement to describe data handling — the
 > policy states no user data (including location) is collected or transmitted.

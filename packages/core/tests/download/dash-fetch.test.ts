@@ -1,0 +1,37 @@
+import { browserDashDeps } from '@mbd/core/download/stream/dash-fetch';
+
+describe('browserDashDeps', () => {
+  afterEach(() => { (global as { fetch?: unknown }).fetch = undefined; });
+
+  it('fetchText returns the manifest body', async () => {
+    (global as { fetch: unknown }).fetch = vi.fn().mockResolvedValue({ ok: true, text: async () => '<MPD/>' });
+    const deps = browserDashDeps();
+    await expect(deps.fetchText('https://x/m.mpd')).resolves.toBe('<MPD/>');
+  });
+
+  it('fetchBytes returns the segment bytes', async () => {
+    (global as { fetch: unknown }).fetch = vi.fn().mockResolvedValue({ ok: true, arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer });
+    const deps = browserDashDeps();
+    await expect(deps.fetchBytes('https://x/s.m4s')).resolves.toEqual(new Uint8Array([1, 2, 3]));
+  });
+
+  it('throws on a failed fetch', async () => {
+    (global as { fetch: unknown }).fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 });
+    const deps = browserDashDeps();
+    await expect(deps.fetchText('https://x/m.mpd')).rejects.toThrow(/404/);
+  });
+
+  it('fetchBytes throws with the status on a non-ok segment response', async () => {
+    // 500 is a retryable status for retryingFetch, which reads Retry-After off
+    // `res.headers` before deciding whether to retry — so the mock needs a
+    // Headers-shaped object, not just `{ ok, status }`.
+    (global as { fetch: unknown }).fetch = vi.fn().mockResolvedValue({ ok: false, status: 500, headers: new Headers() });
+    const deps = browserDashDeps();
+    await expect(deps.fetchBytes('https://x/s.m4s')).rejects.toThrow(/500/);
+  });
+
+  it('passes onProgress through', () => {
+    const cb = vi.fn();
+    expect(browserDashDeps(cb).onProgress).toBe(cb);
+  });
+});

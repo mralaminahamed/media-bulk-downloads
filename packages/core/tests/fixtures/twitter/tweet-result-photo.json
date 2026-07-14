@@ -1,0 +1,22 @@
+{
+  "_source": "GET https://cdn.syndication.twimg.com/tweet-result?id=<id>&token=<t>&lang=en (public syndication endpoint). Real-shaped envelope for a 3-media tweet mixing photos and a video, used to exercise the photo-index resolver path: mediaDetails[0] and [2] are photos (no video_info), mediaDetails[1] is a video (has video_info) — so index/kind logic (photo vs video vs out-of-range) can be tested against a single fixture. Ids/urls are placeholders; the resolver host-pins media_url_https to twimg.com and forces name=orig, so token/id contents don't matter here.",
+  "mediaDetails": [
+    {
+      "type": "photo",
+      "media_url_https": "https://pbs.twimg.com/media/PHOTO_A.jpg"
+    },
+    {
+      "type": "video",
+      "media_url_https": "https://pbs.twimg.com/amplify_video_thumb/123/img/PHOTO_B_THUMB.jpg",
+      "video_info": {
+        "variants": [
+          { "content_type": "video/mp4", "bitrate": 632000, "url": "https://video.twimg.com/amplify_video/123/vid/avc1/360x360/PHOTO_B.mp4" }
+        ]
+      }
+    },
+    {
+      "type": "photo",
+      "media_url_https": "https://pbs.twimg.com/media/PHOTO_C.jpg"
+    }
+  ]
+}

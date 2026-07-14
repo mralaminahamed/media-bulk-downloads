@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Arc XP news</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Sample Arc XP (Fusion) article fixture for e2e media collection tests." />
+  <meta property="og:title" content="Arc XP Fixture" />
+  <meta property="og:type" content="article" />
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="/">Home</a>
+      <a href="#">World</a>
+      <a href="#">Business</a>
+    </nav>
+    <h1>Arc XP Article</h1>
+  </header>
+  <main role="main">
+    <article>
+      <h2>Responsive lead image</h2>
+      <!-- Arc XP "resizer/v2" endpoint: every srcset width reuses the SAME page-issued
+           `auth` HMAC (bound to the source asset, not a width). The resolver collapses
+           the width variants to the single widest same-host one (1920w) and keeps a
+           smaller variant as the thumbnail; all URLs share the `EEARC5SOURCEID7` source
+           id, and the token is never stripped (that would 403). -->
+      <img alt="News lead photo"
+        src="https://www.reuters.com/resizer/v2/EEARC5SOURCEID7.jpg?auth=eeauthtoken0011&width=960"
+        srcset="https://www.reuters.com/resizer/v2/EEARC5SOURCEID7.jpg?auth=eeauthtoken0011&width=480 480w,
+                https://www.reuters.com/resizer/v2/EEARC5SOURCEID7.jpg?auth=eeauthtoken0011&width=960 960w,
+                https://www.reuters.com/resizer/v2/EEARC5SOURCEID7.jpg?auth=eeauthtoken0011&width=1920 1920w">
+      <p>A wire-service photo delivered through the Arc resizer at several widths.</p>
+    </article>
+  </main>
+  <footer>
+    <p>Fixture data for automated testing only.</p>
+  </footer>
+</body>
+</html>

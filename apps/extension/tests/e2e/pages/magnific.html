@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Magnific</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Sample Magnific stock-image fixture for e2e media collection tests." />
+  <meta property="og:title" content="Magnific Fixture" />
+  <meta property="og:type" content="website" />
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="/">Home</a>
+      <a href="#">Photos</a>
+      <a href="#">Collections</a>
+    </nav>
+    <h1>Magnific Stock</h1>
+  </header>
+  <main role="main">
+    <h2>Search grid</h2>
+    <!-- img.magnific.com serves the same photo at several widths (360…2000w), each with
+         its OWN width-bound signature token. Stripping the token would DOWNGRADE to the
+         626px og default, so the resolver never touches it: it collapses the variants to
+         the single widest (2000w) and keeps the smallest (360w) as the thumbnail. All
+         URLs share the `eemag7photoID3` path id. (Page media is NOT wrapped in
+         <figure> so it can't collide with the extension grid's own <figure>.) -->
+    <div>
+      <img alt="Studio product photo"
+        src="https://img.magnific.com/eemag7photoID3.jpg?t=eetoken740&w=740"
+        srcset="https://img.magnific.com/eemag7photoID3.jpg?t=eetoken360&w=360 360w,
+                https://img.magnific.com/eemag7photoID3.jpg?t=eetoken740&w=740 740w,
+                https://img.magnific.com/eemag7photoID3.jpg?t=eetoken2000&w=2000 2000w">
+      <p>Studio product photo at responsive widths.</p>
+    </div>
+  </main>
+  <footer>
+    <p>Fixture data for automated testing only.</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Facebook photos page fixture: two grid tiles whose originals arrive later over a sniffed text/html NDJSON graphql response.">
+    <meta property="og:title" content="Photos">
+    <meta property="og:type" content="website">
+    <title>Photos</title>
+    <style>body{height:3000px}</style>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <a href="/">Home</a>
+        <a href="#">Friends</a>
+        <a href="#">Groups</a>
+      </nav>
+      <h1>Photos</h1>
+    </header>
+    <div role="main">
+      <h2>Album grid</h2>
+      <p>Scroll to load more photos from this album.</p>
+      <a href="/page/photos/301/"><img alt="photo 1" src="https://scontent-a.xx.fbcdn.net/v/t39.30808-6/FBG_301_grid_n.jpg?stp=dst-jpg_s417x417&oh=00_GA&oe=6A"></a>
+      <a href="/page/photos/302/"><img alt="photo 2" src="https://scontent-b.xx.fbcdn.net/v/t39.30808-6/FBG_302_grid_n.jpg?stp=dst-jpg_s417x417&oh=00_GB&oe=6B"></a>
+      <p>End of loaded tiles.</p>
+    </div>
+    <script>
+  // Mimic Facebook streaming its photo graph from /api/graphql as the user
+  // scrolls. Fire once on load (racy against the extension's own content-script
+  // import — may be dropped) and once on first scroll (a safe retry the test
+  // drives once the launcher proves the sniffer's relay is listening); the
+  // sniffer catches the text/html NDJSON response either way.
+  function pull() { try { var x = new XMLHttpRequest(); x.open('GET', '/api/graphql/?doc_id=photos'); x.send(); } catch (e) {} }
+  addEventListener('DOMContentLoaded', pull);
+  addEventListener('scroll', function once() { removeEventListener('scroll', once); pull(); }, { passive: true });
+</script>
+    <footer>
+      <p>Fixture footer for e2e tests.</p>
+    </footer>
+  </body>
+</html>

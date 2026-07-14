@@ -1,0 +1,733 @@
+import type { Mock } from 'vitest';
+import React from 'react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { SrcKeySet } from '@mbd/core/collection/canonical';
+import '@testing-library/jest-dom';
+import ImageList, { formatFileSize } from '@/extension/popup/components/ImageList';
+import { ImageInfo } from '@mbd/core/types';
+
+const mockImages: ImageInfo[] = [
+  { src: 'test1.jpg', alt: 'Test Image 1', width: 100, height: 100, type: 'jpeg', fileSize: 1024, isBase64: false, kind: 'image' },
+  { src: 'test2.png', alt: 'Test Image 2', width: 200, height: 200, type: 'png', fileSize: 2048, isBase64: false, kind: 'image' },
+];
+
+describe('ImageList Component', () => {
+  it('renders images correctly', () => {
+    render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
+    expect(screen.getAllByRole('img')).toHaveLength(2);
+    expect(screen.getByAltText('Test Image 1')).toBeInTheDocument();
+    expect(screen.getByAltText('Test Image 2')).toBeInTheDocument();
+  });
+
+  it('calls onImageDownload when download button is clicked', () => {
+    const mockDownload = vi.fn();
+    render(<ImageList images={mockImages} onImageDownload={mockDownload} />);
+    const downloadButtons = screen.getAllByTitle('Download');
+    fireEvent.click(downloadButtons[0]);
+    expect(mockDownload).toHaveBeenCalledWith(mockImages[0]);
+  });
+
+  it('opens image details modal when view button is clicked', () => {
+    render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
+    const viewButtons = screen.getAllByTitle('View Details');
+    fireEvent.click(viewButtons[0]);
+    expect(screen.getByText('Preview')).toBeInTheDocument();
+  });
+
+  it('downloads from within the preview modal', () => {
+    const onDownload = vi.fn();
+    render(<ImageList images={mockImages} onImageDownload={onDownload} />);
+    fireEvent.click(screen.getAllByTitle('View Details')[0]);
+    // The modal's download button is the only one with visible text.
+    fireEvent.click(screen.getByText('Download'));
+    expect(onDownload).toHaveBeenCalledWith(mockImages[0]);
+  });
+
+  it('keeps the previewed item when the list reorders underneath it (tracks by src)', () => {
+    const onDownload = vi.fn();
+    const { rerender } = render(<ImageList images={mockImages} onImageDownload={onDownload} />);
+    fireEvent.click(screen.getAllByTitle('View Details')[0]); // preview mockImages[0]
+    // The list re-sorts async (e.g. streamed sizes): mockImages[0] moves to the end.
+    rerender(<ImageList images={[mockImages[1], mockImages[0]]} onImageDownload={onDownload} />);
+    // The modal still acts on the originally-previewed item, not whatever is now index 0.
+    fireEvent.click(screen.getByText('Download'));
+    expect(onDownload).toHaveBeenCalledWith(mockImages[0]);
+  });
+
+  it('closes the preview when the previewed item drops out of the list', () => {
+    const { rerender } = render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
+    fireEvent.click(screen.getAllByTitle('View Details')[0]);
+    expect(screen.getByText('Preview')).toBeInTheDocument();
+    // A re-filter removes mockImages[0]; the modal must not linger on a gone item.
+    rerender(<ImageList images={[mockImages[1]]} onImageDownload={vi.fn()} />);
+    expect(screen.queryByText('Preview')).not.toBeInTheDocument();
+  });
+
+  it('drives a pending video from the preview modal — Get video, then a Fetching… spinner', () => {
+    const pending: ImageInfo = {
+      src: 'poster.jpg', alt: 'v', width: 0, height: 0, type: 'mp4', fileSize: 0, isBase64: false,
+      kind: 'video', unresolvedVideo: true, poster: 'poster.jpg', resolveHint: { platform: 'twitter', id: '9' },
+    };
+    const onFetchVideo = vi.fn();
+    const { rerender } = render(<ImageList images={[pending]} onImageDownload={vi.fn()} onFetchVideo={onFetchVideo} />);
+    fireEvent.click(screen.getByTitle('View Details'));
+
+    // Idle: the modal offers "Get video" and wires the per-item fetch.
+    fireEvent.click(screen.getByText('Get video'));
+    expect(onFetchVideo).toHaveBeenCalledWith(pending);
+
+    // In flight (e.g. during a bulk "Get all videos"): the modal shows Fetching….
+    rerender(
+      <ImageList images={[pending]} onImageDownload={vi.fn()} onFetchVideo={onFetchVideo} fetchingSrcs={new Set(['poster.jpg'])} />,
+    );
+    expect(screen.getByText('Fetching…')).toBeInTheDocument();
+    expect(screen.queryByText('Get video')).not.toBeInTheDocument();
+  });
+
+  it('labels a pending Instagram reel "play to fetch", not "can\'t fetch"', () => {
+    const reel: ImageInfo = {
+      src: 'https://scontent-del2-3.cdninstagram.com/RL_cover_n.jpg', alt: '', width: 640, height: 1136,
+      type: 'mp4', fileSize: 0, isBase64: false, kind: 'video', unresolvedVideo: true,
+      poster: 'https://scontent-del2-3.cdninstagram.com/RL_cover_n.jpg',
+    };
+    render(<ImageList images={[reel]} onImageDownload={vi.fn()} />);
+    expect(screen.getByText('play to fetch')).toBeInTheDocument();
+    expect(screen.queryByText("can't fetch")).not.toBeInTheDocument();
+    // No download / Get-video button on a pending reel (no resolveHint).
+    expect(screen.queryByTitle('Download')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Get video')).not.toBeInTheDocument();
+  });
+
+  it('still labels a non-Instagram pending video with no resolve path "can\'t fetch"', () => {
+    const gif: ImageInfo = {
+      src: 'https://pbs.twimg.com/x.jpg', alt: '', width: 0, height: 0, type: 'mp4', fileSize: 0,
+      isBase64: false, kind: 'video', unresolvedVideo: true, poster: 'https://pbs.twimg.com/x.jpg',
+    };
+    render(<ImageList images={[gif]} onImageDownload={vi.fn()} />);
+    expect(screen.getByText("can't fetch")).toBeInTheDocument();
+    expect(screen.queryByText('play to fetch')).not.toBeInTheDocument();
+  });
+
+  it('closes the preview modal', () => {
+    render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
+    fireEvent.click(screen.getAllByTitle('View Details')[0]);
+    expect(screen.getByText('Preview')).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Close'));
+    expect(screen.queryByText('Preview')).not.toBeInTheDocument();
+  });
+
+  it('opens the preview as a labelled modal dialog and closes it on Escape', async () => {
+    render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
+    await userEvent.click(screen.getAllByTitle('View Details')[0]);
+    expect(screen.getByRole('dialog', { name: /preview/i })).toHaveAttribute('aria-modal', 'true');
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('renders empty grid without crashing', () => {
+    render(<ImageList images={[]} onImageDownload={vi.fn()} />);
+    expect(screen.queryAllByRole('img')).toHaveLength(0);
+  });
+
+  it('renders a video tile with a poster and a player in the preview', async () => {
+    const media = [{
+      src: 'https://ex.com/v.mp4', alt: 'Clip', width: 0, height: 0,
+      type: 'mp4', fileSize: 0, isBase64: false, kind: 'video' as const,
+      poster: 'https://ex.com/p.jpg',
+    }];
+    render(<ImageList images={media} onImageDownload={() => {}} />);
+    // poster used as the tile image
+    expect(screen.getByRole('img', { name: 'Clip' })).toHaveAttribute('src', 'https://ex.com/p.jpg');
+    // open preview → <video> present
+    await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+    expect(document.querySelector('video')).toBeTruthy();
+  });
+
+  it('renders an audio tile as an icon and an <audio> player in preview', async () => {
+    const media = [{
+      src: 'https://ex.com/s.mp3', alt: '', width: 0, height: 0,
+      type: 'mp3', fileSize: 0, isBase64: false, kind: 'audio' as const,
+    }];
+    render(<ImageList images={media} onImageDownload={() => {}} />);
+    await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+    expect(document.querySelector('audio')).toBeTruthy();
+  });
+
+  it('shows a downloaded badge only on tiles whose src is downloaded', () => {
+    const media = [
+      { src: 'https://c/a.jpg', alt: 'A', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' as const },
+      { src: 'https://c/b.jpg', alt: 'B', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' as const },
+    ];
+    render(<ImageList images={media} onImageDownload={() => {}} downloadedSrcs={SrcKeySet.from(['https://c/a.jpg'])} />);
+    expect(screen.getAllByLabelText('Downloaded')).toHaveLength(1);
+  });
+
+  describe('ImageList — favourites', () => {
+    const favImg: ImageInfo = {
+      src: 'https://c/a.jpg', alt: 'a', width: 10, height: 10,
+      type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image',
+    };
+
+    it('renders a favourite toggle and calls onToggleFavourite', async () => {
+      const onToggleFavourite = vi.fn();
+      render(
+        <ImageList images={[favImg]} onImageDownload={() => {}}
+          onToggleFavourite={onToggleFavourite} favouriteSrcs={new SrcKeySet()} />,
+      );
+      await userEvent.click(screen.getByRole('button', { name: /add favourite/i }));
+      expect(onToggleFavourite).toHaveBeenCalledWith(favImg);
+    });
+
+    it('shows the favourited badge and a filled toggle when saved', () => {
+      render(
+        <ImageList images={[favImg]} onImageDownload={() => {}}
+          onToggleFavourite={() => {}} favouriteSrcs={SrcKeySet.from([favImg.src])} />,
+      );
+      expect(screen.getByLabelText('Favourited')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /remove favourite/i })).toBeInTheDocument();
+    });
+  });
+
+  describe('ImageList pending videos', () => {
+    const pendingVideo: ImageInfo = {
+      src: 'poster.jpg', alt: '', width: 0, height: 0, type: 'mp4', fileSize: 0, isBase64: false,
+      kind: 'video', poster: 'poster.jpg', unresolvedVideo: true, resolveHint: { platform: 'twitter', id: '1' },
+    };
+
+    it('renders a Get video action and calls onFetchVideo; no plain Download button', () => {
+      const onFetchVideo = vi.fn();
+      render(<ImageList images={[pendingVideo]} onImageDownload={vi.fn()} onFetchVideo={onFetchVideo} />);
+      fireEvent.click(screen.getByTitle('Get video'));
+      expect(onFetchVideo).toHaveBeenCalledWith(pendingVideo);
+      expect(screen.queryByTitle('Download')).toBeNull();
+    });
+
+    it('shows a failed state for a src in resolveFailedSrcs', () => {
+      render(<ImageList images={[pendingVideo]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} resolveFailedSrcs={new Set(['poster.jpg'])} />);
+      expect(screen.getByText(/couldn't fetch/i)).toBeInTheDocument();
+    });
+
+    it('shows a can\'t-fetch state (no button) for a pending video with no resolveHint', () => {
+      render(<ImageList images={[{ ...pendingVideo, resolveHint: undefined }]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} />);
+      expect(screen.queryByTitle('Get video')).toBeNull();
+      expect(screen.getByText(/can't fetch/i)).toBeInTheDocument();
+    });
+
+    it('a resolved video (not pending) still shows a normal Download button', () => {
+      const resolved: ImageInfo = { ...pendingVideo, src: 'https://video.twimg.com/hi.mp4', unresolvedVideo: false, resolveHint: undefined };
+      render(<ImageList images={[resolved]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} />);
+      expect(screen.getByTitle('Download')).toBeInTheDocument();
+    });
+
+    it('does not render an "Add favourite" button for a pending video (poster is not the real file)', () => {
+      render(
+        <ImageList images={[pendingVideo]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()}
+          onToggleFavourite={vi.fn()} favouriteSrcs={new SrcKeySet()} />,
+      );
+      expect(screen.queryByRole('button', { name: /add favourite/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('ImageList pending images', () => {
+    const pendingImage: ImageInfo = {
+      src: 'https://x.com/u/status/1700000000000000001/photo/1', alt: '', width: 0, height: 0,
+      type: 'unknown', fileSize: 0, isBase64: false, kind: 'image', unresolvedImage: true,
+      resolveHint: { platform: 'twitter', id: 'photo 1700000000000000001 1' },
+    };
+
+    it('renders a pending placeholder for an unresolvedImage item (no status-URL <img>)', () => {
+      const { container } = render(<ImageList images={[pendingImage]} onImageDownload={vi.fn()} />);
+      // Raw DOM query, not screen.getByRole('img'): the pending fixture's alt is
+      // '', so an <img alt=""> carries NO ARIA img role and a role-based query
+      // would return 0 results even if a regression reintroduced
+      // <img src="https://x.com/...">. Query the actual DOM instead so this guard
+      // can fail.
+      const tileImgs = Array.from(container.querySelectorAll('img'));
+      expect(tileImgs.some((img) => (img.getAttribute('src') ?? '').includes('x.com/'))).toBe(false);
+      expect(tileImgs).toHaveLength(0);
+      // Same pending affordance a pending video gets: an eyebrow label (it carries
+      // a resolveHint, so it reads "not fetched", matching the video case).
+      expect(screen.getByText('not fetched')).toBeInTheDocument();
+      // No manual fetch/download action — pending images resolve automatically.
+      expect(screen.queryByTitle('Download')).not.toBeInTheDocument();
+      expect(screen.queryByTitle('Get video')).not.toBeInTheDocument();
+    });
+
+    it('does not render a select checkbox for a pending image (not downloadable)', () => {
+      render(<ImageList images={[pendingImage]} onImageDownload={vi.fn()} onToggleSelect={vi.fn()} />);
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    });
+
+    it('still mounts the tile (View Details action) for a pending image, despite it emitting no <img>', () => {
+      // Sanity check that a pending image is rendered at all (tile present) even
+      // though it contributes no <img> — the figure/tile itself still mounts.
+      render(<ImageList images={[pendingImage]} onImageDownload={vi.fn()} />);
+      expect(screen.getByRole('button', { name: 'View Details' })).toBeInTheDocument();
+    });
+
+    it('does not render an "Add favourite" button for a pending image (would leak the placeholder src into favourites)', () => {
+      render(
+        <ImageList images={[pendingImage]} onImageDownload={vi.fn()}
+          onToggleFavourite={vi.fn()} favouriteSrcs={new SrcKeySet()} />,
+      );
+      expect(screen.queryByRole('button', { name: /add favourite/i })).not.toBeInTheDocument();
+    });
+
+    it('still renders "Add favourite" for a normal (resolved) image tile', () => {
+      const resolved: ImageInfo = { ...pendingImage, unresolvedImage: false, resolveHint: undefined, src: 'https://pbs.twimg.com/media/resolved.jpg' };
+      render(
+        <ImageList images={[resolved]} onImageDownload={vi.fn()}
+          onToggleFavourite={vi.fn()} favouriteSrcs={new SrcKeySet()} />,
+      );
+      expect(screen.getByRole('button', { name: /add favourite/i })).toBeInTheDocument();
+    });
+
+    it('regains the "Add favourite" button once a pending image resolves (gating tracks the live flag, not sticky)', () => {
+      const { rerender } = render(
+        <ImageList images={[pendingImage]} onImageDownload={vi.fn()}
+          onToggleFavourite={vi.fn()} favouriteSrcs={new SrcKeySet()} />,
+      );
+      expect(screen.queryByRole('button', { name: /add favourite/i })).not.toBeInTheDocument();
+
+      const resolved: ImageInfo = { ...pendingImage, unresolvedImage: false, resolveHint: undefined };
+      rerender(
+        <ImageList images={[resolved]} onImageDownload={vi.fn()}
+          onToggleFavourite={vi.fn()} favouriteSrcs={new SrcKeySet()} />,
+      );
+      expect(screen.getByRole('button', { name: /add favourite/i })).toBeInTheDocument();
+    });
+
+    it('shows a graceful placeholder (no <img>) and an informational footer in the preview modal', async () => {
+      render(<ImageList images={[pendingImage]} onImageDownload={vi.fn()} />);
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      const dialog = screen.getByRole('dialog');
+      // A pending image has no poster (unlike a pending video) — the preview must
+      // degrade gracefully, not render a broken/placeholder <img>. Raw DOM query
+      // for the same reason as the tile assertion above (alt='' has no img role).
+      const dialogImgs = Array.from(dialog.querySelectorAll('img'));
+      expect(dialogImgs.some((img) => (img.getAttribute('src') ?? '').includes('x.com/'))).toBe(false);
+      expect(dialogImgs).toHaveLength(0);
+      expect(within(dialog).queryByRole('button', { name: 'Download' })).toBeNull();
+      expect(within(dialog).getByText(/hasn't been fetched yet/i)).toBeInTheDocument();
+    });
+
+    it('does not render an "Add favourite" button in the preview modal for a pending image', async () => {
+      render(
+        <ImageList images={[pendingImage]} onImageDownload={vi.fn()}
+          onToggleFavourite={vi.fn()} favouriteSrcs={new SrcKeySet()} />,
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).queryByRole('button', { name: /add favourite/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('ImageList — selection', () => {
+    it('toggles a single item, then shift-clicks to select the range to it', () => {
+      const onToggleSelect = vi.fn();
+      const onSelectRange = vi.fn();
+      render(
+        <ImageList images={mockImages} onImageDownload={vi.fn()} onToggleSelect={onToggleSelect} onSelectRange={onSelectRange} />,
+      );
+      const boxes = screen.getAllByRole('checkbox');
+      expect(boxes).toHaveLength(2);
+
+      // Plain click sets the range anchor and toggles that one item.
+      fireEvent.click(boxes[0]);
+      expect(onToggleSelect).toHaveBeenCalledWith(mockImages[0]);
+
+      // Shift-click extends from the anchor (0) to the clicked index (1).
+      fireEvent.click(boxes[1], { shiftKey: true });
+      expect(onSelectRange).toHaveBeenCalledWith(mockImages);
+    });
+
+    it('renders no selection checkbox on an HLS/DASH stream tile (captured individually)', () => {
+      const hls = { src: 'https://x/live.m3u8', alt: '', width: 0, height: 0, type: 'm3u8', fileSize: 0, isBase64: false, kind: 'video' as const, hlsManifest: 'https://x/live.m3u8' };
+      render(<ImageList images={[hls]} onImageDownload={vi.fn()} onToggleSelect={vi.fn()} />);
+      // The App selection guards skip hlsManifest, so an inert checkbox must not render.
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    });
+
+    it('normalises a shift-click that runs upward from the anchor', () => {
+      const onSelectRange = vi.fn();
+      render(
+        <ImageList images={mockImages} onImageDownload={vi.fn()} onToggleSelect={vi.fn()} onSelectRange={onSelectRange} />,
+      );
+      const boxes = screen.getAllByRole('checkbox');
+      fireEvent.click(boxes[1]); // anchor = 1
+      fireEvent.click(boxes[0], { shiftKey: true }); // anchor(1) > index(0) → [0, 1]
+      expect(onSelectRange).toHaveBeenCalledWith(mockImages);
+    });
+
+    it('falls back to a single toggle when shift-clicking without a range handler', () => {
+      const onToggleSelect = vi.fn();
+      render(<ImageList images={mockImages} onImageDownload={vi.fn()} onToggleSelect={onToggleSelect} />);
+      const boxes = screen.getAllByRole('checkbox');
+      fireEvent.click(boxes[0]);
+      fireEvent.click(boxes[1], { shiftKey: true });
+      expect(onToggleSelect).toHaveBeenLastCalledWith(mockImages[1]);
+    });
+  });
+
+  describe('ImageList — modal paging + favourite', () => {
+    it('pages through images with the arrow keys inside the modal', () => {
+      render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
+      fireEvent.click(screen.getAllByTitle('View Details')[0]);
+      expect(screen.getByText('1 / 2')).toBeInTheDocument();
+
+      fireEvent.keyDown(window, { key: 'ArrowRight' });
+      expect(screen.getByText('2 / 2')).toBeInTheDocument();
+
+      fireEvent.keyDown(window, { key: 'ArrowLeft' });
+      expect(screen.getByText('1 / 2')).toBeInTheDocument();
+
+      // Clamps at the ends — ArrowLeft on the first image is a no-op.
+      fireEvent.keyDown(window, { key: 'ArrowLeft' });
+      expect(screen.getByText('1 / 2')).toBeInTheDocument();
+    });
+
+    it('pages with the on-screen prev/next buttons', () => {
+      render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
+      fireEvent.click(screen.getAllByTitle('View Details')[0]);
+      fireEvent.click(screen.getByRole('button', { name: 'Next image' }));
+      expect(screen.getByText('2 / 2')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Previous image' }));
+      expect(screen.getByText('1 / 2')).toBeInTheDocument();
+    });
+
+    it('clamps arrow paging at the last image', () => {
+      render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
+      fireEvent.click(screen.getAllByTitle('View Details')[1]); // open on the last image
+      expect(screen.getByText('2 / 2')).toBeInTheDocument();
+      fireEvent.keyDown(window, { key: 'ArrowRight' }); // no-op past the end
+      expect(screen.getByText('2 / 2')).toBeInTheDocument();
+    });
+
+    it('toggles favourite from the modal header (add and remove labels)', () => {
+      const onToggleFavourite = vi.fn();
+      const { rerender } = render(
+        <ImageList images={mockImages} onImageDownload={vi.fn()} onToggleFavourite={onToggleFavourite} favouriteSrcs={new SrcKeySet()} />,
+      );
+      fireEvent.click(screen.getAllByTitle('View Details')[0]);
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /add favourite/i }));
+      expect(onToggleFavourite).toHaveBeenCalledWith(mockImages[0]);
+
+      // When already saved, the same header control reads "Remove favourite".
+      rerender(
+        <ImageList images={mockImages} onImageDownload={vi.fn()} onToggleFavourite={onToggleFavourite} favouriteSrcs={SrcKeySet.from([mockImages[0].src])} />,
+      );
+      expect(within(screen.getByRole('dialog')).getByRole('button', { name: /remove favourite/i })).toBeInTheDocument();
+    });
+  });
+
+  describe('ImageList — exclude menu', () => {
+    const httpImg: ImageInfo = {
+      src: 'https://cdn.example.com/a.jpg', alt: 'A', width: 10, height: 10,
+      type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image',
+    };
+
+    const openMenu = (onExclude: Mock): void => {
+      render(<ImageList images={[httpImg]} onImageDownload={vi.fn()} onExclude={onExclude} />);
+      fireEvent.click(screen.getByTitle('View Details'));
+      fireEvent.click(screen.getByRole('button', { name: 'Exclude source' }));
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+    };
+
+    it('excludes just this image (url scope) and closes the modal', () => {
+      const onExclude = vi.fn();
+      openMenu(onExclude);
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Exclude this image' }));
+      expect(onExclude).toHaveBeenCalledWith(httpImg, 'url');
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('excludes the whole host and closes the modal', () => {
+      const onExclude = vi.fn();
+      openMenu(onExclude);
+      // The site item is a two-line label: "Exclude site" + the registrable
+      // domain on a muted second line, so the accessible name is
+      // "Exclude site example.com" (cdn.example.com reduces to example.com).
+      const hostItem = screen.getByRole('menuitem', { name: /exclude site/i });
+      expect(hostItem).toHaveTextContent('example.com');
+      fireEvent.click(hostItem);
+      expect(onExclude).toHaveBeenCalledWith(httpImg, 'host');
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('focuses the first menuitem when the menu opens (keyboard operable)', () => {
+      openMenu(vi.fn());
+      expect(screen.getByRole('menuitem', { name: 'Exclude this image' })).toHaveFocus();
+    });
+
+    it('moves focus between items with ArrowDown/ArrowUp/Home/End (wrapping)', () => {
+      openMenu(vi.fn());
+      const menu = screen.getByRole('menu');
+      const url = screen.getByRole('menuitem', { name: 'Exclude this image' });
+      const host = screen.getByRole('menuitem', { name: /exclude site/i });
+      expect(url).toHaveFocus();
+
+      fireEvent.keyDown(menu, { key: 'ArrowDown' });
+      expect(host).toHaveFocus();
+      fireEvent.keyDown(menu, { key: 'ArrowDown' }); // wraps to first
+      expect(url).toHaveFocus();
+      fireEvent.keyDown(menu, { key: 'ArrowUp' }); // wraps to last
+      expect(host).toHaveFocus();
+      fireEvent.keyDown(menu, { key: 'Home' });
+      expect(url).toHaveFocus();
+      fireEvent.keyDown(menu, { key: 'End' });
+      expect(host).toHaveFocus();
+    });
+
+    it('closes the menu on an outside click, leaving the modal open', () => {
+      openMenu(vi.fn());
+      fireEvent.mouseDown(document.body);
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('closes only the exclude menu on Escape, keeping the modal open', () => {
+      openMenu(vi.fn());
+      // Escape is handled on a capture-phase document listener that stops
+      // propagation, so the dialog's own Escape-to-close never fires.
+      fireEvent.keyDown(screen.getByRole('button', { name: 'Exclude source' }), { key: 'Escape' });
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('keeps the menu open on a non-Escape key', () => {
+      openMenu(vi.fn());
+      fireEvent.keyDown(screen.getByRole('button', { name: 'Exclude source' }), { key: 'a' });
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+    });
+
+    it('omits the site option when the source has no parseable host', () => {
+      render(<ImageList images={mockImages} onImageDownload={vi.fn()} onExclude={vi.fn()} />);
+      fireEvent.click(screen.getAllByTitle('View Details')[0]);
+      fireEvent.click(screen.getByRole('button', { name: 'Exclude source' }));
+      expect(screen.getByRole('menuitem', { name: 'Exclude this image' })).toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: /Exclude site/ })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('ImageList — tile labels & preview details', () => {
+    it('labels a base64 tile "B64" and marks it Base64 with unknown dimensions in the preview', async () => {
+      const b64: ImageInfo = {
+        src: 'data:image/png;base64,iVBORw0K', alt: 'inline', width: 0, height: 0,
+        type: 'png', fileSize: 0, isBase64: true, kind: 'image',
+      };
+      render(<ImageList images={[b64]} onImageDownload={vi.fn()} />);
+      // Tile type tag reads B64 rather than the raw type.
+      expect(screen.getByText('B64')).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      const dialog = screen.getByRole('dialog');
+      // 0×0 → "Unknown" dimensions; the Type row appends "· Base64".
+      expect(within(dialog).getByText(/Unknown/)).toBeInTheDocument();
+      expect(within(dialog).getByText(/·\s*Base64/)).toBeInTheDocument();
+    });
+
+    it('shows an em dash for a non-image item\'s dimensions in the preview details', async () => {
+      const clip: ImageInfo = {
+        src: 'https://ex.com/v.mp4', alt: '', width: 0, height: 0, type: 'mp4',
+        fileSize: 4096, isBase64: false, kind: 'video', poster: 'https://ex.com/p.jpg',
+      };
+      render(<ImageList images={[clip]} onImageDownload={vi.fn()} />);
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      // Videos carry no pixel dimensions → the Size row leads with an em dash.
+      expect(within(screen.getByRole('dialog')).getByText(/—\s*·\s*4 KB/)).toBeInTheDocument();
+    });
+
+    it('defaults the favourite toggle to unpressed when no favourites set is provided', async () => {
+      // App always passes favouriteSrcs, but the prop is optional — the `?? false`
+      // default must hold on both the grid tile and the modal header.
+      render(<ImageList images={[mockImages[0]]} onImageDownload={vi.fn()} onToggleFavourite={vi.fn()} />);
+      expect(screen.getByRole('button', { name: /add favourite/i })).toHaveAttribute('aria-pressed', 'false');
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      expect(
+        within(screen.getByRole('dialog')).getByRole('button', { name: /add favourite/i }),
+      ).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('closes the preview when the shown image is removed from the list underneath it', () => {
+      const { rerender } = render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
+      fireEvent.click(screen.getAllByTitle('View Details')[1]); // open on the last (index 1) image
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      // The list shrinks to one item (the previewed one got excluded/filtered) →
+      // images[1] is now undefined → selectedImage falls back to null → modal closes.
+      rerender(<ImageList images={[mockImages[0]]} onImageDownload={vi.fn()} />);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('ImageList — pending video & HLS preview', () => {
+    it('previews a pending video by its poster (no <video> — the file is not fetched yet)', async () => {
+      const pending: ImageInfo = {
+        src: 'poster.jpg', alt: 'clip', width: 0, height: 0, type: 'mp4', fileSize: 0,
+        isBase64: false, kind: 'video', unresolvedVideo: true, poster: 'poster.jpg',
+        resolveHint: { platform: 'twitter', id: '1' },
+      };
+      render(<ImageList images={[pending]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} />);
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByRole('img', { name: 'clip' })).toHaveAttribute('src', 'poster.jpg');
+      expect(dialog.querySelector('video')).toBeNull();
+    });
+
+    it('renders a film-glyph placeholder (no <img>) for a pending video with no poster (can\'t-fetch)', async () => {
+      // Non-Instagram src, no poster (exercises isIgUrl(undefined)), no resolveHint.
+      const noPoster: ImageInfo = {
+        src: 'https://pbs.twimg.com/x.jpg', alt: 'v', width: 0, height: 0, type: 'mp4',
+        fileSize: 0, isBase64: false, kind: 'video', unresolvedVideo: true,
+      };
+      render(<ImageList images={[noPoster]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} />);
+      // Tile label resolves to "can't fetch" (not an IG reel, no resolve path).
+      expect(screen.getByText("can't fetch")).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      const dialog = screen.getByRole('dialog');
+      // With no poster the modal must NEVER point an <img> at src (src is not
+      // necessarily a real image/file) — it degrades to the same neutral glyph
+      // the grid tile uses.
+      expect(within(dialog).queryByRole('img')).toBeNull();
+      expect(dialog.querySelector('svg')).toBeTruthy();
+      // …and the footer still says the file can't be fetched, with no Get-video action.
+      expect(within(dialog).getByText(/can't be fetched/i)).toBeInTheDocument();
+      expect(within(dialog).queryByText('Get video')).toBeNull();
+    });
+
+    it('never points a modal <img> at a pending video\'s status-link src when it has no poster (regression: unpainted /status/<id>/video/<n> cell)', async () => {
+      // Shape of a pending VIDEO surfaced by pushTwitterPending for an unpainted
+      // grid cell: no poster at all (unlike twitterVideoPending items, which
+      // always carry a poster), and `src` is the x.com status permalink itself —
+      // not an image or media file. Opening "View Details" must never hand this
+      // to an <img src>, which would fire a real GET to x.com/....
+      const pendingNoPoster: ImageInfo = {
+        src: 'https://x.com/u/status/1/video/1', alt: '', width: 0, height: 0, type: 'mp4',
+        fileSize: 0, isBase64: false, kind: 'video', unresolvedVideo: true,
+      };
+      render(<ImageList images={[pendingNoPoster]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} />);
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      const dialog = screen.getByRole('dialog');
+      // Raw DOM query, not screen.getByRole('img'): alt='' carries no ARIA img
+      // role, so a role-based query would miss a regression that reintroduced
+      // <img src="https://x.com/...">.
+      const dialogImgs = Array.from(dialog.querySelectorAll('img'));
+      expect(dialogImgs.some((img) => (img.getAttribute('src') ?? '').includes('x.com/'))).toBe(false);
+      expect(dialogImgs).toHaveLength(0);
+    });
+
+    it('still shows the poster in the modal for a pending video that HAS one (no regression to the native-video/GIF preview)', async () => {
+      const pendingWithPoster: ImageInfo = {
+        src: 'https://x.com/u/status/1/video/1', alt: 'clip', width: 0, height: 0, type: 'mp4',
+        fileSize: 0, isBase64: false, kind: 'video', unresolvedVideo: true,
+        poster: 'https://pbs.twimg.com/amplify_video_thumb/1/img/x.jpg',
+      };
+      render(<ImageList images={[pendingWithPoster]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} />);
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByRole('img', { name: 'clip' })).toHaveAttribute(
+        'src', 'https://pbs.twimg.com/amplify_video_thumb/1/img/x.jpg',
+      );
+    });
+
+    it('offers a retry label in the preview footer for a failed pending video', async () => {
+      const pending: ImageInfo = {
+        src: 'poster.jpg', alt: 'v', width: 0, height: 0, type: 'mp4', fileSize: 0,
+        isBase64: false, kind: 'video', unresolvedVideo: true, poster: 'poster.jpg',
+        resolveHint: { platform: 'twitter', id: '1' },
+      };
+      render(
+        <ImageList images={[pending]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()}
+          resolveFailedSrcs={new Set(['poster.jpg'])} />,
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      expect(within(screen.getByRole('dialog')).getByText(/Couldn't fetch — retry/i)).toBeInTheDocument();
+    });
+
+    it('tells the user to play an Instagram reel from the preview footer', async () => {
+      const reel: ImageInfo = {
+        src: 'https://scontent.cdninstagram.com/cover.jpg', alt: 'reel', width: 0, height: 0,
+        type: 'mp4', fileSize: 0, isBase64: false, kind: 'video', unresolvedVideo: true,
+        poster: 'https://scontent.cdninstagram.com/cover.jpg',
+      };
+      render(<ImageList images={[reel]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} />);
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      expect(within(screen.getByRole('dialog')).getByText(/Play this reel on Instagram/i)).toBeInTheDocument();
+    });
+
+    it('previews an HLS stream by its poster and offers Capture stream', async () => {
+      const hls: ImageInfo = {
+        src: 'https://x/master.m3u8', alt: 'stream', width: 0, height: 0, type: 'm3u8',
+        fileSize: 0, isBase64: false, kind: 'video', hlsManifest: 'https://x/master.m3u8',
+        poster: 'https://x/poster.jpg',
+      };
+      const onDownload = vi.fn();
+      render(<ImageList images={[hls]} onImageDownload={onDownload} />);
+      expect(screen.getByText(/HLS · capture/i)).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      const dialog = screen.getByRole('dialog');
+      // The poster stands in for the un-playable manifest.
+      expect(within(dialog).getByRole('img', { name: 'stream' })).toHaveAttribute('src', 'https://x/poster.jpg');
+      // The footer action reads "Capture stream", and routes to onImageDownload.
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Capture stream' }));
+      expect(onDownload).toHaveBeenCalledWith(hls);
+    });
+
+    it('falls back to a film glyph when an HLS stream has no poster', async () => {
+      const hls: ImageInfo = {
+        src: 'https://x/master.m3u8', alt: '', width: 0, height: 0, type: 'm3u8', fileSize: 0,
+        isBase64: false, kind: 'video', hlsManifest: 'https://x/master.m3u8',
+      };
+      render(<ImageList images={[hls]} onImageDownload={vi.fn()} />);
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      const dialog = screen.getByRole('dialog');
+      // No poster → no preview <img>; a film glyph renders instead.
+      expect(within(dialog).queryByRole('img')).toBeNull();
+      expect(dialog.querySelector('svg')).toBeTruthy();
+    });
+  });
+
+  it('applies content-visibility and an intrinsic-size box to every tile', () => {
+    // No renderImageList/sampleImages helper exists in this file — reuse the
+    // exact render call + inline ImageInfo shape the other tests here use.
+    const three: ImageInfo[] = [
+      { src: 'v1.jpg', alt: 'V1', width: 100, height: 100, type: 'jpeg', fileSize: 1024, isBase64: false, kind: 'image' },
+      { src: 'v2.png', alt: 'V2', width: 200, height: 200, type: 'png', fileSize: 2048, isBase64: false, kind: 'image' },
+      { src: 'v3.png', alt: 'V3', width: 200, height: 200, type: 'png', fileSize: 2048, isBase64: false, kind: 'image' },
+    ];
+    render(<ImageList images={three} onImageDownload={vi.fn()} />);
+    const figures = document.querySelectorAll('figure.card');
+    expect(figures.length).toBe(3);
+    figures.forEach((fig) => {
+      const style = (fig as HTMLElement).style;
+      expect(style.contentVisibility).toBe('auto');
+      // Per-axis `auto <length>` — thumbnailSize-square fallback before first
+      // paint, self-correcting to the tile's real measured size afterward.
+      expect(style.containIntrinsicSize).toBe('auto 120px auto 120px');
+    });
+  });
+
+  describe('formatFileSize', () => {
+    it('shows an em dash for unknown/invalid sizes', () => {
+      expect(formatFileSize(0)).toBe('—');
+      expect(formatFileSize(-5)).toBe('—');
+      expect(formatFileSize(NaN)).toBe('—');
+      expect(formatFileSize(Infinity)).toBe('—');
+    });
+
+    it('formats bytes, KB, MB, and TB with sensible precision', () => {
+      expect(formatFileSize(512)).toBe('512 B');
+      expect(formatFileSize(1023)).toBe('1023 B');
+      expect(formatFileSize(1024)).toBe('1 KB');
+      expect(formatFileSize(1536)).toBe('1.5 KB');
+      expect(formatFileSize(1048576)).toBe('1 MB');
+      expect(formatFileSize(1024 ** 4)).toBe('1 TB');
+    });
+
+    it('clamps beyond TB to the TB unit', () => {
+      expect(formatFileSize(1024 ** 6)).toContain('TB');
+    });
+  });
+});

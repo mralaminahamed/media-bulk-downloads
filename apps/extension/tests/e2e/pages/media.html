@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="A fixture exercising inline SVG data URIs and duplicate fbcdn hosts that must canonicalize to a single collected item." />
+    <meta property="og:title" content="MBD e2e fixture" />
+    <meta property="og:type" content="website" />
+    <title>MBD e2e fixture</title>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <a href="/">Home</a>
+        <a href="#">Gallery</a>
+      </nav>
+      <h1>Media Bulk Downloads — e2e fixture</h1>
+    </header>
+    <main>
+      <h2>Inline SVG swatches</h2>
+      <p>Three renderable data-URI images with no host, used for the exclude-image test.</p>
+      <!-- Renderable data:image SVGs (no host → only "Exclude this image" applies). -->
+      <img alt="Alpha" width="120" height="120" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22120%22%20height%3D%22120%22%3E%3Crect%20width%3D%22120%22%20height%3D%22120%22%20fill%3D%22%23e11d48%22%2F%3E%3C%2Fsvg%3E" />
+      <img alt="Beta" width="120" height="120" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22120%22%20height%3D%22120%22%3E%3Crect%20width%3D%22120%22%20height%3D%22120%22%20fill%3D%22%2316a34a%22%2F%3E%3C%2Fsvg%3E" />
+      <img alt="Gamma" width="120" height="120" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22120%22%20height%3D%22120%22%3E%3Crect%20width%3D%22120%22%20height%3D%22120%22%20fill%3D%22%232563eb%22%2F%3E%3C%2Fsvg%3E" />
+
+      <h2>Duplicate CDN edge hosts</h2>
+      <p>The same photo served from two fbcdn edge hosts with signed query strings must collapse to a single collected item.</p>
+      <!-- The SAME fbcdn photo at two edge hosts + signed queries: must collapse to ONE
+           item via canonicalSrcKey, and is the target for the host-exclude test. -->
+      <img alt="FbPhoto" width="100" height="100" src="https://scontent-a1.xx.fbcdn.net/v/t39.30808-6/990111222_333_n.jpg?oh=AAA&oe=6A00" />
+      <img alt="FbPhoto" width="100" height="100" src="https://scontent-b2.xx.fbcdn.net/v/t39.30808-6/990111222_333_n.jpg?oh=BBB&oe=6B00" />
+
+      <h3>Unrelated host</h3>
+      <!-- A different real host — must SURVIVE an fbcdn host-exclude. -->
+      <img alt="OtherHost" width="100" height="100" src="https://cdn.example.com/photos/pic-1600.jpg" />
+      <p>This image comes from an independent CDN and should remain after excluding fbcdn hosts.</p>
+    </main>
+    <footer>
+      <p>MBD e2e fixtures &mdash; media collection scenarios.</p>
+    </footer>
+  </body>
+</html>

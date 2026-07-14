@@ -39,11 +39,13 @@ By default the extension is **network-free** — it only reads what the page has
 already loaded and hands URLs to Chrome's download manager.
 
 One **optional, off-by-default** setting, "Resolve exact originals", makes direct
-requests to the media's own content-delivery network (for example Twitter,
-Wallhaven, or Unsplash) to fetch a higher-resolution version of an item you are
-downloading. These requests go only to those media hosts, carry no identifying
-information beyond what a normal browser request to that host would, and happen
-only while you are downloading and only when you have enabled the setting.
+requests to the media's own content-delivery network — one of nine supported
+platforms (Twitter/X, Wallhaven, Unsplash, Vimeo, Bluesky, Pinterest, Reddit,
+Flickr, ArtStation), whichever the item came from — to fetch a higher-resolution
+version of an item you are downloading. These requests go only to that item's
+own media host, carry no identifying information beyond what a normal browser
+request to that host would, and happen only while you are downloading and only
+when you have enabled the setting.
 
 ## Permissions
 
@@ -69,4 +71,4 @@ above.
 
 ## Contact
 
-Questions about this policy: mrabir.ahamed@gmail.com
+Questions about this policy: alamin.ahamed.dev@gmail.com

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Behance</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Sample Behance project fixture for e2e media collection tests." />
+  <meta property="og:title" content="Behance Fixture" />
+  <meta property="og:type" content="website" />
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="/">Home</a>
+      <a href="#">Discover</a>
+      <a href="#">Assets</a>
+    </nav>
+    <h1>Behance Project</h1>
+  </header>
+  <main role="main">
+    <h2>Project modules</h2>
+    <!-- The page serves the display-size render (/project_modules/disp/). The
+         resolver rewrites the size segment to the max-size /source/ original and
+         keeps the served disp URL as the thumbnail, so the grid <img> still carries
+         the `behanceEE01a1b2c3` id token. (Page media is NOT wrapped in <figure> so
+         it can't collide with the extension grid's own <figure> in the count.) -->
+    <div>
+      <a href="/gallery/123456789/Sample-Project">
+        <img alt="Poster design"
+          src="https://mir-s3-cdn-cf.behance.net/project_modules/disp/behanceEE01a1b2c3.jpg">
+      </a>
+      <p>Poster design, display render upgraded to source.</p>
+    </div>
+  </main>
+  <footer>
+    <p>Fixture data for automated testing only.</p>
+  </footer>
+</body>
+</html>

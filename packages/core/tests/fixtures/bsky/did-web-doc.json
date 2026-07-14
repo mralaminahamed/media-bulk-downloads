@@ -1,0 +1,25 @@
+{
+  "_source": "GET https://<domain>/.well-known/did.json (public DID document for a did:web account). Real STRUCTURE of an atproto DID document, trimmed to the fields the resolver reads. The companion did-plc-doc.json covers the did:plc path (resolved via plc.directory); this covers the did:web path (resolved via the domain's well-known doc). serviceEndpoint is the account's real PDS host family (host.bsky.network).",
+  "@context": [
+    "https://www.w3.org/ns/did/v1",
+    "https://w3id.org/security/multikey/v1",
+    "https://w3id.org/security/suites/secp256k1-2019/v1"
+  ],
+  "id": "did:web:example.com",
+  "alsoKnownAs": ["at://example.com"],
+  "verificationMethod": [
+    {
+      "id": "did:web:example.com#atproto",
+      "type": "Multikey",
+      "controller": "did:web:example.com",
+      "publicKeyMultibase": "zEXAMPLEPUBLICKEYMULTIBASEVALUE"
+    }
+  ],
+  "service": [
+    {
+      "id": "#atproto_pds",
+      "type": "AtprotoPersonalDataServer",
+      "serviceEndpoint": "https://morel.us-east.host.bsky.network"
+    }
+  ]
+}

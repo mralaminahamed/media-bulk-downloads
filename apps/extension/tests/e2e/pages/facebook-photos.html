@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Facebook photo grid fixture: two tiles whose fbid links key into an embedded hydration-JSON block carrying each photo's full-resolution original.">
+    <meta property="og:title" content="Facebook Photos">
+    <meta property="og:type" content="website">
+    <title>Facebook Photos</title>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <a href="/">Home</a>
+        <a href="#">Friends</a>
+        <a href="#">Groups</a>
+      </nav>
+      <h1>Facebook Photos</h1>
+    </header>
+    <script type="application/json">{"data":{"currentUser":{"photos":{"edges":[{"node":{"id":"201","__typename":"Photo","image":{"uri":"https://scontent-del1-1.xx.fbcdn.net/v/t39.30808-6/FB_GRID_201_thumb_n.jpg?stp=dst-jpg_s160x160&_nc_ohc=AAA&oh=00_ONE&oe=6A00","width":160,"height":160},"photo_image":{"uri":"https://scontent-del1-1.xx.fbcdn.net/v/t39.30808-6/FB_GRID_201_orig_n.jpg?_nc_ohc=BBB&oh=00_TWO&oe=6B00","width":2048,"height":1536}}},{"node":{"id":"202","__typename":"Photo","image":{"uri":"https://scontent-lax3-1.xx.fbcdn.net/v/t39.30808-6/FB_GRID_202_thumb_n.jpg?stp=dst-jpg_s160x160&_nc_ohc=CCC&oh=00_THREE&oe=6C00","width":160,"height":160},"photo_image":{"uri":"https://scontent-lax3-1.xx.fbcdn.net/v/t39.30808-6/FB_GRID_202_orig_n.jpg?_nc_ohc=DDD&oh=00_FOUR&oe=6D00","width":1920,"height":1440}}}]}}}}</script>
+    <div role="main">
+      <h2>Photo grid</h2>
+      <p>Two tiles from the album grid.</p>
+      <a href="/photo/?fbid=201"><img alt="FB grid photo 1" src="https://scontent-del1-1.xx.fbcdn.net/v/t39.30808-6/FB_GRID_201_thumb_n.jpg?stp=dst-jpg_s160x160&_nc_ohc=AAA&oh=00_ONE&oe=6A00"></a>
+      <a href="/photo/?fbid=202"><img alt="FB grid photo 2" src="https://scontent-lax3-1.xx.fbcdn.net/v/t39.30808-6/FB_GRID_202_thumb_n.jpg?stp=dst-jpg_s160x160&_nc_ohc=CCC&oh=00_THREE&oe=6C00"></a>
+      <p>Tap a tile to open the full photo.</p>
+    </div>
+    <footer>
+      <p>Fixture footer for e2e tests.</p>
+    </footer>
+  </body>
+</html>

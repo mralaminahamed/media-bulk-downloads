@@ -4,7 +4,7 @@
 
 Please report security issues **privately** — do not open a public GitHub issue.
 
-Email **mrabir.ahamed@gmail.com** with:
+Email **alamin.ahamed.dev@gmail.com** with:
 
 - a description of the issue and its impact,
 - steps to reproduce (or a proof of concept),

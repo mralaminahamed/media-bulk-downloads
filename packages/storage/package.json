@@ -1,0 +1,17 @@
+{
+  "name": "@mbd/storage",
+  "version": "1.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Extension persistence layer: settings, history, favourites, excluded, download queue, per-host memory, backup/sync over chrome.storage + IndexedDB.",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "@mbd/core": "workspace:*",
+    "idb-keyval": "^6.3.0"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.2.2"
+  }
+}

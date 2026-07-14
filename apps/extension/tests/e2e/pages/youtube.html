@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>YouTube embeds</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Sample page with YouTube references for e2e media collection tests." />
+  <meta property="og:title" content="YouTube Fixture" />
+  <meta property="og:type" content="website" />
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="/">Home</a>
+      <a href="#">Watch</a>
+      <a href="#">About</a>
+    </nav>
+    <h1>Embedded Videos</h1>
+  </header>
+  <main role="main">
+    <h2>Player embed</h2>
+    <!-- A cross-origin YouTube <iframe> embed. Its document is unreachable, but the
+         resolver reads the 11-char id from the src and surfaces the public poster
+         (i.ytimg.com/vi/EEYToneVID1/hqdefault.jpg); the grid <img> shows the lighter
+         mqdefault, which still carries the `EEYToneVID1` id token. Video/audio streams
+         are deliberately NOT touched (policy-compliant, thumbnails only). -->
+    <iframe
+      src="https://www.youtube.com/embed/EEYToneVID1"
+      title="Embedded tutorial"
+      width="560" height="315" allowfullscreen></iframe>
+    <p>An embedded tutorial video.</p>
+
+    <h2>Watch link</h2>
+    <!-- A bare text link to a watch page (no thumbnail image of its own). The resolver
+         still turns the video id into its downloadable poster. -->
+    <p>See the follow-up:
+      <a href="https://www.youtube.com/watch?v=EEYTtwoVID2">Watch part two on YouTube</a>.
+    </p>
+  </main>
+  <footer>
+    <p>Fixture data for automated testing only.</p>
+  </footer>
+</body>
+</html>

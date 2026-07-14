@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Facebook reel fixture: a cover tile whose downloadable mp4 arrives over a sniffed text/html NDJSON graphql response.">
+    <meta property="og:title" content="Reel">
+    <meta property="og:type" content="website">
+    <title>Reel</title>
+    <style>body{height:3000px}</style>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <a href="/">Home</a>
+        <a href="#">Friends</a>
+        <a href="#">Groups</a>
+      </nav>
+      <h1>Reel</h1>
+    </header>
+    <div role="main">
+      <h2>Reel</h2>
+      <p>Scroll to load this reel's playable video.</p>
+      <a href="/reel/401"><img alt="reel cover" src="https://scontent-c.xx.fbcdn.net/v/t39.30808-6/FBR_401_cover_n.jpg?oh=00_CA&oe=6C"></a>
+      <p>Tap the cover to play.</p>
+    </div>
+    <script>
+  function pull() { try { var x = new XMLHttpRequest(); x.open('GET', '/api/graphql/?doc_id=reel'); x.send(); } catch (e) {} }
+  addEventListener('DOMContentLoaded', pull);
+  addEventListener('scroll', function once() { removeEventListener('scroll', once); pull(); }, { passive: true });
+</script>
+    <footer>
+      <p>Fixture footer for e2e tests.</p>
+    </footer>
+  </body>
+</html>

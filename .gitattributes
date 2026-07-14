@@ -13,5 +13,4 @@
 yarn.lock -diff linguist-generated
 
 # Collapse generated/vendored paths in language stats.
-dist/** linguist-generated
 coverage/** linguist-generated

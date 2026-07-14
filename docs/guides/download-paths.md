@@ -1,98 +1,135 @@
 # Download paths (folder templates)
 
-The **Save to subfolder** setting is a small path *template*. Type plain folder
-names, token placeholders, or a mix — the extension expands the tokens per
-download and saves the file there. This is how you get **one folder per site**,
-per-day folders, or per-media-kind folders without any per-site configuration.
+The **Save to subfolder** setting is a path template. Type a plain folder name,
+token placeholders, or both. The extension expands the tokens for each download
+and saves the file there. This gives you one folder per site, per-day folders,
+or per-kind folders with no per-site setup.
 
 ## The one constraint
 
-Everything you configure lives **inside the browser's Downloads folder**. The
-download API (`chrome.downloads.download({ filename })`) only accepts a path
-relative to that folder and rejects absolute paths and `..`. So:
+Everything you configure sits inside the browser's Downloads folder.
+`chrome.downloads.download({ filename })` only accepts a path relative to that
+folder. It rejects absolute paths and `..`.
 
 ```
-~/Downloads / <your template expands here> / file.jpeg
+~/Downloads / <your template expands here> / image_1.jpg
 └ fixed root ┘ └──────── you control this ───────┘
   (browser)          (the template)
 ```
 
-To move the root itself, change the browser's download location in its own
-settings — the extension can't set it.
+To move the root, change the download location in the browser's own settings.
+The extension can't set it.
 
 ## Tokens
 
-| Token      | Expands to                                   | Example                     |
-|------------|----------------------------------------------|-----------------------------|
-| `{host}`   | the source page's full hostname              | `www.twitter.com`           |
-| `{domain}` | the registrable domain (drops `www.` + subs) | `twitter.com`               |
-| `{date}`   | the download date, `YYYY-MM-DD` (local)      | `2026-07-04`                |
-| `{kind}`   | the media kind                               | `image` / `video` / `audio` |
+Four tokens exist. Anything else in `{...}` is dropped.
+
+| Token      | Expands to                                     | Example            |
+|------------|------------------------------------------------|--------------------|
+| `{host}`   | the source page's full hostname                | `www.twitter.com`  |
+| `{domain}` | the registrable domain (drops `www.` and subs) | `twitter.com`      |
+| `{date}`   | the download date, `YYYY-MM-DD`, local time    | `2026-07-13`       |
+| `{kind}`   | the media kind: `image`, `video`, or `audio`   | `image`            |
 
 ## Examples
 
-| Template          | Saved as (file from `www.twitter.com`)          |
+Source page `https://www.twitter.com/...`, first JPEG in the batch, default
+`image_` prefix:
+
+| Template          | Saved as                                        |
 |-------------------|-------------------------------------------------|
-| *(empty)*         | `Downloads/image_1.jpeg`                        |
-| `Media`           | `Downloads/Media/image_1.jpeg`                  |
-| `{domain}`        | `Downloads/twitter.com/image_1.jpeg`            |
-| `Media/{domain}`  | `Downloads/Media/twitter.com/image_1.jpeg`      |
-| `{domain}/{date}` | `Downloads/twitter.com/2026-07-04/image_1.jpeg` |
-| `{kind}/{domain}` | `Downloads/image/twitter.com/image_1.jpeg`      |
+| *(empty)*         | `Downloads/image_1.jpg`                         |
+| `Media`           | `Downloads/Media/image_1.jpg`                   |
+| `{domain}`        | `Downloads/twitter.com/image_1.jpg`             |
+| `Media/{domain}`  | `Downloads/Media/twitter.com/image_1.jpg`       |
+| `{domain}/{date}` | `Downloads/twitter.com/2026-07-13/image_1.jpg`  |
+| `{kind}/{domain}` | `Downloads/image/twitter.com/image_1.jpg`       |
 
 The Settings panel shows a live preview against a sample site as you type.
 
 ## How a template expands
 
-```mermaid
-flowchart TD
-  T["Template string<br/>e.g. Media/{domain}/{date}"] --> S["Substitute known tokens<br/>{host} {domain} {date} {kind}"]
-  S --> V["Each token value → sanitizePathSegment<br/>(a value can never inject extra / segments)"]
-  V --> U["Strip any remaining unknown {...}<br/>(typos are dropped, not written literally)"]
-  U --> P["sanitizePathSegment(whole path)<br/>strips traversal (..), illegal chars,<br/>reserved device names (CON, NUL, …)"]
-  P --> J["Join with the filename"]
-  J --> D[("Downloads/&lt;expanded path&gt;/file.jpeg")]
+`expandPathTemplate(template, tokens)` runs three steps
+(`packages/core/src/collection/paths.ts`):
 
-  classDef guard fill:#fdeeee,stroke:#c0392b,color:#17181c;
-  class V,U,P guard;
+1. Replace each known token with its value. The value first goes through
+   `toSegment` — `sanitizePathSegment` plus stripping every `/`. A token value
+   is always one segment, so a value that contains a slash can't add folders.
+2. Delete any leftover `{...}`. An unknown token like `{typo}` is removed, not
+   written literally.
+3. Run the whole joined path through `sanitizePathSegment`.
+
+Then `buildDownloadFilename` joins the result with the filename
+(`packages/core/src/collection/download-name.ts`).
+
+### Worked example
+
+Template `Media/{domain}/{date}`, download from
+`https://www.twitter.com/user/status/1`, first image in the batch:
+
+- `{host}` → `www.twitter.com`
+- `{domain}` → `twitter.com`
+- `{date}` → `2026-07-13`
+- `{kind}` → `image`
+
+Step 1 fills the tokens: `Media/twitter.com/2026-07-13`. Step 2 finds no unknown
+tokens. Step 3 leaves the path unchanged. The filename is `image_1.jpg`. Final
+path:
+
+```
+Downloads/Media/twitter.com/2026-07-13/image_1.jpg
 ```
 
-The two sanitizing steps (guarded in red) are what make the constraint above a
-guarantee, not a convention: however the template is written, the expanded path
-can never point outside `Downloads/`.
+## What sanitizePathSegment does
 
-## Rules & edge cases
+`sanitizePathSegment` (`packages/core/src/collection/paths.ts`) is what makes the
+constraint hold. For each `/`-separated segment it:
+
+- Removes characters illegal in filenames: `< > : " | ? *` and control
+  characters (`\x00`–`\x1f`).
+- Converts `\` to `/`, then splits on `/`.
+- Trims trailing dots and spaces from each part. Windows strips those when it
+  resolves a path, so `.. ` could otherwise turn back into `..`. Trimming first
+  closes that gap.
+- Drops empty parts, `.`, and `..`. This is why traversal can't escape
+  `Downloads/`: `../../etc` becomes `etc`, and a leading `/` is dropped.
+- Prefixes Windows reserved device names with `_`, so `CON`, `PRN`, `AUX`,
+  `NUL`, `COM1`–`COM9`, and `LPT1`–`LPT9` (with or without an extension) become
+  ordinary folders like `_CON`.
+- Caps each segment at 200 characters, keeping a short trailing extension. A
+  crafted 10-KB name can't break the download.
+
+## Rules and edge cases
 
 - **`{host}` vs `{domain}`** — `www.twitter.com`, `m.twitter.com`, and
-  `twitter.com` are three different hosts (three `{host}` folders) but one
-  `{domain}`. Use `{domain}` to group a site's subdomains together. The domain
-  reduction is a heuristic with a small built-in set of two-part suffixes
-  (`co.uk`, `com.au`, …); it is not a full public-suffix list.
-- **Unknown site** — when a download has no source page (a file opened directly),
-  `{host}` / `{domain}` are empty and their folder segment simply collapses away.
-  `Media/{domain}` becomes `Downloads/Media/…`, never an empty or `unknown` folder.
-- **Unknown tokens** — a `{typo}` that isn't a real token is dropped, not written
-  literally.
-- **Safety** — the whole expanded path is run through `sanitizePathSegment`
-  (`src/extension/shared/collection/paths.ts`): traversal (`..`), leading slashes, illegal
-  filename characters, and Windows reserved device names are all neutralized, so a
-  template can never write outside `Downloads/`. A token *value* is always a single
-  segment — a value containing `/` cannot inject extra folders.
-- **Name collisions** — unchanged: `conflictAction: 'uniquify'` still appends
-  ` (1)` on a clash. Per-site folders make clashes rarer.
+  `twitter.com` are three hosts but one domain. Use `{domain}` to group a site's
+  subdomains. `registrableDomain` drops `www.` and subdomains against a small
+  built-in set of two-part suffixes (`co.uk`, `com.au`, and a handful more). It
+  is a heuristic, not a full public-suffix list.
+- **Unknown site** — a file opened directly has no source page, so `{host}` and
+  `{domain}` resolve to empty. The empty segment collapses. `Media/{domain}`
+  saves to `Downloads/Media/...`, never an empty or `unknown` folder.
+- **Name collisions** — the download call passes `conflictAction: 'uniquify'`,
+  so a clash appends ` (1)`. Per-site folders make clashes rarer.
 
 ## Implementation
 
-- `expandPathTemplate(template, tokens)` — token substitution + sanitizing
-  (`src/extension/shared/collection/paths.ts`).
-- `hostFromUrl`, `registrableDomain`, `todayISO` — token-value helpers (same file).
+- `expandPathTemplate(template, tokens)` — token substitution plus sanitizing
+  (`packages/core/src/collection/paths.ts`).
+- `hostFromUrl`, `registrableDomain`, `todayISO` — token-value helpers (same
+  file).
 - `buildDownloadFilename(image, index, settings, sourcePageUrl?)` — resolves the
   tokens against the source page and prepends the folder
-  (`src/extension/background/index.ts`); the source URL is threaded from
-  `downloadAndRecord`.
+  (`packages/core/src/collection/download-name.ts`). `downloadAndRecord` threads
+  the source URL in.
+- The default `downloadPath` is `''` (`packages/storage/src/settings.ts`),
+  stored in `chrome.storage.sync` under the `settings` key.
 
 ## Back-compatibility
 
-A template with no tokens behaves exactly as the old static subfolder did — an
-existing `downloadPath` like `Media` keeps saving to `Downloads/Media/`. No
-migration.
+A template with no tokens behaves like the old static subfolder. An existing
+`downloadPath` of `Media` keeps saving to `Downloads/Media/`. No migration.
+
+---
+
+**[← All guides](./README.md)** · [Download](./download.md) · [Download History](./history.md)

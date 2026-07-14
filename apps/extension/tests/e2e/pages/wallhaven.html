@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Wallhaven</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Sample Wallhaven grid fixture for e2e media collection tests." />
+  <meta property="og:title" content="Wallhaven Fixture" />
+  <meta property="og:type" content="website" />
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="/">Home</a>
+      <a href="#">Latest</a>
+      <a href="#">Toplist</a>
+    </nav>
+    <h1>Wallhaven Wallpapers</h1>
+  </header>
+  <main role="main">
+    <h2>Grid</h2>
+    <!-- th.wallhaven.cc thumb rewritten to the full-resolution file. No png/gif
+         badge on the figure -> the resolver reads the extension as jpg and builds
+         w.wallhaven.cc/full/ee/wallhaven-ee9k7d.jpg. The `.wall-res` label supplies
+         the true 3840x2160 dimensions. The grid <img> shows the /lg/ thumbnail,
+         which still carries the `ee9k7d` id token. -->
+    <figure data-wallpaper-id="ee9k7d">
+      <a class="preview" href="/w/ee9k7d">
+        <img alt="Mountain lake wallpaper" src="https://th.wallhaven.cc/small/ee/ee9k7d.jpg">
+      </a>
+      <span class="wall-res">3840 x 2160</span>
+    </figure>
+
+    <!-- A PNG wallpaper: the `span.png` badge tells the resolver the real file is
+         .png, so it builds w.wallhaven.cc/full/ab/wallhaven-ab3x2m.png (never a
+         blind .jpg that would 404). -->
+    <figure data-wallpaper-id="ab3x2m">
+      <a class="preview" href="/w/ab3x2m">
+        <img alt="Geometric pattern wallpaper" src="https://th.wallhaven.cc/small/ab/ab3x2m.jpg">
+      </a>
+      <span class="png"></span>
+      <span class="wall-res">1920 x 1080</span>
+    </figure>
+  </main>
+  <footer>
+    <p>Fixture data for automated testing only.</p>
+  </footer>
+</body>
+</html>

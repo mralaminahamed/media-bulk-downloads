@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Bluesky</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Sample Bluesky feed fixture for e2e media collection tests." />
+  <meta property="og:title" content="Bluesky Fixture" />
+  <meta property="og:type" content="website" />
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="/">Home</a>
+      <a href="#">Feeds</a>
+      <a href="#">Notifications</a>
+    </nav>
+    <h1>Bluesky Feed</h1>
+  </header>
+  <main role="main">
+    <h2>Posts</h2>
+    <!-- A feed photo served as the downscaled feed_thumbnail rendition. The resolver
+         rewrites it to feed_fullsize (the largest network-free CDN sibling) and keeps
+         the thumbnail as the preview, so the grid <img> still carries the
+         `bafkreieebimgcidAAA` blob-CID token. -->
+    <article>
+      <img alt="Trail photo"
+        src="https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:eebsky123abc/bafkreieebimgcidAAA@jpeg">
+      <p>A hiking-trail photo shared to the feed.</p>
+    </article>
+
+    <!-- A video post: cdn.bsky.app serves feed_video_blob, which is ONLY the poster
+         still. The resolver surfaces a pending Video-kind item (the real file, an HLS
+         master, comes from the opt-in network tier) instead of leaking the frame. -->
+    <article>
+      <img alt="Clip poster"
+        src="https://cdn.bsky.app/img/feed_video_blob/plain/did:plc:eebsky123abc/bafkreieebvidcidBBB@jpeg">
+      <p>A short video clip; only its poster is public passively.</p>
+    </article>
+  </main>
+  <footer>
+    <p>Fixture data for automated testing only.</p>
+  </footer>
+</body>
+</html>

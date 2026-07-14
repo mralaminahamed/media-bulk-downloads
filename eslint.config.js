@@ -8,7 +8,7 @@ import globals from 'globals';
 // Flat config (ESLint v9+). Replaces the legacy .eslintrc.json.
 export default [
   {
-    ignores: ['.output/**', '.wxt/**', 'node_modules/**', 'coverage/**', '.yarn/**'],
+    ignores: ['**/.output/**', '**/.wxt/**', '**/node_modules/**', '**/coverage/**', '**/.tsbuild/**', '.yarn/**'],
   },
   js.configs.recommended,
   {
@@ -52,7 +52,7 @@ export default [
   {
     // Test files run under Vitest, but exercise browser APIs (fetch, window, DOM)
     // under jsdom, so they need the browser globals too.
-    files: ['tests/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
+    files: ['**/tests/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
     languageOptions: {
       globals: {
         ...globals.browser,
@@ -72,7 +72,7 @@ export default [
     // (the server, process) plus browser globals (page.evaluate bodies run in the
     // page). Playwright's fixture signature `async ({}, use)` trips React's
     // rules-of-hooks (on `use`) and no-empty-pattern — neither applies to e2e.
-    files: ['tests/e2e/**/*.{ts,mjs}'],
+    files: ['**/tests/e2e/**/*.{ts,mjs}'],
     languageOptions: {
       globals: { ...globals.browser, ...globals.node },
     },

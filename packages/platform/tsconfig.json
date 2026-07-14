@@ -1,0 +1,11 @@
+{
+  // Pure contract package: only interfaces + dependency-free feature detection.
+  // No project references, no ambient globals (the detector reads `globalThis`
+  // through a narrow structural type).
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "types": []
+  },
+  "include": ["src"]
+}

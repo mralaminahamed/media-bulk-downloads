@@ -1,0 +1,159 @@
+import React from 'react';
+import { SettingsPaneProps } from '@mbd/core/types';
+import { NumberField } from '@/extension/popup/components/fields/NumberField';
+import { ToggleRow } from '@/extension/popup/components/fields/ToggleRow';
+import { AdvancedDisclosure } from '@/extension/popup/components/panels/settings/AdvancedDisclosure';
+
+const MediaPane: React.FC<SettingsPaneProps> = ({
+  settings,
+  handleChange,
+  clampOnBlur,
+  toggle,
+  advancedDefaultOpen,
+}) => (
+  <section
+    role="tabpanel"
+    id="settings-panel-media"
+    aria-labelledby="settings-tab-media"
+    className="mbd:space-y-3"
+  >
+    <NumberField
+      id="set-minimumImageSize"
+      name="minimumImageSize"
+      label="Minimum image size (px):"
+      min={0}
+      max={10000}
+      value={settings.minimumImageSize}
+      onChange={handleChange}
+      onBlur={clampOnBlur('minimumImageSize', 0, 10000)}
+    />
+    <ToggleRow
+      id="set-excludeBase64Images"
+      label="Exclude Base64 images"
+      checked={settings.excludeBase64Images}
+      onToggle={() => toggle('excludeBase64Images')}
+    />
+    <ToggleRow
+      id="set-excludeEmoji"
+      label="Exclude emoji"
+      description="Hide emoji graphics (Twitter/WordPress twemoji, etc.) from results."
+      checked={settings.excludeEmoji}
+      onToggle={() => toggle('excludeEmoji')}
+    />
+    <ToggleRow
+      id="set-resolveOriginals"
+      label="Resolve exact originals (network requests)"
+      description="Fetches Twitter videos, exact Wallhaven/Unsplash originals, and follows gallery thumbnail links to their full-size images. Off by default — keeps collection private."
+      checked={settings.resolveOriginals}
+      onToggle={() => toggle('resolveOriginals')}
+    />
+    {/* Stream capture assembles segments in a chrome.offscreen blob document,
+        which Firefox has no equivalent for, so the feature isn't offered there
+        (enabling it would only surface capture items that fail on click). */}
+    {!import.meta.env.FIREFOX && (
+      <ToggleRow
+        id="set-captureHlsStreams"
+        label="Capture video streams (HLS & DASH)"
+        description="Surfaces .m3u8 and .mpd streams as capture items. Off by default — capturing fetches and assembles every segment, which is slow and memory-heavy."
+        checked={settings.captureHlsStreams}
+        onToggle={() => toggle('captureHlsStreams')}
+      />
+    )}
+    <ToggleRow
+      id="set-smartPageDefaults"
+      label="Smart page defaults"
+      description="Detect the page type (gallery, feed, article, single) and prime sensible filter defaults. On by default; nothing is hidden — active defaults show as clearable chips, and you can turn this off."
+      checked={settings.smartPageDefaults}
+      onToggle={() => toggle('smartPageDefaults')}
+    />
+    <ToggleRow
+      id="set-rememberScanBehaviour"
+      label="Remember scan behaviour per site"
+      description="Learn how long each site takes to settle and how deep it scrolls, so repeat deep scans on the same site start warm instead of re-learning. On by default; local only, nothing is uploaded. 'Reset this site' clears it."
+      checked={settings.rememberScanBehaviour}
+      onToggle={() => toggle('rememberScanBehaviour')}
+    />
+    <ToggleRow
+      id="set-skipDuplicateDownloads"
+      label="Skip images already downloaded"
+      description="Don't re-save an image whose file is already on disk (matched across CDN URLs). On by default; re-downloads from Favourites or History always go through."
+      checked={settings.skipDuplicateDownloads}
+      onToggle={() => toggle('skipDuplicateDownloads')}
+    />
+
+    <AdvancedDisclosure id="adv-media" defaultOpen={advancedDefaultOpen}>
+      <div className="mbd:grid mbd:grid-cols-2 mbd:gap-3">
+        <NumberField
+          id="set-deepScanMaxItems"
+          name="deepScanMaxItems"
+          label="Max items:"
+          min={50}
+          max={5000}
+          value={settings.deepScanMaxItems}
+          onChange={handleChange}
+          onBlur={clampOnBlur('deepScanMaxItems', 50, 5000)}
+        />
+        <NumberField
+          id="set-deepScanMaxSeconds"
+          name="deepScanMaxSeconds"
+          label="Max time (seconds):"
+          min={5}
+          max={120}
+          value={settings.deepScanMaxSeconds}
+          onChange={handleChange}
+          onBlur={clampOnBlur('deepScanMaxSeconds', 5, 120)}
+        />
+      </div>
+      <NumberField
+        id="set-deepScanMaxScrolls"
+        name="deepScanMaxScrolls"
+        label="Max scroll steps:"
+        min={5}
+        max={200}
+        value={settings.deepScanMaxScrolls}
+        onChange={handleChange}
+        onBlur={clampOnBlur('deepScanMaxScrolls', 5, 200)}
+      />
+      <ToggleRow
+        id="set-deepScanClickLoadMore"
+        label="Click “Load more” buttons"
+        description="Lets deep scan click Load more / Show more buttons to reveal more media. Off by default — clicking page controls can have side effects."
+        checked={settings.deepScanClickLoadMore}
+        onToggle={() => toggle('deepScanClickLoadMore')}
+      />
+    </AdvancedDisclosure>
+    <ToggleRow
+      id="set-fbCaptureOriginals"
+      label="Fetch full-res originals (Facebook)"
+      description="On a Facebook photo grid, open each photo one-by-one to capture its full-resolution original (grid tiles are only ~640px). Off by default — it opens many photos sequentially and Facebook may rate-limit."
+      checked={settings.fbCaptureOriginals}
+      onToggle={() => toggle('fbCaptureOriginals')}
+    />
+    {settings.fbCaptureOriginals && (
+      <div className="mbd:grid mbd:grid-cols-2 mbd:gap-3">
+        <NumberField
+          id="set-fbCaptureMaxPhotos"
+          name="fbCaptureMaxPhotos"
+          label="Max photos:"
+          min={1}
+          max={200}
+          value={settings.fbCaptureMaxPhotos}
+          onChange={handleChange}
+          onBlur={clampOnBlur('fbCaptureMaxPhotos', 1, 200)}
+        />
+        <NumberField
+          id="set-fbCaptureMaxSeconds"
+          name="fbCaptureMaxSeconds"
+          label="Max seconds:"
+          min={30}
+          max={600}
+          value={settings.fbCaptureMaxSeconds}
+          onChange={handleChange}
+          onBlur={clampOnBlur('fbCaptureMaxSeconds', 30, 600)}
+        />
+      </div>
+    )}
+  </section>
+);
+
+export default MediaPane;

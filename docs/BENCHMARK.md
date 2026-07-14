@@ -5,11 +5,14 @@ websites. It measures what the extension's **actual** `collectMedia()` pipeline
 (deep DOM extraction → native resolvers → URL de-proxy → CDN upgrade → dedup)
 discovers on real pages.
 
+> For the plain-language summary of these results, see the
+> [Feature one-pager](./marketing/one-pager.md).
+
 ## Method
 
-- The real `src/extension/content/collect.ts` (with `extract.ts` / `imageUrl.ts` /
+- The real `apps/extension/src/extension/content/collect.ts` (with `extract.ts` / `imageUrl.ts` /
   `mediaType.ts` / `resolvers/*`) is bundled unchanged into an IIFE
-  (`esbuild --bundle --format=iife --alias:@=./src`), injected into the page, and
+  (`esbuild --bundle --format=iife --alias:@=./apps/extension/src`), injected into the page, and
   run once. No source is mocked or altered.
 - **Read-only and network-free** — the collector only reads the DOM and rewrites
   URL strings. Nothing is fetched, clicked, or submitted. (Opt-in Phase-2 network
@@ -23,8 +26,15 @@ discovers on real pages.
 - Sample URLs are shown as `origin + path` (query stripped) for privacy.
 
 Run dates: 2026-07-03 / 2026-07-04 / **2026-07-05** / **2026-07-06** (§A re-run
-2026-07-05 against the current rule set — 32 CDN rules + 6 resolvers; Instagram
-resolver added 2026-07-06). Chrome (Manifest V3).
+2026-07-05 against the rule set as of that run — 32 CDN rules + 6 resolvers,
+historical as of the 2026-07-05/06 run; Instagram resolver added 2026-07-06).
+The resolver registry has since grown to 18 entries (17 dedicated + a generic
+fallback — see [Collection Pipeline](./guides/collection-pipeline.md)); the
+Threads, Bluesky, Arc XP and magnific resolvers were added since and are mapped in
+§C rows 59–62, and the Mastodon and Booru resolvers were added 2026-07-11 (rows
+65 and 67; Dailymotion, row 66, is an embed-hook + Phase-2 path like Vimeo, so it
+is not a REGISTRY array entry). §G/§H below reflect the current Facebook/Instagram resolvers.
+Chrome (Manifest V3).
 
 ## A. Live-verified results
 
@@ -119,7 +129,7 @@ via `curl` or in-browser `Image()`), 2026-07-05:
 ## C. Coverage matrix (CDN family → sites)
 
 Beyond the live rows above, the engine's behavior on a site is determined by the
-**CDN family** it serves from. This matrix maps 58 popular sites/services to the
+**CDN family** it serves from. This matrix maps 67 popular sites/services to the
 rule they exercise and how coverage was established: **[L]** live-injected in this
 run, **[C]** covered by the same CDN rule verified on a live site (or built and
 verified against a real sampled URL — HTTP/`Image()` — pulled from that site),
@@ -182,10 +192,21 @@ logged-out), **[G]** a known gap.
 | 52 | 500px                              | drscdn.500px.org (signed)     | *(none — signed URLs)*                                                                      | G       |
 | 53 | Giphy / Tenor                      | media*.giphy.com / tenor.com  | direct (already served at original size)                                                    | C       |
 | 54 | Instagram                          | *.cdninstagram.com (signed)   | **resolver** — reads the post's media graph from page JSON + sniffed GraphQL; every carousel slide + real mp4 (signed URLs read, never rewritten) | **L**³  |
-| 55 | Facebook                           | *.fbcdn.net (signed)          | left intact                                                                                | A       |
+| 55 | Facebook                           | *.fbcdn.net / *.cdninstagram.com (signed) | **resolver** — passive MAIN-world sniffer reads `text/html`-NDJSON GraphQL + page hydration; full-res photos + reel mp4s, 77–90% accuracy (§G) | **L**   |
 | 56 | TikTok                             | *.tiktokcdn.com (signed)      | —                                                                                          | A       |
 | 57 | Temu                               | img.kwcdn.com                 | drop the Qiniu `imageView2/…` transform query → stored original (sample-based)             | C²      |
 | 58 | LinkedIn                           | media.licdn.com (signed)      | *(none — `dms/image/v2` renditions carry an HMAC `t=` token bound to the size; any rewrite 401s)* | G       |
+| 59 | Threads (profile grid + posts)     | *.cdninstagram.com / *.fbcdn.net on threads.com | **resolver** — a mounted post ships the full original directly in the `<img srcset>` (up to ~2610w); returns the widest candidate (generic dedup would keep the thumbnail). Gated to threads.com/net | **L**⁴  |
+| 60 | Bluesky                            | cdn.bsky.app                  | **resolver** — `feed_thumbnail`→`feed_fullsize` / `avatar_thumbnail`→`avatar` (network-free); `feed_video_blob` → pending video (HLS master on video.bsky.app); true original via `com.atproto.sync.getBlob` (Phase 2) | C/N⁴   |
+| 61 | Arc XP / Fusion (Reuters, many pubs)| */resizer/v2/…?auth= (host-agnostic) | **resolver** — reuse the page-issued `auth` (bound to the source, not a width); collapse the srcset widths to the single widest; never strip the token (would 403) | C⁴      |
+| 62 | Magnific                           | img.magnific.com              | **resolver** — collapse the signed srcset widths to the widest; each token is width-bound so it is never stripped (stripping downgrades to the 626px default) | C⁴      |
+| 63 | Vimeo                              | player.vimeo.com config → *.vimeocdn.com | **resolver** (Phase 2) — read the public player config; highest progressive mp4 as a direct download, else the HLS master to capture | N       |
+| 64 | YouTube (video links / embeds)     | youtube.com, youtu.be, /embed, /shorts → i.ytimg.com | **resolver** — video id from any watch/embed/short URL → `hqdefault` poster (thumbnails only; ciphered streams deliberately untouched per ToS/policy) | C       |
+| 65 | Mastodon (fediverse, host-agnostic) | */media_attachments/files/* (any instance host) | **resolver** — `/small/`→`/original/` size-folder swap; the `<hash>.<ext>` basename is identical across sizes so the upgrade is 404-safe (no ext guessing); gated to the media_attachments path shape, network-free | C⁵ |
+| 66 | Dailymotion | dailymotion.com / geo.dailymotion.com / dai.ly → dmcdn.net | **resolver** (Phase 2) — read the public player metadata (`player/metadata/video/<id>`); modern delivery is HLS-only, so return the `qualities.auto` `x-mpegURL` master to capture; DRM (`protected_delivery`) left unresolved | N⁵ |
+| 67 | Booru (Danbooru/Gelbooru/Safebooru/yande.re/Konachan) | booru image hosts (donmai.us, yande.re, konachan, gelbooru, safebooru) | **resolver** — reads the DOM's true original (`data-file-url` on Danbooru grid+post; the original-image link on Gelbooru/Moebooru post pages), element-scoped + host-pinned to the booru's own image host; grid coverage full on Danbooru, post-page on the others; network-free | C⁵ |
+| 68 | Pixiv | i.pximg.net | **resolver** — on an artwork page reads the embedded `#meta-preload-data` JSON for the exact `urls.original` (correct extension — the displayed `img-master` master is always `.jpg` even for `.png`/`.gif` uploads, so a blind rewrite would 404); multi-page derived by `_p0`→`_p<n>`; a `/c/<crop>/` feed crop of a `_master1200` master upgrades to the un-cropped master; host-pinned, network-free (pximg is `Referer`-gated — download uses the #197 referer opt-in) | C⁶ |
+| 69 | Newgrounds | art.ngfiles.com | **CDN rule** — the art view page already serves the true original under `/images/…<hash>.<ext>` (collected directly; thumb→full is not derivable — the full filename carries a content hash + slug absent from the `/thumbnails/` URL), so the rule only drops the `?f<ts>` cache-buster to canonicalise for de-dupe | C⁶ |
 
 ¹ Tumblr previously had a `/sWxH/` → `/s1280x1920/` rule; it was **removed** — modern
 `64.media.tumblr.com` pre-renders one size folder per image and every other size 404s,
@@ -204,13 +225,42 @@ and the real progressive-mp4 `video_versions` live in the page's own
 it fetches on scroll (captured by a passive MAIN-world sniffer — read-only, no
 forged requests). Verified live 2026-07-06 against a public profile: single
 image, reel (9 MB mp4, HTTP 200), and 9- and 10-slide carousels (every child
-1440 px, HTTP 200). Facebook (row 55) has no page resolver and stays a gap;
-Instagram media served from `fbcdn.net` is covered by this resolver.
+1440 px, HTTP 200). Facebook (row 55) now has its own dedicated resolver + a
+passive MAIN-world sniffer (`fb-media-sniffer`), covering photos and reels at
+77–90% original-image accuracy — see §G below for the full measurement.
+Instagram media served from `fbcdn.net` is covered by the Instagram resolver.
 Reels-tab / grid **clips ship only a cover** (`media_type` 2 with no
 `video_versions`, confirmed live) — no bulk mp4 exists without forging the
 private per-reel GraphQL, which this extension does not do. They surface as
 **pending videos** (poster = cover) that upgrade to the real mp4 when the reel's
 own response is sniffed (on play/open).
+
+⁴ Rows 59–62 are newer dedicated resolvers, each with unit tests and an e2e page
+fixture driving the real bubble (PRs #266–#268); their URL shapes come from real
+samples. **Threads** image extraction was live-verified 2026-07-10 (grid originals
+1119–3277 px across three public profiles; see §I for Threads video) — hence **L**.
+**Bluesky / Arc XP / magnific** are verified against those real-sampled URL shapes
+via the fixtures, not yet live-injected in a benchmark run — hence **C** (Bluesky's
+getBlob original and Vimeo are opt-in network, **N**). The HLS-master fallback of
+the Vimeo/Twitter/Pinterest network resolvers gained real-shaped `resolveOriginal`
+fixtures in the same cycle.
+
+⁵ Rows 65–67 added 2026-07-11. **Mastodon** and **Booru** are network-free
+(DOM/URL) resolvers verified against real sampled URL shapes; **Dailymotion** is
+opt-in Phase-2 (**N**) reading the public player metadata (HLS-only; no
+progressive MP4). Booru grid coverage is full on Danbooru (`data-file-url` in the
+grid DOM) and post-page-only on Gelbooru/Moebooru (their grids expose no
+original).
+
+⁶ Rows 68–69 added 2026-07-13 (#286, gallery-dl parity). Real samples verified
+live 2026-07-13. **Pixiv** — artwork is login-gated; when logged in the page
+embeds `#meta-preload-data` naming the exact original, which the resolver reads
+network-free (pximg is `Referer`-gated, so the fetch path can't reach it; the
+original still downloads via the #197 referer opt-in). **DeviantArt** (row: wixmp
+`/v1/fill/` token-cap upgrade, #101) and **Tumblr** (deliberately un-rewritten,
+¹/§D) were already covered, so #286 added no rule for them. **Sankaku** was
+deferred (see §D): its originals are signed-token/login-gated, so a passive
+rewrite would 404 — against the network-free-by-default, no-auth model.
 
 ## D. Gaps found
 
@@ -264,6 +314,8 @@ Reverted:
 Open (not upgradeable — signed / already-original):
 - **Guardian** `i.guim.co.uk` — HMAC `s=<hex>` per width; any change → 401.
 - **500px** `drscdn.500px.org` — signed URLs.
+- **Sankaku** (#286, deferred) — originals are signed-token + login-gated; a passive
+  preview→original rewrite would 404. Out of the no-auth, network-free-by-default model.
 - **preview.redd.it** — signed (left byte-identical by design, verified live).
 - **Giphy / Tenor** — already served at original size (no smaller-to-larger step).
 
@@ -289,10 +341,123 @@ Bundle the real collector and inject it:
 ```bash
 # bench-entry.ts:  import { collectMedia } from '@/extension/content/collect';
 #                  (window as any).__bench = () => tally(collectMedia());  // by kind/upgraded/hints
-esbuild bench-entry.ts --bundle --format=iife --alias:@=./src --outfile=bench.js
+# Run from the repo root so the `@mbd/*` workspace packages resolve via node_modules.
+esbuild bench-entry.ts --bundle --format=iife --alias:@=./apps/extension/src --outfile=bench.js
 # Inject bench.js into a live page (first viewport, logged-out), scroll to trigger
 # lazy-load, then read JSON.stringify(window.__bench()).
 # Virtualized grids (X /media) mount ~20–24 tiles at once — wait before injecting.
 ```
 
 Pipeline under test: [Collection Pipeline](./guides/collection-pipeline.md).
+
+## G. Facebook original-image accuracy (passive sniff) — 2026-07-10
+
+Facebook serves `/api/graphql` over **XHR** as **`content-type: text/html`**
+multi-chunk **NDJSON**. The shared response-sniffer previously dropped 100% of
+it at two gates (json-only content-type + single `JSON.parse`), so the FB
+resolver upgraded only the ~dozen photos in on-page hydration — original-image
+accuracy ~5%. This branch makes the content-type predicate + NDJSON parsing
+configurable (FB opts in; Instagram/X unchanged), adds the reel `progressive_url`
+key + `/photo(s)/<id>` fbid path + `/photos/` anchor selector, and de-duplicates
+async upgrades via a `mediaKey` identity. Photo media lives under `viewer_image`;
+reel/video under `progressive_url` (NOT `playable_url` — measured live).
+
+**Metric:** of the photo items surfaced after a bounded passive scroll, the
+fraction whose captured original has `min(w,h) >= 1024` (`ORIGINAL_MIN_PX`), the
+same way Instagram's ~80% is measured. FB's photo grid is heavily virtualized
+(~10–18 tiles mounted at once of 217), so a live snapshot samples few tiles.
+
+Measured live 2026-07-10 across a local link list (7 real photo pages, 3 reel
+permalinks, 1 reel-tab; replica†). "surfaced" = grid tiles the extension
+collects at scan time; "≥1024" counts a tile whose captured original clears
+`ORIGINAL_MIN_PX` (reels: whose downloadable `progressive_url` mp4 was captured).
+`pctAll` counts all surfaced tiles; `pctCaptured` counts only the subset the
+sniffer streamed anything for (the gap is post-load-injection lag that the real
+`document_start` sniffer closes). Per-page raw figures are kept in a gitignored
+`test-samples/` file — no account identifiers are recorded in this public doc.
+
+**Photos** — 6 real grids (a further page never loaded a grid under automation
+and is excluded as an outlier):
+
+| Grid | pctAll (≥1024) | pctCaptured |
+|---|---|---|
+| large grid (137 tiles) | **77%** | 94% |
+| five small grids (9–10 tiles) | **80 / 89 / 89 / 90 / 90 %** | 89–100% |
+
+**Reels** — all 3 reel permalinks plus a reel-tab (80 tiles): every reel was
+captured as a downloadable mp4 under **`progressive_url`**, the **only** video
+key seen (`playable_url` absent everywhere). Reel-tab: 70/80 (**88%**) captured,
+100% of the captured subset.
+
+**Verdict:** across the 6 real photo grids the passive fix surfaces a ≥1024
+original for **77–90%** of collected photos (**89–100%** of tiles it actually
+captured), and every reel resolves to a downloadable `progressive_url` mp4 —
+clearing the ≥80% target. Sub-80% is the post-load-injection lower bound
+(77% → 94% of captured). Pre-fix this same path captured **0**.
+
+†**replica** = the shipped sniffer's logic (on-page hydration parse + XHR NDJSON
+sniff of `viewer_image`/`progressive_url`, keyed by fbid) injected into a live
+page after load, then scrolled. It reproduces the extension's dual capture path,
+but a post-load wrap can miss the *initial* graphql burst (the real extension
+wraps XHR at `document_start`), so replica numbers are a **lower bound**.
+
+**Gate status — PARTIAL / definitive run pending.** For the authoritative
+per-surface >=80% figure across Photos/Reels/Page, load the built extension
+(`apps/extension/.output/chrome-mv3`, unpacked) in Chrome, open a real surface, run a full
+Deep scan (its `document_start` sniffer + scroll accumulation), and read the
+panel's per-item resolution. The e2e (`facebook-sniffer.spec.ts`) already proves
+the mechanism deterministically on data faithful to the real `text/html` NDJSON.
+
+## H. Instagram original-image accuracy — 2026-07-10
+
+Measured live across 6 profile timelines (83 post-grid tiles): **~99%** of
+surfaced tiles carry an original at `max(w,h) >= 1024` (83/84; the single miss a
+640px tile). Instagram is **not** grid-locked like Facebook — it serves the
+profile-grid images at full/near-original resolution directly in the DOM
+(measured 640–4096px, overwhelmingly >=1024). The extension collects that DOM
+`<img>` src as-is (the IG CDN is signed → read, never rewritten), so the surfaced
+image is already the original; no graphql upgrade is needed on the grid. The IG
+resolver's `image_versions2.candidates` / `video_versions` path (§B row 54) adds
+value only on individual post/feed pages where a larger candidate exists than the
+DOM thumbnail. No code change was warranted. Per-page detail (with handles) is
+kept in a gitignored `test-samples/` file — no account identifiers here.
+
+## I. Threads video — 2026-07-10
+
+Threads runs on Instagram infra but delivers video differently from IG reels: a
+mounted `<video>` carries a REAL https progressive `.mp4` directly in
+`currentSrc` (cdninstagram, measured ~720×1280, no `blob:`, no manifest), which
+the generic `collectAv` path already collects as a downloadable item — **no
+sniffer needed**. Verified live: the mp4 is in **neither** the page hydration
+`<script type="application/json">` **nor** the feed GraphQL responses (8
+responses, 0 `video_versions`/mp4 tokens), so an IG-style GraphQL sniffer would
+capture nothing. The feed/grid is virtualized — only the active tile mounts a
+`<video>`; an unmounted grid/off-screen video tile exposes only its cover image,
+and its mp4 is not passively reachable (the passive ceiling; forcing it would
+require active auto-scroll/mount, out of scope). No production code change was
+warranted; the behavior is locked in by
+`apps/extension/tests/unit/extension/content/collect-threads-video.test.ts` and the e2e
+`threads-video` spec. URL samples omitted (the safety filter strips CDN tokens).
+
+## J. Popup grid render performance
+
+**P1 (2026-07-12):** the popup's own results grid (`ImageList.tsx`) now sets
+`content-visibility: auto` + a per-axis `auto <length>` `contain-intrinsic-size`
+on every tile `<figure>` (falling back to a `thumbnailSize`-square box before
+first paint, then self-correcting to the tile's real measured height —
+thumbnail plus figcaption — once it has actually rendered), so the browser
+skips layout/paint for offscreen tiles instead of rendering the whole grid up
+front. Manual check at ~1000 items: the grid stays responsive to scroll with
+only the near-viewport tiles doing paint work; on-screen tile appearance is
+unchanged.
+
+## K. Deep-scan collection performance
+
+**P3 (2026-07-12):** deep-scan rounds after the seed rescan only
+`MutationObserver`-reported subtrees (full walk on the seed and on the
+busy-page hard cap); no change to media collected.
+
+**P4 (2026-07-12):** deep scan now seeds its settle-time and scroll-depth from
+a per-host memory of the previous run (local-only, on by default), so a repeat
+visit to the same site converges without re-learning from scratch; first-visit
+behavior on a new host is unchanged.
