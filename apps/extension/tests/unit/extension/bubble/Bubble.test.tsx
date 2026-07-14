@@ -33,7 +33,7 @@ const settings: SettingsData = {
   bubblePanelPlacement: 'anchored',
   bubblePanelPoint: { x: 40, y: 40 },
   resolveOriginals: false,
-  captureHlsStreams: false, streamQuality: 'auto', metadataSidecar: false, nearDuplicateThreshold: 8,
+  captureHlsStreams: false, streamQuality: 'auto', audioFormat: 'm4a', metadataSidecar: false, nearDuplicateThreshold: 8,
   downloadConcurrency: 5,
   excludeEmoji: false,
   deepScanMaxItems: 1000,

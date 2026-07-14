@@ -3,6 +3,7 @@ import { DownloadsPaneProps, SettingsData } from '@mbd/core/types';
 import { TextField } from '@/extension/popup/components/fields/TextField';
 import { NumberField } from '@/extension/popup/components/fields/NumberField';
 import { SelectField } from '@/extension/popup/components/fields/SelectField';
+import { AUDIO_FORMATS, AUDIO_FORMAT_LABELS } from '@mbd/core/download/stream/mp3';
 import { ToggleRow } from '@/extension/popup/components/fields/ToggleRow';
 import { AdvancedDisclosure } from '@/extension/popup/components/panels/settings/AdvancedDisclosure';
 
@@ -135,6 +136,24 @@ const DownloadsPane: React.FC<DownloadsPaneProps> = ({
         <p className="mbd:text-[11px] mbd:leading-relaxed mbd:text-(--ink-3)">
           Which rendition to capture from a multi-quality HLS/DASH stream. A fixed
           resolution picks the closest the stream offers; single-quality streams ignore this.
+        </p>
+        <SelectField
+          id="set-audioFormat"
+          name="audioFormat"
+          label="Audio download format:"
+          value={settings.audioFormat}
+          onChange={(e) =>
+            setSettings((prev) => ({ ...prev, audioFormat: e.target.value as SettingsData['audioFormat'] }))
+          }
+        >
+          {AUDIO_FORMATS.map((f) => (
+            <option key={f} value={f}>{AUDIO_FORMAT_LABELS[f]}</option>
+          ))}
+        </SelectField>
+        <p className="mbd:text-[11px] mbd:leading-relaxed mbd:text-(--ink-3)">
+          Default for the per-item “Audio only” action. M4A keeps the original audio
+          (no re-encode, best quality); MP3 re-encodes for wider compatibility. Override
+          per item in the preview panel.
         </p>
       </>
     )}

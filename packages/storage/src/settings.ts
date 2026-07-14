@@ -1,4 +1,5 @@
 import { SettingsData } from '@mbd/core/types';
+import { AUDIO_FORMATS } from '@mbd/core/download/stream/mp3';
 
 /** Default user settings, shared by the popup, background worker, and bubble. */
 export const DEFAULT_SETTINGS: SettingsData = {
@@ -26,6 +27,7 @@ export const DEFAULT_SETTINGS: SettingsData = {
   resolveOriginals: false,
   captureHlsStreams: false,
   streamQuality: 'auto',
+  audioFormat: 'm4a',
   downloadConcurrency: 5,
   deepScanMaxItems: 1000,
   deepScanMaxSeconds: 20,
@@ -74,6 +76,12 @@ export function withDefaults(stored: unknown): SettingsData {
     // Near-duplicate Hamming threshold (#198). A corrupt/out-of-range value would
     // either merge everything (too high) or nothing (≤0); clamp to a sane band.
     nearDuplicateThreshold: clampInt(s.nearDuplicateThreshold, 2, 16, DEFAULT_SETTINGS.nearDuplicateThreshold),
+    // Audio-only output format (#321). A corrupt/legacy value (e.g. an unknown
+    // 'mp3-256') would otherwise drive the offscreen encoder branch on garbage;
+    // fall back to the M4A passthrough unless it is a known format.
+    audioFormat: AUDIO_FORMATS.includes(s.audioFormat as SettingsData['audioFormat'])
+      ? (s.audioFormat as SettingsData['audioFormat'])
+      : DEFAULT_SETTINGS.audioFormat,
   };
 }
 

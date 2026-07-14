@@ -1,4 +1,4 @@
-import { CaptureRunResult, ImageInfo } from '@mbd/core/types';
+import { AudioFormat, CaptureRunResult, ImageInfo } from '@mbd/core/types';
 import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { recordDownloads } from '@mbd/storage/history';
 import { STREAM_MAX_BYTES } from '@mbd/core/download/stream/capture-constants';
@@ -56,6 +56,7 @@ export async function captureStreamToFile(
   sourcePage: { url: string; title?: string } | undefined,
   runId: string,
   audioOnly = false,
+  audioFormatOverride?: AudioFormat,
 ): Promise<
   | { ok: true; filename: string; saved: boolean; segmentCount: number; muxedAudio: boolean }
   | { ok: false; code: string }
@@ -65,6 +66,10 @@ export async function captureStreamToFile(
   // than sending a CAPTURE_RUN to a document that can never exist.
   if (import.meta.env.FIREFOX) return { ok: false, code: 'unsupported_browser' };
   await ensureOffscreen();
+  // Resolve the audio output format ONCE here (#321): the per-item override wins,
+  // else the global default. Only meaningful for audio-only captures — a video
+  // capture leaves it 'm4a' (a no-op passthrough in the offscreen host).
+  const audioFormat = audioOnly ? (audioFormatOverride ?? currentSettings.audioFormat) : 'm4a';
   const result = (await chrome.runtime.sendMessage({
     type: 'CAPTURE_RUN',
     runId,
@@ -75,6 +80,7 @@ export async function captureStreamToFile(
     quality: streamQualityToEngine(currentSettings.streamQuality),
     maxBytes: STREAM_MAX_BYTES,
     audioOnly,
+    audioFormat,
   })) as CaptureRunResult | undefined;
   if (!result || !result.ok) return { ok: false, code: result?.ok === false ? result.code : 'unknown' };
   const filename = buildDownloadFilename({ ...item, ext: result.ext }, 0, currentSettings, sourcePage?.url);

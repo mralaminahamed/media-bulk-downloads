@@ -338,7 +338,15 @@ export interface CaptureStreamMessage {
   sourcePage: { url: string; title?: string };
   /** Extract only the audio track as `.m4a` (#204). Per-item action, not a setting. */
   audioOnly?: boolean;
+  /** Per-item audio-format OVERRIDE (#321). Absent → background uses the global
+   *  `SettingsData.audioFormat`. Only meaningful alongside `audioOnly`. */
+  audioFormat?: AudioFormat;
 }
+
+/** Output format for an audio-only capture (#321). `m4a` is the original AAC
+ *  passthrough (no re-encode); the `mp3-*` variants decode → CBR MP3 at that
+ *  bitrate in the offscreen document. */
+export type AudioFormat = 'm4a' | 'mp3-128' | 'mp3-192' | 'mp3-320';
 
 /** Background → offscreen: run the engine with this capture policy. */
 export interface CaptureRunMessage {
@@ -353,6 +361,10 @@ export interface CaptureRunMessage {
   maxBytes: number;
   /** Extract only the audio track as `.m4a`, no re-encode (#204). */
   audioOnly?: boolean;
+  /** Resolved (never a UI sentinel) output format for an audio-only capture
+   *  (#321). Absent → `m4a`. An `mp3-*` value makes the offscreen host decode the
+   *  extracted M4A and re-encode to that CBR MP3 bitrate. */
+  audioFormat?: AudioFormat;
 }
 
 /** Offscreen → all contexts (the popup listens): capture progress. */
@@ -573,6 +585,10 @@ export interface SettingsData {
    *  numeric tier ('1080'|'720'|'480') selects that height. Global, applied to
    *  every capture; mapped to the engine selector by streamQualityToEngine. */
   streamQuality: 'auto' | 'best' | 'worst' | '1080' | '720' | '480';
+  /** Default output format for an audio-only capture (#321). `m4a` keeps the
+   *  original AAC (no re-encode, best quality); `mp3-*` re-encodes to that CBR
+   *  bitrate. The per-item override (detail panel) beats this per capture. */
+  audioFormat: AudioFormat;
   /** Max simultaneous file downloads the queue dispatches (1–10). */
   downloadConcurrency: number;
   /** Deep-scan caps — the scan stops at whichever is reached first. */
@@ -681,8 +697,12 @@ export interface ImageListProps {
   onExclude?: (image: ImageInfo, kind: ExcludedKind) => void;
   /** Resolve one pending video's real file on demand (per-item "Get video"). */
   onFetchVideo?: (image: ImageInfo) => void;
-  /** Capture a stream item as audio-only `.m4a` (per-item "Audio only", #204). */
-  onCaptureAudio?: (image: ImageInfo) => void;
+  /** Capture a stream item as audio-only (per-item "Audio only", #204). Saved as
+   *  `.m4a`, or re-encoded to MP3 when a `formatOverride` is passed (#321). */
+  onCaptureAudio?: (image: ImageInfo, formatOverride?: AudioFormat) => void;
+  /** The global default audio-output format (#321), shown on the audio button and
+   *  preselected in the per-item override menu. Absent → treated as `m4a`. */
+  audioFormat?: AudioFormat;
   /** Srcs whose on-demand resolve returned nothing (tombstone / failure). */
   resolveFailedSrcs?: Set<string>;
   /** Srcs currently being resolved (shows a spinner, disables the button). */

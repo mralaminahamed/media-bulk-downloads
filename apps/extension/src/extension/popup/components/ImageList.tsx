@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ImageInfo, ImageListProps } from '@mbd/core/types';
+import { AudioFormat, ImageInfo, ImageListProps } from '@mbd/core/types';
+import { AUDIO_FORMAT_LABELS, AUDIO_FORMATS } from '@mbd/core/download/stream/mp3';
 import { useDialog } from '@/extension/popup/hooks/useDialog';
 import {
   EyeIcon,
@@ -84,13 +85,22 @@ const isIgUrl = (u: string | undefined): boolean => {
 const isPendingReel = (img: ImageInfo): boolean =>
   isPendingVideo(img) && !img.resolveHint && (isIgUrl(img.src) || isIgUrl(img.poster));
 
-const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, onCaptureAudio, thumbnailSize = 120, previewSize = 360, downloadedSrcs, favouriteSrcs, onToggleFavourite, onExclude, onFetchVideo, resolveFailedSrcs, fetchingSrcs, selectedSrcs, selectionActive, onToggleSelect, onSelectRange }) => {
+const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, onCaptureAudio, audioFormat, thumbnailSize = 120, previewSize = 360, downloadedSrcs, favouriteSrcs, onToggleFavourite, onExclude, onFetchVideo, resolveFailedSrcs, fetchingSrcs, selectedSrcs, selectionActive, onToggleSelect, onSelectRange }) => {
+  // The global default audio format (#321); the grid button captures with it, the
+  // detail panel preselects it in the override menu.
+  const defaultAudioFormat: AudioFormat = audioFormat ?? 'm4a';
   // Track the previewed item by identity (src), not position: `images` re-sorts
   // and re-filters asynchronously (streaming sizes, resolved originals), so a
   // bare index would swap the modal to a different item — or unmount it — mid-view.
   const [selectedSrc, setSelectedSrc] = useState<string | null>(null);
   const selectedIndex = selectedSrc !== null ? images.findIndex((i) => i.src === selectedSrc) : -1;
   const selectedImage = selectedIndex >= 0 ? images[selectedIndex] : null;
+
+  // Per-item audio-format override for the preview panel (#321). 'default' → the
+  // global setting. The choice is tagged with the item's src, so it auto-resets to
+  // 'default' the moment a different item is previewed — no effect, no leak.
+  const [audioChoice, setAudioChoice] = useState<{ src: string | null; format: AudioFormat | 'default' }>({ src: null, format: 'default' });
+  const audioOverride: AudioFormat | 'default' = audioChoice.src === selectedSrc ? audioChoice.format : 'default';
 
   // The preview modal's exclude menu (open/closed). The modal shows one image, so
   // a single boolean + one wrapper ref back the outside-click / Escape close.
@@ -376,8 +386,8 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, onCaptur
                     {isHlsStream(image) && onCaptureAudio && (
                       <button
                         onClick={() => onCaptureAudio(image)}
-                        title="Audio only (.m4a)"
-                        aria-label="Capture audio only"
+                        title={`Audio only — ${AUDIO_FORMAT_LABELS[defaultAudioFormat]}`}
+                        aria-label={`Capture audio only (${AUDIO_FORMAT_LABELS[defaultAudioFormat]})`}
                         className="mbd:grid mbd:h-8 mbd:w-8 mbd:place-items-center mbd:rounded-full mbd:bg-(--panel) mbd:text-(--ink) mbd:ring-1 mbd:ring-(--ctl-ring) mbd:transition-transform mbd:hover:scale-105 mbd:active:scale-95"
                       >
                         <AudioIcon className="mbd:h-4 mbd:w-4" />
@@ -665,10 +675,29 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, onCaptur
                     <span>{isHlsStream(selectedImage) ? 'Capture stream' : 'Download'}</span>
                   </button>
                   {isHlsStream(selectedImage) && onCaptureAudio && (
-                    <button onClick={() => onCaptureAudio(selectedImage)} title="Audio only (.m4a)" aria-label="Capture audio only" className="btn btn-ghost">
-                      <AudioIcon className="mbd:h-4 mbd:w-4" />
-                      <span>Audio</span>
-                    </button>
+                    <>
+                      <button
+                        onClick={() => onCaptureAudio(selectedImage, audioOverride === 'default' ? undefined : audioOverride)}
+                        title={`Audio only — ${AUDIO_FORMAT_LABELS[audioOverride === 'default' ? defaultAudioFormat : audioOverride]}`}
+                        aria-label="Capture audio only"
+                        className="btn btn-ghost"
+                      >
+                        <AudioIcon className="mbd:h-4 mbd:w-4" />
+                        <span>Audio</span>
+                      </button>
+                      <select
+                        value={audioOverride}
+                        onChange={(e) => setAudioChoice({ src: selectedSrc, format: e.target.value as AudioFormat | 'default' })}
+                        aria-label="Audio format for this capture"
+                        title="Audio format for this capture"
+                        className="mbd:rounded-md mbd:bg-(--panel) mbd:px-2 mbd:text-[12px] mbd:text-(--ink) mbd:ring-1 mbd:ring-(--ctl-ring)"
+                      >
+                        <option value="default">Default ({AUDIO_FORMAT_LABELS[defaultAudioFormat]})</option>
+                        {AUDIO_FORMATS.map((f) => (
+                          <option key={f} value={f}>{AUDIO_FORMAT_LABELS[f]}</option>
+                        ))}
+                      </select>
+                    </>
                   )}
                 </div>
               )}

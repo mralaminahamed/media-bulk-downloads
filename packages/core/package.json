@@ -14,6 +14,7 @@
     "./download/*": "./src/download/*.ts"
   },
   "dependencies": {
+    "@breezystack/lamejs": "1.2.7",
     "fflate": "^0.8.3",
     "mp4box": "^2.4.1"
   },
