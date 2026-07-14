@@ -133,8 +133,9 @@ export const messageRouter: MessageRouter = {
             kind: image.kind,
             type: image.type,
             thumbnailSrc: image.thumbnailSrc ?? image.poster ?? image.src,
-            sourcePageUrl: sourcePage?.url ?? '',
-            sourcePageTitle: sourcePage?.title,
+            // Per-item source for multi-tab batches (#283); batch default otherwise.
+            sourcePageUrl: image.sourcePage?.url ?? sourcePage?.url ?? '',
+            sourcePageTitle: image.sourcePage?.title ?? sourcePage?.title,
           };
           const entry: EnqueueEntry = { url: image.src, filename, history };
           if (currentSettings.metadataSidecar) entry.sidecar = serializeSidecar(buildMediaSidecar(image, sourcePage, capturedAt));

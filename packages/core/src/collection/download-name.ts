@@ -101,7 +101,9 @@ export function buildDownloadFilename(
     fileName = prefixed;
   }
 
-  const host = hostFromUrl(sourcePageUrl);
+  // Multi-tab items (#283) carry their own source tab; prefer it so each lands in
+  // its own {host}/{domain} folder. Falls back to the batch-level active-tab URL.
+  const host = hostFromUrl(image.sourcePage?.url ?? sourcePageUrl);
   const dir = expandPathTemplate(settings.downloadPath, {
     host,
     domain: registrableDomain(host),

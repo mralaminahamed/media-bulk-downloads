@@ -61,10 +61,19 @@ export interface ImageInfo {
   /** The `mediaKey` of the kept (largest) item in this near-duplicate cluster, on
    *  every member including the keeper — lets the UI group/review a set. Transient. */
   duplicateGroupId?: string;
+  /** The tab this item was collected from, set only by multi-tab collection (#283).
+   *  Drives per-item `{host}`/`{domain}` download tokens and the grid's source
+   *  tooltip. Absent for single active-tab collection (that path is unchanged). */
+  sourcePage?: { url: string; title?: string };
 }
 
 /** Preferred name for a collected media item (image, video, or audio). */
 export type MediaItem = ImageInfo;
+
+/** Which tabs a collection run reads (#283). 'active' = the current tab only
+ *  (default, popup + bubble); 'all-tabs' = every eligible tab in the current
+ *  window; 'selected' = a user-picked subset (popup only). */
+export type CollectScope = 'active' | 'all-tabs' | 'selected';
 
 export interface DownloadMessage {
   type: 'DOWNLOAD_IMAGES';

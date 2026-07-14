@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ImageList from '@/extension/popup/components/ImageList';
 import Settings from '@/extension/popup/components/panels/Settings';
 import HistoryPanel from '@/extension/popup/components/panels/HistoryPanel';
@@ -15,8 +15,10 @@ import { BrandMark } from '@/extension/components/BrandMark';
 import { SkeletonGrid } from '@/extension/popup/components/states/SkeletonGrid';
 import { EmptyState } from '@/extension/popup/components/states/EmptyState';
 import { ErrorState } from '@/extension/popup/components/states/ErrorState';
-import { AppProps, ExcludedKind, ImageInfo } from '@mbd/core/types';
+import { AppProps, CollectScope, ExcludedKind, ImageInfo } from '@mbd/core/types';
 import { collectFromActiveTab } from '@/extension/shared/active-tab/collect-active-tab';
+import { collectOpenTabs } from '@/extension/shared/active-tab/collect-open-tabs';
+import TabPickerPanel from '@/extension/popup/components/panels/TabPickerPanel';
 import { deriveFilterOptions } from '@mbd/core/collection/filters';
 import { deepScanActiveTab, abortDeepScanActiveTab } from '@/extension/shared/active-tab/deep-scan-active-tab';
 import { hostFromUrl, registrableDomain } from '@mbd/core/collection/paths';
@@ -46,6 +48,21 @@ const App: React.FC<AppProps> = ({
   const { downloadedSrcs, isDownloaded } = useDownloadHistory();
   const [showFavourites, setShowFavourites] = useState(false);
   const [showExcluded, setShowExcluded] = useState(false);
+  // Multi-tab collection scope (#283). Popup-only — the bubble has no chrome.tabs.
+  // Refs mirror the state so the `collect` closure below stays identity-stable
+  // (no useMediaEngine effect thrash) while always reading the latest scope.
+  const [scope, setScope] = useState<CollectScope>('active');
+  const [selectedTabIds, setSelectedTabIds] = useState<number[]>([]);
+  const [showTabPicker, setShowTabPicker] = useState(false);
+  // Result banner for the last multi-tab scan (null for active-tab scope).
+  const [multiTabInfo, setMultiTabInfo] = useState<{ scanned: number; skipped: number } | null>(null);
+  // Per-tab progress during a multi-tab scan ("scanning 3/12 tabs"); null when idle.
+  const [tabScanProgress, setTabScanProgress] = useState<{ done: number; total: number } | null>(null);
+  // Written imperatively by changeScope (the only place scope/selection changes)
+  // right before it rescans, so the collect closure reads the latest without a
+  // render-time ref access.
+  const scopeRef = useRef<CollectScope>(scope);
+  const selectedTabIdsRef = useRef<number[]>(selectedTabIds);
   // A refused stream capture (#285) → the "Copy download command" handoff banner.
   // Set by useDownloadActions on refusal, cleared on a new attempt or a rescan.
   const [streamRefusal, setStreamRefusal] = useState<StreamRefusal | null>(null);
@@ -71,6 +88,29 @@ const App: React.FC<AppProps> = ({
   // relative to the favourites/excluded local listeners (tests depend on it).
   const { settings, handleSettingsChange } = useSettings();
   const perHost = usePerHostSettings(currentSourcePage, settings);
+
+  // Scope-aware collector fed to the engine. 'active' delegates to the injected
+  // active-tab `collect` (unchanged); 'all-tabs'/'selected' fan out over the
+  // window's tabs, reporting per-tab progress and a scanned/skipped tally. Stable
+  // identity (deps = [collect]) — it reads scope/selection via refs.
+  const scopedCollect = useCallback(async (): Promise<ImageInfo[]> => {
+    if (scopeRef.current === 'active') {
+      setMultiTabInfo(null);
+      return collect();
+    }
+    const tabIds = scopeRef.current === 'selected' ? selectedTabIdsRef.current : undefined;
+    setTabScanProgress({ done: 0, total: 0 });
+    try {
+      const { items, scanned, skipped } = await collectOpenTabs({
+        tabIds,
+        onProgress: (done, total) => setTabScanProgress({ done, total }),
+      });
+      setMultiTabInfo({ scanned, skipped });
+      return items;
+    } finally {
+      setTabScanProgress(null);
+    }
+  }, [collect]);
 
   const { excludedMatch, excludedRef, applyExcludedOptimistic } = useExcluded();
 
@@ -111,10 +151,26 @@ const App: React.FC<AppProps> = ({
     excludedMatch,
     isDownloaded,
     downloadedSrcs,
-    collect,
+    collect: scopedCollect,
     deepScan,
     abortDeepScan,
   });
+
+  // Switch collection scope and immediately rescan. Sets the ref synchronously so
+  // the scopedCollect fired by fetchImages reads the NEW scope, not next render's.
+  const changeScope = useCallback(
+    (next: CollectScope, tabIds?: number[]): void => {
+      scopeRef.current = next;
+      setScope(next);
+      if (tabIds) {
+        selectedTabIdsRef.current = tabIds;
+        setSelectedTabIds(tabIds);
+      }
+      setStreamRefusal(null);
+      void fetchImages();
+    },
+    [fetchImages],
+  );
 
   // On-demand perceptual-hash near-duplicate pass (#198). Hashes the eligible
   // images in a worker, marks near-duplicates, and hides them behind the default
@@ -246,10 +302,37 @@ const App: React.FC<AppProps> = ({
               {state.isLoading ? '—' : total}
             </span>
             <span className="mbd:text-[12px] mbd:text-(--ink-2)">
-              {state.isLoading ? 'scanning this page' : total === 1 ? 'item on this page' : 'items on this page'}
+              {state.isLoading
+                ? tabScanProgress && tabScanProgress.total > 0
+                  ? `scanning ${tabScanProgress.done}/${tabScanProgress.total} tabs`
+                  : scope !== 'active'
+                    ? 'scanning tabs'
+                    : 'scanning this page'
+                : total === 1
+                  ? 'item on this page'
+                  : 'items on this page'}
             </span>
           </div>
           <div className="mbd:flex mbd:items-center mbd:gap-1.5">
+            {surface === 'popup' && (
+              <select
+                aria-label="Collection scope"
+                title="Which tabs to collect from"
+                value={scope}
+                onChange={(e) => {
+                  const next = e.target.value as CollectScope;
+                  if (next === 'selected') { setShowTabPicker(true); return; } // pick tabs, then rescan
+                  changeScope(next);
+                }}
+                className="field mbd:shrink-0 mbd:py-0 mbd:text-[12px]"
+                style={{ height: 30 }}
+                disabled={state.isLoading}
+              >
+                <option value="active">This tab</option>
+                <option value="all-tabs">All tabs</option>
+                <option value="selected">{selectedTabIds.length > 0 ? `Selected (${selectedTabIds.length})` : 'Selected tabs…'}</option>
+              </select>
+            )}
             {deepScanning && (
               <span className="num mbd:inline-flex mbd:items-center mbd:rounded-full mbd:bg-(--brand-soft) mbd:px-2 mbd:py-0.5 mbd:text-[10px] mbd:font-semibold mbd:text-(--brand-ink)">
                 {deepProgress?.found ?? 0} found
@@ -381,6 +464,12 @@ const App: React.FC<AppProps> = ({
                   {hiddenNearDuplicates > 0 && (
                     <span className="mbd:text-(--ink-3)"> · {hiddenNearDuplicates} near-duplicate{hiddenNearDuplicates === 1 ? '' : 's'} hidden</span>
                   )}
+                  {multiTabInfo && (
+                    <span className="mbd:text-(--ink-3)">
+                      {' · '}{multiTabInfo.scanned} tab{multiTabInfo.scanned === 1 ? '' : 's'}
+                      {multiTabInfo.skipped > 0 ? ` · ${multiTabInfo.skipped} skipped` : ''}
+                    </span>
+                  )}
                 </>
               )}
             </p>
@@ -440,6 +529,17 @@ const App: React.FC<AppProps> = ({
       {showFavourites && <FavouritesPanel onClose={() => setShowFavourites(false)} />}
 
       {showExcluded && <ExcludedPanel onClose={() => setShowExcluded(false)} />}
+
+      {showTabPicker && (
+        <TabPickerPanel
+          onClose={() => setShowTabPicker(false)}
+          initialSelected={selectedTabIds}
+          onConfirm={(ids) => {
+            setShowTabPicker(false);
+            changeScope('selected', ids);
+          }}
+        />
+      )}
     </div>
   );
 };

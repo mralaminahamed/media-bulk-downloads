@@ -38,6 +38,19 @@ export const formatFileSize = (bytes: number): string => {
 
 const typeLabel = (img: ImageInfo): string => (img.isBase64 ? 'B64' : img.type.toUpperCase());
 
+/** Hover tooltip naming the source tab for a multi-tab-collected item (#283);
+ *  undefined for active-tab items (no tooltip). */
+const sourceTooltip = (img: ImageInfo): string | undefined => {
+  if (!img.sourcePage) return undefined;
+  let host = img.sourcePage.url;
+  try {
+    host = new URL(img.sourcePage.url).host;
+  } catch {
+    /* keep the raw string */
+  }
+  return img.sourcePage.title ? `From ${host} — ${img.sourcePage.title}` : `From ${host}`;
+};
+
 /** A Twitter video whose real file hasn't been fetched yet: shown, not downloadable. */
 const isPendingVideo = (img: ImageInfo): boolean => img.kind === 'video' && !!img.unresolvedVideo;
 
@@ -208,6 +221,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, onCaptur
           return (
           <figure
             key={image.src}
+            title={sourceTooltip(image)}
             className={`card reveal mbd:group mbd:m-0 ${isSelected ? 'mbd:ring-2 mbd:ring-(--brand-ink)' : ''}`}
             style={{
               animationDelay: `${Math.min(index, 12) * 0.022}s`,
