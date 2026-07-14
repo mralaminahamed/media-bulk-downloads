@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BubbleCorner, BubblePanelPlacement, DeepScanProgress, ImageInfo, SettingsData, SettingsChangedMessage } from '@mbd/core/types';
 import { withDefaults } from '@mbd/storage/settings';
+import { overrideForHost, applyHostOverride } from '@mbd/storage/per-host-settings';
+import { registrableDomain } from '@mbd/core/collection/paths';
 import { collectMedia } from '@/extension/content/collect';
 import { startDeepScan } from '@/extension/content/deepScanRunner';
 import App from '@/extension/popup/App';
@@ -113,8 +115,6 @@ function panelPlacementStyle(
   return { ...anchorStyle(placement, PANEL_MARGIN, PANEL_MARGIN), width, height };
 }
 
-const collectLocal = (): Promise<ImageInfo[]> => Promise.resolve(collectMedia());
-
 const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
   const [open, setOpen] = useState(false);
   const [corner, setCorner] = useState<BubbleCorner>(initialSettings.bubblePosition.corner);
@@ -128,10 +128,33 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
   const origin = useRef({ x: 0, y: 0 });
   const moved = useRef(0);
 
-  // Latest settings, refreshed by the sync listener below, so a deep scan started
-  // after the user edits the caps honours the new values rather than the frozen
-  // mount-time snapshot.
+  // Latest GLOBAL settings, refreshed by the sync listener below, so a deep scan
+  // started after the user edits the caps honours the new values rather than the
+  // frozen mount-time snapshot. (Global only — Safari content scripts can't read
+  // chrome.storage.sync, so the background broadcasts them via SETTINGS_CHANGED.)
   const settingsRef = useRef(initialSettings);
+  // Global + this host's per-host override (#293), kept current so the bubble's
+  // collect + deep scan honour a per-host override exactly like the popup path.
+  // The per-host layer lives in chrome.storage.local (readable in a content script
+  // on every browser); the global layer comes from settingsRef (the broadcast).
+  const effectiveRef = useRef(initialSettings);
+  const refreshEffective = useCallback(async (): Promise<void> => {
+    try {
+      const override = await overrideForHost(registrableDomain(location.hostname));
+      effectiveRef.current = applyHostOverride(settingsRef.current, override);
+    } catch {
+      effectiveRef.current = settingsRef.current;
+    }
+  }, []);
+  useEffect(() => { void refreshEffective(); }, [refreshEffective]);
+
+  // Collect using the effective settings so `smartPageDefaults` (hero-first order)
+  // and `resolveOriginals` (gallery-page pending items) apply in the bubble too —
+  // the popup path passes these; without them both settings were dead no-ops here.
+  const collectLocal = useCallback((): Promise<ImageInfo[]> => {
+    const s = effectiveRef.current;
+    return Promise.resolve(collectMedia(undefined, { smartPageDefaults: s.smartPageDefaults, resolveOriginals: s.resolveOriginals }));
+  }, []);
 
   // Deep scan runs in-page here (no messaging); track the in-flight controller so
   // the Stop button can abort it.
@@ -139,7 +162,7 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
   const deepScanLocal = useCallback((onProgress: (p: DeepScanProgress) => void): Promise<ImageInfo[]> => {
     const ac = new AbortController();
     deepScanAbortRef.current = ac;
-    const s = settingsRef.current;
+    const s = effectiveRef.current;
     return startDeepScan(
       (found, scrolls, elapsedMs, reason) => {
         const p: DeepScanProgress = { type: 'DEEP_SCAN_PROGRESS', found, scrolls, elapsedMs };
@@ -180,6 +203,7 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
       }
       const next = withDefaults((message as SettingsChangedMessage).settings);
       settingsRef.current = next; // keep deep-scan caps + Load-more toggle live
+      void refreshEffective(); // re-layer this host's per-host override over the new global
       setCorner(next.bubblePosition.corner);
       setPos({ x: next.bubblePosition.x, y: next.bubblePosition.y });
       setSize({ w: next.bubbleWidth, h: next.bubbleHeight });
@@ -188,7 +212,7 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
     };
     chrome.runtime.onMessage.addListener(listener);
     return () => chrome.runtime.onMessage.removeListener(listener);
-  }, []);
+  }, [refreshEffective]);
 
   // Toolbar-icon clicks (when the popup is disabled) toggle the panel.
   useEffect(() => {
@@ -241,8 +265,16 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
 
   const persist = useCallback((patch: Partial<SettingsData>) => {
     // Route through the background's single serialized settings writer so a drag
-    // here and a Settings save in the popup can't clobber each other.
-    chrome.runtime.sendMessage({ type: 'SET_SETTINGS', patch });
+    // here and a Settings save in the popup can't clobber each other. Guard both
+    // failure shapes of an invalidated context (the extension reloaded while the
+    // bubble is open): sendMessage may reject its promise OR throw synchronously.
+    // The local state already updated, so there's nothing to recover — just don't
+    // let it escape the pointer handler as an unhandled rejection/error.
+    try {
+      void Promise.resolve(chrome.runtime.sendMessage({ type: 'SET_SETTINGS', patch })).catch(() => {});
+    } catch {
+      /* extension context invalidated mid-drag */
+    }
   }, []);
 
   const onPointerDown = (e: React.PointerEvent) => {

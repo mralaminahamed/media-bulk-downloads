@@ -69,10 +69,14 @@ export function useNearDuplicates({
   const run = useCallback(async (): Promise<void> => {
     if (running) return;
     const generation = ++genRef.current;
-    // Identity of the raw set at start. A rescan/deep-scan/enrich reassigns
-    // rawImagesRef.current to a fresh array; if that happens mid-pass, the hashes
-    // (keyed by src) may no longer describe the current set, so we discard.
-    const rawAtStart = rawImagesRef.current;
+    // The set of srcs at start. A rescan or an originals-resolve SWAPS srcs (a
+    // pending item's placeholder → its resolved file), so the hashes (keyed by
+    // src) no longer describe the current set → discard. But size-enrichment
+    // reassigns rawImagesRef.current to a fresh array with the SAME srcs (only
+    // fileSize changes); the hashes stay valid there, so compare the src SET, not
+    // the array identity — else a HEAD response landing mid-pass silently bails
+    // the whole dedup and marks nothing.
+    const startSrcs = new Set(rawImagesRef.current.map((i) => i.src));
 
     // Eligible image candidates, re-derived from the raw set exactly as the engine
     // does — so items hidden by min-size / exclusions aren't fetched needlessly.
@@ -142,9 +146,12 @@ export function useNearDuplicates({
       setProgress(null);
     }
 
-    // Superseded by a newer pass, cancelled, or the raw set was replaced by a
-    // rescan while we hashed — discard; mark nothing.
-    if (generation !== genRef.current || controller.signal.aborted || rawImagesRef.current !== rawAtStart) return;
+    // Superseded by a newer pass, cancelled, or the raw set's srcs changed (a
+    // rescan or an originals-resolve swap) while we hashed — discard; mark nothing.
+    // A same-src reassignment (size enrichment) is NOT a supersession.
+    const now = rawImagesRef.current;
+    const sameSrcSet = now.length === startSrcs.size && now.every((i) => startSrcs.has(i.src));
+    if (generation !== genRef.current || controller.signal.aborted || !sameSrcSet) return;
 
     const inputs: DedupInput[] = targets.flatMap((img) => {
       const pHash = hashes.get(img.src);

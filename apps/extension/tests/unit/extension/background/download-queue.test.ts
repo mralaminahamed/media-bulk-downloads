@@ -5,7 +5,7 @@ vi.mock('@mbd/storage/history', () => ({ recordDownloads }));
 
 import {
   initQueueDispatcher, enqueueDownloads, handleDownloadChanged, getQueueSnapshot, reconcileQueue,
-  pollProgressForTest, __setProgressTimerForTest,
+  cancelQueue, pollProgressForTest, __setProgressTimerForTest,
 } from '@/extension/background/download/download-queue';
 import { QUEUE_KEY, saveQueue, loadQueue } from '@mbd/storage/download-queue';
 
@@ -37,6 +37,7 @@ beforeEach(() => {
         downloadCb = () => cb(nextId++);
       }),
       search: vi.fn(async () => []),
+      cancel: vi.fn((_id: number, cb?: () => void) => cb?.()),
       onChanged: { addListener: vi.fn() },
     },
     permissions: { contains: vi.fn(async () => permGranted), request: vi.fn(async () => true) },
@@ -360,5 +361,112 @@ describe('progress poll', () => {
     expect(snap.items[0].status).toBe('queued');
     expect(snap.items[0].attempts).toBe(1);
     expect(snap.items[0].downloadId).toBeUndefined();
+  });
+});
+
+// A sole flaky download whose backoff exceeds the fixed nudge interval used to hang
+// in `queued` forever: the 2nd retry's backoff is 2000ms, the old nudge fired at
+// 1100ms, found nothing ready, and nothing re-armed. pump() now arms a nudge for
+// the actual readyAt after draining, so the item reaches its final attempt.
+describe('retry re-pump when the backoff exceeds the fixed nudge (stuck-queue fix)', () => {
+  it('re-dispatches a sole item after its 2nd-retry backoff', async () => {
+    vi.useFakeTimers();
+    try {
+      __setProgressTimerForTest(1 as unknown as ReturnType<typeof setInterval>);
+      await enqueueDownloads([{ url: 'u1', filename: 'f1' }]);
+      await vi.advanceTimersByTimeAsync(0); // settle enqueue → pump → download #1
+      downloadCb?.(); // attempt 1 → id 100 active
+      await vi.advanceTimersByTimeAsync(0);
+      expect(chrome.downloads.download).toHaveBeenCalledTimes(1);
+
+      // Attempt 1 interrupts → retry #1 (attempts=1, backoff 1000ms).
+      await handleDownloadChanged({ id: 100, state: { current: 'interrupted', previous: 'in_progress' } } as chrome.downloads.DownloadDelta);
+      await vi.advanceTimersByTimeAsync(0); // let pump → armRetryNudge register the nudge timer
+      await vi.advanceTimersByTimeAsync(1200); // nudge fires → attempt 2
+      expect(chrome.downloads.download).toHaveBeenCalledTimes(2);
+      downloadCb?.(); // attempt 2 → id 101 active
+      await vi.advanceTimersByTimeAsync(0);
+
+      // Attempt 2 interrupts → retry #2 (attempts=2, backoff 2000ms > the old 1100ms nudge).
+      await handleDownloadChanged({ id: 101, state: { current: 'interrupted', previous: 'in_progress' } } as chrome.downloads.DownloadDelta);
+      await vi.advanceTimersByTimeAsync(0); // register the re-armed nudge for the real readyAt
+      await vi.advanceTimersByTimeAsync(2200); // the re-armed nudge fires at readyAt
+      expect(chrome.downloads.download).toHaveBeenCalledTimes(3); // final attempt dispatched, not stuck
+
+      const snap = await getQueueSnapshot();
+      expect(snap.items[0].status).toBe('active');
+      expect(snap.items[0].attempts).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('re-dispatches a retry into a FREE slot without waiting for an unrelated active download (concurrency>1)', async () => {
+    initQueueDispatcher({ getConcurrency: () => 2, getSaveAs: () => false });
+    vi.useFakeTimers();
+    try {
+      __setProgressTimerForTest(1 as unknown as ReturnType<typeof setInterval>);
+      await enqueueDownloads([{ url: 'uA', filename: 'fA' }, { url: 'uB', filename: 'fB' }]);
+      await vi.advanceTimersByTimeAsync(0);
+      downloadCb?.(); // A → id 100 active (pump then claims B)
+      await vi.advanceTimersByTimeAsync(0);
+      downloadCb?.(); // B → id 101 active
+      await vi.advanceTimersByTimeAsync(0);
+      expect(chrome.downloads.download).toHaveBeenCalledTimes(2); // both slots busy
+
+      // B interrupts → retry #1 (readyAt ≈ +1000). A is still downloading and never
+      // completes in this test. The retry must fire on its own backoff into the free
+      // slot, NOT block until A finishes.
+      await handleDownloadChanged({ id: 101, state: { current: 'interrupted', previous: 'in_progress' } } as chrome.downloads.DownloadDelta);
+      await vi.advanceTimersByTimeAsync(0); // register the nudge
+      await vi.advanceTimersByTimeAsync(1200); // its backoff elapses
+      expect(chrome.downloads.download).toHaveBeenCalledTimes(3); // B re-dispatched while A is still active
+      expect(chrome.downloads.download).toHaveBeenLastCalledWith(expect.objectContaining({ url: 'uB' }), expect.any(Function));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('cancelling an item tears down its in-flight download + DNR rule (leak fix)', () => {
+  it('aborts the chrome transfer and removes the Referer rule when an active item is cancelled', async () => {
+    dnrRules = [{ id: 555 }]; // a Referer-rewrite rule installed for this download
+    await saveQueue({ paused: false, items: [
+      { id: 'x', url: 'u', filename: 'f', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, downloadId: 42, ruleId: 555, useReferer: true },
+    ] });
+
+    await cancelQueue('x');
+
+    // The file must not keep downloading, and the session rule must not leak: once
+    // the item is gone, handleDownloadChanged can no longer match it to tear it down.
+    expect(chrome.downloads.cancel).toHaveBeenCalledWith(42, expect.any(Function));
+    expect(dnrRules.find((r) => r.id === 555)).toBeUndefined();
+    expect((await getQueueSnapshot()).items).toHaveLength(0);
+  });
+
+  it('cancel "all" aborts every active transfer (queued items need no cancel)', async () => {
+    await saveQueue({ paused: false, items: [
+      { id: 'a', url: 'u1', filename: 'f1', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, downloadId: 10 },
+      { id: 'b', url: 'u2', filename: 'f2', status: 'queued', attempts: 0, readyAt: 0, addedAt: 0 },
+    ] });
+    (chrome.downloads.cancel as ReturnType<typeof vi.fn>).mockClear();
+
+    await cancelQueue('all');
+
+    expect(chrome.downloads.cancel).toHaveBeenCalledTimes(1);
+    expect(chrome.downloads.cancel).toHaveBeenCalledWith(10, expect.any(Function));
+    expect((await getQueueSnapshot()).items).toHaveLength(0);
+  });
+
+  it('does not call chrome.downloads.cancel for a not-yet-started (queued) item', async () => {
+    await saveQueue({ paused: false, items: [
+      { id: 'q', url: 'u', filename: 'f', status: 'queued', attempts: 0, readyAt: 0, addedAt: 0 },
+    ] });
+    (chrome.downloads.cancel as ReturnType<typeof vi.fn>).mockClear();
+
+    await cancelQueue('q');
+
+    expect(chrome.downloads.cancel).not.toHaveBeenCalled();
+    expect((await getQueueSnapshot()).items).toHaveLength(0);
   });
 });

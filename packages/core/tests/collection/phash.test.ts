@@ -121,15 +121,17 @@ describe('clusterNearDuplicates', () => {
     expect(clusterNearDuplicates(items, 4).map((c) => c.length)).toEqual([2]);
   });
 
-  it('links transitively (single linkage)', () => {
-    // a–b within 4, b–c within 4, but a–c is 8 (> threshold). Single linkage still
-    // pulls all three into one group via the b bridge.
+  it('does NOT chain transitively across the threshold (complete linkage, #198)', () => {
+    // a–b within 4, b–c within 4, but a–c is 8 (> threshold). Complete linkage keeps
+    // c out of {a,b} — it must be within threshold of EVERY member — so the far ends
+    // don't collapse into one group where c would be hidden as a "duplicate".
     const items = [
       item('a', '0000000000000000'),
       item('b', '000000000000000f'), // 4 from a
       item('c', '00000000000000ff'), // 4 from b, 8 from a
     ];
-    expect(clusterNearDuplicates(items, 4)).toHaveLength(1);
+    const clusters = clusterNearDuplicates(items, 4).map((c) => c.map((i) => i.id));
+    expect(clusters).toEqual([['a', 'b'], ['c']]);
   });
 
   it('preserves input order in groups and members', () => {
@@ -200,6 +202,23 @@ describe('markNearDuplicates', () => {
       5,
     );
     expect(marks.size).toBe(0);
+  });
+
+  it('does not hide a distinct frame that only chains through a near neighbour (#198)', () => {
+    // a↔b and b↔c are each 6 apart (≤ threshold 8), but a↔c is 12 (> 8). Single
+    // linkage would chain all three and hide c; complete linkage keeps c its own
+    // group, so "download all" still saves it.
+    const marks = markNearDuplicates(
+      [
+        inp('a', '0000000000000000', 100, 100),
+        inp('b', '000000000000003f', 100, 100), // 6 from a
+        inp('c', '0000000000000fff', 50, 50), //   6 from b, 12 from a
+      ],
+      8,
+    );
+    expect(marks.get('c')).toBeUndefined(); // the distant frame stays visible
+    // a & b ARE genuine near-duplicates → exactly one of them is marked hidden.
+    expect([marks.get('a')?.nearDuplicate, marks.get('b')?.nearDuplicate].filter((v) => v === true)).toHaveLength(1);
   });
 
   it('groups three resolutions of one image, keeping the largest', () => {

@@ -25,10 +25,13 @@ class FakeWorker {
 }
 
 // fetchImageBytes is stubbed to always succeed (the fake worker ignores the bytes);
-// mapWithConcurrency stays real so the batching/barrier logic is exercised.
+// mapWithConcurrency stays real so the batching/barrier logic is exercised. `onFetch`
+// lets a test observe/mutate state mid-pass (e.g. simulate size-enrichment reassigning
+// rawImagesRef.current while bytes are being fetched).
+const hooks = vi.hoisted(() => ({ onFetch: null as null | ((src: string) => void) }));
 vi.mock('@/extension/popup/utils', async (orig) => ({
   ...(await orig<typeof import('@/extension/popup/utils')>()),
-  fetchImageBytes: vi.fn(async () => new ArrayBuffer(8)),
+  fetchImageBytes: vi.fn(async (src: string) => { hooks.onFetch?.(src); return new ArrayBuffer(8); }),
 }));
 
 const img = (src: string, extra: Partial<ImageInfo> = {}): ImageInfo => ({
@@ -60,6 +63,7 @@ function harness(images: ImageInfo[], threshold = 8) {
 
 beforeEach(() => {
   HASH_TABLE.clear();
+  hooks.onFetch = null;
   vi.stubGlobal('Worker', FakeWorker);
 });
 
@@ -134,6 +138,61 @@ describe('useNearDuplicates', () => {
     });
 
     expect(rawImagesRef.current.every((i) => !i.nearDuplicate)).toBe(true);
+  });
+
+  it('still marks duplicates when size-enrichment reassigns rawImagesRef with the same srcs mid-pass', async () => {
+    HASH_TABLE.set('https://x/thumb.jpg', '0000000000000000');
+    HASH_TABLE.set('https://x/orig.jpg', '0000000000000001'); // Hamming 1 → clustered
+    const images = [
+      img('https://x/thumb.jpg', { width: 320, height: 240, mediaKey: 'a' }),
+      img('https://x/orig.jpg', { width: 2048, height: 1536, mediaKey: 'a' }),
+    ];
+    const { view, rawImagesRef } = harness(images);
+
+    // Mimic enrichImageSizes: on the first byte fetch, replace rawImagesRef.current
+    // with a NEW array whose items carry the SAME srcs (only fileSize changed). The
+    // pHashes are keyed by src and stay valid — the pass must still mark, not bail.
+    let bumped = false;
+    hooks.onFetch = () => {
+      if (bumped) return;
+      bumped = true;
+      rawImagesRef.current = rawImagesRef.current!.map((i) => ({ ...i, fileSize: 4242 }));
+    };
+
+    await act(async () => {
+      await view.result.current.run();
+    });
+
+    const raw = rawImagesRef.current!;
+    expect(raw.find((i) => i.src.endsWith('thumb.jpg'))?.nearDuplicate).toBe(true);
+    expect(raw.find((i) => i.src.endsWith('orig.jpg'))?.nearDuplicate).toBe(false);
+    // The enriched sizes survive (the mark was written onto the reassigned array).
+    expect(raw.every((i) => i.fileSize === 4242)).toBe(true);
+  });
+
+  it('discards the pass (marks nothing) when a rescan swaps a src mid-pass', async () => {
+    HASH_TABLE.set('https://x/thumb.jpg', '0000000000000000');
+    HASH_TABLE.set('https://x/orig.jpg', '0000000000000001');
+    const images = [
+      img('https://x/thumb.jpg', { width: 320, height: 240 }),
+      img('https://x/orig.jpg', { width: 2048, height: 1536 }),
+    ];
+    const { view, rawImagesRef } = harness(images);
+
+    // A genuine supersession: the src SET changes (a resolved original replaces a
+    // placeholder). The hashes no longer describe the set → discard, mark nothing.
+    let bumped = false;
+    hooks.onFetch = () => {
+      if (bumped) return;
+      bumped = true;
+      rawImagesRef.current = [img('https://x/thumb.jpg'), img('https://x/RESOLVED.jpg')];
+    };
+
+    await act(async () => {
+      await view.result.current.run();
+    });
+
+    expect(rawImagesRef.current!.every((i) => !i.nearDuplicate)).toBe(true);
   });
 
   it('does nothing with fewer than two candidates', async () => {

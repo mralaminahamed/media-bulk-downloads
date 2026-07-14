@@ -103,7 +103,16 @@ export function useMediaEngine({
   const rawImagesRef = useRef<ImageInfo[]>([]);
   // Generation guard so a newer refresh cancels stale size-enrichment writes.
   const enrichGenRef = useRef(0);
+  // Generation guard for enrichOriginals' OWN stale-write cancellation. Kept
+  // separate from resolveGenRef: enrichOriginals is fired by any settings change
+  // (via applyResolution), but it maps over rawImagesRef in place (stable srcs) —
+  // it is NOT a rescan. Bumping resolveGenRef here would make a mid-scan settings
+  // change spuriously invalidate a concurrent deep scan / video resolve (their
+  // guards snapshot resolveGenRef to detect a rescan) and discard the result.
+  const enrichOriginalsGenRef = useRef(0);
   // Generation guard so a newer refresh/rescan cancels stale resolution writes.
+  // Bumped ONLY by fetchImages (a rescan) — the exact event the deep-scan/video
+  // guards below want to detect.
   const resolveGenRef = useRef(0);
   // Latest toolbar filters. FilterToolbar owns its own state and only notifies on
   // user interaction, so async paths (resolution, deep scan, rescan) must re-apply
@@ -170,11 +179,11 @@ export function useMediaEngine({
    * never resolve simply stay pending — nothing flickers in and then disappears.
    */
   const enrichOriginals = useCallback(async (eligible: ImageInfo[], captureHlsStreams: boolean): Promise<void> => {
-    const generation = ++resolveGenRef.current;
+    const generation = ++enrichOriginalsGenRef.current;
     const targets = eligible.filter((i) => i.resolveHint).map((i) => ({ src: i.src, hint: i.resolveHint! }));
     if (!targets.length) return;
     const resolved = await requestResolveOriginals(targets);
-    if (generation !== resolveGenRef.current) return;
+    if (generation !== enrichOriginalsGenRef.current) return;
 
     // oldSrc -> resolved item (hint cleared, src swapped to the real original)
     const byOldSrc = new Map<string, ImageInfo>();
@@ -232,8 +241,9 @@ export function useMediaEngine({
   );
 
   const fetchImages = useCallback(async (): Promise<void> => {
-    enrichGenRef.current++; // cancel any in-flight enrichment
-    resolveGenRef.current++; // cancel any in-flight resolution
+    enrichGenRef.current++; // cancel any in-flight size enrichment
+    enrichOriginalsGenRef.current++; // cancel any in-flight originals resolution
+    resolveGenRef.current++; // supersede any concurrent deep-scan / video resolve
     // A rescan unmounts FilterToolbar (isLoading) and it remounts at DEFAULT_FILTERS
     // merged with the current seed below; reset the ref too so the repopulated
     // grid isn't left silently filtered by the previous run's selection while the

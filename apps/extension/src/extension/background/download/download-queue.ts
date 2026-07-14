@@ -1,6 +1,7 @@
 import {
   loadQueue, saveQueue, enqueue, claimNext, markActive, markDone, markFailed,
-  scheduleRetry, cancel, retryFailed, setProgress, clearFinished, retryAllFailed, type EnqueueEntry, type QueueState,
+  scheduleRetry, cancel, retryFailed, setProgress, clearFinished, retryAllFailed,
+  type EnqueueEntry, type QueueState, type QueueItem,
 } from '@mbd/storage/download-queue';
 import { recordDownloads } from '@mbd/storage/history';
 import { applyRefererRule, removeRefererRule, hasDnrPermission } from '@/extension/background/download/hotlink-rewrite';
@@ -39,6 +40,9 @@ function startDownload(url: string, filename: string): Promise<number | undefine
 
 export function initQueueDispatcher(d: Deps): void {
   deps = d;
+  // Drop any pending retry nudge from a prior lifetime (a no-op on a fresh SW
+  // start; keeps the per-test re-init from leaking a timer between cases).
+  if (nudgeTimer) { clearTimeout(nudgeTimer); nudgeTimer = null; nudgeReadyAt = Infinity; }
   chrome.downloads.onChanged.addListener((delta) => {
     void handleDownloadChanged(delta);
   });
@@ -86,7 +90,6 @@ export async function pump(): Promise<void> {
         state: scheduleRetry({ ...s, items: s.items.map((i) => (i.id === claimed.id ? { ...i, ruleId: undefined } : i)) }, claimed.id, Date.now()),
         value: null,
       }));
-      scheduleNudge();
     } else {
       // #284: pair a provenance sidecar to THIS download's real on-disk name (I6).
       if (claimed.sidecar) scheduleSidecar(downloadId, claimed.filename, claimed.sidecar);
@@ -94,6 +97,13 @@ export async function pump(): Promise<void> {
       ensureProgressPoll();
     }
   }
+  // The claim loop above stops the moment nothing is immediately claimable. If the
+  // only remaining live items are retries waiting out their backoff (and nothing is
+  // active, so no download completion will re-pump), arm a timer for the soonest
+  // readyAt. Without this a backoff longer than the fixed nudge interval — every
+  // retry from the 2nd on (backoffMs ≥ 2000) — would leave the last item stuck in
+  // `queued` forever, never reaching its next attempt.
+  await armRetryNudge();
 }
 
 // The interrupt reason: it may ride on the onChanged delta itself; if not, ask
@@ -155,20 +165,47 @@ export async function handleDownloadChanged(delta: chrome.downloads.DownloadDelt
   if (done?.history) {
     void recordDownloads([{ ...done.history, time: Date.now(), downloadId: delta.id }]);
   }
-  scheduleNudge();
+  // pump() re-arms the retry nudge itself (armRetryNudge) after draining.
   void pump();
 }
 
-// A retried item becomes claimable only once its backoff `readyAt` passes; this
-// timer re-pumps then. If the SW is terminated first, startup reconcile re-pumps
-// (the readyAt has already elapsed by then), so no alarm permission is needed.
+// A retried item becomes claimable only once its backoff `readyAt` passes; a timer
+// re-pumps then. If the SW is terminated first, startup reconcile re-pumps (the
+// readyAt has already elapsed by then), so no alarm permission is needed.
 let nudgeTimer: ReturnType<typeof setTimeout> | null = null;
-function scheduleNudge(): void {
-  if (nudgeTimer) return;
+let nudgeReadyAt = Infinity; // the readyAt the pending nudge targets
+
+// Schedule (or bring forward) a single re-pump timer aimed at `readyAt`. Keeps the
+// EARLIEST pending wake — a later request never pushes an existing sooner one back.
+function scheduleNudgeAt(readyAt: number, delayMs: number): void {
+  if (nudgeTimer && nudgeReadyAt <= readyAt) return;
+  if (nudgeTimer) clearTimeout(nudgeTimer);
+  nudgeReadyAt = readyAt;
   nudgeTimer = setTimeout(() => {
     nudgeTimer = null;
+    nudgeReadyAt = Infinity;
     void pump();
-  }, 1100);
+  }, Math.max(0, delayMs));
+}
+
+// Ensure a timer will fire at the soonest queued retry `readyAt`, so a retry whose
+// backoff exceeds any fixed interval still gets re-dispatched once its slot is free.
+// Armed only when a concurrency slot is actually FREE (active < cap): if every slot
+// is busy a completion frees one and re-pumps, so no timer is needed — but a free
+// slot must NOT wait on an unrelated long download to finish (that was the fixed
+// 1100ms nudge's job). No-op while paused or with no queued item on a future readyAt.
+async function armRetryNudge(): Promise<void> {
+  let s: QueueState;
+  try { s = await loadQueue(); } catch { return; }
+  if (s.paused) return;
+  const raw = deps.getConcurrency();
+  const cap = Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1; // mirror claimNext
+  const active = s.items.filter((i) => i.status === 'active').length;
+  if (active >= cap) return; // no free slot — a completion will free one and re-pump
+  const readyAts = s.items.filter((i) => i.status === 'queued').map((i) => i.readyAt);
+  if (readyAts.length === 0) return;
+  const soonest = Math.min(...readyAts);
+  scheduleNudgeAt(soonest, soonest - Date.now());
 }
 
 const PROGRESS_POLL_MS = 600;
@@ -243,7 +280,23 @@ export async function resumeQueue(): Promise<void> {
 }
 
 export async function cancelQueue(target: string): Promise<void> {
-  await withState(async (s) => ({ state: cancel(s, target), value: null }));
+  const isLive = (i: QueueItem): boolean => i.status === 'queued' || i.status === 'active';
+  const removed = await withState(async (s) => {
+    const toRemove = s.items.filter((i) => (target === 'all' ? isLive(i) : i.id === target));
+    return { state: cancel(s, target), value: toRemove };
+  });
+  // The reducer only drops the item from the array. For an item that is actively
+  // downloading, also abort the chrome transfer (else the file still lands on disk)
+  // and tear down its Referer-rewrite DNR rule — once removed, handleDownloadChanged
+  // no longer matches it, so the session rule would otherwise leak for the session.
+  for (const it of removed) {
+    if (it.downloadId != null) {
+      await new Promise<void>((resolve) => {
+        try { chrome.downloads.cancel(it.downloadId as number, () => resolve()); } catch { resolve(); }
+      });
+    }
+    if (it.ruleId != null) await removeRefererRule(it.ruleId);
+  }
 }
 
 export async function retryQueueItem(id: string, referer = false): Promise<void> {
