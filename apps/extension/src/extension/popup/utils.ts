@@ -16,6 +16,22 @@ export async function getImageFileSize(url: string): Promise<number> {
 }
 
 /**
+ * Fetches a remote image's raw bytes. Like getImageFileSize, this runs from the
+ * popup (an extension-origin page), so host_permissions bypass page CORS. Returns
+ * null on any failure or abort — callers skip that item rather than fail the batch.
+ * Used by the perceptual-hash near-duplicate pass (#198) to feed bytes to its worker.
+ */
+export async function fetchImageBytes(url: string, signal?: AbortSignal): Promise<ArrayBuffer | null> {
+    try {
+        const response = await fetch(url, { signal });
+        if (!response.ok) return null;
+        return await response.arrayBuffer();
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Fire-and-forget runtime message: reads any rejection so a momentarily-asleep
  * background worker doesn't surface an "Unchecked runtime.lastError" in the console.
  * Use for messages whose response we don't consume.

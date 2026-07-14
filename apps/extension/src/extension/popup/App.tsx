@@ -21,7 +21,7 @@ import { deriveFilterOptions } from '@mbd/core/collection/filters';
 import { deepScanActiveTab, abortDeepScanActiveTab } from '@/extension/shared/active-tab/deep-scan-active-tab';
 import { hostFromUrl, registrableDomain } from '@mbd/core/collection/paths';
 import { sendRuntimeMessage } from '@/extension/popup/utils';
-import { Cog6ToothIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon, NoSymbolIcon } from '@heroicons/react/24/outline';
+import { Cog6ToothIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon, NoSymbolIcon, Square2StackIcon } from '@heroicons/react/24/outline';
 import { downloadable, pendingVideos } from '@/extension/popup/lib/appHelpers';
 import { useDownloadHistory } from '@/extension/popup/hooks/useDownloadHistory';
 import { useFavourites } from '@/extension/popup/hooks/useFavourites';
@@ -29,6 +29,7 @@ import { useExcluded } from '@/extension/popup/hooks/useExcluded';
 import { useSelection } from '@/extension/popup/hooks/useSelection';
 import { useSettings } from '@/extension/popup/hooks/useSettings';
 import { useMediaEngine } from '@/extension/popup/hooks/useMediaEngine';
+import { useNearDuplicates } from '@/extension/popup/hooks/useNearDuplicates';
 import { useDownloadActions, StreamRefusal } from '@/extension/popup/hooks/useDownloadActions';
 import { usePerHostSettings } from '@/extension/popup/hooks/usePerHostSettings';
 
@@ -99,6 +100,8 @@ const App: React.FC<AppProps> = ({
     fetchingAllVideos,
     fetchingSrcs,
     resolveFailedSrcs,
+    rawImagesRef,
+    filtersRef,
     filterSeed,
   } = useMediaEngine({
     settings: perHost.effective,
@@ -111,6 +114,18 @@ const App: React.FC<AppProps> = ({
     collect,
     deepScan,
     abortDeepScan,
+  });
+
+  // On-demand perceptual-hash near-duplicate pass (#198). Hashes the eligible
+  // images in a worker, marks near-duplicates, and hides them behind the default
+  // duplicateState filter — reversible via the Duplicates chip.
+  const nearDup = useNearDuplicates({
+    rawImagesRef,
+    settingsRef: perHost.effectiveRef,
+    excludedRef,
+    filtersRef,
+    isDownloaded,
+    setState,
   });
 
   const {
@@ -180,6 +195,15 @@ const App: React.FC<AppProps> = ({
   const fetchingVideos = fetchingAllVideos;
   const hasImages = total > 0;
   const filtered = shown !== total;
+  // Near-duplicate accounting (#198): how many the pass marked, and how many of
+  // those are currently hidden (marked AND absent from the shown grid — so this
+  // auto-reflects the Duplicates filter without tracking its value here).
+  const nearDuplicateCount = useMemo(() => state.images.reduce((n, i) => n + (i.nearDuplicate ? 1 : 0), 0), [state.images]);
+  const hiddenNearDuplicates = useMemo(() => {
+    if (nearDuplicateCount === 0) return 0;
+    const shownSrcs = new Set(state.filteredImages.map((i) => i.src));
+    return state.images.reduce((n, i) => n + (i.nearDuplicate && !shownSrcs.has(i.src) ? 1 : 0), 0);
+  }, [state.images, state.filteredImages, nearDuplicateCount]);
   const selectedCount = selectedSrcs.size;
   const allShownSelected = downloadableShown > 0 && selectedCount === downloadableShown;
 
@@ -231,6 +255,11 @@ const App: React.FC<AppProps> = ({
                 {deepProgress?.found ?? 0} found
               </span>
             )}
+            {nearDup.running && nearDup.progress && (
+              <span className="num mbd:inline-flex mbd:items-center mbd:rounded-full mbd:bg-(--brand-soft) mbd:px-2 mbd:py-0.5 mbd:text-[10px] mbd:font-semibold mbd:text-(--brand-ink)">
+                {nearDup.progress.done}/{nearDup.progress.total} hashing
+              </span>
+            )}
             <button
               onClick={handleDeepScan}
               className="iconbtn"
@@ -241,6 +270,16 @@ const App: React.FC<AppProps> = ({
                 className={`mbd:h-4.5 mbd:w-4.5 ${deepScanning ? 'mbd:animate-pulse' : ''}`}
               />
             </button>
+            {hasImages && !state.isLoading && (
+              <button
+                onClick={() => (nearDup.running ? nearDup.cancel() : void nearDup.run())}
+                className="iconbtn"
+                title={nearDup.running ? 'Stop near-duplicate scan' : 'Find near-duplicates (fetches & hashes images)'}
+                aria-label={nearDup.running ? 'Stop near-duplicate scan' : 'Find near-duplicates'}
+              >
+                <Square2StackIcon className={`mbd:h-4.5 mbd:w-4.5 ${nearDup.running ? 'mbd:animate-pulse' : ''}`} />
+              </button>
+            )}
             <button onClick={() => { setStreamRefusal(null); fetchImages(); }} className="iconbtn" title="Rescan page" aria-label="Rescan page">
               <ArrowPathIcon className={`mbd:h-4.5 mbd:w-4.5 ${state.isLoading ? 'mbd:animate-[spin_0.9s_linear_infinite]' : ''}`} />
             </button>
@@ -250,7 +289,7 @@ const App: React.FC<AppProps> = ({
 
       {/* Filters */}
       {hasImages && !state.isLoading && (
-        <FilterToolbar onFilterChange={handleFilterChange} extensionSettings={perHost.effective} available={availableFilterOptions} initialFilters={filterSeed} />
+        <FilterToolbar onFilterChange={handleFilterChange} extensionSettings={perHost.effective} available={availableFilterOptions} initialFilters={filterSeed} nearDuplicateCount={nearDuplicateCount} />
       )}
 
       {/* Body */}
@@ -339,6 +378,9 @@ const App: React.FC<AppProps> = ({
                   <span className="mbd:text-(--ink)">{shown}</span>
                   <span className="mbd:text-(--ink-3)"> / {total}</span>
                   {filtered && <span className="mbd:text-(--ink-3)"> shown</span>}
+                  {hiddenNearDuplicates > 0 && (
+                    <span className="mbd:text-(--ink-3)"> · {hiddenNearDuplicates} near-duplicate{hiddenNearDuplicates === 1 ? '' : 's'} hidden</span>
+                  )}
                 </>
               )}
             </p>

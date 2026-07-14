@@ -51,6 +51,16 @@ export interface ImageInfo {
    *  deep-scan that re-resolves a grid tile to its sniffed original replaces the
    *  thumbnail row rather than duplicating it. */
   mediaKey?: string;
+  /** Perceptual (DCT pHash) fingerprint, a 16-char hex string. Set by the on-demand
+   *  near-duplicate pass (#198); transient — never persisted to storage. */
+  pHash?: string;
+  /** True when this item is a near-duplicate the pass chose to hide in favour of a
+   *  larger copy of the same picture. Excluded from the grid/ZIP/download by the
+   *  default `duplicateState` filter. Transient. */
+  nearDuplicate?: boolean;
+  /** The `mediaKey` of the kept (largest) item in this near-duplicate cluster, on
+   *  every member including the keeper — lets the UI group/review a set. Transient. */
+  duplicateGroupId?: string;
 }
 
 /** Preferred name for a collected media item (image, video, or audio). */
@@ -574,6 +584,10 @@ export interface SettingsData {
    *  (source URL, page, alt, dimensions — #284). Off by default; serializes
    *  already-collected local data, no new network. */
   metadataSidecar: boolean;
+  /** Hamming-distance threshold for the on-demand perceptual-hash near-duplicate
+   *  pass (#198). Lower = stricter (fewer images treated as duplicates). Clamped to
+   *  [2, 16]; default 8. */
+  nearDuplicateThreshold: number;
 }
 
 export type SizeBucket = 'all' | 'small' | 'medium' | 'large';
@@ -592,6 +606,10 @@ export interface FilterOptions {
   /** Filter by whether the item has already been downloaded (per the badge's
    *  history-derived set). 'all' = off. */
   downloadState: 'all' | 'downloaded' | 'not-downloaded';
+  /** Near-duplicate visibility (#198). 'unique' (default) hides items the pHash
+   *  pass marked `nearDuplicate`; 'duplicates' shows only them (review); 'all'
+   *  shows everything. Off (='unique') has no effect until the pass runs. */
+  duplicateState: 'all' | 'unique' | 'duplicates';
   /** Free-text query matched against filename, alt, type, and URL. Empty = off. */
   search: string;
   /** Sort key + direction applied after filtering. */

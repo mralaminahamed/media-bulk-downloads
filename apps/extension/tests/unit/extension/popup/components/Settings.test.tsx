@@ -34,7 +34,7 @@ describe('Settings Component', () => {
     bubblePanelPlacement: 'anchored' as const,
     bubblePanelPoint: { x: 40, y: 40 },
     resolveOriginals: false,
-    captureHlsStreams: false, streamQuality: 'auto', metadataSidecar: false,
+    captureHlsStreams: false, streamQuality: 'auto', metadataSidecar: false, nearDuplicateThreshold: 8,
     downloadConcurrency: 5,
     excludeEmoji: false,
     deepScanMaxItems: 1000,

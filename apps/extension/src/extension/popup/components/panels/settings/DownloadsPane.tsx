@@ -164,6 +164,21 @@ const DownloadsPane: React.FC<DownloadsPaneProps> = ({
         onChange={handleChange}
         onBlur={clampOnBlur('downloadConcurrency', 1, 10)}
       />
+      <NumberField
+        id="set-nearDuplicateThreshold"
+        name="nearDuplicateThreshold"
+        label="Near-duplicate similarity threshold:"
+        min={2}
+        max={16}
+        value={settings.nearDuplicateThreshold}
+        onChange={handleChange}
+        onBlur={clampOnBlur('nearDuplicateThreshold', 2, 16)}
+      />
+      <p className="mbd:text-[11px] mbd:leading-relaxed mbd:text-(--ink-3)">
+        Lower = stricter (fewer images treated as duplicates). Used by the “Find
+        near-duplicates” action in the header, which fetches and hashes images to
+        collapse the same picture served at different sizes. Default 8.
+      </p>
       <ToggleRow
         id="set-notify"
         label="Notify when downloads finish"

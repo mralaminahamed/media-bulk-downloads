@@ -25,7 +25,7 @@ const base: SettingsData = {
   bubblePanelPlacement: 'anchored',
   bubblePanelPoint: { x: 40, y: 40 },
   resolveOriginals: false,
-  captureHlsStreams: false, streamQuality: 'auto', metadataSidecar: false,
+  captureHlsStreams: false, streamQuality: 'auto', metadataSidecar: false, nearDuplicateThreshold: 8,
   downloadConcurrency: 5,
   excludeEmoji: false,
   deepScanMaxItems: 1000,
@@ -125,7 +125,7 @@ const item = (over: Partial<ImageInfo>): ImageInfo =>
   ({ ...toolbarBase, src: 'x', type: 'png', kind: 'image', ...over }) as ImageInfo;
 
 const F = (over: Partial<FilterOptions>): FilterOptions =>
-  ({ mediaKind: 'all', imageType: 'all', minSize: 0, includeBase64: true, sizeBucket: 'all', downloadState: 'all', search: '', sortBy: 'default', sortDir: 'desc', ...over });
+  ({ mediaKind: 'all', imageType: 'all', minSize: 0, includeBase64: true, sizeBucket: 'all', downloadState: 'all', duplicateState: 'unique', search: '', sortBy: 'default', sortDir: 'desc', ...over });
 
 describe('applyToolbarFilters — mediaKind', () => {
   const items = [
@@ -467,5 +467,30 @@ describe('deriveFilterOptions', () => {
   it('a single-format page yields one format plus all', () => {
     const opts = deriveFilterOptions([img({ kind: 'image', type: 'jpeg' })]);
     expect(opts.formats.image).toEqual(['all', 'jpeg']);
+  });
+});
+
+describe('applyToolbarFilters — duplicateState (#198)', () => {
+  const items = [
+    item({ src: 'keeper' }),
+    item({ src: 'dupe', nearDuplicate: true, duplicateGroupId: 'keeper' }),
+    item({ src: 'plain' }),
+  ];
+
+  it("hides near-duplicates by default ('unique')", () => {
+    expect(applyToolbarFilters(items, F({ duplicateState: 'unique' })).map((i) => i.src)).toEqual(['keeper', 'plain']);
+  });
+
+  it("shows everything with 'all'", () => {
+    expect(applyToolbarFilters(items, F({ duplicateState: 'all' })).map((i) => i.src)).toEqual(['keeper', 'dupe', 'plain']);
+  });
+
+  it("shows only near-duplicates with 'duplicates'", () => {
+    expect(applyToolbarFilters(items, F({ duplicateState: 'duplicates' })).map((i) => i.src)).toEqual(['dupe']);
+  });
+
+  it('is a no-op before any pass has marked items', () => {
+    const unmarked = [item({ src: 'a' }), item({ src: 'b' })];
+    expect(applyToolbarFilters(unmarked, F({ duplicateState: 'unique' })).length).toBe(2);
   });
 });
