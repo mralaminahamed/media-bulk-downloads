@@ -73,15 +73,17 @@ const dispatchToggle = async () => {
   });
 };
 
-// The most recently registered chrome.storage.onChanged listener — i.e. the one
-// the just-rendered Bubble installed on mount. Used to simulate the popup writing
-// new settings, which the bubble must live-sync into its own placement/position.
-const lastStorageListener = () => {
-  const calls = (chrome.storage.onChanged.addListener as Mock).mock.calls;
-  return calls[calls.length - 1][0] as (
-    changes: { [k: string]: chrome.storage.StorageChange },
-    area: string,
-  ) => void;
+// Fire the background's SETTINGS_CHANGED broadcast at every runtime.onMessage
+// listener the just-rendered Bubble installed, simulating the popup (or the same
+// bubble on another tab) writing new settings — the bubble must live-sync its
+// placement/position from it. (The bubble no longer reads chrome.storage.onChanged
+// for this: Safari content scripts don't receive sync storage events.)
+const dispatchSettingsChange = async (settings: SettingsData) => {
+  await act(async () => {
+    (chrome.runtime.onMessage.addListener as Mock).mock.calls
+      .map((c) => c[0])
+      .forEach((fn) => fn({ type: 'SETTINGS_CHANGED', settings }));
+  });
 };
 
 describe('Bubble', () => {
@@ -275,15 +277,18 @@ describe('Bubble', () => {
     expect(screen.getByRole('heading', { name: 'Media Bulk Downloads' })).toBeInTheDocument();
   });
 
-  it('Escape from a focused text field does not collapse the panel (clears the field instead)', async () => {
+  it('Escape while a text field is focused does not collapse the panel, even when the event retargets away from it', async () => {
     render(<Bubble initialSettings={settings} />);
     await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
-    // Escape originating from a text input (e.g. the search box) must not close
-    // the whole panel — the capture handler bails when the target is editable.
+    // The window-capture listener sees a shadow-retargeted event whose target is
+    // the shadow host, NOT the focused input — so fire on `window` with an input
+    // focused. The guard must consult the root's activeElement (not e.target),
+    // else Escape-while-typing collapses the whole panel.
     const input = document.createElement('input');
     document.body.appendChild(input);
-    fireEvent.keyDown(input, { key: 'Escape' });
+    input.focus();
+    fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.getByRole('heading', { name: 'Media Bulk Downloads' })).toBeInTheDocument();
     input.remove();
   });
@@ -462,11 +467,10 @@ describe('Bubble', () => {
     expect(settingsPatches()).toContainEqual(expect.objectContaining({ bubbleWidth: 320, bubbleHeight: 360 }));
   });
 
-  // --- Live-sync from popup settings (storage.onChanged) ---------------------
+  // --- Live-sync from popup settings (SETTINGS_CHANGED broadcast) -------------
 
   it('live-syncs corner/pos/size/placement/point from a popup settings change', async () => {
     render(<Bubble initialSettings={settings} />);
-    const listener = lastStorageListener();
     await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
 
@@ -476,23 +480,13 @@ describe('Bubble', () => {
     expect(panel.style.left).toBe('');
 
     // The popup writes new settings: pin the panel top-left and move the button.
-    await act(async () => {
-      listener(
-        {
-          settings: {
-            oldValue: settings,
-            newValue: {
-              ...settings,
-              bubblePosition: { corner: 'top-left', x: 30, y: 40 },
-              bubbleWidth: 500,
-              bubbleHeight: 600,
-              bubblePanelPlacement: 'top-left',
-              bubblePanelPoint: { x: 5, y: 5 },
-            },
-          } as chrome.storage.StorageChange,
-        },
-        'sync',
-      );
+    await dispatchSettingsChange({
+      ...settings,
+      bubblePosition: { corner: 'top-left', x: 30, y: 40 },
+      bubbleWidth: 500,
+      bubbleHeight: 600,
+      bubblePanelPlacement: 'top-left',
+      bubblePanelPoint: { x: 5, y: 5 },
     });
 
     // Panel re-styles to the pinned top-left corner…
@@ -507,22 +501,18 @@ describe('Bubble', () => {
     expect(launcher.style.left).toBe('30px');
   });
 
-  it('ignores storage changes from another area or without settings', async () => {
+  it('ignores runtime messages that are not SETTINGS_CHANGED', async () => {
     render(<Bubble initialSettings={settings} />);
-    const listener = lastStorageListener();
     const launcher = screen.getByRole('button', { name: 'Media Bulk Downloads' });
     const before = launcher.getAttribute('style');
 
     await act(async () => {
-      // Wrong area — must be ignored even though `settings` changed.
-      listener(
-        { settings: { newValue: { ...settings, bubblePosition: { corner: 'top-left', x: 1, y: 1 } } } } as {
-          [k: string]: chrome.storage.StorageChange;
-        },
-        'local',
-      );
-      // Right area, but no `settings` key — nothing to sync.
-      listener({ other: { newValue: 1 } } as { [k: string]: chrome.storage.StorageChange }, 'sync');
+      (chrome.runtime.onMessage.addListener as Mock).mock.calls
+        .map((c) => c[0])
+        .forEach((fn) => {
+          fn('GET_IMAGES'); // an unrelated string message
+          fn({ type: 'NOT_SETTINGS', settings: { ...settings, bubblePosition: { corner: 'top-left', x: 1, y: 1 } } });
+        });
     });
 
     expect(launcher.getAttribute('style')).toBe(before);

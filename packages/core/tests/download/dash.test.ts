@@ -328,6 +328,26 @@ describe('expandSegments', () => {
     expect(() => expandSegments(rep({ initialization: 'i.m4s' }), 10)).toThrow(/unsupported|SegmentList|SegmentBase/i);
   });
 
+  it('throws too-large in duration mode when a hostile MPD would expand past the cap', () => {
+    // duration=1, timescale=90000, 2h period → ceil(7200*90000/1) = 648,000,000
+    // segments. Must fail fast (before allocating the array), not OOM.
+    try {
+      expandSegments(rep({ media: 'seg-$Number$.m4s', duration: 1, timescale: 90000, startNumber: 1 }), 7200);
+      throw new Error('expected expandSegments to throw');
+    } catch (e) {
+      expect((e as DashError).code).toBe('too-large');
+    }
+  });
+
+  it('throws too-large when a SegmentTimeline repeats past the cap', () => {
+    try {
+      expandSegments(rep({ media: 'seg-$Number$.m4s', timeline: [{ t: 0, d: 1, r: 5_000_000 }] }), 0);
+      throw new Error('expected expandSegments to throw');
+    } catch (e) {
+      expect((e as DashError).code).toBe('too-large');
+    }
+  });
+
   it('throws unsupported when the template has media but neither duration nor timeline', () => {
     try {
       expandSegments(rep({ media: 'seg-$Number$.m4s' }), 10);

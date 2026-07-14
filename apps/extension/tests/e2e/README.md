@@ -66,7 +66,7 @@ tests/e2e/
                           #   resolver upgrades, canonical collapse, per-site flows
 ```
 
-Config: `playwright.config.ts` (repo root) — `testDir: tests/e2e`, one worker
+Config: `playwright.config.ts` (in `apps/extension/`) — `testDir: tests/e2e`, one worker
 (the extension needs a persistent context), and the `webServer` that serves
 `pages/`.
 

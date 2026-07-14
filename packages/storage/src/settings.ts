@@ -62,6 +62,14 @@ export function withDefaults(stored: unknown): SettingsData {
     // Drives the download-queue concurrency cap (claimNext): 0/negative stalls the
     // queue forever, NaN/"many" removes the cap entirely. Clamp to a sane range.
     downloadConcurrency: clampInt(s.downloadConcurrency, 1, 20, DEFAULT_SETTINGS.downloadConcurrency),
+    // Deep-scan loop bounds. A corrupt value (synced from another device/version,
+    // or hand-edited into a restored backup) otherwise slips through: negative
+    // breaks the scan loop immediately (near-empty result), a non-numeric string
+    // makes the `found.size >= max` comparison NaN and removes the cap. Clamp like
+    // downloadConcurrency so no scan can be neutered or unbounded by bad input.
+    deepScanMaxItems: clampInt(s.deepScanMaxItems, 1, 100_000, DEFAULT_SETTINGS.deepScanMaxItems),
+    deepScanMaxSeconds: clampInt(s.deepScanMaxSeconds, 1, 600, DEFAULT_SETTINGS.deepScanMaxSeconds),
+    deepScanMaxScrolls: clampInt(s.deepScanMaxScrolls, 1, 10_000, DEFAULT_SETTINGS.deepScanMaxScrolls),
   };
 }
 

@@ -6,7 +6,7 @@
  * bubble surface (dynamically imported) when the user has enabled it.
  */
 
-import { SettingsData, DeepScanProgress } from '@mbd/core/types';
+import { SettingsData, DeepScanProgress, SettingsChangedMessage } from '@mbd/core/types';
 import { collectMedia } from '@/extension/content/collect';
 import { ingestSniffedIgMedia } from '@mbd/core/resolvers/sites/instagram';
 import { ingestSniffedFbMedia } from '@mbd/core/resolvers/sites/facebook';
@@ -143,9 +143,14 @@ chrome.runtime.onMessage.addListener(
       // Effective settings = global merged with this host's per-host override
       // (#293). smartPageDefaults may reorder collectMedia's hero pass; the
       // channel stays open for the async storage read.
-      void loadEffectiveSettingsForHost(location.hostname).then((s) => {
-        sendResponse(collectMedia(undefined, { smartPageDefaults: s.smartPageDefaults, resolveOriginals: s.resolveOriginals }));
-      });
+      void loadEffectiveSettingsForHost(location.hostname)
+        .then((s) => {
+          sendResponse(collectMedia(undefined, { smartPageDefaults: s.smartPageDefaults, resolveOriginals: s.resolveOriginals }));
+        })
+        // If the per-host settings read rejects, still answer (best-effort default
+        // collection) — the channel is held open by `return true`, so never
+        // calling sendResponse would hang the popup's await forever.
+        .catch(() => sendResponse(collectMedia()));
       return true; // async response — keep the channel open
     } else if (message === 'GET_PAGE_TYPE') {
       sendResponse(classifyPage(collectPageSignals(document)));
@@ -170,17 +175,22 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
       });
     };
     // Read this host's effective deep-scan caps before starting (#293).
-    void loadEffectiveSettingsForHost(location.hostname).then((s) => {
-      startDeepScan(onProgress, signal, {
-        maxItems: s.deepScanMaxItems,
-        maxMs: s.deepScanMaxSeconds * 1000,
-        maxScrolls: s.deepScanMaxScrolls,
-        clickLoadMore: s.deepScanClickLoadMore,
-        rememberScanBehaviour: s.rememberScanBehaviour,
+    void loadEffectiveSettingsForHost(location.hostname)
+      .then((s) => {
+        startDeepScan(onProgress, signal, {
+          maxItems: s.deepScanMaxItems,
+          maxMs: s.deepScanMaxSeconds * 1000,
+          maxScrolls: s.deepScanMaxScrolls,
+          clickLoadMore: s.deepScanClickLoadMore,
+          rememberScanBehaviour: s.rememberScanBehaviour,
+        })
+          .then((media) => sendResponse(media))
+          .catch(() => sendResponse([]));
       })
-        .then((media) => sendResponse(media))
-        .catch(() => sendResponse([]));
-    });
+      // Also answer if the settings read itself rejects — the inner catch only
+      // covers startDeepScan, so without this the held-open channel would hang the
+      // popup's deep-scan await forever on a transient storage error.
+      .catch(() => sendResponse([]));
     return true; // async response
   }
   if (message === 'DEEP_SCAN_ABORT') {
@@ -192,12 +202,19 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
 
 // ── On-page bubble lifecycle ────────────────────────────────────────────────
 let bubbleController: { unmount: () => void } | null = null;
+// Desired state, tracked separately from the live controller. A disable that
+// arrives while the bubble chunk is still importing finds bubbleController null,
+// so unmountBubble is a no-op — without this flag the mount would then complete
+// and the bubble would appear against the user's last (disabled) setting until the
+// next toggle. mountBubble re-checks it after the import resolves.
+let bubbleWanted = false;
 
 async function mountBubble(settings: SettingsData): Promise<void> {
   if (bubbleController) return;
   const { mountBubble: mount } = await import('@/extension/bubble/mount');
-  // A concurrent unmount may have raced in while the chunk loaded.
-  if (bubbleController) return;
+  // A concurrent unmount/disable may have raced in while the chunk loaded — bail
+  // if the bubble is no longer wanted (or another mount already won).
+  if (bubbleController || !bubbleWanted) return;
   bubbleController = mount(settings);
 }
 
@@ -207,6 +224,7 @@ function unmountBubble(): void {
 }
 
 function applyBubble(settings: SettingsData): void {
+  bubbleWanted = settings.bubbleEnabled;
   if (settings.bubbleEnabled) {
     void mountBubble(settings);
   } else {
@@ -216,11 +234,25 @@ function applyBubble(settings: SettingsData): void {
 
 // Don't inject into framed documents — only the top-level page.
 if (window.top === window.self) {
-  chrome.storage.sync.get(['settings'], (result) => applyBubble(withDefaults(result.settings)));
+  // Get settings from the background rather than reading chrome.storage.sync
+  // here: Safari content scripts don't reliably see the sync writes the popup
+  // makes, nor fire storage.onChanged for them, so the bubble would never mount.
+  // The background owns settings and pushes SETTINGS_CHANGED after every write —
+  // message passing works across Chrome/Firefox/Edge/Safari alike.
+  chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }, (settings?: Partial<SettingsData>) => {
+    // No receiver (worker still waking): fall back to defaults; a SETTINGS_CHANGED
+    // push or the next navigation's GET_SETTINGS will mount it once available.
+    void chrome.runtime.lastError;
+    applyBubble(withDefaults(settings));
+  });
 
-  chrome.storage.onChanged.addListener((changes, namespace) => {
-    if (namespace === 'sync' && changes.settings) {
-      applyBubble(withDefaults(changes.settings.newValue as Partial<SettingsData>));
+  chrome.runtime.onMessage.addListener((message: unknown) => {
+    if (
+      typeof message === 'object' &&
+      message !== null &&
+      (message as { type?: string }).type === 'SETTINGS_CHANGED'
+    ) {
+      applyBubble(withDefaults((message as SettingsChangedMessage).settings));
     }
   });
 }

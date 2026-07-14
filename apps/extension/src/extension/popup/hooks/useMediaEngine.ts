@@ -291,6 +291,13 @@ export function useMediaEngine({
     }
     setDeepScanning(true);
     setDeepProgress(null);
+    // Snapshot the resolution generation. fetchImages (the Rescan button, which
+    // stays enabled during a scan) bumps resolveGenRef and replaces rawImagesRef
+    // with a fresh collect(); a deep scan runs for tens of seconds, so a rescan can
+    // land mid-scan. Without this guard the scan's late resolve would merge its
+    // stale `found` into the NEW raw set and overwrite the fresh grid (resurrecting
+    // items the rescan dropped) — the same staleness the enrich/fetch paths guard.
+    const generation = resolveGenRef.current;
     // The final progress event carries why the scan stopped; capture it as it streams.
     let stopReason: DeepScanStopReason | undefined;
     try {
@@ -298,6 +305,9 @@ export function useMediaEngine({
         if (p.reason) stopReason = p.reason;
         setDeepProgress(p);
       });
+      // A rescan superseded this scan while it ran — discard its now-stale results
+      // rather than clobber the freshly re-collected grid.
+      if (generation !== resolveGenRef.current) return;
       // Merge deep-scan results into the collected set: a resolver identity
       // (mediaKey) upgrade-replaces its prior rendition (a Facebook grid tile ->
       // the sniffed original), while a rotating-CDN canonical repeat keeps the

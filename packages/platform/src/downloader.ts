@@ -27,6 +27,9 @@ export interface DownloadRecord {
   bytesReceived?: number;
   totalBytes?: number;
   error?: string;
+  /** Whether the downloaded file still exists on disk (drives the on-disk
+   *  dedupe "already downloaded" mark). Undefined when the backend can't tell. */
+  exists?: boolean;
 }
 
 /** Query for {@link Downloader.search}. */

@@ -205,6 +205,15 @@ export function parseMpd(xml: string, baseUrl: string): DashManifest {
 
 // ---- segment expansion ----------------------------------------------------
 
+/** Upper bound on the number of media segments a single Representation may expand
+ *  to. The count is derived from a handful of small, page-controlled MPD
+ *  attributes (duration/timescale/@r), so a hostile manifest — e.g. duration=1,
+ *  timescale=90000 over a 2h period — computes hundreds of millions of segments
+ *  and OOMs the offscreen document during expansion, before any fetch/byte-budget
+ *  guard can run. 100k segments is far above any real stream (a 6h stream at 1s
+ *  segments is ~21.6k) yet allocates at most a few MB, so cap and fail fast. */
+export const MAX_DASH_SEGMENTS = 100_000;
+
 /** Expand a representation's SegmentTemplate into absolute init + media URLs. */
 export function expandSegments(rep: DashRepresentation, durationSec: number): { initUri: string; segmentUris: string[] } {
   const t = rep.template;
@@ -216,6 +225,11 @@ export function expandSegments(rep: DashRepresentation, durationSec: number): { 
 
   const uris: string[] = [];
   const push = (num: number, time: number): void => {
+    // Bound the array so a template that repeats/counts past the cap fails fast
+    // (this covers the SegmentTimeline @r path, whose count isn't known up front).
+    if (uris.length >= MAX_DASH_SEGMENTS) {
+      throw new DashError('too-large', `DASH manifest expands to more than ${MAX_DASH_SEGMENTS} segments.`);
+    }
     uris.push(new URL(substituteTemplate(t.media!, { ...baseVars, Number: num, Time: time }), rep.baseUrl).href);
   };
 
@@ -235,6 +249,12 @@ export function expandSegments(rep: DashRepresentation, durationSec: number): { 
     }
   } else if (t.duration) {
     const count = Math.max(0, Math.ceil((durationSec * t.timescale) / t.duration));
+    // Reject before allocating: count is a pure function of small MPD attributes,
+    // so a hostile manifest can make it enormous (the `push` guard would still
+    // catch it, but this fails fast without spinning the loop up to the cap).
+    if (count > MAX_DASH_SEGMENTS) {
+      throw new DashError('too-large', `DASH manifest expands to ${count} segments (> ${MAX_DASH_SEGMENTS}).`);
+    }
     // $Time$ is the 0-based media-time offset (i·duration); $Number$ counts from startNumber.
     for (let i = 0; i < count; i++) push(t.startNumber + i, i * t.duration);
   } else {

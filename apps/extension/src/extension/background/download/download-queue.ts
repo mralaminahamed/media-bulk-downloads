@@ -297,11 +297,17 @@ export async function reconcileQueue(): Promise<void> {
       if (completed) return { state: markDone(s, item.id), value: cur };
       const items = s.items.map((i) =>
         i.id === item.id
-          ? { ...i, status: 'queued' as const, downloadId: undefined, readyAt: Date.now(), bytesReceived: undefined, totalBytes: undefined }
+          ? { ...i, status: 'queued' as const, downloadId: undefined, ruleId: undefined, readyAt: Date.now(), bytesReceived: undefined, totalBytes: undefined }
           : i,
       );
       return { state: { ...s, items }, value: null };
     });
+    // Tear down any Referer-rewrite DNR session rule the settled attempt left
+    // installed. The live onChanged path (handleDownloadChanged) does this; a
+    // reconcile after SW eviction must too — otherwise the session rule leaks for
+    // the rest of the browser session (forcing Referer on that URL forever), and a
+    // requeue would let the next pump() overwrite item.ruleId and orphan it.
+    if (item.ruleId != null) await removeRefererRule(item.ruleId);
     // If the SW died after Chrome finished the file, the onChanged:complete event
     // was never delivered, so record history here — otherwise the file is on disk
     // but missing from History and the on-disk dedupe set (silently re-downloadable).

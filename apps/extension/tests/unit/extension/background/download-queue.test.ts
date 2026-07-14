@@ -260,6 +260,20 @@ describe('reconcile on restart', () => {
     expect(recordDownloads).toHaveBeenCalledWith([expect.objectContaining({ src: 'u4', downloadId: 400 })]);
   });
 
+  it('tears down the item Referer DNR rule when reconciling a SW-dead settle (session-rule leak fix)', async () => {
+    dnrRules = [{ id: 777 }]; // a Referer rewrite rule the dead SW left installed
+    store[QUEUE_KEY] = { paused: false, items: [
+      { id: 'r', url: 'u5', filename: 'f5', status: 'active', attempts: 0, downloadId: 500, readyAt: 0, addedAt: 0, ruleId: 777, useReferer: true },
+    ] };
+    (chrome.downloads.search as ReturnType<typeof vi.fn>).mockResolvedValueOnce([{ id: 500, state: 'complete' }]);
+    await reconcileQueue();
+    await flush();
+    expect((await getQueueSnapshot()).items[0].status).toBe('done');
+    // The rule must be removed, not left to force Referer on that URL for the
+    // rest of the browser session (the live onChanged path already does this).
+    expect(dnrRules.find((r) => r.id === 777)).toBeUndefined();
+  });
+
   it('requeues active→queued when the download is missing/interrupted', async () => {
     store[QUEUE_KEY] = { paused: false, items: [
       { id: 'b', url: 'u2', filename: 'f2', status: 'active', attempts: 0, downloadId: 200, readyAt: 0, addedAt: 0 },

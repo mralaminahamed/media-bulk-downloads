@@ -1678,3 +1678,27 @@ describe('QUEUE_* routing → download queue', () => {
     expect(['queued', 'active']).toContain(item.status);
   });
 });
+
+describe('settings sync → on-page bubble broadcast', () => {
+  it('pushes SETTINGS_CHANGED to every tab when settings change via storage.onChanged sync (remote-device sync)', async () => {
+    (chrome.tabs.query as Mock).mockReset().mockImplementation(
+      (_q: unknown, cb: (tabs: { id: number }[]) => void) => cb([{ id: 11 }, { id: 22 }]),
+    );
+    (chrome.tabs.sendMessage as Mock).mockReset().mockReturnValue(Promise.resolve());
+
+    // A settings change synced from another device fires the background's
+    // storage.onChanged (namespace 'sync'); it must reach the on-page bubble,
+    // which on Safari can't read storage.sync itself.
+    storageChangedHandler({ settings: { newValue: { ...DEFAULT_SETTINGS, bubbleEnabled: true } } }, 'sync');
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(11, {
+      type: 'SETTINGS_CHANGED',
+      settings: expect.objectContaining({ bubbleEnabled: true }),
+    });
+    expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(22, {
+      type: 'SETTINGS_CHANGED',
+      settings: expect.objectContaining({ bubbleEnabled: true }),
+    });
+  });
+});

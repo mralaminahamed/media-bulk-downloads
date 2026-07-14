@@ -40,6 +40,15 @@ describe('per-host-settings — pure core', () => {
     const global = { ...DEFAULT_SETTINGS, excludeEmoji: true };
     expect(applyHostOverride(global, {})).toEqual(global);
   });
+
+  it('re-clamps a corrupt deep-scan loop bound in a per-host override', () => {
+    const global = { ...DEFAULT_SETTINGS };
+    const eff = applyHostOverride(global, { deepScanMaxItems: -5, deepScanMaxScrolls: 0 } as never);
+    expect(eff.deepScanMaxItems).toBeGreaterThanOrEqual(1);
+    expect(eff.deepScanMaxScrolls).toBeGreaterThanOrEqual(1);
+    // a valid override still wins over the global value
+    expect(applyHostOverride(global, { deepScanMaxItems: 250 } as never).deepScanMaxItems).toBe(250);
+  });
 });
 
 describe('per-host-settings — storage CRUD', () => {

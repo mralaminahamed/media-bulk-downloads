@@ -13,6 +13,6 @@
 export type { Downloader, DownloadRequest, DownloadRecord, DownloadQuery, DownloadChangeListener } from '@mbd/platform/downloader';
 export type { Notifier, NotificationOptions } from '@mbd/platform/notifier';
 export type { HeaderRules, HeaderOverride } from '@mbd/platform/header-rules';
-export type { StreamCaptureHost } from '@mbd/platform/stream-capture';
+export type { StreamCaptureHost, CaptureRunRequest, CaptureRunResult } from '@mbd/platform/stream-capture';
 export type { Capabilities } from '@mbd/platform/capabilities';
 export { detectCapabilities } from '@mbd/platform/capabilities';

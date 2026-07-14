@@ -74,6 +74,26 @@ describe('buildZip', () => {
     expect(keysOf(bytes)).toEqual(['image_1.jpg', 'image_2.jpg']);
   });
 
+  it('skips an item whose declared content-length exceeds the remaining budget without buffering it', async () => {
+    // The oversized item must be routed to `failed` BEFORE arrayBuffer() is
+    // called — otherwise the whole body materializes in the page heap regardless
+    // of the cap (which is only enforced after buffering).
+    const bigArrayBuffer = vi.fn(async () => new Uint8Array(new Array(1000).fill(9)).buffer);
+    const fetchStub = (async (input: string) => {
+      if (input === 'https://cdn/big.jpg') {
+        return { ok: true, headers: { get: (h: string) => (h.toLowerCase() === 'content-length' ? '1000' : null) }, arrayBuffer: bigArrayBuffer } as unknown as Response;
+      }
+      return { ok: true, headers: { get: () => null }, arrayBuffer: async () => new Uint8Array([1, 2]).buffer } as unknown as Response;
+    }) as unknown as typeof fetch;
+
+    const images = [img('https://cdn/big.jpg'), img('https://cdn/small.jpg')];
+    const { ok, failed } = await buildZip(images, DEFAULT_SETTINGS, undefined, { fetch: fetchStub, concurrency: 1, maxBytes: 250 });
+
+    expect(failed.map((f) => f.src)).toContain('https://cdn/big.jpg'); // declared 1000 > 250 budget → skipped
+    expect(bigArrayBuffer).not.toHaveBeenCalled(); // never buffered the oversized body
+    expect(ok).toBe(1); // the small item (no content-length) still fits
+  });
+
   it('writes no sidecar when the setting is off (default)', async () => {
     const images = [img('https://cdn/a.jpg')];
     const fetch = makeFetch({ 'https://cdn/a.jpg': [1] });
