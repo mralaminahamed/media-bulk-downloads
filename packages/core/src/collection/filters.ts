@@ -155,7 +155,13 @@ export function applyToolbarFilters(
   // otherwise picking 'PNG' with kind 'all' would silently drop every video/audio
   // (whose type is never an image format).
   const typeFamily = filters.mediaKind === 'all' ? 'image' : filters.mediaKind;
+  // Near-duplicate visibility (#198). Absent (undefined) behaves as 'unique' so a
+  // caller that hasn't adopted the field still hides marked duplicates once a pass
+  // has run — but with no pass, nothing is marked, so the default is a no-op.
+  const duplicateState = filters.duplicateState ?? 'unique';
   const shown = items.filter((item) => {
+    if (duplicateState === 'unique' && item.nearDuplicate) return false;
+    if (duplicateState === 'duplicates' && !item.nearDuplicate) return false;
     if (filters.mediaKind !== 'all' && item.kind !== filters.mediaKind) return false;
     if (!inSizeBucket(item, filters.sizeBucket)) return false;
     if (filters.imageType !== 'all' && item.kind === typeFamily && item.type !== filters.imageType) return false;

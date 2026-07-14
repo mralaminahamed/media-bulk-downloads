@@ -35,6 +35,7 @@ export const DEFAULT_SETTINGS: SettingsData = {
   rememberScanBehaviour: true,
   skipDuplicateDownloads: true,
   metadataSidecar: false,
+  nearDuplicateThreshold: 8,
 };
 
 /** A plain object, or {} — so spreading a corrupt string/array/number legacy
@@ -70,6 +71,9 @@ export function withDefaults(stored: unknown): SettingsData {
     deepScanMaxItems: clampInt(s.deepScanMaxItems, 1, 100_000, DEFAULT_SETTINGS.deepScanMaxItems),
     deepScanMaxSeconds: clampInt(s.deepScanMaxSeconds, 1, 600, DEFAULT_SETTINGS.deepScanMaxSeconds),
     deepScanMaxScrolls: clampInt(s.deepScanMaxScrolls, 1, 10_000, DEFAULT_SETTINGS.deepScanMaxScrolls),
+    // Near-duplicate Hamming threshold (#198). A corrupt/out-of-range value would
+    // either merge everything (too high) or nothing (≤0); clamp to a sane band.
+    nearDuplicateThreshold: clampInt(s.nearDuplicateThreshold, 2, 16, DEFAULT_SETTINGS.nearDuplicateThreshold),
   };
 }
 

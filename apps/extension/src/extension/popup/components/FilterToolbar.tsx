@@ -10,6 +10,9 @@ interface FilterToolbarProps {
   extensionSettings: SettingsData;
   available: AvailableOptions;
   initialFilters?: Partial<FilterOptions>;
+  /** How many items the near-duplicate pass has hidden (#198). The Duplicates
+   *  review chip appears only when this is > 0. */
+  nearDuplicateCount?: number;
 }
 
 export const DEFAULT_FILTERS: FilterOptions = {
@@ -19,6 +22,7 @@ export const DEFAULT_FILTERS: FilterOptions = {
   includeBase64: true,
   sizeBucket: 'all',
   downloadState: 'all',
+  duplicateState: 'unique',
   search: '',
   sortBy: 'default',
   sortDir: 'desc',
@@ -41,7 +45,13 @@ const STATE_OPTIONS: { value: FilterOptions['downloadState']; label: string }[] 
   { value: 'not-downloaded', label: 'Not downloaded' },
 ];
 
-const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extensionSettings, available, initialFilters }) => {
+const DUPLICATE_OPTIONS: { value: FilterOptions['duplicateState']; label: string }[] = [
+  { value: 'unique', label: 'Hide near-duplicates' },
+  { value: 'all', label: 'Show all' },
+  { value: 'duplicates', label: 'Only near-duplicates' },
+];
+
+const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extensionSettings, available, initialFilters, nearDuplicateCount = 0 }) => {
   const [filters, setFilters] = useState<FilterOptions>({ ...DEFAULT_FILTERS, ...initialFilters });
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -99,6 +109,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
     (filters.mediaKind !== 'all' ? 1 : 0) +
     advancedCount +
     (filters.downloadState !== 'all' ? 1 : 0) +
+    (filters.duplicateState !== 'unique' ? 1 : 0) +
     (filters.search.trim() ? 1 : 0) +
     (filters.sortBy !== 'default' ? 1 : 0);
 
@@ -193,6 +204,21 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
           onChange={(v) => update({ downloadState: v })}
           clearLabel="Remove State filter"
         />
+
+        {/* Duplicates — near-duplicate visibility (#198). Only surfaced once a pass
+            has hidden something, so it never clutters the row otherwise. */}
+        {nearDuplicateCount > 0 && (
+          <ChipFlyout
+            id="filter-duplicates-flyout"
+            triggerLabel={`Duplicates (${nearDuplicateCount})`}
+            valueLabel={(v) => DUPLICATE_OPTIONS.find((o) => o.value === v)!.label}
+            options={DUPLICATE_OPTIONS}
+            value={filters.duplicateState}
+            defaultValue="unique"
+            onChange={(v) => update({ duplicateState: v })}
+            clearLabel="Reset near-duplicate visibility"
+          />
+        )}
 
         {advChips.map((c) => (
           <FilterChip

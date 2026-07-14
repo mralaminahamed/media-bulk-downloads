@@ -33,7 +33,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
   // INITIAL settings (not live edits) so typing does not re-open it.
   const isNonDefault = (keys: (keyof SettingsData)[]) =>
     keys.some((k) => JSON.stringify(initialSettings[k]) !== JSON.stringify(DEFAULT_SETTINGS[k]));
-  const downloadsAdvOpen = isNonDefault(['downloadConcurrency', 'notifyOnComplete']);
+  const downloadsAdvOpen = isNonDefault(['downloadConcurrency', 'notifyOnComplete', 'nearDuplicateThreshold']);
   const mediaAdvOpen = isNonDefault(['deepScanMaxItems', 'deepScanMaxSeconds', 'deepScanMaxScrolls', 'deepScanClickLoadMore']);
   const displayAdvOpen = isNonDefault(['popupWidth', 'popupHeight', 'previewSize', 'bubbleWidth', 'bubbleHeight']);
 

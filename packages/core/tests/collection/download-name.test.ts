@@ -163,6 +163,7 @@ describe('buildDownloadFilename', () => {
     captureHlsStreams: false,
     streamQuality: 'auto',
     metadataSidecar: false,
+    nearDuplicateThreshold: 8,
     downloadConcurrency: 5,
     deepScanMaxItems: 1000,
     deepScanMaxSeconds: 20,
