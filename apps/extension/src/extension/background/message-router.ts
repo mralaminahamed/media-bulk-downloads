@@ -32,6 +32,23 @@ export type SendResponse = (
   response: DownloadResponse | ResolveOriginalsResponse | string[] | CaptureStreamResponse | QueueState | SettingsData,
 ) => void;
 
+/** Push the current settings to every tab's content script so the on-page bubble
+ *  applies changes live. Safari content scripts don't fire storage.onChanged for
+ *  sync writes, so this broadcast — not the storage event — is what drives them.
+ *  Used for both local writes (SET_SETTINGS) and remotely-synced changes picked up
+ *  by the background's storage.onChanged. */
+export function broadcastSettings(settings: SettingsData): void {
+  chrome.tabs.query({}, (tabs) => {
+    for (const t of tabs) {
+      if (t.id != null) {
+        void chrome.tabs.sendMessage(t.id, { type: 'SETTINGS_CHANGED', settings }).catch(() => {
+          /* tab has no content script / was closed */
+        });
+      }
+    }
+  });
+}
+
 /**
  * One handler per message `type`. A handler returns `true` to keep the
  * sendResponse channel open for an async reply, and nothing otherwise
@@ -247,19 +264,7 @@ export const messageRouter: MessageRouter = {
   // storage.onChanged for sync writes, so this broadcast — not the storage event
   // — is what drives them (Chrome/Firefox get it the same way, uniformly).
   SET_SETTINGS: (message) => {
-    void writeSettingsPatch(message.patch).then((settings) => {
-      chrome.tabs.query({}, (tabs) => {
-        for (const t of tabs) {
-          if (t.id != null) {
-            void chrome.tabs
-              .sendMessage(t.id, { type: 'SETTINGS_CHANGED', settings })
-              .catch(() => {
-                /* tab has no content script / was closed */
-              });
-          }
-        }
-      });
-    });
+    void writeSettingsPatch(message.patch).then((settings) => broadcastSettings(settings));
   },
 
   // A content script's initial settings read. Content scripts can't reliably read

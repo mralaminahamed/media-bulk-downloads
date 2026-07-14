@@ -14,7 +14,7 @@ import {
 import { snifferByTab } from '@/extension/background/sniffer-store';
 import { setupContextMenus } from '@/extension/background/context-menu';
 import { onCommand, onContextMenuClick } from '@/extension/background/commands';
-import { messageRouter, type SendResponse } from '@/extension/background/message-router';
+import { messageRouter, broadcastSettings, type SendResponse } from '@/extension/background/message-router';
 
 // state.ts drives badge/action-mode updates through a hook so it never imports
 // badge.ts (keeps the module graph acyclic); wire it before the first load.
@@ -62,11 +62,21 @@ chrome.downloads.onChanged.addListener((delta) => {
 
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'sync' && changes.settings) {
-    setCurrentSettings(withDefaults(changes.settings.newValue as Partial<SettingsData>));
+    const next = withDefaults(changes.settings.newValue as Partial<SettingsData>);
+    setCurrentSettings(next);
     applySettings();
     // A change event also means settings are now known — resolve the gate so a
     // download isn't left waiting on the initial read.
     resolveSettingsGate();
+    // Push to tabs so the on-page bubble live-updates for a change that DIDN'T come
+    // through a local SET_SETTINGS — i.e. a settings change synced from another
+    // device. The local write path broadcasts directly (message-router); a remote
+    // sync only surfaces here. Content scripts can't read storage.sync on Safari,
+    // so without this the bubble goes stale until the page reloads. (A local write
+    // also fires this event, so Chrome/Firefox may broadcast twice — harmless and
+    // idempotent; the belt-and-suspenders SET_SETTINGS broadcast stays for Safari,
+    // where this background storage event is not guaranteed to fire.)
+    broadcastSettings(next);
   } else if (namespace === 'local' && changes[EXCLUDED_KEY]) {
     // The blocklist lives in storage.local (see excluded.ts). Refresh the live
     // matcher cache, then recompute every tab's badge once it loads so the
