@@ -73,6 +73,16 @@ describe('deep-scan cap settings', () => {
     expect(DEFAULT_SETTINGS.deepScanClickLoadMore).toBe(false);
     expect(withDefaults({}).deepScanClickLoadMore).toBe(false);
   });
+  it('clamps corrupt loop bounds so a synced/hand-edited value cannot neuter or hang the scan', () => {
+    // negative → immediate loop break (near-empty scan); 0 → loop never runs;
+    // a non-numeric string → NaN comparison that removes the cap. Clamp all three.
+    const s = withDefaults({ deepScanMaxItems: -5, deepScanMaxSeconds: 'abc' as never, deepScanMaxScrolls: 0 });
+    expect(s.deepScanMaxItems).toBeGreaterThanOrEqual(1);
+    expect(s.deepScanMaxSeconds).toBeGreaterThanOrEqual(1);
+    expect(s.deepScanMaxScrolls).toBeGreaterThanOrEqual(1);
+    // a valid override is preserved
+    expect(withDefaults({ deepScanMaxItems: 2500 }).deepScanMaxItems).toBe(2500);
+  });
 });
 
 describe('withDefaults — corrupt shapes', () => {

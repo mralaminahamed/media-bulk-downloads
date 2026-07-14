@@ -1,7 +1,7 @@
 import { SettingsData } from '@mbd/core/types';
 import { registrableDomain } from '@mbd/core/collection/paths';
 import { durableSet } from '@mbd/storage/idb';
-import { loadStoredSettings } from '@mbd/storage/settings';
+import { loadStoredSettings, withDefaults } from '@mbd/storage/settings';
 
 /**
  * Per-host preference overrides (#293). A Record<registrableDomain,
@@ -43,7 +43,12 @@ export function pickHostFields(s: Partial<SettingsData>): Partial<SettingsData> 
 /** Effective settings = global with the host's allowlisted override on top.
  *  Precedence DEFAULT → global → host (global already has DEFAULT baked in). Pure. */
 export function applyHostOverride(global: SettingsData, override: Partial<SettingsData>): SettingsData {
-  return { ...global, ...pickHostFields(override) };
+  // Re-run withDefaults so a corrupt per-host override (e.g. a negative
+  // deepScanMaxItems synced from an older version, or hand-edited) is re-clamped
+  // exactly like the global layer — a raw spread would let the override
+  // reintroduce the unbounded/neutered loop bound withDefaults just guarded.
+  // Idempotent for valid settings (global already has DEFAULT baked in).
+  return withDefaults({ ...global, ...pickHostFields(override) });
 }
 
 /** The whole per-host store, validated to a plain object of allowlisted overrides. */

@@ -86,10 +86,16 @@ function matchesSearch(item: ImageInfo, query: string): boolean {
  * sort last regardless of direction, so the "biggest/smallest" views aren't
  * polluted by srcset candidates and CSS backgrounds whose size is unknown.
  */
-function compareBy(a: ImageInfo, b: ImageInfo, key: SortKey, dir: SortDir): number {
+function compareBy(
+  a: ImageInfo,
+  b: ImageInfo,
+  key: SortKey,
+  dir: SortDir,
+  nameOf: (i: ImageInfo) => string = itemName,
+): number {
   const sign = dir === 'asc' ? 1 : -1;
-  if (key === 'name') return sign * itemName(a).localeCompare(itemName(b), undefined, { numeric: true, sensitivity: 'base' });
-  if (key === 'type') return sign * (a.type.localeCompare(b.type) || itemName(a).localeCompare(itemName(b)));
+  if (key === 'name') return sign * nameOf(a).localeCompare(nameOf(b), undefined, { numeric: true, sensitivity: 'base' });
+  if (key === 'type') return sign * (a.type.localeCompare(b.type) || nameOf(a).localeCompare(nameOf(b)));
 
   // Numeric keys: size (bytes) or dimensions (pixel area). 0 = unknown → last.
   const value = (i: ImageInfo): number => (key === 'size' ? i.fileSize : i.width * i.height);
@@ -161,8 +167,16 @@ export function applyToolbarFilters(
   });
 
   if (filters.sortBy && filters.sortBy !== 'default') {
+    const key = filters.sortBy;
+    // Memoize each item's parsed filename once for name/type sorts. compareBy
+    // otherwise calls itemName -> originalNameFromUrl (a full URL parse + decode +
+    // sanitize) inside the comparator, i.e. O(n log n) times — janking the popup's
+    // hot per-keystroke filter path on large galleries. Numeric keys don't parse.
+    const nameCache =
+      key === 'name' || key === 'type' ? new Map(shown.map((i) => [i, itemName(i)])) : undefined;
+    const nameOf = nameCache ? (i: ImageInfo) => nameCache.get(i) ?? itemName(i) : itemName;
     // Copy first — sort mutates, and `items` (state) must not be reordered in place.
-    return [...shown].sort((a, b) => compareBy(a, b, filters.sortBy, filters.sortDir));
+    return [...shown].sort((a, b) => compareBy(a, b, key, filters.sortDir, nameOf));
   }
   return shown;
 }

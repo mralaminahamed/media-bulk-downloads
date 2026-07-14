@@ -82,11 +82,18 @@ function uniquePath(path: string, used: Set<string>): string {
  * up front, and refuse redirects so a public URL can't 30x into an internal one.
  * A blocked item returns null and lands in `failed` like any other fetch miss.
  */
-async function fetchBytes(url: string, doFetch: typeof fetch): Promise<Uint8Array | null> {
+async function fetchBytes(url: string, doFetch: typeof fetch, maxBytes?: number): Promise<Uint8Array | null> {
   if (!isSafeCaptureUrl(url)) return null;
   try {
     const res = await doFetch(url, { redirect: 'error' });
     if (!res.ok) return null;
+    // Skip an item the server declares is larger than the remaining budget BEFORE
+    // buffering it: arrayBuffer() materializes the entire body in the popup/bubble
+    // heap, and with several concurrent workers a few large items can OOM the page
+    // before the post-buffer cap check can intervene. A body with no (or an
+    // unparseable) content-length still buffers and is bounded by that later check.
+    const declared = Number(res.headers?.get?.('content-length'));
+    if (maxBytes != null && Number.isFinite(declared) && declared > maxBytes) return null;
     const buf = await res.arrayBuffer();
     return buf.byteLength > 0 ? new Uint8Array(buf) : null;
   } catch {
@@ -128,8 +135,10 @@ export async function buildZip(
     while (cursor < planned.length) {
       const i = cursor++;
       const { image, path } = planned[i];
-      // Once the cap is hit, skip the fetch entirely for remaining items.
-      const bytes = full ? null : await fetchBytes(image.src, deps.fetch);
+      // Once the cap is hit, skip the fetch entirely for remaining items. Pass the
+      // remaining budget so an item that declares a size past it is skipped before
+      // its body is buffered (see fetchBytes).
+      const bytes = full ? null : await fetchBytes(image.src, deps.fetch, cap - totalBytes);
       if (bytes && totalBytes + bytes.length <= cap) {
         totalBytes += bytes.length;
         files[path] = bytes;
