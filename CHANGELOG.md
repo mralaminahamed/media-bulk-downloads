@@ -41,10 +41,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Audio-only MP3 transcode** (#321). Audio-only stream capture can re-encode to
   MP3 at 128 / 192 / 320 kbps instead of the M4A passthrough, selectable in
   Settings and per item.
-- **Safari support.** The extension now builds for Safari through the
-  `@mbd/platform` capability seam, packaged as a native macOS wrapper
-  (`apps/safari-native/`, `yarn build:safari`). Mac App Store submission is under
-  review — see [#307](https://github.com/mralaminahamed/media-bulk-downloads/issues/307).
+- **Safari support (in progress).** A native macOS wrapper
+  (`apps/safari-native/`, `yarn build:safari`) and the `@mbd/platform` capability
+  seam that will back it are in place; the background is not yet routed through the
+  seam, so Safari packaging remains under review — see
+  [#307](https://github.com/mralaminahamed/media-bulk-downloads/issues/307).
 - **Per-site learned deep scan.** The adaptive deep scan now remembers how long
   each site takes to settle and how deep it scrolls, and seeds those on the next
   visit so a repeat scan on the same site starts warm instead of re-learning.
