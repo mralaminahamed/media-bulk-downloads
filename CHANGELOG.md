@@ -28,6 +28,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   instead of the browser's " (2)" suffix. Controlled by a new "Skip images already
   downloaded" setting (on by default); re-downloads from Favourites/History always
   go through.
+- **YouTube / BBC thumbnail 404s.** YouTube now upgrades only small thumbnails to
+  the always-present `hqdefault` (no dead `maxresdefault` links), and BBC targets
+  the width `2048` that its `/news/` path actually serves instead of a 404ing `1920`.
+- **Security & correctness hardening.** A project-wide audit sweep closed several
+  SSRF holes (popup image/convert fetches, the HLS/DASH segment and ZIP fetchers),
+  hardened the on-device stores against storage-quota and corrupt values, capped and
+  host-pinned the MAIN-world media sniffers, and aligned the download queue with
+  Chrome's three-state download model (recovering stuck items and capping retries).
 
 ### Added
 - **Multi-tab batch collection** (#283). Collect media from **all** or
@@ -51,6 +59,36 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   visit so a repeat scan on the same site starts warm instead of re-learning.
   Local only (nothing is uploaded), on by default, and controlled by a new
   "Remember scan behaviour per site" setting; "Reset this site" clears it.
+- **More site resolvers.** Bulk collection recognises and upgrades media from a
+  wider set of platforms since 1.2.0, each returning the true original:
+  - **Image boards:** the e621 family (e621 / e926 / e6ai), the Gelbooru-0.2
+    self-hosts (rule34.xxx / tbib / hypnohub / xbooru / realbooru), the Philomena
+    family (derpibooru / furbooru / ponybooru / twibooru), and zerochan.
+  - **GIF / video / wallpaper:** Giphy, Tenor, imgur `.gifv` → mp4, Burst by Shopify,
+    WallpaperCave, wallpaperscraft, plus **Streamable** and **RedGifs** video.
+  - **Art:** Pixiv (original master via the logged-in preload) and Newgrounds.
+
+  Passive and network-free where possible; RedGifs downloads clear their hotlink
+  403 via the opt-in "Retry w/ referer". No new permissions — see
+  [BENCHMARK.md](./docs/BENCHMARK.md).
+- **Follow gallery thumbnail links to originals** (#287): an opt-in resolve step
+  follows a same-origin thumbnail's link on host / "view" pages to the full image
+  (SSRF-guarded).
+- **Per-stream rendition picker** (#314): pick the exact HLS/DASH quality per stream
+  from the grid or preview, with a live preview of the chosen rendition.
+- **Stream capture quality** (#288): a global default — auto / best / worst / 1080 /
+  720 / 480 — for which variant capture selects.
+- **Audio-only capture** (#204): extract just the audio track (M4A / AAC
+  passthrough) from a non-DRM HLS/DASH stream — the basis the MP3 transcode builds on.
+- **Copy download command** (#285): when a stream can't be captured in-browser, copy
+  a ready-to-run external command (with the page as `Referer`) instead of failing.
+- **Per-file metadata sidecar** (#284): optionally write a small JSON sidecar beside
+  each download recording its source page and media details.
+- **Per-site settings** (#293): collection and filter preferences are remembered per
+  host — the Settings dialog gains **Save / Reset for this site** while the editor
+  itself stays global.
+- **Pinterest video pins & sniffed media** (#308): a passive Pinterest media sniffer
+  resolves pins (including video) to their real originals, upgrading each tile in place.
 
 ### Changed
 - **Smart page defaults are now on by default.** The extension detects the page
@@ -58,6 +96,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the box. Nothing is hidden — active defaults show as clearable chips, and the
   behaviour can be turned off in Settings. Existing users who had explicitly toggled
   the setting keep their choice.
+- **Smarter filters, dedup, and deep scan** (#291, #292). Filter chips are derived
+  from the collected set (stale selections reset automatically); the same image
+  served across CDN edges — twimg, imgix, Cloudinary, googleusercontent, WordPress
+  Photon — now collapses to a single item; and deep scan adapts its scroll step and
+  quiet-window to each page's observed yield instead of using fixed timings.
+- **Downloads retry transient failures.** Opt-in resolve fetches and HLS/DASH
+  segment fetches now retry transient 429 / 5xx / network blips with bounded
+  backoff (honouring `Retry-After`) before giving up.
 
 ## [1.2.0] - 2026-07-11
 
@@ -119,7 +165,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the `/photo(s)/<id>` fbid path, and every candidate is tagged with a
   `mediaKey` so an already-rendered tile upgrades in place once the real
   original streams in, instead of adding a duplicate row. See
-  [BENCHMARK.md §G](./docs/BENCHMARK.md#g-facebook-original-image-accuracy-passive-sniff--2026-07-10)
+  [BENCHMARK.md §G](./docs/benchmark/accuracy.md#g-facebook-original-image-accuracy-passive-sniff--2026-07-10)
   for the full measurement. Passive, read-only; no new permissions.
 - **Fixed: "Notify when downloads finish" setting not persisting** (#255):
   toggling the notification setting on requests the optional `notifications`
@@ -384,6 +430,7 @@ Initial public release.
 - Twitter/X GIF thumbnails served without a path extension are collected as
   downloadable video instead of leaking as a still image.
 
-[Unreleased]: https://github.com/mralaminahamed/media-bulk-downloads/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/mralaminahamed/media-bulk-downloads/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/mralaminahamed/media-bulk-downloads/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/mralaminahamed/media-bulk-downloads/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/mralaminahamed/media-bulk-downloads/releases/tag/v1.0.0
