@@ -181,4 +181,85 @@ describe('booruResolver', () => {
     document.body.appendChild(container);
     expect(booruResolver.resolve(new URL('https://static1.e621.net/data/preview/x.jpg'), ctx(img, 'https://e621.net/posts/1'))).toEqual([]);
   });
+
+  // Philomena engine (derpibooru / furbooru / ponybooru) + booru-on-rails
+  // (twibooru): the renditions live in an entity-encoded JSON `data-uris` on the
+  // media container wrapping the post/grid image; the `full` key is the full-res
+  // URL. Verified live 2026-07-15 — CDN hosts differ per site (derpicdn.net,
+  // furrycdn.org, cdn.ponybooru.org, cdn.twibooru.org), so each is host-pinned.
+  it('Philomena (derpibooru): reads data-uris.full, pins to derpicdn.net', () => {
+    const container = document.createElement('div');
+    container.className = 'image-show-container';
+    container.setAttribute('data-uris', JSON.stringify({
+      full: 'https://derpicdn.net/img/view/2012/1/2/1.png',
+      large: 'https://derpicdn.net/img/2012/1/2/1/large.png',
+      thumb: 'https://derpicdn.net/img/2012/1/2/1/thumb.png',
+    }));
+    const img = document.createElement('img');
+    img.setAttribute('src', 'https://derpicdn.net/img/2012/1/2/1/thumb.png');
+    container.appendChild(img);
+    document.body.appendChild(container);
+    const [c] = booruResolver.resolve(new URL('https://derpicdn.net/img/2012/1/2/1/thumb.png'), ctx(img, 'https://derpibooru.org/images/1'));
+    expect(c.url).toBe('https://derpicdn.net/img/view/2012/1/2/1.png');
+    expect(c.ext).toBe('png');
+    expect(c.thumbnailSrc).toBe('https://derpicdn.net/img/2012/1/2/1/thumb.png');
+  });
+
+  it('Philomena (furbooru): pins to furrycdn.org and detects a webm video', () => {
+    const container = document.createElement('div');
+    container.className = 'image-show-container';
+    container.setAttribute('data-uris', JSON.stringify({ full: 'https://furrycdn.org/img/view/2020/4/24/1.webm' }));
+    const img = document.createElement('img');
+    container.appendChild(img);
+    document.body.appendChild(container);
+    const [c] = booruResolver.resolve(new URL('https://furrycdn.org/img/2020/4/24/1/thumb.gif'), ctx(img, 'https://furbooru.org/images/1'));
+    expect(c.url).toBe('https://furrycdn.org/img/view/2020/4/24/1.webm');
+    expect(c.kind).toBe('video');
+    expect(c.ext).toBe('webm');
+  });
+
+  it('Philomena (twibooru, booru-on-rails): reads data-uris.full pinned to twibooru.org', () => {
+    const container = document.createElement('div');
+    container.className = 'image-show-container';
+    container.setAttribute('data-uris', JSON.stringify({ full: 'https://cdn.twibooru.org/img/2020/7/8/1/full.png' }));
+    const img = document.createElement('img');
+    container.appendChild(img);
+    document.body.appendChild(container);
+    // post URL has no /images/ prefix on twibooru
+    const [c] = booruResolver.resolve(new URL('https://cdn.twibooru.org/img/2020/7/8/1/thumb.png'), ctx(img, 'https://twibooru.org/1'));
+    expect(c.url).toBe('https://cdn.twibooru.org/img/2020/7/8/1/full.png');
+  });
+
+  it('Philomena: the data-uris container reached via el.closest (grid thumb)', () => {
+    const container = document.createElement('div');
+    container.className = 'media-box';
+    container.setAttribute('data-uris', JSON.stringify({ full: 'https://cdn.ponybooru.org/img/view/2020/7/5/1.png' }));
+    const inner = document.createElement('div');
+    const img = document.createElement('img');
+    inner.appendChild(img);
+    container.appendChild(inner);
+    document.body.appendChild(container);
+    const [c] = booruResolver.resolve(new URL('https://cdn.ponybooru.org/img/2020/7/5/1/thumb.png'), ctx(img, 'https://ponybooru.org/images/1'));
+    expect(c.url).toBe('https://cdn.ponybooru.org/img/view/2020/7/5/1.png');
+  });
+
+  it('Philomena fail-safe: an off-domain data-uris.full is rejected -> []', () => {
+    const container = document.createElement('div');
+    container.className = 'image-show-container';
+    container.setAttribute('data-uris', JSON.stringify({ full: 'https://evil.example.com/steal.png' }));
+    const img = document.createElement('img');
+    container.appendChild(img);
+    document.body.appendChild(container);
+    expect(booruResolver.resolve(new URL('https://derpicdn.net/img/thumb.png'), ctx(img, 'https://derpibooru.org/images/1'))).toEqual([]);
+  });
+
+  it('Philomena fail-safe: malformed data-uris JSON returns [] (no throw)', () => {
+    const container = document.createElement('div');
+    container.className = 'image-show-container';
+    container.setAttribute('data-uris', '{not valid json');
+    const img = document.createElement('img');
+    container.appendChild(img);
+    document.body.appendChild(container);
+    expect(booruResolver.resolve(new URL('https://derpicdn.net/img/thumb.png'), ctx(img, 'https://derpibooru.org/images/1'))).toEqual([]);
+  });
 });

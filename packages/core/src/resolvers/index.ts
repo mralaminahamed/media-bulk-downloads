@@ -18,8 +18,9 @@ import { twitterResolver } from '@mbd/core/resolvers/sites/twitter';
 import { unsplashResolver } from '@mbd/core/resolvers/sites/unsplash';
 import { wallhavenResolver } from '@mbd/core/resolvers/sites/wallhaven';
 import { youtubeResolver } from '@mbd/core/resolvers/sites/youtube';
+import { zerochanResolver } from '@mbd/core/resolvers/sites/zerochan';
 
-export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, facebookResolver, threadsResolver, unsplashResolver, wallhavenResolver, behanceResolver, bskyResolver, pinterestResolver, redditResolver, flickrResolver, artstationResolver, pixivResolver, magnificResolver, arcxpResolver, youtubeResolver, mastodonResolver, booruResolver, genericResolver];
+export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, facebookResolver, threadsResolver, unsplashResolver, wallhavenResolver, behanceResolver, bskyResolver, pinterestResolver, redditResolver, flickrResolver, artstationResolver, pixivResolver, magnificResolver, arcxpResolver, youtubeResolver, mastodonResolver, booruResolver, zerochanResolver, genericResolver];
 
 // Suffix → resolvers that declared it, preserving REGISTRY order within a bucket.
 const hostIndex = new Map<string, Resolver[]>();

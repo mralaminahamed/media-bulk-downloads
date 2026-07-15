@@ -322,6 +322,23 @@ Resolved (this benchmark drove the fixes):
     user-uploaded `/fuwp/uwp<id>` family is deferred).
   - Deferred: **We Heart It** — `data.whicdn.com` is **DNS-dead** (Route53 delegation
     REFUSED as of 2026-07-15); no rule shipped until the current CDN host is confirmed.
+- ✅ **Tier-2 DOM-read image-board resolvers (2026-07-15)** — two sync, network-free,
+  SFW-capable resolvers reading the full-original straight from page markup (no API):
+  - **Philomena / booru-on-rails** — a new `booru` branch reads the `full` key of the
+    entity-encoded JSON `data-uris` on the media container, host-pinned per site:
+    **derpibooru.org** → `derpicdn.net`, **furbooru.org** → `furrycdn.org` (not
+    furbooru.org), **ponybooru.org** → `cdn.ponybooru.org`, **twibooru.org** →
+    `cdn.twibooru.org`. Element-scoped via `closest('[data-uris]')` so a grid thumb
+    resolves its own container; `pinnedDomUrl` fails safe on any off-domain `full`.
+    (twibooru's `full` is a re-encoded full-res representation, not the byte-original —
+    acceptable and far more robust than a title-based View-anchor selector.)
+  - **zerochan.net** — a dedicated resolver reads the JSON-LD `ImageObject.contentUrl`
+    (fallback: the `#large a.preview` href), scoped to the main `#large` image so a
+    related/grid thumb never inherits the post's full URL. Host-pinned to `zerochan.net`
+    (`static.zerochan.net`). The CDN is hotlink-protected (needs `Referer`) — the
+    existing hotlink-403 Referer retry covers it.
+  - Deferred to a network-API follow-up (not the network-free model): Streamable,
+    RedGifs, Twitch clips, 9GAG, wallpaperscraft.
 
 Corrected:
 - 🔧 **YouTube** — `→maxresdefault` replaced a working `hqdefault` with a dead link when

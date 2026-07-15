@@ -97,4 +97,31 @@ describe('resolve — generic fallback', () => {
       resolveHint: { platform: 'artstation', id: 'img https://cdna.artstation.com/p/assets/images/images/1/2/3/large/x.jpg' },
     });
   });
+
+  it('includes zerochanResolver before genericResolver', () => {
+    const ids = REGISTRY.map((r) => r.id);
+    expect(ids).toContain('zerochan');
+    expect(ids.indexOf('zerochan')).toBeLessThan(ids.indexOf('generic'));
+  });
+
+  it('routes a zerochan #large thumbnail through the zerochan resolver to the JSON-LD full image', () => {
+    document.body.innerHTML = '';
+    const ld = document.createElement('script');
+    ld.type = 'application/ld+json';
+    ld.textContent = JSON.stringify({ '@type': 'ImageObject', contentUrl: 'https://static.zerochan.net/Tag.full.7.jpg' });
+    document.body.appendChild(ld);
+    const large = document.createElement('div');
+    large.id = 'large';
+    const a = document.createElement('a');
+    a.className = 'preview';
+    const img = document.createElement('img');
+    img.setAttribute('src', 'https://s1.zerochan.net/Tag.600.7.jpg');
+    a.appendChild(img);
+    large.appendChild(a);
+    document.body.appendChild(large);
+    const [c] = resolve('https://s1.zerochan.net/Tag.600.7.jpg', { el: img, allowNetwork: false, pageUrl: 'https://www.zerochan.net/7' });
+    expect(c).toMatchObject({ kind: 'image', url: 'https://static.zerochan.net/Tag.full.7.jpg' });
+    expect(c.thumbnailSrc).toBe('https://s1.zerochan.net/Tag.600.7.jpg');
+    document.body.innerHTML = '';
+  });
 });
