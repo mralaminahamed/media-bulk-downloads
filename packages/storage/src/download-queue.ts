@@ -13,6 +13,13 @@ export interface QueueItem {
   attempts: number;
   error?: string;
   downloadId?: number;
+  /** Set by claimNext() when this item is marked active but has no downloadId
+   *  yet (still awaiting chrome.downloads.download()'s async callback). Lets
+   *  recoverStuckActive distinguish "claimed microseconds ago, callback
+   *  pending" from a genuinely abandoned SW-death claim, instead of recycling
+   *  both immediately. Cleared once a downloadId is attached — it only matters
+   *  during the no-downloadId window. */
+  claimedAt?: number;
   readyAt: number;
   addedAt: number;
   /** Opaque to the reducer; the dispatcher uses it to write history on completion. */
@@ -117,7 +124,7 @@ export function claimNext(
   if (activeCount(state) >= cap) return null;
   const idx = state.items.findIndex((i) => i.status === 'queued' && i.readyAt <= now);
   if (idx === -1) return null;
-  const item: QueueItem = { ...state.items[idx], status: 'active' };
+  const item: QueueItem = { ...state.items[idx], status: 'active', claimedAt: now };
   const items = state.items.slice();
   items[idx] = item;
   return { state: { ...state, items }, item };
@@ -132,7 +139,7 @@ function patch(state: QueueState, id: string, fn: (i: QueueItem) => QueueItem): 
 }
 
 export function markActive(state: QueueState, id: string, downloadId: number): QueueState {
-  return patch(state, id, (i) => ({ ...i, status: 'active', downloadId }));
+  return patch(state, id, (i) => ({ ...i, status: 'active', downloadId, claimedAt: undefined }));
 }
 
 export function markDone(state: QueueState, id: string): QueueState {
@@ -153,18 +160,34 @@ export function scheduleRetry(state: QueueState, id: string, now: number): Queue
   });
 }
 
-/** Recover any item stuck `active` with NO downloadId at all — the SW died in the
- *  window between claimNext() persisting `status:'active'` and markActive()
- *  attaching the real id returned by chrome.downloads.download(). Every
- *  downloadId-keyed recovery path (reconcileQueue's search loop, pollProgress)
- *  filters on `downloadId !== undefined`, so an item like this is invisible to
- *  all of them and would otherwise hold a concurrency slot forever. A download
- *  was never actually dispatched for it, so this doesn't cost a retry/backoff
- *  attempt — straight back to `queued` so pump() retries it. */
+/** An item just claimed by claimNext() has no downloadId yet — it's still
+ *  awaiting chrome.downloads.download()'s async callback, which is only ever a
+ *  few event-loop turns away, not a genuine SW death. recoverStuckActive must
+ *  not sweep it up mid-flight: reconcileQueue runs from TWO triggers on SW wake
+ *  (onStartup + settingsReady), so it can race a fresh claim — without this
+ *  grace window it would recycle the item back to `queued`, its trailing
+ *  pump() would re-claim and re-dispatch a SECOND chrome.downloads.download for
+ *  the same file, and the original download's completion would match no active
+ *  item and be silently dropped from history. 10s is comfortably longer than
+ *  any realistic download()-callback latency. */
+export const RECOVER_GRACE_MS = 10_000;
+
+/** Recover any item stuck `active` with NO downloadId at all for longer than
+ *  RECOVER_GRACE_MS — the SW died in the window between claimNext() persisting
+ *  `status:'active'` and markActive() attaching the real id returned by
+ *  chrome.downloads.download(). Every downloadId-keyed recovery path
+ *  (reconcileQueue's search loop, pollProgress) filters on
+ *  `downloadId !== undefined`, so an item like this is invisible to all of them
+ *  and would otherwise hold a concurrency slot forever. A download was never
+ *  actually dispatched for it, so this doesn't cost a retry/backoff attempt —
+ *  straight back to `queued` so pump() retries it. An item with no `claimedAt`
+ *  at all (claimed by pre-grace-window code, e.g. before this fix shipped) is
+ *  treated as claimed at time 0 — i.e. always past the grace window — so
+ *  legacy stuck items already sitting in storage still get recovered. */
 export function recoverStuckActive(state: QueueState, now: number): QueueState {
   const items = state.items.map((i) =>
-    i.status === 'active' && i.downloadId === undefined
-      ? { ...i, status: 'queued' as const, readyAt: now, ruleId: undefined }
+    i.status === 'active' && i.downloadId === undefined && now - (i.claimedAt ?? 0) > RECOVER_GRACE_MS
+      ? { ...i, status: 'queued' as const, readyAt: now, ruleId: undefined, claimedAt: undefined }
       : i,
   );
   return { ...state, items };

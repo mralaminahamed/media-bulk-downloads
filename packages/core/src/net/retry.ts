@@ -9,6 +9,17 @@
 
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 
+/** Default per-ATTEMPT fetch timeout (ms). Without this, a slow/unresponsive
+ *  PUBLIC host — one that accepts the TCP connection but never responds — makes
+ *  `fetch()` hang forever: `assertSafeCaptureUrl` only blocks internal/private
+ *  hosts, and neither `retryingFetch` nor its callers ever aborted a stuck
+ *  attempt. That wedges the whole capture (the offscreen doc holds the
+ *  connection, `captureRunTabs` leaks, the UI shows "Capturing…" forever) with
+ *  no recovery but an extension reload. Each attempt gets its own budget, so a
+ *  bounded retry loop still runs and the capture fails with a normal coded
+ *  error instead of hanging. */
+export const FETCH_TIMEOUT_MS = 30_000;
+
 export interface RetryOpts {
   /** Total attempts including the first. Default 3. */
   maxAttempts?: number;
@@ -16,8 +27,13 @@ export interface RetryOpts {
   baseDelayMs?: number;
   /** Cap on any single delay (and on Retry-After). Default 5000. */
   maxDelayMs?: number;
-  /** Abort cancels a pending backoff and stops retrying. */
+  /** Abort cancels a pending backoff and stops retrying; also aborts an
+   *  in-flight attempt (not just a pending backoff sleep). */
   signal?: AbortSignal;
+  /** Per-attempt timeout (ms). When set, each attempt gets its own
+   *  AbortController that aborts the attempt after this many ms — combined
+   *  with `signal`, if given — so a hung fetch can't stall the whole capture. */
+  timeoutMs?: number;
   /** Injectable sleep (tests). Default: setTimeout that also rejects on abort. */
   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
   /** Injectable full-jitter source in [0,1). Default Math.random. */
@@ -60,18 +76,38 @@ export function retryingFetch(rawFetch: typeof fetch, opts: RetryOpts = {}): typ
     await sleep(delay, opts.signal);
   };
 
+  const timeoutMs = opts.timeoutMs;
+
   return (async (...args: Parameters<typeof fetch>): Promise<Response> => {
     let lastError: unknown;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       if (opts.signal?.aborted) throw opts.signal.reason ?? new DOMException('Aborted', 'AbortError');
       let res: Response;
+      // Bound THIS attempt: a fresh AbortController per attempt (so a timed-out
+      // attempt never poisons the next retry), aborted either by `timeoutMs`
+      // elapsing or by the caller's own `signal` aborting mid-flight (not just
+      // during backoff, which `backoff()`'s sleep already honors).
+      const attemptAc = new AbortController();
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const onOuterAbort = (): void => attemptAc.abort(opts.signal!.reason ?? new DOMException('Aborted', 'AbortError'));
+      if (timeoutMs != null) {
+        timer = setTimeout(
+          () => attemptAc.abort(new DOMException(`Fetch timed out after ${timeoutMs}ms.`, 'AbortError')),
+          timeoutMs,
+        );
+      }
+      opts.signal?.addEventListener('abort', onOuterAbort, { once: true });
       try {
-        res = await rawFetch(...args);
+        const [input, init] = args;
+        res = await rawFetch(input, { ...init, signal: attemptAc.signal });
       } catch (e) {
         lastError = e;
         if (attempt >= maxAttempts) throw e;
         await backoff(attempt, null);
         continue;
+      } finally {
+        if (timer !== undefined) clearTimeout(timer);
+        opts.signal?.removeEventListener('abort', onOuterAbort);
       }
       // Non-transient status, or last attempt → return this Response unread.
       if (!RETRYABLE_STATUS.has(res.status) || attempt >= maxAttempts) return res;

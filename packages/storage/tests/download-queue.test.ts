@@ -204,26 +204,54 @@ describe('claimNext — concurrency cap validation', () => {
 });
 
 describe('recoverStuckActive — SW died before markActive attached a downloadId (bug #2)', () => {
-  it('requeues an active item that never got a downloadId, leaving a normal active item untouched', () => {
+  it('requeues an active item claimed long ago (past the grace window), leaving a normal active item untouched', () => {
     const s: QueueState = {
       paused: false,
       items: [
-        // Stuck: claimNext persisted status:'active' but the SW died before
-        // chrome.downloads.download()'s callback could markActive() a real id.
-        // Every downloadId-keyed recovery path (reconcileQueue's search loop,
-        // pollProgress) filters on downloadId !== undefined, so this item is
+        // Stuck: claimNext persisted status:'active' (claimedAt: T0) but the SW
+        // died before chrome.downloads.download()'s callback could markActive() a
+        // real id. Every downloadId-keyed recovery path (reconcileQueue's search
+        // loop, pollProgress) filters on downloadId !== undefined, so this item is
         // otherwise invisible and holds a concurrency slot forever.
-        { id: 'a', url: 'u1', filename: 'f1', status: 'active', attempts: 0, readyAt: 0, addedAt: 0 },
+        { id: 'a', url: 'u1', filename: 'f1', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, claimedAt: T0 },
         // Normal in-flight item — must be left exactly as-is.
         { id: 'b', url: 'u2', filename: 'f2', status: 'active', attempts: 0, downloadId: 5, readyAt: 0, addedAt: 0 },
       ],
     };
-    const out = recoverStuckActive(s, T0);
-    expect(out.items[0]).toMatchObject({ status: 'queued', readyAt: T0 });
+    // `now` is far in the future relative to the claim (T0 + 20s, well past
+    // GRACE_MS) — the claim died at T0 and is genuinely abandoned, so it still
+    // recovers.
+    const now = T0 + 20_000;
+    const out = recoverStuckActive(s, now);
+    expect(out.items[0]).toMatchObject({ status: 'queued', readyAt: now });
     expect(out.items[0].downloadId).toBeUndefined();
     // No retry/backoff cost — a download was never actually dispatched for it.
     expect(out.items[0].attempts).toBe(0);
     expect(out.items[1]).toMatchObject({ status: 'active', downloadId: 5 });
+  });
+
+  // Regression (HIGH): recoverStuckActive used to sweep ANY active item with no
+  // downloadId, with no grace period. That can't distinguish a genuinely dead SW
+  // from a pump() call that claimed this item microseconds ago and is still
+  // awaiting chrome.downloads.download()'s async callback. reconcileQueue runs
+  // from TWO triggers on SW wake (onStartup + settingsReady), so it can race a
+  // fresh claim: reconcile recycles the just-claimed item back to 'queued', its
+  // trailing pump() re-claims and re-dispatches it — a SECOND download for the
+  // same file, and the original download's completion matches no active item and
+  // is silently dropped from history.
+  it('does NOT recover an item claimed within the grace window — it stays active', () => {
+    const now = T0;
+    const s: QueueState = {
+      paused: false,
+      items: [
+        // Claimed at `now` itself — a pump() call microseconds ago, still awaiting
+        // chrome.downloads.download()'s callback. Must be left untouched.
+        { id: 'z', url: 'u3', filename: 'f3', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, claimedAt: now },
+      ],
+    };
+    const out = recoverStuckActive(s, now);
+    expect(out.items[0]).toMatchObject({ status: 'active', claimedAt: now });
+    expect(out.items[0].downloadId).toBeUndefined();
   });
 });
 

@@ -72,7 +72,10 @@ export function ingestSniffedIgMedia(entries: unknown): void {
     clean.push(entry);
   }
   if (!clean.length) return;
-  sniffed.push(...clean);
+  // Build with a loop, not `push(...clean)`: clean can be as large as the untrusted
+  // `entries` payload, and spreading it as call args can hit the engine's
+  // argument-count limit (RangeError, silently swallowed by the caller's try/catch).
+  for (const e of clean) sniffed.push(e);
   if (sniffed.length > SNIFF_CAP) sniffed = sniffed.slice(sniffed.length - SNIFF_CAP);
   cache = null;
 }
@@ -96,7 +99,10 @@ function buildByCode(): Map<string, IgMediaEntry[]> {
     if (text.indexOf('image_versions2') === -1 && text.indexOf('video_versions') === -1) return;
     try {
       const before = parsed.length;
-      parsed.push(...extractIgMedia(JSON.parse(text)));
+      // Build with a loop, not `push(...extractIgMedia(...))`: the extracted list can
+      // be as large as the page's own hydration JSON, and spreading it as call args
+      // can hit the engine's argument-count limit (RangeError, swallowed by this try/catch).
+      for (const m of extractIgMedia(JSON.parse(text))) parsed.push(m);
       if (parsed.length !== before) parsedVersion++;
     } catch {
       /* not JSON / not ours — ignore */

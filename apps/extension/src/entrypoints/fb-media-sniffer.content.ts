@@ -34,7 +34,10 @@ export default defineContentScript({
         extract: extractFbMedia,
         envelope: (entries) => {
           if (!relayReady) {
-            buffer.push(...entries);
+            // Build with a loop, not `push(...entries)`: entries is untrusted/unbounded
+            // page data, and spreading it as call args can hit the engine's
+            // argument-count limit (RangeError, silently swallowed by the caller's try/catch).
+            for (const e of entries) buffer.push(e);
             // If the isolated relay never readies (its content script failed to run,
             // was blocked, or threw before the FB branch), FB's SPA keeps streaming
             // for the whole session — cap the bridge buffer so it can't leak the

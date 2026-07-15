@@ -1,7 +1,7 @@
 import {
   loadQueue, saveQueue, enqueue, claimNext, markActive, markDone, markFailed,
   scheduleRetry, cancel, retryFailed, setProgress, clearFinished, retryAllFailed,
-  recoverStuckActive,
+  recoverStuckActive, RECOVER_GRACE_MS,
   type EnqueueEntry, type QueueState, type QueueItem,
 } from '@mbd/storage/download-queue';
 import { recordDownloads } from '@mbd/storage/history';
@@ -342,7 +342,13 @@ export async function reconcileQueue(): Promise<void> {
   // window between claimNext() persisting status:'active' and markActive()
   // attaching the real id — invisible to the downloadId-keyed loop below (and to
   // pollProgress), so it would otherwise hold a concurrency slot forever.
-  const stuckNoId = snapshot.items.filter((i) => i.status === 'active' && i.downloadId === undefined);
+  // Grace-gated (matches recoverStuckActive): only items whose claim is genuinely
+  // abandoned — never one a concurrent pump() claimed microseconds ago and is still
+  // awaiting chrome.downloads.download()'s callback (else we'd strip its DNR rule
+  // and re-dispatch a duplicate download).
+  const stuckNoId = snapshot.items.filter(
+    (i) => i.status === 'active' && i.downloadId === undefined && now - (i.claimedAt ?? 0) > RECOVER_GRACE_MS,
+  );
   if (stuckNoId.length) {
     await withState(async (s) => ({ state: recoverStuckActive(s, now), value: null }));
     for (const it of stuckNoId) {

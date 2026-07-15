@@ -33,6 +33,28 @@ describe('pinterest-media-sniffer entrypoint', () => {
     expect(installReplayOnReady).toHaveBeenCalledWith('ibd-pinterest-ready', expect.any(Function));
   });
 
+  // The buffer is built with a loop (`for (const e of entries) buffer.push(e)`),
+  // not `buffer.push(...entries)` — entries crosses the MAIN->isolated boundary
+  // from an untrusted page and can be arbitrarily large; spreading it as call
+  // args risks a RangeError (silently dropping the whole batch since this sits
+  // inside the sniffer's try/catch). Feed one very large batch in a single call
+  // and confirm it doesn't throw and all (capped) entries make it through.
+  it('buffers a single very large batch without throwing (loop-push, not push(...spread))', () => {
+    const posted: Array<{ entries: Array<{ pinId: string }> }> = [];
+    (window.postMessage as unknown) = vi.fn((m: unknown) => posted.push(m as never));
+    (sniffer.main as () => void)();
+    const emit = (makeSnifferEmit as unknown as { mock: { calls: any[][] } }).mock.calls[0][0];
+    const replay = (installReplayOnReady as unknown as { mock: { calls: any[][] } }).mock.calls[0][1] as () => void;
+
+    const bigBatch = Array.from({ length: 200_000 }, (_, i) => ({ pinId: String(i) }));
+    expect(() => emit.envelope(bigBatch)).not.toThrow();
+
+    replay();
+    const drained = posted.at(-1)!.entries;
+    expect(drained).toHaveLength(8000); // capped
+    expect(drained.at(-1)).toEqual({ pinId: '199999' }); // newest survives the cap
+  });
+
   it('does not buffer entries emitted after the relay is ready (no double replay)', () => {
     const posted: unknown[] = [];
     (window.postMessage as unknown) = vi.fn((m: unknown) => posted.push(m));

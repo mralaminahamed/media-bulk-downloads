@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { SettingsData, SettingsProps } from '@mbd/core/types';
 import { expandPathTemplate, todayISO } from '@mbd/core/collection/paths';
@@ -27,6 +27,32 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
   const [activeTab, setActiveTab] = useState('downloads');
   const [siteNote, setSiteNote] = useState('');
   const panelRef = useDialog(onClose);
+
+  // The dialog seeds its local edit buffer once at mount and otherwise never
+  // looks at the live `settings` prop again — so a concurrent change from
+  // elsewhere (another tab, the on-page bubble resizing/dragging) while the
+  // dialog is open is invisible to it, and Save would silently revert that
+  // field back to whatever it was when the dialog opened (audit 2026-07-15).
+  // Mirror any field the user hasn't touched locally forward to the fresh prop
+  // value; a field the user IS actively editing (already diverged from the
+  // last-known-external value) is left alone so an in-progress edit is never
+  // clobbered by an unrelated external change.
+  const externalRef = useRef<SettingsData>(initialSettings);
+  useEffect(() => {
+    setSettings((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const key of Object.keys(initialSettings) as (keyof SettingsData)[]) {
+        const untouched = JSON.stringify(prev[key]) === JSON.stringify(externalRef.current[key]);
+        if (untouched && JSON.stringify(prev[key]) !== JSON.stringify(initialSettings[key])) {
+          (next as Record<string, unknown>)[key] = initialSettings[key];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    externalRef.current = initialSettings;
+  }, [initialSettings]);
 
   // Auto-expand a pane's Advanced section when the sheet opens with any of its
   // fields already non-default, so a set value is never hidden. Seed from the
@@ -108,8 +134,19 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
   })();
 
   const handleSave = () => {
-    // Persistence is owned by the parent (App.handleSettingsChange).
-    onSettingsChange(settings);
+    // Persistence is owned by the parent (App.handleSettingsChange). Send only
+    // the fields the user actually changed here — not the entire local
+    // snapshot — merged onto the LIVE settings prop, so an untouched field can
+    // never clobber a concurrent external change (e.g. the bubble resizing
+    // while this dialog was open) that the resync effect above may not have
+    // caught yet. Mirrors usePerHostSettings.saveForThisSite's delta pattern.
+    const delta: Partial<SettingsData> = {};
+    for (const key of Object.keys(settings) as (keyof SettingsData)[]) {
+      if (JSON.stringify(settings[key]) !== JSON.stringify(initialSettings[key])) {
+        (delta as Record<string, unknown>)[key] = settings[key];
+      }
+    }
+    onSettingsChange({ ...initialSettings, ...delta });
     onClose();
   };
 

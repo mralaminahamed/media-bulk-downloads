@@ -589,6 +589,52 @@ a.ts
     const deps = fakeDeps({ fetchBytes: async () => new Uint8Array(0) }, { 'index.m3u8': MEDIA_TS });
     await expect(captureHls('https://cdn.test/v/index.m3u8', deps)).rejects.toMatchObject({ code: 'empty' });
   });
+
+  // Bug: fetchTrack's `Promise.all(workers)` rejects as soon as ONE worker
+  // throws, but the other in-flight workers keep pulling and fetching NEW
+  // segments over the network — wasted work after the capture has already
+  // failed. Sibling workers must share a cancel signal and stop at the top of
+  // their next loop iteration once it's set.
+  it('stops sibling workers from pulling new segments once one fails', async () => {
+    vi.useFakeTimers();
+    try {
+      const TOTAL = 24; // 4 rounds at the default concurrency of 6
+      let media = '#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXT-X-MEDIA-SEQUENCE:0\n';
+      for (let i = 0; i < TOTAL; i++) media += `#EXTINF:6.0,\nseg${i}.ts\n`;
+      media += '#EXT-X-ENDLIST\n';
+
+      const calls: string[] = [];
+      const deps = fakeDeps(
+        {
+          fetchBytes: async (u) => {
+            calls.push(u);
+            if (u.endsWith('seg0.ts')) throw new Error('boom'); // first segment grabbed, fails fast
+            // Every other segment "downloads" after a short delay — long enough
+            // for the failure (and the shared cancel flag) to land first.
+            return new Promise<Uint8Array>((resolve) => setTimeout(() => resolve(bytesOf(u)), 10));
+          },
+        },
+        { 'index.m3u8': media },
+      );
+
+      const p = captureHls('https://cdn.test/v/index.m3u8', deps);
+      const caught = p.catch((e: unknown) => e);
+
+      // Give the sibling workers plenty of virtual time to keep going, if
+      // nothing stops them — enough rounds to drain all 24 segments.
+      await vi.advanceTimersByTimeAsync(500);
+
+      const err = await caught;
+      expect(err).toBeInstanceOf(HlsError);
+
+      // Only the in-flight first round (bounded by concurrency=6) should ever
+      // have been fetched; the fix must stop siblings before they pull round 2+.
+      expect(calls.length).toBeLessThanOrEqual(6);
+      expect(calls.length).toBeLessThan(TOTAL);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 const MASTER_DEMUX = `#EXTM3U

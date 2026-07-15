@@ -7,7 +7,7 @@ import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { hostFromUrl, registrableDomain, todayISO } from '@mbd/core/collection/paths';
 import { requestCaptureStream } from '@/extension/shared/active-tab/capture-stream-active';
 import { isSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
-import { copyText, downloadText, mapWithConcurrency } from '@/extension/popup/utils';
+import { copyText, downloadText, mapWithConcurrency, sendRuntimeMessage } from '@/extension/popup/utils';
 import { downloadable } from '@/extension/popup/lib/appHelpers';
 
 /** A refused/undownloadable stream (#285): the item, the engine refusal code,
@@ -159,7 +159,7 @@ export function useDownloadActions({
     const sourcePage = await currentSourcePage();
 
     if (passthrough.length) {
-      chrome.runtime.sendMessage({ type: 'DOWNLOAD_IMAGES', images: passthrough, sourcePage } as DownloadMessage);
+      sendRuntimeMessage({ type: 'DOWNLOAD_IMAGES', images: passthrough, sourcePage } as DownloadMessage);
     }
     if (!toConvert.length) {
       setState((prev) => ({ ...prev, status: `Sent ${passthrough.length} file${passthrough.length === 1 ? '' : 's'} to downloads…` }));
@@ -204,7 +204,7 @@ export function useDownloadActions({
             alt: img.alt, width: img.width, height: img.height, fileSize: img.fileSize, ext: converted.ext,
           },
         };
-        chrome.runtime.sendMessage(msg);
+        sendRuntimeMessage(msg);
       } catch {
         failed.push(img);
       } finally {
@@ -215,11 +215,14 @@ export function useDownloadActions({
 
     // Anything that couldn't be fetched/decoded downloads in its original format.
     if (failed.length) {
-      chrome.runtime.sendMessage({ type: 'DOWNLOAD_IMAGES', images: failed, sourcePage } as DownloadMessage);
+      sendRuntimeMessage({ type: 'DOWNLOAD_IMAGES', images: failed, sourcePage } as DownloadMessage);
     }
     const okCount = toConvert.length - failed.length - blocked;
-    const note = failed.length ? ` ${failed.length} couldn't convert — saved original.` : '';
-    setState((prev) => ({ ...prev, status: `Converted ${okCount} image${okCount === 1 ? '' : 's'} to ${target.toUpperCase()}.${note}` }));
+    const failedNote = failed.length ? ` ${failed.length} couldn't convert — saved original.` : '';
+    // An SSRF-blocked item is neither a success nor a `failed` fallback download —
+    // without this it's silently invisible in the final status (#audit 2026-07-15).
+    const blockedNote = blocked ? ` ${blocked} blocked.` : '';
+    setState((prev) => ({ ...prev, status: `Converted ${okCount} image${okCount === 1 ? '' : 's'} to ${target.toUpperCase()}.${failedNote}${blockedNote}` }));
   };
 
   const handleBulkDownload = (): void => {

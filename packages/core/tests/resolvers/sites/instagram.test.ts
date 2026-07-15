@@ -331,3 +331,27 @@ describe('instagram buildByCode + instagramPageMedia — parsing edge cases', ()
     expect(instagramPageMedia('https://www.instagram.com/rashmiix/p/UNKNOWN/')).toEqual([]);
   });
 });
+
+describe('Bug fix: push loop handles very large arrays (no RangeError)', () => {
+  // Both `sniffed` (ingestSniffedIgMedia) and `parsed` (hydration parsing) are
+  // built with a loop, not `push(...items)`: `items` can be arbitrarily large
+  // (untrusted page data / a huge carousel's hydration JSON), and spreading it
+  // as call args risks a RangeError that the caller's try/catch would silently
+  // swallow. Prove a single call with 200,000 entries doesn't throw either path.
+  it('ingestSniffedIgMedia ingests 200,000 entries in one call without throwing', () => {
+    const many = Array.from({ length: 200_000 }, (_, i) => ({
+      code: 'BIGCODE', kind: 'image' as const, url: `${CDN}/HUGE_${i}_n.jpg`, ext: 'jpg', width: 10, height: 10,
+    }));
+    expect(() => ingestSniffedIgMedia(many)).not.toThrow();
+    expect(instagramPageMedia('https://www.instagram.com/x/p/BIGCODE/').some((c) => c.url === `${CDN}/HUGE_199999_n.jpg`)).toBe(true);
+  });
+
+  it('a carousel hydration with 200,000 slides parses in one call without throwing', () => {
+    const carousel_media = Array.from({ length: 200_000 }, (_, i) => ({
+      media_type: 1, image_versions2: { candidates: [{ url: `${CDN}/BIGCAP_${i}_n.jpg`, width: 1440, height: 1440 }] },
+    }));
+    hydrate({ code: 'BIGCAP', media_type: 8, carousel_media });
+    expect(() => instagramPageMedia('https://www.instagram.com/x/p/BIGCAP/')).not.toThrow();
+    expect(instagramPageMedia('https://www.instagram.com/x/p/BIGCAP/')).toHaveLength(4000); // capped, newest kept
+  });
+});

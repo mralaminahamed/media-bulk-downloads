@@ -47,7 +47,10 @@ export function ingestSniffedFbMedia(entries: unknown): void {
     clean.push(entry);
   }
   if (!clean.length) return;
-  store.push(...clean);
+  // Build with a loop, not `push(...clean)`: clean can be as large as the untrusted
+  // `entries` payload, and spreading it as call args can hit the engine's
+  // argument-count limit (RangeError, silently swallowed by the caller's try/catch).
+  for (const e of clean) store.push(e);
   if (store.length > SNIFF_CAP) store = store.slice(store.length - SNIFF_CAP);
   version++;
   cache = null;

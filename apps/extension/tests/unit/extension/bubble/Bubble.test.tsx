@@ -157,6 +157,25 @@ describe('Bubble', () => {
     expect(screen.queryByRole('heading', { name: 'Media Bulk Downloads' })).not.toBeInTheDocument();
   });
 
+  // A browser/OS pointer cancel (common on touch/pen) must be handled exactly
+  // like pointerup — otherwise `grabbing` stays set and the in-progress drag is
+  // never persisted. Mirrors the intentional-drag test above but ends the
+  // gesture with pointercancel instead of pointerup.
+  it('resets grabbing and persists position on a pointercancel mid-drag', () => {
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings }));
+    render(<Bubble initialSettings={settings} />);
+    const launcher = screen.getByRole('button', { name: 'Media Bulk Downloads' });
+
+    fireEvent(launcher, pointer('pointerdown', 100, 100));
+    fireEvent(launcher, pointer('pointermove', 400, 300));
+    expect(launcher.style.cursor).toBe('grabbing');
+
+    fireEvent(launcher, pointer('pointercancel', 400, 300));
+
+    expect(launcher.style.cursor).toBe('pointer');
+    expect(settingsPatches()).toContainEqual(expect.objectContaining({ bubblePosition: expect.any(Object) }));
+  });
+
   it('centers the panel when the placement is "center"', async () => {
     render(<Bubble initialSettings={{ ...settings, bubblePanelPlacement: 'center' }} />);
     await dispatchToggle();
@@ -182,6 +201,28 @@ describe('Bubble', () => {
     expect(panel.style.left).not.toBe('');
     expect(panel.style.top).not.toBe('');
     expect(panel.style.bottom).toBe('');
+    expect(settingsPatches()).toContainEqual(expect.objectContaining({
+      bubblePanelPlacement: 'free',
+      bubblePanelPoint: expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+    }));
+  });
+
+  // Same pointercancel coverage as the FAB drag above, for the header's
+  // free-drag gesture — a cancel mid-drag must still commit the placement
+  // rather than leaving panelDrag.current set with nothing persisted.
+  it('persists the free placement on a pointercancel mid-header-drag', async () => {
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings }));
+    render(<Bubble initialSettings={settings} />);
+    await dispatchToggle();
+    const heading = await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
+    const header = heading.closest('header') as HTMLElement;
+
+    fireEvent(header, pointer('pointerdown', 200, 30));
+    fireEvent(header, pointer('pointermove', 500, 320));
+    fireEvent(header, pointer('pointercancel', 500, 320));
+
+    const panel = document.querySelector('.sheet-in') as HTMLElement;
+    expect(panel.style.left).not.toBe('');
     expect(settingsPatches()).toContainEqual(expect.objectContaining({
       bubblePanelPlacement: 'free',
       bubblePanelPoint: expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),

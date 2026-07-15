@@ -743,4 +743,53 @@ describe('Settings Component', () => {
     );
     expect(screen.getByRole('button', { name: /save for this site/i })).toBeDisabled();
   });
+
+  // ── Save doesn't clobber a concurrent external change (audit 2026-07-15, bug #3) ──
+  it('does not clobber a concurrent external settings change (e.g. bubble resize) on Save', () => {
+    const onSettingsChange = vi.fn();
+    const { rerender } = render(
+      <Settings onClose={mockOnClose} onSettingsChange={onSettingsChange} settings={initialSettings} />,
+    );
+
+    // Simulate a concurrent external change while the dialog is open: the
+    // on-page bubble resizes, bubbleWidth changes in storage, and App's live
+    // `settings` prop (re-rendered via its storage.onChanged listener) updates —
+    // the dialog never touched this field.
+    rerender(
+      <Settings onClose={mockOnClose} onSettingsChange={onSettingsChange} settings={{ ...initialSettings, bubbleWidth: 900 }} />,
+    );
+
+    // The user edits an unrelated field and saves.
+    fireEvent.change(screen.getByLabelText(/Save to subfolder \(in Downloads\):/), { target: { value: 'new_path' } });
+    fireEvent.click(screen.getByText('Save'));
+
+    // Save must carry forward the LIVE bubbleWidth (900), not the stale value
+    // from when the dialog first mounted (440) — plus the user's actual edit.
+    expect(onSettingsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ downloadPath: 'new_path', bubbleWidth: 900 }),
+    );
+  });
+
+  it("preserves the user's in-progress edit over a concurrent external change to the SAME field", () => {
+    const onSettingsChange = vi.fn();
+    const { rerender } = render(
+      <Settings onClose={mockOnClose} onSettingsChange={onSettingsChange} settings={initialSettings} />,
+    );
+    selectTab(/Display/i);
+    fireEvent.click(screen.getByRole('switch', { name: /show floating bubble/i }));
+    openAdvanced();
+    // The user starts editing bubbleWidth locally...
+    fireEvent.change(screen.getByLabelText('Bubble width:'), { target: { value: '700' } });
+
+    // ...while bubbleWidth ALSO changes externally, to a different value.
+    rerender(
+      <Settings onClose={mockOnClose} onSettingsChange={onSettingsChange}
+        settings={{ ...initialSettings, bubbleEnabled: true, bubbleWidth: 900 }} />,
+    );
+
+    fireEvent.click(screen.getByText('Save'));
+    // The user's own edit wins — it must not be silently overwritten by the
+    // concurrent external value for the same field.
+    expect(onSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ bubbleWidth: 700 }));
+  });
 });

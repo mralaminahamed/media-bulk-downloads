@@ -62,7 +62,12 @@ describe('browserHlsDeps', () => {
     const f = vi.fn().mockResolvedValue({ ok: false, status: 206, arrayBuffer: () => Promise.resolve(new Uint8Array([1, 2, 3]).buffer) });
     global.fetch = f as unknown as typeof fetch;
     const out = await browserHlsDeps().fetchBytes('https://x/seg', { offset: 100, length: 50 });
-    expect(f).toHaveBeenCalledWith('https://x/seg', { headers: { Range: 'bytes=100-149' }, redirect: 'error' });
+    // objectContaining: a per-attempt AbortSignal (the capture-fetch timeout) is
+    // also passed now — not asserting its identity, just the meaningful fields.
+    expect(f).toHaveBeenCalledWith(
+      'https://x/seg',
+      expect.objectContaining({ headers: { Range: 'bytes=100-149' }, redirect: 'error' }),
+    );
     expect(Array.from(out)).toEqual([1, 2, 3]);
   });
 
@@ -70,7 +75,9 @@ describe('browserHlsDeps', () => {
     const f = vi.fn().mockResolvedValue({ ok: true, arrayBuffer: () => Promise.resolve(new Uint8Array([9]).buffer) });
     global.fetch = f as unknown as typeof fetch;
     expect(Array.from(await browserHlsDeps().fetchBytes('https://x/seg'))).toEqual([9]);
-    expect(f).toHaveBeenCalledWith('https://x/seg', { redirect: 'error' });
+    // objectContaining: a per-attempt AbortSignal (the capture-fetch timeout) is
+    // also passed now — not asserting its identity, just the meaningful fields.
+    expect(f).toHaveBeenCalledWith('https://x/seg', expect.objectContaining({ redirect: 'error' }));
     // 500 is a retryable status for retryingFetch, which reads Retry-After off
     // `res.headers` before deciding whether to retry — so the mock needs a
     // Headers-shaped object, not just `{ ok, status }`.
