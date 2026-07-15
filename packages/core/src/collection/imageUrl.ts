@@ -738,6 +738,10 @@ const RULES: CdnRule[] = [
     // length gate is essential. Suffix letters are lowercase (no /i flag). See #83.
     match: (u) => u.hostname === 'i.imgur.com',
     rewrite: (u) => {
+      // .gifv is an HTML wrapper page; the same-id .mp4 is the actual video
+      // original (imgur also serves .webm). Live-verified 2026-07-15. Done first
+      // so the thumb-suffix strip below never sees a .gifv extension.
+      u.pathname = u.pathname.replace(/\.gifv$/i, '.mp4');
       u.pathname = u.pathname.replace(/^\/([A-Za-z0-9]{7})[sbtmlhrg](\.[a-z0-9]+)$/, '/$1$2');
     },
   },
@@ -884,6 +888,54 @@ const RULES: CdnRule[] = [
     // Verified _10=335 KB -> _0=1.33 MB.
     match: (u) => u.hostname === 'f4.bcbits.com' && /\/img\/a\d+_\d+\.[a-z0-9]+$/i.test(u.pathname),
     rewrite: (u) => { u.pathname = u.pathname.replace(/(\/img\/a\d+)_\d+(\.[a-z0-9]+)$/i, '$1_0$2'); },
+  },
+  {
+    // Giphy (media[0-4].giphy.com): renditions live at /media/[v1.<cid>/]<id>/
+    // <rendition>.gif; the full GIF is <id>/giphy.gif. Swap any .gif rendition
+    // filename to giphy.gif. Scoped to .gif so an .mp4/.webp keeps its format,
+    // and to /media/ so only rendition paths are touched. The bare host works —
+    // the /v1.<cid>/ tracking segment is optional and unvalidated (live-verified
+    // 2026-07-15: fabricated cid still 200s). See #349-follow.
+    match: (u) => /^media\d*\.giphy\.com$/.test(u.hostname),
+    rewrite: (u) => {
+      if (u.pathname.startsWith('/media/')) {
+        u.pathname = u.pathname.replace(/\/[^/]+\.gif$/i, '/giphy.gif');
+      }
+    },
+  },
+  {
+    // Tenor (media[N].tenor.com): the id is an 11-char base + 5-char rendition
+    // code (16 chars total); the trailing code selects the size and AAAAC is the
+    // largest GIF. Swap only the last 5 chars to AAAAC, keeping the base id, the
+    // host, and the optional /m/ segment intact. Scoped to a .gif last segment —
+    // the .mp4 rendition uses a different code (AAAPo) and would 404 as AAAAC.
+    // Live-verified 2026-07-15 across two ids. See #349-follow.
+    match: (u) => /^media\d*\.tenor\.com$/.test(u.hostname),
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(
+        /\/([A-Za-z0-9_-]{11})[A-Za-z0-9]{5}(\/[^/]+\.gif)$/i,
+        '/$1AAAAC$2',
+      );
+    },
+  },
+  {
+    // Burst by Shopify (burst.shopifycdn.com): CC0 stock photos served from
+    // /photos/<slug>.jpg with a ?width=&format=&exif= resize query. The bare path
+    // is the full-resolution original. A different host + /photos/ path than the
+    // Shopify store rule above, so it needs its own entry. Live-verified 2026-07-15:
+    // bare = 3.9 MB, ?width=300 = 66 KB. See #349-follow.
+    match: (u) => u.hostname === 'burst.shopifycdn.com' && u.pathname.startsWith('/photos/'),
+    rewrite: (u) => { u.search = ''; },
+  },
+  {
+    // WallpaperCave (wallpapercave.com): editor/curated wallpapers serve a
+    // width-prefixed thumb folder /w<N>/<code>.jpg and the full image at
+    // /wp/<code>.jpg (same code). Swap /w<N>/ -> /wp/. The digit requirement
+    // avoids the /w/<code> HTML detail page (no size to upgrade). The messy
+    // user-uploaded /fuwp/uwp<id> family is intentionally left out (inconsistent
+    // folder+prefix+extension transform). Live-verified 2026-07-15. See #349-follow.
+    match: (u) => u.hostname === 'wallpapercave.com' && /^\/w\d+\//.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/^\/w\d+\//, '/wp/'); },
   },
   {
     // Self-hosted WordPress: any host serving /wp-content/uploads/ with a resize

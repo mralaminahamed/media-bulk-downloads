@@ -727,6 +727,13 @@ describe('image-CDN rule batch (2026-07-05)', () => {
     // 8-char basename NOT ending in a thumb letter -> unchanged
     expect(orig('https://i.imgur.com/K3UCTivx.jpg')).toBe('https://i.imgur.com/K3UCTivx.jpg');
   });
+  it('imgur: .gifv HTML wrapper -> the same-id .mp4 video original', () => {
+    // .gifv is an HTML page; the same-id .mp4 is the actual video. Live-verified
+    // on id 0gybAXR (2026-07-15): .gifv=text/html wrapper, .mp4=633 KB video/mp4.
+    expect(orig('https://i.imgur.com/0gybAXR.gifv')).toBe('https://i.imgur.com/0gybAXR.mp4');
+    // a plain image is untouched by the gifv branch
+    expect(orig('https://i.imgur.com/0gybAXR.jpg')).toBe('https://i.imgur.com/0gybAXR.jpg');
+  });
   it('NYT: swaps editorial crop to superJumbo and drops the query', () => {
     expect(orig('https://static01.nyt.com/images/2026/07/04/x/x-articleLarge.jpg?quality=75&auto=webp'))
       .toBe('https://static01.nyt.com/images/2026/07/04/x/x-superJumbo.jpg');
@@ -789,5 +796,63 @@ describe('image-CDN rule batch (2026-07-05)', () => {
   it('Substack: deproxy decodes the embedded S3 URL', () => {
     expect(deproxy('https://substackcdn.com/image/fetch/$s_!abc!,w_160,h_280,c_crop,f_auto,q_auto:good/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fabc.jpeg'))
       .toBe('https://substack-post-media.s3.amazonaws.com/public/images/abc.jpeg');
+  });
+});
+
+describe('image-CDN rule batch (2026-07-15 Tier-1, GIF/video + free-stock)', () => {
+  const orig = (u: string) => upgradeToOriginal(u).original;
+
+  it('Giphy: swaps a downsized .gif rendition to the full giphy.gif', () => {
+    // Renditions are the last path segment; giphy.gif is the full GIF. Bare host
+    // works. Live-verified: media.giphy.com/media/EBaCc5MjS9xu/giphy.gif = 200.
+    expect(orig('https://media.giphy.com/media/EBaCc5MjS9xu/200w.gif'))
+      .toBe('https://media.giphy.com/media/EBaCc5MjS9xu/giphy.gif');
+    expect(orig('https://media0.giphy.com/media/EBaCc5MjS9xu/giphy-downsized.gif'))
+      .toBe('https://media0.giphy.com/media/EBaCc5MjS9xu/giphy.gif');
+    // the optional /v1.<cid>/ tracking segment is preserved
+    expect(orig('https://media2.giphy.com/media/v1.Y2lkPTc5MGI3/EBaCc5MjS9xu/giphy_s.gif'))
+      .toBe('https://media2.giphy.com/media/v1.Y2lkPTc5MGI3/EBaCc5MjS9xu/giphy.gif');
+    // already the full gif -> unchanged
+    expect(orig('https://media.giphy.com/media/EBaCc5MjS9xu/giphy.gif'))
+      .toBe('https://media.giphy.com/media/EBaCc5MjS9xu/giphy.gif');
+    // an .mp4/.webp rendition keeps its format (not downgraded to gif)
+    expect(orig('https://media.giphy.com/media/EBaCc5MjS9xu/giphy.mp4'))
+      .toBe('https://media.giphy.com/media/EBaCc5MjS9xu/giphy.mp4');
+  });
+
+  it('Tenor: swaps the trailing 5-char rendition code to AAAAC (largest GIF)', () => {
+    // id = 11-char base + 5-char size code; AAAAC = full gif. Two host shapes:
+    // bare media. (no /m/) and numbered media[N]. (with /m/) — keep each intact.
+    expect(orig('https://media.tenor.com/XfrqyR_-jzIAAAAM/anime-goku.gif'))
+      .toBe('https://media.tenor.com/XfrqyR_-jzIAAAAC/anime-goku.gif');
+    expect(orig('https://media1.tenor.com/m/dlGgz3LRXEMAAAAd/moving.gif'))
+      .toBe('https://media1.tenor.com/m/dlGgz3LRXEMAAAAC/moving.gif');
+    // already AAAAC -> unchanged
+    expect(orig('https://media.tenor.com/XfrqyR_-jzIAAAAC/anime-goku.gif'))
+      .toBe('https://media.tenor.com/XfrqyR_-jzIAAAAC/anime-goku.gif');
+    // an .mp4 rendition is left alone (AAAAC is the GIF rendition, not mp4)
+    expect(orig('https://media.tenor.com/XfrqyR_-jzIAAAPo/anime-goku.mp4'))
+      .toBe('https://media.tenor.com/XfrqyR_-jzIAAAPo/anime-goku.mp4');
+  });
+
+  it('Burst by Shopify: strips the resize query to the CC0 original', () => {
+    // Live-verified same slug: bare = 3.9 MB full jpeg; ?width=300 = 66 KB.
+    expect(orig('https://burst.shopifycdn.com/photos/city-ferris-wheel.jpg?width=1000&format=pjpg&exif=0&iptc=0'))
+      .toBe('https://burst.shopifycdn.com/photos/city-ferris-wheel.jpg');
+    // a non-/photos/ path on the host is not our rule -> untouched
+    expect(orig('https://burst.shopifycdn.com/assets/logo.png?width=50'))
+      .toBe('https://burst.shopifycdn.com/assets/logo.png?width=50');
+  });
+
+  it('WallpaperCave: /w<N>/ thumb folder -> /wp/ full image (editor content)', () => {
+    // Live-verified: /w200/J10CtpB.jpg = 12 KB thumb, /wp/J10CtpB.jpg = 584 KB.
+    expect(orig('https://wallpapercave.com/w200/J10CtpB.jpg'))
+      .toBe('https://wallpapercave.com/wp/J10CtpB.jpg');
+    // the /w/<code> detail *page* (no digits) is not an image -> untouched
+    expect(orig('https://wallpapercave.com/w/J10CtpB'))
+      .toBe('https://wallpapercave.com/w/J10CtpB');
+    // already /wp/ -> unchanged
+    expect(orig('https://wallpapercave.com/wp/J10CtpB.jpg'))
+      .toBe('https://wallpapercave.com/wp/J10CtpB.jpg');
   });
 });
