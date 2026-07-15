@@ -190,7 +190,7 @@ logged-out), **[G]** a known gap.
 | 50 | GitHub avatars/assets              | avatars.githubusercontent.com | *(none — `=s0` covers googleusercontent/ggpht only; GitHub served as-is)*                   | C       |
 | 51 | Guardian                           | i.guim.co.uk (signed)         | *(none — HMAC `s=` token; any width change → 401)*                                          | G       |
 | 52 | 500px                              | drscdn.500px.org (signed)     | *(none — signed URLs)*                                                                      | G       |
-| 53 | Giphy / Tenor                      | media*.giphy.com / tenor.com  | direct (already served at original size)                                                    | C       |
+| 53 | Giphy / Tenor                      | media*.giphy.com / tenor.com  | grid serves the `giphy.gif`/`tenor.gif` original, but **embeds elsewhere use downsized variants** (`200w`, `giphy-downsized`, fixed-width) → upgradeable to the `giphy.*`/`tenor.*` original (rule not yet shipped — see §D) | G       |
 | 54 | Instagram                          | *.cdninstagram.com (signed)   | **resolver** — reads the post's media graph from page JSON + sniffed GraphQL; every carousel slide + real mp4 (signed URLs read, never rewritten) | **L**³  |
 | 55 | Facebook                           | *.fbcdn.net / *.cdninstagram.com (signed) | **resolver** — passive MAIN-world sniffer reads `text/html`-NDJSON GraphQL + page hydration; full-res photos + reel mp4s, 77–90% accuracy (§G) | **L**   |
 | 56 | TikTok                             | *.tiktokcdn.com (signed)      | —                                                                                          | A       |
@@ -298,6 +298,14 @@ Resolved (this benchmark drove the fixes):
   resize query / strip transform suffix.
 - ✅ **Relative Next.js `_next/image`** — `deproxy()` now resolves a same-origin relative
   `?url=/path` against the page origin (previously only absolute inner URLs unwrapped).
+- ✅ **Booru family expansion (2026-07-15)** — the `booru` resolver's host allow-list gained
+  **e621.net / e926.net / e6ai.net** (e621ng = Danbooru fork; `#image-container[data-file-url]`,
+  verified live on e926.net) and the Gelbooru-0.2 self-hosts **rule34.xxx / tbib.org /
+  hypnohub.net / xbooru.com / realbooru.com** (same `#image` + "Original image" `/images/`
+  anchor as gelbooru.com, pinned to each site's own domain). No new engine — reuses the
+  existing Danbooru/Gelbooru branches; `pinnedDomUrl` fails safe on any off-domain original.
+  Deferred: **sakugabooru** (Moebooru but video-first — the `id="image"` gate + video path
+  need a tweak).
 
 Corrected:
 - 🔧 **YouTube** — `→maxresdefault` replaced a working `hqdefault` with a dead link when
@@ -317,7 +325,13 @@ Open (not upgradeable — signed / already-original):
 - **Sankaku** (#286, deferred) — originals are signed-token + login-gated; a passive
   preview→original rewrite would 404. Out of the no-auth, network-free-by-default model.
 - **preview.redd.it** — signed (left byte-identical by design, verified live).
-- **Giphy / Tenor** — already served at original size (no smaller-to-larger step).
+- **Giphy / Tenor** — **correction (2026-07-15):** the earlier "already original" reading
+  held only for giphy.com's own grid (which serves `giphy.gif`). Live-checked modern path
+  `media{N}.giphy.com/media/v1.<cid>/{id}/{variant}.{ext}` (also `i.giphy.com/media/{id}/{variant}`)
+  has downsized variants (`200w.*`, `giphy-downsized.*`, fixed-width) that appear in **embeds
+  on third-party pages** — the real capture case — so `{variant}` → `giphy.gif`/`tenor.gif`
+  (original, host-pinned, id preserved) **is a valid upgrade**. Rule not yet shipped; tracked
+  as a Tier-1 CdnRule candidate.
 
 ## E. Caveats
 
