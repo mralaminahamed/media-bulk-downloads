@@ -466,6 +466,12 @@ async function fetchTrack(
   const total = playlist.segments.length;
   const parts: Uint8Array[] = new Array(total);
   let cursor = 0;
+  // Shared across every worker: as soon as ANY worker fails (a fetch throws, or
+  // the byte budget is blown), every sibling must stop pulling NEW segments
+  // rather than continue fetching over the network after the capture has
+  // already failed (Promise.all below rejects on the first throw, but without
+  // this the other in-flight workers keep looping and fetching regardless).
+  const cancelled = { flag: false };
 
   const fetchSegment = async (seg: HlsSegment): Promise<Uint8Array> => {
     const raw = await fetchBytesOrFail(seg.uri, seg.byteRange);
@@ -477,11 +483,19 @@ async function fetchTrack(
 
   const worker = async (): Promise<void> => {
     while (cursor < total) {
+      if (cancelled.flag) return;
       const i = cursor++;
-      const bytes = await fetchSegment(playlist.segments[i]);
+      let bytes: Uint8Array;
+      try {
+        bytes = await fetchSegment(playlist.segments[i]);
+      } catch (e) {
+        cancelled.flag = true;
+        throw e;
+      }
       parts[i] = bytes;
       budget.used += bytes.length;
       if (budget.max && budget.used > budget.max) {
+        cancelled.flag = true;
         throw new HlsError('too-large', 'Stream exceeds the maximum capture size.');
       }
       onSegment();

@@ -618,4 +618,56 @@ describe('captureDash — e2e mux', () => {
       spy.mockRestore();
     }
   });
+
+  // Bug: fetchDashTrack's `Promise.all(workers)` rejects as soon as ONE worker
+  // throws, but the other in-flight workers keep pulling and fetching NEW
+  // segments over the network — wasted work after the capture has already
+  // failed. Sibling workers must share a cancel signal and stop at the top of
+  // their next loop iteration once it's set.
+  it('stops sibling workers from pulling new segments once one fails', async () => {
+    vi.useFakeTimers();
+    try {
+      const TOTAL = 24; // 4 rounds at the default concurrency of 6
+      const manyMpd = `<?xml version="1.0"?>
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" type="static" mediaPresentationDuration="PT${TOTAL * 6}S">
+  <Period>
+    <AdaptationSet mimeType="video/mp4">
+      <Representation id="v0" bandwidth="1000000" width="640" height="360" codecs="avc1.640028">
+        <SegmentTemplate initialization="v_init.m4v" media="v_seg$Number$.m4v" startNumber="1" timescale="1" duration="6"/>
+      </Representation>
+    </AdaptationSet>
+  </Period>
+</MPD>`;
+
+      const calls: string[] = [];
+      const d: DashDeps = {
+        fetchText: async () => manyMpd,
+        fetchBytes: async (u: string) => {
+          const name = u.split('/').pop()!;
+          calls.push(name);
+          if (name === 'v_seg1.m4v') throw new Error('boom'); // first segment grabbed, fails fast
+          // Every other segment "downloads" after a short delay — long enough
+          // for the failure (and the shared cancel flag) to land first.
+          return new Promise<Uint8Array>((resolve) => setTimeout(() => resolve(new Uint8Array([1])), 10));
+        },
+      };
+
+      const p = captureDash('https://cdn.test/manifest.mpd', d);
+      const caught = p.catch((e: unknown) => e);
+
+      // Give the sibling workers plenty of virtual time to keep going, if
+      // nothing stops them — enough rounds to drain all 24 segments.
+      await vi.advanceTimersByTimeAsync(500);
+
+      const err = await caught;
+      expect(err).toBeInstanceOf(DashError);
+
+      // Only the in-flight first round (bounded by concurrency=6) should ever
+      // have been fetched; the fix must stop siblings before they pull round 2+.
+      expect(calls.length).toBeLessThanOrEqual(6);
+      expect(calls.length).toBeLessThan(TOTAL);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

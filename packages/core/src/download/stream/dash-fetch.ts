@@ -1,5 +1,5 @@
 import { DashDeps } from '@mbd/core/download/stream/dash';
-import { retryingFetch } from '@mbd/core/net/retry';
+import { retryingFetch, FETCH_TIMEOUT_MS } from '@mbd/core/net/retry';
 import { readBounded, readBoundedText } from '@mbd/core/download/stream/bounded-fetch';
 
 /**
@@ -14,8 +14,12 @@ import { readBounded, readBoundedText } from '@mbd/core/download/stream/bounded-
 // `redirect: 'error'` closes an SSRF-guard bypass (see browserHlsDeps): the guard
 // checks only the pre-fetch URL, so following a redirect could GET an internal
 // host from this <all_urls> context. Failing the redirect prevents that request.
+// A bounded per-attempt timeout: a slow/unresponsive PUBLIC host that accepts
+// the TCP connection but never responds would otherwise hang this fetch
+// forever (assertSafeCaptureUrl only screens internal/private hosts) — see
+// FETCH_TIMEOUT_MS's doc comment in net/retry.ts.
 const netFetch = retryingFetch((url: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) =>
-  fetch(url, { ...init, redirect: 'error' }));
+  fetch(url, { ...init, redirect: 'error' }), { timeoutMs: FETCH_TIMEOUT_MS });
 
 export function browserDashDeps(onProgress?: (done: number, total: number) => void): DashDeps {
   return {
