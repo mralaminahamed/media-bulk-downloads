@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AudioFormat, ImageInfo, ImageListProps } from '@mbd/core/types';
 import { AUDIO_FORMAT_LABELS, AUDIO_FORMATS } from '@mbd/core/download/stream/mp3';
 import { useDialog } from '@/extension/popup/hooks/useDialog';
-import { useStreamVariants, VariantState } from '@/extension/popup/hooks/useStreamVariants';
+import { useStreamVariants } from '@/extension/popup/hooks/useStreamVariants';
+import type { VariantState } from '@/extension/popup/hooks/useStreamVariants';
 import StreamVariantSelect from '@/extension/popup/components/StreamVariantSelect';
 import {
   EyeIcon,
