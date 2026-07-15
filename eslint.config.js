@@ -8,7 +8,16 @@ import globals from 'globals';
 // Flat config (ESLint v9+). Replaces the legacy .eslintrc.json.
 export default [
   {
-    ignores: ['**/.output/**', '**/.wxt/**', '**/node_modules/**', '**/coverage/**', '**/.tsbuild/**', '.yarn/**'],
+    ignores: [
+      '**/.output/**', '**/.wxt/**', '**/node_modules/**', '**/coverage/**', '**/.tsbuild/**', '.yarn/**',
+      // Generated/build artifacts (gitignored, not source): the Safari converter's
+      // Xcode project + build output, and the assets build scratch dir. Linting the
+      // minified bundles they contain produced thousands of spurious errors.
+      'apps/safari-native/DerivedData/**',
+      'apps/safari-native/Media Bulk Downloads/**',
+      'apps/safari-native/MediaBulkDownloads/**',
+      'assets/v2/**',
+    ],
   },
   js.configs.recommended,
   {
