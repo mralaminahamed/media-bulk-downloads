@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { resolveOriginal } from '@mbd/core/resolvers/network';
 import pinWidget from '../fixtures/pinterest/pin-video-widget.json';
 import asProject from '../fixtures/artstation/project.json';
@@ -427,6 +428,36 @@ describe('resolveOriginal — bsky (video)', () => {
       url: 'https://video.bsky.app/watch/did%3Aweb%3Aexample.com/bafvideocid/playlist.m3u8',
       hls: true,
     });
+  });
+});
+
+describe('resolveOriginal — sankaku', () => {
+  const ORIG = 'https://v.sankakucomplex.com/data/26/20/2620d86cb72802a5dcd9e1e189b75e64.jpg?e=1&expires=1&m=a&token=b';
+  const detail = (fileUrl?: string) => ({ success: true, data: { file_url: fileUrl } });
+
+  it('returns the signed file_url from the detail endpoint, pinned to sankakucomplex.com', async () => {
+    expect(await resolveOriginal({ platform: 'sankaku', id: 'vkr3E7Yo8MZ' }, { fetch: mockFetch(detail(ORIG)) }))
+      .toEqual({ url: ORIG });
+  });
+
+  it('sends credentials:include (cookie-first, no token handling)', async () => {
+    const spy = vi.fn(async () => ({ ok: true, json: async () => detail(ORIG) }));
+    await resolveOriginal({ platform: 'sankaku', id: 'vkr3E7Yo8MZ' }, { fetch: spy as unknown as typeof fetch });
+    expect(((spy.mock.calls[0] as unknown[]) || [])[1] as RequestInit | undefined).toBeDefined();
+    expect((((spy.mock.calls[0] as unknown[]) || [])[1] as RequestInit | undefined)?.credentials).toBe('include');
+  });
+
+  it('returns null on a non-ok response (401/403 — auth unavailable) without throwing', async () => {
+    expect(await resolveOriginal({ platform: 'sankaku', id: 'vkr3E7Yo8MZ' }, { fetch: mockFetch(detail(ORIG), false) })).toBeNull();
+  });
+
+  it('rejects a file_url that is not https sankakucomplex.com (untrusted JSON)', async () => {
+    expect(await resolveOriginal({ platform: 'sankaku', id: 'vkr3E7Yo8MZ' }, { fetch: mockFetch(detail('https://evil.example/x.jpg')) })).toBeNull();
+  });
+
+  it('returns null for a bad id or a missing file_url', async () => {
+    expect(await resolveOriginal({ platform: 'sankaku', id: 'bad id!' }, { fetch: mockFetch(detail(ORIG)) })).toBeNull();
+    expect(await resolveOriginal({ platform: 'sankaku', id: 'vkr3E7Yo8MZ' }, { fetch: mockFetch({ success: true, data: {} }) })).toBeNull();
   });
 });
 
