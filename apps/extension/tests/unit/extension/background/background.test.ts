@@ -831,6 +831,33 @@ describe('DOWNLOAD_IMAGES — settings gate (no ephemeral-worker default-setting
     expect(item.sidecar).not.toContain('SECRET'); // the signing token is stripped
   });
 
+  it("#283: a multi-tab item's sidecar records ITS OWN source page, not the active-tab batch default", async () => {
+    (chrome.storage.sync.get as Mock).mockImplementation((_keys, cb) => cb({ settings: { metadataSidecar: true } }));
+    loadSettings();
+    await new Promise((r) => setTimeout(r, 0));
+    (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb(1));
+    const local: Record<string, unknown> = {};
+    (chrome.storage.local.get as Mock).mockImplementation(async (k: string) => (k in local ? { [k]: local[k] } : {}));
+    (chrome.storage.local.set as Mock).mockImplementation(async (o: Record<string, unknown>) => { Object.assign(local, o); });
+
+    // Active tab A is the batch default; the image was collected from tab B.
+    messageHandler(
+      {
+        type: 'DOWNLOAD_IMAGES',
+        images: [{ ...img('https://c/fromB.jpg'), sourcePage: { url: 'https://tab-b/album', title: 'Tab B' } }],
+        sourcePage: { url: 'https://tab-a/active', title: 'Tab A' },
+      },
+      {},
+      vi.fn(),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    const item = (local.downloadQueue as { items: { sidecar?: string }[] }).items[0];
+    // Provenance must point at tab B (where the image lives), matching the history
+    // row + download folder — not the active tab A the batch happened to run from.
+    expect(JSON.parse(item.sidecar!)).toMatchObject({ pageUrl: 'https://tab-b/album', pageTitle: 'Tab B' });
+  });
+
   it('attaches no sidecar to the queued item when metadataSidecar is off (default)', async () => {
     // Seed an explicit settings object: loadSettings only overwrites
     // currentSettings when `result.settings` is truthy (state.ts), so an empty

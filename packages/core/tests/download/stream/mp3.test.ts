@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { encodeMp3, mp3BitrateFor, isMp3Format, AUDIO_FORMATS, AUDIO_FORMAT_LABELS } from '@mbd/core/download/stream/mp3';
+import { encodeMp3, mp3BitrateFor, isMp3Format, AUDIO_FORMATS, AUDIO_FORMAT_LABELS, canTranscodeToMp3, MP3_TRANSCODE_MAX_INPUT_BYTES } from '@mbd/core/download/stream/mp3';
 import type { AudioFormat } from '@mbd/core/types';
 
 /** A short sine tone as Float32 PCM — realistic enough for the encoder to emit
@@ -67,5 +67,17 @@ describe('encodeMp3', () => {
 
   it('throws when given no channels', async () => {
     await expect(encodeMp3([], RATE, 192)).rejects.toThrow();
+  });
+});
+
+describe('canTranscodeToMp3 (#321 OOM guard)', () => {
+  it('accepts a normal audio size up to the ceiling', () => {
+    expect(canTranscodeToMp3(10 * 1024 * 1024)).toBe(true);
+    expect(canTranscodeToMp3(MP3_TRANSCODE_MAX_INPUT_BYTES)).toBe(true);
+  });
+
+  it('rejects an oversized or empty input (decode would OOM the offscreen doc)', () => {
+    expect(canTranscodeToMp3(MP3_TRANSCODE_MAX_INPUT_BYTES + 1)).toBe(false);
+    expect(canTranscodeToMp3(0)).toBe(false);
   });
 });

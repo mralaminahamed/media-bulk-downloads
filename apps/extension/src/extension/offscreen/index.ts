@@ -2,7 +2,7 @@ import { captureHls, HlsError } from '@mbd/core/download/stream/hls';
 import { captureDash, DashError } from '@mbd/core/download/stream/dash';
 import { browserHlsDeps } from '@mbd/core/download/stream/hls-webcrypto';
 import { browserDashDeps } from '@mbd/core/download/stream/dash-fetch';
-import { encodeMp3, mp3BitrateFor } from '@mbd/core/download/stream/mp3';
+import { encodeMp3, mp3BitrateFor, canTranscodeToMp3 } from '@mbd/core/download/stream/mp3';
 import { AudioFormat, CaptureRunMessage, CaptureRunResult } from '@mbd/core/types';
 
 /**
@@ -43,7 +43,14 @@ function publish(bytes: Uint8Array, mime: string): string {
  * regardless of whether the decode resampled.
  */
 async function transcodeToMp3(m4a: Uint8Array, kbps: number): Promise<Uint8Array> {
+  // Refuse an extreme input before decoding: decodeAudioData would allocate ~10× its
+  // size in Float32 PCM, and near the 1 GB stream cap that OOM-crashes this document
+  // (an OOM escapes the try/catch below). The throw surfaces as mp3_transcode_failed.
+  if (!canTranscodeToMp3(m4a.byteLength)) throw new Error('mp3: audio too large to transcode');
   const ab = m4a.buffer.slice(m4a.byteOffset, m4a.byteOffset + m4a.byteLength) as ArrayBuffer;
+  // A throwaway OfflineAudioContext just to reach decodeAudioData. It is NOT a
+  // hardware/realtime AudioContext, so it is exempt from Chrome's ~6-context limit
+  // and has no close() to call — it is reclaimed by GC once this frame returns.
   const ctx = new OfflineAudioContext(2, 1, 44100);
   const audio = await ctx.decodeAudioData(ab);
   const channels: Float32Array[] = [];

@@ -138,7 +138,10 @@ export const messageRouter: MessageRouter = {
             sourcePageTitle: image.sourcePage?.title ?? sourcePage?.title,
           };
           const entry: EnqueueEntry = { url: image.src, filename, history };
-          if (currentSettings.metadataSidecar) entry.sidecar = serializeSidecar(buildMediaSidecar(image, sourcePage, capturedAt));
+          // Prefer the item's own source page (multi-tab batches, #283) so the
+          // sidecar's provenance matches the history row + download folder above —
+          // otherwise a tab-B image gets a sidecar naming the active tab A.
+          if (currentSettings.metadataSidecar) entry.sidecar = serializeSidecar(buildMediaSidecar(image, image.sourcePage ?? sourcePage, capturedAt));
           return entry;
         });
         const queued = await enqueueDownloads(entries);

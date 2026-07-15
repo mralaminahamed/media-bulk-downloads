@@ -1,5 +1,6 @@
 import type { Mock } from 'vitest';
 import { installOffscreenCaptureHost } from '@/extension/offscreen';
+import { MP3_TRANSCODE_MAX_INPUT_BYTES } from '@mbd/core/download/stream/mp3';
 
 vi.mock('@mbd/core/download/stream/hls', () => ({
   captureHls: vi.fn(),
@@ -93,6 +94,35 @@ describe('offscreen capture host', () => {
     getListener()({ type: 'CAPTURE_RUN', runId: 'run-1', engine: 'dash', manifestUrl: 'https://x/m.mpd', quality: 720, maxBytes: 1 }, {}, sendResponse);
     await new Promise((r) => setTimeout(r, 0));
     expect(sendResponse).toHaveBeenCalledWith({ ok: false, code: 'drm' });
+  });
+
+  it('#321: refuses an oversized audio input for MP3 transcode WITHOUT attempting a decode (OOM guard)', async () => {
+    // The guard must reject before decodeAudioData — decoding an input this large to
+    // PCM is exactly what OOM-crashes the document. A Proxy reports an over-ceiling
+    // byteLength while forwarding a tiny real buffer, so without the guard the code
+    // would proceed to decodeAudioData; the assertion below is that it does NOT.
+    const decodeSpy = vi.fn(async () => { throw new Error('decodeAudioData must not run for oversized input'); });
+    (global as unknown as { OfflineAudioContext: unknown }).OfflineAudioContext = class {
+      decodeAudioData = decodeSpy;
+    };
+    const tiny = new Uint8Array(8);
+    const oversized = new Proxy(tiny, {
+      get(t, p) { return p === 'byteLength' ? MP3_TRANSCODE_MAX_INPUT_BYTES + 1 : Reflect.get(t, p, t); },
+    });
+    (captureHls as Mock).mockResolvedValue({
+      bytes: oversized, ext: 'm4a', mime: 'audio/mp4', segmentCount: 1, muxedAudio: false,
+    });
+
+    const sendResponse = vi.fn();
+    getListener()(
+      { type: 'CAPTURE_RUN', runId: 'run-1', engine: 'hls', manifestUrl: 'https://x/m.m3u8', quality: 720, maxBytes: 5_000_000_000, audioOnly: true, audioFormat: 'mp3-128' },
+      {},
+      sendResponse,
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(decodeSpy).not.toHaveBeenCalled(); // rejected up front, no decode attempted
+    expect(sendResponse).toHaveBeenCalledWith({ ok: false, code: 'mp3_transcode_failed' });
   });
 
   it('still runs captureHls for engine:hls', async () => {

@@ -38,6 +38,22 @@ export function mp3BitrateFor(format: AudioFormat): 128 | 192 | 320 | null {
 /** True when the format requires a decode → MP3 re-encode (vs M4A passthrough). */
 export const isMp3Format = (format: AudioFormat): boolean => mp3BitrateFor(format) !== null;
 
+/**
+ * Upper bound on the extracted-audio byte size the offscreen host will decode →
+ * MP3. `decodeAudioData` inflates compressed AAC to Float32 PCM (~10×), so an
+ * extreme audio-only capture approaching the 1 GB stream cap would balloon to
+ * multiple GB of PCM and OOM-crash the offscreen document (an OOM is not reliably
+ * catchable). Above this ceiling the transcode is refused up front, surfacing the
+ * normal `mp3_transcode_failed` code instead of a crash. Generous — a typical
+ * audio-only capture (a music track or clip) is far below it; only pathological
+ * multi-hour, high-bitrate inputs reach it.
+ */
+export const MP3_TRANSCODE_MAX_INPUT_BYTES = 256 * 1024 * 1024;
+
+/** Whether `byteLength` of extracted audio is within the safe decode → MP3 ceiling. */
+export const canTranscodeToMp3 = (byteLength: number): boolean =>
+  byteLength > 0 && byteLength <= MP3_TRANSCODE_MAX_INPUT_BYTES;
+
 /** Clamp a Float32 sample to signed 16-bit PCM. Asymmetric scale (0x8000 for the
  *  negative rail, 0x7fff for the positive) so full-scale ±1.0 maps without clipping. */
 function floatTo16(samples: Float32Array): Int16Array {

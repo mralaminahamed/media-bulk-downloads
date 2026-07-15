@@ -105,44 +105,29 @@ export function hammingDistance(a: string, b: string): number {
 }
 
 /**
- * Single-linkage clustering: groups items whose pairwise Hamming distance is
- * within `threshold`. Every item appears in exactly one returned group (singletons
- * included). Group order and member order follow first-seen input order, so the
- * result is deterministic.
+ * Complete-linkage clustering: groups items so that EVERY pair within a group is
+ * within `threshold` (the group's diameter is bounded by `threshold`). An item
+ * joins the first cluster it is within `threshold` of ALL members of, else starts
+ * its own. Every item appears in exactly one returned group (singletons included);
+ * group order and member order follow first-seen input order, so the result is
+ * deterministic.
+ *
+ * This deliberately does NOT chain transitively the way single linkage does: a
+ * gradient/burst sequence whose consecutive frames are near but whose ends are far
+ * apart no longer collapses into one group where all but the keeper are hidden from
+ * the default "unique" view — the far frames are genuinely distinct images (#198).
  */
 export function clusterNearDuplicates<T extends { pHash: string }>(
   items: readonly T[],
   threshold: number,
 ): T[][] {
-  const n = items.length;
-  const parent = Array.from({ length: n }, (_, i) => i);
-  const find = (i: number): number => {
-    while (parent[i] !== i) {
-      parent[i] = parent[parent[i]]; // path-halving
-      i = parent[i];
-    }
-    return i;
-  };
-  const union = (a: number, b: number): void => {
-    const ra = find(a);
-    const rb = find(b);
-    if (ra !== rb) parent[rb] = ra;
-  };
-
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      if (hammingDistance(items[i].pHash, items[j].pHash) <= threshold) union(i, j);
-    }
+  const clusters: T[][] = [];
+  for (const item of items) {
+    const target = clusters.find((c) => c.every((m) => hammingDistance(item.pHash, m.pHash) <= threshold));
+    if (target) target.push(item);
+    else clusters.push([item]);
   }
-
-  const groups = new Map<number, T[]>();
-  for (let i = 0; i < n; i++) {
-    const root = find(i);
-    const g = groups.get(root);
-    if (g) g.push(items[i]);
-    else groups.set(root, [items[i]]);
-  }
-  return [...groups.values()];
+  return clusters;
 }
 
 /**
