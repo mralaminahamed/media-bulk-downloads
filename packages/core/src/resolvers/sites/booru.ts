@@ -12,6 +12,10 @@ const HOSTS = new Set([
   // Gelbooru 0.2 self-hosted: same `#image` + "Original image" `/images/`
   // anchor as gelbooru.com/safebooru.org; originals on the site's own domain.
   'rule34.xxx', 'tbib.org', 'hypnohub.net', 'xbooru.com', 'realbooru.com',
+  // Philomena engine (derpibooru/furbooru/ponybooru) + booru-on-rails (twibooru):
+  // the full-res URL is the `full` key of an entity-encoded JSON `data-uris`
+  // attribute on the media container. Each site uses its own image CDN.
+  'derpibooru.org', 'furbooru.org', 'ponybooru.org', 'twibooru.org',
 ]);
 
 // Allowed original-image host suffixes per page host — the DOM-supplied original
@@ -36,7 +40,27 @@ const IMG_HOSTS: Record<string, string[]> = {
   'hypnohub.net': ['hypnohub.net'],
   'xbooru.com': ['xbooru.com'],
   'realbooru.com': ['realbooru.com'],
+  // Philomena/booru-on-rails CDNs — each on its own registrable domain
+  // (verified live 2026-07-15). furbooru serves from furrycdn.org, NOT
+  // furbooru.org; a wrong pin fails safe (pinnedDomUrl → null → no upgrade).
+  'derpibooru.org': ['derpicdn.net'],
+  'furbooru.org': ['furrycdn.org'],
+  'ponybooru.org': ['ponybooru.org'],
+  'twibooru.org': ['twibooru.org'],
 };
+
+/** Reads the `full` (full-resolution) URL from a Philomena `data-uris` JSON blob.
+ *  getAttribute returns the HTML-entity-decoded value, so JSON.parse is direct.
+ *  Returns null on any parse failure or a missing/non-string `full`. */
+function philomenaFull(raw: string | null | undefined): string | null {
+  if (typeof raw !== 'string' || !raw) return null;
+  try {
+    const obj = JSON.parse(raw) as { full?: unknown };
+    return typeof obj.full === 'string' ? obj.full : null;
+  } catch {
+    return null;
+  }
+}
 
 function pageHost(ctx: ResolveContext): string | null {
   try { return new URL(ctx.pageUrl ?? '').hostname.toLowerCase(); } catch { return null; }
@@ -64,6 +88,14 @@ function readOriginal(el: Element): string | null {
     ?? el.getAttribute?.('data-large-file-url')
     ?? el.closest?.('[data-large-file-url]')?.getAttribute?.('data-large-file-url');
   if (dan) return dan;
+
+  // Philomena / booru-on-rails: the media container wrapping the post/grid image
+  // carries a JSON `data-uris`; its `full` key is the full-resolution URL.
+  // Element-scoped via closest so a grid thumb resolves its own container.
+  const philo = philomenaFull(
+    el.getAttribute?.('data-uris') ?? el.closest?.('[data-uris]')?.getAttribute?.('data-uris'),
+  );
+  if (philo) return philo;
 
   // Moebooru / Gelbooru / Safebooru: only when THIS element is the main post
   // image; a document-wide read would mis-attach the post's original to an icon.
