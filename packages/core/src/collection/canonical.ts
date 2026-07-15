@@ -23,7 +23,8 @@ export interface SrcKeyRule {
 // Sankaku media hosts (v./s./legacy cdn.sankakucomplex.com) and the 32-hex md5
 // content-hash filename stem a post's preview/sample/original tiers all share.
 const SANKAKU_HOST = /(?:^|\.)sankakucomplex\.com$/i;
-const SANKAKU_MD5 = /\/([0-9a-f]{32})\.[a-z0-9]+$/i;
+const SANKAKU_MEDIA =
+  /\/data\/(?:preview\/|sample\/)?(?:[0-9a-f]{2}\/)*([0-9a-f]{32})\.(?:avif|jpe?g|png|gif|webp)$/i;
 
 export const SRC_KEY_RULES: SrcKeyRule[] = [
   {
@@ -114,10 +115,13 @@ export const SRC_KEY_RULES: SrcKeyRule[] = [
     // signed with an expiring token (?e&expires&m&token). Key on the md5 alone so
     // all tiers fold to one identity (the original, being largest, wins) and the
     // rotating token never enters the key. md5 is a content hash → no collisions.
+    // Image-only + /data/-gated, mirroring the resolver (sankaku.ts): a video
+    // original (.mp4/.webm/…) must NOT fold with its same-md5 poster, so it is
+    // deliberately excluded here and keys via the generic MEDIA_EXT branch instead.
     // There is deliberately no imageUrl.ts RULES entry: a preview→original rewrite
     // would drop the signature and 404.
-    match: (u) => SANKAKU_HOST.test(u.hostname) && SANKAKU_MD5.test(u.pathname),
-    key: (u) => `sankakucomplex.com/data/${u.pathname.match(SANKAKU_MD5)![1].toLowerCase()}`,
+    match: (u) => SANKAKU_HOST.test(u.hostname) && SANKAKU_MEDIA.test(u.pathname),
+    key: (u) => `sankakucomplex.com/data/${u.pathname.match(SANKAKU_MEDIA)![1].toLowerCase()}`,
   },
 ];
 

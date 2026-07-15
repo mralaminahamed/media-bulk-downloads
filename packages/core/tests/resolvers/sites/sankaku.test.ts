@@ -24,11 +24,11 @@ describe('sankakuResolver — resolve', () => {
   it('emits an image candidate with md5 mediaKey, real ext, and the signed URL intact', () => {
     const url = `https://v.sankakucomplex.com/data/26/20/${MD5}.jpg?${SIG}`;
     const [c] = resolve(url);
-    expect(c).toEqual({ url, kind: 'image', ext: 'jpg', mediaKey: MD5 });
+    expect(c).toEqual({ url, kind: 'image', ext: 'jpg', mediaKey: `sankaku ${MD5}` });
   });
 
   it('reads ext from a preview .avif and keeps the same md5 mediaKey', () => {
     const [c] = resolve(`https://v.sankakucomplex.com/data/preview/26/20/${MD5}.avif?${SIG}`);
-    expect(c).toMatchObject({ kind: 'image', ext: 'avif', mediaKey: MD5 });
+    expect(c).toMatchObject({ kind: 'image', ext: 'avif', mediaKey: `sankaku ${MD5}` });
   });
 });

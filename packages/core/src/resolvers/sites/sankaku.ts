@@ -27,6 +27,6 @@ export const sankakuResolver: Resolver = {
   resolve: (u): MediaCandidate[] => {
     const found = u.pathname.match(SANKAKU_IMG);
     if (!found) return [];
-    return [{ url: u.href, kind: 'image', ext: found[2].toLowerCase(), mediaKey: found[1].toLowerCase() }];
+    return [{ url: u.href, kind: 'image', ext: found[2].toLowerCase(), mediaKey: `sankaku ${found[1].toLowerCase()}` }];
   },
 };
