@@ -326,6 +326,15 @@ export interface RestoreDataMessage {
   excluded: ExcludedEntry[];
 }
 
+/** One selectable rendition of a stream, normalized from an HLS master variant or
+ *  a DASH video Representation, for the per-stream quality picker (#314). One entry
+ *  per distinct vertical resolution — the capture selector targets a height. */
+export interface StreamVariant {
+  height?: number;   // vertical resolution when advertised
+  bandwidth: number; // bits/sec (highest at this height)
+  label: string;     // e.g. "1080p · 5.2 Mbps"
+}
+
 /** Popup → background: capture this stream. Background owns the offscreen doc,
  *  the download, and the status, so it needs the item + source page for the
  *  filename — it must not depend on the popup after this message. */
