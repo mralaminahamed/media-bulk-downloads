@@ -55,6 +55,14 @@ interface PinterestWidgetResponse { data?: PinterestPin[] }
 interface ArtStationAsset { asset_type?: string; player_embedded?: string }
 interface ArtStationProject { assets?: ArtStationAsset[] }
 
+interface StreamableFile { url?: string }
+interface StreamableResponse { files?: Record<string, StreamableFile> }
+
+interface RedgifsAuth { token?: string }
+interface RedgifsUrls { hd?: string; sd?: string }
+interface RedgifsGif { urls?: RedgifsUrls }
+interface RedgifsGifResponse { gif?: RedgifsGif; urls?: RedgifsUrls }
+
 /**
  * A URL taken from an API JSON response is untrusted: constrain it to https and
  * the expected host family before handing it back as a downloadable media URL.
@@ -470,6 +478,56 @@ async function galleryPage(pageUrl: string, deps: NetDeps): Promise<ResolvedMedi
   }
 }
 
+/**
+ * Streamable: read the public video API (no auth, no Referer) and return the
+ * highest progressive MP4 — a direct, downloadable file. The `files.mp4.url` is a
+ * time-signed CloudFront URL (served 200 inline, no redirect), so it is resolved
+ * on demand and never cached. Private/login-gated videos carry no `files.mp4.url`
+ * and return null (no circumvention).
+ */
+async function streamable(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  try {
+    if (!/^[A-Za-z0-9]+$/.test(id)) return null;
+    const r = await deps.fetch(`https://api.streamable.com/videos/${encodeURIComponent(id)}`);
+    if (!r.ok) return null;
+    const j = (await r.json()) as StreamableResponse;
+    const files = j?.files ?? {};
+    const url = pinnedUrl(files.mp4?.url, 'streamable.com') ?? pinnedUrl(files['mp4-mobile']?.url, 'streamable.com');
+    return url ? { url } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * RedGifs. Two public hops, both needing only allowed headers: an anonymous
+ * `GET /v2/auth/temporary` yields a short-lived bearer token, then `GET /v2/gifs/<id>`
+ * (Authorization: Bearer) returns `gif.urls.hd`. The token is used only for this
+ * request and never logged/persisted. The returned media lives on the hotlink-
+ * protected `media.redgifs.com` (a background fetch of it would 403 on the missing
+ * Referer/User-Agent), so it is handed to the download path where the #197 Referer
+ * rewrite + the browser's real UA clear the check — this only resolves the URL.
+ */
+async function redgifs(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  try {
+    if (!/^[a-z0-9]+$/.test(id)) return null;
+    const auth = await deps.fetch('https://api.redgifs.com/v2/auth/temporary');
+    if (!auth.ok) return null;
+    const token = ((await auth.json()) as RedgifsAuth)?.token;
+    if (typeof token !== 'string' || !token) return null;
+    const r = await deps.fetch(`https://api.redgifs.com/v2/gifs/${encodeURIComponent(id)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) return null;
+    const j = (await r.json()) as RedgifsGifResponse;
+    const urls = j?.gif?.urls ?? j?.urls;
+    const media = pinnedUrl(urls?.hd, 'redgifs.com') ?? pinnedUrl(urls?.sd, 'redgifs.com');
+    return media ? { url: media } : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Resolve one hint to a final media target, or null on failure. Never throws. */
 export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise<ResolvedMedia | null> {
   switch (hint.platform) {
@@ -484,6 +542,8 @@ export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise
     case 'reddit': return reddit(hint.id);
     case 'flickr': return flickr(hint.id, deps);
     case 'artstation': return artstation(hint.id, deps);
+    case 'streamable': return streamable(hint.id, deps);
+    case 'redgifs': return redgifs(hint.id, deps);
     default: return null;
   }
 }

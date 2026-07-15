@@ -104,6 +104,26 @@ describe('resolve — generic fallback', () => {
     expect(ids.indexOf('zerochan')).toBeLessThan(ids.indexOf('generic'));
   });
 
+  it('includes wallpaperscraftResolver before genericResolver', () => {
+    const ids = REGISTRY.map((r) => r.id);
+    expect(ids).toContain('wallpaperscraft');
+    expect(ids.indexOf('wallpaperscraft')).toBeLessThan(ids.indexOf('generic'));
+  });
+
+  it('routes a wallpaperscraft preview through its resolver to the largest listed resolution', () => {
+    document.body.innerHTML = '';
+    const img = document.createElement('img');
+    const preview = 'https://images.wallpaperscraft.com/image/single/city_night_9001_1280x720.jpg';
+    img.setAttribute('src', preview);
+    const a = document.createElement('a');
+    a.setAttribute('href', '/download/city_night_9001/3840x2160');
+    document.body.append(img, a);
+    const [c] = resolve(preview, { el: img, allowNetwork: false });
+    expect(c).toMatchObject({ kind: 'image', url: 'https://images.wallpaperscraft.com/image/single/city_night_9001_3840x2160.jpg' });
+    expect(c.thumbnailSrc).toBe(preview);
+    document.body.innerHTML = '';
+  });
+
   it('routes a zerochan #large thumbnail through the zerochan resolver to the JSON-LD full image', () => {
     document.body.innerHTML = '';
     const ld = document.createElement('script');
