@@ -124,4 +124,61 @@ describe('booruResolver', () => {
     document.body.appendChild(icon);
     expect(booruResolver.resolve(new URL('https://assets.yande.re/assets/icon.png'), ctx(icon, PAGE.yan))).toEqual([]);
   });
+
+  // e621ng (Danbooru fork): the original lives in `data-file-url` on the
+  // `#image-container` section that wraps the post <img>, so the Danbooru
+  // branch reaches it via `el.closest('[data-file-url]')`. Verified live on
+  // e926.net (2026-07-15): `#image-container[data-file-url]` → static1.<host>.
+  it('e621 (Danbooru fork): reads data-file-url from #image-container, pins to e621.net', () => {
+    const container = document.createElement('section');
+    container.id = 'image-container';
+    container.setAttribute('data-file-url', 'https://static1.e621.net/data/ab/cd/abcdef.png');
+    const img = document.createElement('img');
+    img.setAttribute('src', 'https://static1.e621.net/data/sample/ab/cd/sample-abcdef.jpg');
+    container.appendChild(img);
+    document.body.appendChild(container);
+    const [c] = booruResolver.resolve(new URL('https://static1.e621.net/data/sample/ab/cd/sample-abcdef.jpg'), ctx(img, 'https://e621.net/posts/12345'));
+    expect(c.url).toBe('https://static1.e621.net/data/ab/cd/abcdef.png');
+    expect(c.ext).toBe('png');
+    expect(c.thumbnailSrc).toBe('https://static1.e621.net/data/sample/ab/cd/sample-abcdef.jpg');
+  });
+
+  it('e926 (SFW e621 twin): same path detects a webm original and pins to e926.net', () => {
+    const container = document.createElement('section');
+    container.id = 'image-container';
+    container.setAttribute('data-file-url', 'https://static1.e926.net/data/ab/cd/clip.webm');
+    const img = document.createElement('img');
+    container.appendChild(img);
+    document.body.appendChild(container);
+    const [c] = booruResolver.resolve(new URL('https://static1.e926.net/data/preview/ab/cd/clip.jpg'), ctx(img, 'https://e926.net/posts/1'));
+    expect(c.url).toBe('https://static1.e926.net/data/ab/cd/clip.webm');
+    expect(c.kind).toBe('video');
+    expect(c.ext).toBe('webm');
+  });
+
+  // Gelbooru-0.2 self-hosted family (rule34.xxx / tbib / hypnohub / xbooru /
+  // realbooru): same `#image` + "Original image" `/images/` anchor as the
+  // existing gelbooru.com/safebooru.org branch, pinned to the site's own domain.
+  it('rule34.xxx (Gelbooru-0.2): reads host-pinned /images/ original when el is #image', () => {
+    const link = document.createElement('a');
+    link.setAttribute('href', 'https://wimg.rule34.xxx/images/ab/cd/hash.jpeg');
+    link.textContent = 'Original image';
+    document.body.appendChild(link);
+    const img = document.createElement('img');
+    img.id = 'image';
+    img.setAttribute('src', 'https://wimg.rule34.xxx/samples/ab/cd/sample_hash.jpg');
+    document.body.appendChild(img);
+    const [c] = booruResolver.resolve(new URL('https://wimg.rule34.xxx/samples/ab/cd/sample_hash.jpg'), ctx(img, 'https://rule34.xxx/index.php?page=post&s=view&id=1'));
+    expect(c.url).toBe('https://wimg.rule34.xxx/images/ab/cd/hash.jpeg');
+  });
+
+  it('fail-safe host-pin: an e621 page whose data-file-url points off-domain returns []', () => {
+    const container = document.createElement('section');
+    container.id = 'image-container';
+    container.setAttribute('data-file-url', 'https://evil.example.com/steal.png');
+    const img = document.createElement('img');
+    container.appendChild(img);
+    document.body.appendChild(container);
+    expect(booruResolver.resolve(new URL('https://static1.e621.net/data/preview/x.jpg'), ctx(img, 'https://e621.net/posts/1'))).toEqual([]);
+  });
 });

@@ -7,6 +7,11 @@ const HOSTS = new Set([
   'danbooru.donmai.us', 'safebooru.donmai.us',
   'gelbooru.com', 'safebooru.org',
   'yande.re', 'konachan.com', 'konachan.net',
+  // e621ng (Danbooru fork): reads `data-file-url` off `#image-container`.
+  'e621.net', 'e926.net', 'e6ai.net',
+  // Gelbooru 0.2 self-hosted: same `#image` + "Original image" `/images/`
+  // anchor as gelbooru.com/safebooru.org; originals on the site's own domain.
+  'rule34.xxx', 'tbib.org', 'hypnohub.net', 'xbooru.com', 'realbooru.com',
 ]);
 
 // Allowed original-image host suffixes per page host — the DOM-supplied original
@@ -19,6 +24,18 @@ const IMG_HOSTS: Record<string, string[]> = {
   'yande.re': ['yande.re'],
   'konachan.com': ['konachan.com'],
   'konachan.net': ['konachan.net'],
+  // e621ng originals are served on `static1.<host>` (same registrable domain).
+  'e621.net': ['e621.net'],
+  'e926.net': ['e926.net'],
+  'e6ai.net': ['e6ai.net'],
+  // Gelbooru 0.2 self-hosts its originals under its own registrable domain
+  // (e.g. wimg.rule34.xxx). A wrong pin fails safe: pinnedDomUrl → null → no
+  // upgrade, never a broken/off-host URL.
+  'rule34.xxx': ['rule34.xxx'],
+  'tbib.org': ['tbib.org'],
+  'hypnohub.net': ['hypnohub.net'],
+  'xbooru.com': ['xbooru.com'],
+  'realbooru.com': ['realbooru.com'],
 };
 
 function pageHost(ctx: ResolveContext): string | null {
