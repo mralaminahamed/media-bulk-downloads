@@ -63,14 +63,20 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   wider set of platforms since 1.2.0, each returning the true original:
   - **Image boards:** the e621 family (e621 / e926 / e6ai), the Gelbooru-0.2
     self-hosts (rule34.xxx / tbib / hypnohub / xbooru / realbooru), the Philomena
-    family (derpibooru / furbooru / ponybooru / twibooru), and zerochan.
+    family (derpibooru / furbooru / ponybooru / twibooru), zerochan, and
+    **Sankaku Channel** — an opened post's preview/sample tiles fold into their
+    md5 original (passive, no auth); grid-only originals resolve via the opt-in
+    authenticated action below (#319).
   - **GIF / video / wallpaper:** Giphy, Tenor, imgur `.gifv` → mp4, Burst by Shopify,
     WallpaperCave, wallpaperscraft, plus **Streamable** and **RedGifs** video.
   - **Art:** Pixiv (original master via the logged-in preload) and Newgrounds.
 
   Passive and network-free where possible; RedGifs downloads clear their hotlink
-  403 via the opt-in "Retry w/ referer". No new permissions — see
-  [BENCHMARK.md](./docs/BENCHMARK.md).
+  403 via the opt-in "Retry w/ referer". **Sankaku** grid-only originals need the
+  opt-in **authenticated** resolve (#319) — off by default, it uses your existing
+  logged-in session to fetch the signed `file_url`, throttled and host-pinned, and
+  stores no credentials; passive browsing never triggers it. No new permissions —
+  see [BENCHMARK.md](./docs/BENCHMARK.md).
 - **Follow gallery thumbnail links to originals** (#287): an opt-in resolve step
   follows a same-origin thumbnail's link on host / "view" pages to the full image
   (SSRF-guarded).
