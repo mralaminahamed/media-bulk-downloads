@@ -72,6 +72,12 @@ It reads only what the page already loaded, so nothing leaves your device.
   webm, mp3…), and **size**
 - **Search** the grid by filename, alt text, type, or URL, and **sort** by name,
   size, dimensions, or type — handy on pages with hundreds of items
+- **Find near-duplicates** — an on-demand perceptual-hash (pHash) pass that hides
+  lower-resolution copies of the same image, keeping the largest; reversible via
+  the **Duplicates** filter, with a configurable similarity threshold in Settings
+- **Collect across tabs** — pull media from **all** or **selected** open tabs in a
+  single pass and download the combined set, each file tagged with its own source
+  tab (tab picker in the popup)
 - Download one item or the entire filtered set — as separate files or bundled
   into a single **ZIP archive** (same folder layout inside; items a CDN blocks
   fall back to individual downloads automatically)
@@ -256,7 +262,9 @@ When a page exposes an adaptive-streaming manifest — **HLS** (`.m3u8`) or **DA
 appears in the grid tagged **HLS · capture**. **Capture** fetches the manifest and every
 segment, decrypts standard **AES-128** where present, and assembles them into a
 single file: MPEG-TS `.ts` or `.mp4` for video (audio muxed in), or `.m4a` / AAC for
-audio-only streams. It selects the variant closest to 720p by default — change this
+audio-only streams — which can optionally be **transcoded to MP3** (128 / 192 /
+320 kbps) instead of the M4A passthrough (Settings → Stream capture). It selects
+the variant closest to 720p by default — change this
 under **Settings → Stream capture quality** (auto / best / worst / 1080 / 720 / 480) —
 and runs in the background service worker plus a hidden **offscreen document**, so
 capture keeps running even if you close the popup.
@@ -304,7 +312,7 @@ media-bulk-downloads/            # yarn-workspaces monorepo
 │       ├── src/                  #   Downloader · Notifier · HeaderRules · StreamCaptureHost
 │       └── tests/                #   Vitest project
 ├── apps/
-│   ├── extension/  @mbd/extension  # the WXT app (Chrome · Firefox · Edge · Opera)
+│   ├── extension/  @mbd/extension  # the WXT app (Chrome · Firefox · Edge · Safari)
 │   │   ├── wxt.config.ts        # WXT config: manifest, browser targets, zip naming
 │   │   ├── web-ext.config.ts    # dev browser-launch config (wxt dev)
 │   │   ├── src/
@@ -318,7 +326,7 @@ media-bulk-downloads/            # yarn-workspaces monorepo
 │   │   ├── tests/unit/          # Vitest unit/integration suites
 │   │   ├── tests/e2e/           # Playwright e2e (loads the built extension)
 │   │   └── .output/             # per-browser build output + zips (generated)
-│   └── safari-native/           # Safari Xcode wrapper (WIP, macOS) — see #307
+│   └── safari-native/           # Safari Xcode wrapper (macOS, submitted — under review) — see #307
 ├── assets/                      # icon master (SVG) + store screenshots
 └── docs/                        # guides, architecture design record, benchmark, store package
 ```

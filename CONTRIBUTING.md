@@ -14,7 +14,7 @@ yarn install
 ```
 
 The build is powered by [WXT](https://wxt.dev), which targets Chrome, Firefox,
-and Edge from one codebase.
+Edge, and Safari from one codebase.
 
 ## Develop
 

@@ -1,6 +1,6 @@
 # Privacy Policy — Media Bulk Downloads
 
-_Last updated: 2026-07-04_
+_Last updated: 2026-07-15_
 
 Media Bulk Downloads ("the extension") is a browser extension that finds images,
 video, and audio on the web page you are viewing and lets you preview, filter,
@@ -36,16 +36,29 @@ account). The extension has no server and no analytics.
 ## Network requests
 
 By default the extension is **network-free** — it only reads what the page has
-already loaded and hands URLs to Chrome's download manager.
+already loaded and hands URLs to Chrome's download manager. A few features make
+network requests, each **opt-in** and each going only to the item's own media
+host (the same host your browser already loads that page's media from), carrying
+no identifying information beyond a normal browser request to that host:
 
-One **optional, off-by-default** setting, "Resolve exact originals", makes direct
-requests to the media's own content-delivery network — one of nine supported
-platforms (Twitter/X, Wallhaven, Unsplash, Vimeo, Bluesky, Pinterest, Reddit,
-Flickr, ArtStation), whichever the item came from — to fetch a higher-resolution
-version of an item you are downloading. These requests go only to that item's
-own media host, carry no identifying information beyond what a normal browser
-request to that host would, and happen only while you are downloading and only
-when you have enabled the setting.
+- **"Resolve exact originals"** (off by default) fetches a higher-resolution
+  version of an item you are downloading from that item's own media host. It
+  covers a broad set of platforms — Twitter/X, Instagram, Facebook, Threads,
+  Pinterest, Reddit, Flickr, ArtStation, Behance, Bluesky, Unsplash, Wallhaven,
+  Vimeo, Dailymotion, Mastodon, YouTube, Booru sites, and similar; for most items
+  the original is derived with no network call at all. The current list lives in
+  [docs/guides/resolve-originals.md](./docs/guides/resolve-originals.md).
+- **HLS / DASH stream capture** (triggered per item, only when you capture a
+  stream) fetches the stream's manifest and its media segments from the stream's
+  own host to assemble the file locally. Nothing about you is sent; it only
+  requests the segments the player itself would.
+- A **passive network sniffer** notes the request URLs of `.m3u8` / `.mpd`
+  manifests the page's own player fetches, so a stream that never appears in the
+  page can still be captured. It only observes request URLs (never response
+  bodies) and forges no requests of its own.
+- **"Retry with page referer"** (only when you click it on a download a site
+  blocked with HTTP 403) sets that one request's `Referer`/`Origin` to the item's
+  source page so the file downloads, then removes the rule.
 
 ## Permissions
 
