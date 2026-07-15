@@ -192,6 +192,46 @@ describe('SRC_KEY_RULES cross-CDN families', () => {
     const b = 'https://res.cloudinary.com/demo/image/upload/hero.jpg';
     expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
   });
+
+  it('collapses a lone single-param cloudinary transform (w_400) with the bare original (bug #1)', () => {
+    const a = 'https://res.cloudinary.com/demo/image/upload/w_400/sample.jpg';
+    const b = 'https://res.cloudinary.com/demo/image/upload/sample.jpg';
+    expect(canonicalSrcKey(a)).toBe(canonicalSrcKey(b));
+  });
+
+  it('collapses a lone single-param cloudinary transform (c_fill) with the bare original (bug #1)', () => {
+    const a = 'https://res.cloudinary.com/demo/image/upload/c_fill/sample.jpg';
+    const b = 'https://res.cloudinary.com/demo/image/upload/sample.jpg';
+    expect(canonicalSrcKey(a)).toBe(canonicalSrcKey(b));
+  });
+
+  it('still keeps a single-token look-alike folder distinct (not a real transform key)', () => {
+    // "my_folder" has the key_value SHAPE but "my" is not a real Cloudinary
+    // transform key, so it must not be stripped (guards against over-collapse).
+    const a = 'https://res.cloudinary.com/demo/image/upload/my_folder/hero.jpg';
+    const b = 'https://res.cloudinary.com/demo/image/upload/hero.jpg';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+  });
+});
+
+describe('canonicalSrcKey — MEDIA_EXT coverage (bug #2)', () => {
+  it('collapses .jxl query-string variants (cache-buster) to one key', () => {
+    const a = canonicalSrcKey('https://cdn.example.com/img.jxl?cache_id=111');
+    const b = canonicalSrcKey('https://cdn.example.com/img.jxl?cache_id=222');
+    expect(a).toBe(b);
+  });
+
+  it('collapses .ogv query-string variants to one key', () => {
+    const a = canonicalSrcKey('https://cdn.example.com/clip.ogv?cache_id=111');
+    const b = canonicalSrcKey('https://cdn.example.com/clip.ogv?cache_id=222');
+    expect(a).toBe(b);
+  });
+
+  it('collapses .jp2 query-string variants to one key', () => {
+    const a = canonicalSrcKey('https://cdn.example.com/scan.jp2?cache_id=111');
+    const b = canonicalSrcKey('https://cdn.example.com/scan.jp2?cache_id=222');
+    expect(a).toBe(b);
+  });
 });
 
 describe('SrcKeySet', () => {

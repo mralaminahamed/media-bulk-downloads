@@ -43,7 +43,12 @@ export function imageExtFromUrl(url: string): string | null {
 function fromMime(mime: string): string | null {
   const m = /^(video|audio)\/([\w.+-]+)/i.exec(mime);
   if (!m) return null;
+  const top = m[1].toLowerCase();
   const sub = m[2].toLowerCase();
+  // audio/mp4 is the standard (IANA) Content-Type for an M4A container — distinct
+  // from video/mp4 — so it must resolve to the audio family, not the generic
+  // `mp4` (video) lookup below.
+  if (top === 'audio' && sub === 'mp4') return 'm4a';
   const NORMALIZE: Record<string, string> = {
     mpeg: 'mp3', 'x-m4a': 'm4a', quicktime: 'mov',
     'x-wav': 'wav', 'x-matroska': 'webm', 'x-flac': 'flac',

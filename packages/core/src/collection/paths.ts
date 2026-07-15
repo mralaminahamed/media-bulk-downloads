@@ -50,8 +50,8 @@ export interface PathTokens {
 /** Tokens the template DSL understands; anything else in `{...}` is dropped. */
 const KNOWN_TOKENS = /\{(host|domain|date|kind)\}/g;
 
-/** A single token value must never introduce extra path segments. */
-const toSegment = (value: string): string => sanitizePathSegment(value).replace(/\//g, '');
+/** A single token/segment value must never introduce extra path segments. */
+export const toSegment = (value: string): string => sanitizePathSegment(value).replace(/\//g, '');
 
 /**
  * Expands a download-path template (e.g. `Media/{domain}/{date}`) against the

@@ -52,6 +52,12 @@ describe('detectAvType', () => {
     expect(detectAvType('https://ex.com/noext', 'video/3gpp')).toBe('unknown');
     expect(detectAvType('https://ex.com/noext', 'audio/basic')).toBe('unknown');
   });
+  it('maps the standard audio/mp4 MIME (M4A Content-Type) to m4a, not the mp4 video family (bug #3)', () => {
+    expect(detectAvType('https://cdn.example.com/stream', 'audio/mp4')).toBe('m4a');
+  });
+  it('still maps the non-standard audio/x-m4a MIME to m4a (no regression)', () => {
+    expect(detectAvType('https://cdn.example.com/stream', 'audio/x-m4a')).toBe('m4a');
+  });
 });
 
 describe('extensionFromUrl (edge)', () => {

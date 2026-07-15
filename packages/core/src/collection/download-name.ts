@@ -1,6 +1,7 @@
 import { ImageInfo, SettingsData } from '@mbd/core/types';
 import {
   sanitizePathSegment,
+  toSegment,
   expandPathTemplate,
   hostFromUrl,
   registrableDomain,
@@ -91,7 +92,10 @@ export function buildDownloadFilename(
   sourcePageUrl?: string,
 ): string {
   const extension = downloadExtension(image);
-  const prefixed = `${sanitizePathSegment(settings.fileNamePrefix) || 'image_'}${index + 1}.${extension}`;
+  // The prefix is a single filename segment, not a path — sanitize with toSegment
+  // (not sanitizePathSegment) so an embedded `/` can't inject an unintended
+  // chrome.downloads subfolder (e.g. fileNamePrefix: 'sub/dir_').
+  const prefixed = `${toSegment(settings.fileNamePrefix) || 'image_'}${index + 1}.${extension}`;
 
   let fileName: string;
   if (settings.namingMode === 'original') {
