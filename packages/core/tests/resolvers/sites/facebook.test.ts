@@ -263,3 +263,20 @@ describe('parseHydration — embedded script[type="application/json"] parse', ()
     expect(second).toHaveLength(1);
   });
 });
+
+describe('ingestSniffedFbMedia — very large batch (loop-push, not push(...spread))', () => {
+  // The store is built with a loop, not `store.push(...clean)`: `entries` crosses
+  // the MAIN->isolated postMessage boundary from an untrusted page and can be
+  // arbitrarily large, and spreading a huge array as call args risks a RangeError
+  // that this function's caller would otherwise swallow. Prove a single call with
+  // an array well beyond typical engine argument-count limits doesn't throw and
+  // the newest entries still survive the store's cap.
+  it('ingests 200,000 entries in one call without throwing, newest survives the cap', () => {
+    const many = Array.from({ length: 200_000 }, (_, i) => ({
+      fbid: '999', kind: 'image' as const, url: `${CDN}/HUGE_${i}_n.jpg`, ext: 'jpg', width: 10, height: 10,
+    }));
+    expect(() => ingestSniffedFbMedia(many)).not.toThrow();
+    const out = facebookResolver.resolve(u(`${CDN}/thumb.jpg`), ctxWithLink('/photo/?fbid=999'));
+    expect(out.some((c) => c.url === `${CDN}/HUGE_199999_n.jpg`)).toBe(true);
+  });
+});

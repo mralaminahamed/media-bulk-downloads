@@ -93,6 +93,28 @@ describe('fb-media-sniffer content entrypoint', () => {
     expect(drained.at(-1)).toEqual({ fbid: '8099' }); // newest kept
   });
 
+  // The buffer is built with a loop (`for (const e of entries) buffer.push(e)`),
+  // not `buffer.push(...entries)` — entries crosses the MAIN->isolated boundary
+  // from an untrusted page and can be arbitrarily large; spreading it as call
+  // args risks a RangeError (silently dropping the whole batch since this sits
+  // inside the sniffer's try/catch). Feed one very large batch in a single call
+  // and confirm it doesn't throw and all (capped) entries make it through.
+  it('buffers a single very large batch without throwing (loop-push, not push(...spread))', () => {
+    const { emit } = runMain();
+    const bigBatch = Array.from({ length: 200_000 }, (_, i) => ({ fbid: String(i) }));
+
+    expect(() => emit.envelope(bigBatch)).not.toThrow();
+
+    const posted: Array<{ entries: Array<{ fbid: string }> }> = [];
+    (window.postMessage as unknown) = vi.fn((m: unknown) => posted.push(m as never));
+    const replay = (installReplayOnReady as Mock).mock.calls.at(-1)![1] as () => void;
+    replay();
+
+    const drained = posted.at(-1)!.entries;
+    expect(drained).toHaveLength(8000); // capped, same bound as the many-small-calls test above
+    expect(drained.at(-1)).toEqual({ fbid: '199999' }); // newest survives the cap
+  });
+
   it('does not buffer entries emitted after the relay is ready (no double replay)', () => {
     const posted: unknown[] = [];
     (window.postMessage as unknown) = vi.fn((m: unknown) => posted.push(m));

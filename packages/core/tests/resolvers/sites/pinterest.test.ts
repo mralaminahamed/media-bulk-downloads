@@ -198,3 +198,20 @@ describe('pinterestResolver — sniffed store', () => {
     expect(c.url).toBe('https://i.pinimg.com/originals/zz/zz/zz.jpg');
   });
 });
+
+describe('ingestSniffedPinterestMedia — very large batch (loop-push, not push(...spread))', () => {
+  // The store is built with a loop, not `sniffed.push(...clean)`: `entries`
+  // crosses the MAIN->isolated postMessage boundary from an untrusted page and
+  // can be arbitrarily large, and spreading it as call args risks a RangeError
+  // that this function's caller would otherwise swallow. Prove a single call
+  // with an array well beyond typical engine argument-count limits doesn't
+  // throw and the sniffed entry still resolves.
+  it('ingests 200,000 entries in one call without throwing', () => {
+    const many = Array.from({ length: 200_000 }, (_, i) => ({
+      pinId: '888888888888', kind: 'image' as const, url: `https://i.pinimg.com/originals/hu/ge/${i}.jpg`, ext: 'jpg',
+    }));
+    expect(() => ingestSniffedPinterestMedia(many)).not.toThrow();
+    const out = pinterestPageMedia('https://www.pinterest.com/pin/888888888888/');
+    expect(out.some((c) => c.url === 'https://i.pinimg.com/originals/hu/ge/199999.jpg')).toBe(true);
+  });
+});

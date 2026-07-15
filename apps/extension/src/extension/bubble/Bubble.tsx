@@ -409,6 +409,7 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
                 onPointerDown: onHeaderPointerDown,
                 onPointerMove: onHeaderPointerMove,
                 onPointerUp: onHeaderPointerUp,
+                onPointerCancel: onHeaderPointerUp,
                 style: { cursor: 'grab', touchAction: 'none' },
               }}
             />
@@ -452,6 +453,7 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
         title={open ? 'Close Media Bulk Downloads' : 'Open Media Bulk Downloads'}
         aria-label="Media Bulk Downloads"
         className="ibd-app mbd:grid mbd:place-items-center mbd:rounded-full mbd:text-white mbd:shadow-2xl mbd:transition-transform mbd:hover:scale-105 mbd:active:scale-95"
