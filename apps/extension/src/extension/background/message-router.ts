@@ -4,6 +4,7 @@ import {
   ResolveOriginalsResponse,
   CaptureStreamResponse,
   SettingsData,
+  ListVariantsResult,
 } from '@mbd/core/types';
 import { filterImagesBySettings, filterExcluded } from '@mbd/core/collection/filters';
 import { buildDownloadFilename } from '@mbd/core/collection/download-name';
@@ -17,6 +18,9 @@ import { addExcluded, removeExcluded, clearExcluded, restoreExcluded } from '@mb
 import { savePerHostSettings, clearPerHostSettings } from '@mbd/storage/per-host-settings';
 import { clearScanMemoryForHost, saveScanMemoryForHost } from '@mbd/storage/per-host-scan-memory';
 import { streamErrorMessage } from '@mbd/core/download/stream/stream-error-message';
+import { isMasterPlaylist } from '@mbd/core/download/stream/hls';
+import { variantsFromMaster, variantsFromMpd } from '@mbd/core/download/stream/variants';
+import { assertSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
 import {
   enqueueDownloads, pauseQueue, resumeQueue, cancelQueue, retryQueueItem, getQueueSnapshot,
   clearFinishedQueue, retryAllFailedQueue, openQueueItem,
@@ -29,7 +33,7 @@ import { captureStreamToFile, captureRunTabs } from '@/extension/background/down
 
 /** Response callback shape for the background message router. */
 export type SendResponse = (
-  response: DownloadResponse | ResolveOriginalsResponse | string[] | CaptureStreamResponse | QueueState | SettingsData,
+  response: DownloadResponse | ResolveOriginalsResponse | string[] | CaptureStreamResponse | QueueState | SettingsData | ListVariantsResult,
 ) => void;
 
 /** Push the current settings to every tab's content script so the on-page bubble
@@ -378,7 +382,7 @@ export const messageRouter: MessageRouter = {
   },
 
   CAPTURE_STREAM: (message, sender, respond) => {
-    const { runId, item, sourcePage, audioOnly, audioFormat } = message;
+    const { runId, item, sourcePage, audioOnly, audioFormat, quality } = message;
     // Track the originating tab under this run's id (unset for popup captures,
     // whose sender.tab is undefined) so a CAPTURE_PROGRESS broadcast is relayed
     // to it — and only it — even while other captures run concurrently.
@@ -387,7 +391,7 @@ export const messageRouter: MessageRouter = {
     // dependency on the popup, so the download completes even if it closes.
     void settingsReady.then(async () => {
       try {
-        const cap = await captureStreamToFile(item, sourcePage, runId, audioOnly, audioFormat);
+        const cap = await captureStreamToFile(item, sourcePage, runId, audioOnly, audioFormat, quality);
         captureRunTabs.delete(runId);
         if (!cap.ok) {
           // Refused/undownloadable — surface the code so the popup can offer the
@@ -406,6 +410,30 @@ export const messageRouter: MessageRouter = {
         respond({ status: 'Couldn’t capture the stream.' });
       }
     });
+    return true; // response sent asynchronously
+  },
+
+  // Fetch + parse a stream's master manifest so the popup can offer a per-stream
+  // rendition picker (#314). The SW holds <all_urls>, so this fetch is cross-origin
+  // and CORS-free. Failure is non-fatal to capture — the popup falls back to Auto.
+  LIST_VARIANTS: (message, _sender, respond) => {
+    const { manifestUrl, engine } = message;
+    void (async () => {
+      try {
+        // Same SSRF guard the capture engines apply to the manifest fetch: a
+        // page-controlled manifestUrl must not aim this <all_urls> fetch at an
+        // internal/loopback/link-local host. Throws → the catch below reports a
+        // non-fatal failure and no fetch happens.
+        assertSafeCaptureUrl(manifestUrl);
+        const text = await (await fetch(manifestUrl)).text();
+        const variants = engine === 'dash'
+          ? variantsFromMpd(text, manifestUrl)
+          : isMasterPlaylist(text) ? variantsFromMaster(text, manifestUrl) : [];
+        respond({ ok: true, variants });
+      } catch {
+        respond({ ok: false, code: 'variant_list_failed' });
+      }
+    })();
     return true; // response sent asynchronously
   },
 

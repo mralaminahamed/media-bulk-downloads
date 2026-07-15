@@ -57,6 +57,7 @@ export async function captureStreamToFile(
   runId: string,
   audioOnly = false,
   audioFormatOverride?: AudioFormat,
+  qualityOverride?: number | 'highest' | 'lowest',
 ): Promise<
   | { ok: true; filename: string; saved: boolean; segmentCount: number; muxedAudio: boolean }
   | { ok: false; code: string }
@@ -75,9 +76,8 @@ export async function captureStreamToFile(
     runId,
     manifestUrl: item.hlsManifest,
     engine: item.type === 'mpd' ? 'dash' : 'hls',
-    // The user's global "Stream quality" preference (#288); 'auto' keeps the
-    // target-height default, so nothing changes unless they pick a rendition.
-    quality: streamQualityToEngine(currentSettings.streamQuality),
+    // Per-stream rendition override (#314) wins; else the global preference (#288).
+    quality: qualityOverride ?? streamQualityToEngine(currentSettings.streamQuality),
     maxBytes: STREAM_MAX_BYTES,
     audioOnly,
     audioFormat,

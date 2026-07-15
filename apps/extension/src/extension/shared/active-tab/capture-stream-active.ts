@@ -22,6 +22,7 @@ export function requestCaptureStream(
   onProgress: (done: number, total: number) => void,
   audioOnly = false,
   audioFormat?: AudioFormat,
+  quality?: number | 'highest' | 'lowest',
 ): Promise<{ status: string; refusal?: { code: string } }> {
   return new Promise((resolve) => {
     const runId = newCaptureRunId();
@@ -33,7 +34,11 @@ export function requestCaptureStream(
     };
     chrome.runtime.onMessage.addListener(listener);
     // Only send an override; absent → the background applies the global default.
-    const message: CaptureStreamMessage = { type: 'CAPTURE_STREAM', runId, item, sourcePage, audioOnly, ...(audioFormat ? { audioFormat } : {}) };
+    const message: CaptureStreamMessage = {
+      type: 'CAPTURE_STREAM', runId, item, sourcePage, audioOnly,
+      ...(audioFormat ? { audioFormat } : {}),
+      ...(quality != null ? { quality } : {}),
+    };
     chrome.runtime.sendMessage(message, (response?: CaptureStreamResponse) => {
       chrome.runtime.onMessage.removeListener(listener);
       void chrome.runtime.lastError;

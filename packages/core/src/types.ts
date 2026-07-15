@@ -326,6 +326,27 @@ export interface RestoreDataMessage {
   excluded: ExcludedEntry[];
 }
 
+/** One selectable rendition of a stream, normalized from an HLS master variant or
+ *  a DASH video Representation, for the per-stream quality picker (#314). One entry
+ *  per distinct vertical resolution — the capture selector targets a height. */
+export interface StreamVariant {
+  height?: number;   // vertical resolution when advertised
+  bandwidth: number; // bits/sec (highest at this height)
+  label: string;     // e.g. "1080p · 5.2 Mbps"
+}
+
+/** Popup → background: fetch + parse a stream's master manifest and return its
+ *  selectable renditions for the per-stream picker (#314). */
+export interface ListVariantsMessage {
+  type: 'LIST_VARIANTS';
+  manifestUrl: string;
+  engine: 'hls' | 'dash';
+}
+
+export type ListVariantsResult =
+  | { ok: true; variants: StreamVariant[] }
+  | { ok: false; code: string };
+
 /** Popup → background: capture this stream. Background owns the offscreen doc,
  *  the download, and the status, so it needs the item + source page for the
  *  filename — it must not depend on the popup after this message. */
@@ -341,6 +362,9 @@ export interface CaptureStreamMessage {
   /** Per-item audio-format OVERRIDE (#321). Absent → background uses the global
    *  `SettingsData.audioFormat`. Only meaningful alongside `audioOnly`. */
   audioFormat?: AudioFormat;
+  /** Per-stream rendition override (#314): a target height, or an extreme. Absent →
+   *  the background uses the global streamQuality. The picker only ever sends a height. */
+  quality?: number | 'highest' | 'lowest';
 }
 
 /** Output format for an audio-only capture (#321). `m4a` is the original AAC
@@ -505,6 +529,7 @@ export type ChromeMessage =
   | RemoveExcludedMessage
   | ClearExcludedMessage
   | CaptureStreamMessage
+  | ListVariantsMessage
   | CaptureProgressMessage;
 
 export interface AppState {
@@ -703,6 +728,9 @@ export interface ImageListProps {
   /** The global default audio-output format (#321), shown on the audio button and
    *  preselected in the per-item override menu. Absent → treated as `m4a`. */
   audioFormat?: AudioFormat;
+  /** Capture a stream item's video at a chosen rendition (#314). `quality` is a
+   *  target height; omitted → the global streamQuality applies. */
+  onCaptureStream?: (image: ImageInfo, quality?: number) => void;
   /** Srcs whose on-demand resolve returned nothing (tombstone / failure). */
   resolveFailedSrcs?: Set<string>;
   /** Srcs currently being resolved (shows a spinner, disables the button). */

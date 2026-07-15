@@ -1,6 +1,6 @@
 import type { Mock } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SrcKeySet } from '@mbd/core/collection/canonical';
 import '@testing-library/jest-dom';
@@ -686,6 +686,70 @@ describe('ImageList Component', () => {
       // No poster → no preview <img>; a film glyph renders instead.
       expect(within(dialog).queryByRole('img')).toBeNull();
       expect(dialog.querySelector('svg')).toBeTruthy();
+    });
+  });
+
+  describe('ImageList — stream variant picker (#314)', () => {
+    // Each case uses a UNIQUE manifest URL: useStreamVariants caches renditions at
+    // module scope, so a reused URL would be served from cache and skip the fetch.
+    const streamItem = (manifest: string): ImageInfo => ({
+      src: manifest, alt: 'stream', width: 0, height: 0, type: 'm3u8',
+      fileSize: 0, isBase64: false, kind: 'video', hlsManifest: manifest,
+    });
+    // A fresh sendMessage that resolves a single 1080p rendition (mirrors
+    // useStreamVariants.test.ts). Reassigns the global mock installed by setupTests.
+    const mockOneRendition = (): void => {
+      (chrome.runtime.sendMessage as unknown as ReturnType<typeof vi.fn>) = vi.fn().mockResolvedValue({
+        ok: true, variants: [{ height: 1080, bandwidth: 5_000_000, label: '1080p · 5.0 Mbps' }],
+      });
+    };
+
+    it('captures a stream at the chosen rendition picked in the grid tile', async () => {
+      mockOneRendition();
+      const hls = streamItem('https://cdn.test/grid.m3u8');
+      const onCaptureStream = vi.fn();
+      render(<ImageList images={[hls]} onImageDownload={vi.fn()} onCaptureStream={onCaptureStream} />);
+      // Focusing the picker lazily fetches renditions (never on render).
+      fireEvent.focus(screen.getByRole('combobox', { name: 'Stream quality' }));
+      await waitFor(() => expect(screen.getByRole('option', { name: '1080p · 5.0 Mbps' })).toBeInTheDocument());
+      fireEvent.change(screen.getByRole('combobox', { name: 'Stream quality' }), { target: { value: '1080' } });
+      // The capture button now routes through onCaptureStream with the chosen height.
+      fireEvent.click(screen.getByRole('button', { name: 'Capture stream' }));
+      expect(onCaptureStream).toHaveBeenCalledWith(hls, 1080);
+    });
+
+    it('captures a stream at the chosen rendition picked in the preview panel', async () => {
+      mockOneRendition();
+      const hls = streamItem('https://cdn.test/preview.m3u8');
+      const onCaptureStream = vi.fn();
+      render(<ImageList images={[hls]} onImageDownload={vi.fn()} onCaptureStream={onCaptureStream} />);
+      await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
+      // Two pickers now exist (grid tile + preview); scope to the dialog's.
+      const dialog = screen.getByRole('dialog');
+      fireEvent.focus(within(dialog).getByRole('combobox', { name: 'Stream quality' }));
+      await waitFor(() => expect(within(dialog).getByRole('option', { name: '1080p · 5.0 Mbps' })).toBeInTheDocument());
+      fireEvent.change(within(dialog).getByRole('combobox', { name: 'Stream quality' }), { target: { value: '1080' } });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Capture stream' }));
+      expect(onCaptureStream).toHaveBeenCalledWith(hls, 1080);
+    });
+
+    it('captures at Auto/global (quality undefined) when no rendition is chosen', () => {
+      const hls = streamItem('https://cdn.test/auto.m3u8');
+      const onCaptureStream = vi.fn();
+      render(<ImageList images={[hls]} onImageDownload={vi.fn()} onCaptureStream={onCaptureStream} />);
+      // No pick made → heightBySrc has no entry → quality omitted (global applies).
+      fireEvent.click(screen.getByRole('button', { name: 'Capture stream' }));
+      expect(onCaptureStream).toHaveBeenCalledWith(hls, undefined);
+    });
+
+    it('hides the picker and falls back to onImageDownload when onCaptureStream is unwired', () => {
+      const hls = streamItem('https://cdn.test/unwired.m3u8');
+      const onImageDownload = vi.fn();
+      render(<ImageList images={[hls]} onImageDownload={onImageDownload} />);
+      // No onCaptureStream → no picker, and the capture button uses the plain path.
+      expect(screen.queryByRole('combobox', { name: 'Stream quality' })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Capture stream' }));
+      expect(onImageDownload).toHaveBeenCalledWith(hls);
     });
   });
 
