@@ -382,7 +382,7 @@ export const messageRouter: MessageRouter = {
   },
 
   CAPTURE_STREAM: (message, sender, respond) => {
-    const { runId, item, sourcePage, audioOnly, audioFormat } = message;
+    const { runId, item, sourcePage, audioOnly, audioFormat, quality } = message;
     // Track the originating tab under this run's id (unset for popup captures,
     // whose sender.tab is undefined) so a CAPTURE_PROGRESS broadcast is relayed
     // to it — and only it — even while other captures run concurrently.
@@ -391,7 +391,7 @@ export const messageRouter: MessageRouter = {
     // dependency on the popup, so the download completes even if it closes.
     void settingsReady.then(async () => {
       try {
-        const cap = await captureStreamToFile(item, sourcePage, runId, audioOnly, audioFormat);
+        const cap = await captureStreamToFile(item, sourcePage, runId, audioOnly, audioFormat, quality);
         captureRunTabs.delete(runId);
         if (!cap.ok) {
           // Refused/undownloadable — surface the code so the popup can offer the

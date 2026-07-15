@@ -78,4 +78,18 @@ describe('requestCaptureStream', () => {
       refusal: { code: 'drm' },
     });
   });
+
+  it('threads a quality override into the CAPTURE_STREAM message (#314)', async () => {
+    (chrome.runtime.sendMessage as Mock).mockImplementation((_msg, cb) => cb({ status: 'Captured foo.mp4 — 5 segments.' }));
+    await requestCaptureStream(item, { url: 'https://x/watch' }, vi.fn(), false, undefined, 1080);
+    const sent = (chrome.runtime.sendMessage as Mock).mock.calls.find((c) => c[0]?.type === 'CAPTURE_STREAM')![0];
+    expect(sent).toMatchObject({ type: 'CAPTURE_STREAM', quality: 1080 });
+  });
+
+  it('omits quality when none is given', async () => {
+    (chrome.runtime.sendMessage as Mock).mockImplementation((_msg, cb) => cb({ status: 'Captured foo.mp4 — 5 segments.' }));
+    await requestCaptureStream(item, { url: 'https://x/watch' }, vi.fn(), false);
+    const sent = (chrome.runtime.sendMessage as Mock).mock.calls.find((c) => c[0]?.type === 'CAPTURE_STREAM')![0];
+    expect(sent).not.toHaveProperty('quality');
+  });
 });

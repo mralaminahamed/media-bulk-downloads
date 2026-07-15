@@ -362,6 +362,9 @@ export interface CaptureStreamMessage {
   /** Per-item audio-format OVERRIDE (#321). Absent → background uses the global
    *  `SettingsData.audioFormat`. Only meaningful alongside `audioOnly`. */
   audioFormat?: AudioFormat;
+  /** Per-stream rendition override (#314): a target height, or an extreme. Absent →
+   *  the background uses the global streamQuality. The picker only ever sends a height. */
+  quality?: number | 'highest' | 'lowest';
 }
 
 /** Output format for an audio-only capture (#321). `m4a` is the original AAC
