@@ -1376,6 +1376,25 @@ describe('CAPTURE_STREAM', () => {
     }
   });
 
+  it('lets a per-item quality override beat the global streamQuality in CAPTURE_RUN (#314)', async () => {
+    // Global preference is 480, but the popup passes an explicit 720 rendition
+    // override on CAPTURE_STREAM — the override must win at the CAPTURE_RUN hop
+    // (capture.ts: `qualityOverride ?? streamQualityToEngine(...)`).
+    (chrome.runtime.sendMessage as Mock).mockReset().mockResolvedValue({
+      ok: true, blobUrl: 'blob:cap', ext: 'mp4', mime: 'video/mp4', segmentCount: 1, muxedAudio: false,
+    } as CaptureRunResult);
+    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(1));
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { streamQuality: '480' } }));
+    loadSettings(); // global says 480
+    await new Promise((r) => setTimeout(r, 0));
+
+    messageHandler({ type: 'CAPTURE_STREAM', runId: 'run-y', manifestUrl: item.hlsManifest, item, sourcePage, quality: 720 }, {}, vi.fn());
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'CAPTURE_RUN', quality: 720 }));
+  });
+
   it('tolerates the concurrent-create race: createDocument rejects but a document now exists, so capture still proceeds', async () => {
     (chrome.offscreen.hasDocument as Mock).mockReset()
       .mockResolvedValueOnce(false)
