@@ -7,6 +7,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Fixed
+- **Extension audit — 10 correctness fixes.** A deep scan / video resolve is no
+  longer discarded by a mid-scan settings change; the near-duplicate pass no
+  longer aborts when image sizes finish loading; a sole flaky download no longer
+  hangs in the queue (and a retry no longer waits on an unrelated download);
+  cancelling an item now aborts its transfer and tears down its referer rule; a
+  multi-tab item's metadata sidecar records its own source page; the on-page
+  bubble's collect + deep scan honour smart-page-defaults, resolve-originals, and
+  per-host settings; near-duplicate clustering no longer chains distinct frames
+  into one hidden group; and an oversized audio-only capture fails cleanly instead
+  of risking an out-of-memory crash.
 - **"Can't read this page" in the on-page bubble.** With smart page defaults on by
   default, the bubble surface (which runs inside the page, where `chrome.tabs` is
   unavailable) crashed its scan with "Cannot read properties of undefined (reading
@@ -20,6 +30,21 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   go through.
 
 ### Added
+- **Multi-tab batch collection** (#283). Collect media from **all** or
+  **selected** open tabs in a single pass and download the combined set from the
+  popup's tab picker; each file is tagged with its own source tab (history row,
+  download folder, and metadata sidecar).
+- **Near-duplicate de-duplication** (#198). An on-demand perceptual-hash (pHash)
+  pass hides lower-resolution copies of the same image, keeping the largest.
+  Non-destructive and reversible via the **Duplicates** filter, with a
+  configurable similarity threshold in Settings.
+- **Audio-only MP3 transcode** (#321). Audio-only stream capture can re-encode to
+  MP3 at 128 / 192 / 320 kbps instead of the M4A passthrough, selectable in
+  Settings and per item.
+- **Safari support.** The extension now builds for Safari through the
+  `@mbd/platform` capability seam, packaged as a native macOS wrapper
+  (`apps/safari-native/`, `yarn build:safari`). Mac App Store submission is under
+  review — see [#307](https://github.com/mralaminahamed/media-bulk-downloads/issues/307).
 - **Per-site learned deep scan.** The adaptive deep scan now remembers how long
   each site takes to settle and how deep it scrolls, and seeds those on the next
   visit so a repeat scan on the same site starts warm instead of re-learning.

@@ -16,8 +16,9 @@ fixed, a new version is published and the fix is noted in the changelog.
 ## Supported versions
 
 The latest published version receives security fixes. Because this is a browser
-extension distributed through the Chrome Web Store, Microsoft Edge Add-ons, and
-Firefox Add-ons (AMO), users are auto-updated to the newest version.
+extension distributed through browser add-on stores — the Chrome Web Store and
+Firefox Add-ons (AMO) today, with Microsoft Edge, Opera, and Safari in review —
+users are auto-updated to the newest version.
 
 ## Scope
 
