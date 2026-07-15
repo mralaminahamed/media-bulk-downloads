@@ -97,7 +97,11 @@ export function writeSettingsPatch(patch: SetSettingsMessage['patch']): Promise<
         bubblePosition: { ...stored.bubblePosition, ...(bp ?? {}) },
         ...(bpp !== undefined ? { bubblePanelPoint: bpp } : {}),
       };
-      chrome.storage.sync.set({ settings: merged }, () => resolve(merged));
+      // Re-run through withDefaults' clamping so a corrupt/hand-edited patch (e.g.
+      // minimumImageSize: "abc") can't survive the write — it would otherwise persist
+      // verbatim and later make filters.ts's size comparison NaN (hides every image).
+      const sanitized = withDefaults(merged);
+      chrome.storage.sync.set({ settings: sanitized }, () => resolve(sanitized));
     });
   }));
   settingsWriteChain = run.then(() => undefined, () => undefined);

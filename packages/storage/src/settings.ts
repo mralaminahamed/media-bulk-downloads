@@ -76,6 +76,21 @@ export function withDefaults(stored: unknown): SettingsData {
     // Near-duplicate Hamming threshold (#198). A corrupt/out-of-range value would
     // either merge everything (too high) or nothing (≤0); clamp to a sane band.
     nearDuplicateThreshold: clampInt(s.nearDuplicateThreshold, 2, 16, DEFAULT_SETTINGS.nearDuplicateThreshold),
+    // Minimum image dimension filter. A corrupt/imported value (e.g. "abc") would
+    // otherwise make filters.ts's `img.width >= minimumImageSize` comparison NaN —
+    // always false — hiding every image from the grid/badge/downloads. Clamp to the
+    // same [0, 10000] range the settings UI already enforces on blur.
+    minimumImageSize: clampInt(s.minimumImageSize, 0, 10_000, DEFAULT_SETTINGS.minimumImageSize),
+    // UI dimension fields: never validated before, unlike the loop-bound settings
+    // above. Clamped to the same ranges the settings UI already enforces on blur
+    // (DisplayPane/MediaPane's clampOnBlur), so a corrupt/imported value can't drive
+    // a CSS dimension to NaN/absurd.
+    popupWidth: clampInt(s.popupWidth, 320, 800, DEFAULT_SETTINGS.popupWidth),
+    popupHeight: clampInt(s.popupHeight, 400, 600, DEFAULT_SETTINGS.popupHeight),
+    thumbnailSize: clampInt(s.thumbnailSize, 64, 240, DEFAULT_SETTINGS.thumbnailSize),
+    previewSize: clampInt(s.previewSize, 240, 900, DEFAULT_SETTINGS.previewSize),
+    bubbleWidth: clampInt(s.bubbleWidth, 320, 3840, DEFAULT_SETTINGS.bubbleWidth),
+    bubbleHeight: clampInt(s.bubbleHeight, 360, 2160, DEFAULT_SETTINGS.bubbleHeight),
     // Audio-only output format (#321). A corrupt/legacy value (e.g. an unknown
     // 'mp3-256') would otherwise drive the offscreen encoder branch on garbage;
     // fall back to the M4A passthrough unless it is a known format.

@@ -14,6 +14,7 @@ import {
   DashDeps,
   DashError,
 } from '@mbd/core/download/stream/dash';
+import { StreamTooLargeError } from '@mbd/core/download/stream/bounded-fetch';
 
 const fx = (name: string) => new Uint8Array(readFileSync(join(__dirname, '../fixtures/dash', name)));
 
@@ -541,6 +542,15 @@ describe('captureDash — e2e mux', () => {
       fetchBytes: async () => { throw new Error('boom'); },
     };
     await expect(captureDash('https://cdn.test/manifest.mpd', failing)).rejects.toMatchObject({ code: 'fetch-failed' });
+  });
+
+  it('maps a StreamTooLargeError from a single response to too-large, not fetch-failed', async () => {
+    const videoOnly = VOD_MPD.replace(/<AdaptationSet mimeType="audio\/mp4">[\s\S]*?<\/AdaptationSet>/, '');
+    const tooLarge: DashDeps = {
+      fetchText: async () => videoOnly,
+      fetchBytes: async () => { throw new StreamTooLargeError(); },
+    };
+    await expect(captureDash('https://cdn.test/manifest.mpd', tooLarge)).rejects.toMatchObject({ code: 'too-large' });
   });
 
   it('maps an undecodable mux to unsupported', async () => {

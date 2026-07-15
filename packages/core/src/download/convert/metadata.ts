@@ -196,7 +196,10 @@ function findBox(
 
 function parseIinf(b: Uint8Array, start: number, end: number): Map<number, 'exif' | 'xmp'> {
   const out = new Map<number, 'exif' | 'xmp'>();
-  let o = start + 2; // skip entry_count (16-bit); walk the infe boxes regardless
+  // findBox skipped the 4 version/flags bytes; the version byte is 4 back (mirrors
+  // parseIloc). entry_count is 16-bit for version 0, 32-bit for version >= 1.
+  const version = b[start - 4];
+  let o = start + (version >= 1 ? 4 : 2); // skip entry_count; walk the infe boxes regardless
   while (o + 8 <= end) {
     const size = u32be(b, o);
     const boxType = ascii(b, o + 4, 4);

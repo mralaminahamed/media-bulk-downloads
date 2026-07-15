@@ -16,6 +16,7 @@
 
 import { muxTracks, muxAudioOnly } from '@mbd/core/download/stream/mux';
 import { assertSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
+import { StreamTooLargeError } from '@mbd/core/download/stream/bounded-fetch';
 
 /** ISO-8601 media duration (`PT1H2M3.5S`) → seconds. 0 for anything unparseable.
  *  Only the `PT…` (hours/minutes/seconds) form is handled — the only form MPD
@@ -393,6 +394,9 @@ export async function captureDash(url: string, deps: DashDeps, opts: DashCapture
       audioTrack = await fetchDashTrack(aExp, gd, onSegmentA, budgetA);
     } catch (e) {
       if (e instanceof DashError) throw e;
+      // A single response over the byte ceiling (readBounded) gets its own
+      // dedicated 'too-large' message rather than the generic 'fetch-failed'.
+      if (e instanceof StreamTooLargeError) throw new DashError('too-large', e.message);
       throw new DashError('fetch-failed', 'A segment could not be fetched.');
     }
     if (!audioTrack.init) throw new DashError('unsupported', 'The audio representation has no initialization segment.');
@@ -431,6 +435,9 @@ export async function captureDash(url: string, deps: DashDeps, opts: DashCapture
     audioTrack = aExp ? await fetchDashTrack(aExp, gd, onSegment, budget) : undefined;
   } catch (e) {
     if (e instanceof DashError) throw e;
+    // A single response over the byte ceiling (readBounded) gets its own
+    // dedicated 'too-large' message rather than the generic 'fetch-failed'.
+    if (e instanceof StreamTooLargeError) throw new DashError('too-large', e.message);
     throw new DashError('fetch-failed', 'A segment could not be fetched.');
   }
   if (!videoTrack.init) throw new DashError('unsupported', 'The video representation has no initialization segment.');
