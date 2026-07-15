@@ -1,6 +1,7 @@
 import {
   loadQueue, saveQueue, enqueue, claimNext, markActive, markDone, markFailed,
   scheduleRetry, cancel, retryFailed, setProgress, clearFinished, retryAllFailed,
+  recoverStuckActive,
   type EnqueueEntry, type QueueState, type QueueItem,
 } from '@mbd/storage/download-queue';
 import { recordDownloads } from '@mbd/storage/history';
@@ -335,25 +336,47 @@ export async function reconcileQueue(): Promise<void> {
     // reconcile now; the next startup retries. Never reject (callers `void` us).
     return;
   }
+  const now = Date.now();
+
+  // An item can be left `active` with NO downloadId at all if the SW died in the
+  // window between claimNext() persisting status:'active' and markActive()
+  // attaching the real id — invisible to the downloadId-keyed loop below (and to
+  // pollProgress), so it would otherwise hold a concurrency slot forever.
+  const stuckNoId = snapshot.items.filter((i) => i.status === 'active' && i.downloadId === undefined);
+  if (stuckNoId.length) {
+    await withState(async (s) => ({ state: recoverStuckActive(s, now), value: null }));
+    for (const it of stuckNoId) {
+      if (it.ruleId != null) await removeRefererRule(it.ruleId);
+    }
+  }
+
   const actives = snapshot.items.filter((i) => i.status === 'active' && i.downloadId !== undefined);
   for (const item of actives) {
-    let completed = false;
+    let hit: chrome.downloads.DownloadItem | undefined;
     try {
-      const [hit] = await chrome.downloads.search({ id: item.downloadId });
-      completed = hit?.state === 'complete';
+      [hit] = await chrome.downloads.search({ id: item.downloadId });
     } catch {
-      // search unavailable → treat as needing a requeue rather than losing the item.
+      hit = undefined; // search unavailable → treat as needing a requeue rather than losing the item.
     }
+
+    // Chrome's download state is a 3-way model (in_progress / complete /
+    // interrupted), not a boolean. A download that's STILL RUNNING must be left
+    // alone: resetting it would let pump() dispatch a SECOND chrome.downloads.download
+    // for the same file, and the original's later `complete` event would match no
+    // active item (its downloadId cleared) so it would never be recorded to history.
+    if (hit?.state === 'in_progress') continue;
+
+    const completed = hit?.state === 'complete';
     const doneItem = await withState(async (s) => {
       const cur = s.items.find((i) => i.id === item.id);
       if (!cur || cur.status !== 'active') return { state: s, value: null };
       if (completed) return { state: markDone(s, item.id), value: cur };
-      const items = s.items.map((i) =>
-        i.id === item.id
-          ? { ...i, status: 'queued' as const, downloadId: undefined, ruleId: undefined, readyAt: Date.now(), bytesReceived: undefined, totalBytes: undefined }
-          : i,
-      );
-      return { state: { ...s, items }, value: null };
+      // Missing record (evicted before Chrome even registered it) or genuinely
+      // interrupted (404/DNS/etc, surviving a SW restart) → go through the normal
+      // retry/backoff reducer so attempts increments and MAX_ATTEMPTS caps a
+      // permanently-broken URL instead of retrying it forever.
+      const cleared = { ...s, items: s.items.map((i) => (i.id === item.id ? { ...i, ruleId: undefined } : i)) };
+      return { state: scheduleRetry(cleared, item.id, now), value: cur };
     });
     // Tear down any Referer-rewrite DNR session rule the settled attempt left
     // installed. The live onChanged path (handleDownloadChanged) does this; a
@@ -365,7 +388,7 @@ export async function reconcileQueue(): Promise<void> {
     // was never delivered, so record history here — otherwise the file is on disk
     // but missing from History and the on-disk dedupe set (silently re-downloadable).
     if (doneItem?.history) {
-      void recordDownloads([{ ...doneItem.history, time: Date.now(), downloadId: item.downloadId }]);
+      void recordDownloads([{ ...doneItem.history, time: now, downloadId: item.downloadId }]);
     }
   }
   void pump();

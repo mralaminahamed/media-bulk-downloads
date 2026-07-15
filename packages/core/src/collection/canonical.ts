@@ -10,6 +10,8 @@
  * mirroring the CDN-upgrade RULES engine in imageUrl.ts.
  */
 
+import { isCloudinaryTransform } from '@mbd/core/collection/imageUrl';
+
 /** A per-CDN canonical-key rule: match a URL, then reduce it to a stable key. */
 export interface SrcKeyRule {
   /** Does this rule own the URL? */
@@ -60,18 +62,22 @@ export const SRC_KEY_RULES: SrcKeyRule[] = [
   },
   {
     // Cloudinary (res.cloudinary.com): the /upload/ (or /fetch/) path may carry a
-    // multi-param transform segment (w_800,c_fill — requires >=2 comma-joined
-    // key_value tokens right after upload/fetch, so a comma-named folder is never
-    // mistaken for one) and an auto-version segment (v + exactly 10-digit Unix-epoch
-    // timestamp, only right after upload/fetch, so a hand-named /v2/ folder — or a
-    // 7-9 digit order-id/SKU folder — is never mistaken for one); both are
-    // renditions, the public id is the identity.
+    // transform segment right after it — a comma-list of one or more `key_value`
+    // tokens (w_400, or the chained w_800,c_fill) — validated token-by-token with
+    // the SAME grammar as imageUrl.ts's isCloudinaryTransform (each key must be a
+    // real Cloudinary transform key and its value must carry no `_`), so a
+    // look-alike folder (comma-named, or a single "my_folder") is never mistaken
+    // for one. It also carries an auto-version segment (v + exactly 10-digit
+    // Unix-epoch timestamp, only right after upload/fetch, so a hand-named /v2/
+    // folder — or a 7-9 digit order-id/SKU folder — is never mistaken for one).
+    // Both are renditions, the public id is the identity.
     match: (u) => /(?:^|\.)res\.cloudinary\.com$/i.test(u.hostname),
     key: (u) => {
       const stripped = u.pathname
-        // multi-param transform segment: >=2 comma-joined key_value tokens (e.g. w_800,c_fill).
-        // A comma-named folder ("folder,name") has no key_value tokens, so it is left intact.
-        .replace(/\/(image|video|raw)\/(upload|fetch)\/(?:[a-z]+_[^/,]+,)+[a-z]+_[^/,]+\//, '/$1/$2/')
+        // transform segment: one or more comma-joined key_value tokens (e.g.
+        // w_400, or w_800,c_fill), validated by isCloudinaryTransform.
+        .replace(/\/(image|video|raw)\/(upload|fetch)\/([^/]+)\//, (whole, kind, mode, seg) =>
+          isCloudinaryTransform(seg) ? `/${kind}/${mode}/` : whole)
         // Cloudinary auto-version: v + exactly 10-digit epoch, only right after upload/fetch.
         // A hand-named /v2/ folder or a 7-9 digit order-id/SKU folder is left intact.
         .replace(/\/(upload|fetch)\/v\d{10}\//, '/$1/');
@@ -106,7 +112,7 @@ export const SRC_KEY_RULES: SrcKeyRule[] = [
  * extension-less path — otherwise two distinct images served by one script
  * (`attachment.php?id=1` vs `?id=2`) would collapse to a single key.
  */
-const MEDIA_EXT = /\.(?:jpe?g|png|gif|webp|avif|bmp|ico|svgz?|tiff?|hei[cf]|jfif|mp4|webm|mov|m4v|mkv|avi|m3u8|mpd|mp3|m4a|aac|ogg|opus|oga|wav|flac)$/i;
+const MEDIA_EXT = /\.(?:jpe?g|png|gif|webp|avif|bmp|ico|svgz?|tiff?|hei[cf]|jfif|jxl|jp2|mp4|webm|mov|m4v|mkv|avi|m3u8|mpd|mp3|m4a|aac|ogg|ogv|opus|oga|wav|flac)$/i;
 
 /**
  * Query params that are transport noise, not identity — dropped from a dynamic

@@ -330,7 +330,7 @@ const CLOUDINARY_KEYS = new Set([
  * public-id folder (mac_photos, q_and_a) fails this test, so it is never
  * mistaken for a transform and stripped (which would 404).
  */
-function isCloudinaryTransform(seg: string): boolean {
+export function isCloudinaryTransform(seg: string): boolean {
   return seg.split(',').every((t) => {
     const i = t.indexOf('_');
     return i > 0 && CLOUDINARY_KEYS.has(t.slice(0, i)) && !t.slice(i + 1).includes('_');

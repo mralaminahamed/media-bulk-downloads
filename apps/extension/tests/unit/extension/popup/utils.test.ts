@@ -1,6 +1,7 @@
 import type { Mock } from 'vitest';
 import {
   getImageFileSize,
+  fetchImageBytes,
   mapWithConcurrency,
   sendRuntimeMessage,
   copyText,
@@ -52,6 +53,70 @@ describe('utils', () => {
       }) as unknown as typeof fetch;
 
       await expect(getImageFileSize('https://example.com/a.png')).resolves.toBe(4096);
+    });
+
+    // SSRF guard (2026-07-15 audit): a page-controlled img.src pointing at an
+    // internal/loopback host must never reach fetch — this HEAD is fired
+    // automatically by enrichImageSizes on every popup open.
+    it('returns 0 WITHOUT calling fetch when the URL targets a blocked host (cloud metadata)', async () => {
+      global.fetch = vi.fn() as unknown as typeof fetch;
+
+      await expect(getImageFileSize('http://169.254.169.254/latest/meta-data/')).resolves.toBe(0);
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('returns 0 WITHOUT calling fetch when the URL targets loopback', async () => {
+      global.fetch = vi.fn() as unknown as typeof fetch;
+
+      await expect(getImageFileSize('http://127.0.0.1/x.jpg')).resolves.toBe(0);
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('still fetches a normal public https URL (guard does not break legit URLs)', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        headers: { get: vi.fn().mockReturnValue('999') },
+      }) as unknown as typeof fetch;
+
+      await expect(getImageFileSize('https://cdn.example.com/x.jpg')).resolves.toBe(999);
+      expect(global.fetch).toHaveBeenCalledWith('https://cdn.example.com/x.jpg', { method: 'HEAD' });
+    });
+  });
+
+  describe('fetchImageBytes', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    // Same SSRF guard, applied to the near-duplicate pass's byte-fetch path.
+    it('returns null WITHOUT calling fetch when the URL targets a blocked host', async () => {
+      global.fetch = vi.fn() as unknown as typeof fetch;
+
+      await expect(fetchImageBytes('http://127.0.0.1/x.jpg')).resolves.toBeNull();
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('returns null WITHOUT calling fetch when the URL targets internal 10.x', async () => {
+      global.fetch = vi.fn() as unknown as typeof fetch;
+
+      await expect(fetchImageBytes('http://10.0.0.1/x.jpg')).resolves.toBeNull();
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('fetches and returns bytes for a normal public https URL', async () => {
+      const buf = new ArrayBuffer(8);
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        arrayBuffer: vi.fn().mockResolvedValue(buf),
+      }) as unknown as typeof fetch;
+
+      await expect(fetchImageBytes('https://cdn.example.com/x.jpg')).resolves.toBe(buf);
+      expect(global.fetch).toHaveBeenCalledWith('https://cdn.example.com/x.jpg', { signal: undefined });
+    });
+
+    it('returns null when the response is not ok', async () => {
+      global.fetch = vi.fn().mockResolvedValue({ ok: false }) as unknown as typeof fetch;
+
+      await expect(fetchImageBytes('https://cdn.example.com/x.jpg')).resolves.toBeNull();
     });
   });
 

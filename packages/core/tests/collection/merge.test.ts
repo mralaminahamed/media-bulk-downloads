@@ -40,4 +40,12 @@ describe('mergeScannedMedia', () => {
     );
     expect(out).toHaveLength(2);
   });
+
+  it('keeps both items when mediaKey is an empty string (bug #5: "" must not act like a present, shared key)', () => {
+    const out = mergeScannedMedia(
+      [img('https://a.com/1.jpg', { mediaKey: '' })],
+      [img('https://b.com/2.jpg', { mediaKey: '' })],
+    );
+    expect(out).toHaveLength(2);
+  });
 });

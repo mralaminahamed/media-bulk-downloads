@@ -251,6 +251,12 @@ describe('buildDownloadFilename', () => {
     expect(result).toBe('image_1.jpg');
   });
 
+  it('strips an embedded slash from a custom fileNamePrefix so it cannot create a subfolder (bug #4 path-injection)', () => {
+    const result = buildDownloadFilename(image({}), 0, { ...settings, fileNamePrefix: 'sub/dir_' });
+    expect(result).not.toContain('/');
+    expect(result).toBe('subdir_1.jpg');
+  });
+
   it('uses the item ext override in the built name (a/v capture)', () => {
     // A captured HLS video muxed to mp4: ext override flows through downloadExtension.
     const result = buildDownloadFilename(

@@ -950,6 +950,20 @@ describe('SET_SETTINGS (serialized settings writer)', () => {
 
     expect(written?.bubblePosition).toEqual({ corner: 'bottom-right', x: 5, y: 6 });
   });
+
+  it('sanitizes a corrupt minimumImageSize patch instead of persisting it verbatim', async () => {
+    // A hand-edited chrome.storage.sync (or a corrupted backup import) could send a
+    // non-numeric patch; unsanitized it would survive the write and later make
+    // `img.width >= NaN` always false, hiding every image (see filters.ts).
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: {} }));
+    let written: Record<string, unknown> | undefined;
+    (chrome.storage.sync.set as Mock).mockReset().mockImplementation((obj, cb) => { written = obj.settings; cb?.(); });
+
+    messageHandler({ type: 'SET_SETTINGS', patch: { minimumImageSize: 'abc' as never } }, {}, vi.fn());
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(written?.minimumImageSize).toBe(0); // clamped to the numeric default, not 'abc'
+  });
 });
 
 describe('context menu', () => {

@@ -31,6 +31,7 @@
 
 import { muxTracks, muxAudioOnly } from '@mbd/core/download/stream/mux';
 import { assertSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
+import { StreamTooLargeError } from '@mbd/core/download/stream/bounded-fetch';
 
 export type HlsErrorCode =
   | 'no-variants' // master playlist had no usable EXT-X-STREAM-INF
@@ -341,6 +342,7 @@ function guessContainer(segUri: string, hasInit: boolean): HlsCaptureResult['ext
   if (hasInit) return 'mp4'; // fMP4 (EXT-X-MAP present)
   const path = segUri.split('?')[0].toLowerCase();
   if (path.endsWith('.m4s') || path.endsWith('.mp4')) return 'mp4';
+  if (path.endsWith('.m4a')) return 'm4a'; // self-initializing fMP4 audio segment
   if (path.endsWith('.aac')) return 'aac';
   return 'ts'; // MPEG-TS is the overwhelming default
 }
@@ -353,7 +355,7 @@ const VIDEO_CODEC = /(?:^|[,.\s])(?:avc1|avc3|hvc1|hev1|vp0?9|av01|dvh1|dvhe|mp4
  * stream is audio, with no separate video to demux from. Used so an audio-only
  * request on such a stream captures directly instead of demanding a distinct
  * `#EXT-X-MEDIA:TYPE=AUDIO` rendition. Conservative: only says yes when it can
- * confirm there is no video (an audio-only master variant, or a bare `.aac`
+ * confirm there is no video (an audio-only master variant, or a bare `.aac`/`.m4a`
  * media playlist), never for an ambiguous `.ts`/fMP4 playlist that might carry video.
  */
 function mediaPlaylistIsAudioOnly(variant: HlsVariant | undefined, ext: HlsCaptureResult['ext']): boolean {
@@ -362,7 +364,7 @@ function mediaPlaylistIsAudioOnly(variant: HlsVariant | undefined, ext: HlsCaptu
     if (variant.codecs) return !VIDEO_CODEC.test(variant.codecs); // codecs list carries no video codec
     return false; // no codecs and no resolution — can't confirm; don't assume audio
   }
-  return ext === 'aac'; // bare media playlist: only a clearly-audio container qualifies
+  return ext === 'aac' || ext === 'm4a'; // bare media playlist: only a clearly-audio container qualifies
 }
 
 const MIME: Record<HlsCaptureResult['ext'], string> = {
@@ -441,6 +443,9 @@ async function fetchTrack(
       return await deps.fetchBytes(uri, range);
     } catch (e) {
       if (e instanceof HlsError) throw e;
+      // A single response over the byte ceiling (readBounded) gets its own
+      // dedicated 'too-large' message rather than the generic 'fetch-failed'.
+      if (e instanceof StreamTooLargeError) throw new HlsError('too-large', e.message);
       throw new HlsError('fetch-failed', e instanceof Error ? e.message : `Could not fetch ${uri}.`);
     }
   };

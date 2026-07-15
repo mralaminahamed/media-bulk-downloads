@@ -153,6 +153,23 @@ export function scheduleRetry(state: QueueState, id: string, now: number): Queue
   });
 }
 
+/** Recover any item stuck `active` with NO downloadId at all — the SW died in the
+ *  window between claimNext() persisting `status:'active'` and markActive()
+ *  attaching the real id returned by chrome.downloads.download(). Every
+ *  downloadId-keyed recovery path (reconcileQueue's search loop, pollProgress)
+ *  filters on `downloadId !== undefined`, so an item like this is invisible to
+ *  all of them and would otherwise hold a concurrency slot forever. A download
+ *  was never actually dispatched for it, so this doesn't cost a retry/backoff
+ *  attempt — straight back to `queued` so pump() retries it. */
+export function recoverStuckActive(state: QueueState, now: number): QueueState {
+  const items = state.items.map((i) =>
+    i.status === 'active' && i.downloadId === undefined
+      ? { ...i, status: 'queued' as const, readyAt: now, ruleId: undefined }
+      : i,
+  );
+  return { ...state, items };
+}
+
 export function cancel(state: QueueState, target: string): QueueState {
   if (target === 'all') return { ...state, items: state.items.filter((i) => !isLive(i)) };
   return { ...state, items: state.items.filter((i) => i.id !== target) };

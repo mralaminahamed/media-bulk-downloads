@@ -3,6 +3,7 @@ import {
   emptyQueue, enqueue, claimNext, activeCount, markActive, markDone,
   markFailed, scheduleRetry, cancel, retryFailed, clearFinished,
   backoffMs, MAX_ATTEMPTS, setProgress, retryAllFailed, FINISHED_CAP,
+  recoverStuckActive,
 } from '@mbd/storage/download-queue';
 import type { QueueState, QueueItem } from '@mbd/storage/download-queue';
 
@@ -199,6 +200,30 @@ describe('claimNext — concurrency cap validation', () => {
       ],
     };
     expect(claimNext(oneActive, NaN, T0)).toBeNull(); // floor 1, already at capacity
+  });
+});
+
+describe('recoverStuckActive — SW died before markActive attached a downloadId (bug #2)', () => {
+  it('requeues an active item that never got a downloadId, leaving a normal active item untouched', () => {
+    const s: QueueState = {
+      paused: false,
+      items: [
+        // Stuck: claimNext persisted status:'active' but the SW died before
+        // chrome.downloads.download()'s callback could markActive() a real id.
+        // Every downloadId-keyed recovery path (reconcileQueue's search loop,
+        // pollProgress) filters on downloadId !== undefined, so this item is
+        // otherwise invisible and holds a concurrency slot forever.
+        { id: 'a', url: 'u1', filename: 'f1', status: 'active', attempts: 0, readyAt: 0, addedAt: 0 },
+        // Normal in-flight item — must be left exactly as-is.
+        { id: 'b', url: 'u2', filename: 'f2', status: 'active', attempts: 0, downloadId: 5, readyAt: 0, addedAt: 0 },
+      ],
+    };
+    const out = recoverStuckActive(s, T0);
+    expect(out.items[0]).toMatchObject({ status: 'queued', readyAt: T0 });
+    expect(out.items[0].downloadId).toBeUndefined();
+    // No retry/backoff cost — a download was never actually dispatched for it.
+    expect(out.items[0].attempts).toBe(0);
+    expect(out.items[1]).toMatchObject({ status: 'active', downloadId: 5 });
   });
 });
 

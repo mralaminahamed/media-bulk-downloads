@@ -17,6 +17,7 @@ import {
   selectAudioRendition,
   selectVariant,
 } from '@mbd/core/download/stream/hls';
+import { StreamTooLargeError } from '@mbd/core/download/stream/bounded-fetch';
 
 const MASTER = `#EXTM3U
 #EXT-X-STREAM-INF:BANDWIDTH=246440,RESOLUTION=320x184,CODECS="mp4a.40.5,avc1.42000d",NAME="240"
@@ -536,12 +537,39 @@ audio/a.m3u8
     expect(res.ext).toBe('aac');
   });
 
+  it('guesses m4a (audio/mp4) for a bare M4A-segment playlist, not ts', async () => {
+    // Master-less playlist whose segments are self-initializing M4A (no EXT-X-MAP).
+    const m4a = `#EXTM3U
+#EXTINF:4,
+0.m4a
+#EXT-X-ENDLIST`;
+    const deps = fakeDeps({}, { 'index.m3u8': m4a });
+    const res = await captureHls('https://cdn.test/a/index.m3u8', deps);
+    expect(res.ext).toBe('m4a');
+    expect(res.mime).toBe('audio/mp4');
+  });
+
+  it('audioOnly does not refuse a bare (already-audio) M4A media playlist', async () => {
+    const m4a = `#EXTM3U
+#EXTINF:4,
+0.m4a
+#EXT-X-ENDLIST`;
+    const deps = fakeDeps({}, { 'index.m3u8': m4a });
+    const res = await captureHls('https://cdn.test/a/index.m3u8', deps, { audioOnly: true });
+    expect(res.ext).toBe('m4a');
+  });
+
   it('audioOnly still refuses an ambiguous .ts media playlist with no separate audio rendition', async () => {
     // .ts can carry video; without a confirming signal we must not ship it as "audio".
     const deps = fakeDeps({}, { 'index.m3u8': MEDIA_TS });
     await expect(captureHls('https://cdn.test/v/index.m3u8', deps, { audioOnly: true })).rejects.toMatchObject({
       code: 'audio-unavailable',
     });
+  });
+
+  it('maps a StreamTooLargeError from a single response to too-large, not fetch-failed', async () => {
+    const deps = fakeDeps({ fetchBytes: async () => { throw new StreamTooLargeError(); } }, { 'index.m3u8': MEDIA_TS });
+    await expect(captureHls('https://cdn.test/v/index.m3u8', deps)).rejects.toMatchObject({ code: 'too-large' });
   });
 
   it('throws fetch-failed when the AES-128 key is not 16 bytes', async () => {

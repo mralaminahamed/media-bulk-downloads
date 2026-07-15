@@ -155,6 +155,35 @@ describe('downloadConcurrency setting', () => {
   });
 });
 
+describe('minimumImageSize + UI-dimension settings clamping', () => {
+  it('falls back to the numeric default for a corrupt (non-numeric) minimumImageSize', () => {
+    expect(withDefaults({ minimumImageSize: 'abc' as never }).minimumImageSize).toBe(DEFAULT_SETTINGS.minimumImageSize);
+    expect(withDefaults({ minimumImageSize: NaN as never }).minimumImageSize).toBe(DEFAULT_SETTINGS.minimumImageSize);
+  });
+  it('clamps a negative minimumImageSize up to 0', () => {
+    expect(withDefaults({ minimumImageSize: -50 as never }).minimumImageSize).toBe(0);
+  });
+  it('preserves a valid minimumImageSize override', () => {
+    expect(withDefaults({ minimumImageSize: 500 }).minimumImageSize).toBe(500);
+  });
+  it('clamps the UI-dimension fields (popup/thumbnail/preview/bubble) to their known ranges', () => {
+    const s = withDefaults({
+      popupWidth: 10 as never,
+      popupHeight: 99999 as never,
+      thumbnailSize: 'x' as never,
+      previewSize: -1 as never,
+      bubbleWidth: 1 as never,
+      bubbleHeight: 999999 as never,
+    });
+    expect(s.popupWidth).toBeGreaterThanOrEqual(320);
+    expect(s.popupHeight).toBeLessThanOrEqual(600);
+    expect(s.thumbnailSize).toBe(DEFAULT_SETTINGS.thumbnailSize); // non-numeric → default
+    expect(s.previewSize).toBeGreaterThanOrEqual(240);
+    expect(s.bubbleWidth).toBeGreaterThanOrEqual(320);
+    expect(s.bubbleHeight).toBeLessThanOrEqual(2160);
+  });
+});
+
 describe('skipDuplicateDownloads setting', () => {
   it('defaults to true', () => {
     expect(DEFAULT_SETTINGS.skipDuplicateDownloads).toBe(true);

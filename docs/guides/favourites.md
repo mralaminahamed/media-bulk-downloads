@@ -33,7 +33,7 @@ across pages and browser sessions.
   favourite. This is the same key that collection dedup and the "already
   downloaded" mark use.
 - Newest-first, capped two ways: **500 entries** (`FAVOURITES_CAP`) and
-  **2,000,000 bytes** of serialized JSON (`FAVOURITES_MAX_BYTES`), whichever is
+  **1,000,000 bytes** of serialized JSON (`FAVOURITES_MAX_BYTES`), whichever is
   hit first. A `src` can be a full base64 data URL, so the byte cap bounds
   storage that the count alone would not.
 - Every mutation runs in the background service worker and serializes through one

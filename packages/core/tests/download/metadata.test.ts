@@ -66,7 +66,9 @@ const box = (type: string, ...payload: Uint8Array[]): Uint8Array => {
 
 // Minimal AVIF: [ftyp][mdat: exifItem, xmpItem][meta: iinf, iloc]. iloc extent
 // offsets are ABSOLUTE file offsets, computed once mdat's position is known.
-const buildAvif = (exif?: Uint8Array, xmp?: Uint8Array): Uint8Array => {
+// `iinfVersion` lets tests build a spec-legal version >= 1 `iinf` FullBox (32-bit
+// entry_count) alongside the default version 0 (16-bit entry_count).
+const buildAvif = (exif?: Uint8Array, xmp?: Uint8Array, iinfVersion: 0 | 1 = 0): Uint8Array => {
   const ftyp = box('ftyp', str('avif'), u32(0), str('avif'), str('mif1'));
   const exifItem = exif ? cat(u32(0), exif) : new Uint8Array(0); // 4-byte tiff-offset prefix + TIFF
   const xmpItem = xmp ?? new Uint8Array(0);
@@ -80,7 +82,9 @@ const buildAvif = (exif?: Uint8Array, xmp?: Uint8Array): Uint8Array => {
   const infes: Uint8Array[] = [];
   if (exif) infes.push(infe(1, 'Exif'));
   if (xmp) infes.push(infe(2, 'mime', 'application/rdf+xml'));
-  const iinf = box('iinf', bytes(0, 0, 0, 0), u16(infes.length), ...infes);
+  const iinfHeader =
+    iinfVersion === 0 ? cat(bytes(0, 0, 0, 0), u16(infes.length)) : cat(bytes(1, 0, 0, 0), u32(infes.length));
+  const iinf = box('iinf', iinfHeader, ...infes);
 
   const ilocItems: Uint8Array[] = [];
   if (exif) ilocItems.push(cat(u16(1), u16(0), u16(1), u32(exifOffset), u32(exifItem.length)));
@@ -130,6 +134,11 @@ describe('extractMetadata', () => {
   });
   it('reads EXIF + XMP from an AVIF', async () => {
     const m = await extractMetadata(blobOf(buildAvif(EXIF, XMP)));
+    expect(eq(m.exif, EXIF)).toBe(true);
+    expect(eq(m.xmp, XMP)).toBe(true);
+  });
+  it('reads EXIF + XMP from an AVIF whose iinf box is a spec-legal version 1 (32-bit entry_count)', async () => {
+    const m = await extractMetadata(blobOf(buildAvif(EXIF, XMP, 1)));
     expect(eq(m.exif, EXIF)).toBe(true);
     expect(eq(m.xmp, XMP)).toBe(true);
   });

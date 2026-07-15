@@ -7,7 +7,7 @@ import {
   initQueueDispatcher, enqueueDownloads, handleDownloadChanged, getQueueSnapshot, reconcileQueue,
   cancelQueue, pollProgressForTest, __setProgressTimerForTest,
 } from '@/extension/background/download/download-queue';
-import { QUEUE_KEY, saveQueue, loadQueue } from '@mbd/storage/download-queue';
+import { QUEUE_KEY, saveQueue, loadQueue, MAX_ATTEMPTS } from '@mbd/storage/download-queue';
 
 let store: Record<string, unknown>;
 let downloadCb: (() => void) | null;
@@ -299,6 +299,76 @@ describe('reconcile on restart', () => {
     expect(['queued', 'active']).toContain(snap.items[0].status);
     expect(snap.items[0].bytesReceived).toBeUndefined();
     expect(snap.items[0].totalBytes).toBeUndefined();
+  });
+
+  // Bug (HIGH): chrome.downloads.search reports a 3-state model (in_progress /
+  // complete / interrupted), but the old reconcile collapsed it to a boolean
+  // (`completed = hit?.state === 'complete'`). A download that was simply STILL
+  // RUNNING when the SW got evicted reported `in_progress` → completed=false →
+  // the item was reset to queued/downloadId:undefined → pump() dispatched a
+  // SECOND chrome.downloads.download for the same file, and the original
+  // download's later `complete` event matched no active item, so it was never
+  // recorded to history.
+  it('leaves an in_progress download alone on reconcile (no duplicate dispatch)', async () => {
+    store[QUEUE_KEY] = { paused: false, items: [
+      { id: 'f', url: 'u7', filename: 'f7', status: 'active', attempts: 0, downloadId: 700, readyAt: 0, addedAt: 0 },
+    ] };
+    (chrome.downloads.search as ReturnType<typeof vi.fn>).mockResolvedValueOnce([{ id: 700, state: 'in_progress' }]);
+    await reconcileQueue();
+    await flush();
+    const snap = await getQueueSnapshot();
+    expect(snap.items[0]).toMatchObject({ status: 'active', downloadId: 700 });
+    // The still-running download must not get a second, duplicate dispatch.
+    expect(chrome.downloads.download).not.toHaveBeenCalled();
+  });
+
+  // Bug (HIGH): claimNext persists status:'active' BEFORE chrome.downloads.download()
+  // is even called; downloadId is attached only afterward via markActive. If the SW
+  // dies in that window, the item is stuck {status:'active', downloadId:undefined}
+  // forever — every downloadId-keyed recovery path (reconcileQueue's search loop,
+  // pollProgress) filters on downloadId !== undefined, so it's invisible to all of
+  // them and permanently holds a concurrency slot.
+  it('recovers a stuck-active item that never got a downloadId before the SW died', async () => {
+    store[QUEUE_KEY] = { paused: false, items: [
+      { id: 'e', url: 'u6', filename: 'f6', status: 'active', attempts: 0, readyAt: 0, addedAt: 0 },
+    ] };
+    await reconcileQueue();
+    await flush();
+    // Recovered off the dead-end: pump() found it claimable again and actually
+    // re-dispatched it. Before the fix it was invisible to reconcile entirely (no
+    // downloadId to match against), so chrome.downloads.download was never called
+    // again and the item stayed active forever, holding a concurrency slot.
+    expect(chrome.downloads.download).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'u6' }), expect.any(Function),
+    );
+  });
+
+  // Bug (MEDIUM): the interrupted/missing reset never incremented `attempts` and
+  // didn't go through scheduleRetry, so a permanently-broken URL (404/DNS) retried
+  // indefinitely across SW restarts with no MAX_ATTEMPTS cap and no backoff.
+  it('routes an interrupted item on reconcile through scheduleRetry (attempts increments)', async () => {
+    store[QUEUE_KEY] = { paused: false, items: [
+      { id: 'g', url: 'u8', filename: 'f8', status: 'active', attempts: 0, downloadId: 800, readyAt: 0, addedAt: 0 },
+    ] };
+    (chrome.downloads.search as ReturnType<typeof vi.fn>).mockResolvedValueOnce([{ id: 800, state: 'interrupted' }]);
+    await reconcileQueue();
+    const snap = await getQueueSnapshot();
+    expect(snap.items[0].status).toBe('queued');
+    expect(snap.items[0].attempts).toBe(1);
+  });
+
+  it('caps interrupted retries at MAX_ATTEMPTS across SW restarts → failed, not an infinite retry', async () => {
+    store[QUEUE_KEY] = { paused: false, items: [
+      {
+        id: 'h', url: 'u9', filename: 'f9', status: 'active', attempts: MAX_ATTEMPTS - 1,
+        downloadId: 900, readyAt: 0, addedAt: 0,
+      },
+    ] };
+    (chrome.downloads.search as ReturnType<typeof vi.fn>).mockResolvedValueOnce([{ id: 900, state: 'interrupted' }]);
+    await reconcileQueue();
+    const snap = await getQueueSnapshot();
+    expect(snap.items[0].status).toBe('failed');
+    expect(snap.items[0].attempts).toBe(MAX_ATTEMPTS);
   });
 });
 

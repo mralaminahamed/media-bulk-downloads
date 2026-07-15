@@ -319,7 +319,7 @@ media-bulk-downloads/            # yarn-workspaces monorepo
 │   │   │   ├── entrypoints/     # background · content · ig/x/fb/pinterest/hls sniffers ·
 │   │   │   │                     #   offscreen · popup
 │   │   │   ├── extension/       # background · content · popup · bubble · components ·
-│   │   │   │                     #   shared/active-tab · platform/ (Chrome/Firefox/Safari seam)
+│   │   │   │                     #   shared/active-tab · platform/ (Chrome/Firefox/Safari seam — not yet wired in)
 │   │   │   ├── styles/          # Tailwind v4 entry + design tokens
 │   │   │   ├── public/icon/     # extension icons (manifest inputs)
 │   │   │   └── types/           # ambient CSS-module declarations

@@ -6,6 +6,7 @@ import { u8ToBase64 } from '@mbd/core/download/base64';
 import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { hostFromUrl, registrableDomain, todayISO } from '@mbd/core/collection/paths';
 import { requestCaptureStream } from '@/extension/shared/active-tab/capture-stream-active';
+import { isSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
 import { copyText, downloadText, mapWithConcurrency } from '@/extension/popup/utils';
 import { downloadable } from '@/extension/popup/lib/appHelpers';
 
@@ -167,9 +168,19 @@ export function useDownloadActions({
 
     setProgress({ label: 'Converting', done: 0, total: toConvert.length });
     let done = 0;
+    let blocked = 0;
     const failed: ImageInfo[] = [];
     await mapWithConcurrency(toConvert, 3, async (img, index) => {
       try {
+        // `img.src` is page-controlled and this fetch runs with the popup's
+        // `<all_urls>` grant (bypasses page CORS) — same SSRF exposure as
+        // zip.ts's fetchBytes. A blocked host is treated as NOT downloadable:
+        // skip it entirely, rather than falling through to `failed`, which
+        // would hand the same internal-host URL to a plain chrome.downloads.
+        if (!isSafeCaptureUrl(img.src)) {
+          blocked++;
+          return;
+        }
         const res = await fetch(img.src);
         if (!res.ok) throw new Error('fetch');
         // preserve metadata unless the user explicitly chose to strip it. If the
@@ -206,7 +217,7 @@ export function useDownloadActions({
     if (failed.length) {
       chrome.runtime.sendMessage({ type: 'DOWNLOAD_IMAGES', images: failed, sourcePage } as DownloadMessage);
     }
-    const okCount = toConvert.length - failed.length;
+    const okCount = toConvert.length - failed.length - blocked;
     const note = failed.length ? ` ${failed.length} couldn't convert — saved original.` : '';
     setState((prev) => ({ ...prev, status: `Converted ${okCount} image${okCount === 1 ? '' : 's'} to ${target.toUpperCase()}.${note}` }));
   };

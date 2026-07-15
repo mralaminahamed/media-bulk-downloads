@@ -57,6 +57,15 @@ describe('redditResolver — video', () => {
   it('returns [] for a v.redd.it URL with no id segment', () => {
     expect(resolve('https://v.redd.it/')).toEqual([]);
   });
+
+  it('maps a bare v.redd.it share link (no trailing slash, no filename) to the same pending video hint', () => {
+    const [c] = resolve(`https://v.redd.it/${VID}`);
+    expect(c).toMatchObject({
+      kind: 'video',
+      unresolvedVideo: true,
+      resolveHint: { platform: 'reddit', id: VID },
+    });
+  });
 });
 
 describe('reddit HLS master (real fixture) — the engine can mux the separate audio', () => {

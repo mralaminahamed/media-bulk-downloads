@@ -1,11 +1,19 @@
+import { isSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
+
 /**
  * Fetches the byte size of a remote image via a HEAD request.
  *
  * Runs from the popup (an extension-origin page), so host_permissions let it
  * bypass page CORS — unlike a content script. Returns 0 on any failure or when
  * the server omits Content-Length.
+ *
+ * `url` is a page-controlled `img.src`, and this fires automatically for every
+ * collected image (enrichImageSizes, on every popup open) — without a guard, a
+ * hostile page could aim the HEAD at an internal/loopback/link-local host (e.g.
+ * cloud metadata at 169.254.169.254). Refuse those up front, same as zip.ts.
  */
 export async function getImageFileSize(url: string): Promise<number> {
+    if (!isSafeCaptureUrl(url)) return 0;
     try {
         const response = await fetch(url, { method: 'HEAD' });
         const length = response.headers.get('Content-Length');
@@ -20,8 +28,12 @@ export async function getImageFileSize(url: string): Promise<number> {
  * popup (an extension-origin page), so host_permissions bypass page CORS. Returns
  * null on any failure or abort — callers skip that item rather than fail the batch.
  * Used by the perceptual-hash near-duplicate pass (#198) to feed bytes to its worker.
+ *
+ * Same SSRF exposure as getImageFileSize: `url` is page-controlled, so refuse a
+ * disallowed host before ever calling fetch.
  */
 export async function fetchImageBytes(url: string, signal?: AbortSignal): Promise<ArrayBuffer | null> {
+    if (!isSafeCaptureUrl(url)) return null;
     try {
         const response = await fetch(url, { signal });
         if (!response.ok) return null;

@@ -2,8 +2,9 @@ import { imageExtFromUrl } from '@mbd/core/collection/mediaType';
 import { MediaCandidate, Resolver } from '@mbd/core/resolvers/types';
 
 // v.redd.it path: /<id>/<file> — the id is the first segment (the same id the
-// public HLS/DASH masters are served under).
-const VREDD_ID = /^\/([a-z0-9]+)\//i;
+// public HLS/DASH masters are served under). Also matches the bare share-link
+// form with no trailing filename (e.g. `/8tnc0d8mu3ch1`, no trailing slash).
+const VREDD_ID = /^\/([a-z0-9]+)(?:\/|$)/i;
 
 /**
  * Reddit. Owns the reddit CDN hosts so it runs before the generic resolver:
