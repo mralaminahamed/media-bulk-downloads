@@ -13,6 +13,7 @@ import { mastodonResolver } from '@mbd/core/resolvers/sites/mastodon';
 import { pinterestResolver } from '@mbd/core/resolvers/sites/pinterest';
 import { pixivResolver } from '@mbd/core/resolvers/sites/pixiv';
 import { redditResolver } from '@mbd/core/resolvers/sites/reddit';
+import { sankakuResolver } from '@mbd/core/resolvers/sites/sankaku';
 import { threadsResolver } from '@mbd/core/resolvers/sites/threads';
 import { twitterResolver } from '@mbd/core/resolvers/sites/twitter';
 import { unsplashResolver } from '@mbd/core/resolvers/sites/unsplash';
@@ -21,7 +22,7 @@ import { wallpaperscraftResolver } from '@mbd/core/resolvers/sites/wallpaperscra
 import { youtubeResolver } from '@mbd/core/resolvers/sites/youtube';
 import { zerochanResolver } from '@mbd/core/resolvers/sites/zerochan';
 
-export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, facebookResolver, threadsResolver, unsplashResolver, wallhavenResolver, behanceResolver, bskyResolver, pinterestResolver, redditResolver, flickrResolver, artstationResolver, pixivResolver, magnificResolver, arcxpResolver, youtubeResolver, mastodonResolver, booruResolver, zerochanResolver, wallpaperscraftResolver, genericResolver];
+export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, facebookResolver, threadsResolver, unsplashResolver, wallhavenResolver, behanceResolver, bskyResolver, pinterestResolver, redditResolver, flickrResolver, artstationResolver, pixivResolver, magnificResolver, arcxpResolver, youtubeResolver, mastodonResolver, booruResolver, zerochanResolver, wallpaperscraftResolver, sankakuResolver, genericResolver];
 
 // Suffix → resolvers that declared it, preserving REGISTRY order within a bucket.
 const hostIndex = new Map<string, Resolver[]>();

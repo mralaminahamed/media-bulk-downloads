@@ -144,4 +144,16 @@ describe('resolve — generic fallback', () => {
     expect(c.thumbnailSrc).toBe('https://s1.zerochan.net/Tag.600.7.jpg');
     document.body.innerHTML = '';
   });
+
+  it('includes sankakuResolver before genericResolver', () => {
+    const ids = REGISTRY.map((r) => r.id);
+    expect(ids).toContain('sankaku');
+    expect(ids.indexOf('sankaku')).toBeLessThan(ids.indexOf('generic'));
+  });
+
+  it('routes a v.sankakucomplex.com original through the sankaku resolver with an md5 mediaKey', () => {
+    const url = 'https://v.sankakucomplex.com/data/26/20/2620d86cb72802a5dcd9e1e189b75e64.jpg?e=1&expires=1&m=x&token=y';
+    const [c] = resolve(url, ctx);
+    expect(c).toMatchObject({ kind: 'image', url, mediaKey: '2620d86cb72802a5dcd9e1e189b75e64' });
+  });
 });
