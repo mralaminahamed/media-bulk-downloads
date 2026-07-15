@@ -157,6 +157,34 @@ describe('SRC_KEY_RULES cross-CDN families', () => {
       .toBe('i.pinimg.com/upload/698_board_thumbnail_x.jpg');
   });
 
+  it('Sankaku: preview/sample/original tiers collapse to one md5 identity', () => {
+    const key = (s: string) => canonicalSrcKey(s);
+    const md5 = '2620d86cb72802a5dcd9e1e189b75e64';
+    const id = `sankakucomplex.com/data/${md5}`;
+    // Same post, three tiers, different folders + exts + signed tokens.
+    expect(key(`https://v.sankakucomplex.com/data/26/20/${md5}.jpg?e=1&expires=1&m=a&token=b`)).toBe(id);
+    expect(key(`https://v.sankakucomplex.com/data/preview/26/20/${md5}.avif?e=2&expires=2&m=c&token=d`)).toBe(id);
+    expect(key(`https://s.sankakucomplex.com/data/sample/26/20/${md5}.jpg?e=3&expires=3&m=e&token=f`)).toBe(id);
+  });
+
+  it('Sankaku: different md5s stay distinct, and non-/data hosts are untouched', () => {
+    const a = 'https://v.sankakucomplex.com/data/26/20/2620d86cb72802a5dcd9e1e189b75e64.jpg';
+    const b = 'https://v.sankakucomplex.com/data/11/23/1123a36e511a4172e0e3bd899361c9c6.jpg';
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+    // Analytics host matches the domain but carries no md5 stem → rule must not claim it.
+    expect(canonicalSrcKey('https://a.sankakucomplex.com/piwik.php?idsite=1'))
+      .not.toMatch(/^sankakucomplex\.com\/data\//);
+  });
+
+  it('Sankaku: a video /data tier is NOT folded (image-only rule)', () => {
+    const md5 = '2620d86cb72802a5dcd9e1e189b75e64';
+    const mp4 = `https://v.sankakucomplex.com/data/26/20/${md5}.mp4?e=1&expires=1&m=a&token=b`;
+    const poster = `https://v.sankakucomplex.com/data/preview/26/20/${md5}.jpg?e=2&expires=2&m=c&token=d`;
+    // A video original must not collapse into its same-md5 poster.
+    expect(canonicalSrcKey(mp4)).not.toBe(canonicalSrcKey(poster));
+    expect(canonicalSrcKey(mp4)).not.toMatch(/^sankakucomplex\.com\/data\/[0-9a-f]{32}$/);
+  });
+
   it('keeps distinct googleusercontent multi-= tokens distinct', () => {
     const a = 'https://lh3.googleusercontent.com/a/AAtokenPART1=AAtokenPART2=s96-c';
     const b = 'https://lh3.googleusercontent.com/a/AAtokenPART1=BBtokenPART2=s96-c';

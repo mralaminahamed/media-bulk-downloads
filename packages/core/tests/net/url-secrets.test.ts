@@ -57,3 +57,16 @@ describe('stripUrlSecrets — Akamai-style path tokens (I19)', () => {
     );
   });
 });
+
+describe('stripUrlSecrets — Sankaku host-scoped e/m', () => {
+  it('strips a Sankaku signed CDN URL down to just its md5 path', () => {
+    const md5 = '2620d86cb72802a5dcd9e1e189b75e64';
+    const url = `https://v.sankakucomplex.com/data/26/20/${md5}.jpg?e=1784118574&expires=1784118574&m=abc&token=xyz`;
+    expect(stripUrlSecrets(url)).toBe(`https://v.sankakucomplex.com/data/26/20/${md5}.jpg`);
+  });
+
+  it('leaves e/m untouched on non-Sankaku hosts (benign there)', () => {
+    const url = 'https://cdn.example.com/x.jpg?e=1&m=2&res=hd';
+    expect(stripUrlSecrets(url)).toBe(url);
+  });
+});

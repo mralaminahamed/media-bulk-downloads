@@ -134,6 +134,7 @@ embeds `#meta-preload-data` naming the exact original, which the resolver reads
 network-free (pximg is `Referer`-gated, so the fetch path can't reach it; the
 original still downloads via the #197 referer opt-in). **DeviantArt** (row: wixmp
 `/v1/fill/` token-cap upgrade, #101) and **Tumblr** (deliberately un-rewritten,
-¹/§D) were already covered, so #286 added no rule for them. **Sankaku** was
-deferred (see §D): its originals are signed-token/login-gated, so a passive
-rewrite would 404 — against the network-free-by-default, no-auth model.
+¹/§D) were already covered, so #286 added no rule for them. **Sankaku** Tier-1
+shipped (#319): its tiers share an md5 content-hash, so an opened post's
+already-signed original is collected and its preview folds by md5 (passive,
+no-auth); grid-only originals still need the opt-in authenticated Tier-2 (#319).

@@ -12,8 +12,10 @@ still **open**.
 Open (not upgradeable — signed / already-original):
 - **Guardian** `i.guim.co.uk` — HMAC `s=<hex>` per width; any change → 401.
 - **500px** `drscdn.500px.org` — signed URLs.
-- **Sankaku** (#286, deferred) — originals are signed-token + login-gated; a passive
-  preview→original rewrite would 404. Out of the no-auth, network-free-by-default model.
+- **Sankaku** (#319, Tier-1 shipped) — a post's preview/sample/original tiers share
+  the same md5 content-hash, so an opened post's already-signed original is collected
+  and its thumbnail folds into it by md5 (passive, no-auth). Still open: grid-only
+  originals need the opt-in authenticated Tier-2 (#319).
 - **preview.redd.it** — signed (left byte-identical by design, verified live).
 - **Guardian** stays open (above); Giphy / Tenor **moved to Resolved** (2026-07-15) — the
   downsized-variant upgrade is now a shipped Tier-1 CdnRule (see the

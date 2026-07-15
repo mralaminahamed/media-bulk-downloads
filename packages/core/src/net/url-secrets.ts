@@ -21,6 +21,13 @@ const SECRET_PARAM_EXACT =
 // every `x-amz-*` / `x-goog-*` param (AWS SigV4, GCS).
 const SECRET_PARAM_PREFIX = /^(?:x-amz-|x-goog-)/i;
 
+// Some hosts sign with ultra-short param names (Sankaku's `e` + `m`, the latter an
+// HMAC) that are far too common to strip globally — `e`/`m` are benign params on
+// countless other hosts. Strip them only for the matching host family.
+const HOST_SCOPED_SECRETS: ReadonlyArray<{ host: RegExp; params: ReadonlySet<string> }> = [
+  { host: /(?:^|\.)sankakucomplex\.com$/i, params: new Set(['e', 'm']) },
+];
+
 const isSecretParam = (name: string): boolean =>
   SECRET_PARAM_EXACT.test(name) || SECRET_PARAM_PREFIX.test(name);
 
@@ -44,11 +51,13 @@ export function stripUrlSecrets(url: string): string {
   }
   let changed = false;
 
+  const hostSecrets = HOST_SCOPED_SECRETS.find((h) => h.host.test(u.hostname))?.params;
+
   if (u.search) {
     const kept = new URLSearchParams();
     let removed = false;
     for (const [key, value] of u.searchParams) {
-      if (isSecretParam(key)) {
+      if (isSecretParam(key) || hostSecrets?.has(key.toLowerCase())) {
         removed = true;
         continue;
       }
