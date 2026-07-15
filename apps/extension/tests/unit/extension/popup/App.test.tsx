@@ -282,7 +282,7 @@ describe('App Component', () => {
       headers: { get: () => '2048' },
     }) as unknown as typeof fetch;
 
-    render(<App collect={async () => [image({ src: 'remote.jpg', fileSize: 0 })]} />);
+    render(<App collect={async () => [image({ src: 'https://cdn.example.com/remote.jpg', fileSize: 0 })]} />);
     await screen.findByText('Filters');
 
     // Card meta shows the enriched size.
@@ -297,7 +297,7 @@ describe('App Component', () => {
       src: 'https://x.com/u/status/1/photo/1', kind: 'image', fileSize: 0,
       unresolvedImage: true, resolveHint: { platform: 'twitter', id: 'photo 1 1' },
     });
-    render(<App collect={async () => [image({ src: 'remote.jpg', fileSize: 0 }), pendingImage]} />);
+    render(<App collect={async () => [image({ src: 'https://cdn.example.com/remote.jpg', fileSize: 0 }), pendingImage]} />);
     await screen.findByText('Filters');
 
     // The real image's size is enriched…
@@ -835,7 +835,7 @@ describe('App Component', () => {
     render(
       <App
         collect={async () => [
-          image({ src: 'photo.jpg', type: 'jpeg', kind: 'image' }),
+          image({ src: 'https://cdn.example.com/photo.jpg', type: 'jpeg', kind: 'image' }),
           image({ src: 'icon.svg', type: 'svg', kind: 'image' }),
           image({ src: 'clip.mp4', type: 'mp4', kind: 'video' }),
         ]}
@@ -869,7 +869,7 @@ describe('App Component', () => {
     (convertImage as Mock).mockResolvedValue({ bytes: new Uint8Array([9]), ext: 'jpg', mime: 'image/jpeg' });
     global.fetch = vi.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['x']) }) as unknown as typeof fetch;
 
-    render(<App collect={async () => [image({ src: 'shot.png', type: 'png', kind: 'image' })]} />);
+    render(<App collect={async () => [image({ src: 'https://cdn.example.com/shot.png', type: 'png', kind: 'image' })]} />);
     await screen.findByText('Filters');
 
     fireEvent.click(await screen.findByRole('button', { name: /download 1/i }));
@@ -888,7 +888,7 @@ describe('App Component', () => {
     (convertImage as Mock).mockResolvedValue(null); // decode/encode failure
     global.fetch = vi.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['x']) }) as unknown as typeof fetch;
 
-    render(<App collect={async () => [image({ src: 'broken.jpg', type: 'jpeg', kind: 'image' })]} />);
+    render(<App collect={async () => [image({ src: 'https://cdn.example.com/broken.jpg', type: 'jpeg', kind: 'image' })]} />);
     await screen.findByText('Filters');
 
     fireEvent.click(await screen.findByRole('button', { name: /download 1/i }));
@@ -898,7 +898,7 @@ describe('App Component', () => {
       expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'DOWNLOAD_IMAGES',
-          images: expect.arrayContaining([expect.objectContaining({ src: 'broken.jpg' })]),
+          images: expect.arrayContaining([expect.objectContaining({ src: 'https://cdn.example.com/broken.jpg' })]),
         }),
       ),
     );
@@ -907,6 +907,31 @@ describe('App Component', () => {
       (chrome.runtime.sendMessage as Mock).mock.calls.filter((c) => c[0]?.type === 'DOWNLOAD_BYTES'),
     ).toHaveLength(0);
     expect(await screen.findByText(/couldn't convert/i)).toBeInTheDocument();
+  });
+
+  // SSRF guard (2026-07-15 audit): a page-controlled img.src pointing at an
+  // internal/loopback host must never reach convertAndDownload's fetch, and the
+  // blocked item must not fall through to a plain chrome.downloads either.
+  it('skips a convert-on-download item whose src targets a blocked host (SSRF) — no fetch, no fallback download', async () => {
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) =>
+      cb({ settings: { convertImagesTo: 'png' } }));
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['x']) }) as unknown as typeof fetch;
+
+    render(
+      <App collect={async () => [image({ src: 'http://169.254.169.254/latest/meta-data/', type: 'jpeg', kind: 'image' })]} />,
+    );
+    await screen.findByText('Filters');
+
+    fireEvent.click(await screen.findByRole('button', { name: /download 1/i }));
+
+    await screen.findByText(/Converted 0 images? to PNG\./);
+    expect(convertImage).not.toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(
+      (chrome.runtime.sendMessage as Mock).mock.calls.filter(
+        (c) => c[0]?.type === 'DOWNLOAD_IMAGES' || c[0]?.type === 'DOWNLOAD_BYTES',
+      ),
+    ).toHaveLength(0);
   });
 
   // ── ZIP download ───────────────────────────────────────────────────────────
@@ -1654,7 +1679,7 @@ describe('App Component', () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { convertImagesTo: 'png' } }));
     global.fetch = vi.fn().mockResolvedValue({ ok: false }) as unknown as typeof fetch;
 
-    render(<App collect={async () => [image({ src: 'x.jpg', type: 'jpeg', kind: 'image' })]} />);
+    render(<App collect={async () => [image({ src: 'https://cdn.example.com/x.jpg', type: 'jpeg', kind: 'image' })]} />);
     await screen.findByText('Filters');
 
     fireEvent.click(await screen.findByRole('button', { name: /download 1/i }));
@@ -1662,7 +1687,7 @@ describe('App Component', () => {
     // A non-ok fetch throws before convertImage runs → the item is saved as-is.
     await waitFor(() =>
       expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'DOWNLOAD_IMAGES', images: expect.arrayContaining([expect.objectContaining({ src: 'x.jpg' })]) }),
+        expect.objectContaining({ type: 'DOWNLOAD_IMAGES', images: expect.arrayContaining([expect.objectContaining({ src: 'https://cdn.example.com/x.jpg' })]) }),
       ),
     );
     expect(convertImage).not.toHaveBeenCalled();
@@ -1690,7 +1715,7 @@ describe('App Component', () => {
   // ── Size enrichment leaves already-known sizes untouched ───────────────────
   it('enriches only the remote image lacking a size, leaving the known one intact', async () => {
     global.fetch = vi.fn().mockResolvedValue({ headers: { get: () => '4096' } }) as unknown as typeof fetch;
-    render(<App collect={async () => [image({ src: 'known.jpg', fileSize: 1024 }), image({ src: 'remote.jpg', fileSize: 0 })]} />);
+    render(<App collect={async () => [image({ src: 'known.jpg', fileSize: 1024 }), image({ src: 'https://cdn.example.com/remote.jpg', fileSize: 0 })]} />);
     await screen.findByText('Filters');
 
     // remote.jpg enriches to 4 KB; known.jpg keeps its 1 KB (the map's pass-through arm).
