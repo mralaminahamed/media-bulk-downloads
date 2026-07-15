@@ -114,6 +114,14 @@ export function useMediaEngine({
   // Bumped ONLY by fetchImages (a rescan) — the exact event the deep-scan/video
   // guards below want to detect.
   const resolveGenRef = useRef(0);
+  // Generation guard for fetchImages' OWN self-supersession: two overlapping
+  // fetchImages calls (a double Rescan click, or a changeScope re-trigger) each
+  // await collect() — without this, a stale first call whose collect() resolves
+  // AFTER a second call's could clobber the fresh grid with old data. Distinct
+  // from resolveGenRef (which fetchImages also bumps, to supersede a concurrent
+  // deep-scan/video-resolve) — this one is scoped to fetchImages superseding
+  // itself, so it's bumped and checked only here.
+  const scanGenRef = useRef(0);
   // Latest toolbar filters. FilterToolbar owns its own state and only notifies on
   // user interaction, so async paths (resolution, deep scan, rescan) must re-apply
   // these when they repopulate the grid — otherwise the active filter is dropped.
@@ -241,6 +249,12 @@ export function useMediaEngine({
   );
 
   const fetchImages = useCallback(async (): Promise<void> => {
+    // Snapshot THIS call's own generation, so a second overlapping fetchImages
+    // (double Rescan click — the button isn't disabled while loading — or a
+    // changeScope re-trigger) can supersede it: if this call's collect() resolves
+    // after the newer one's, its writes below must be discarded rather than
+    // clobber the fresh grid with stale data.
+    const scanGeneration = ++scanGenRef.current;
     enrichGenRef.current++; // cancel any in-flight size enrichment
     enrichOriginalsGenRef.current++; // cancel any in-flight originals resolution
     resolveGenRef.current++; // supersede any concurrent deep-scan / video resolve
@@ -253,6 +267,9 @@ export function useMediaEngine({
 
     try {
       const imageList = await collect();
+      // A newer fetchImages call started while this one was awaiting collect() —
+      // discard this stale result rather than clobber the fresher grid.
+      if (scanGeneration !== scanGenRef.current) return;
       const raw = Array.isArray(imageList) ? imageList : [];
       rawImagesRef.current = raw;
       const s = settingsRef.current; // latest settings, not a stale closure
@@ -263,6 +280,9 @@ export function useMediaEngine({
       let seed: Partial<FilterOptions> = {};
       if (s.smartPageDefaults) {
         const pt = await getPageType();
+        // Superseded while awaiting the page-type read — bail before seeding the
+        // toolbar/writing rawImagesRef's derived state for a call that's now stale.
+        if (scanGeneration !== scanGenRef.current) return;
         seed = pageDefaults(pt);
       }
       setFilterSeed(seed);
@@ -273,6 +293,9 @@ export function useMediaEngine({
       setState((prev) => ({ ...prev, status: '', isLoading: false }));
       applyResolution(eligible, s);
     } catch (error) {
+      // Don't surface a stale call's error over a newer call's (possibly still
+      // in-flight or already-succeeded) state.
+      if (scanGeneration !== scanGenRef.current) return;
       const message = error instanceof Error ? error.message : 'unknown error';
       setState((prev) => ({
         ...prev,

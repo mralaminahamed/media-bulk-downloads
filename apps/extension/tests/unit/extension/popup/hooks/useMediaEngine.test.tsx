@@ -119,3 +119,63 @@ describe('useMediaEngine — generation guards', () => {
     expect(view.result.current.state.images.map((i) => i.src)).not.toContain('https://x/deep.jpg');
   });
 });
+
+describe('useMediaEngine — fetchImages self-supersession', () => {
+  it('a stale fetchImages call does not clobber a newer overlapping one (double Rescan click)', async () => {
+    const settingsRef = { current: DEFAULT_SETTINGS } as RefObject<SettingsData>;
+    const excludedRef = {
+      current: { urls: { size: 0, has: () => false }, hosts: new Set<string>() } as unknown as ExcludedMatchers,
+    };
+
+    // Each collect() call parks its resolver here instead of resolving immediately,
+    // so the test can control the order in which overlapping fetchImages calls settle.
+    const pending: Array<(v: ImageInfo[]) => void> = [];
+    const collect = vi.fn(() => new Promise<ImageInfo[]>((resolve) => { pending.push(resolve); }));
+
+    const view = renderHook(() =>
+      useMediaEngine({
+        settings: DEFAULT_SETTINGS,
+        settingsRef,
+        loadSettings: async () => DEFAULT_SETTINGS,
+        excludedRef,
+        excludedMatch: excludedRef.current,
+        isDownloaded: () => false,
+        downloadedSrcs: new Set<string>() as never,
+        collect,
+        deepScan: () => new Promise<ImageInfo[]>(() => {}),
+        abortDeepScan: () => {},
+      }),
+    );
+
+    // Let the mount effect fire its own fetchImages call, then resolve it (empty)
+    // so it's out of the way before the two overlapping calls below.
+    await act(async () => { await Promise.resolve(); });
+    expect(pending).toHaveLength(1);
+    await act(async () => { pending.shift()!([]); await Promise.resolve(); });
+
+    // Fire two OVERLAPPING fetchImages calls (a double Rescan click — the button
+    // isn't disabled while loading) — neither's collect() has resolved yet.
+    let callA!: Promise<void>;
+    let callB!: Promise<void>;
+    act(() => {
+      callA = view.result.current.fetchImages();
+      callB = view.result.current.fetchImages();
+    });
+    expect(pending).toHaveLength(2);
+
+    // The SECOND (fresher) call's collect() resolves FIRST...
+    await act(async () => {
+      pending[1]([img('https://x/fresh.jpg')]);
+      await callB;
+    });
+    // ...then the FIRST (now-stale) call's collect() resolves LATER.
+    await act(async () => {
+      pending[0]([img('https://x/stale.jpg')]);
+      await callA;
+    });
+
+    const srcs = view.result.current.state.images.map((i) => i.src);
+    expect(srcs).toContain('https://x/fresh.jpg');
+    expect(srcs).not.toContain('https://x/stale.jpg');
+  });
+});
