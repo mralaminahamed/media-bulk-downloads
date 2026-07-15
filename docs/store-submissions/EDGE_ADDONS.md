@@ -10,6 +10,11 @@ family as the Chrome build). This is the Edge sibling of
 [CHROME_WEBSTORE.md](./CHROME_WEBSTORE.md); the listing copy is intentionally
 identical so both stores match.
 
+> **✅ Live** — the extension passed certification and is published at
+> <https://microsoftedge.microsoft.com/addons/detail/media-bulk-downloads/ihhhecmabfocelgmjafijchhhlpdlnll>.
+> This doc is now the reference for shipping **updates** (see §7 "To ship an
+> update").
+
 > **Different from Chrome — don't miss these:**
 > - Edge registration is **free** (Chrome charges a one-time $5).
 > - Edge requires a **300×300** store logo (Chrome uses the 128×128 icon).
@@ -301,11 +306,12 @@ Version comes from `apps/extension/package.json` (WXT writes it into every manif
 
 ### Identifiers (from Partner Center → Extension overview)
 
-| Field        | Value                                           | Used for                                                                     |
-|--------------|-------------------------------------------------|------------------------------------------------------------------------------|
-| **Store ID** | `0RDCKGS01KRC`                                  | Share link: `https://microsoftedge.microsoft.com/addons/detail/0RDCKGS01KRC` |
-| **CRX ID**   | `ihhhecmabfocelgmjafijchhhlpdlnll`              | The README version badge (Microsoft's `getproductdetailsbycrxid` API)        |
-| Product ID   | *(kept private — internal Partner Center GUID)* | Dashboard deep-links only                                                    |
+| Field            | Value                                                                                                      | Used for                                                                     |
+|------------------|------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------|
+| **Live listing** | `https://microsoftedge.microsoft.com/addons/detail/media-bulk-downloads/ihhhecmabfocelgmjafijchhhlpdlnll`   | Public store page (live) — the link in the README and store table            |
+| **Store ID**     | `0RDCKGS01KRC`                                                                                              | Short share link: `https://microsoftedge.microsoft.com/addons/detail/0RDCKGS01KRC` (redirects to the slug URL above) |
+| **CRX ID**       | `ihhhecmabfocelgmjafijchhhlpdlnll`                                                                          | The README version badge (Microsoft's `getproductdetailsbycrxid` API) and the live listing slug |
+| Product ID       | *(kept private — internal Partner Center GUID)*                                                            | Dashboard deep-links only                                                    |
 
 **README badge:** shields.io has **no native Edge Add-ons badge** (open request
 [badges/shields#4690](https://github.com/badges/shields/issues/4690)), so the
@@ -316,8 +322,9 @@ endpoint by CRX ID:
 https://microsoftedge.microsoft.com/addons/getproductdetailsbycrxid/ihhhecmabfocelgmjafijchhhlpdlnll
 ```
 
-It shows `not found` (red) until the extension passes certification, then flips
-to the live version automatically — no manual bump needed.
+Now that the extension is certified, the badge reads the live version
+automatically — no manual bump needed. (It showed `not found` in red until
+certification passed.)
 
 **To ship an update:** bump `version` in `package.json`, re-run `yarn zip:all`,
 upload the new `…-edge.zip` in **Packages**, and resubmit. One version bump keeps
