@@ -756,3 +756,77 @@ describe('resolveOriginal — gallery-page (#287)', () => {
     expect(await resolveOriginal({ platform: 'gallery-page', id: PAGE }, { fetch: throwing })).toBeNull();
   });
 });
+
+describe('resolveOriginal — streamable', () => {
+  it('returns the progressive mp4 (files.mp4.url), pinned to .streamable.com', async () => {
+    const payload = { files: { mp4: { url: 'https://cdn-cf-east.streamable.com/video/mp4/moo9j0.mp4?Expires=1&Signature=X' }, 'mp4-mobile': { url: 'https://cdn-cf-east.streamable.com/video/mp4-mobile/moo9j0.mp4' } } };
+    expect(await resolveOriginal({ platform: 'streamable', id: 'moo9j0' }, { fetch: mockFetch(payload) }))
+      .toEqual({ url: 'https://cdn-cf-east.streamable.com/video/mp4/moo9j0.mp4?Expires=1&Signature=X' });
+  });
+  it('falls back to mp4-mobile when there is no full mp4', async () => {
+    const payload = { files: { 'mp4-mobile': { url: 'https://cdn-cf-west.streamable.com/video/mp4-mobile/x.mp4' } } };
+    expect(await resolveOriginal({ platform: 'streamable', id: 'abc12' }, { fetch: mockFetch(payload) }))
+      .toEqual({ url: 'https://cdn-cf-west.streamable.com/video/mp4-mobile/x.mp4' });
+  });
+  it('rejects an mp4 URL that is not https .streamable.com (untrusted JSON)', async () => {
+    const evil = { files: { mp4: { url: 'https://evil.example/x.mp4' } } };
+    expect(await resolveOriginal({ platform: 'streamable', id: 'abc12' }, { fetch: mockFetch(evil) })).toBeNull();
+  });
+  it('returns null when there is no mp4 file (private/login-gated)', async () => {
+    expect(await resolveOriginal({ platform: 'streamable', id: 'abc12' }, { fetch: mockFetch({ files: {} }) })).toBeNull();
+  });
+  it('returns null on a non-ok response, a bad id, or a throw', async () => {
+    expect(await resolveOriginal({ platform: 'streamable', id: 'abc12' }, { fetch: mockFetch({}, false) })).toBeNull();
+    expect(await resolveOriginal({ platform: 'streamable', id: 'bad id!' }, { fetch: mockFetch({ files: { mp4: { url: 'https://cdn-cf-east.streamable.com/x.mp4' } } }) })).toBeNull();
+    const throwing = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
+    expect(await resolveOriginal({ platform: 'streamable', id: 'abc12' }, { fetch: throwing })).toBeNull();
+  });
+});
+
+describe('resolveOriginal — redgifs', () => {
+  // Two-hop: /v2/auth/temporary → token, then /v2/gifs/<id> (Authorization) → urls.hd.
+  // A URL-aware mock returns the auth or gif payload per request; the second hop
+  // asserts the bearer header carries the token from the first.
+  const twoHop = (auth: unknown, gif: unknown, gifOk = true, authOk = true) =>
+    (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/v2/auth/temporary')) return { ok: authOk, json: async () => auth };
+      if (url.includes('/v2/gifs/')) {
+        const authz = (init?.headers as Record<string, string> | undefined)?.Authorization;
+        return { ok: gifOk && authz === 'Bearer TESTTOKEN', json: async () => gif };
+      }
+      return { ok: false, json: async () => ({}) };
+    }) as unknown as typeof fetch;
+
+  it('returns gif.urls.hd, pinned to .redgifs.com, after the token hop', async () => {
+    const gif = { gif: { urls: { hd: 'https://media.redgifs.com/BrightExample.mp4', sd: 'https://media.redgifs.com/BrightExample-mobile.mp4' } } };
+    expect(await resolveOriginal({ platform: 'redgifs', id: 'brightexample' }, { fetch: twoHop({ token: 'TESTTOKEN' }, gif) }))
+      .toEqual({ url: 'https://media.redgifs.com/BrightExample.mp4' });
+  });
+  it('falls back to urls.sd when there is no hd', async () => {
+    const gif = { gif: { urls: { sd: 'https://media.redgifs.com/x-mobile.mp4' } } };
+    expect(await resolveOriginal({ platform: 'redgifs', id: 'brightexample' }, { fetch: twoHop({ token: 'TESTTOKEN' }, gif) }))
+      .toEqual({ url: 'https://media.redgifs.com/x-mobile.mp4' });
+  });
+  it('accepts a top-level urls shape (no gif wrapper)', async () => {
+    const gif = { urls: { hd: 'https://media.redgifs.com/y.mp4' } };
+    expect(await resolveOriginal({ platform: 'redgifs', id: 'brightexample' }, { fetch: twoHop({ token: 'TESTTOKEN' }, gif) }))
+      .toEqual({ url: 'https://media.redgifs.com/y.mp4' });
+  });
+  it('rejects a media URL that is not https .redgifs.com (untrusted JSON)', async () => {
+    const gif = { gif: { urls: { hd: 'https://evil.example/x.mp4' } } };
+    expect(await resolveOriginal({ platform: 'redgifs', id: 'brightexample' }, { fetch: twoHop({ token: 'TESTTOKEN' }, gif) })).toBeNull();
+  });
+  it('returns null when the auth hop fails or yields no token', async () => {
+    const gif = { gif: { urls: { hd: 'https://media.redgifs.com/x.mp4' } } };
+    expect(await resolveOriginal({ platform: 'redgifs', id: 'brightexample' }, { fetch: twoHop({ token: 'TESTTOKEN' }, gif, true, false) })).toBeNull();
+    expect(await resolveOriginal({ platform: 'redgifs', id: 'brightexample' }, { fetch: twoHop({}, gif) })).toBeNull();
+  });
+  it('returns null on a bad id, a failed gif hop, or a throw', async () => {
+    const gif = { gif: { urls: { hd: 'https://media.redgifs.com/x.mp4' } } };
+    expect(await resolveOriginal({ platform: 'redgifs', id: 'BAD ID!' }, { fetch: twoHop({ token: 'TESTTOKEN' }, gif) })).toBeNull();
+    expect(await resolveOriginal({ platform: 'redgifs', id: 'brightexample' }, { fetch: twoHop({ token: 'TESTTOKEN' }, gif, false) })).toBeNull();
+    const throwing = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
+    expect(await resolveOriginal({ platform: 'redgifs', id: 'brightexample' }, { fetch: throwing })).toBeNull();
+  });
+});

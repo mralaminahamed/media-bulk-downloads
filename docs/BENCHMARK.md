@@ -339,6 +339,38 @@ Resolved (this benchmark drove the fixes):
     existing hotlink-403 Referer retry covers it.
   - Deferred to a network-API follow-up (not the network-free model): Streamable,
     RedGifs, Twitch clips, 9GAG, wallpaperscraft.
+- ✅ **Tier-2 network-API resolvers (2026-07-15)** — three site-support adds, each
+  verified against the forbidden-header (`Referer`/`User-Agent` are dropped by a
+  background `fetch`) / no-redirect (`redirect: 'error'`) / host-pinned model:
+  - **Streamable** — a `streamable.com` watch/embed link or player `<iframe>` surfaces a
+    pending video (`resolveHint 'streamable'`); the opt-in resolve pass reads the public
+    `GET api.streamable.com/videos/<shortcode>` JSON and returns the progressive
+    `files.mp4.url` (fallback `mp4-mobile`), pinned to `.streamable.com`. The
+    CloudFront-signed URL expires, so it is resolved on demand. Reserved first-segment
+    pages (`/login` …) and multi-segment paths are refused so only real shortcodes match.
+  - **RedGifs** (NSFW) — a `redgifs.com` watch/`ifr` link or `<iframe>` surfaces a pending
+    video (`resolveHint 'redgifs'`); the resolve pass does two allowed-header hops
+    (`GET /v2/auth/temporary` → bearer → `GET /v2/gifs/<id>` `Authorization: Bearer`) and
+    returns `gif.urls.hd` (fallback `sd`), pinned to `.redgifs.com`. The bearer token is
+    used only for that request and never logged/persisted. The media lives on the
+    hotlink-protected `media.redgifs.com`: a background fetch of it would 403 on the
+    missing `Referer`/`User-Agent`, so the resolver only produces the URL — the **download**
+    clears the 403 via the #197 Referer rewrite (the item's `redgifs.com` source page
+    becomes the injected `Referer`) plus `chrome.downloads`' real browser User-Agent.
+    Works cleanest when collected on `redgifs.com`; a RedGifs embed on a third-party page
+    injects that page's Referer instead and may still 403 (documented limitation).
+  - **wallpaperscraft** (network-free DOM) — an `images.wallpaperscraft.com` preview image
+    is upgraded to the largest resolution the page lists in its `/download/<slug>/<res>`
+    links, rebuilt on the deterministic `/image/single/<slug>_<W>x<H>.<ext>` path. Returns
+    `[]` (→ generic identity) when the DOM lists nothing larger, so a preview is never
+    replaced by a guessed URL that could 404 (a blind resolution bump does — not every
+    wallpaper has 4K).
+  - Deferred to a further follow-up: **Twitch clips** (feasible via a Client-ID GraphQL
+    POST → tokened `.twitchcdn.net` mp4, but brittle — the persisted-query hash rotates and
+    the tokens expire fast) and **9GAG** (id-derived `img-9gag-fun.9cache.com/photo/<id>_460sv.mp4`,
+    but the image-vs-video DOM disambiguation needs live verification). **RedGifs media**
+    was the only member of this batch that was previously called infeasible — the #197
+    hotlink path is what makes it shippable.
 
 Corrected:
 - 🔧 **YouTube** — `→maxresdefault` replaced a working `hqdefault` with a dead link when

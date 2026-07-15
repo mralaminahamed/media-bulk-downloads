@@ -24,6 +24,8 @@ import { pinterestPageMedia } from '@mbd/core/resolvers/sites/pinterest';
 import { youtubeVideoId } from '@mbd/core/resolvers/sites/youtube';
 import { vimeoVideoId } from '@mbd/core/resolvers/sites/vimeo';
 import { dailymotionVideoId } from '@mbd/core/resolvers/sites/dailymotion';
+import { streamableVideoId } from '@mbd/core/resolvers/sites/streamable';
+import { redgifsVideoId } from '@mbd/core/resolvers/sites/redgifs';
 import { sniffedHlsManifests } from '@mbd/core/resolvers/sniffers/hls-sniff';
 import { HOST_ID } from '@/extension/bubble/mount';
 
@@ -346,6 +348,36 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     });
   };
 
+  // A Streamable video (embed iframe or link) surfaced as a pending video:
+  // Streamable hides the mp4 behind its public video API, so the real file is
+  // fetched on the opt-in resolve pass (resolveHint 'streamable'), like a Vimeo
+  // video. Keyed by the canonical watch URL so an embed + a link to the same
+  // video collapse to one item.
+  const pushStreamable = (id: string): void => {
+    const watch = `https://streamable.com/${id}`;
+    if (!seenSources.addIfNew(watch)) return;
+    media.push({
+      src: watch, alt: '', width: 0, height: 0, type: 'mp4',
+      fileSize: 0, isBase64: false, kind: 'video',
+      unresolvedVideo: true, resolveHint: { platform: 'streamable', id },
+    });
+  };
+
+  // A RedGifs video (embed iframe or link) surfaced as a pending video: RedGifs
+  // hides the mp4 behind a token-auth'd API, so the real file is fetched on the
+  // opt-in resolve pass (resolveHint 'redgifs'), like a Vimeo video. Keyed by the
+  // canonical watch URL so an embed + a link to the same video collapse to one
+  // item.
+  const pushRedgifs = (id: string): void => {
+    const watch = `https://www.redgifs.com/watch/${id}`;
+    if (!seenSources.addIfNew(watch)) return;
+    media.push({
+      src: watch, alt: '', width: 0, height: 0, type: 'mp4',
+      fileSize: 0, isBase64: false, kind: 'video',
+      unresolvedVideo: true, resolveHint: { platform: 'redgifs', id },
+    });
+  };
+
   // X/Twitter unpainted grid cells: a `/user/status/<id>/photo|video/<n>` link
   // whose cell never rendered a real pbs.twimg.com media <img> (or a mounted
   // <video>'s poster) — common on a fast scroll through a lazy-loading grid,
@@ -651,6 +683,10 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       else if (resolvedHref && vimeoVideoId(resolvedHref)) pushVimeo(vimeoVideoId(resolvedHref)!);
       // A link to a Dailymotion video — surface as a pending video resolved on demand.
       else if (resolvedHref && dailymotionVideoId(resolvedHref)) pushDailymotion(dailymotionVideoId(resolvedHref)!);
+      // A link to a Streamable video — surface as a pending video resolved on demand.
+      else if (resolvedHref && streamableVideoId(resolvedHref)) pushStreamable(streamableVideoId(resolvedHref)!);
+      // A link to a RedGifs video — surface as a pending video resolved on demand.
+      else if (resolvedHref && redgifsVideoId(resolvedHref)) pushRedgifs(redgifsVideoId(resolvedHref)!);
       // An X/Twitter status permalink (`/user/status/<id>/photo|video/<n>`) whose
       // cell never painted its media — surface a pending item resolved on demand.
       else if (isTwitterPage && resolvedHref) pushTwitterPending(a, resolvedHref);
@@ -680,6 +716,10 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       else if (resolvedEmbed && vimeoVideoId(resolvedEmbed)) pushVimeo(vimeoVideoId(resolvedEmbed)!);
       // A Dailymotion player <iframe> — surface as a pending video (resolved on demand).
       else if (resolvedEmbed && dailymotionVideoId(resolvedEmbed)) pushDailymotion(dailymotionVideoId(resolvedEmbed)!);
+      // A Streamable player <iframe> — surface as a pending video (resolved on demand).
+      else if (resolvedEmbed && streamableVideoId(resolvedEmbed)) pushStreamable(streamableVideoId(resolvedEmbed)!);
+      // A RedGifs player <iframe> — surface as a pending video (resolved on demand).
+      else if (resolvedEmbed && redgifsVideoId(resolvedEmbed)) pushRedgifs(redgifsVideoId(resolvedEmbed)!);
 
       let doc: Document | null;
       try {

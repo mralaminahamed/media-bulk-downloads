@@ -604,6 +604,59 @@ describe('collectMedia — Vimeo videos', () => {
   });
 });
 
+describe('collectMedia — Streamable videos', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+  const streamable = (m: { resolveHint?: { platform: string } }[]) => m.filter((i) => i.resolveHint?.platform === 'streamable');
+
+  it('surfaces a Streamable player <iframe> as a pending video with a resolve hint', () => {
+    setBody('<iframe src="https://streamable.com/e/moo9j0"></iframe>');
+    expect(streamable(collectMedia())[0]).toMatchObject({
+      kind: 'video', type: 'mp4', unresolvedVideo: true,
+      src: 'https://streamable.com/moo9j0', resolveHint: { platform: 'streamable', id: 'moo9j0' },
+    });
+  });
+
+  it('surfaces a Streamable watch link and dedupes an embed + link to the same video', () => {
+    setBody(
+      '<iframe src="https://streamable.com/o/moo9j0"></iframe>' +
+      '<a href="https://streamable.com/moo9j0">same</a>',
+    );
+    expect(streamable(collectMedia())).toHaveLength(1);
+  });
+
+  it('ignores a reserved Streamable page (no shortcode)', () => {
+    setBody('<a href="https://streamable.com/login">login</a>');
+    expect(streamable(collectMedia())).toHaveLength(0);
+  });
+});
+
+describe('collectMedia — RedGifs videos', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+  const redgifs = (m: { resolveHint?: { platform: string } }[]) => m.filter((i) => i.resolveHint?.platform === 'redgifs');
+
+  it('surfaces a RedGifs watch link as a pending video with a resolve hint', () => {
+    setBody('<a href="https://www.redgifs.com/watch/brightshinyexample">clip</a>');
+    expect(redgifs(collectMedia())[0]).toMatchObject({
+      kind: 'video', type: 'mp4', unresolvedVideo: true,
+      src: 'https://www.redgifs.com/watch/brightshinyexample',
+      resolveHint: { platform: 'redgifs', id: 'brightshinyexample' },
+    });
+  });
+
+  it('dedupes an /ifr/ embed and a /watch/ link to the same video', () => {
+    setBody(
+      '<iframe src="https://www.redgifs.com/ifr/brightshinyexample"></iframe>' +
+      '<a href="https://www.redgifs.com/watch/brightshinyexample">same</a>',
+    );
+    expect(redgifs(collectMedia())).toHaveLength(1);
+  });
+
+  it('ignores a RedGifs listing page (no video id)', () => {
+    setBody('<a href="https://www.redgifs.com/gifs/trending">trending</a>');
+    expect(redgifs(collectMedia())).toHaveLength(0);
+  });
+});
+
 describe('collectMedia — shadow DOM', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
