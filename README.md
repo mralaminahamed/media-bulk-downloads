@@ -8,7 +8,7 @@
 Fast, network-free by default, and built for Chrome, Firefox, Edge, and Safari from one codebase.
 
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/jmdhkdengijmmkelofaleinbipophckn?label=Chrome%20Web%20Store&color=4f46e5)](https://chromewebstore.google.com/detail/media-bulk-downloads/jmdhkdengijmmkelofaleinbipophckn)
-[![Edge Add-ons](https://img.shields.io/badge/dynamic/json?label=Edge%20Add-ons&prefix=v&query=%24.version&url=https%3A%2F%2Fmicrosoftedge.microsoft.com%2Faddons%2Fgetproductdetailsbycrxid%2Fihhhecmabfocelgmjafijchhhlpdlnll&color=0078D7&logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/0RDCKGS01KRC)
+[![Edge Add-ons](https://img.shields.io/badge/dynamic/json?label=Edge%20Add-ons&prefix=v&query=%24.version&url=https%3A%2F%2Fmicrosoftedge.microsoft.com%2Faddons%2Fgetproductdetailsbycrxid%2Fihhhecmabfocelgmjafijchhhlpdlnll&color=0078D7&logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/media-bulk-downloads/ihhhecmabfocelgmjafijchhhlpdlnll)
 [![Firefox Add-ons](https://img.shields.io/amo/v/media-bulk-downloads?label=Firefox%20Add-ons&color=FF7139&logo=firefoxbrowser&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/media-bulk-downloads/)
 [![ExtensionLaunch](https://img.shields.io/badge/ExtensionLaunch-Featured-6366f1)](https://extensionlaunch.com/product/media-bulk-downloads-jmdhkd)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
@@ -105,14 +105,14 @@ It reads only what the page already loaded, so nothing leaves your device.
 
 ## Install
 
-**Store availability** — where you can install it today. Edge, Opera, and Safari
+**Store availability** — where you can install it today. Opera and Safari
 submissions are in the stores' review queues and will go live once approved:
 
 | Store                            | Status          | Get it                                                                                                     |
 |----------------------------------|-----------------|------------------------------------------------------------------------------------------------------------|
 | Chrome Web Store                 | ✅ Live          | [Install](https://chromewebstore.google.com/detail/media-bulk-downloads/jmdhkdengijmmkelofaleinbipophckn)  |
 | Firefox Add-ons (AMO)            | ✅ Live          | [Install](https://addons.mozilla.org/en-US/firefox/addon/media-bulk-downloads/)                            |
-| Microsoft Edge Add-ons           | 🕓 Under review  | Chromium build works meanwhile — install from the Chrome Web Store                                          |
+| Microsoft Edge Add-ons           | ✅ Live          | [Install](https://microsoftedge.microsoft.com/addons/detail/media-bulk-downloads/ihhhecmabfocelgmjafijchhhlpdlnll) |
 | Opera Add-ons                    | 🕓 Under review  | Chromium build works meanwhile — install from the Chrome Web Store                                          |
 | Safari (Mac App Store)           | 🕓 Under review  | macOS wrapper submitted; see the [Safari note](#build--package) below                                      |
 
@@ -124,6 +124,10 @@ Chrome build too.
 **From Firefox Add-ons (AMO)** —
 [**install Media Bulk Downloads**](https://addons.mozilla.org/en-US/firefox/addon/media-bulk-downloads/)
 for Firefox 140+.
+
+**From the Microsoft Edge Add-ons store** —
+[**install Media Bulk Downloads**](https://microsoftedge.microsoft.com/addons/detail/media-bulk-downloads/ihhhecmabfocelgmjafijchhhlpdlnll),
+one click, no account.
 
 **From source** — requires **Node 20.19+** and Corepack Yarn (`.nvmrc` pins 22). The
 build runs on [WXT](https://wxt.dev), which targets every browser from one codebase:
