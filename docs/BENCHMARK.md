@@ -190,7 +190,7 @@ logged-out), **[G]** a known gap.
 | 50 | GitHub avatars/assets              | avatars.githubusercontent.com | *(none — `=s0` covers googleusercontent/ggpht only; GitHub served as-is)*                   | C       |
 | 51 | Guardian                           | i.guim.co.uk (signed)         | *(none — HMAC `s=` token; any width change → 401)*                                          | G       |
 | 52 | 500px                              | drscdn.500px.org (signed)     | *(none — signed URLs)*                                                                      | G       |
-| 53 | Giphy / Tenor                      | media*.giphy.com / tenor.com  | grid serves the `giphy.gif`/`tenor.gif` original, but **embeds elsewhere use downsized variants** (`200w`, `giphy-downsized`, fixed-width) → upgradeable to the `giphy.*`/`tenor.*` original (rule not yet shipped — see §D) | G       |
+| 53 | Giphy / Tenor                      | media*.giphy.com / tenor.com  | grid serves the `giphy.gif`/`tenor.gif` original, but **embeds elsewhere use downsized variants** (`200w`, `giphy-downsized`, fixed-width) → upgraded to the original: Giphy `{variant}`→`giphy.gif`, Tenor 5-char code→`AAAAC` (shipped 2026-07-15) | C       |
 | 54 | Instagram                          | *.cdninstagram.com (signed)   | **resolver** — reads the post's media graph from page JSON + sniffed GraphQL; every carousel slide + real mp4 (signed URLs read, never rewritten) | **L**³  |
 | 55 | Facebook                           | *.fbcdn.net / *.cdninstagram.com (signed) | **resolver** — passive MAIN-world sniffer reads `text/html`-NDJSON GraphQL + page hydration; full-res photos + reel mp4s, 77–90% accuracy (§G) | **L**   |
 | 56 | TikTok                             | *.tiktokcdn.com (signed)      | —                                                                                          | A       |
@@ -305,7 +305,23 @@ Resolved (this benchmark drove the fixes):
   anchor as gelbooru.com, pinned to each site's own domain). No new engine — reuses the
   existing Danbooru/Gelbooru branches; `pinnedDomUrl` fails safe on any off-domain original.
   Deferred: **sakugabooru** (Moebooru but video-first — the `id="image"` gate + video path
-  need a tweak).
+  need a tweak, tracked in #350).
+- ✅ **Tier-1 GIF/video + free-stock CdnRules (2026-07-15)** — five passive rules, each
+  live-probed for real thumbnail→original byte deltas before shipping:
+  - **Giphy** `media*.giphy.com` — `.gif` rendition filename → `giphy.gif` (scoped to `.gif`
+    so an `.mp4`/`.webp` keeps its format; the `/v1.<cid>/` tracking segment is optional).
+  - **Tenor** `media*.tenor.com` — trailing 5-char rendition code → `AAAAC` (largest GIF),
+    keeping the 11-char base id + host + optional `/m/` (scoped to `.gif`; `.mp4` uses a
+    different code and is left alone).
+  - **imgur** `i.imgur.com` — `.gifv` HTML wrapper → same-id `.mp4` video original (closes
+    the video gap next to the existing image thumb-strip rule).
+  - **Burst by Shopify** `burst.shopifycdn.com/photos/` — strip the `?width=&format=&exif=`
+    query → full-res CC0 original (3.9 MB vs 66 KB, verified).
+  - **WallpaperCave** `wallpapercave.com` — editor `/w<N>/<code>` thumb folder → `/wp/<code>`
+    full image (the digit gate skips the `/w/<code>` detail page; the inconsistent
+    user-uploaded `/fuwp/uwp<id>` family is deferred).
+  - Deferred: **We Heart It** — `data.whicdn.com` is **DNS-dead** (Route53 delegation
+    REFUSED as of 2026-07-15); no rule shipped until the current CDN host is confirmed.
 
 Corrected:
 - 🔧 **YouTube** — `→maxresdefault` replaced a working `hqdefault` with a dead link when
@@ -325,13 +341,8 @@ Open (not upgradeable — signed / already-original):
 - **Sankaku** (#286, deferred) — originals are signed-token + login-gated; a passive
   preview→original rewrite would 404. Out of the no-auth, network-free-by-default model.
 - **preview.redd.it** — signed (left byte-identical by design, verified live).
-- **Giphy / Tenor** — **correction (2026-07-15):** the earlier "already original" reading
-  held only for giphy.com's own grid (which serves `giphy.gif`). Live-checked modern path
-  `media{N}.giphy.com/media/v1.<cid>/{id}/{variant}.{ext}` (also `i.giphy.com/media/{id}/{variant}`)
-  has downsized variants (`200w.*`, `giphy-downsized.*`, fixed-width) that appear in **embeds
-  on third-party pages** — the real capture case — so `{variant}` → `giphy.gif`/`tenor.gif`
-  (original, host-pinned, id preserved) **is a valid upgrade**. Rule not yet shipped; tracked
-  as a Tier-1 CdnRule candidate.
+- **Guardian** stays open (above); Giphy / Tenor **moved to Resolved** (2026-07-15) — the
+  downsized-variant upgrade is now a shipped Tier-1 CdnRule (see the Resolved list above).
 
 ## E. Caveats
 
