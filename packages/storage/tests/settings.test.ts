@@ -59,6 +59,12 @@ describe('resolveOriginals setting', () => {
   });
 });
 
+describe('sankakuAuthedOriginals setting', () => {
+  it('defaults sankakuAuthedOriginals to false (Tier-2 opt-in, off by default)', () => {
+    expect(DEFAULT_SETTINGS.sankakuAuthedOriginals).toBe(false);
+  });
+});
+
 describe('deep-scan cap settings', () => {
   it('default to the documented caps', () => {
     expect(DEFAULT_SETTINGS.deepScanMaxItems).toBe(1000);

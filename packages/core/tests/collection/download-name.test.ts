@@ -160,6 +160,7 @@ describe('buildDownloadFilename', () => {
     bubblePanelPlacement: 'anchored',
     bubblePanelPoint: { x: 40, y: 40 },
     resolveOriginals: false,
+    sankakuAuthedOriginals: false,
     captureHlsStreams: false,
     streamQuality: 'auto',
     audioFormat: 'm4a',
