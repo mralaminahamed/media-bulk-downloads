@@ -335,6 +335,18 @@ export interface StreamVariant {
   label: string;     // e.g. "1080p · 5.2 Mbps"
 }
 
+/** Popup → background: fetch + parse a stream's master manifest and return its
+ *  selectable renditions for the per-stream picker (#314). */
+export interface ListVariantsMessage {
+  type: 'LIST_VARIANTS';
+  manifestUrl: string;
+  engine: 'hls' | 'dash';
+}
+
+export type ListVariantsResult =
+  | { ok: true; variants: StreamVariant[] }
+  | { ok: false; code: string };
+
 /** Popup → background: capture this stream. Background owns the offscreen doc,
  *  the download, and the status, so it needs the item + source page for the
  *  filename — it must not depend on the popup after this message. */
@@ -514,6 +526,7 @@ export type ChromeMessage =
   | RemoveExcludedMessage
   | ClearExcludedMessage
   | CaptureStreamMessage
+  | ListVariantsMessage
   | CaptureProgressMessage;
 
 export interface AppState {
