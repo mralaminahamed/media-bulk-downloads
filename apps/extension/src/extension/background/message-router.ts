@@ -374,7 +374,7 @@ export const messageRouter: MessageRouter = {
     // tab, so fall back to the active tab.
     const run = (tabId?: number) => {
       const sniffed = tabId != null ? snifferByTab.get(tabId) : undefined;
-      resolveOriginalsBatch(hints, undefined, sniffed).then((resolved) => respond({ resolved }));
+      resolveOriginalsBatch(hints, undefined, sniffed, message.authed === true).then((resolved) => respond({ resolved }));
     };
     if (sender.tab?.id != null) run(sender.tab.id);
     else chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => run(tabs[0]?.id));

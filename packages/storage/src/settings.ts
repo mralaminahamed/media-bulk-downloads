@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS: SettingsData = {
   bubblePanelPlacement: 'anchored',
   bubblePanelPoint: { x: 40, y: 40 },
   resolveOriginals: false,
+  sankakuAuthedOriginals: false,
   captureHlsStreams: false,
   streamQuality: 'auto',
   audioFormat: 'm4a',

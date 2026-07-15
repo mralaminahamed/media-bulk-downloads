@@ -24,3 +24,32 @@ describe('resolveOriginalsBatch default deps', () => {
     }
   });
 });
+
+describe('resolveOriginalsBatch authed gate', () => {
+  const h = (src: string, platform: any, id: string) => ({ src, hint: { platform, id } });
+  const ORIG = 'https://v.sankakucomplex.com/data/26/20/2620d86cb72802a5dcd9e1e189b75e64.jpg?e=1';
+  const okDetail = (async () => ({ ok: true, json: async () => ({ data: { file_url: ORIG } }) })) as unknown as typeof fetch;
+  const fail = (async () => ({ ok: false, json: async () => ({}) })) as unknown as typeof fetch;
+
+  it('skips a Sankaku hint when authed is false (never fires an authed call)', async () => {
+    const spy = vi.fn(okDetail);
+    const out = await resolveOriginalsBatch([h('p1', 'sankaku', 'vkr3E7Yo8MZ')], { fetch: spy as unknown as typeof fetch }, undefined, false);
+    expect(out).toEqual({});
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('resolves a Sankaku hint when authed is true', async () => {
+    const out = await resolveOriginalsBatch([h('p1', 'sankaku', 'vkr3E7Yo8MZ')], { fetch: okDetail }, undefined, true);
+    expect(out).toEqual({ p1: { url: ORIG } });
+  });
+
+  it('aborts an authed batch after repeated failure with no successes', async () => {
+    const spy = vi.fn(fail);
+    // Distinct ids → distinct detail URLs, so memoizeFetch does NOT collapse them
+    // and each is a real attempt; the early-abort must stop before all 8 fire.
+    const hints = Array.from({ length: 8 }, (_, n) => h(`p${n}`, 'sankaku', `id${n}aaaaaaaa`));
+    const out = await resolveOriginalsBatch(hints, { fetch: spy as unknown as typeof fetch }, undefined, true);
+    expect(out).toEqual({});
+    expect(spy.mock.calls.length).toBeLessThan(8); // stopped early, did not hammer all 8
+  });
+});

@@ -2,7 +2,7 @@ import type React from 'react';
 import type { ReactNode, ChangeEvent, FocusEvent, MouseEvent, CSSProperties, HTMLAttributes } from 'react';
 import type { SrcKeySet } from '@mbd/core/collection/canonical';
 
-export type ResolvePlatform = 'twitter' | 'wallhaven' | 'unsplash' | 'vimeo' | 'bsky' | 'pinterest' | 'reddit' | 'flickr' | 'artstation' | 'dailymotion' | 'streamable' | 'redgifs' | 'gallery-page';
+export type ResolvePlatform = 'twitter' | 'wallhaven' | 'unsplash' | 'vimeo' | 'bsky' | 'pinterest' | 'reddit' | 'flickr' | 'artstation' | 'dailymotion' | 'streamable' | 'redgifs' | 'sankaku' | 'gallery-page';
 export interface ResolveHint {
   platform: ResolvePlatform;
   /** Opaque per-platform id: statusId | wallpaper id | photo shortid | for
@@ -178,6 +178,10 @@ export interface DeepScanProgress {
 export interface ResolveOriginalsMessage {
   type: 'RESOLVE_ORIGINALS';
   hints: { src: string; hint: ResolveHint }[];
+  /** Opt-in marker: when true, the batch is allowed to run the authenticated
+   *  Sankaku resolve. The passive auto-resolve path never sets it, so browsing
+   *  never triggers an authed API call. */
+  authed?: boolean;
 }
 
 export interface ResolveOriginalsResponse {
@@ -600,6 +604,10 @@ export interface SettingsData {
   /** Custom panel top-left, used when the placement is `free`. */
   bubblePanelPoint: BubblePanelPoint;
   resolveOriginals: boolean;
+  /** Tier-2: enable the opt-in authenticated Sankaku "download originals" action
+   *  (grid originals via the per-post detail API). Default off; consumed by the
+   *  popup to show the action. Never triggers an authed call on its own. */
+  sankakuAuthedOriginals: boolean;
   /** Surface HLS (`.m3u8`) AND DASH (`.mpd`) streams as capture items (the gate
    *  covers both). Off by default — capturing a stream fetches and assembles every
    *  segment (slow, memory-heavy), so it's an explicit opt-in rather than something

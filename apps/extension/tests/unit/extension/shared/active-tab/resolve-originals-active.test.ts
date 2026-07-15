@@ -21,7 +21,7 @@ describe('requestResolveOriginals', () => {
 
     await expect(requestResolveOriginals(targets)).resolves.toEqual(resolved);
     expect(send).toHaveBeenCalledWith(
-      { type: 'RESOLVE_ORIGINALS', hints: targets },
+      { type: 'RESOLVE_ORIGINALS', hints: targets, authed: false },
       expect.any(Function),
     );
   });

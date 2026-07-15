@@ -127,22 +127,38 @@ export async function resolveOriginalsBatch(
   // a request at an internal host (the extracted URLs are host-pinned separately).
   deps: NetDeps = { fetch: retryingFetch((url, init) => fetch(url, { ...init, redirect: 'error' })) },
   sniffed?: Map<string, ResolvedMedia>,
+  authed = false,
 ): Promise<Record<string, ResolvedMedia>> {
   const out: Record<string, ResolvedMedia> = {};
   const batchDeps: NetDeps = { fetch: memoizeFetch(deps.fetch) };
-  const limit = 4;
+  // Authed (Sankaku) resolution hits an authenticated API, so use gentler
+  // concurrency than the anonymous resolvers.
+  const limit = authed ? 2 : 4;
   let i = 0;
+  let successes = 0;
+  let failures = 0;
+  let aborted = false;
   async function worker() {
-    while (i < hints.length) {
+    while (i < hints.length && !aborted) {
       const { src, hint } = hints[i++];
+      // The authenticated Sankaku case only runs behind the explicit opt-in
+      // marker — the passive auto-resolve path never sets it, so browsing a grid
+      // never fires an authed call.
+      if (hint.platform === 'sankaku' && !authed) continue;
       let sniffedMedia: ResolvedMedia | undefined;
       if (hint.platform === 'twitter' && sniffed) {
         const mid = mediaIdFromPoster(src);
         if (mid) sniffedMedia = sniffed.get(mid);
       }
-      if (sniffedMedia) { out[src] = sniffedMedia; continue; }
+      if (sniffedMedia) { out[src] = sniffedMedia; successes++; continue; }
       const res = await resolveOriginal(hint, batchDeps);
-      if (res) out[src] = res;
+      if (res) { out[src] = res; successes++; }
+      else if (authed) {
+        // Repeated failure with nothing resolved (auth unavailable / rate-limited)
+        // — stop rather than hammer the endpoint. Adherence, not evasion.
+        failures++;
+        if (failures >= 3 && successes === 0) aborted = true;
+      }
     }
   }
   await Promise.all(Array.from({ length: Math.min(limit, hints.length) }, worker));

@@ -528,6 +528,35 @@ async function redgifs(id: string, deps: NetDeps): Promise<ResolvedMedia | null>
   }
 }
 
+// Sankaku post ids are short base64url tokens (e.g. `vkr3E7Yo8MZ`); constrain the
+// id before it reaches the request path.
+const SANKAKU_POST_ID = /^[A-Za-z0-9_-]{1,40}$/;
+interface SankakuDetailData { file_url?: string }
+interface SankakuDetailResponse { data?: SankakuDetailData; file_url?: string }
+
+/**
+ * Sankaku (Tier-2, opt-in authenticated). The grid list endpoint omits the
+ * original, so the signed `file_url` is fetched from the per-post detail endpoint,
+ * reusing the user's own logged-in session via `credentials:'include'`
+ * (cookie-first — no stored credential, no Authorization header handled here). A
+ * non-ok response (401/403/429/…) resolves to null so the preview stands — this
+ * never throws. The returned `file_url` is host-pinned to sankakucomplex.com
+ * (untrusted JSON). Fired only from an authed batch (see resolveOriginalsBatch).
+ */
+async function sankaku(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  try {
+    if (!SANKAKU_POST_ID.test(id)) return null;
+    const r = await deps.fetch(`https://sankakuapi.com/v2/posts/${encodeURIComponent(id)}?lang=en`, { credentials: 'include' });
+    if (!r.ok) return null;
+    const j = (await r.json()) as SankakuDetailResponse;
+    const d = j?.data ?? j;
+    const media = pinnedUrl(d?.file_url, 'sankakucomplex.com');
+    return media ? { url: media } : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Resolve one hint to a final media target, or null on failure. Never throws. */
 export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise<ResolvedMedia | null> {
   switch (hint.platform) {
@@ -544,6 +573,7 @@ export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise
     case 'artstation': return artstation(hint.id, deps);
     case 'streamable': return streamable(hint.id, deps);
     case 'redgifs': return redgifs(hint.id, deps);
+    case 'sankaku': return sankaku(hint.id, deps);
     default: return null;
   }
 }
