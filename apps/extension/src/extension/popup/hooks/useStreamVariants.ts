@@ -6,6 +6,11 @@ export type VariantState = { status: 'idle' | 'loading' | 'done' | 'error'; vari
 // Shared across every hook instance so the grid tile and preview panel reuse one
 // fetch per manifest, and a re-mounted picker is instant. Keyed by manifest URL.
 const cache = new Map<string, StreamVariant[]>();
+// In-flight LIST_VARIANTS promises, also module-level. The per-instance
+// 'loading' guard only dedups WITHIN one hook; two separate useStreamVariants()
+// instances that call ensure(sameUrl) before the first resolves would each fire
+// a request without this. Both instances await the one shared promise instead.
+const inflight = new Map<string, Promise<ListVariantsResult>>();
 
 /**
  * Lazily fetch + cache a stream's selectable renditions (#314). `ensure` sends one
@@ -26,17 +31,29 @@ export function useStreamVariants(): {
       const next = new Map(prev);
       if (cached) { next.set(manifestUrl, { status: 'done', variants: cached }); return next; }
       next.set(manifestUrl, { status: 'loading', variants: [] });
-      void (async () => {
+      // One network send per URL across ALL instances: the first caller creates
+      // the shared promise; a concurrent caller (a second hook instance) reuses it.
+      let p = inflight.get(manifestUrl);
+      if (!p) {
         const msg: ListVariantsMessage = { type: 'LIST_VARIANTS', manifestUrl, engine };
-        let res: ListVariantsResult | undefined;
-        try { res = (await chrome.runtime.sendMessage(msg)) as ListVariantsResult; } catch { /* errored below */ }
+        p = Promise.resolve(chrome.runtime.sendMessage(msg)).then(
+          (r) => r as ListVariantsResult,
+          () => ({ ok: false, code: 'variant_list_failed' }) as ListVariantsResult,
+        );
+        inflight.set(manifestUrl, p);
+        void p.then((res) => {
+          if (res.ok) cache.set(manifestUrl, res.variants);
+          inflight.delete(manifestUrl);
+        });
+      }
+      // Every instance resolves its OWN local state from the shared promise.
+      void p.then((res) =>
         setStates((cur) => {
           const m = new Map(cur);
-          if (res && res.ok) { cache.set(manifestUrl, res.variants); m.set(manifestUrl, { status: 'done', variants: res.variants }); }
-          else m.set(manifestUrl, { status: 'error', variants: [] });
+          m.set(manifestUrl, res.ok ? { status: 'done', variants: res.variants } : { status: 'error', variants: [] });
           return m;
-        });
-      })();
+        }),
+      );
       return next;
     });
   }, []);

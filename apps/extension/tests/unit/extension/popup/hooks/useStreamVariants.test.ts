@@ -25,4 +25,20 @@ describe('useStreamVariants', () => {
     act(() => result.current.ensure('https://cdn.test/b.m3u8', 'hls'));
     await waitFor(() => expect(result.current.states.get('https://cdn.test/b.m3u8')?.status).toBe('error'));
   });
+
+  it('sends LIST_VARIANTS once across two hook instances for the same URL', async () => {
+    // Fresh URL — the module-level cache persists across cases, so a reused URL
+    // would be served from cache and never hit sendMessage at all.
+    const url = 'https://cdn.test/c.m3u8';
+    const a = renderHook(() => useStreamVariants());
+    const b = renderHook(() => useStreamVariants());
+    // Both instances ask for the same manifest before the first fetch resolves.
+    act(() => {
+      a.result.current.ensure(url, 'hls');
+      b.result.current.ensure(url, 'hls');
+    });
+    await waitFor(() => expect(a.result.current.states.get(url)?.status).toBe('done'));
+    await waitFor(() => expect(b.result.current.states.get(url)?.status).toBe('done'));
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledTimes(1);
+  });
 });

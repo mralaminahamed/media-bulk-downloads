@@ -221,8 +221,6 @@ export function useDownloadActions({
 
   const handleCaptureAudio = (image: ImageInfo, formatOverride?: AudioFormat): void => void captureStream(image, true, formatOverride);
 
-  /** Capture a stream item's VIDEO at a chosen rendition (#314). `quality` is a
-   *  target height; omitted → the global streamQuality preference applies. */
   const handleCaptureStream = (image: ImageInfo, quality?: number): void => void captureStream(image, false, undefined, quality);
 
   // ── Selective bulk download ────────────────────────────────────────────────
