@@ -51,6 +51,9 @@ export interface UseDownloadActionsResult {
   /** Capture a stream item's audio track (#204). Saved as `.m4a`, or re-encoded to
    *  MP3 (#321) — `formatOverride` beats the global default for this one capture. */
   handleCaptureAudio: (image: ImageInfo, formatOverride?: AudioFormat) => void;
+  /** Capture a stream item's video at a chosen rendition (#314). `quality` is a
+   *  target height; omitted → the global streamQuality preference applies. */
+  handleCaptureStream: (image: ImageInfo, quality?: number) => void;
   handleDownloadZip: (images: ImageInfo[]) => Promise<void>;
   handleBulkDownloadZip: () => void;
   handleDownloadSelected: () => void;
@@ -98,7 +101,12 @@ export function useDownloadActions({
    * into the ProgressBar, and shows the status the background composes. The
    * capture completes even if the popup closes before this resolves.
    */
-  const captureStream = async (item: ImageInfo, audioOnly = false, audioFormat?: AudioFormat): Promise<void> => {
+  const captureStream = async (
+    item: ImageInfo,
+    audioOnly = false,
+    audioFormat?: AudioFormat,
+    qualityOverride?: number | 'highest' | 'lowest',
+  ): Promise<void> => {
     const sourcePage = await currentSourcePage();
     // Clear any prior handoff banner before this attempt (#285).
     onStreamRefused?.(null);
@@ -111,6 +119,7 @@ export function useDownloadActions({
         (done, total) => setProgress({ label, done, total }),
         audioOnly,
         audioFormat,
+        qualityOverride,
       );
       setState((prev) => ({ ...prev, status }));
       // A refused stream (DRM/live/SAMPLE-AES/unsupported, or audio-unavailable when
@@ -212,6 +221,10 @@ export function useDownloadActions({
 
   const handleCaptureAudio = (image: ImageInfo, formatOverride?: AudioFormat): void => void captureStream(image, true, formatOverride);
 
+  /** Capture a stream item's VIDEO at a chosen rendition (#314). `quality` is a
+   *  target height; omitted → the global streamQuality preference applies. */
+  const handleCaptureStream = (image: ImageInfo, quality?: number): void => void captureStream(image, false, undefined, quality);
+
   // ── Selective bulk download ────────────────────────────────────────────────
   const handleDownloadSelected = (): void => {
     const chosen = downloadable(filteredImages).filter((i) => selectedSrcs.has(i.src));
@@ -292,6 +305,7 @@ export function useDownloadActions({
     handleBulkDownload,
     handleSingleImageDownload,
     handleCaptureAudio,
+    handleCaptureStream,
     handleDownloadZip,
     handleBulkDownloadZip,
     handleDownloadSelected,
