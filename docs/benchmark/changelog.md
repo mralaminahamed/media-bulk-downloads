@@ -1,0 +1,130 @@
+# Benchmark changelog
+
+The running log of coverage gaps this benchmark **drove to a fix** — new/changed
+CDN-upgrade rules and resolvers, corrections, and reverts. Split out of
+[BENCHMARK.md](../BENCHMARK.md) so that doc stays focused on the live measurement
+tables and the gaps still open; the user-facing release history lives in the
+top-level [CHANGELOG.md](../../CHANGELOG.md).
+
+Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) are
+when the fix shipped. This is an engineering record, not a release changelog.
+
+Resolved (this benchmark drove the fixes):
+- ✅ **Shopify modern**, **plus.unsplash.com**, **Twitter video**,
+  **Pexels**, **Pixabay**, **Flickr**, **Etsy**, **eBay**, **The Verge**, **Substack**,
+  **Behance** — as in prior runs.
+- ✅ **Wallhaven** — re-verified against the live grid (2026-07-05): id also reads
+  `a.preview` `/w/<id>`; the `span.png`/`span.gif` badge is real (~34% of a SFW page
+  are png) so an unbadged figure is genuinely jpg; `.wall-res` gives true dims; the
+  no-ext bare-thumb case now upgrades to the `/orig/` jpg (guaranteed to exist) + a
+  Phase-2 hint rather than a blind full-file URL, and the grid `thumbnailSrc` bumps
+  `/small`→`/lg`. Note: the `/api/v1/w/<id>` endpoint returns **401 for NSFW/sketchy
+  wallpapers without an apikey**, so Phase-2 can only resolve those with a key
+  (the network resolver already fails safe to the thumb). Purity/category codes:
+  `purity` `100`=SFW / `010`=sketchy / `001`=NSFW; `categories` `100`=General /
+  `010`=Anime / `001`=People.
+- ✅ **Self-hosted WordPress** `*/wp-content/uploads/` — drop resize query + strip
+  `-WxH`/`-scaled` (the `wp-photon` rule only covered `wp.com`/`files.wordpress.com`).
+  Live: TechCrunch 32/42.
+- ✅ **Self-hosted MediaWiki** — the wikimedia thumb rule generalized host-agnostically
+  to any `/thumb/…/<N>px-<name>`. Live: wikiHow 75/176.
+- ✅ **Adobe Scene7** `*.scene7.com` — set `wid=2000`, drop `hei/qlt/fmt` (Target, REI).
+- ✅ **ArtStation** `cdn*.artstation.com` — size bucket → `/large/` (`/original/` is 403,
+  `/4k/` not always present).
+- ✅ **imgur** `i.imgur.com` — 8-char thumb suffix → 7-char original (strict length gate:
+  a 7-char id blindly stripped resolves to a *different* image, not a 404).
+- ✅ **DeviantArt** `wixmp.com` — decode the signed `?token` JWT cap and request
+  `/v1/fill/` at that cap (over-request 403s, dropping the token 401s; fail-safe leaves
+  the URL unchanged when the cap can't be read).
+- ✅ **Walmart / Newegg / IKEA / StockSnap / Zillow** — retail/stock CDN size tokens
+  normalized to each host's largest valid preset (all verified via live browser load).
+- ✅ **NYT** `static01.nyt.com` — editorial crop → `-superJumbo` + drop quality query.
+- ✅ **Dribbble** `cdn.dribbble.com`, **AliExpress** `alicdn`/`aliexpress-media` — drop
+  resize query / strip transform suffix.
+- ✅ **Relative Next.js `_next/image`** — `deproxy()` now resolves a same-origin relative
+  `?url=/path` against the page origin (previously only absolute inner URLs unwrapped).
+- ✅ **Booru family expansion (2026-07-15)** — the `booru` resolver's host allow-list gained
+  **e621.net / e926.net / e6ai.net** (e621ng = Danbooru fork; `#image-container[data-file-url]`,
+  verified live on e926.net) and the Gelbooru-0.2 self-hosts **rule34.xxx / tbib.org /
+  hypnohub.net / xbooru.com / realbooru.com** (same `#image` + "Original image" `/images/`
+  anchor as gelbooru.com, pinned to each site's own domain). No new engine — reuses the
+  existing Danbooru/Gelbooru branches; `pinnedDomUrl` fails safe on any off-domain original.
+  Deferred: **sakugabooru** (Moebooru but video-first — the `id="image"` gate + video path
+  need a tweak, tracked in #350).
+- ✅ **Tier-1 GIF/video + free-stock CdnRules (2026-07-15)** — five passive rules, each
+  live-probed for real thumbnail→original byte deltas before shipping:
+  - **Giphy** `media*.giphy.com` — `.gif` rendition filename → `giphy.gif` (scoped to `.gif`
+    so an `.mp4`/`.webp` keeps its format; the `/v1.<cid>/` tracking segment is optional).
+  - **Tenor** `media*.tenor.com` — trailing 5-char rendition code → `AAAAC` (largest GIF),
+    keeping the 11-char base id + host + optional `/m/` (scoped to `.gif`; `.mp4` uses a
+    different code and is left alone).
+  - **imgur** `i.imgur.com` — `.gifv` HTML wrapper → same-id `.mp4` video original (closes
+    the video gap next to the existing image thumb-strip rule).
+  - **Burst by Shopify** `burst.shopifycdn.com/photos/` — strip the `?width=&format=&exif=`
+    query → full-res CC0 original (3.9 MB vs 66 KB, verified).
+  - **WallpaperCave** `wallpapercave.com` — editor `/w<N>/<code>` thumb folder → `/wp/<code>`
+    full image (the digit gate skips the `/w/<code>` detail page; the inconsistent
+    user-uploaded `/fuwp/uwp<id>` family is deferred).
+  - Deferred: **We Heart It** — `data.whicdn.com` is **DNS-dead** (Route53 delegation
+    REFUSED as of 2026-07-15); no rule shipped until the current CDN host is confirmed.
+- ✅ **Tier-2 DOM-read image-board resolvers (2026-07-15)** — two sync, network-free,
+  SFW-capable resolvers reading the full-original straight from page markup (no API):
+  - **Philomena / booru-on-rails** — a new `booru` branch reads the `full` key of the
+    entity-encoded JSON `data-uris` on the media container, host-pinned per site:
+    **derpibooru.org** → `derpicdn.net`, **furbooru.org** → `furrycdn.org` (not
+    furbooru.org), **ponybooru.org** → `cdn.ponybooru.org`, **twibooru.org** →
+    `cdn.twibooru.org`. Element-scoped via `closest('[data-uris]')` so a grid thumb
+    resolves its own container; `pinnedDomUrl` fails safe on any off-domain `full`.
+    (twibooru's `full` is a re-encoded full-res representation, not the byte-original —
+    acceptable and far more robust than a title-based View-anchor selector.)
+  - **zerochan.net** — a dedicated resolver reads the JSON-LD `ImageObject.contentUrl`
+    (fallback: the `#large a.preview` href), scoped to the main `#large` image so a
+    related/grid thumb never inherits the post's full URL. Host-pinned to `zerochan.net`
+    (`static.zerochan.net`). The CDN is hotlink-protected (needs `Referer`) — the
+    existing hotlink-403 Referer retry covers it.
+  - Deferred to a network-API follow-up (not the network-free model): Streamable,
+    RedGifs, Twitch clips, 9GAG, wallpaperscraft.
+- ✅ **Tier-2 network-API resolvers (2026-07-15)** — three site-support adds, each
+  verified against the forbidden-header (`Referer`/`User-Agent` are dropped by a
+  background `fetch`) / no-redirect (`redirect: 'error'`) / host-pinned model:
+  - **Streamable** — a `streamable.com` watch/embed link or player `<iframe>` surfaces a
+    pending video (`resolveHint 'streamable'`); the opt-in resolve pass reads the public
+    `GET api.streamable.com/videos/<shortcode>` JSON and returns the progressive
+    `files.mp4.url` (fallback `mp4-mobile`), pinned to `.streamable.com`. The
+    CloudFront-signed URL expires, so it is resolved on demand. Reserved first-segment
+    pages (`/login` …) and multi-segment paths are refused so only real shortcodes match.
+  - **RedGifs** (NSFW) — a `redgifs.com` watch/`ifr` link or `<iframe>` surfaces a pending
+    video (`resolveHint 'redgifs'`); the resolve pass does two allowed-header hops
+    (`GET /v2/auth/temporary` → bearer → `GET /v2/gifs/<id>` `Authorization: Bearer`) and
+    returns `gif.urls.hd` (fallback `sd`), pinned to `.redgifs.com`. The bearer token is
+    used only for that request and never logged/persisted. The media lives on the
+    hotlink-protected `media.redgifs.com`: a background fetch of it would 403 on the
+    missing `Referer`/`User-Agent`, so the resolver only produces the URL — the **download**
+    clears the 403 via the #197 Referer rewrite (the item's `redgifs.com` source page
+    becomes the injected `Referer`) plus `chrome.downloads`' real browser User-Agent.
+    Works cleanest when collected on `redgifs.com`; a RedGifs embed on a third-party page
+    injects that page's Referer instead and may still 403 (documented limitation).
+  - **wallpaperscraft** (network-free DOM) — an `images.wallpaperscraft.com` preview image
+    is upgraded to the largest resolution the page lists in its `/download/<slug>/<res>`
+    links, rebuilt on the deterministic `/image/single/<slug>_<W>x<H>.<ext>` path. Returns
+    `[]` (→ generic identity) when the DOM lists nothing larger, so a preview is never
+    replaced by a guessed URL that could 404 (a blind resolution bump does — not every
+    wallpaper has 4K).
+  - Deferred to a further follow-up: **Twitch clips** (feasible via a Client-ID GraphQL
+    POST → tokened `.twitchcdn.net` mp4, but brittle — the persisted-query hash rotates and
+    the tokens expire fast) and **9GAG** (id-derived `img-9gag-fun.9cache.com/photo/<id>_460sv.mp4`,
+    but the image-vs-video DOM disambiguation needs live verification). **RedGifs media**
+    was the only member of this batch that was previously called infeasible — the #197
+    hotlink path is what makes it shippable.
+
+Corrected:
+- 🔧 **YouTube** — `→maxresdefault` replaced a working `hqdefault` with a dead link when
+  maxres was absent (404, common). Now upgrades only small thumbs → `hqdefault`, the
+  always-present max; existing hq/sd/maxres are left as the page served them.
+- 🔧 **BBC** — the width rewrite targeted `1920`, which **404s on the `/news/` path**;
+  now targets `2048` (served on both `/news/` and `/ace/standard/`).
+
+Reverted:
+- ↩︎ **Tumblr** `*.media.tumblr.com` — the `/sWxH/` → `/s1280x1920/` rule was **removed**:
+  modern `64.media.tumblr.com` serves exactly one pre-rendered size per image, so any
+  other size folder 404s (see §C #37).

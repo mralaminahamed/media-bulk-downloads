@@ -1,0 +1,139 @@
+# Coverage matrix (CDN family → sites)
+
+> Part of the [Collection Benchmark](../BENCHMARK.md).
+
+## C. Coverage matrix (CDN family → sites)
+
+Beyond the live rows above, the engine's behavior on a site is determined by the
+**CDN family** it serves from. This matrix maps 67 popular sites/services to the
+rule they exercise and how coverage was established: **[L]** live-injected in this
+run, **[C]** covered by the same CDN rule verified on a live site (or built and
+verified against a real sampled URL — HTTP/`Image()` — pulled from that site),
+**[N]** needs opt-in network (Phase 2), **[A]** auth/bot-gated (not automatable
+logged-out), **[G]** a known gap.
+
+| #  | Site / service                     | CDN family                    | Rule                                                                                       | Status  |
+|----|------------------------------------|-------------------------------|--------------------------------------------------------------------------------------------|---------|
+| 1  | Wikipedia / Wikimedia Commons      | upload.wikimedia.org          | thumb→original                                                                             | **L**   |
+| 2  | MediaWiki wikis (wikiHow, Fandom)  | *…/thumb/…px-…* (any host)    | `/thumb/…/<N>px-<name>`→original (host-agnostic)                                           | **L**   |
+| 3  | Unsplash                           | images.unsplash.com (imgix)   | param strip                                                                                | **L**   |
+| 4  | Unsplash+                          | plus.unsplash.com             | conservative strip                                                                         | **L**   |
+| 5  | Any Imgix-backed site              | *.imgix.net                   | param strip                                                                                | C       |
+| 6  | Pexels                             | images.pexels.com             | strips the resize query string                                                             | **L**   |
+| 7  | Pixabay                            | cdn.pixabay.com               | `_<size>` → `_1280` (capped — largest hotlinkable; true original is login-gated)           | C       |
+| 8  | YouTube (thumbnails)               | i.ytimg.com                   | small thumbs → `hqdefault` (always-present max; maxres/sd 404 for many videos)             | C       |
+| 9  | YouTube (avatars/banners)          | yt3.ggpht.com                 | =s0                                                                                        | C       |
+| 10 | Google Photos / Blogger / Sites    | lh3.googleusercontent.com     | =s0                                                                                        | C       |
+| 11 | Google Play / Books art            | *.ggpht.com                   | =s0                                                                                        | C       |
+| 12 | Shopify (classic)                  | cdn.shopify.com               | `_WxH` strip                                                                               | **L**   |
+| 13 | Shopify (modern, own domain)       | */cdn/shop/                   | width/height strip                                                                         | **L**   |
+| 14 | Amazon / marketplace / IMDb        | m.media-amazon.com            | `._SX_` strip                                                                              | C       |
+| 15 | Amazon (legacy)                    | ssl-images-amazon.com         | `._SX_` strip                                                                              | C       |
+| 16 | Reddit (direct / gallery)          | i.redd.it                     | gallery `<a href>` → direct original                                                       | C       |
+| 17 | Reddit (preview, signed)           | preview.redd.it               | left intact                                                                                | **L**   |
+| 18 | Pinterest                          | i.pinimg.com                  | `/NNNx/`→`/originals/`                                                                     | C       |
+| 19 | Medium                             | miro.medium.com               | resize strip                                                                               | C       |
+| 20 | WordPress.com / Jetpack (Photon)   | i0-2.wp.com / files.wp.com    | resize + `-scaled`                                                                         | C       |
+| 21 | Self-hosted WordPress (any host)   | */wp-content/uploads/         | drop resize query + strip `-WxH`/`-scaled` → original                                      | **L**   |
+| 22 | Cloudinary sites                   | res.cloudinary.com            | transform strip                                                                            | C       |
+| 23 | Cloudinary fetch / Substack        | res.cloudinary.com/…/fetch/   | de-proxy                                                                                   | C       |
+| 24 | Next.js image sites (Vercel, many) | */_next/image?url=            | de-proxy (absolute **and** same-origin relative)                                          | C       |
+| 25 | wsrv / weserv proxies              | images.weserv.nl              | de-proxy                                                                                   | C       |
+| 26 | Generic `?url=` image proxies      | any                           | de-proxy (media-checked)                                                                   | C       |
+| 27 | Wallhaven (grid + `/w/` page)      | th.wallhaven.cc → w.wallhaven | id from path/`data-wallpaper-id`/`a.preview`; `span.png`/`span.gif` badge → full file, unbadged = jpg; no ext → `/orig` jpg + Phase-2; `.wall-res` true dims; thumb `/small`→`/lg` | **L/N** |
+| 28 | X/Twitter (photos, multi-image)    | pbs.twimg.com/media           | each → `name=orig`                                                                         | C/A     |
+| 29 | X/Twitter (avatars/banners)        | pbs.twimg.com/profile_*       | size strip                                                                                 | C       |
+| 30 | X/Twitter (GIF / video)            | tweet_video / ext_tw_video    | → mp4 / statusId-hinted                                                                    | C/N     |
+| 31 | Flickr                             | *.staticflickr.com            | small size code → `_b` (1024, capped); larger left alone                                   | C       |
+| 32 | Behance                            | mir-s3-cdn-cf.behance.net     | `/project_modules/<size>/`→`/source/`; prefers a `source`/`fs` srcset URL                  | C       |
+| 33 | ArtStation                         | cdn*.artstation.com           | size bucket (`smaller_square`,`medium`,…) → `/large/`                                       | C       |
+| 34 | DeviantArt                         | images-wixmp-…wixmp.com       | decode signed-token cap → `/v1/fill/w,h,q_100/` within cap (fail-safe: unchanged)          | C       |
+| 35 | imgur                              | i.imgur.com                   | 8-char thumb suffix (`s,b,t,m,l,h,r,g`) → original (7-char id gated)                       | C       |
+| 36 | Dribbble                           | cdn.dribbble.com              | drop `?resize=` query → original                                                          | C       |
+| 37 | Tumblr                             | *.media.tumblr.com            | *(no rule — size folders not swappable; every other `/sWxH/` 404s, served size is max)*    | G¹      |
+| 38 | BBC News                           | ichef.bbci.co.uk              | width segment (`/news/<N>/`, `/ace/standard/<N>/`) → `2048` (1920 404s on `/news/`)        | C       |
+| 39 | NYT                                | static01.nyt.com              | editorial crop (`articleLarge`,`mediumThreeByTwo…`) → `-superJumbo`, drop quality query    | C       |
+| 40 | The Verge (WP uploads)             | platform.theverge.com         | resize query strip                                                                        | C       |
+| 41 | Etsy                               | i.etsystatic.com              | `il_WxH` → `il_fullxfull`                                                                  | C       |
+| 42 | eBay                               | i.ebayimg.com                 | `s-l<NNN>` → `s-l1600`                                                                     | C       |
+| 43 | AliExpress                         | *.alicdn.com / aliexpress-media | strip transform suffix after real ext (`.jpg_640x640.jpg_.webp` → `.jpg`)                 | C       |
+| 44 | Adobe Scene7 (Target, REI, …)      | *.scene7.com                  | set `wid=2000`, drop `hei/qlt/fmt`                                                         | C       |
+| 45 | Walmart                            | i5.walmartimages.com          | drop `?odnHeight/odnWidth/odnBg` query → full source                                        | C       |
+| 46 | Newegg                             | c1.neweggimages.com           | `…compressall<N>` → `…compressall1280` (max)                                               | C       |
+| 47 | IKEA                               | www.ikea.com/images           | drop query, set `?imwidth=2000` (beats the `f=` ladder)                                    | C       |
+| 48 | StockSnap                          | cdn.stocksnap.io              | `/img-thumbs/<token>/` → `/img-thumbs/960w/` (max whitelist size)                          | C       |
+| 49 | Zillow                             | photos.zillowstatic.com       | trailing `-<token>.<ext>` → `-uncropped_scaled_within_1536_1152.webp`                      | C       |
+| 50 | GitHub avatars/assets              | avatars.githubusercontent.com | *(none — `=s0` covers googleusercontent/ggpht only; GitHub served as-is)*                   | C       |
+| 51 | Guardian                           | i.guim.co.uk (signed)         | *(none — HMAC `s=` token; any width change → 401)*                                          | G       |
+| 52 | 500px                              | drscdn.500px.org (signed)     | *(none — signed URLs)*                                                                      | G       |
+| 53 | Giphy / Tenor                      | media*.giphy.com / tenor.com  | grid serves the `giphy.gif`/`tenor.gif` original, but **embeds elsewhere use downsized variants** (`200w`, `giphy-downsized`, fixed-width) → upgraded to the original: Giphy `{variant}`→`giphy.gif`, Tenor 5-char code→`AAAAC` (shipped 2026-07-15) | C       |
+| 54 | Instagram                          | *.cdninstagram.com (signed)   | **resolver** — reads the post's media graph from page JSON + sniffed GraphQL; every carousel slide + real mp4 (signed URLs read, never rewritten) | **L**³  |
+| 55 | Facebook                           | *.fbcdn.net / *.cdninstagram.com (signed) | **resolver** — passive MAIN-world sniffer reads `text/html`-NDJSON GraphQL + page hydration; full-res photos + reel mp4s, 77–90% accuracy (§G) | **L**   |
+| 56 | TikTok                             | *.tiktokcdn.com (signed)      | —                                                                                          | A       |
+| 57 | Temu                               | img.kwcdn.com                 | drop the Qiniu `imageView2/…` transform query → stored original (sample-based)             | C²      |
+| 58 | LinkedIn                           | media.licdn.com (signed)      | *(none — `dms/image/v2` renditions carry an HMAC `t=` token bound to the size; any rewrite 401s)* | G       |
+| 59 | Threads (profile grid + posts)     | *.cdninstagram.com / *.fbcdn.net on threads.com | **resolver** — a mounted post ships the full original directly in the `<img srcset>` (up to ~2610w); returns the widest candidate (generic dedup would keep the thumbnail). Gated to threads.com/net | **L**⁴  |
+| 60 | Bluesky                            | cdn.bsky.app                  | **resolver** — `feed_thumbnail`→`feed_fullsize` / `avatar_thumbnail`→`avatar` (network-free); `feed_video_blob` → pending video (HLS master on video.bsky.app); true original via `com.atproto.sync.getBlob` (Phase 2) | C/N⁴   |
+| 61 | Arc XP / Fusion (Reuters, many pubs)| */resizer/v2/…?auth= (host-agnostic) | **resolver** — reuse the page-issued `auth` (bound to the source, not a width); collapse the srcset widths to the single widest; never strip the token (would 403) | C⁴      |
+| 62 | Magnific                           | img.magnific.com              | **resolver** — collapse the signed srcset widths to the widest; each token is width-bound so it is never stripped (stripping downgrades to the 626px default) | C⁴      |
+| 63 | Vimeo                              | player.vimeo.com config → *.vimeocdn.com | **resolver** (Phase 2) — read the public player config; highest progressive mp4 as a direct download, else the HLS master to capture | N       |
+| 64 | YouTube (video links / embeds)     | youtube.com, youtu.be, /embed, /shorts → i.ytimg.com | **resolver** — video id from any watch/embed/short URL → `hqdefault` poster (thumbnails only; ciphered streams deliberately untouched per ToS/policy) | C       |
+| 65 | Mastodon (fediverse, host-agnostic) | */media_attachments/files/* (any instance host) | **resolver** — `/small/`→`/original/` size-folder swap; the `<hash>.<ext>` basename is identical across sizes so the upgrade is 404-safe (no ext guessing); gated to the media_attachments path shape, network-free | C⁵ |
+| 66 | Dailymotion | dailymotion.com / geo.dailymotion.com / dai.ly → dmcdn.net | **resolver** (Phase 2) — read the public player metadata (`player/metadata/video/<id>`); modern delivery is HLS-only, so return the `qualities.auto` `x-mpegURL` master to capture; DRM (`protected_delivery`) left unresolved | N⁵ |
+| 67 | Booru (Danbooru/Gelbooru/Safebooru/yande.re/Konachan) | booru image hosts (donmai.us, yande.re, konachan, gelbooru, safebooru) | **resolver** — reads the DOM's true original (`data-file-url` on Danbooru grid+post; the original-image link on Gelbooru/Moebooru post pages), element-scoped + host-pinned to the booru's own image host; grid coverage full on Danbooru, post-page on the others; network-free | C⁵ |
+| 68 | Pixiv | i.pximg.net | **resolver** — on an artwork page reads the embedded `#meta-preload-data` JSON for the exact `urls.original` (correct extension — the displayed `img-master` master is always `.jpg` even for `.png`/`.gif` uploads, so a blind rewrite would 404); multi-page derived by `_p0`→`_p<n>`; a `/c/<crop>/` feed crop of a `_master1200` master upgrades to the un-cropped master; host-pinned, network-free (pximg is `Referer`-gated — download uses the #197 referer opt-in) | C⁶ |
+| 69 | Newgrounds | art.ngfiles.com | **CDN rule** — the art view page already serves the true original under `/images/…<hash>.<ext>` (collected directly; thumb→full is not derivable — the full filename carries a content hash + slug absent from the `/thumbnails/` URL), so the rule only drops the `?f<ts>` cache-buster to canonicalise for de-dupe | C⁶ |
+
+¹ Tumblr previously had a `/sWxH/` → `/s1280x1920/` rule; it was **removed** — modern
+`64.media.tumblr.com` pre-renders one size folder per image and every other size 404s,
+so the rewrite replaced a working image with a dead link (see §D).
+
+² Temu is built from a **documented** real `img.kwcdn.com` sample (temu.com is
+captcha-gated, so it was not live-injected). The rule fires only when the query
+carries the `imageView2` transform, so a signed/plain kwcdn URL is left untouched
+(worst case: a no-op, never a broken link).
+
+³ Instagram is **signed** (stripping the `stp` size token → 403, verified live),
+so no URL-rewrite rule is possible. Instead a dedicated resolver reads the
+largest URL Instagram itself signed and shipped: `image_versions2.candidates[0]`
+and the real progressive-mp4 `video_versions` live in the page's own
+`<script type="application/json">` hydration and the GraphQL/`api/v1` responses
+it fetches on scroll (captured by a passive MAIN-world sniffer — read-only, no
+forged requests). Verified live 2026-07-06 against a public profile: single
+image, reel (9 MB mp4, HTTP 200), and 9- and 10-slide carousels (every child
+1440 px, HTTP 200). Facebook (row 55) now has its own dedicated resolver + a
+passive MAIN-world sniffer (`fb-media-sniffer`), covering photos and reels at
+77–90% original-image accuracy — see §G below for the full measurement.
+Instagram media served from `fbcdn.net` is covered by the Instagram resolver.
+Reels-tab / grid **clips ship only a cover** (`media_type` 2 with no
+`video_versions`, confirmed live) — no bulk mp4 exists without forging the
+private per-reel GraphQL, which this extension does not do. They surface as
+**pending videos** (poster = cover) that upgrade to the real mp4 when the reel's
+own response is sniffed (on play/open).
+
+⁴ Rows 59–62 are newer dedicated resolvers, each with unit tests and an e2e page
+fixture driving the real bubble (PRs #266–#268); their URL shapes come from real
+samples. **Threads** image extraction was live-verified 2026-07-10 (grid originals
+1119–3277 px across three public profiles; see §I for Threads video) — hence **L**.
+**Bluesky / Arc XP / magnific** are verified against those real-sampled URL shapes
+via the fixtures, not yet live-injected in a benchmark run — hence **C** (Bluesky's
+getBlob original and Vimeo are opt-in network, **N**). The HLS-master fallback of
+the Vimeo/Twitter/Pinterest network resolvers gained real-shaped `resolveOriginal`
+fixtures in the same cycle.
+
+⁵ Rows 65–67 added 2026-07-11. **Mastodon** and **Booru** are network-free
+(DOM/URL) resolvers verified against real sampled URL shapes; **Dailymotion** is
+opt-in Phase-2 (**N**) reading the public player metadata (HLS-only; no
+progressive MP4). Booru grid coverage is full on Danbooru (`data-file-url` in the
+grid DOM) and post-page-only on Gelbooru/Moebooru (their grids expose no
+original).
+
+⁶ Rows 68–69 added 2026-07-13 (#286, gallery-dl parity). Real samples verified
+live 2026-07-13. **Pixiv** — artwork is login-gated; when logged in the page
+embeds `#meta-preload-data` naming the exact original, which the resolver reads
+network-free (pximg is `Referer`-gated, so the fetch path can't reach it; the
+original still downloads via the #197 referer opt-in). **DeviantArt** (row: wixmp
+`/v1/fill/` token-cap upgrade, #101) and **Tumblr** (deliberately un-rewritten,
+¹/§D) were already covered, so #286 added no rule for them. **Sankaku** was
+deferred (see §D): its originals are signed-token/login-gated, so a passive
+rewrite would 404 — against the network-free-by-default, no-auth model.
