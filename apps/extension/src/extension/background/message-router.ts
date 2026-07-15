@@ -20,6 +20,7 @@ import { clearScanMemoryForHost, saveScanMemoryForHost } from '@mbd/storage/per-
 import { streamErrorMessage } from '@mbd/core/download/stream/stream-error-message';
 import { isMasterPlaylist } from '@mbd/core/download/stream/hls';
 import { variantsFromMaster, variantsFromMpd } from '@mbd/core/download/stream/variants';
+import { assertSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
 import {
   enqueueDownloads, pauseQueue, resumeQueue, cancelQueue, retryQueueItem, getQueueSnapshot,
   clearFinishedQueue, retryAllFailedQueue, openQueueItem,
@@ -419,6 +420,11 @@ export const messageRouter: MessageRouter = {
     const { manifestUrl, engine } = message;
     void (async () => {
       try {
+        // Same SSRF guard the capture engines apply to the manifest fetch: a
+        // page-controlled manifestUrl must not aim this <all_urls> fetch at an
+        // internal/loopback/link-local host. Throws → the catch below reports a
+        // non-fatal failure and no fetch happens.
+        assertSafeCaptureUrl(manifestUrl);
         const text = await (await fetch(manifestUrl)).text();
         const variants = engine === 'dash'
           ? variantsFromMpd(text, manifestUrl)
