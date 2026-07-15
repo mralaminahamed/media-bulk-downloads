@@ -7,10 +7,11 @@ import { ResolveHint, ResolvedMedia, ResolveOriginalsResponse } from '@mbd/core/
  */
 export async function requestResolveOriginals(
   targets: { src: string; hint: ResolveHint }[],
+  authed = false,
 ): Promise<Record<string, ResolvedMedia>> {
   if (!targets.length) return {};
   return new Promise((resolve) => {
-    chrome.runtime.sendMessage({ type: 'RESOLVE_ORIGINALS', hints: targets }, (resp: ResolveOriginalsResponse) => {
+    chrome.runtime.sendMessage({ type: 'RESOLVE_ORIGINALS', hints: targets, authed }, (resp: ResolveOriginalsResponse) => {
       if (chrome.runtime.lastError || !resp) return resolve({});
       resolve(resp.resolved || {});
     });
