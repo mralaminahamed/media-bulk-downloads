@@ -728,6 +728,9 @@ export interface ImageListProps {
   /** The global default audio-output format (#321), shown on the audio button and
    *  preselected in the per-item override menu. Absent → treated as `m4a`. */
   audioFormat?: AudioFormat;
+  /** Capture a stream item's video at a chosen rendition (#314). `quality` is a
+   *  target height; omitted → the global streamQuality applies. */
+  onCaptureStream?: (image: ImageInfo, quality?: number) => void;
   /** Srcs whose on-demand resolve returned nothing (tombstone / failure). */
   resolveFailedSrcs?: Set<string>;
   /** Srcs currently being resolved (shows a spinner, disables the button). */

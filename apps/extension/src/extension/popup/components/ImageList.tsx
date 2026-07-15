@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AudioFormat, ImageInfo, ImageListProps } from '@mbd/core/types';
 import { AUDIO_FORMAT_LABELS, AUDIO_FORMATS } from '@mbd/core/download/stream/mp3';
 import { useDialog } from '@/extension/popup/hooks/useDialog';
+import { useStreamVariants, VariantState } from '@/extension/popup/hooks/useStreamVariants';
+import StreamVariantSelect from '@/extension/popup/components/StreamVariantSelect';
 import {
   EyeIcon,
   ArrowDownTrayIcon,
@@ -85,7 +87,7 @@ const isIgUrl = (u: string | undefined): boolean => {
 const isPendingReel = (img: ImageInfo): boolean =>
   isPendingVideo(img) && !img.resolveHint && (isIgUrl(img.src) || isIgUrl(img.poster));
 
-const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, onCaptureAudio, audioFormat, thumbnailSize = 120, previewSize = 360, downloadedSrcs, favouriteSrcs, onToggleFavourite, onExclude, onFetchVideo, resolveFailedSrcs, fetchingSrcs, selectedSrcs, selectionActive, onToggleSelect, onSelectRange }) => {
+const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, onCaptureAudio, onCaptureStream, audioFormat, thumbnailSize = 120, previewSize = 360, downloadedSrcs, favouriteSrcs, onToggleFavourite, onExclude, onFetchVideo, resolveFailedSrcs, fetchingSrcs, selectedSrcs, selectionActive, onToggleSelect, onSelectRange }) => {
   // The global default audio format (#321); the grid button captures with it, the
   // detail panel preselects it in the override menu.
   const defaultAudioFormat: AudioFormat = audioFormat ?? 'm4a';
@@ -101,6 +103,21 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, onCaptur
   // 'default' the moment a different item is previewed — no effect, no leak.
   const [audioChoice, setAudioChoice] = useState<{ src: string | null; format: AudioFormat | 'default' }>({ src: null, format: 'default' });
   const audioOverride: AudioFormat | 'default' = audioChoice.src === selectedSrc ? audioChoice.format : 'default';
+
+  // Per-stream rendition picker (#314). One hook instance for the whole list: the
+  // grid tile and the preview panel share `variantStates`/`ensureVariants` so a
+  // fetch triggered from either surface is visible in both, and re-opening the
+  // preview for an already-fetched item shows the renditions instantly.
+  const { states: variantStates, ensure: ensureVariants } = useStreamVariants();
+  // Chosen rendition height per item src (absent → Auto/global). Shared by the
+  // grid tile and the preview panel so both reflect the same pick.
+  const [heightBySrc, setHeightBySrc] = useState<Map<string, number>>(new Map());
+  const setHeight = (src: string, height: number | null): void =>
+    setHeightBySrc((prev) => { const m = new Map(prev); if (height == null) m.delete(src); else m.set(src, height); return m; });
+  // Render the picker + capture-at-rendition for a stream item.
+  const streamState = (img: ImageInfo): VariantState => variantStates.get(img.hlsManifest ?? '') ?? { status: 'idle', variants: [] };
+  const captureVideo = (img: ImageInfo): void =>
+    (onCaptureStream ? onCaptureStream(img, heightBySrc.get(img.src)) : onImageDownload(img));
 
   // The preview modal's exclude menu (open/closed). The modal shows one image, so
   // a single boolean + one wrapper ref back the outside-click / Escape close.
@@ -393,8 +410,17 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, onCaptur
                         <AudioIcon className="mbd:h-4 mbd:w-4" />
                       </button>
                     )}
+                    {isHlsStream(image) && onCaptureStream && (
+                      <StreamVariantSelect
+                        state={streamState(image)}
+                        value={heightBySrc.get(image.src) ?? null}
+                        onEnsure={() => ensureVariants(image.hlsManifest!, image.type === 'mpd' ? 'dash' : 'hls')}
+                        onChange={(h) => setHeight(image.src, h)}
+                        className="mbd:max-w-14 mbd:rounded-full mbd:bg-(--panel) mbd:text-[10px] mbd:text-(--ink) mbd:ring-1 mbd:ring-(--ctl-ring)"
+                      />
+                    )}
                     <button
-                      onClick={() => onImageDownload(image)}
+                      onClick={() => (isHlsStream(image) ? captureVideo(image) : onImageDownload(image))}
                       title={isHlsStream(image) ? 'Capture stream' : 'Download'}
                       aria-label={isHlsStream(image) ? 'Capture stream' : 'Download'}
                       className="mbd:grid mbd:h-8 mbd:w-8 mbd:place-items-center mbd:rounded-full mbd:bg-(--brand-ink) mbd:text-white mbd:ring-1 mbd:ring-(--ctl-ring) mbd:transition-transform mbd:hover:scale-105 mbd:active:scale-95"
@@ -670,10 +696,19 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, onCaptur
                 </p>
               ) : (
                 <div className="mbd:flex mbd:w-full mbd:gap-2">
-                  <button onClick={() => onImageDownload(selectedImage)} title={isHlsStream(selectedImage) ? 'Capture stream' : 'Download'} aria-label={isHlsStream(selectedImage) ? 'Capture stream' : 'Download'} className="btn btn-primary mbd:flex-1">
+                  <button onClick={() => (isHlsStream(selectedImage) ? captureVideo(selectedImage) : onImageDownload(selectedImage))} title={isHlsStream(selectedImage) ? 'Capture stream' : 'Download'} aria-label={isHlsStream(selectedImage) ? 'Capture stream' : 'Download'} className="btn btn-primary mbd:flex-1">
                     <ArrowDownTrayIcon className="mbd:h-4 mbd:w-4" />
                     <span>{isHlsStream(selectedImage) ? 'Capture stream' : 'Download'}</span>
                   </button>
+                  {isHlsStream(selectedImage) && onCaptureStream && (
+                    <StreamVariantSelect
+                      state={streamState(selectedImage)}
+                      value={heightBySrc.get(selectedImage.src) ?? null}
+                      onEnsure={() => ensureVariants(selectedImage.hlsManifest!, selectedImage.type === 'mpd' ? 'dash' : 'hls')}
+                      onChange={(h) => setHeight(selectedImage.src, h)}
+                      className="mbd:rounded-md mbd:bg-(--panel) mbd:px-2 mbd:text-[12px] mbd:text-(--ink) mbd:ring-1 mbd:ring-(--ctl-ring)"
+                    />
+                  )}
                   {isHlsStream(selectedImage) && onCaptureAudio && (
                     <>
                       <button
