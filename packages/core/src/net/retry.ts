@@ -99,7 +99,7 @@ export function retryingFetch(rawFetch: typeof fetch, opts: RetryOpts = {}): typ
       opts.signal?.addEventListener('abort', onOuterAbort, { once: true });
       try {
         const [input, init] = args;
-        res = await rawFetch(input, { ...(init as RequestInit | undefined), signal: attemptAc.signal });
+        res = await rawFetch(input, { ...init, signal: attemptAc.signal });
       } catch (e) {
         lastError = e;
         if (attempt >= maxAttempts) throw e;
