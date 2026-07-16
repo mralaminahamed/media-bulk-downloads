@@ -1,0 +1,22 @@
+{
+  "data": {
+    "clip": {
+      "id": "AwkwardHelplessSalamanderSwiftRage",
+      "slug": "AwkwardHelplessSalamanderSwiftRage",
+      "playbackAccessToken": {
+        "__typename": "PlaybackAccessToken",
+        "signature": "9f2c0e1d4a7b6c8e0f1a2b3c4d5e6f70a1b2c3d4",
+        "value": "{\"authorization\":{\"forbidden\":false,\"reason\":\"\"},\"clip_uri\":\"https://production.assets.clips.twitchcdn.net/v2/media/AwkwardHelplessSalamanderSwiftRage/1080.mp4\",\"device_id\":\"test\",\"expires\":1893456000,\"user_id\":null}"
+      },
+      "videoQualities": [
+        { "__typename": "ClipVideoQuality", "frameRate": 30, "quality": "360", "sourceURL": "https://production.assets.clips.twitchcdn.net/v2/media/AwkwardHelplessSalamanderSwiftRage/360.mp4" },
+        { "__typename": "ClipVideoQuality", "frameRate": 60, "quality": "720", "sourceURL": "https://production.assets.clips.twitchcdn.net/v2/media/AwkwardHelplessSalamanderSwiftRage/720.mp4" },
+        { "__typename": "ClipVideoQuality", "frameRate": 60, "quality": "1080", "sourceURL": "https://production.assets.clips.twitchcdn.net/v2/media/AwkwardHelplessSalamanderSwiftRage/1080.mp4" }
+      ]
+    }
+  },
+  "extensions": {
+    "durationMilliseconds": 42,
+    "operationName": "VideoAccessToken_Clip"
+  }
+}

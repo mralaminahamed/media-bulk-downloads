@@ -1,6 +1,7 @@
 import { ResolveHint, ResolvedMedia } from '@mbd/core/types';
 import { isSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
 import { stripUrlSecrets } from '@mbd/core/net/url-secrets';
+import { TWITCH_CLIENT_ID, TWITCH_GQL_OP, TWITCH_GQL_SHA256 } from '@mbd/core/resolvers/twitch-constants';
 
 export interface NetDeps { fetch: typeof fetch }
 
@@ -62,6 +63,11 @@ interface RedgifsAuth { token?: string }
 interface RedgifsUrls { hd?: string; sd?: string }
 interface RedgifsGif { urls?: RedgifsUrls }
 interface RedgifsGifResponse { gif?: RedgifsGif; urls?: RedgifsUrls }
+
+interface TwitchClipQuality { quality?: string; sourceURL?: string }
+interface TwitchPlaybackAccessToken { signature?: string; value?: string }
+interface TwitchClip { videoQualities?: TwitchClipQuality[]; playbackAccessToken?: TwitchPlaybackAccessToken }
+interface TwitchGqlResponse { data?: { clip?: TwitchClip | null } }
 
 /**
  * A URL taken from an API JSON response is untrusted: constrain it to https and
@@ -557,6 +563,57 @@ async function sankaku(id: string, deps: NetDeps): Promise<ResolvedMedia | null>
   }
 }
 
+// Twitch serves clip mp4s from two CDN families (current + legacy); accept either.
+const TWITCH_CLIP_HOSTS = ['twitchcdn.net', 'twitch.tv'];
+
+/**
+ * Twitch clips. A single GQL persisted-query POST (operation name + sha256Hash +
+ * Client-ID all externalized to twitch-constants.ts, so they can be bumped without
+ * a logic change when Twitch rotates them) returns the clip's mp4 renditions plus
+ * a short-lived playback access token. The highest-resolution `sourceURL` is signed
+ * with `?sig=&token=` and returned as a direct download. Any missing field —
+ * private/expired clip, or a rotated op/hash the request no longer matches —
+ * resolves to null (fail-closed: never a URL that would 404/403). The token is used
+ * only to build this URL and is never logged or persisted. The `sourceURL` is
+ * host-pinned to Twitch's clip CDNs (untrusted JSON). The response is tolerated in
+ * both the single-object and array (batched-op) GQL envelope shapes.
+ */
+async function twitch(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  try {
+    if (!/^[A-Za-z0-9_-]+$/.test(id)) return null;
+    const r = await deps.fetch('https://gql.twitch.tv/gql', {
+      method: 'POST',
+      headers: { 'Client-ID': TWITCH_CLIENT_ID, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        operationName: TWITCH_GQL_OP,
+        variables: { slug: id },
+        extensions: { persistedQuery: { version: 1, sha256Hash: TWITCH_GQL_SHA256 } },
+      }),
+    });
+    if (!r.ok) return null;
+    const j = (await r.json()) as TwitchGqlResponse | TwitchGqlResponse[];
+    const clip = (Array.isArray(j) ? j[0] : j)?.data?.clip;
+    const token = clip?.playbackAccessToken;
+    if (!token || typeof token.signature !== 'string' || typeof token.value !== 'string') return null;
+    let best: { q: number; url: string } | null = null;
+    for (const v of clip?.videoQualities ?? []) {
+      if (typeof v?.sourceURL === 'string') {
+        const q = Number(v.quality) || 0;
+        if (!best || q > best.q) best = { q, url: v.sourceURL };
+      }
+    }
+    if (!best) return null;
+    const pinned = TWITCH_CLIP_HOSTS.reduce<string | null>((acc, h) => acc ?? pinnedUrl(best!.url, h), null);
+    if (!pinned) return null;
+    const signed = new URL(pinned);
+    signed.searchParams.set('sig', token.signature);
+    signed.searchParams.set('token', token.value);
+    return { url: signed.href };
+  } catch {
+    return null;
+  }
+}
+
 /** Resolve one hint to a final media target, or null on failure. Never throws. */
 export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise<ResolvedMedia | null> {
   switch (hint.platform) {
@@ -574,6 +631,7 @@ export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise
     case 'streamable': return streamable(hint.id, deps);
     case 'redgifs': return redgifs(hint.id, deps);
     case 'sankaku': return sankaku(hint.id, deps);
+    case 'twitch': return twitch(hint.id, deps);
     default: return null;
   }
 }
