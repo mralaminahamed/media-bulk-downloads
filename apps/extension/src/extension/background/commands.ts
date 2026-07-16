@@ -40,7 +40,7 @@ export function downloadAllForTab(tab?: chrome.tabs.Tab): void {
       // shared offscreen document, so firing one per stream unbounded lets N streams
       // aggregate to N × the cap and OOM-crash the offscreen doc (aborting every
       // in-flight capture). Cap the number running at once.
-      const captureOne = (s: ImageInfo): Promise<void> => {
+      const captureOne = (s: ImageInfo): Promise<unknown> => {
         // Register the capturing tab under this run's id so its progress relays
         // to this tab's bubble (and no other concurrent capture's).
         const runId = newCaptureRunId();
