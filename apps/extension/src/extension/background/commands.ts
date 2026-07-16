@@ -7,6 +7,11 @@ import { downloadAndRecord } from '@/extension/background/download/downloads';
 import { captureStreamToFile, captureRunTabs } from '@/extension/background/download/capture';
 import { MENU, mediaFromContext } from '@/extension/background/context-menu';
 
+// Max stream captures running at once from a single "Download all" — each can
+// buffer up to STREAM_MAX_BYTES in the shared offscreen doc, so this bounds
+// aggregate capture memory (2 × the cap) instead of N × the cap.
+const CAPTURE_CONCURRENCY = 2;
+
 /**
  * Collect the given tab's media (via its content script) and download the set
  * eligible under the user's settings. Shared by the "Download all" context-menu
@@ -31,15 +36,24 @@ export function downloadAllForTab(tab?: chrome.tabs.Tab): void {
       const streams = eligible.filter((i) => i.hlsManifest);
       const regular = eligible.filter((i) => !isPendingOrStream(i));
       if (regular.length) void downloadAndRecord(regular, sourcePage, { skipDuplicates: currentSettings.skipDuplicateDownloads });
-      for (const s of streams) {
+      // Gate concurrent captures: each buffers up to STREAM_MAX_BYTES in the single
+      // shared offscreen document, so firing one per stream unbounded lets N streams
+      // aggregate to N × the cap and OOM-crash the offscreen doc (aborting every
+      // in-flight capture). Cap the number running at once.
+      const captureOne = (s: ImageInfo): Promise<void> => {
         // Register the capturing tab under this run's id so its progress relays
         // to this tab's bubble (and no other concurrent capture's).
         const runId = newCaptureRunId();
         captureRunTabs.set(runId, tabId);
-        void captureStreamToFile(s, sourcePage, runId)
+        return captureStreamToFile(s, sourcePage, runId)
           .catch(() => {})
           .finally(() => captureRunTabs.delete(runId));
-      }
+      };
+      let next = 0;
+      const worker = async (): Promise<void> => {
+        while (next < streams.length) await captureOne(streams[next++]);
+      };
+      void Promise.all(Array.from({ length: Math.min(CAPTURE_CONCURRENCY, streams.length) }, worker));
     });
   });
 }
