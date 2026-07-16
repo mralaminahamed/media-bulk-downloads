@@ -7,6 +7,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Four new site resolvers (coverage sweep, Tier-2).** Network-free DOM reads,
+  each confirmed against a real page: **Postimages** (`postimg.cc` — reads the
+  `#download` original, since the displayed image and `og:image` are a downscaled
+  render), **4chan** (`boards.4chan.org`/`4channel.org` — reads each post's full
+  file, images and webm, keeping the real extension the thumbnail hides;
+  element-scoped so every thumb resolves its own post), **4kWallpapers** and
+  **WallpapersWide** (pick the largest-area download link — the native resolution
+  isn't derivable from the URL). Plus an **ImgBB** CDN rule (`i.ibb.co` — strip the
+  `.md`/`.th` size suffix to the original).
 - **Nine new site CDN rules (coverage sweep, Tier-1).** Passive URL→original
   upgrades for images on: **Wikimedia Commons** (and every wiki — drop the
   `/thumb/` segment to the upload), **Weibo** (`sinaimg.cn` size alias →

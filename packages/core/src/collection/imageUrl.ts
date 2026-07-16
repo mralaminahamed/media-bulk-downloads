@@ -1048,6 +1048,16 @@ const RULES: CdnRule[] = [
     rewrite: (u) => { u.pathname = u.pathname.replace(/\/\d+x\d+\//, '/0x0/'); },
   },
   {
+    // ImgBB (i.ibb.co): the displayed image is the no-suffix original; album/grid
+    // thumbnails append a `.md` (medium) or `.th` (thumb) size token before the
+    // extension (…/<id>/name.md.png). Drop it to reach the original. Verified via
+    // direct CDN probe: the `.md`/`.th` variants and the no-suffix original all
+    // 200 on the same id; no Referer. (The ibb.co viewer page's og:image is
+    // already this original, so no page resolver is needed — #413.)
+    match: (u) => u.hostname === 'i.ibb.co' && /\.(?:md|th)\.[a-z0-9]+$/i.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/\.(?:md|th)(\.[a-z0-9]+)$/i, '$1'); },
+  },
+  {
     // Self-hosted WordPress: any host serving /wp-content/uploads/ with a resize
     // query (?w=&h=&resize=) and/or a stored -WxH / -scaled thumbnail suffix.
     // WordPress keeps the untouched original beside its generated sizes, so drop

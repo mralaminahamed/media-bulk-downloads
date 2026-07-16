@@ -966,4 +966,15 @@ describe('image-CDN rule batch (2026-07-16 Tier-1 site-coverage sweep)', () => {
     expect(orig('https://s2.glbimg.com/abc=/600x0/https://s.glbimg.com/foo/bar.jpg'))
       .toBe('https://s2.glbimg.com/abc=/0x0/https://s.glbimg.com/foo/bar.jpg');
   });
+
+  it('ImgBB: strips the .md/.th size suffix to the original', () => {
+    // Verified via direct CDN probe: .md/.th variants + no-suffix original all 200.
+    expect(orig('https://i.ibb.co/wSkzRXP/italy.md.png'))
+      .toBe('https://i.ibb.co/wSkzRXP/italy.png');
+    expect(orig('https://i.ibb.co/wSkzRXP/italy.th.png'))
+      .toBe('https://i.ibb.co/wSkzRXP/italy.png');
+    // already the no-suffix original -> unchanged
+    expect(orig('https://i.ibb.co/wSkzRXP/italy.png'))
+      .toBe('https://i.ibb.co/wSkzRXP/italy.png');
+  });
 });
