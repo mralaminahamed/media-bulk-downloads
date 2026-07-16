@@ -25,6 +25,8 @@ import { shopifyPageMedia } from '@mbd/core/resolvers/sites/shopify';
 import { youtubeVideoId } from '@mbd/core/resolvers/sites/youtube';
 import { vimeoVideoId } from '@mbd/core/resolvers/sites/vimeo';
 import { dailymotionVideoId } from '@mbd/core/resolvers/sites/dailymotion';
+import { rutubeVideoId } from '@mbd/core/resolvers/sites/rutube';
+import { rumbleWatchUrl } from '@mbd/core/resolvers/sites/rumble';
 import { streamableVideoId } from '@mbd/core/resolvers/sites/streamable';
 import { redgifsVideoId } from '@mbd/core/resolvers/sites/redgifs';
 import { twitchClipId } from '@mbd/core/resolvers/sites/twitch';
@@ -355,6 +357,36 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       src: watch, alt: '', width: 0, height: 0, type: 'mp4',
       fileSize: 0, isBase64: false, kind: 'video',
       unresolvedVideo: true, resolveHint: { platform: 'dailymotion', id },
+    });
+  };
+
+  // A Rutube video (watch page, embed, or link) surfaced as a pending video:
+  // Rutube hides the file behind its play-options API, so the real HLS master is
+  // fetched on the opt-in resolve pass (resolveHint 'rutube'), like a Dailymotion
+  // video. Keyed by the canonical watch URL so a page + an embed/link to the same
+  // video collapse to one item.
+  const pushRutube = (id: string): void => {
+    const watch = `https://rutube.ru/video/${id}/`;
+    if (!seenSources.addIfNew(watch)) return;
+    media.push({
+      src: watch, alt: '', width: 0, height: 0, type: 'mp4',
+      fileSize: 0, isBase64: false, kind: 'video',
+      unresolvedVideo: true, resolveHint: { platform: 'rutube', id },
+    });
+  };
+
+  // A Rumble video (watch page, embed, or link) surfaced as a pending video:
+  // Rumble's embed id (needed by its metadata API) isn't in the watch URL, so the
+  // hint carries the canonical URL itself and the opt-in resolve pass
+  // (resolveHint 'rumble') derives the embed id via Rumble's oEmbed endpoint, then
+  // reads the HLS master — like the gallery-page hint. Keyed by the URL so a page +
+  // an embed/link to the same video collapse to one item.
+  const pushRumble = (url: string): void => {
+    if (!seenSources.addIfNew(url)) return;
+    media.push({
+      src: url, alt: '', width: 0, height: 0, type: 'mp4',
+      fileSize: 0, isBase64: false, kind: 'video',
+      unresolvedVideo: true, resolveHint: { platform: 'rumble', id: url },
     });
   };
 
@@ -740,6 +772,10 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       else if (resolvedHref && vimeoVideoId(resolvedHref)) pushVimeo(vimeoVideoId(resolvedHref)!);
       // A link to a Dailymotion video — surface as a pending video resolved on demand.
       else if (resolvedHref && dailymotionVideoId(resolvedHref)) pushDailymotion(dailymotionVideoId(resolvedHref)!);
+      // A link to a Rutube video — surface as a pending video resolved on demand.
+      else if (resolvedHref && rutubeVideoId(resolvedHref)) pushRutube(rutubeVideoId(resolvedHref)!);
+      // A link to a Rumble video — surface as a pending video resolved on demand.
+      else if (resolvedHref && rumbleWatchUrl(resolvedHref)) pushRumble(rumbleWatchUrl(resolvedHref)!);
       // A link to a Streamable video — surface as a pending video resolved on demand.
       else if (resolvedHref && streamableVideoId(resolvedHref)) pushStreamable(streamableVideoId(resolvedHref)!);
       // A link to a RedGifs video — surface as a pending video resolved on demand.
@@ -778,6 +814,10 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       else if (resolvedEmbed && vimeoVideoId(resolvedEmbed)) pushVimeo(vimeoVideoId(resolvedEmbed)!);
       // A Dailymotion player <iframe> — surface as a pending video (resolved on demand).
       else if (resolvedEmbed && dailymotionVideoId(resolvedEmbed)) pushDailymotion(dailymotionVideoId(resolvedEmbed)!);
+      // A Rutube player <iframe> — surface as a pending video (resolved on demand).
+      else if (resolvedEmbed && rutubeVideoId(resolvedEmbed)) pushRutube(rutubeVideoId(resolvedEmbed)!);
+      // A Rumble player <iframe> — surface as a pending video (resolved on demand).
+      else if (resolvedEmbed && rumbleWatchUrl(resolvedEmbed)) pushRumble(rumbleWatchUrl(resolvedEmbed)!);
       // A Streamable player <iframe> — surface as a pending video (resolved on demand).
       else if (resolvedEmbed && streamableVideoId(resolvedEmbed)) pushStreamable(streamableVideoId(resolvedEmbed)!);
       // A RedGifs player <iframe> — surface as a pending video (resolved on demand).
@@ -912,6 +952,15 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     for (const cand of shopifyPageMedia(pageUrl)) {
       pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
     }
+
+    // The current page is itself a Rutube or Rumble watch page — surface its
+    // video as a pending item (its real HLS master is fetched on the opt-in
+    // resolve pass, since neither exposes a sniffable stream in the DOM). Embeds
+    // and links to these on other pages are handled in the anchor/iframe walks.
+    const rutubePageId = rutubeVideoId(pageUrl);
+    if (rutubePageId) pushRutube(rutubePageId);
+    const rumblePageUrl = rumbleWatchUrl(pageUrl);
+    if (rumblePageUrl) pushRumble(rumblePageUrl);
   }
 
   // HLS manifests the MAIN-world sniffer caught (hls.js / native players fetch

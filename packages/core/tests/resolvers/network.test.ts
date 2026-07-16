@@ -302,6 +302,96 @@ describe('resolveOriginal — dailymotion', () => {
   });
 });
 
+describe('resolveOriginal — rutube', () => {
+  const ID = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
+  const MASTER = `https://bl.rutube.ru/route/${ID}.m3u8?guids=x,y`;
+  const opts = (over: Record<string, unknown> = {}) => ({ video_balancer: { m3u8: MASTER, default: MASTER }, ...over });
+
+  it('returns the video_balancer HLS master, pinned to rutube.ru', async () => {
+    expect(await resolveOriginal({ platform: 'rutube', id: ID }, { fetch: mockFetch(opts()) }))
+      .toEqual({ url: MASTER, hls: true });
+  });
+
+  it('returns null on a non-hex id (never fetches)', async () => {
+    expect(await resolveOriginal({ platform: 'rutube', id: 'not-a-hex-id' }, { fetch: mockFetch(opts()) })).toBeNull();
+  });
+
+  it('returns null on a non-200 API response', async () => {
+    expect(await resolveOriginal({ platform: 'rutube', id: ID }, { fetch: mockFetch({}, false) })).toBeNull();
+  });
+
+  it('returns null when the master host is not rutube.ru (host-pin)', async () => {
+    const evil = { video_balancer: { m3u8: 'https://evil.example.com/x.m3u8' } };
+    expect(await resolveOriginal({ platform: 'rutube', id: ID }, { fetch: mockFetch(evil) })).toBeNull();
+  });
+
+  it('returns null when there is no balancer master', async () => {
+    expect(await resolveOriginal({ platform: 'rutube', id: ID }, { fetch: mockFetch({ video_balancer: {} }) })).toBeNull();
+  });
+});
+
+describe('resolveOriginal — rumble', () => {
+  const EMBED = 'v7ab6sc';
+  const MASTER = 'https://rumble.com/hls-vod/7ab6sc/playlist.m3u8';
+  const embedJs = (hls: string | undefined = MASTER) => ({ ua: { hls: { auto: { url: hls } } } });
+  const oembed = { html: `<iframe src="https://rumble.com/embed/${EMBED}/?pub=4"></iframe>` };
+  // A fetch that dispatches by URL so the two-hop (oEmbed → embedJS) is exercised.
+  const seqFetch = (route: (url: string) => { ok?: boolean; payload: unknown }) =>
+    (async (input: unknown) => {
+      const { ok = true, payload } = route(String(input));
+      return { ok, json: async () => payload };
+    }) as unknown as typeof fetch;
+
+  it('derives the embed id via oEmbed, then returns the embedJS HLS master (rumble.com-pinned)', async () => {
+    const fetch = seqFetch((url) =>
+      url.includes('/api/Media/oembed.json') ? { payload: oembed }
+        : url.includes('/embedJS/') ? { payload: embedJs() }
+          : { ok: false, payload: {} });
+    expect(await resolveOriginal({ platform: 'rumble', id: 'https://rumble.com/v7chusk-x.html' }, { fetch }))
+      .toEqual({ url: MASTER, hls: true });
+  });
+
+  it('skips oEmbed when the hint is already an /embed/<id>/ URL', async () => {
+    let oembedCalls = 0;
+    const fetch = seqFetch((url) => {
+      if (url.includes('/api/Media/oembed.json')) { oembedCalls++; return { payload: oembed }; }
+      return { payload: embedJs() };
+    });
+    expect(await resolveOriginal({ platform: 'rumble', id: 'https://rumble.com/embed/v7ab6sc/' }, { fetch }))
+      .toEqual({ url: MASTER, hls: true });
+    expect(oembedCalls).toBe(0);
+  });
+
+  it('accepts an off-rumble.com CDN master on the allowlist (1a-1791.com)', async () => {
+    const fetch = seqFetch(() => ({ payload: embedJs('https://1a-1791.com/hls/master.m3u8') }));
+    expect(await resolveOriginal({ platform: 'rumble', id: 'https://rumble.com/embed/v7ab6sc/' }, { fetch }))
+      .toEqual({ url: 'https://1a-1791.com/hls/master.m3u8', hls: true });
+  });
+
+  it('returns null when the hint URL is not rumble.com (SSRF pin, never fetches)', async () => {
+    let calls = 0;
+    const fetch = seqFetch(() => { calls++; return { payload: embedJs() }; });
+    expect(await resolveOriginal({ platform: 'rumble', id: 'https://evil.example.com/v7chusk-x.html' }, { fetch })).toBeNull();
+    expect(calls).toBe(0);
+  });
+
+  it('returns null when the HLS master host is off-allowlist', async () => {
+    const fetch = seqFetch(() => ({ payload: embedJs('https://evil.example.com/master.m3u8') }));
+    expect(await resolveOriginal({ platform: 'rumble', id: 'https://rumble.com/embed/v7ab6sc/' }, { fetch })).toBeNull();
+  });
+
+  it('returns null when embedJS carries no HLS master', async () => {
+    const fetch = seqFetch(() => ({ payload: { ua: {} } }));
+    expect(await resolveOriginal({ platform: 'rumble', id: 'https://rumble.com/embed/v7ab6sc/' }, { fetch })).toBeNull();
+  });
+
+  it('returns null when oEmbed html carries no embed id', async () => {
+    const fetch = seqFetch((url) =>
+      url.includes('oembed') ? { payload: { html: '<iframe src="https://rumble.com/nope"></iframe>' } } : { payload: embedJs() });
+    expect(await resolveOriginal({ platform: 'rumble', id: 'https://rumble.com/v7chusk-x.html' }, { fetch })).toBeNull();
+  });
+});
+
 describe('resolveOriginal — bsky (getBlob)', () => {
   const pdsDoc = {
     service: [

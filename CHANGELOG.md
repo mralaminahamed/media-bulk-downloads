@@ -7,6 +7,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Two video hosts (opt-in network resolvers).** With "Resolve originals" enabled,
+  **Rutube** and **Rumble** watch pages, player embeds, and links now surface a
+  pending video that resolves to a capturable HLS master. Rutube reads its public
+  `play/options` API (`video_balancer` master, pinned to `rutube.ru`); Rumble derives
+  the embed id via its open oEmbed endpoint (the watch HTML is Cloudflare-gated, the
+  JSON APIs are not), then reads the `embedJS` HLS master (pinned to the Rumble-CDN
+  allowlist). Both public/SFW, no auth; API-returned URLs are host-pinned. All three
+  verified live. (PeerTube deferred to a follow-up — its host-agnostic, variable
+  media-host model needs dedicated SSRF handling.)
 - **Two wallpaper hubs (tier-1 CDN rules).** Passive thumbnail→original path swaps,
   both curl-verified live: **Wallpapers.com** (`/images/thumbnail|high/` → `/images/hd/`,
   the largest segment and the page's `og:image`; extension preserved) and

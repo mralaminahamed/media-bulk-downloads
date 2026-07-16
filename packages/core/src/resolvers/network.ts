@@ -59,6 +59,10 @@ interface ArtStationProject { assets?: ArtStationAsset[] }
 interface StreamableFile { url?: string }
 interface StreamableResponse { files?: Record<string, StreamableFile> }
 
+interface RutubePlayOptions { video_balancer?: { m3u8?: string; default?: string } }
+
+interface RumbleEmbedJs { ua?: { hls?: { auto?: { url?: string } } } }
+
 interface RedgifsAuth { token?: string }
 interface RedgifsUrls { hd?: string; sd?: string }
 interface RedgifsGif { urls?: RedgifsUrls }
@@ -218,6 +222,66 @@ async function dailymotion(id: string, deps: NetDeps): Promise<ResolvedMedia | n
     const auto = j?.qualities?.auto ?? [];
     const master = auto.find((q) => q?.type === 'application/x-mpegURL' && typeof q.url === 'string')?.url;
     const pinned = pinnedUrl(master, 'dailymotion.com');
+    return pinned ? { url: pinned, hls: true } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Rutube: read the public play-options API (no auth) and return the
+ * `video_balancer.m3u8` HLS master, pinned to the rutube.ru family (the master
+ * lives on bl.rutube.ru). The master is unsigned — a `guids` variant list only;
+ * the balancer mints the per-variant signed playlists itself, so the resolver
+ * only hands the master to the HLS engine. Adult/premium/geo-gated streams are
+ * not circumvented (a gated video yields no usable master).
+ */
+async function rutube(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  try {
+    if (!/^[0-9a-f]{32}$/i.test(id)) return null;
+    const r = await deps.fetch(`https://rutube.ru/api/play/options/${encodeURIComponent(id)}/?format=json`);
+    if (!r.ok) return null;
+    const j = (await r.json()) as RutubePlayOptions;
+    const master = j?.video_balancer?.m3u8 ?? j?.video_balancer?.default;
+    const pinned = pinnedUrl(master, 'rutube.ru');
+    return pinned ? { url: pinned, hls: true } : null;
+  } catch {
+    return null;
+  }
+}
+
+// Rumble media CDNs: the embedJS master lives on rumble.com, its variant
+// segments and progressive renditions on 1a-1791.com / *.rmbl.ws /
+// hugh.cdn.rumble.cloud (host varies by account/CDN), so the returned master is
+// pinned against this allowlist rather than a single suffix.
+const RUMBLE_HOSTS = ['rumble.com', '1a-1791.com', 'rmbl.ws', 'rumble.cloud'];
+
+/**
+ * Rumble: the hint carries the watch/embed URL (rumble.com-pinned). Derive the
+ * embed id — directly from an `/embed/<id>/` URL, else via Rumble's open oEmbed
+ * endpoint (the watch HTML is Cloudflare-gated; the JSON APIs are not) — then
+ * read the embedJS metadata's `ua.hls.auto.url` HLS master, pinned to the
+ * Rumble-CDN allowlist. HLS-only: current samples expose no progressive mp4.
+ */
+async function rumble(watchUrl: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  try {
+    const watch = pinnedUrl(watchUrl, 'rumble.com');
+    if (!watch) return null;
+    let embedId = /^\/embed\/([a-z0-9]+)\/?$/i.exec(new URL(watch).pathname)?.[1] ?? null;
+    if (!embedId) {
+      const o = await deps.fetch(`https://rumble.com/api/Media/oembed.json?url=${encodeURIComponent(watch)}`);
+      if (!o.ok) return null;
+      const oj = (await o.json()) as { html?: unknown };
+      embedId = typeof oj?.html === 'string'
+        ? /rumble\.com\/embed\/([a-z0-9]+)\//i.exec(oj.html)?.[1] ?? null
+        : null;
+    }
+    if (!embedId || !/^[a-z0-9]+$/i.test(embedId)) return null;
+    const r = await deps.fetch(`https://rumble.com/embedJS/u3/?request=video&ver=2&v=${encodeURIComponent(embedId)}`);
+    if (!r.ok) return null;
+    const j = (await r.json()) as RumbleEmbedJs;
+    const hls = j?.ua?.hls?.auto?.url;
+    const pinned = RUMBLE_HOSTS.reduce<string | null>((acc, h) => acc ?? pinnedUrl(hls, h), null);
     return pinned ? { url: pinned, hls: true } : null;
   } catch {
     return null;
@@ -645,6 +709,8 @@ export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise
     case 'unsplash': return { url: unsplash(hint.id) };
     case 'vimeo': return vimeo(hint.id, deps);
     case 'dailymotion': return dailymotion(hint.id, deps);
+    case 'rutube': return rutube(hint.id, deps);
+    case 'rumble': return rumble(hint.id, deps);
     case 'bsky': return bsky(hint.id, deps);
     case 'pinterest': return pinterest(hint.id, deps);
     case 'reddit': return reddit(hint.id);
