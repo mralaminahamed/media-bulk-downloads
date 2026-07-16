@@ -97,6 +97,7 @@ logged-out), **[G]** a known gap.
 | 81 | 4kWallpapers | 4kwallpapers.com (same-origin) | **resolver** — the native max resolution is a non-standard aspect (not URL-grammar-derivable), so read the download anchors and return the largest by pixel area; same-origin host-pin, network-free | C |
 | 82 | WallpapersWide | wallpaperswide.com (same-origin) | **resolver** — the offered max resolution varies per wallpaper, so enumerate the `/download/` resolutions list and return the largest by pixel area; same-origin host-pin, network-free | C |
 | 83 | ImgBB | i.ibb.co (pages ibb.co) | **CDN rule** — the displayed image is already the original; grid/album thumbs append a `.md`/`.th` size suffix before the ext → drop it (og:image on the viewer page == the original, so no page resolver needed) | C |
+| 84 | 4chan archives (desuarchive / 4plebs) | desu-usergeneratedcontent.xyz / i.4pcdn.org / img.4plebs.org | **resolver** (FoolFuuka) — full media (images + webm) is the `a.thread_image_link` href; element-scoped per post, host-pinned per archive. Selectors from the FoolFuuka theme, not a live capture (archives 403 bots) → fail-closed, needs-live-confirmation | C |
 
 ¹ Tumblr previously had a `/sWxH/` → `/s1280x1920/` rule; it was **removed** — modern
 `64.media.tumblr.com` pre-renders one size folder per image and every other size 404s,
