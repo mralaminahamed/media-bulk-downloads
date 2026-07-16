@@ -158,6 +158,13 @@ const GALLERY_PAGE_CAP = 60;
  *  not a gallery thumbnail — used to keep byline/nav links out of the follow list. */
 const GALLERY_MIN_THUMB = 64;
 
+/** A gallery/lightbox link can point straight at a video/audio FILE (not just an
+ *  image) — e.g. `<a href="clip.mp4"><img …></a>`. These classify it by extension
+ *  so it's collected as a/v (correct kind + real extension) instead of being run
+ *  through the image path and saved as a bogus `.jpg`. */
+const GALLERY_VIDEO_EXT = /\.(?:mp4|m4v|webm|ogv|mov)(?:$|[?#])/i;
+const GALLERY_AUDIO_EXT = /\.(?:mp3|wav|ogg|oga|m4a|aac|flac|opus)(?:$|[?#])/i;
+
 /** First path segment of routes that are navigation/taxonomy/account, not a media
  *  detail page. A same-origin `<a>` wrapping an `<img>` that points at one of these
  *  (author bylines, tag/category pills, pagination, search, login…) must NOT be
@@ -709,7 +716,15 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     // Gallery / lightbox links: full-res <a href> over a thumbnail <img>.
     anchors.forEach((a) => {
       const c = galleryLinkCandidate(a);
-      if (c) collectImageInfo(c.url, '', 0, 0, c.thumbnailSrc, a.querySelector('img') ?? a);
+      if (c) {
+        // A direct link to a video/audio file must not go through the image path
+        // (which would save clip.mp4 as clip.jpg and hide it from the video filter);
+        // route it to collectAv with the thumbnail as its poster. Extension-less
+        // media-CDN links (kind unknowable from the URL) still take the image path.
+        if (GALLERY_VIDEO_EXT.test(c.url)) collectAv(c.url, 'video', undefined, '', c.thumbnailSrc);
+        else if (GALLERY_AUDIO_EXT.test(c.url)) collectAv(c.url, 'audio', undefined, '', c.thumbnailSrc);
+        else collectImageInfo(c.url, '', 0, 0, c.thumbnailSrc, a.querySelector('img') ?? a);
+      }
       // A link to a YouTube video (even a bare text link, no <img>) — surface the
       // video's public poster thumbnail. Gated to real video ids so ordinary
       // links don't get force-collected as images.

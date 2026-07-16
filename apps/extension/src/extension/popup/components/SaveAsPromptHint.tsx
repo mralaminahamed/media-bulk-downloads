@@ -10,8 +10,14 @@ import {
  * "Ask where to save each file" pref is on — which the extension can't
  * override). Reads the flags reactively from storage.local; renders nothing
  * until a download is cancelled at the dialog, and nothing once dismissed.
+ *
+ * The "Open download settings" button uses `chrome.tabs`, which is undefined in
+ * the content-script (bubble) surface — and its `chrome://settings/downloads`
+ * target can't be opened via the http(s)-only OPEN_URL relay — so the button is
+ * shown only in the popup. The hint text (the actionable part) still shows in the
+ * bubble.
  */
-export function SaveAsPromptHint() {
+export function SaveAsPromptHint({ surface = 'popup' }: { surface?: 'popup' | 'bubble' }) {
   const [{ seen, dismissed }, setState] = useState({ seen: false, dismissed: false });
 
   useEffect(() => {
@@ -44,13 +50,15 @@ export function SaveAsPromptHint() {
           <XMarkIcon className="mbd:h-3.5 mbd:w-3.5" />
         </button>
       </div>
-      <button
-        type="button"
-        onClick={() => chrome.tabs.create({ url: 'chrome://settings/downloads' })}
-        className="mbd:mt-1.5 mbd:rounded mbd:px-1.5 mbd:py-0.5 mbd:text-(--brand-ink) mbd:hover:underline"
-      >
-        Open download settings
-      </button>
+      {surface === 'popup' && (
+        <button
+          type="button"
+          onClick={() => chrome.tabs.create({ url: 'chrome://settings/downloads' })}
+          className="mbd:mt-1.5 mbd:rounded mbd:px-1.5 mbd:py-0.5 mbd:text-(--brand-ink) mbd:hover:underline"
+        >
+          Open download settings
+        </button>
+      )}
     </section>
   );
 }

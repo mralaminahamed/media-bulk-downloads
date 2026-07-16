@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { DEFAULT_SETTINGS, loadStoredSettings } from '@mbd/storage/settings';
 import {
-  HOST_OVERRIDE_FIELDS, PER_HOST_SETTINGS_KEY, pickHostFields, applyHostOverride,
+  HOST_OVERRIDE_FIELDS, PER_HOST_SETTINGS_KEY, PER_HOST_SETTINGS_MAX_HOSTS, pickHostFields, applyHostOverride,
   loadPerHostSettings, overrideForHost, savePerHostSettings, clearPerHostSettings,
   loadEffectiveSettingsForHost,
 } from '@mbd/storage/per-host-settings';
@@ -93,6 +93,25 @@ describe('per-host-settings — storage CRUD', () => {
   it('a corrupt stored value loads as {}', async () => {
     await chrome.storage.local.set({ perHostSettings: 'garbage' });
     expect(await loadPerHostSettings()).toEqual({});
+  });
+
+  it('LRU-evicts the oldest hosts past the cap; a re-save renews recency', async () => {
+    for (let i = 0; i < PER_HOST_SETTINGS_MAX_HOSTS + 5; i++) {
+      await savePerHostSettings(`h${i}.example`, { excludeEmoji: true });
+    }
+    const store = await loadPerHostSettings();
+    expect(Object.keys(store)).toHaveLength(PER_HOST_SETTINGS_MAX_HOSTS);
+    // The 5 oldest (h0..h4) were evicted; the newest survive.
+    expect(store['h0.example']).toBeUndefined();
+    expect(store['h4.example']).toBeUndefined();
+    expect(store[`h${PER_HOST_SETTINGS_MAX_HOSTS + 4}.example`]).toEqual({ excludeEmoji: true });
+
+    // Re-saving an about-to-be-evicted host moves it back to newest.
+    await savePerHostSettings('h5.example', { excludeEmoji: false });
+    await savePerHostSettings('hNew.example', { excludeEmoji: true });
+    const after = await loadPerHostSettings();
+    expect(after['h5.example']).toEqual({ excludeEmoji: false }); // renewed, not evicted
+    expect(after['h6.example']).toBeUndefined(); // now the oldest, evicted instead
   });
 });
 

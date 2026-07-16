@@ -155,9 +155,13 @@ const VOLATILE_PARAMS = new Set([
  * dynamic endpoint are never merged.
  */
 const TRANSFORM_PARAMS = new Set([
-  'w', 'h', 'width', 'height', 's', 'size', 'q', 'quality', 'dpr', 'fit', 'crop',
+  'w', 'h', 'width', 'height', 's', 'size', 'q', 'quality', 'dpr', 'fit',
   'resize', 'scale', 'zoom', 'fm', 'format', 'auto',
 ]);
+// NOT stripped: `crop` selects WHICH pixels (crop=face vs crop=top vs crop=entropy
+// are different output images from one endpoint), so folding it would merge
+// genuinely different images and silently drop one. The rest above only change an
+// image's size/format/quality — the same picture — so collapsing them is correct.
 
 /**
  * The canonical identity key for a media src. A matching SRC_KEY_RULE decides;

@@ -14,6 +14,24 @@ describe('buildBackup', () => {
     expect(b.history).toEqual([hist]);
   });
 
+  it('strips signed-URL secrets from src/thumbnailSrc in the exported entries', () => {
+    const signedFav: FavouriteEntry = {
+      src: 'https://cdn.example/clip.mp4?sig=SECRET&token=abc',
+      thumbnailSrc: 'https://cdn.example/thumb.jpg?Signature=SECRET&Expires=1',
+      kind: 'video', type: 'mp4', sourcePageUrl: 'p', time: 1,
+    };
+    const signedHist: HistoryEntry = {
+      src: 'https://cdn.example/v.mp4?token=SECRET&X-Amz-Signature=z', filename: 'v.mp4',
+      kind: 'video', type: 'mp4', sourcePageUrl: 'p', time: 2,
+    };
+    const b = buildBackup(DEFAULT_SETTINGS, [signedFav], [signedHist], [], 't');
+    expect(b.favourites[0].src).toBe('https://cdn.example/clip.mp4');
+    expect(b.favourites[0].thumbnailSrc).toBe('https://cdn.example/thumb.jpg');
+    expect(b.history[0].src).toBe('https://cdn.example/v.mp4');
+    // No signing token survives into the exported file.
+    expect(JSON.stringify(b)).not.toMatch(/SECRET/);
+  });
+
   it('round-trips excluded', () => {
     const json = JSON.stringify(buildBackup(DEFAULT_SETTINGS, [fav], [hist], [exc], 't'));
     expect(parseBackup(json)!.excluded).toEqual([exc]);

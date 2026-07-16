@@ -73,6 +73,13 @@ describe('isSafeCaptureUrl — SSRF guard for stream capture', () => {
     expect(isSafeCaptureUrl('http://printer.local/x')).toBe(false);
   });
 
+  it('rejects the .internal reserved-use suffix (cloud metadata name alias)', () => {
+    expect(isSafeCaptureUrl('http://metadata.google.internal/computeMetadata/v1/')).toBe(false);
+    expect(isSafeCaptureUrl('http://svc.internal/x')).toBe(false);
+    // A public host that merely contains "internal" as a label is still allowed.
+    expect(isSafeCaptureUrl('http://internal.example.com/x')).toBe(true);
+  });
+
   it('rejects wildcard-DNS names that embed a blocked IP (nip.io / sslip.io class)', () => {
     // These resolve, on the FIRST and only lookup, to the embedded internal IP —
     // not DNS rebinding, just a name that statically points at a blocked range.

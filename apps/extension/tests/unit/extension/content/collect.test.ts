@@ -604,6 +604,24 @@ describe('collectMedia — Vimeo videos', () => {
   });
 });
 
+describe('collectMedia — gallery link to a media file', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('collects a lightbox <a href> pointing at a video FILE as video, not a .jpg image', () => {
+    setBody('<a href="https://cdn.test/clip.mp4"><img src="https://cdn.test/thumb.jpg"></a>');
+    const m = collectMedia();
+    const clip = m.find((i) => i.src === 'https://cdn.test/clip.mp4');
+    expect(clip).toMatchObject({ kind: 'video' });
+    // It must NOT have been collected as an image (which would save clip.mp4 as clip.jpg).
+    expect(m.filter((i) => i.src === 'https://cdn.test/clip.mp4' && i.kind === 'image')).toHaveLength(0);
+  });
+
+  it('still collects a gallery <a href> pointing at an image FILE as an image', () => {
+    setBody('<a href="https://cdn.test/full.jpg"><img src="https://cdn.test/thumb.jpg"></a>');
+    expect(collectMedia().find((i) => i.src === 'https://cdn.test/full.jpg')).toMatchObject({ kind: 'image' });
+  });
+});
+
 describe('collectMedia — Streamable videos', () => {
   afterEach(() => { document.body.innerHTML = ''; });
   const streamable = (m: { resolveHint?: { platform: string } }[]) => m.filter((i) => i.resolveHint?.platform === 'streamable');

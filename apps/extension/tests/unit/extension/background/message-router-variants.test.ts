@@ -39,4 +39,11 @@ describe('messageRouter.LIST_VARIANTS', () => {
     expect(res.ok).toBe(false);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+
+  it('fetches with redirect:"error" so a public host cannot 3xx-redirect to an internal one', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({ text: () => Promise.resolve(MASTER) });
+    vi.stubGlobal('fetch', fetchSpy);
+    await invoke({ type: 'LIST_VARIANTS', manifestUrl: 'https://cdn.test/master.m3u8', engine: 'hls' });
+    expect(fetchSpy).toHaveBeenCalledWith('https://cdn.test/master.m3u8', { redirect: 'error' });
+  });
 });

@@ -449,10 +449,18 @@ function largestImg(html: string): string | null {
   return best;
 }
 
+// The page HTML is attacker-controlled (a visited site's gallery/"view" page);
+// cap it before the regex passes so a crafted page with many `<meta`/`<img`
+// prefixes each trailing a long `[^>]` run can't drive polynomial backtracking
+// and stall the worker. Social-card meta + image_src live in `<head>`, well
+// within this; the `largestImg` fallback simply sees fewer candidates.
+const GALLERY_HTML_SCAN_CAP = 512 * 1024;
+
 /** Extract the main image from a host/"view" page's HTML (regex only — no
  *  DOMParser in the service worker), preferring social-card metadata, then a
  *  `<link rel=image_src>`, then the largest declared `<img>`. */
-function extractMainImage(html: string, baseUrl: string): string | null {
+function extractMainImage(rawHtml: string, baseUrl: string): string | null {
+  const html = rawHtml.length > GALLERY_HTML_SCAN_CAP ? rawHtml.slice(0, GALLERY_HTML_SCAN_CAP) : rawHtml;
   const candidate =
     metaContent(html, 'og:image:secure_url') ??
     metaContent(html, 'og:image') ??

@@ -1,5 +1,6 @@
 import { BackupData, ExcludedEntry, FavouriteEntry, HistoryEntry, SettingsData } from '@mbd/core/types';
 import { withDefaults } from '@mbd/storage/settings';
+import { stripUrlSecrets } from '@mbd/core/net/url-secrets';
 
 /**
  * Import / export of the user's data (settings + favourites + history) as one
@@ -35,6 +36,17 @@ function safeSourceUrl(v: unknown): string {
   return v;
 }
 
+/** Strip signed-URL secrets from a stored entry's `src`/`thumbnailSrc` — the
+ *  backup file is written to disk and shared/synced, so it must not carry live
+ *  signing tokens (same url-secrets contract the sidecar/command surfaces apply).
+ *  The stored copies keep their raw URLs as the internal re-download key; only the
+ *  exported copy is sanitized. */
+function sanitizeEntry<T extends { src: string; thumbnailSrc?: string }>(e: T): T {
+  const out = { ...e, src: stripUrlSecrets(e.src) };
+  if (typeof e.thumbnailSrc === 'string') out.thumbnailSrc = stripUrlSecrets(e.thumbnailSrc);
+  return out;
+}
+
 /** Assemble a backup object. `exportedAt` is injected so callers stamp the time. */
 export function buildBackup(
   settings: SettingsData,
@@ -43,7 +55,15 @@ export function buildBackup(
   excluded: ExcludedEntry[],
   exportedAt: string,
 ): BackupData {
-  return { app: BACKUP_APP, version: BACKUP_VERSION, exportedAt, settings, favourites, history, excluded };
+  return {
+    app: BACKUP_APP,
+    version: BACKUP_VERSION,
+    exportedAt,
+    settings,
+    favourites: favourites.map(sanitizeEntry),
+    history: history.map(sanitizeEntry),
+    excluded,
+  };
 }
 
 /** Coerce a stored media entry: numeric time, and an href-safe sourcePageUrl. */

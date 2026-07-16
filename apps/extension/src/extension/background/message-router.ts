@@ -21,6 +21,7 @@ import { streamErrorMessage } from '@mbd/core/download/stream/stream-error-messa
 import { isMasterPlaylist } from '@mbd/core/download/stream/hls';
 import { variantsFromMaster, variantsFromMpd } from '@mbd/core/download/stream/variants';
 import { assertSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
+import { readBoundedText } from '@mbd/core/download/stream/bounded-fetch';
 import {
   enqueueDownloads, pauseQueue, resumeQueue, cancelQueue, retryQueueItem, getQueueSnapshot,
   clearFinishedQueue, retryAllFailedQueue, openQueueItem,
@@ -374,7 +375,15 @@ export const messageRouter: MessageRouter = {
     // tab, so fall back to the active tab.
     const run = (tabId?: number) => {
       const sniffed = tabId != null ? snifferByTab.get(tabId) : undefined;
-      resolveOriginalsBatch(hints, undefined, sniffed, message.authed === true).then((resolved) => respond({ resolved }));
+      // Defense-in-depth: the message's `authed` flag is caller-controlled, so the
+      // cookie-bearing Sankaku authed fetch also requires the worker's OWN stored
+      // opt-in (sankakuAuthedOriginals, default off). A forged authed=true alone
+      // can't trigger a credentialed cross-origin fetch. settingsReady ensures the
+      // cached setting is loaded before this decision.
+      void settingsReady.then(() => {
+        const authed = message.authed === true && currentSettings.sankakuAuthedOriginals === true;
+        resolveOriginalsBatch(hints, undefined, sniffed, authed).then((resolved) => respond({ resolved }));
+      });
     };
     if (sender.tab?.id != null) run(sender.tab.id);
     else chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => run(tabs[0]?.id));
@@ -425,7 +434,12 @@ export const messageRouter: MessageRouter = {
         // internal/loopback/link-local host. Throws → the catch below reports a
         // non-fatal failure and no fetch happens.
         assertSafeCaptureUrl(manifestUrl);
-        const text = await (await fetch(manifestUrl)).text();
+        // `redirect: 'error'` because assertSafeCaptureUrl only screens the initial
+        // URL — a public manifest host that 3xx-redirects to an internal target would
+        // otherwise be followed by this <all_urls>, CORS-free fetch (the capture
+        // engines wrap fetch the same way). readBoundedText caps the body so an
+        // endless/huge manifest can't OOM the worker.
+        const text = await readBoundedText(await fetch(manifestUrl, { redirect: 'error' }));
         const variants = engine === 'dash'
           ? variantsFromMpd(text, manifestUrl)
           : isMasterPlaylist(text) ? variantsFromMaster(text, manifestUrl) : [];

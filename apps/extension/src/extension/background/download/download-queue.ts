@@ -22,7 +22,16 @@ function withState<T>(fn: (s: QueueState) => Promise<{ state: QueueState; value:
   const run = chain.then(async () => {
     const s = await loadQueue();
     const { state, value } = await fn(s);
-    if (state !== s) await saveQueue(state);
+    if (state !== s) {
+      const persisted = await saveQueue(state);
+      // durableSet hit the storage quota (a base64/`data:`-heavy bulk enqueue is
+      // the usual trigger — live items aren't byte-capped, only finished ones).
+      // The in-memory queue still drives this session, but a SW restart would drop
+      // it — surface that instead of the previous silent loss.
+      if (!persisted) {
+        console.warn('[mbd] download queue exceeded the storage quota; pending items may not survive a service-worker restart.');
+      }
+    }
     return value;
   });
   // Keep the chain alive regardless of individual outcomes.
@@ -81,6 +90,10 @@ export async function pump(): Promise<void> {
           value: null,
         }));
       } catch {
+        // If the rule installed but persisting its id threw, tear it down here —
+        // otherwise its id is lost to every teardown path and it would force a
+        // Referer/Origin on this URL for the rest of the browser session.
+        if (ruleId != null) await removeRefererRule(ruleId).catch(() => {});
         ruleId = undefined;
       }
     }

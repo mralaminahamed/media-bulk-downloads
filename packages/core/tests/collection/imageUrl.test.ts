@@ -60,6 +60,15 @@ describe('parseUrlDimensions', () => {
     // but a real, boundary-delimited token still parses.
     expect(parseUrlDimensions('https://cdn.test/hero-1920x1080.jpg')).toEqual({ width: 1920, height: 1080 });
   });
+
+  it('does not read a slash-delimited path segment as a size (date/id false positive)', () => {
+    // `/12x34/` is a bare path segment (a date/id folder), not a `_`/`-`/`=`-delimited
+    // size token — reporting {12,34} here would wrongly filter out a large image.
+    expect(parseUrlDimensions('https://cdn.test/2024/12x34/photo.jpg')).toBeNull();
+    // A dimension folder without a separator is likewise not trusted (returns null →
+    // unknown size → not filtered, rather than a possibly-wrong tiny size).
+    expect(parseUrlDimensions('https://cdn.test/800x600/photo.jpg')).toBeNull();
+  });
 });
 
 describe('upgradeToOriginal', () => {

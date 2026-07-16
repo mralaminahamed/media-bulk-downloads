@@ -68,6 +68,15 @@ describe('requestCaptureStream', () => {
     expect(chrome.runtime.onMessage.removeListener).toHaveBeenCalled();
   });
 
+  it('removes its listener and resolves a failure when sendMessage throws synchronously (invalidated context)', async () => {
+    (chrome.runtime.sendMessage as Mock).mockImplementation(() => { throw new Error('Extension context invalidated.'); });
+    const promise = requestCaptureStream(item, { url: 'https://x/watch' }, vi.fn());
+    const listener = (chrome.runtime.onMessage.addListener as Mock).mock.calls.at(-1)![0];
+    await expect(promise).resolves.toEqual({ status: 'Couldn’t capture the stream.' });
+    // The listener added before the send must not leak.
+    expect(chrome.runtime.onMessage.removeListener).toHaveBeenCalledWith(listener);
+  });
+
   it('passes a refusal through so the popup can offer the copy-command handoff (#285)', async () => {
     (chrome.runtime.sendMessage as Mock).mockImplementation((_msg, cb) =>
       cb({ status: 'This stream is DRM-protected and can’t be captured.', refusal: { code: 'drm' } }),

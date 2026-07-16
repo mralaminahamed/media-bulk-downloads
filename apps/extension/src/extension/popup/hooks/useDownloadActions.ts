@@ -7,6 +7,7 @@ import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { hostFromUrl, registrableDomain, todayISO } from '@mbd/core/collection/paths';
 import { requestCaptureStream } from '@/extension/shared/active-tab/capture-stream-active';
 import { isSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
+import { stripUrlSecrets } from '@mbd/core/net/url-secrets';
 import { copyText, downloadText, mapWithConcurrency, sendRuntimeMessage } from '@/extension/popup/utils';
 import { downloadable } from '@/extension/popup/lib/appHelpers';
 
@@ -293,7 +294,11 @@ export function useDownloadActions({
 
   // ── Copy / export links ──────────────────────────────────────────────────
   const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
-  const linkList = (images: ImageInfo[]): string => images.map((i) => i.src).join('\n');
+  // Strip signed-URL secrets (?sig/token/Signature/Expires/…) before the URLs are
+  // copied to the clipboard or written to a shareable .txt — the same filter the
+  // metadata sidecar and the yt-dlp/ffmpeg command already apply, per the
+  // url-secrets contract ("anything we hand to the user or write to disk").
+  const linkList = (images: ImageInfo[]): string => images.map((i) => stripUrlSecrets(i.src)).join('\n');
   const linksFileName = (url?: string): string => {
     const domain = registrableDomain(hostFromUrl(url));
     return `${domain ? `${domain}-` : ''}media-links-${todayISO()}.txt`;
