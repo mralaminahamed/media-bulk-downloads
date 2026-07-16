@@ -10,6 +10,27 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Fediverse trio (2026-07-16)** — one host-agnostic rule per network in
+  `imageUrl.ts` (matched on the media path across any instance, like the Mastodon
+  resolver), each curl-verified on live public instances (#406/#410/#411):
+  - **Pixelfed** (#406) — CdnRule: strip `_thumb` before the extension on a
+    `/m/_v2/` media path. Host-agnostic — works on self-hosted `/storage/m/_v2/`
+    *and* the `pxscdn.com` `/public/m/_v2/` CDN; the `/m/_v2/` gate + underscore-free
+    base62 filenames make `_thumb` unambiguous. Verified 143 KB → 345 KB. The API/AP
+    `url`, og:image, and single-post view already serve the bare original (free-ride).
+  - **Misskey / Sharkey** (#410) — `deproxy()` branch: unwrap the media proxy to the
+    real original. Two shapes — `<instance>/proxy/<name>.webp?url=<encoded>` (the
+    proxy path deceptively ends in `.webp`, so this runs *before* the MEDIA_EXT
+    guard) and misskey.io's `proxy.misskeyusercontent.jp/(image|static)/<path-encoded>`.
+    A note's own `files[].url` is already the original (free-ride). Verified proxy
+    16 KB → original 105 KB.
+  - **Lemmy / pict-rs** (#411) — CdnRule: strip `?thumbnail=/?format=` from a
+    `/pictrs/image/` URL → the stored original in its own format. NOTE: current
+    0.19.x mostly uses *separate-UUID* thumbnails (not param-addressable — the API's
+    `post.url` is the bare original there) or an `/api/v3/image_proxy?url=` wrapper
+    (already unwrapped by the generic de-proxy — regression-tested), so this rule
+    covers the legacy / param-carrying case. Verified: pict-rs honours the params
+    (thumbnail=256 = 11 KB) and the bare path is the 577 KB original.
 - ✅ **Tier-2 sweep batch 2 (2026-07-16)** — the six publicly-verifiable tier-2
   candidates (#384/#386/#388/#393/#403/#417), characterized against real pages;
   most collapsed to simpler layers than the "DOM resolver" label suggested:
