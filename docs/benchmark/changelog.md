@@ -10,6 +10,17 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Shopify product-page resolver (2026-07-16)** — beyond the passive image
+  upgrade (`_WxH`/`?width=` strip, benchmarked 75/75 on Allbirds), a dedicated
+  resolver now surfaces the **complete** product media set from the store's public,
+  same-origin `/products/<handle>.js` endpoint: every variant image plus **product
+  videos** (highest-res mp4, else the HLS master), with the preview as poster.
+  Detected from the page's `cdn.shopify.com` / `/cdn/shop/` assets (Shopify has no
+  fixed host), fetched credential-free and time-bounded in the content-script
+  GET_IMAGES prelude, then read synchronously by `shopifyPageMedia` — the same
+  sniffer→ingest→pageMedia shape as pinterest/instagram/facebook. Untrusted JSON:
+  every URL host-pinned to the Shopify CDN families or the page's own origin;
+  external_video (YouTube/Vimeo) and 3D models skipped.
 - ✅ **Shopify modern**, **plus.unsplash.com**, **Twitter video**,
   **Pexels**, **Pixabay**, **Flickr**, **Etsy**, **eBay**, **The Verge**, **Substack**,
   **Behance** — as in prior runs.

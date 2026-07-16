@@ -38,6 +38,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Chrome's three-state download model (recovering stuck items and capping retries).
 
 ### Added
+- **Shopify product-page resolver.** On a Shopify store's product page, collection
+  now surfaces the **complete** media set — every variant image **and product
+  videos** — by reading the store's public, same-origin `/products/<handle>.js`
+  endpoint, covering media the lazy/variant DOM never renders (and videos the
+  passive image rule can't reach). Same-origin only (no new permission, no cookies
+  sent), auto-detected from the page's Shopify CDN assets, and time-bounded so it
+  never blocks collection. Images still upgrade to originals via the existing
+  `cdn.shopify.com` rule.
 - **Multi-tab batch collection** (#283). Collect media from **all** or
   **selected** open tabs in a single pass and download the combined set from the
   popup's tab picker; each file is tagged with its own source tab (history row,
