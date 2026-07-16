@@ -372,6 +372,15 @@ async function fetchDashTrack(
   const limit = Math.max(1, deps.concurrency ?? 6);
   await Promise.all(Array.from({ length: Math.min(limit, total) }, worker));
   const init = seg.initUri ? await deps.fetchBytes(seg.initUri) : undefined;
+  // Count the init segment against the same budget as the media segments so the
+  // per-track cap stays exact (fetched after the loop, it would otherwise let the
+  // assembled total overshoot maxBytes by one segment).
+  if (init) {
+    budget.used += init.length;
+    if (budget.max && budget.used > budget.max) {
+      throw new DashError('too-large', 'Stream exceeds the maximum capture size.');
+    }
+  }
   return { init, segments: parts };
 }
 

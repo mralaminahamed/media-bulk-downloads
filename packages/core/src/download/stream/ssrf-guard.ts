@@ -133,7 +133,11 @@ export function isSafeCaptureUrl(rawUrl: string): boolean {
   const host = u.hostname.toLowerCase();
   if (!host) return false;
   if (BLOCKED_HOST_EXACT.has(host)) return false;
-  if (host.endsWith('.localhost') || host.endsWith('.local')) return false;
+  // Reserved internal-use name classes. `.internal` (ICANN-reserved 2024) covers
+  // cloud internal hosts like metadata.google.internal (a DNS alias for the
+  // 169.254.169.254 metadata IP) — a name-based bypass its `.local`/`.localhost`
+  // siblings already block.
+  if (host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) return false;
 
   // IPv6 literals arrive bracketed (e.g. "[::1]").
   if (host.startsWith('[') || host.includes(':')) return !isBlockedV6(host);

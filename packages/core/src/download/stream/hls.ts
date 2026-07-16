@@ -506,6 +506,15 @@ async function fetchTrack(
   await Promise.all(Array.from({ length: Math.min(limit, total) }, worker));
 
   const init = playlist.initUri ? await fetchBytesOrFail(playlist.initUri, playlist.initByteRange) : undefined;
+  // Count the fMP4 init segment against the same budget as the media segments so
+  // the per-track cap stays exact (it's fetched after the segment loop, so it
+  // would otherwise let the assembled total overshoot maxBytes by one segment).
+  if (init) {
+    budget.used += init.length;
+    if (budget.max && budget.used > budget.max) {
+      throw new HlsError('too-large', 'Stream exceeds the maximum capture size.');
+    }
+  }
   return { init, segments: parts };
 }
 
