@@ -412,7 +412,7 @@ const App: React.FC<AppProps> = ({
         )}
       </main>
 
-      <SaveAsPromptHint />
+      <SaveAsPromptHint surface={surface} />
 
       {/* Persistent download queue: per-file status + pause/resume/cancel/retry
           (#196). Renders nothing when the queue is empty. */}

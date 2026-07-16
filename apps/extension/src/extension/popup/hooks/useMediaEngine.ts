@@ -78,6 +78,18 @@ export function useMediaEngine({
   });
   const [deepScanning, setDeepScanning] = useState(false);
   const [deepProgress, setDeepProgress] = useState<DeepScanProgress | null>(null);
+
+  // A deep scan is driven over one-shot messaging (no long-lived port), so closing
+  // the popup mid-scan leaves the content script auto-scrolling the live page until
+  // an internal cap. Abort it on popup teardown. `pagehide` fires when the popup
+  // document unloads; the ref keeps the listener from re-registering each render.
+  const deepScanningRef = useRef(false);
+  useEffect(() => { deepScanningRef.current = deepScanning; }, [deepScanning]);
+  useEffect(() => {
+    const onHide = (): void => { if (deepScanningRef.current) abortDeepScan(); };
+    window.addEventListener('pagehide', onHide);
+    return () => window.removeEventListener('pagehide', onHide);
+  }, [abortDeepScan]);
   // Page-type-derived filter seed, surfaced to FilterToolbar as `initialFilters`
   // when `smartPageDefaults` is on; `{}` (today's defaults) otherwise.
   const [filterSeed, setFilterSeed] = useState<Partial<FilterOptions>>({});
@@ -341,6 +353,12 @@ export function useMediaEngine({
       // A rescan superseded this scan while it ran — discard its now-stale results
       // rather than clobber the freshly re-collected grid.
       if (generation !== resolveGenRef.current) return;
+      // This deep scan is now the freshest write. Bump scanGenRef so a fetchImages
+      // still awaiting its own (slower) collect() — e.g. a multi-tab "All tabs"
+      // collect the user kicked off before clicking Deep scan, whose button isn't
+      // disabled during load — self-discards at its own generation guard instead of
+      // clobbering these merged deep-scan results with the shallower set.
+      scanGenRef.current++;
       // Merge deep-scan results into the collected set: a resolver identity
       // (mediaKey) upgrade-replaces its prior rendition (a Facebook grid tile ->
       // the sniffed original), while a rotating-CDN canonical repeat keeps the

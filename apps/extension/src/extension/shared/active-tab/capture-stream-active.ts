@@ -39,10 +39,18 @@ export function requestCaptureStream(
       ...(audioFormat ? { audioFormat } : {}),
       ...(quality != null ? { quality } : {}),
     };
-    chrome.runtime.sendMessage(message, (response?: CaptureStreamResponse) => {
+    try {
+      chrome.runtime.sendMessage(message, (response?: CaptureStreamResponse) => {
+        chrome.runtime.onMessage.removeListener(listener);
+        void chrome.runtime.lastError;
+        resolve({ status: response?.status ?? 'Couldn’t capture the stream.', refusal: response?.refusal });
+      });
+    } catch {
+      // Invalidated context (extension reloaded mid-call): sendMessage can throw
+      // synchronously. Remove the listener added just above and resolve a failure
+      // rather than leak it and hang the promise forever.
       chrome.runtime.onMessage.removeListener(listener);
-      void chrome.runtime.lastError;
-      resolve({ status: response?.status ?? 'Couldn’t capture the stream.', refusal: response?.refusal });
-    });
+      resolve({ status: 'Couldn’t capture the stream.' });
+    }
   });
 }
