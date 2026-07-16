@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { XMarkIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
 import { listOpenTabs, OpenTabInfo } from '@/extension/shared/active-tab/collect-open-tabs';
-import { useDialog } from '@/extension/popup/hooks/useDialog';
+import { useDrawer } from '@/extension/popup/hooks/useDrawer';
 
 export interface TabPickerPanelProps {
   onClose: () => void;
@@ -28,7 +28,7 @@ const safeHost = (url: string): string => {
  * checkbox each, and confirms the chosen subset for a multi-tab collect.
  */
 const TabPickerPanel: React.FC<TabPickerPanelProps> = ({ onClose, onConfirm, initialSelected = [], loadTabs = listOpenTabs }) => {
-  const panelRef = useDialog(onClose);
+  const { ref: panelRef, requestClose, onAnimationEnd, scrimClass, drawerClass } = useDrawer(onClose);
   const [tabs, setTabs] = useState<OpenTabInfo[] | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set(initialSelected));
 
@@ -54,15 +54,16 @@ const TabPickerPanel: React.FC<TabPickerPanelProps> = ({ onClose, onConfirm, ini
   const toggleAll = (): void => setSelected(allSelected ? new Set() : new Set((tabs ?? []).map((t) => t.id)));
 
   return (
-    <div className="overlay-in mbd:fixed mbd:inset-0 mbd:z-50 mbd:flex mbd:items-stretch mbd:justify-end mbd:bg-(--overlay) mbd:backdrop-blur-[2px]" onClick={onClose}>
+    <div className={`${scrimClass} mbd:fixed mbd:inset-0 mbd:z-50 mbd:flex mbd:items-stretch mbd:justify-end mbd:bg-(--overlay) mbd:backdrop-blur-[2px]`} onClick={requestClose}>
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="tabpicker-title"
         tabIndex={-1}
-        className="drawer-in mbd:flex mbd:h-full mbd:w-full mbd:max-w-[380px] mbd:flex-col mbd:bg-(--panel) mbd:shadow-2xl mbd:focus:outline-none"
+        className={`${drawerClass} mbd:flex mbd:h-full mbd:w-full mbd:max-w-[380px] mbd:flex-col mbd:bg-(--panel) mbd:shadow-2xl mbd:focus:outline-none`}
         onClick={(e) => e.stopPropagation()}
+        onAnimationEnd={onAnimationEnd}
       >
         <header className="mbd:flex mbd:items-center mbd:justify-between mbd:border-b hairline mbd:px-4 mbd:py-3">
           <div>
@@ -75,7 +76,7 @@ const TabPickerPanel: React.FC<TabPickerPanelProps> = ({ onClose, onConfirm, ini
                 {allSelected ? 'Clear' : 'All'}
               </button>
             )}
-            <button onClick={onClose} className="iconbtn" title="Close" aria-label="Close">
+            <button onClick={requestClose} className="iconbtn" title="Close" aria-label="Close">
               <XMarkIcon className="mbd:h-4.5 mbd:w-4.5" />
             </button>
           </div>

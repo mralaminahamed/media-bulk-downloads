@@ -3,7 +3,7 @@ import { XMarkIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { ExcludedEntry } from '@mbd/core/types';
 import { loadExcluded, EXCLUDED_KEY } from '@mbd/storage/excluded';
 import { sendRuntimeMessage } from '@/extension/popup/utils';
-import { useDialog } from '@/extension/popup/hooks/useDialog';
+import { useDrawer } from '@/extension/popup/hooks/useDrawer';
 import { ClearAllButton } from '@/extension/popup/components/fields/ClearAllButton';
 
 export interface ExcludedPanelProps {
@@ -26,7 +26,7 @@ const displayName = (src: string): string => {
 
 const ExcludedPanel: React.FC<ExcludedPanelProps> = ({ onClose }) => {
   const [entries, setEntries] = useState<ExcludedEntry[]>([]);
-  const panelRef = useDialog(onClose);
+  const { ref: panelRef, requestClose, onAnimationEnd, scrimClass, drawerClass } = useDrawer(onClose);
 
   useEffect(() => {
     void loadExcluded().then(setEntries);
@@ -54,15 +54,16 @@ const ExcludedPanel: React.FC<ExcludedPanelProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="overlay-in mbd:fixed mbd:inset-0 mbd:z-50 mbd:flex mbd:items-stretch mbd:justify-end mbd:bg-(--overlay) mbd:backdrop-blur-[2px]" onClick={onClose}>
+    <div className={`${scrimClass} mbd:fixed mbd:inset-0 mbd:z-50 mbd:flex mbd:items-stretch mbd:justify-end mbd:bg-(--overlay) mbd:backdrop-blur-[2px]`} onClick={requestClose}>
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="excluded-title"
         tabIndex={-1}
-        className="drawer-in mbd:flex mbd:h-full mbd:w-full mbd:max-w-[380px] mbd:flex-col mbd:bg-(--panel) mbd:shadow-2xl mbd:focus:outline-none"
+        className={`${drawerClass} mbd:flex mbd:h-full mbd:w-full mbd:max-w-[380px] mbd:flex-col mbd:bg-(--panel) mbd:shadow-2xl mbd:focus:outline-none`}
         onClick={(e) => e.stopPropagation()}
+        onAnimationEnd={onAnimationEnd}
       >
         <header className="mbd:flex mbd:items-center mbd:justify-between mbd:border-b hairline mbd:px-4 mbd:py-3">
           <div>
@@ -71,7 +72,7 @@ const ExcludedPanel: React.FC<ExcludedPanelProps> = ({ onClose }) => {
           </div>
           <div className="mbd:flex mbd:items-center mbd:gap-0.5">
             <ClearAllButton onClear={handleClearAll} disabled={sorted.length === 0} />
-            <button onClick={onClose} className="iconbtn" title="Close" aria-label="Close">
+            <button onClick={requestClose} className="iconbtn" title="Close" aria-label="Close">
               <XMarkIcon className="mbd:h-4.5 mbd:w-4.5" />
             </button>
           </div>
