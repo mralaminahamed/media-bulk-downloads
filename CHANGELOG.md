@@ -80,39 +80,6 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   format, e.g. a PNG behind a sample JPG). Its videos already downloaded at full
   quality — the post player streams the original `.mp4` directly — so this fills
   in the still-image half of the site.
-
-### Fixed
-- **Extension audit — 10 correctness fixes.** A deep scan / video resolve is no
-  longer discarded by a mid-scan settings change; the near-duplicate pass no
-  longer aborts when image sizes finish loading; a sole flaky download no longer
-  hangs in the queue (and a retry no longer waits on an unrelated download);
-  cancelling an item now aborts its transfer and tears down its referer rule; a
-  multi-tab item's metadata sidecar records its own source page; the on-page
-  bubble's collect + deep scan honour smart-page-defaults, resolve-originals, and
-  per-host settings; near-duplicate clustering no longer chains distinct frames
-  into one hidden group; and an oversized audio-only capture fails cleanly instead
-  of risking an out-of-memory crash.
-- **"Can't read this page" in the on-page bubble.** With smart page defaults on by
-  default, the bubble surface (which runs inside the page, where `chrome.tabs` is
-  unavailable) crashed its scan with "Cannot read properties of undefined (reading
-  'query')". Page-type classification now degrades to "unknown" in that context
-  instead of throwing.
-- **Duplicate files on download (`image.png`, `image (2).png`).** Bulk downloads
-  now skip images already saved to disk, and give distinct images that derive the
-  same filename clean unique names within a batch (`image.png`, `image-2.png`)
-  instead of the browser's " (2)" suffix. Controlled by a new "Skip images already
-  downloaded" setting (on by default); re-downloads from Favourites/History always
-  go through.
-- **YouTube / BBC thumbnail 404s.** YouTube now upgrades only small thumbnails to
-  the always-present `hqdefault` (no dead `maxresdefault` links), and BBC targets
-  the width `2048` that its `/news/` path actually serves instead of a 404ing `1920`.
-- **Security & correctness hardening.** A project-wide audit sweep closed several
-  SSRF holes (popup image/convert fetches, the HLS/DASH segment and ZIP fetchers),
-  hardened the on-device stores against storage-quota and corrupt values, capped and
-  host-pinned the MAIN-world media sniffers, and aligned the download queue with
-  Chrome's three-state download model (recovering stuck items and capping retries).
-
-### Added
 - **Shopify product-page resolver.** On a Shopify store's product page, collection
   now surfaces the **complete** media set — every variant image **and product
   videos** — by reading the store's public, same-origin `/products/<handle>.js`
@@ -170,6 +137,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (SSRF-guarded).
 - **Per-stream rendition picker** (#314): pick the exact HLS/DASH quality per stream
   from the grid or preview, with a live preview of the chosen rendition.
+- 
 - **Stream capture quality** (#288): a global default — auto / best / worst / 1080 /
   720 / 480 — for which variant capture selects.
 - **Audio-only capture** (#204): extract just the audio track (M4A / AAC
@@ -198,6 +166,42 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Downloads retry transient failures.** Opt-in resolve fetches and HLS/DASH
   segment fetches now retry transient 429 / 5xx / network blips with bounded
   backoff (honouring `Retry-After`) before giving up.
+- **Side panels slide in from the right.** The right-anchored drawers — Settings,
+  Favourites, Excluded, Download-history, and the Tab picker — now animate in with
+  a right→left slide instead of the shared rise-and-fade, matching their drawer
+  layout. The centred image-preview modal and on-page bubble keep the old entrance,
+  and the slide is disabled under `prefers-reduced-motion`.
+
+### Fixed
+- **Extension audit — 10 correctness fixes.** A deep scan / video resolve is no
+  longer discarded by a mid-scan settings change; the near-duplicate pass no
+  longer aborts when image sizes finish loading; a sole flaky download no longer
+  hangs in the queue (and a retry no longer waits on an unrelated download);
+  cancelling an item now aborts its transfer and tears down its referer rule; a
+  multi-tab item's metadata sidecar records its own source page; the on-page
+  bubble's collect + deep scan honour smart-page-defaults, resolve-originals, and
+  per-host settings; near-duplicate clustering no longer chains distinct frames
+  into one hidden group; and an oversized audio-only capture fails cleanly instead
+  of risking an out-of-memory crash.
+- **"Can't read this page" in the on-page bubble.** With smart page defaults on by
+  default, the bubble surface (which runs inside the page, where `chrome.tabs` is
+  unavailable) crashed its scan with "Cannot read properties of undefined (reading
+  'query')". Page-type classification now degrades to "unknown" in that context
+  instead of throwing.
+- **Duplicate files on download (`image.png`, `image (2).png`).** Bulk downloads
+  now skip images already saved to disk, and give distinct images that derive the
+  same filename clean unique names within a batch (`image.png`, `image-2.png`)
+  instead of the browser's " (2)" suffix. Controlled by a new "Skip images already
+  downloaded" setting (on by default); re-downloads from Favourites/History always
+  go through.
+- **YouTube / BBC thumbnail 404s.** YouTube now upgrades only small thumbnails to
+  the always-present `hqdefault` (no dead `maxresdefault` links), and BBC targets
+  the width `2048` that its `/news/` path actually serves instead of a 404ing `1920`.
+- **Security & correctness hardening.** A project-wide audit sweep closed several
+  SSRF holes (popup image/convert fetches, the HLS/DASH segment and ZIP fetchers),
+  hardened the on-device stores against storage-quota and corrupt values, capped and
+  host-pinned the MAIN-world media sniffers, and aligned the download queue with
+  Chrome's three-state download model (recovering stuck items and capping retries).
 
 ## [1.2.0] - 2026-07-11
 
