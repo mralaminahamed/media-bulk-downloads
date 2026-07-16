@@ -341,6 +341,9 @@ describe('Bubble', () => {
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Deep scan' }));
+    // deepScanLocal awaits ensureShopifyProduct (Shopify store priming) before
+    // calling startDeepScan, so the call lands a microtask after the click.
+    await waitFor(() => expect(startDeepScan as Mock).toHaveBeenCalled());
     const signal = (startDeepScan as Mock).mock.calls[0][1] as AbortSignal;
     expect(signal.aborted).toBe(false);
 
@@ -586,6 +589,7 @@ describe('Bubble', () => {
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Deep scan' }));
+    await waitFor(() => expect(startDeepScan as Mock).toHaveBeenCalled());
     const signal = (startDeepScan as Mock).mock.calls[0][1] as AbortSignal;
     expect(signal.aborted).toBe(false);
 

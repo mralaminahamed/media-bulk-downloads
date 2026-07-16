@@ -5,6 +5,7 @@ import { overrideForHost, applyHostOverride } from '@mbd/storage/per-host-settin
 import { registrableDomain } from '@mbd/core/collection/paths';
 import { collectMedia } from '@/extension/content/collect';
 import { startDeepScan } from '@/extension/content/deepScanRunner';
+import { ensureShopifyProduct } from '@/extension/content/shopify-product';
 import App from '@/extension/popup/App';
 import { BrandMark } from '@/extension/components/BrandMark';
 
@@ -151,18 +152,25 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
   // Collect using the effective settings so `smartPageDefaults` (hero-first order)
   // and `resolveOriginals` (gallery-page pending items) apply in the bubble too —
   // the popup path passes these; without them both settings were dead no-ops here.
-  const collectLocal = useCallback((): Promise<ImageInfo[]> => {
+  const collectLocal = useCallback(async (): Promise<ImageInfo[]> => {
     const s = effectiveRef.current;
-    return Promise.resolve(collectMedia(undefined, { smartPageDefaults: s.smartPageDefaults, resolveOriginals: s.resolveOriginals }));
+    // Prime the Shopify store (same-origin /products/<handle>.js) before the
+    // synchronous collectMedia — the bubble collects in-page, so it doesn't go
+    // through the content GET_IMAGES prelude that primes it for the popup path.
+    await ensureShopifyProduct(location.href);
+    return collectMedia(undefined, { smartPageDefaults: s.smartPageDefaults, resolveOriginals: s.resolveOriginals });
   }, []);
 
   // Deep scan runs in-page here (no messaging); track the in-flight controller so
   // the Stop button can abort it.
   const deepScanAbortRef = useRef<AbortController | null>(null);
-  const deepScanLocal = useCallback((onProgress: (p: DeepScanProgress) => void): Promise<ImageInfo[]> => {
+  const deepScanLocal = useCallback(async (onProgress: (p: DeepScanProgress) => void): Promise<ImageInfo[]> => {
     const ac = new AbortController();
     deepScanAbortRef.current = ac;
     const s = effectiveRef.current;
+    // Prime the Shopify store once before the scan's synchronous per-scroll
+    // collectMedia calls (ac is already set, so Stop can abort during this).
+    await ensureShopifyProduct(location.href);
     return startDeepScan(
       (found, scrolls, elapsedMs, reason) => {
         const p: DeepScanProgress = { type: 'DEEP_SCAN_PROGRESS', found, scrolls, elapsedMs };

@@ -53,9 +53,11 @@ describe('Bubble collect/deep-scan honour effective settings', () => {
     // Let refreshEffective() layer the override into effectiveRef.
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
 
-    const { fireEvent } = await import('@testing-library/react');
+    const { fireEvent, waitFor } = await import('@testing-library/react');
     fireEvent.click(screen.getByRole('button', { name: 'Deep scan' }));
 
+    // deepScanLocal awaits ensureShopifyProduct before startDeepScan.
+    await waitFor(() => expect(startDeepScan as Mock).toHaveBeenCalled());
     const config = (startDeepScan as Mock).mock.calls[0][2] as { maxItems: number };
     expect(config.maxItems).toBe(7); // the host override, not the global 1000
   });

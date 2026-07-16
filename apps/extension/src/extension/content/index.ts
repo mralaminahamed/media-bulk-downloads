@@ -182,7 +182,10 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
     };
     // Read this host's effective deep-scan caps before starting (#293).
     void loadEffectiveSettingsForHost(location.hostname)
-      .then((s) => {
+      .then(async (s) => {
+        // Prime the Shopify store once before the scan (the per-scroll collectMedia
+        // calls are synchronous). No-op off a Shopify product page.
+        await ensureShopifyProduct(location.href);
         startDeepScan(onProgress, signal, {
           maxItems: s.deepScanMaxItems,
           maxMs: s.deepScanMaxSeconds * 1000,
