@@ -174,6 +174,17 @@ function fbidFromContext(ctx: ResolveContext): string | null {
   return fbidFromUrl(ctx.pageUrl);
 }
 
+/** Candidates for one fbid, each with a mediaKey. A single media keeps the bare
+ *  `fb:<fbid>` identity so a later-sniffed original upgrade-replaces the unresolved
+ *  placeholder row. When one fbid legitimately carries MORE than one distinct media
+ *  (a video plus a separate non-poster image), each gets a per-entry key so the
+ *  deep-scan merge — which dedups by mediaKey — doesn't collapse them last-wins and
+ *  silently drop one. */
+function keyedFbidCandidates(entries: Parameters<typeof collapseFbidGroup>[0], key: string): MediaCandidate[] {
+  const group = collapseFbidGroup(entries);
+  return group.map((e, i) => ({ ...toCandidate(e), mediaKey: group.length === 1 ? key : `${key}#${i}` }));
+}
+
 export const facebookResolver: Resolver = {
   id: 'facebook',
   hosts: ['fbcdn.net', 'cdninstagram.com'],
@@ -183,7 +194,7 @@ export const facebookResolver: Resolver = {
     if (!fbid) return [];
     const key = `fb:${fbid}`;
     const entries = buildByFbid().get(fbid);
-    if (entries && entries.length) return collapseFbidGroup(entries).map((e) => ({ ...toCandidate(e), mediaKey: key }));
+    if (entries && entries.length) return keyedFbidCandidates(entries, key);
     // No original sniffed yet: surface the tile's own src (as the generic fallback
     // would) but TAGGED with the photo identity, so when the original later lands
     // the deep-scan merge upgrade-replaces this row instead of adding a duplicate.
@@ -197,5 +208,5 @@ export function facebookPageMedia(pageUrl?: string): MediaCandidate[] {
   if (!fbid) return [];
   const key = `fb:${fbid}`;
   const entries = buildByFbid().get(fbid);
-  return entries ? collapseFbidGroup(entries).map((e) => ({ ...toCandidate(e), mediaKey: key })) : [];
+  return entries ? keyedFbidCandidates(entries, key) : [];
 }

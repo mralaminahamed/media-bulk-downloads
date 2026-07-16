@@ -243,8 +243,11 @@ function safeDecode(s: string): string {
   }
 }
 
-/** A standalone `WxH` token, e.g. 360x480 — not part of a longer number run. */
-const WxH = /(?<![\dA-Za-z])(\d{2,5})x(\d{2,5})(?![\dA-Za-z])/i;
+/** A `WxH` size token immediately preceded by a dimension separator (`_800x600`
+ *  Shopify, `-800x600` generic filename, `name=360x480` query) — NOT a bare
+ *  slash-delimited path segment like a date/id `/12x34/`, which would otherwise
+ *  match and report a tiny spurious size that wrongly filters out a large image. */
+const WxH = /(?<=[-_=])(\d{2,5})x(\d{2,5})(?![\dA-Za-z])/i;
 
 /**
  * Best-effort pixel dimensions encoded in a URL. Handles `name=WxH`, bare `WxH`
