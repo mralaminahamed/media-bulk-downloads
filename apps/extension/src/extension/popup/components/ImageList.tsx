@@ -456,7 +456,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, onCaptur
             aria-modal="true"
             aria-labelledby="preview-title"
             tabIndex={-1}
-            className="sheet-in mbd:flex mbd:max-h-full mbd:w-full mbd:flex-col mbd:overflow-hidden mbd:rounded-lg mbd:border hairline mbd:bg-(--panel) mbd:shadow-2xl mbd:focus:outline-none"
+            className="mbd:flex mbd:max-h-full mbd:w-full mbd:flex-col mbd:overflow-hidden mbd:rounded-lg mbd:border hairline mbd:bg-(--panel) mbd:shadow-2xl mbd:focus:outline-none"
             style={{ maxWidth: Math.max(320, previewSize) }}
             onClick={(e) => e.stopPropagation()}
           >
