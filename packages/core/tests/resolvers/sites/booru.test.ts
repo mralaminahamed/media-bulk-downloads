@@ -1,6 +1,6 @@
 import { booruResolver } from '@mbd/core/resolvers/sites/booru';
 
-const PAGE = { danbooru: 'https://danbooru.donmai.us/posts/12345', gel: 'https://gelbooru.com/index.php?page=post&s=view&id=1', yan: 'https://yande.re/post/show/1' };
+const PAGE = { danbooru: 'https://danbooru.donmai.us/posts/12345', gel: 'https://gelbooru.com/index.php?page=post&s=view&id=1', yan: 'https://yande.re/post/show/1', saku: 'https://www.sakugabooru.com/post/show/305164' };
 const ctx = (el: Element | undefined, pageUrl: string) => ({ el, allowNetwork: false as const, pageUrl });
 
 describe('booruResolver', () => {
@@ -261,5 +261,78 @@ describe('booruResolver', () => {
     container.appendChild(img);
     document.body.appendChild(container);
     expect(booruResolver.resolve(new URL('https://derpicdn.net/img/thumb.png'), ctx(img, 'https://derpibooru.org/images/1'))).toEqual([]);
+  });
+
+  // Sakugabooru (Moebooru-skinned). Real post DOM captured live 2026-07-16:
+  // image/settei posts serve a `/data/sample/<hash>.jpg` downscale in `#image`
+  // and link the true original via `a.original-file-changed#highres` (which can
+  // be a different, larger format, e.g. a PNG behind a sample JPG). Originals are
+  // self-hosted on www.sakugabooru.com/data/, so the pin is the page's own host.
+  it('Sakugabooru: match() recognises the www-canonical page host (and bare host)', () => {
+    const u = new URL('https://www.sakugabooru.com/data/sample/hash.jpg');
+    expect(booruResolver.match(u, ctx(undefined, PAGE.saku))).toBe(true);
+    expect(booruResolver.match(u, ctx(undefined, 'https://sakugabooru.com/post/show/1'))).toBe(true);
+    expect(booruResolver.match(u, ctx(undefined, 'https://evil.example.com/'))).toBe(false);
+  });
+
+  it('Sakugabooru: upgrades a /data/sample/ display image to its original-file-changed link', () => {
+    const link = document.createElement('a');
+    link.className = 'original-file-changed';
+    link.id = 'highres';
+    // Sample shown is a JPG; the linked original is a larger PNG (post 305164).
+    link.setAttribute('href', 'https://www.sakugabooru.com/data/b1a30dc88ac1d0432996cfe51d5acda1.png');
+    document.body.appendChild(link);
+    const img = document.createElement('img');
+    img.id = 'image';
+    img.setAttribute('src', 'https://www.sakugabooru.com/data/sample/b1a30dc88ac1d0432996cfe51d5acda1.jpg');
+    document.body.appendChild(img);
+    const [c] = booruResolver.resolve(new URL('https://www.sakugabooru.com/data/sample/b1a30dc88ac1d0432996cfe51d5acda1.jpg'), ctx(img, PAGE.saku));
+    expect(c.url).toBe('https://www.sakugabooru.com/data/b1a30dc88ac1d0432996cfe51d5acda1.png');
+    expect(c.kind).toBe('image');
+    expect(c.ext).toBe('png');
+    expect(c.thumbnailSrc).toBe('https://www.sakugabooru.com/data/sample/b1a30dc88ac1d0432996cfe51d5acda1.jpg');
+  });
+
+  it('Sakugabooru: no-op when the displayed image already IS the original (original-file-unchanged)', () => {
+    const link = document.createElement('a');
+    link.className = 'original-file-unchanged';
+    link.id = 'highres';
+    link.setAttribute('href', 'https://www.sakugabooru.com/data/5429cb5b929f8c311fc5ed2b9b024978.jpg');
+    document.body.appendChild(link);
+    const img = document.createElement('img');
+    img.id = 'image';
+    img.setAttribute('src', 'https://www.sakugabooru.com/data/5429cb5b929f8c311fc5ed2b9b024978.jpg');
+    document.body.appendChild(img);
+    // original === displayed → pinned === u.href → [] (nothing to upgrade).
+    expect(booruResolver.resolve(new URL('https://www.sakugabooru.com/data/5429cb5b929f8c311fc5ed2b9b024978.jpg'), ctx(img, PAGE.saku))).toEqual([]);
+  });
+
+  it('Sakugabooru fail-safe: an off-host original link is rejected -> []', () => {
+    const link = document.createElement('a');
+    link.className = 'original-file-changed';
+    link.id = 'highres';
+    link.setAttribute('href', 'https://evil.example.com/steal.png');
+    document.body.appendChild(link);
+    const img = document.createElement('img');
+    img.id = 'image';
+    img.setAttribute('src', 'https://www.sakugabooru.com/data/sample/hash.jpg');
+    document.body.appendChild(img);
+    expect(booruResolver.resolve(new URL('https://www.sakugabooru.com/data/sample/hash.jpg'), ctx(img, PAGE.saku))).toEqual([]);
+  });
+
+  // Sakugabooru is video-first, but its videos need no resolver: the post player
+  // is a `<video><source src=".../data/<hash>.mp4">` whose source already equals
+  // the `#highres` original (verified across live posts), collected directly by
+  // content/collect.ts. The booru resolver only ever runs on the image path, so a
+  // non-`#image` element (the `<video>`) correctly yields [] here.
+  it('Sakugabooru: a non-#image element (video player) is not mis-upgraded -> []', () => {
+    const link = document.createElement('a');
+    link.className = 'original-file-unchanged';
+    link.id = 'highres';
+    link.setAttribute('href', 'https://www.sakugabooru.com/data/8c0888120d6a821efdbdc882ac558787.mp4');
+    document.body.appendChild(link);
+    const video = document.createElement('video'); // the main media, but NOT #image
+    document.body.appendChild(video);
+    expect(booruResolver.resolve(new URL('https://www.sakugabooru.com/data/8c0888120d6a821efdbdc882ac558787.mp4'), ctx(video, PAGE.saku))).toEqual([]);
   });
 });

@@ -6,6 +6,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Sakugabooru support.** Added `sakugabooru.com` to the booru resolver family.
+  Image and settei posts now upgrade the displayed `/data/sample/` downscale to
+  the true original behind the "Download larger version" link (often a larger
+  format, e.g. a PNG behind a sample JPG). Its videos already downloaded at full
+  quality — the post player streams the original `.mp4` directly — so this fills
+  in the still-image half of the site.
+
 ### Fixed
 - **Extension audit — 10 correctness fixes.** A deep scan / video resolve is no
   longer discarded by a mid-scan settings change; the near-duplicate pass no

@@ -10,6 +10,17 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Sakugabooru (2026-07-16)** — added to the booru resolver family
+  (`resolvers/sites/booru.ts`). This Moebooru-skinned, video-first site was a
+  deferred gap (#350): its video posts already collected fine (the `<video>`
+  `<source>` already points at the original `/data/<hash>.mp4`, verified equal to
+  the `#highres` link across live posts — no resolver needed), but its image/settei
+  posts serve a `/data/sample/` downscale in `#image` and link the real original
+  via `a.original-file-changed#highres` (a larger file, sometimes a different
+  format — e.g. a 4.99 MB PNG behind a sample JPG). Registering both host forms
+  (`www.` + bare) and teaching the existing Moebooru branch the `-changed` link
+  class closes it. Host-pinned to the site's own domain; live DOM captured
+  2026-07-16.
 - ✅ **Shopify product-page resolver (2026-07-16)** — beyond the passive image
   upgrade (`_WxH`/`?width=` strip, benchmarked 75/75 on Allbirds), a dedicated
   resolver now surfaces the **complete** product media set from the store's public,
