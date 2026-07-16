@@ -7,6 +7,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Nine new site CDN rules (coverage sweep, Tier-1).** Passive URL→original
+  upgrades for images on: **Wikimedia Commons** (and every wiki — drop the
+  `/thumb/` segment to the upload), **Weibo** (`sinaimg.cn` size alias →
+  `large`), **Bilibili** (`hdslb.com`/`biliimg.com` — strip the `@`-transform),
+  **Yandex/Dzen** (`avatars.mds.yandex.net` alias → `orig`), **Times of India**
+  (`toiimg.com` msid → native width), **Trendyol** (`dsmcdn.com` — strip the
+  `mnresize` prefix), **Youm7** (`img.youm7.com` size dir → `large`), **Imgbox**
+  (`thumbs<N>` → `images<N>`, `_t` → `_o`), and **Globo** (`glbimg.com` Thumbor
+  edge → `0x0` native geometry). Each transform was live-probed for a real
+  thumbnail→original byte delta before shipping.
 - **Sakugabooru support.** Added `sakugabooru.com` to the booru resolver family.
   Image and settei posts now upgrade the displayed `/data/sample/` downscale to
   the true original behind the "Download larger version" link (often a larger
