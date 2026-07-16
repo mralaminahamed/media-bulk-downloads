@@ -10,6 +10,37 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Tier-1 site-coverage sweep CdnRules (2026-07-16)** — nine passive host rules
+  in `imageUrl.ts`, surfaced by a multi-agent popularity sweep (issues #367-#412)
+  and each live-probed this session for a real thumbnail→original byte delta before
+  shipping:
+  - **Wikimedia Commons** `upload.wikimedia.org` — drop the `/thumb/` segment + the
+    trailing `<NNN>px-…` filename to the untouched upload; host-agnostic across every
+    wiki/project and thumb-filename variant (330px 24 KB → original 11.4 MB).
+  - **Weibo** `(ww|wx)[1-4].sinaimg.cn` — swap the first-segment size alias (`mw690`,
+    `bmiddle`, …) → `large` (`woriginal` left alone). Needs a `weibo.com` Referer to
+    download (hotlink-403), supplied by the opt-in Referer retry #197.
+  - **Bilibili** `i[0-9].hdslb.com` / `*.biliimg.com` — strip the `@<W>w_<H>h_…`
+    transform suffix to the base file (@240w 5.7 KB → base 122 KB). DASH video is a
+    separate heavier resolver (#398).
+  - **Yandex/Dzen** `avatars.mds.yandex.net` — final size alias → `orig`, the one
+    alias that always exists (XXL 103 KB → orig 2.3 MB).
+  - **Times of India** `static.toiimg.com` — rebuild the `msid` thumb at
+    `width-20000` (server clamps to native; width-600 26 KB → native 475 KB).
+  - **Trendyol** `cdn.dsmcdn.com` — strip the `/mnresize/<W>/<H>/` prefix to the
+    origin node (3.9 KB → 59.7 KB).
+  - **Youm7** `img.youm7.com` — `/small/`|`/medium/` size dir → `/large/` (content
+    roots `/ArticleImgs/`, `/PlugInImages/` left untouched).
+  - **Imgbox** `thumbs<N>.imgbox.com` — `thumbs<N>` → `images<N>` and `_t` → `_o`
+    (6.9 KB → 61.6 KB).
+  - **Globo** `s<N>[-<edge>].glbimg.com` — widen the Thumbor edge geometry
+    `/<W>x<H>/` → `/0x0/` (native). The embedded origin is a **private** bucket
+    (`i.s3.glbimg.com` unreachable), so the geometry is widened rather than the URL
+    extracted — the sweep's proposed "extract embedded URL" was rejected on probe.
+  - Deferred: **LiveJournal** `ic.pics.livejournal.com` `_<size>`→`_original` — the
+    upgrade is real (48 KB → 283 KB) but `_original` **404s** on the minority of
+    uploads stored only at a capped size, and a passive sync rule can't fall back;
+    it belongs in the opt-in network-probe tier (#381 kept open).
 - ✅ **Sakugabooru (2026-07-16)** — added to the booru resolver family
   (`resolvers/sites/booru.ts`). This Moebooru-skinned, video-first site was a
   deferred gap (#350): its video posts already collected fine (the `<video>`

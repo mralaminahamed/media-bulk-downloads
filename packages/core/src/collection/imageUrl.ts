@@ -940,6 +940,113 @@ const RULES: CdnRule[] = [
     match: (u) => u.hostname === 'wallpapercave.com' && /^\/w\d+\//.test(u.pathname),
     rewrite: (u) => { u.pathname = u.pathname.replace(/^\/w\d+\//, '/wp/'); },
   },
+  // ── Tier-1 site-coverage sweep batch (2026-07-16) ─────────────────────────
+  // Nine passive host rules from a multi-agent coverage sweep, each live-probed
+  // this session for a real thumbnail→original byte delta before shipping (see
+  // issues #367-#398). Follows the PRs #244-248 pattern.
+  {
+    // Wikimedia Commons + every wiki (upload.wikimedia.org): a displayed thumbnail
+    // lives at /wikipedia/<project>/thumb/X/YY/Name.ext/<NNN>px-Name.ext; the
+    // untouched upload is that same path with the /thumb segment and the trailing
+    // /<NNN>px-… filename removed. Host-agnostic across projects (commons, en, …)
+    // and thumb-filename variants (lossy-page1-…, qlow-…). Live-verified: 330px
+    // thumb 24 KB -> original 11.4 MB.
+    match: (u) => u.hostname === 'upload.wikimedia.org' && /\/thumb\//.test(u.pathname),
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/^(\/wikipedia\/[^/]+)\/thumb\/(.+)\/[^/]+$/, '$1/$2');
+    },
+  },
+  {
+    // Weibo (ww[1-4]/wx[1-4].sinaimg.cn): the first path segment of a
+    // /<size>/<hash>.<ext> URL is a size alias (mw690, bmiddle, orj360,
+    // thumbnail, …); /large/ is the full image. Swap any non-large single size
+    // segment to large (woriginal, the watermark-free master, is left alone).
+    // sinaimg hotlink-403s without a weibo.com/m.weibo.cn Referer — the download
+    // layer's opt-in Referer retry (#197) supplies it, and both thumb and large
+    // need it equally. Live-verified (with Referer): mw690 63 KB -> large 143 KB.
+    match: (u) => /^(?:ww|wx)[1-4]\.sinaimg\.cn$/.test(u.hostname),
+    rewrite: (u) => {
+      const m = u.pathname.match(/^\/([^/]+)\/([^/]+\.[a-z0-9]+)$/i);
+      if (m && m[1] !== 'large' && m[1] !== 'woriginal') u.pathname = `/large/${m[2]}`;
+    },
+  },
+  {
+    // Bilibili (i[0-9].hdslb.com, *.biliimg.com): covers/moments/gallery images
+    // carry a server-side `@<W>w_<H>h_…` transform suffix after the real
+    // extension; the base file (…name.jpg) is the full original. Strip everything
+    // from the first `@`. No Referer needed. Live-verified: @240w thumb 5.7 KB ->
+    // base 122 KB. (Headline DASH video is a separate heavier resolver — #398.)
+    match: (u) =>
+      /^i[0-9]\.hdslb\.com$/.test(u.hostname) || /(?:^|\.)biliimg\.com$/.test(u.hostname),
+    rewrite: (u) => {
+      const at = u.pathname.indexOf('@');
+      if (at >= 0) u.pathname = u.pathname.slice(0, at);
+    },
+  },
+  {
+    // Imgbox (thumbs<N>.imgbox.com): the thumbnail host + `_t` filename suffix
+    // mirror the original — thumbs<N> -> images<N> and `_t` -> `_o`, keeping the
+    // AA/BB subdirs and the extension. Live-verified: _t thumb 6.9 KB -> _o
+    // original 61.6 KB.
+    match: (u) => /^thumbs\d+\.imgbox\.com$/.test(u.hostname) && /_t\.[a-z0-9]+$/i.test(u.pathname),
+    rewrite: (u) => {
+      u.hostname = u.hostname.replace(/^thumbs(\d+)\./, 'images$1.');
+      u.pathname = u.pathname.replace(/_t(\.[a-z0-9]+)$/i, '_o$1');
+    },
+  },
+  {
+    // Yandex image CDN (avatars.mds.yandex.net): powers yandex.ru + Dzen. The last
+    // segment of /get-<namespace>/<group>/<id>/<alias> is a size alias (XXL, 2hq,
+    // …); /orig is the canonical master and the ONE alias that always exists
+    // (named aliases 404 in some namespaces; orig never does). No Referer.
+    // Live-verified: XXL 103 KB -> orig 2.3 MB.
+    match: (u) =>
+      u.hostname === 'avatars.mds.yandex.net' &&
+      /^\/get-[^/]+\/[^/]+\/[^/]+\/[^/]+/.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/\/[^/]+$/, '/orig'); },
+  },
+  {
+    // Times of India (static.toiimg.com): photos render through a /thumb/ resizer
+    // keyed by an msid id (…,msid-<ID>,width-<W>,resizemode-4/<ID>.jpg). Rebuild
+    // at a very large width — the server clamps to the native resolution
+    // (width-20000 == the ceiling) for true full-res. Also recovers the id from a
+    // /photo/<ID>.cms canonical link. Live-verified: width-600 26 KB ->
+    // width-20000 (native) 475 KB.
+    match: (u) =>
+      u.hostname === 'static.toiimg.com' &&
+      (/\bmsid-\d+/.test(u.pathname) || /\/photo\/\d+\.cms/.test(u.pathname)),
+    rewrite: (u) => {
+      const m = u.pathname.match(/msid-(\d+)/) ?? u.pathname.match(/\/photo\/(\d+)\.cms/);
+      if (m) u.pathname = `/thumb/msid-${m[1]},width-20000,resizemode-4/${m[1]}.jpg`;
+    },
+  },
+  {
+    // Trendyol (cdn.dsmcdn.com): product media is resized via a /mnresize/<W>/<H>/
+    // prefix ahead of the origin node (ty<NNN>/product/media/…); the filename
+    // already carries _org. Strip the resize prefix to reach the origin. No
+    // Referer. Live-verified: /mnresize/128/192/ 3.9 KB -> origin 59.7 KB.
+    match: (u) => u.hostname === 'cdn.dsmcdn.com' && /\/mnresize\/\d+\/\d+\//.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/\/mnresize\/\d+\/\d+\//, '/'); },
+  },
+  {
+    // Youm7 (img.youm7.com): a /small/ or /medium/ size directory fronts the same
+    // basename served full-size under /large/. Swap only the confirmed size dirs —
+    // content roots (/ArticleImgs/, /PlugInImages/) are left untouched. No Referer.
+    // Live-verified: /small/…_88.jpg 4.6 KB -> /large/…_88.jpg 22 KB.
+    match: (u) => u.hostname === 'img.youm7.com' && /^\/(?:small|medium)\//i.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/^\/(?:small|medium)\//i, '/large/'); },
+  },
+  {
+    // Globo (s<N>[-<edge>].glbimg.com): Brazil's #1 media group serves editorial
+    // photos through a Thumbor edge whose first /<W>x<H>/ segment sets the
+    // rendition; /0x0/ returns the native original from the same public edge. The
+    // embedded origin URL is a PRIVATE bucket (i.s3.glbimg.com is unreachable), so
+    // widen the geometry rather than extract it; edge signatures aren't enforced.
+    // Live-verified: /3840x0/ == /0x0/ = 712 KB. Images only (Globoplay is DRM).
+    match: (u) =>
+      /^s\d+(?:-[a-z0-9]+)?\.glbimg\.com$/.test(u.hostname) && /\/\d+x\d+\//.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/\/\d+x\d+\//, '/0x0/'); },
+  },
   {
     // Self-hosted WordPress: any host serving /wp-content/uploads/ with a resize
     // query (?w=&h=&resize=) and/or a stored -WxH / -scaled thumbnail suffix.

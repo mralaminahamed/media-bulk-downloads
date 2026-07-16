@@ -865,3 +865,105 @@ describe('image-CDN rule batch (2026-07-15 Tier-1, GIF/video + free-stock)', () 
       .toBe('https://wallpapercave.com/wp/J10CtpB.jpg');
   });
 });
+
+describe('image-CDN rule batch (2026-07-16 Tier-1 site-coverage sweep)', () => {
+  const orig = (u: string) => upgradeToOriginal(u).original;
+
+  it('Wikimedia: drops /thumb/ + the trailing NNNpx filename to the upload', () => {
+    // Live-verified: 330px thumb 24 KB -> original 11.4 MB.
+    expect(orig('https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Cat_poster_1.jpg/330px-Cat_poster_1.jpg'))
+      .toBe('https://upload.wikimedia.org/wikipedia/commons/0/0b/Cat_poster_1.jpg');
+    // works for a local-wiki <lang> project, not just commons
+    expect(orig('https://upload.wikimedia.org/wikipedia/en/thumb/a/a9/Example.jpg/250px-Example.jpg'))
+      .toBe('https://upload.wikimedia.org/wikipedia/en/a/a9/Example.jpg');
+    // PDF/DjVu thumb (lossy-page1-…) still drops to the source document
+    expect(orig('https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Foo.pdf/lossy-page1-330px-Foo.pdf.jpg'))
+      .toBe('https://upload.wikimedia.org/wikipedia/commons/a/ab/Foo.pdf');
+    // an already-original (no /thumb/) URL is untouched
+    expect(orig('https://upload.wikimedia.org/wikipedia/commons/0/0b/Cat_poster_1.jpg'))
+      .toBe('https://upload.wikimedia.org/wikipedia/commons/0/0b/Cat_poster_1.jpg');
+  });
+
+  it('Weibo: swaps the size-alias segment to /large/', () => {
+    // Live-verified (with Referer): mw690 63 KB -> large 143 KB.
+    expect(orig('https://wx1.sinaimg.cn/mw690/0079MVdAly1fypxnd2tdgj30lb06i3zo.jpg'))
+      .toBe('https://wx1.sinaimg.cn/large/0079MVdAly1fypxnd2tdgj30lb06i3zo.jpg');
+    // ww-host + a different alias (bmiddle)
+    expect(orig('https://ww3.sinaimg.cn/bmiddle/0079MVdAly1fypxnd2tdgj30lb06i3zo.jpg'))
+      .toBe('https://ww3.sinaimg.cn/large/0079MVdAly1fypxnd2tdgj30lb06i3zo.jpg');
+    // already /large/ -> unchanged; the watermark-free master is left alone
+    expect(orig('https://wx1.sinaimg.cn/large/0079MVdAly1fypxnd2tdgj30lb06i3zo.jpg'))
+      .toBe('https://wx1.sinaimg.cn/large/0079MVdAly1fypxnd2tdgj30lb06i3zo.jpg');
+    expect(orig('https://wx1.sinaimg.cn/woriginal/0079MVdAly1fypxnd2tdgj30lb06i3zo.jpg'))
+      .toBe('https://wx1.sinaimg.cn/woriginal/0079MVdAly1fypxnd2tdgj30lb06i3zo.jpg');
+  });
+
+  it('Bilibili: strips the @-transform suffix to the base image', () => {
+    // Live-verified: @240w thumb 5.7 KB -> base 122 KB.
+    expect(orig('https://i0.hdslb.com/bfs/archive/0c447de2e8b43417d2ab1eeb75ea897f1e3f22fb.jpg@240w_150h_1c.webp'))
+      .toBe('https://i0.hdslb.com/bfs/archive/0c447de2e8b43417d2ab1eeb75ea897f1e3f22fb.jpg');
+    // *.biliimg.com host too
+    expect(orig('https://album.biliimg.com/bfs/new_dyn/abc123.png@1e_1c.webp'))
+      .toBe('https://album.biliimg.com/bfs/new_dyn/abc123.png');
+    // no @-suffix -> unchanged
+    expect(orig('https://i2.hdslb.com/bfs/archive/0c447de2e8b43417d2ab1eeb75ea897f1e3f22fb.jpg'))
+      .toBe('https://i2.hdslb.com/bfs/archive/0c447de2e8b43417d2ab1eeb75ea897f1e3f22fb.jpg');
+  });
+
+  it('Imgbox: thumbs<N> -> images<N> and _t -> _o', () => {
+    // Live-verified: _t thumb 6.9 KB -> _o original 61.6 KB.
+    expect(orig('https://thumbs2.imgbox.com/e9/ab/R48s5RYk_t.png'))
+      .toBe('https://images2.imgbox.com/e9/ab/R48s5RYk_o.png');
+    // already the original host -> untouched
+    expect(orig('https://images2.imgbox.com/e9/ab/R48s5RYk_o.png'))
+      .toBe('https://images2.imgbox.com/e9/ab/R48s5RYk_o.png');
+  });
+
+  it('Yandex: swaps the final size alias to /orig', () => {
+    // Live-verified: XXL 103 KB -> orig 2.3 MB.
+    expect(orig('https://avatars.mds.yandex.net/get-altay/1363250/2a00000163a7b418c2c2ec86d951ae43dd21/XXL'))
+      .toBe('https://avatars.mds.yandex.net/get-altay/1363250/2a00000163a7b418c2c2ec86d951ae43dd21/orig');
+    // a different namespace + alias (get-mpic/2hq)
+    expect(orig('https://avatars.mds.yandex.net/get-mpic/1244413/img_id6063597382562623069.jpeg/2hq'))
+      .toBe('https://avatars.mds.yandex.net/get-mpic/1244413/img_id6063597382562623069.jpeg/orig');
+    // already /orig -> unchanged
+    expect(orig('https://avatars.mds.yandex.net/get-altay/1363250/2a00000163a7b418c2c2ec86d951ae43dd21/orig'))
+      .toBe('https://avatars.mds.yandex.net/get-altay/1363250/2a00000163a7b418c2c2ec86d951ae43dd21/orig');
+  });
+
+  it('Times of India: rebuilds the msid thumb at native width', () => {
+    // Live-verified: width-600 26 KB -> width-20000 (native clamp) 475 KB.
+    expect(orig('https://static.toiimg.com/thumb/imgsize-143943,msid-132430727,width-600,resizemode-4/132430727.jpg'))
+      .toBe('https://static.toiimg.com/thumb/msid-132430727,width-20000,resizemode-4/132430727.jpg');
+    // recovers the id from a /photo/<ID>.cms canonical link too
+    expect(orig('https://static.toiimg.com/photo/132430727.cms'))
+      .toBe('https://static.toiimg.com/thumb/msid-132430727,width-20000,resizemode-4/132430727.jpg');
+  });
+
+  it('Trendyol: strips the /mnresize/<W>/<H>/ prefix to the origin', () => {
+    // Live-verified: /mnresize/128/192/ 3.9 KB -> origin 59.7 KB.
+    expect(orig('https://cdn.dsmcdn.com/mnresize/128/192/ty204/product/media/images/20211020/17/152943554/198334547/1/1_org_zoom.jpg'))
+      .toBe('https://cdn.dsmcdn.com/ty204/product/media/images/20211020/17/152943554/198334547/1/1_org_zoom.jpg');
+  });
+
+  it('Youm7: swaps the small/medium size dir to /large/', () => {
+    // Live-verified: /small/…_88.jpg 4.6 KB -> /large/…_88.jpg 22 KB.
+    expect(orig('https://img.youm7.com/small/202607050134483448_88.jpg'))
+      .toBe('https://img.youm7.com/large/202607050134483448_88.jpg');
+    expect(orig('https://img.youm7.com/Medium/202302030351455145.jpg'))
+      .toBe('https://img.youm7.com/large/202302030351455145.jpg');
+    // a content-root directory (not a resizer) is left untouched
+    expect(orig('https://img.youm7.com/ArticleImgs/2026/7/5/202607050134483448_88.jpg'))
+      .toBe('https://img.youm7.com/ArticleImgs/2026/7/5/202607050134483448_88.jpg');
+  });
+
+  it('Globo: widens the Thumbor edge geometry to /0x0/ (native)', () => {
+    // Live-verified: /3840x0/ == /0x0/ = 712 KB (embedded origin is a private
+    // bucket, so widen the public edge geometry rather than extract it).
+    expect(orig('https://s2-g1.glbimg.com/Y-oidhivTyxl9L6W_wM0c38nF8Y=/3840x0/filters:format(jpeg)/https://i.s3.glbimg.com/v1/AUTH_59edd422/internal_photos/bs/2026/frame.jpeg'))
+      .toBe('https://s2-g1.glbimg.com/Y-oidhivTyxl9L6W_wM0c38nF8Y=/0x0/filters:format(jpeg)/https://i.s3.glbimg.com/v1/AUTH_59edd422/internal_photos/bs/2026/frame.jpeg');
+    // a plain s<N> edge host works too
+    expect(orig('https://s2.glbimg.com/abc=/600x0/https://s.glbimg.com/foo/bar.jpg'))
+      .toBe('https://s2.glbimg.com/abc=/0x0/https://s.glbimg.com/foo/bar.jpg');
+  });
+});
