@@ -8,7 +8,7 @@ import { loadHistory } from '@mbd/storage/history';
 import { loadExcluded } from '@mbd/storage/excluded';
 import { DEFAULT_SETTINGS } from '@mbd/storage/settings';
 import { downloadText, sendRuntimeMessage } from '@/extension/popup/utils';
-import { useDrawer } from '@/extension/popup/hooks/useDrawer';
+import { useDialog } from '@/extension/popup/hooks/useDialog';
 import DownloadsPane from '@/extension/popup/components/panels/settings/DownloadsPane';
 import MediaPane from '@/extension/popup/components/panels/settings/MediaPane';
 import DisplayPane from '@/extension/popup/components/panels/settings/DisplayPane';
@@ -26,7 +26,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
   const [settings, setSettings] = useState<SettingsData>(initialSettings);
   const [activeTab, setActiveTab] = useState('downloads');
   const [siteNote, setSiteNote] = useState('');
-  const { ref: panelRef, requestClose, onAnimationEnd, scrimClass, drawerClass } = useDrawer(onClose);
+  const panelRef = useDialog(onClose);
 
   // The dialog seeds its local edit buffer once at mount and otherwise never
   // looks at the live `settings` prop again — so a concurrent change from
@@ -147,7 +147,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
       }
     }
     onSettingsChange({ ...initialSettings, ...delta });
-    requestClose();
+    onClose();
   };
 
   const handleSaveForSite = () => {
@@ -190,8 +190,8 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
 
   return (
     <div
-      className={`${scrimClass} mbd:fixed mbd:inset-0 mbd:z-50 mbd:flex mbd:items-stretch mbd:justify-end mbd:bg-(--overlay) mbd:backdrop-blur-[2px]`}
-      onClick={requestClose}
+      className="overlay-in mbd:fixed mbd:inset-0 mbd:z-50 mbd:flex mbd:items-stretch mbd:justify-end mbd:bg-(--overlay) mbd:backdrop-blur-[2px]"
+      onClick={onClose}
     >
       <div
         ref={panelRef}
@@ -199,9 +199,8 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
         aria-modal="true"
         aria-labelledby="settings-title"
         tabIndex={-1}
-        className={`${drawerClass} mbd:flex mbd:h-full mbd:w-full mbd:max-w-95 mbd:flex-col mbd:bg-(--panel) mbd:shadow-2xl mbd:focus:outline-none`}
+        className="sheet-in mbd:flex mbd:h-full mbd:w-full mbd:max-w-95 mbd:flex-col mbd:bg-(--panel) mbd:shadow-2xl mbd:focus:outline-none"
         onClick={(e) => e.stopPropagation()}
-        onAnimationEnd={onAnimationEnd}
       >
         <header className="dotgrid mbd:flex mbd:items-center mbd:justify-between mbd:border-b hairline mbd:px-4 mbd:py-3">
           <div>
@@ -210,7 +209,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
             </h2>
             <p className="eyebrow mbd:mt-0.5">Preferences</p>
           </div>
-          <button onClick={requestClose} className="iconbtn" title="Close" aria-label="Close">
+          <button onClick={onClose} className="iconbtn" title="Close" aria-label="Close">
             <XMarkIcon className="mbd:h-4.5 mbd:w-4.5" />
           </button>
         </header>
@@ -288,7 +287,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
             {dirty ? 'Unsaved changes' : ''}
           </span>
           <div className="mbd:flex mbd:gap-2">
-            <button onClick={requestClose} className="btn btn-ghost">
+            <button onClick={onClose} className="btn btn-ghost">
               Cancel
             </button>
             <button onClick={handleSave} className="btn btn-primary" disabled={!dirty}>

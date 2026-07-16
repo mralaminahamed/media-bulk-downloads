@@ -567,54 +567,6 @@ input[type="range"] {
   animation: sheet-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* Right-side drawer entrance (Settings / Favourites / Excluded / History / Tab
-   picker) — slides in from the right edge, moving right→left into place, paired
-   with the .overlay-in scrim fade. Distinct from .sheet-in (used by the centred
-   preview modal and the on-page bubble, which must not slide horizontally). */
-@keyframes drawer-in {
-  from {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-.drawer-in {
-  animation: drawer-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
-  will-change: transform;
-}
-
-/* Reverse of .drawer-in / .overlay-in — the drawer panels play these on close so
-   they slide back out to the right (with the scrim fading) instead of vanishing.
-   Driven by useDrawer, which unmounts the panel once .drawer-out ends. */
-@keyframes overlay-out {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
-.overlay-out {
-  animation: overlay-out 0.2s ease both;
-}
-@keyframes drawer-out {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-}
-.drawer-out {
-  animation: drawer-out 0.24s cubic-bezier(0.4, 0, 1, 1) both;
-  will-change: transform;
-}
-
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -673,8 +625,7 @@ input[type="range"] {
 @media (prefers-reduced-motion: reduce) {
   .reveal,
   .overlay-in,
-  .sheet-in,
-  .drawer-in {
+  .sheet-in {
     animation: none;
   }
   .skeleton::after {

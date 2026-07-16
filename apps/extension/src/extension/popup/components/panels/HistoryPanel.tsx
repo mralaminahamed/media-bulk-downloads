@@ -11,7 +11,7 @@ import { HistoryEntry } from '@mbd/core/types';
 import { loadHistory, HISTORY_KEY } from '@mbd/storage/history';
 import { relativeTime, sendRuntimeMessage } from '@/extension/popup/utils';
 import { LoadingImage } from '@/extension/popup/components/LoadingImage';
-import { useDrawer } from '@/extension/popup/hooks/useDrawer';
+import { useDialog } from '@/extension/popup/hooks/useDialog';
 import { ClearAllButton } from '@/extension/popup/components/fields/ClearAllButton';
 
 export interface HistoryPanelProps {
@@ -29,7 +29,7 @@ const safeHost = (url: string): string => {
 
 const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
-  const { ref: panelRef, requestClose, onAnimationEnd, scrimClass, drawerClass } = useDrawer(onClose);
+  const panelRef = useDialog(onClose);
 
   useEffect(() => {
     void loadHistory().then(setEntries);
@@ -93,16 +93,15 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
   };
 
   return (
-    <div className={`${scrimClass} mbd:fixed mbd:inset-0 mbd:z-50 mbd:flex mbd:items-stretch mbd:justify-end mbd:bg-(--overlay) mbd:backdrop-blur-[2px]`} onClick={requestClose}>
+    <div className="overlay-in mbd:fixed mbd:inset-0 mbd:z-50 mbd:flex mbd:items-stretch mbd:justify-end mbd:bg-(--overlay) mbd:backdrop-blur-[2px]" onClick={onClose}>
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="history-title"
         tabIndex={-1}
-        className={`${drawerClass} mbd:flex mbd:h-full mbd:w-full mbd:max-w-[380px] mbd:flex-col mbd:bg-(--panel) mbd:shadow-2xl mbd:focus:outline-none`}
+        className="sheet-in mbd:flex mbd:h-full mbd:w-full mbd:max-w-[380px] mbd:flex-col mbd:bg-(--panel) mbd:shadow-2xl mbd:focus:outline-none"
         onClick={(e) => e.stopPropagation()}
-        onAnimationEnd={onAnimationEnd}
       >
         <header className="mbd:flex mbd:items-center mbd:justify-between mbd:border-b hairline mbd:px-4 mbd:py-3">
           <div>
@@ -111,7 +110,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
           </div>
           <div className="mbd:flex mbd:items-center mbd:gap-0.5">
             <ClearAllButton onClear={handleClearAll} disabled={sorted.length === 0} />
-            <button onClick={requestClose} className="iconbtn" title="Close" aria-label="Close">
+            <button onClick={onClose} className="iconbtn" title="Close" aria-label="Close">
               <XMarkIcon className="mbd:h-4.5 mbd:w-4.5" />
             </button>
           </div>
