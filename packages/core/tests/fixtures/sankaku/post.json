@@ -1,0 +1,13 @@
+{
+  "_source": "sankaku.app/posts/6dMp4yzQQMx — logged-in SFW (rating:s) full-view, captured 2026-07-15 (recon log #3, issue #319). Real host / path shape / md5 / signed-param NAMES; token & signature VALUES redacted — no live token committed (AC-3 / AC-6). On a logged-in full-view the main <img>.src IS the signed original, so Tier-1 collects it as-is; a blind preview->original path rewrite would drop the signature (403/404).",
+  "host": "v.sankakucomplex.com",
+  "postId": "6dMp4yzQQMx",
+  "md5": "2620d86cb72802a5dcd9e1e189b75e64",
+  "shard": "26/20",
+  "signedParams": ["e", "expires", "m", "token"],
+  "tiers": {
+    "preview": "https://v.sankakucomplex.com/data/preview/26/20/2620d86cb72802a5dcd9e1e189b75e64.avif?e=REDACTED&expires=REDACTED&m=REDACTED&token=REDACTED",
+    "sample": "https://s.sankakucomplex.com/data/sample/26/20/2620d86cb72802a5dcd9e1e189b75e64.jpg?e=REDACTED&expires=REDACTED&m=REDACTED&token=REDACTED",
+    "original": "https://v.sankakucomplex.com/data/26/20/2620d86cb72802a5dcd9e1e189b75e64.jpg?e=REDACTED&expires=REDACTED&m=REDACTED&token=REDACTED"
+  }
+}
