@@ -26,6 +26,7 @@ import { vimeoVideoId } from '@mbd/core/resolvers/sites/vimeo';
 import { dailymotionVideoId } from '@mbd/core/resolvers/sites/dailymotion';
 import { streamableVideoId } from '@mbd/core/resolvers/sites/streamable';
 import { redgifsVideoId } from '@mbd/core/resolvers/sites/redgifs';
+import { nineGagId } from '@mbd/core/resolvers/sites/ninegag';
 import { sniffedHlsManifests } from '@mbd/core/resolvers/sniffers/hls-sniff';
 import { HOST_ID } from '@/extension/bubble/mount';
 
@@ -378,6 +379,30 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     });
   };
 
+  // A 9GAG video/GIF post surfaced as a pending video: the mp4 is id-derived and
+  // unsigned, so the real file is built network-free on the resolve pass
+  // (resolveHint '9gag'). Keyed by the canonical post URL. Only ever called for a
+  // post whose DOM carries a <video> (see nineGagPostHasVideo) — an image post has
+  // no <video>, so it never becomes a would-404 `_460sv.mp4`.
+  const pushNineGag = (id: string): void => {
+    const watch = `https://9gag.com/gag/${id}`;
+    if (!seenSources.addIfNew(watch)) return;
+    media.push({
+      src: watch, alt: '', width: 0, height: 0, type: 'mp4',
+      fileSize: 0, isBase64: false, kind: 'video',
+      unresolvedVideo: true, resolveHint: { platform: '9gag', id },
+    });
+  };
+
+  // True only when the 9GAG post that an anchor belongs to actually contains a
+  // <video> — the image-vs-video guard. The container is scoped to the single post
+  // (`<article>` or 9GAG's `jsid-post-<id>` element), never a page-wide wrapper, so
+  // an image post can't borrow a sibling video post's <video> and 404. If neither
+  // per-post container is found, the feature stays inert (no upgrade) — safe by
+  // construction. (9GAG's exact post markup wants a live confirmation.)
+  const nineGagPostHasVideo = (a: Element): boolean =>
+    !!a.closest('article, [id^="jsid-post-"]')?.querySelector('video');
+
   // X/Twitter unpainted grid cells: a `/user/status/<id>/photo|video/<n>` link
   // whose cell never rendered a real pbs.twimg.com media <img> (or a mounted
   // <video>'s poster) — common on a fast scroll through a lazy-loading grid,
@@ -687,6 +712,9 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       else if (resolvedHref && streamableVideoId(resolvedHref)) pushStreamable(streamableVideoId(resolvedHref)!);
       // A link to a RedGifs video — surface as a pending video resolved on demand.
       else if (resolvedHref && redgifsVideoId(resolvedHref)) pushRedgifs(redgifsVideoId(resolvedHref)!);
+      // A link to a 9GAG post that carries a <video> (a video/GIF post) — surface
+      // as a pending video resolved on demand. Image posts (no <video>) are skipped.
+      else if (resolvedHref && nineGagId(resolvedHref) && nineGagPostHasVideo(a)) pushNineGag(nineGagId(resolvedHref)!);
       // An X/Twitter status permalink (`/user/status/<id>/photo|video/<n>`) whose
       // cell never painted its media — surface a pending item resolved on demand.
       else if (isTwitterPage && resolvedHref) pushTwitterPending(a, resolvedHref);

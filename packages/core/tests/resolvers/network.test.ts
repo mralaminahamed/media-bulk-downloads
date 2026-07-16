@@ -861,3 +861,18 @@ describe('resolveOriginal — redgifs', () => {
     expect(await resolveOriginal({ platform: 'redgifs', id: 'brightexample' }, { fetch: throwing })).toBeNull();
   });
 });
+
+describe('resolveOriginal — 9gag', () => {
+  // Network-free (like reddit): the id deterministically names the 9cache mp4.
+  const noFetch = (async () => { throw new Error('should not fetch'); }) as unknown as typeof fetch;
+
+  it('builds the universal _460sv.mp4 from the post id without fetching', async () => {
+    expect(await resolveOriginal({ platform: '9gag', id: 'aOMMxxA' }, { fetch: noFetch }))
+      .toEqual({ url: 'https://img-9gag-fun.9cache.com/photo/aOMMxxA_460sv.mp4' });
+  });
+
+  it('returns null for a bad id (never reaches the URL)', async () => {
+    expect(await resolveOriginal({ platform: '9gag', id: 'bad id!' }, { fetch: noFetch })).toBeNull();
+    expect(await resolveOriginal({ platform: '9gag', id: '' }, { fetch: noFetch })).toBeNull();
+  });
+});
