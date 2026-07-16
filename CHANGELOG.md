@@ -7,6 +7,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Two wallpaper hubs (tier-1 CDN rules).** Passive thumbnail→original path swaps,
+  both curl-verified live: **Wallpapers.com** (`/images/thumbnail|high/` → `/images/hd/`,
+  the largest segment and the page's `og:image`; extension preserved) and
+  **WallpaperAccess** (`/thumb/<id>` → `/full/<id>`, gated to the image path so the
+  site's `/download/<slug>` HTML route is never rewritten).
 - **Twelve more sweep sites (tier-1 batch 2).** Passive URL→original CDN rules,
   each curl-verified against a real asset: **Shopee** (`img.susercontent.com` —
   strip the `_tn`/`@resize` key suffix), **Mercado Libre** (`mlstatic.com` — size

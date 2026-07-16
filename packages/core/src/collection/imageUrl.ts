@@ -965,6 +965,26 @@ const RULES: CdnRule[] = [
     match: (u) => u.hostname === 'wallpapercave.com' && /^\/w\d+\//.test(u.pathname),
     rewrite: (u) => { u.pathname = u.pathname.replace(/^\/w\d+\//, '/wp/'); },
   },
+  {
+    // Wallpapers.com (wallpapers.com, BunnyCDN-backed /images/): the size is a
+    // path segment — thumbnail (~11 KB) < high (~75 KB) < hd (~300 KB); `hd` is
+    // the largest and matches the page's og:image. Swap thumbnail/high -> hd,
+    // keeping the file extension (both .jpg and .webp are served). Plain paths,
+    // no signing; speculative larger segments (download/original/4k) 404, so hd is
+    // the ceiling. The /images/thumbnail| high/ segment is site-specific (low
+    // false-positive risk). Verified thumbnail 11 KB -> hd 319 KB. (#407)
+    match: (u) => u.hostname === 'wallpapers.com' && /^\/images\/(?:thumbnail|high)\//.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/^\/images\/(?:thumbnail|high)\//, '/images/hd/'); },
+  },
+  {
+    // WallpaperAccess (wallpaperaccess.com): listing thumbnails are served from
+    // /thumb/<id>.<ext>; the same id under /full/<id>.<ext> is the original. Swap
+    // /thumb/ -> /full/. Gate on the /thumb/ image path so the site's
+    // /download/<slug>-<id> HTML route (NOT an image) is never rewritten. Plain
+    // numeric paths, no signing. Verified /thumb/ 32 KB -> /full/ 797 KB. (#412)
+    match: (u) => u.hostname === 'wallpaperaccess.com' && /^\/thumb\/[\w-]+\.[a-z0-9]+$/i.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/^\/thumb\//, '/full/'); },
+  },
   // ── Tier-1 site-coverage sweep batch (2026-07-16) ─────────────────────────
   // Nine passive host rules from a multi-agent coverage sweep, each live-probed
   // this session for a real thumbnail→original byte delta before shipping (see
