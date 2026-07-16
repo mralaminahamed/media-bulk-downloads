@@ -10,6 +10,28 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Rutube + Rumble video resolvers (2026-07-16)** — two opt-in network-tier
+  resolvers on the Dailymotion pattern (collect-side id/URL hint → `resolvers/network.ts`
+  fetch → HLS master), both live-verified against public SFW videos (#385/#404):
+  - **Rutube** (#385) — hint = the 32-hex video id (in the watch URL). `network.ts`
+    reads `rutube.ru/api/play/options/<id>/?format=json` → `video_balancer.m3u8`, the
+    unsigned `bl.rutube.ru` master (the balancer mints the signed per-variant playlists
+    itself), pinned to `rutube.ru`. No auth for public videos; adult/premium/geo-gated
+    streams are not circumvented. Media hosts observed: `bl.rutube.ru`, `river-*.rutube.ru`,
+    `*.rtbcdn.ru` (the sweep's guessed `video-*.rutube.ru` was NOT seen).
+  - **Rumble** (#404) — the embed id (needed by the API) is not in the watch URL, so the
+    hint carries the rumble.com-pinned URL and `network.ts` derives the embed id from an
+    `/embed/<id>/` URL directly, else via the open `rumble.com/api/Media/oembed.json`
+    (the watch HTML is Cloudflare-gated; the JSON APIs are not), then reads the
+    `embedJS/u3` metadata's `ua.hls.auto.url` HLS master, pinned to a Rumble-CDN allowlist
+    (`rumble.com`, `1a-1791.com`, `*.rmbl.ws`, `*.rumble.cloud`). HLS-only in 2026 samples
+    (no progressive mp4; `ua` holds tar/audio/timeline/hls — timeline is a scrub preview).
+    Unsigned, no auth. Follows the gallery-page precedent of carrying a URL in the hint.
+  - **PeerTube** (#419) DEFERRED — also CONFIRMED (`/api/v1/videos/<id>` → HLS master +
+    per-resolution mp4, unsigned, detect via `/api/v1/config` or nodeinfo), but its
+    host-agnostic federation with a variable (possibly remote-object-storage) media host
+    needs SSRF handling on both the page-controlled instance fetch and the returned URL —
+    a dedicated PR, like the Mastodon host-agnostic rule.
 - ✅ **Wallpaper hubs (2026-07-16)** — two passive path-swap CDN rules in
   `imageUrl.ts`, both curl-verified live against real SFW assets (#407/#412):
   - **Wallpapers.com** (#407) — `s#/images/(thumbnail|high)/#/images/hd/#` on

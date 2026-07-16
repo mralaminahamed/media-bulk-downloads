@@ -648,6 +648,60 @@ describe('collectMedia — Streamable videos', () => {
   });
 });
 
+describe('collectMedia — Rutube videos', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+  const ID = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
+  const rutube = (m: { resolveHint?: { platform: string } }[]) => m.filter((i) => i.resolveHint?.platform === 'rutube');
+
+  it('surfaces a Rutube player <iframe> as a pending video with a resolve hint', () => {
+    setBody(`<iframe src="https://rutube.ru/play/embed/${ID}"></iframe>`);
+    expect(rutube(collectMedia())[0]).toMatchObject({
+      kind: 'video', type: 'mp4', unresolvedVideo: true,
+      src: `https://rutube.ru/video/${ID}/`, resolveHint: { platform: 'rutube', id: ID },
+    });
+  });
+
+  it('surfaces a Rutube watch link and dedupes an embed + link to the same video', () => {
+    setBody(
+      `<iframe src="https://rutube.ru/play/embed/${ID}"></iframe>` +
+      `<a href="https://rutube.ru/video/${ID}/">same</a>`,
+    );
+    expect(rutube(collectMedia())).toHaveLength(1);
+  });
+
+  it('ignores a Rutube channel page (no video id)', () => {
+    setBody('<a href="https://rutube.ru/channel/12345/">channel</a>');
+    expect(rutube(collectMedia())).toHaveLength(0);
+  });
+});
+
+describe('collectMedia — Rumble videos', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+  const rumble = (m: { resolveHint?: { platform: string } }[]) => m.filter((i) => i.resolveHint?.platform === 'rumble');
+
+  it('surfaces a Rumble watch link as a pending video (the hint carries the URL)', () => {
+    setBody('<a href="https://rumble.com/v7chusk-a-title.html">watch</a>');
+    expect(rumble(collectMedia())[0]).toMatchObject({
+      kind: 'video', type: 'mp4', unresolvedVideo: true,
+      src: 'https://rumble.com/v7chusk-a-title.html',
+      resolveHint: { platform: 'rumble', id: 'https://rumble.com/v7chusk-a-title.html' },
+    });
+  });
+
+  it('surfaces a Rumble player <iframe> and dedupes an embed + link to the same embed', () => {
+    setBody(
+      '<iframe src="https://rumble.com/embed/v7ab6sc/"></iframe>' +
+      '<a href="https://rumble.com/embed/v7ab6sc">same</a>',
+    );
+    expect(rumble(collectMedia())).toHaveLength(1);
+  });
+
+  it('ignores a Rumble channel page (no video)', () => {
+    setBody('<a href="https://rumble.com/c/somechannel">channel</a>');
+    expect(rumble(collectMedia())).toHaveLength(0);
+  });
+});
+
 describe('collectMedia — RedGifs videos', () => {
   afterEach(() => { document.body.innerHTML = ''; });
   const redgifs = (m: { resolveHint?: { platform: string } }[]) => m.filter((i) => i.resolveHint?.platform === 'redgifs');

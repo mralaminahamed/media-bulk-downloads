@@ -41,6 +41,8 @@ only — never in a content script or the popup — and dispatches on `hint.plat
 | `unsplash`    | *(no fetch)*                                                                                                                                                                                                                                                | Builds `https://unsplash.com/photos/<id>/download`, Unsplash's own download-redirect URL. The request only happens later, if the item is downloaded, via `chrome.downloads`.                                                                                                                            |
 | `vimeo`       | `https://player.vimeo.com/video/<id>/config`                                                                                                                                                                                                               | The public, refererless player config. Picks the highest progressive mp4 from `request.files.progressive[]`, and falls back to the `request.files.hls` master to capture. Domain-locked embeds 403 and stay unresolved.                                                                                 |
 | `dailymotion` | `https://www.dailymotion.com/player/metadata/video/<id>`                                                                                                                                                                                                   | The public player metadata. Returns the `qualities.auto` HLS master to capture — modern Dailymotion is HLS-only. Videos flagged `protected_delivery:true` or carrying an `error` (DRM or geo-locked) return `null`.                                                                                     |
+| `rutube`      | `https://rutube.ru/api/play/options/<id>/?format=json`                                                                                                                                                                                                     | The public play-options API (no auth). Returns `video_balancer.m3u8`, the unsigned `bl.rutube.ru` HLS master (the balancer mints the signed per-variant playlists itself), pinned to `rutube.ru`. HLS-only; adult/premium/geo-gated streams simply yield no usable master.                              |
+| `rumble`      | *(hint = the rumble.com-pinned watch/embed URL)* the embed id from an `/embed/<id>/` URL, else `https://rumble.com/api/Media/oembed.json?url=<watch>`, then `https://rumble.com/embedJS/u3/?request=video&ver=2&v=<embedId>`                                | The watch HTML is Cloudflare-gated, but the JSON APIs are open. Derives the embed id (oEmbed when needed), then returns the `ua.hls.auto.url` HLS master, pinned to the Rumble-CDN allowlist. HLS-only — 2026 samples expose no progressive mp4.                                                          |
 | `bsky`        | *(video)* `https://video.bsky.app/watch/<did>/<cid>/playlist.m3u8`, built directly. *(blob)* the account's PDS, resolved from its DID doc (`plc.directory` for `did:plc`, the `did:web` domain's `/.well-known/did.json`), then `<pds>/xrpc/com.atproto.sync.getBlob?did=<did>&cid=<cid>` | A video hint returns the HLS master with no fetch. A blob hint fetches the uploaded original via `getBlob`.                                                                                                                                                                              |
 | `pinterest`   | `https://widgets.pinterest.com/v3/pidgets/pins/info/?pin_ids=<id>`                                                                                                                                                                                         | The public, unauthenticated pin-widget record. Returns the progressive mp4 (`V_720P`) when present, else an HLS master (`V_HLSV4` / `V_HLSV3_MOBILE`) to capture.                                                                                                                                       |
 | `reddit`      | *(no fetch)*                                                                                                                                                                                                                                                | Builds `https://v.redd.it/<id>/HLSPlaylist.m3u8`, the signature-free HLS master. The extension's HLS engine muxes back its separate audio rendition.                                                                                                                                                    |
@@ -50,9 +52,10 @@ only — never in a content script or the popup — and dispatches on `hint.plat
 Every URL pulled from a fetched response — JSON or HTML — passes through
 `pinnedUrl()` before it's trusted. It must be `https:`, and its hostname must
 equal (or be a subdomain of) the expected host family: `twimg.com`,
-`wallhaven.cc`, `vimeocdn.com`, `dailymotion.com`, `bsky.app`, `pinimg.com`,
-`v.redd.it`, `staticflickr.com`, `artstation.com`, or the account's own PDS host
-for a Bluesky blob. Anything else — a malformed URL, an unexpected redirect
+`wallhaven.cc`, `vimeocdn.com`, `dailymotion.com`, `rutube.ru`, the Rumble-CDN
+allowlist (`rumble.com`, `1a-1791.com`, `rmbl.ws`, `rumble.cloud`), `bsky.app`,
+`pinimg.com`, `v.redd.it`, `staticflickr.com`, `artstation.com`, or the account's
+own PDS host for a Bluesky blob. Anything else — a malformed URL, an unexpected redirect
 target — resolves to `null` instead of becoming a downloadable URL.
 `resolveOriginal()` never throws; a failed lookup for one item just leaves that
 item as collected, or (for a per-item "Get video" request) surfaces it as failed
@@ -169,8 +172,8 @@ marked failed — turning on stream capture resolves it next time.)
   enrichment — either reads only what the page already loaded, or (image-size
   `HEAD` requests) stays on the same host. This is the one setting that talks to an
   external host on your behalf: Twitter, Wallhaven, Unsplash, Vimeo, Dailymotion,
-  Bluesky, Pinterest, Reddit, Flickr, or ArtStation, whichever the hinted item came
-  from.
+  Rutube, Rumble, Bluesky, Pinterest, Reddit, Flickr, or ArtStation, whichever the
+  hinted item came from.
 - What's sent is minimal: the id already visible in the page's own URL (a tweet
   status id, a Wallhaven wallpaper id, a Flickr photo id, and so on), or nothing at
   all — Unsplash, Reddit, and Bluesky video just build a URL. No cookies or auth
