@@ -12,6 +12,7 @@ import vimeoHlsConfig from '../fixtures/vimeo/player-config-hls.json';
 import redditVideo from '../fixtures/reddit/reddit-video.json';
 import tweetResultHls from '../fixtures/twitter/tweet-result-hls.json';
 import pinHlsWidget from '../fixtures/pinterest/pin-hls-widget.json';
+import twitchClip from '../fixtures/twitch/clip.json';
 
 // HTML fixtures imported as raw strings (vite `?raw`) so the read is location-
 // and cwd-independent — works under the package's own Vitest project.
@@ -859,6 +860,62 @@ describe('resolveOriginal — redgifs', () => {
     expect(await resolveOriginal({ platform: 'redgifs', id: 'brightexample' }, { fetch: twoHop({ token: 'TESTTOKEN' }, gif, false) })).toBeNull();
     const throwing = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
     expect(await resolveOriginal({ platform: 'redgifs', id: 'brightexample' }, { fetch: throwing })).toBeNull();
+  });
+});
+
+describe('resolveOriginal — twitch', () => {
+  const SLUG = 'AwkwardHelplessSalamanderSwiftRage';
+  const token = twitchClip.data.clip.playbackAccessToken;
+
+  it('signs the highest-quality clip mp4 with sig+token (fixture), pinned to twitchcdn.net', async () => {
+    const res = await resolveOriginal({ platform: 'twitch', id: SLUG }, { fetch: mockFetch(twitchClip) });
+    expect(res).not.toBeNull();
+    const u = new URL(res!.url);
+    expect(u.hostname).toBe('production.assets.clips.twitchcdn.net');
+    // 1080 wins over 720/360 by numeric quality label.
+    expect(u.pathname).toBe(`/v2/media/${SLUG}/1080.mp4`);
+    expect(u.searchParams.get('sig')).toBe(token.signature);
+    expect(u.searchParams.get('token')).toBe(token.value);
+  });
+
+  it('tolerates a GQL array-envelope response', async () => {
+    const res = await resolveOriginal({ platform: 'twitch', id: SLUG }, { fetch: mockFetch([twitchClip]) });
+    expect(new URL(res!.url).pathname).toBe(`/v2/media/${SLUG}/1080.mp4`);
+  });
+
+  it('accepts an older clips-media-assets2.twitch.tv source host', async () => {
+    const payload = { data: { clip: { playbackAccessToken: { signature: 'sig', value: 'tok' }, videoQualities: [
+      { quality: '480', sourceURL: 'https://clips-media-assets2.twitch.tv/vod-abc/480.mp4' },
+    ] } } };
+    const res = await resolveOriginal({ platform: 'twitch', id: SLUG }, { fetch: mockFetch(payload) });
+    expect(new URL(res!.url).hostname).toBe('clips-media-assets2.twitch.tv');
+  });
+
+  it('rejects a source URL that is not a Twitch clip CDN (untrusted JSON)', async () => {
+    const evil = { data: { clip: { playbackAccessToken: { signature: 'sig', value: 'tok' }, videoQualities: [
+      { quality: '1080', sourceURL: 'https://evil.example/x.mp4' },
+    ] } } };
+    expect(await resolveOriginal({ platform: 'twitch', id: SLUG }, { fetch: mockFetch(evil) })).toBeNull();
+  });
+
+  it('returns null (fail-closed) when the playback access token is missing', async () => {
+    const noToken = { data: { clip: { videoQualities: [
+      { quality: '1080', sourceURL: 'https://production.assets.clips.twitchcdn.net/x/1080.mp4' },
+    ] } } };
+    expect(await resolveOriginal({ platform: 'twitch', id: SLUG }, { fetch: mockFetch(noToken) })).toBeNull();
+  });
+
+  it('returns null when there are no video qualities (private/expired/rotated op)', async () => {
+    const empty = { data: { clip: { playbackAccessToken: { signature: 'sig', value: 'tok' }, videoQualities: [] } } };
+    expect(await resolveOriginal({ platform: 'twitch', id: SLUG }, { fetch: mockFetch(empty) })).toBeNull();
+    expect(await resolveOriginal({ platform: 'twitch', id: SLUG }, { fetch: mockFetch({ data: { clip: null } }) })).toBeNull();
+  });
+
+  it('returns null on a non-ok response, a bad slug, or a throw', async () => {
+    expect(await resolveOriginal({ platform: 'twitch', id: SLUG }, { fetch: mockFetch(twitchClip, false) })).toBeNull();
+    expect(await resolveOriginal({ platform: 'twitch', id: 'bad slug!' }, { fetch: mockFetch(twitchClip) })).toBeNull();
+    const throwing = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
+    expect(await resolveOriginal({ platform: 'twitch', id: SLUG }, { fetch: throwing })).toBeNull();
   });
 });
 
