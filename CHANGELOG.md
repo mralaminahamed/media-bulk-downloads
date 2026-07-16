@@ -68,7 +68,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     md5 original (passive, no auth); grid-only originals resolve via the opt-in
     authenticated action below (#319).
   - **GIF / video / wallpaper:** Giphy, Tenor, imgur `.gifv` → mp4, Burst by Shopify,
-    WallpaperCave, wallpaperscraft, plus **Streamable** and **RedGifs** video.
+    WallpaperCave, wallpaperscraft, plus **Streamable**, **RedGifs**, and **Twitch
+    clips** video (#354). Twitch resolves the highest-quality clip mp4 through one
+    Client-ID GraphQL call; its operation/hash are externalized so they can be bumped
+    without a release when Twitch rotates them.
   - **Art:** Pixiv (original master via the logged-in preload) and Newgrounds.
 
   Passive and network-free where possible; RedGifs downloads clear their hotlink

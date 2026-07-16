@@ -110,12 +110,24 @@ Resolved (this benchmark drove the fixes):
     `[]` (→ generic identity) when the DOM lists nothing larger, so a preview is never
     replaced by a guessed URL that could 404 (a blind resolution bump does — not every
     wallpaper has 4K).
-  - Deferred to a further follow-up: **Twitch clips** (feasible via a Client-ID GraphQL
-    POST → tokened `.twitchcdn.net` mp4, but brittle — the persisted-query hash rotates and
-    the tokens expire fast) and **9GAG** (id-derived `img-9gag-fun.9cache.com/photo/<id>_460sv.mp4`,
-    but the image-vs-video DOM disambiguation needs live verification). **RedGifs media**
+  - Deferred to a further follow-up: **Twitch clips** and **9GAG**. **RedGifs media**
     was the only member of this batch that was previously called infeasible — the #197
     hotlink path is what makes it shippable.
+- ✅ **Twitch clips resolver (#354, 2026-07-16)** — a `clips.twitch.tv/<slug>`, a
+  channel `twitch.tv/<ch>/clip/<slug>` permalink, or an embed player's `?clip=<slug>`
+  (link or `<iframe>`) surfaces a pending video (`resolveHint 'twitch'`). The opt-in
+  resolve pass does one GraphQL persisted-query POST to `gql.twitch.tv/gql`
+  (`Client-ID` header — an allowed custom header) for the clip's playback access token
+  + mp4 renditions, signs the highest-resolution `sourceURL` with `?sig=&token=`, and
+  returns it host-pinned to Twitch's clip CDNs (`.twitchcdn.net` / `.twitch.tv`). The
+  token is used only to build that URL and never logged/persisted. The operation name,
+  `sha256Hash`, and Client-ID are externalized to `resolvers/twitch-constants.ts` so
+  they can be bumped without a logic change when Twitch rotates them (the op has
+  migrated before: `VideoAccessToken_Clip` → `ShareClipRenderStatus`). Any missing
+  field — private/expired clip, or a rotated op the request no longer matches —
+  resolves to null (fail-closed: never a URL that would 403/404). *The GQL chain is
+  implemented from the documented (yt-dlp/streamlink) shape against a crafted fixture;
+  the live op/hash still wants a real-clip confirmation.*
 
 Corrected:
 - 🔧 **YouTube** — `→maxresdefault` replaced a working `hqdefault` with a dead link when
