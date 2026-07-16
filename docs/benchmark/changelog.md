@@ -10,6 +10,34 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Tier-2 sweep batch 2 (2026-07-16)** — the six publicly-verifiable tier-2
+  candidates (#384/#386/#388/#393/#403/#417), characterized against real pages;
+  most collapsed to simpler layers than the "DOM resolver" label suggested:
+  - **VSCO** (#384) — CDN rule on `im.vsco.co`: the display is `<responsiveUrl>?w=&dpr=`
+    (the master URL is exposed in the page's `__PRELOADED_STATE__`), so strip the
+    resize query. Browser-verified (the CDN bot-blocks curl). Video (`img.vsco.co`
+    mp4 / m3u8) goes through the A/V path — HLS items are NEEDS-NETWORK, deferred.
+  - **Saatchi Art** (#393) — CDN rule on `images.saatchiart.com`: swap the trailing
+    `-<N>.jpg` size token to `-8` (largest offered, already present in the DOM;
+    og:image is `-7`). Verified -7 46 KB → -8 237 KB.
+  - **WEBTOON** (#403) — CDN rule on `[s]webtoon-phinf.pstatic.net`: strip the
+    `?type=q90` recompress (verified q90 57 KB → original 159 KB). The panel's real
+    URL lives in `data-url`, now added to the lazy-attr collector (`extract.ts`);
+    pstatic hotlink-403s without a webtoons.com Referer, covered by the #197 opt-in.
+  - **Tapas** (#417) — **free-ride, already covered**: the panel `data-src` (read by
+    the existing lazy collector) is the full-size signed CDN URL (`us-a.tapas.io`,
+    Akamai `__token__`), which must be used verbatim (the token is the gate and
+    expires). No code needed; only free/unlocked episodes render panels.
+  - **Pikabu** (#386) — `pikabu.ts` story-image resolver: reads the `/big/` original
+    from `a.story-image__link`, host-pinned to cs*.pikabu.ru, element-scoped. The
+    site is DDoS-Guard walled (blocks server AND headless fetch), so the selectors
+    are from the community userscript, not a live capture — **needs-live-confirmation,
+    fail-closed** (a miss returns [], the displayed image still downloads). Video
+    (converted GIF/webm) is a direct-file A/V case, out of scope here.
+  - **Coub** (#388) — **deferred**: `#coubPageCoubJson` → `file_versions.share.default`
+    is a single combined mp4, but it's *video*, which is collected by the A/V path,
+    not the resolver registry — so it needs a `collect.ts` push (à la Vimeo/Dailymotion)
+    reading the JSON, a separate change. Left open.
 - ✅ **4chan archives — FoolFuuka resolver (2026-07-16)** — `foolfuuka.ts` covers
   **desuarchive.org** (CDN `desu-usergeneratedcontent.xyz`) and **archive.4plebs.org**
   (CDN `i.4pcdn.org` / `img.4plebs.org`), the archive half deferred from #402 (→ #426).

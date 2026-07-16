@@ -56,6 +56,14 @@ describe('imageUrlsFromElement', () => {
     );
   });
 
+  it('reads data-url (WEBTOON panels keep the real URL there, src is a placeholder)', () => {
+    const img = document.createElement('img');
+    img.className = '_images';
+    img.setAttribute('src', 'https://www.webtoons.com/.../bg_transparency.png'); // lazy placeholder
+    img.setAttribute('data-url', 'https://webtoon-phinf.pstatic.net/x/y/z.jpg?type=q90');
+    expect(imageUrlsFromElement(img)).toContain('https://webtoon-phinf.pstatic.net/x/y/z.jpg?type=q90');
+  });
+
   it('dedupes a URL that appears via two different lazy attributes', () => {
     // data-orig-file and src happen to carry the identical URL — the `push`
     // helper's `!out.includes(u)` guard must keep it in the list exactly once,

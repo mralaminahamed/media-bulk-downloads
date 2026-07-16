@@ -978,3 +978,42 @@ describe('image-CDN rule batch (2026-07-16 Tier-1 site-coverage sweep)', () => {
       .toBe('https://i.ibb.co/wSkzRXP/italy.png');
   });
 });
+
+describe('image-CDN rule batch (2026-07-16 tier-2 sweep 2)', () => {
+  const orig = (u: string) => upgradeToOriginal(u).original;
+
+  it('VSCO: strips the ?w=/dpr resize query to the bare master', () => {
+    // Browser-verified: displayed = responsiveUrl?w=2048&dpr=1, bare = original.
+    expect(orig('https://im.vsco.co/1/51a9887c50f8151/561f648001146426743090fa/vsco_101515.jpg?w=2048&dpr=1'))
+      .toBe('https://im.vsco.co/1/51a9887c50f8151/561f648001146426743090fa/vsco_101515.jpg');
+    // og:image variant (?w=1200) strips the same
+    expect(orig('https://im.vsco.co/1/51a9887c50f8151/561f648001146426743090fa/vsco_101515.jpg?w=1200'))
+      .toBe('https://im.vsco.co/1/51a9887c50f8151/561f648001146426743090fa/vsco_101515.jpg');
+    // already bare -> unchanged
+    expect(orig('https://im.vsco.co/1/51a9887c50f8151/561f648001146426743090fa/vsco_101515.jpg'))
+      .toBe('https://im.vsco.co/1/51a9887c50f8151/561f648001146426743090fa/vsco_101515.jpg');
+  });
+
+  it('Saatchi Art: swaps the trailing size token to -8 (largest offered)', () => {
+    // Verified: -7 46 KB -> -8 237 KB (largest); -22 is an LQIP blur placeholder.
+    expect(orig('https://images.saatchiart.com/saatchi/958076/art/9382443/8445551-ISPEBVAO-7.jpg'))
+      .toBe('https://images.saatchiart.com/saatchi/958076/art/9382443/8445551-ISPEBVAO-8.jpg');
+    expect(orig('https://images.saatchiart.com/saatchi/958076/art/9382443/8445551-ISPEBVAO-22.jpg'))
+      .toBe('https://images.saatchiart.com/saatchi/958076/art/9382443/8445551-ISPEBVAO-8.jpg');
+    // already -8 -> unchanged
+    expect(orig('https://images.saatchiart.com/saatchi/958076/art/9382443/8445551-ISPEBVAO-8.jpg'))
+      .toBe('https://images.saatchiart.com/saatchi/958076/art/9382443/8445551-ISPEBVAO-8.jpg');
+  });
+
+  it('WEBTOON: strips the ?type=q90 recompress to the panel original', () => {
+    // Verified: q90 57 KB -> no-type original 159 KB (type=q100 404s).
+    expect(orig('https://webtoon-phinf.pstatic.net/20200328_249/1585334566015rEpaA_JPEG/15853345629669517.jpg?type=q90'))
+      .toBe('https://webtoon-phinf.pstatic.net/20200328_249/1585334566015rEpaA_JPEG/15853345629669517.jpg');
+    // the swebtoon-phinf variant host too
+    expect(orig('https://swebtoon-phinf.pstatic.net/x/y/z.jpg?type=q90'))
+      .toBe('https://swebtoon-phinf.pstatic.net/x/y/z.jpg');
+    // no type query -> unchanged
+    expect(orig('https://webtoon-phinf.pstatic.net/x/y/z.jpg'))
+      .toBe('https://webtoon-phinf.pstatic.net/x/y/z.jpg');
+  });
+});
