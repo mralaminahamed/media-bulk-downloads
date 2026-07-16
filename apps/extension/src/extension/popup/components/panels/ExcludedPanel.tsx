@@ -61,7 +61,7 @@ const ExcludedPanel: React.FC<ExcludedPanelProps> = ({ onClose }) => {
         aria-modal="true"
         aria-labelledby="excluded-title"
         tabIndex={-1}
-        className="sheet-in mbd:flex mbd:h-full mbd:w-full mbd:max-w-[380px] mbd:flex-col mbd:bg-(--panel) mbd:shadow-2xl mbd:focus:outline-none"
+        className="drawer-in mbd:flex mbd:h-full mbd:w-full mbd:max-w-[380px] mbd:flex-col mbd:bg-(--panel) mbd:shadow-2xl mbd:focus:outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="mbd:flex mbd:items-center mbd:justify-between mbd:border-b hairline mbd:px-4 mbd:py-3">
