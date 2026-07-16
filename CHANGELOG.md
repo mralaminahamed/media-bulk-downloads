@@ -7,6 +7,19 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Twelve more sweep sites (tier-1 batch 2).** Passive URL→original CDN rules,
+  each curl-verified against a real asset: **Shopee** (`img.susercontent.com` —
+  strip the `_tn`/`@resize` key suffix), **Mercado Libre** (`mlstatic.com` — size
+  code → `-F.jpg`, the full-res JPG), **Tokopedia** (`images.tokopedia.net` — drop
+  the `/img/cache/<size>/` segment), **Hepsiburada** (`productimages.hepsiburada.net`
+  — size segment → 2000), **Leboncoin** (`img.leboncoin.fr` — `?rule` → `ad-large`),
+  **Meesho** (`images.meesho.com` — `?width` → native cap), **Domestika** (unsigned
+  imgproxy — drop the processing opts), **Sahibinden** (`shbdn.com` — filename prefix
+  → `x5_`), **Wattpad** (`img.wattpad.com` — cover width → 512), **Naver Blog**
+  (`postfiles`/`mblogthumb-phinf.pstatic.net` — `?type` → `w3840`, since stripping it
+  returns a placeholder), **Lofter** (`lf127.net` — drop the NetEase-NOS query), and
+  **nostr.build** (`image.nostr.build` — strip `/thumb/` and `/resp/<size>/`). Catbox
+  (`files.catbox.moe`) needs no rule — its URLs are already the raw upload.
 - **Fediverse image originals (Pixelfed, Misskey, Lemmy).** One host-agnostic rule
   per network, matched on the media path across any instance (like the existing
   Mastodon rule): **Pixelfed** strips the `_thumb` grid-preview suffix, **Misskey**

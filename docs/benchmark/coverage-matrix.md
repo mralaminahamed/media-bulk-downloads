@@ -106,6 +106,18 @@ logged-out), **[G]** a known gap.
 | 90 | Pixelfed (fediverse, host-agnostic) | */m/_v2/*_thumb.<ext> (any instance / pxscdn.com) | **CDN rule** — strip `_thumb` before the ext on the `/m/_v2/` media path; works on self-hosted `/storage/` and the CDN alike (API `url`/og:image are the bare original). Verified 143 KB → 345 KB | C |
 | 91 | Misskey / Sharkey (fediverse, host-agnostic) | */proxy/<name>.webp?url= / proxy.misskeyusercontent.jp | **de-proxy** — unwrap the media proxy's `url=` param (or misskey.io's path-encoded original); runs before the MEDIA_EXT guard since the proxy path ends in `.webp`. `files[].url` is already the original. Verified 16 KB → 105 KB | C |
 | 92 | Lemmy / pict-rs (fediverse, host-agnostic) | */pictrs/image/* (any instance) | **CDN rule** — strip the pict-rs `?thumbnail/?format` resize query → stored original. Current 0.19.x separate-UUID thumbs aren't param-addressable (API `post.url` is the original); `image_proxy?url=` is unwrapped by the generic de-proxy | C |
+| 93 | Shopee | down-{cc}.img.susercontent.com | **CDN rule** — strip the `_tn` / `@resize_w<N>_nl` suffix on a `/file/<hash>` key → bare original. Host-agnostic across the regional `down-*` hosts. Verified 13/21 KB → 91 KB | C |
+| 94 | Mercado Libre | http2.mlstatic.com | **CDN rule** — rewrite the trailing size code (`O/OO/V/W/AB/F`) to `-F.jpg` (Full = largest; JPG beats WebP and ignores the `D_NQ_/2X` prefix). Verified `-AB.webp` 21 KB → `-F.jpg` 211 KB | C |
+| 95 | Tokopedia | images.tokopedia.net | **CDN rule** — drop the `/img/cache/<size>/` resizer segment → stored original. Verified 42 KB → 621 KB | C |
+| 96 | Hepsiburada | productimages.hepsiburada.net | **CDN rule** — pin the `/s/<store>/<SIZE>/` path segment to `2000` (CDN cap; 2560+ 404). Verified 550 17 KB → 2000 86 KB | C |
+| 97 | Leboncoin | img.leboncoin.fr | **CDN rule** — `?rule=<name>` → `ad-large` (named size, no HMAC). Verified 8 KB → 263 KB | C |
+| 98 | Meesho | images.meesho.com | **CDN rule** — `?width=<N>` → 2000 (overrides the `_NNN` filename token, clamps to ~1200px native). Verified 58 KB → 122 KB | C |
+| 99 | Domestika | imgproxy.domestika.org | **CDN rule** — UNSIGNED imgproxy `/unsafe/<opts>/plain/src://…`: drop the `w:/rs:/dpr:` processing opts → the untouched `-original` source. Verified 30 KB → 161 KB | C |
+| 100 | Sahibinden | i{N}.shbdn.com | **CDN rule** — pin the `/photos/dd/dd/dd/` filename prefix to `x5_` (thmb_ < bare < x5_; orj_ blocked). Not signed. Verified thmb_ 6 KB → x5_ 65 KB | C |
+| 101 | Wattpad | img.wattpad.com | **CDN rule** — pin the cover width token to `512` (max; unlisted widths fall back to the 256 baseline, so set exactly, don't strip). Verified 23 KB → 77 KB | C |
+| 102 | Naver Blog | postfiles / mblogthumb-phinf.pstatic.net | **CDN rule** — `?type=w<N>` → `w3840` (large whitelisted width, clamps to native). Stripping `?type` returns a 4.5 KB placeholder, so bump rather than strip (contrast row 87 WEBTOON). Verified w773 93 KB → w3840 315 KB | C |
+| 103 | Lofter | imglf{N}.lf127.net | **CDN rule** — drop the entire NetEase-NOS `?imageView&thumbnail=…&quality=…` query → original (corroborated by gallery-dl's `lofter.py`). Verified 77 KB → 209 KB | C |
+| 104 | nostr.build | image.nostr.build | **CDN rule** — strip the `/thumb/` and `/resp/<size>/` path segments → the bare `<sha256>.<ext>` original (bare-hash URLs clients embed are already originals = free-ride). Verified /thumb/ 9 KB → 82 KB | C |
 
 ¹ Tumblr previously had a `/sWxH/` → `/s1280x1920/` rule; it was **removed** — modern
 `64.media.tumblr.com` pre-renders one size folder per image and every other size 404s,

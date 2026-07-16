@@ -1063,3 +1063,108 @@ describe('image-CDN rule batch (2026-07-16 fediverse trio)', () => {
       .toBe('https://lemmy.world/pictrs/image/abc.jpeg');
   });
 });
+
+describe('image-CDN rule batch (2026-07-16 Tier-1 sweep batch 2)', () => {
+  const orig = (u: string) => upgradeToOriginal(u).original;
+
+  it('Shopee: strips the _tn / @resize suffix on the /file/<hash> key', () => {
+    // Verified _tn 13 KB / @resize_w450 21 KB -> bare key 91 KB.
+    expect(orig('https://down-ph.img.susercontent.com/file/e61202f302fdc0b4b0989f98d7d30f6d_tn'))
+      .toBe('https://down-ph.img.susercontent.com/file/e61202f302fdc0b4b0989f98d7d30f6d');
+    expect(orig('https://down-my.img.susercontent.com/file/e61202f302fdc0b4b0989f98d7d30f6d@resize_w450_nl'))
+      .toBe('https://down-my.img.susercontent.com/file/e61202f302fdc0b4b0989f98d7d30f6d');
+    // already the bare key -> unchanged
+    expect(orig('https://down-ph.img.susercontent.com/file/e61202f302fdc0b4b0989f98d7d30f6d'))
+      .toBe('https://down-ph.img.susercontent.com/file/e61202f302fdc0b4b0989f98d7d30f6d');
+  });
+
+  it('Mercado Libre: rewrites any size code to -F.jpg (Full, largest)', () => {
+    // Verified -AB.webp 21 KB -> -F.jpg 211 KB.
+    expect(orig('https://http2.mlstatic.com/D_Q_NP_2X_602300-MLA110125772377_042026-AB.webp'))
+      .toBe('https://http2.mlstatic.com/D_Q_NP_2X_602300-MLA110125772377_042026-F.jpg');
+    expect(orig('https://http2.mlstatic.com/D_NQ_NP_602300-MLA110125772377_042026-O.jpg'))
+      .toBe('https://http2.mlstatic.com/D_NQ_NP_602300-MLA110125772377_042026-F.jpg');
+  });
+
+  it('Tokopedia: removes the /img/cache/<size>/ resizer segment', () => {
+    // Verified 500-square 42 KB -> 621 KB.
+    expect(orig('https://images.tokopedia.net/img/cache/500-square/VqbcmM/2024/3/2/7d9f.png'))
+      .toBe('https://images.tokopedia.net/img/VqbcmM/2024/3/2/7d9f.png');
+    // no cache segment -> unchanged
+    expect(orig('https://images.tokopedia.net/img/VqbcmM/2024/3/2/7d9f.png'))
+      .toBe('https://images.tokopedia.net/img/VqbcmM/2024/3/2/7d9f.png');
+  });
+
+  it('Hepsiburada: pins the /s/<store>/<SIZE>/ segment to 2000 (max)', () => {
+    // Verified 550 17 KB -> 2000 86 KB.
+    expect(orig('https://productimages.hepsiburada.net/s/236/550/110000219876712.jpg'))
+      .toBe('https://productimages.hepsiburada.net/s/236/2000/110000219876712.jpg');
+    // a WxH size segment is also replaced by the max width
+    expect(orig('https://productimages.hepsiburada.net/s/236/300-443/110000219876712.jpg'))
+      .toBe('https://productimages.hepsiburada.net/s/236/2000/110000219876712.jpg');
+  });
+
+  it('Leboncoin: rewrites ?rule=<size> to ad-large', () => {
+    // Verified ad-thumb 8 KB -> ad-large 263 KB.
+    expect(orig('https://img.leboncoin.fr/api/v1/lbcpb1/images/c6/48/c648f4ff.jpg?rule=ad-thumb'))
+      .toBe('https://img.leboncoin.fr/api/v1/lbcpb1/images/c6/48/c648f4ff.jpg?rule=ad-large');
+  });
+
+  it('Meesho: bumps ?width to the native cap (2000)', () => {
+    // Verified width=512 58 KB -> width=2000 122 KB (native).
+    expect(orig('https://images.meesho.com/images/products/607773583/d5ijr_512.webp?width=512'))
+      .toBe('https://images.meesho.com/images/products/607773583/d5ijr_512.webp?width=2000');
+  });
+
+  it('Domestika: drops the imgproxy processing opts (unsigned /unsafe/)', () => {
+    // Verified w:650 30 KB -> 161 KB.
+    expect(orig('https://imgproxy.domestika.org/unsafe/w:650/dpr:1/rs:fill/plain/src://course-covers/000/005/642/5642-original.jpg'))
+      .toBe('https://imgproxy.domestika.org/unsafe/plain/src://course-covers/000/005/642/5642-original.jpg');
+    // already clean (/unsafe/plain/) -> unchanged (no double-strip)
+    expect(orig('https://imgproxy.domestika.org/unsafe/plain/src://course-covers/000/005/642/5642-original.jpg'))
+      .toBe('https://imgproxy.domestika.org/unsafe/plain/src://course-covers/000/005/642/5642-original.jpg');
+  });
+
+  it('Sahibinden: pins the /photos/ filename prefix to x5_ (largest)', () => {
+    // Verified thmb_ 6 KB / bare 56 KB -> x5_ 65 KB.
+    expect(orig('https://i0.shbdn.com/photos/09/70/02/thmb_1274097002ixv.jpg'))
+      .toBe('https://i0.shbdn.com/photos/09/70/02/x5_1274097002ixv.jpg');
+    // no prefix -> x5_ inserted
+    expect(orig('https://i0.shbdn.com/photos/09/70/02/1274097002ixv.jpg'))
+      .toBe('https://i0.shbdn.com/photos/09/70/02/x5_1274097002ixv.jpg');
+  });
+
+  it('Wattpad: pins the cover width token to 512 (max)', () => {
+    // Verified 256 23 KB -> 512 77 KB.
+    expect(orig('https://img.wattpad.com/cover/191584019-256-k170402.jpg'))
+      .toBe('https://img.wattpad.com/cover/191584019-512-k170402.jpg');
+  });
+
+  it('Naver Blog: bumps ?type=w<N> to w3840 (does NOT strip -> placeholder)', () => {
+    // Verified type=w773 93 KB -> w3840 315 KB (native).
+    expect(orig('https://postfiles.pstatic.net/MjAy/abc.JPEG.ecopassport/name.jpg?type=w773'))
+      .toBe('https://postfiles.pstatic.net/MjAy/abc.JPEG.ecopassport/name.jpg?type=w3840');
+    expect(orig('https://mblogthumb-phinf.pstatic.net/MjAy/abc.jpg?type=w800'))
+      .toBe('https://mblogthumb-phinf.pstatic.net/MjAy/abc.jpg?type=w3840');
+  });
+
+  it('Lofter: strips the entire NetEase NOS processing query', () => {
+    // Verified 77 KB -> 209 KB.
+    expect(orig('https://imglf5.lf127.net/img/52be31cc369db74d/abc.jpg?imageView&thumbnail=500x0&quality=96'))
+      .toBe('https://imglf5.lf127.net/img/52be31cc369db74d/abc.jpg');
+    // bare URL (no query) -> unchanged
+    expect(orig('https://imglf5.lf127.net/img/52be31cc369db74d/abc.jpg'))
+      .toBe('https://imglf5.lf127.net/img/52be31cc369db74d/abc.jpg');
+  });
+
+  it('nostr.build: strips /thumb/ and /resp/<size>/ to the bare hash original', () => {
+    // Verified /thumb/ 9 KB -> bare 82 KB.
+    expect(orig('https://image.nostr.build/thumb/0746072cb145f1.jpg'))
+      .toBe('https://image.nostr.build/0746072cb145f1.jpg');
+    expect(orig('https://image.nostr.build/resp/240p/0746072cb145f1.jpg'))
+      .toBe('https://image.nostr.build/0746072cb145f1.jpg');
+    // bare hash URL (what clients embed) -> unchanged (free-ride)
+    expect(orig('https://image.nostr.build/0746072cb145f1.jpg'))
+      .toBe('https://image.nostr.build/0746072cb145f1.jpg');
+  });
+});

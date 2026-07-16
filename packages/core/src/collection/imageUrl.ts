@@ -1140,6 +1140,107 @@ const RULES: CdnRule[] = [
       (u.searchParams.has('thumbnail') || u.searchParams.has('format')),
     rewrite: (u) => { u.searchParams.delete('thumbnail'); u.searchParams.delete('format'); },
   },
+  // ── E-commerce / news / blog CDN rules (2026-07-16 sweep, batch 2). Each
+  // transform was curl-verified live against a real (SFW) asset; byte deltas
+  // are noted per rule.
+  {
+    // Shopee (host-agnostic across down-{cc}.img.susercontent.com): a product
+    // image key /file/<hash> renders resized variants via a suffix — `_tn`
+    // (tiny thumb) or `@resize_w<N>_nl`. The bare key is the full-res original.
+    // Verified _tn 13 KB / @resize_w450 21 KB -> bare 91 KB. (#370)
+    match: (u) =>
+      u.hostname.endsWith('.img.susercontent.com') &&
+      /\/file\/[a-z0-9-]+(?:_tn|@resize_[^/?]+)$/i.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/(?:_tn|@resize_[^/?]+)$/i, ''); },
+  },
+  {
+    // Mercado Libre (http2.mlstatic.com et al.): the trailing size code selects
+    // the rendition — `-F` (Full) is the largest and ignores the D_NQ_/2X/NP
+    // prefix, and the JPG original outweighs the WebP. Rewrite any known code
+    // (O/OO/V/W/AB/F) to -F.jpg. Verified -AB.webp 21 KB -> -F.jpg 211 KB. (#371)
+    match: (u) =>
+      /(?:^|\.)mlstatic\.com$/.test(u.hostname) &&
+      /-(?:OO|O|V|W|AB|F)\.(?:webp|jpg)$/i.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/-(?:OO|O|V|W|AB|F)\.(?:webp|jpg)$/i, '-F.jpg'); },
+  },
+  {
+    // Tokopedia (images.tokopedia.net): product images are served through a
+    // /img/cache/<size>/ resizer segment (e.g. 500-square); removing it returns
+    // the stored original. Verified 500-square 42 KB -> 621 KB. (#376)
+    match: (u) => u.hostname === 'images.tokopedia.net' && /\/img\/cache\/[^/]+\//.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/\/img\/cache\/[^/]+\//, '/img/'); },
+  },
+  {
+    // Hepsiburada (productimages.hepsiburada.net): the path shape
+    // /s/<store>/<SIZE>/<id>.jpg carries the width (or WxH) as a segment; the CDN
+    // caps at 2000, so pin the size segment to the max. Verified 550 17 KB ->
+    // 2000 86 KB (2560+ 400s). (#377)
+    match: (u) =>
+      u.hostname === 'productimages.hepsiburada.net' &&
+      /\/s\/\d+\/[^/]+\/[^/]+\.[a-z0-9]+$/i.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/(\/s\/\d+\/)[^/]+(\/)/, '$12000$2'); },
+  },
+  {
+    // Leboncoin (img.leboncoin.fr): the ?rule=<name> query is a named size (no
+    // HMAC); ad-large is the biggest. Verified ad-thumb 8 KB -> ad-large 263 KB. (#378)
+    match: (u) => u.hostname === 'img.leboncoin.fr' && u.searchParams.has('rule'),
+    rewrite: (u) => { u.searchParams.set('rule', 'ad-large'); },
+  },
+  {
+    // Meesho (images.meesho.com): a ?width=<N> query overrides the _NNN filename
+    // token and clamps to native (~1200px). Bump it to the cap. Verified
+    // width=512 58 KB -> width=2000 122 KB (native). (#379)
+    match: (u) => u.hostname === 'images.meesho.com' && u.searchParams.has('width'),
+    rewrite: (u) => { u.searchParams.set('width', '2000'); },
+  },
+  {
+    // Domestika (imgproxy.domestika.org): an UNSIGNED imgproxy URL
+    // (/unsafe/<opts>/plain/src://…) where <opts> are w:/rs:/dpr: processing
+    // directives; dropping them keeps the untouched source (already named
+    // -original). Verified w:650 30 KB -> 161 KB. (#383)
+    match: (u) => u.hostname === 'imgproxy.domestika.org' && /^\/unsafe\/.+?\/plain\//.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/^\/unsafe\/.+?\/plain\//, '/unsafe/plain/'); },
+  },
+  {
+    // Sahibinden (i<N>.shbdn.com): the filename size prefix under /photos/dd/dd/dd/
+    // ranks thmb_ < (none) < x5_; x5_ is the largest obtainable (orj_ is blocked).
+    // Pin the prefix to x5_. Verified thmb_ 6 KB / bare 56 KB -> x5_ 65 KB. (#390)
+    match: (u) => /^i\d+\.shbdn\.com$/.test(u.hostname) && /\/photos\/\d+\/\d+\/\d+\//.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/(\/photos\/\d+\/\d+\/\d+\/)(?:thmb_|x\d+_)?/, '$1x5_'); },
+  },
+  {
+    // Wattpad (img.wattpad.com): story covers embed the width in the filename
+    // (/cover/<id>-<W>-k<hash>.jpg); 512 is the max (unlisted widths fall back to
+    // the 256 baseline, so pin exactly 512, don't strip). Verified 256 23 KB ->
+    // 512 77 KB. (#392)
+    match: (u) => u.hostname === 'img.wattpad.com' && /\/cover\/\d+-\d+-k\w+\.jpg$/i.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/(\/cover\/\d+)-\d+(-k\w+\.jpg)$/i, '$1-512$2'); },
+  },
+  {
+    // Naver Blog (postfiles.pstatic.net, mblogthumb-phinf.pstatic.net): the
+    // ?type=w<N> query is an open resize directive that clamps to native — but
+    // STRIPPING it yields a placeholder, so bump to a large whitelisted width
+    // instead. (Contrast the WEBTOON pstatic rule above, which strips type.)
+    // Verified type=w773 93 KB -> w3840 315 KB (native). (#399)
+    match: (u) =>
+      (u.hostname === 'postfiles.pstatic.net' || u.hostname === 'mblogthumb-phinf.pstatic.net') &&
+      /^w\d+$/.test(u.searchParams.get('type') ?? ''),
+    rewrite: (u) => { u.searchParams.set('type', 'w3840'); },
+  },
+  {
+    // Lofter (imglf<N>.lf127.net): a NetEase NOS ?imageView&thumbnail=…&quality=…
+    // processing query resizes/re-encodes; dropping the entire query returns the
+    // original (corroborated by gallery-dl's lofter.py). Verified 77 KB -> 209 KB. (#409)
+    match: (u) => /^imglf\d+\.lf127\.net$/.test(u.hostname) && u.search !== '',
+    rewrite: (u) => { u.search = ''; },
+  },
+  {
+    // nostr.build (image.nostr.build): bare /<sha256>.<ext> URLs (what clients
+    // embed) are already originals; the /thumb/ and /resp/<size>/ path segments
+    // mark resized variants — strip them. Verified /thumb/ 9 KB -> bare 82 KB. (#421)
+    match: (u) => u.hostname === 'image.nostr.build' && /\/(?:thumb|resp\/[^/]+)\//.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/\/(?:thumb|resp\/[^/]+)\//, '/'); },
+  },
   {
     // Self-hosted WordPress: any host serving /wp-content/uploads/ with a resize
     // query (?w=&h=&resize=) and/or a stored -WxH / -scaled thumbnail suffix.
