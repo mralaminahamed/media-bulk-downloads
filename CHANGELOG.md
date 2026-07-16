@@ -169,8 +169,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Side panels slide in from the right.** The right-anchored drawers — Settings,
   Favourites, Excluded, Download-history, and the Tab picker — now animate in with
   a right→left slide instead of the shared rise-and-fade, matching their drawer
-  layout. The centred image-preview modal and on-page bubble keep the old entrance,
-  and the slide is disabled under `prefers-reduced-motion`.
+  layout. The on-page bubble keeps the old entrance, the centred image-preview
+  modal now appears without an entrance transform (its rise-and-scale pop clashed
+  with the drawers), and the slide is disabled under `prefers-reduced-motion`.
 
 ### Fixed
 - **Extension audit — 10 correctness fixes.** A deep scan / video resolve is no
