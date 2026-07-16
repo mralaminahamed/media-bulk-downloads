@@ -16,6 +16,13 @@ const HOSTS = new Set([
   // the full-res URL is the `full` key of an entity-encoded JSON `data-uris`
   // attribute on the media container. Each site uses its own image CDN.
   'derpibooru.org', 'furbooru.org', 'ponybooru.org', 'twibooru.org',
+  // Sakugabooru (Moebooru-skinned, video-first): image/settei posts show a
+  // `/data/sample/` downscale in `#image` and link the true original via
+  // `a.original-file-changed#highres` — the same Moebooru branch handles it.
+  // Its videos need no resolver: `<video><source>` already points at the
+  // original `/data/<hash>.mp4`, collected directly (originals on its own host).
+  // The site is www-canonical; keep the bare host too for pre-redirect loads.
+  'www.sakugabooru.com', 'sakugabooru.com',
 ]);
 
 // Allowed original-image host suffixes per page host — the DOM-supplied original
@@ -47,6 +54,10 @@ const IMG_HOSTS: Record<string, string[]> = {
   'furbooru.org': ['furrycdn.org'],
   'ponybooru.org': ['ponybooru.org'],
   'twibooru.org': ['twibooru.org'],
+  // Sakugabooru self-hosts originals on its own domain (www.sakugabooru.com/data/…).
+  // Both host keys pin to the registrable domain (covers www + bare via suffix).
+  'www.sakugabooru.com': ['sakugabooru.com'],
+  'sakugabooru.com': ['sakugabooru.com'],
 };
 
 /** Reads the `full` (full-resolution) URL from a Philomena `data-uris` JSON blob.
@@ -101,7 +112,12 @@ function readOriginal(el: Element): string | null {
   // image; a document-wide read would mis-attach the post's original to an icon.
   if (el.getAttribute?.('id') !== 'image') return null;
   const doc = el.ownerDocument;
-  const moe = doc?.querySelector('a.original-file-unchanged, a.highres-show, a#highres')?.getAttribute('href');
+  // `original-file-unchanged` = displayed image already IS the original;
+  // `original-file-changed` (Sakugabooru's "Download larger version") = a bigger
+  // original behind a `/data/sample/` downscale. Both carry `id="highres"`.
+  const moe = doc?.querySelector(
+    'a.original-file-unchanged, a.original-file-changed, a.highres-show, a#highres',
+  )?.getAttribute('href');
   if (moe) return moe;
   const gel = doc?.querySelector('a[href*="/images/"]')?.getAttribute('href');
   return gel ?? null;
