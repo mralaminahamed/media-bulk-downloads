@@ -10,6 +10,31 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Tier-2 site-coverage sweep resolvers (2026-07-16)** — four network-free DOM
+  resolvers + one CDN rule, each confirmed against a real live page (issues
+  #413/#414/#402/#418/#420); a new `resolvers/sites/pageOriginal.ts` holds the
+  shared `pageHost`/`pinnedDomUrl`/`kindFromExt` helpers these page-host-gated
+  resolvers use:
+  - **Postimages** (`postimages.ts`, page hosts `postimg.cc`/`postimages.org`) —
+    the viewer's displayed image AND `og:image` are a downscaled render on a
+    *different* hash, so both are a trap; the true original is the `#download`
+    button's `i.postimg.cc` target (the `?dl=1` attachment flag is stripped).
+    Host-pinned to `postimg.cc`.
+  - **4chan** (`fourchan.ts`, page hosts `boards.4chan.org`/`boards.4channel.org`)
+    — a thumbnail is `<tim>s.jpg` but the full file's real extension
+    (.png/.gif/.webm/.jpg) lives ONLY in the post's `a.fileThumb` href, so it is
+    read, never guessed; **element-scoped** to the collected thumb's own post so a
+    multi-post thread doesn't pin every image to the first file. Images + webm.
+    Host-pinned to `4cdn.org`. Archives (desuarchive/4plebs) use a different
+    engine + CDN — deferred.
+  - **4kWallpapers + WallpapersWide** (`wallpaperhosts.ts`) — the native max
+    resolution is a non-standard aspect, unique per wallpaper and NOT derivable by
+    URL grammar, so the resolver enumerates the page's download anchors and returns
+    the largest by pixel area (same-origin, host-pinned to the page host).
+  - **ImgBB** (`imageUrl.ts` CDN rule, `i.ibb.co`) — the displayed image is already
+    the no-suffix original; grid/album thumbnails append `.md`/`.th` before the
+    extension, so drop it. Reclassified from the filed Tier-2 label to a Tier-1
+    rule after the probe showed `og:image` == the original (#413).
 - ✅ **Tier-1 site-coverage sweep CdnRules (2026-07-16)** — nine passive host rules
   in `imageUrl.ts`, surfaced by a multi-agent popularity sweep (issues #367-#412)
   and each live-probed this session for a real thumbnail→original byte delta before

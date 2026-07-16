@@ -92,6 +92,11 @@ logged-out), **[G]** a known gap.
 | 76 | Youm7 | img.youm7.com | **CDN rule** — `/small/`\|`/medium/` size dir → `/large/`; content roots (`/ArticleImgs/`, `/PlugInImages/`) untouched (live-verified 4.6 KB → 22 KB) | C |
 | 77 | Imgbox | thumbs<N>.imgbox.com | **CDN rule** — `thumbs<N>` → `images<N>` host + `_t` → `_o` filename (live-verified 6.9 KB → 61.6 KB) | C |
 | 78 | Globo (g1/ge/gshow) | s<N>[-<edge>].glbimg.com | **CDN rule** — widen the Thumbor edge geometry `/<W>x<H>/` → `/0x0/` (native); the embedded origin is a private bucket, so the geometry is widened not extracted (images only; Globoplay is DRM) (live-verified `/3840x0/` == `/0x0/` 712 KB) | C |
+| 79 | Postimages | postimg.cc / postimages.org → i.postimg.cc | **resolver** — the displayed image + `og:image` are a downscaled render on a *different* hash (a trap); reads the `#download` button target for the true original, strips the `?dl=1` flag; host-pinned, network-free (2026-07-16 sweep) | C |
+| 80 | 4chan | boards.4chan.org / boards.4channel.org → i.4cdn.org | **resolver** — the thumbnail is `<tim>s.jpg` but the full file's real ext (.png/.gif/.webm/.jpg) is only in the post's `a.fileThumb` href, so it is read not guessed; element-scoped per post; images + webm; host-pinned. Archives (desuarchive/4plebs) differ — deferred | C |
+| 81 | 4kWallpapers | 4kwallpapers.com (same-origin) | **resolver** — the native max resolution is a non-standard aspect (not URL-grammar-derivable), so read the download anchors and return the largest by pixel area; same-origin host-pin, network-free | C |
+| 82 | WallpapersWide | wallpaperswide.com (same-origin) | **resolver** — the offered max resolution varies per wallpaper, so enumerate the `/download/` resolutions list and return the largest by pixel area; same-origin host-pin, network-free | C |
+| 83 | ImgBB | i.ibb.co (pages ibb.co) | **CDN rule** — the displayed image is already the original; grid/album thumbs append a `.md`/`.th` size suffix before the ext → drop it (og:image on the viewer page == the original, so no page resolver needed) | C |
 
 ¹ Tumblr previously had a `/sWxH/` → `/s1280x1920/` rule; it was **removed** — modern
 `64.media.tumblr.com` pre-renders one size folder per image and every other size 404s,
