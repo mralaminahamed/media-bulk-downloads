@@ -87,6 +87,19 @@ function serialize(task: () => Promise<void>): Promise<void> {
   return run;
 }
 
+/** LRU cap on remembered hosts (matches per-host scan-memory) so "Save for this
+ *  site" across very many sites can't grow this store without bound inside the
+ *  shared chrome.storage.local quota. */
+export const PER_HOST_SETTINGS_MAX_HOSTS = 200;
+
+/** Drop the oldest hosts (front of insertion order — see savePerHostSettings,
+ *  which re-inserts the touched host at the end) past the cap. */
+function evictToCap(store: Record<string, Partial<SettingsData>>): Record<string, Partial<SettingsData>> {
+  const hosts = Object.keys(store);
+  for (const h of hosts.slice(0, Math.max(0, hosts.length - PER_HOST_SETTINGS_MAX_HOSTS))) delete store[h];
+  return store;
+}
+
 /** Persist an allowlisted override for a host. No-op for an empty host or an
  *  empty (nothing-allowlisted) patch — never creates a "" or empty entry. */
 export async function savePerHostSettings(host: string, patch: Partial<SettingsData>): Promise<void> {
@@ -94,8 +107,11 @@ export async function savePerHostSettings(host: string, patch: Partial<SettingsD
   if (!host || Object.keys(picked).length === 0) return;
   return serialize(async () => {
     const store = await loadPerHostSettings();
+    // Re-insert at the end so the most-recently-saved host is newest in insertion
+    // order — makes the front the eviction candidate (LRU by last save).
+    delete store[host];
     store[host] = picked;
-    await durableSet(PER_HOST_SETTINGS_KEY, store);
+    await durableSet(PER_HOST_SETTINGS_KEY, evictToCap(store));
   });
 }
 

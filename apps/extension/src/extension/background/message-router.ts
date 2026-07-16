@@ -375,7 +375,15 @@ export const messageRouter: MessageRouter = {
     // tab, so fall back to the active tab.
     const run = (tabId?: number) => {
       const sniffed = tabId != null ? snifferByTab.get(tabId) : undefined;
-      resolveOriginalsBatch(hints, undefined, sniffed, message.authed === true).then((resolved) => respond({ resolved }));
+      // Defense-in-depth: the message's `authed` flag is caller-controlled, so the
+      // cookie-bearing Sankaku authed fetch also requires the worker's OWN stored
+      // opt-in (sankakuAuthedOriginals, default off). A forged authed=true alone
+      // can't trigger a credentialed cross-origin fetch. settingsReady ensures the
+      // cached setting is loaded before this decision.
+      void settingsReady.then(() => {
+        const authed = message.authed === true && currentSettings.sankakuAuthedOriginals === true;
+        resolveOriginalsBatch(hints, undefined, sniffed, authed).then((resolved) => respond({ resolved }));
+      });
     };
     if (sender.tab?.id != null) run(sender.tab.id);
     else chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => run(tabs[0]?.id));
