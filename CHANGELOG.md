@@ -7,6 +7,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **4chan archive support (FoolFuuka).** A resolver for **desuarchive** and
+  **4plebs** — reads each post's full media (images + webm) from the
+  `thread_image_link`, element-scoped and pinned to the archive's own CDN. Selectors
+  come from the FoolFuuka open-source theme (the archives block server-side probes),
+  so it fails closed until browser-confirmed.
 - **Four new site resolvers (coverage sweep, Tier-2).** Network-free DOM reads,
   each confirmed against a real page: **Postimages** (`postimg.cc` — reads the
   `#download` original, since the displayed image and `og:image` are a downscaled

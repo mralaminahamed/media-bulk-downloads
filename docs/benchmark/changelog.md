@@ -10,6 +10,17 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **4chan archives — FoolFuuka resolver (2026-07-16)** — `foolfuuka.ts` covers
+  **desuarchive.org** (CDN `desu-usergeneratedcontent.xyz`) and **archive.4plebs.org**
+  (CDN `i.4pcdn.org` / `img.4plebs.org`), the archive half deferred from #402 (→ #426).
+  A different engine + per-archive CDN than boards.4chan.org, so gated + host-pinned
+  separately: each post's full media (images + webm) is the href of
+  `a.thread_image_link` (which wraps the lazyloaded `img.post_image` thumbnail),
+  read **element-scoped** so a thread resolves each thumb to its own post. Selectors
+  confirmed against the FoolFuuka default theme (`board_comment.php`), NOT a live DOM
+  capture — the archives 403 server-side fetchers, so it is **fail-closed** and
+  needs-live-confirmation: a miss (wrong selector / off-CDN href) returns `[]`, never
+  a bad URL. Media hosts verified reachable.
 - ✅ **Tier-2 site-coverage sweep resolvers (2026-07-16)** — four network-free DOM
   resolvers + one CDN rule, each confirmed against a real live page (issues
   #413/#414/#402/#418/#420); a new `resolvers/sites/pageOriginal.ts` holds the
