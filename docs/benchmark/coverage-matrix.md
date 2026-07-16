@@ -118,6 +118,8 @@ logged-out), **[G]** a known gap.
 | 102 | Naver Blog | postfiles / mblogthumb-phinf.pstatic.net | **CDN rule** — `?type=w<N>` → `w3840` (large whitelisted width, clamps to native). Stripping `?type` returns a 4.5 KB placeholder, so bump rather than strip (contrast row 87 WEBTOON). Verified w773 93 KB → w3840 315 KB | C |
 | 103 | Lofter | imglf{N}.lf127.net | **CDN rule** — drop the entire NetEase-NOS `?imageView&thumbnail=…&quality=…` query → original (corroborated by gallery-dl's `lofter.py`). Verified 77 KB → 209 KB | C |
 | 104 | nostr.build | image.nostr.build | **CDN rule** — strip the `/thumb/` and `/resp/<size>/` path segments → the bare `<sha256>.<ext>` original (bare-hash URLs clients embed are already originals = free-ride). Verified /thumb/ 9 KB → 82 KB | C |
+| 105 | Wallpapers.com | wallpapers.com (BunnyCDN /images/) | **CDN rule** — size is a path segment (thumbnail < high < hd); swap `/images/(thumbnail\|high)/` → `/images/hd/` (largest = og:image), extension preserved. No signing; larger speculative segments 404. Verified 11 KB → 319 KB | C |
+| 106 | WallpaperAccess | wallpaperaccess.com | **CDN rule** — swap `/thumb/<id>.<ext>` → `/full/<id>.<ext>`, gated to the image path so the `/download/<slug>-<id>` HTML route is never touched. No signing; HTML pages Cloudflare-gated but the image host is open. Verified 32 KB → 797 KB | C |
 
 ¹ Tumblr previously had a `/sWxH/` → `/s1280x1920/` rule; it was **removed** — modern
 `64.media.tumblr.com` pre-renders one size folder per image and every other size 404s,

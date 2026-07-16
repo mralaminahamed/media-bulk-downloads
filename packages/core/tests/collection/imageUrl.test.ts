@@ -880,6 +880,30 @@ describe('image-CDN rule batch (2026-07-15 Tier-1, GIF/video + free-stock)', () 
     expect(orig('https://wallpapercave.com/wp/J10CtpB.jpg'))
       .toBe('https://wallpapercave.com/wp/J10CtpB.jpg');
   });
+
+  it('Wallpapers.com: /images/thumbnail| high/ -> /images/hd/ (largest = og:image)', () => {
+    // Verified thumbnail 11 KB -> hd 319 KB (hd is the top; download/original 404).
+    expect(orig('https://wallpapers.com/images/thumbnail/4k-nature-landscape-abc.jpg'))
+      .toBe('https://wallpapers.com/images/hd/4k-nature-landscape-abc.jpg');
+    // the mid `high` size upgrades too, extension preserved (.webp)
+    expect(orig('https://wallpapers.com/images/high/4k-nature-landscape-abc.webp'))
+      .toBe('https://wallpapers.com/images/hd/4k-nature-landscape-abc.webp');
+    // already /hd/ -> unchanged
+    expect(orig('https://wallpapers.com/images/hd/4k-nature-landscape-abc.jpg'))
+      .toBe('https://wallpapers.com/images/hd/4k-nature-landscape-abc.jpg');
+  });
+
+  it('WallpaperAccess: /thumb/<id> -> /full/<id>, but never the /download/ HTML route', () => {
+    // Verified /thumb/17520.jpg 32 KB -> /full/17520.jpg 797 KB.
+    expect(orig('https://wallpaperaccess.com/thumb/17520.jpg'))
+      .toBe('https://wallpaperaccess.com/full/17520.jpg');
+    // the /download/<slug>-<id> page route is NOT an image -> untouched
+    expect(orig('https://wallpaperaccess.com/download/cool-nature-17520'))
+      .toBe('https://wallpaperaccess.com/download/cool-nature-17520');
+    // already /full/ -> unchanged
+    expect(orig('https://wallpaperaccess.com/full/17520.jpg'))
+      .toBe('https://wallpaperaccess.com/full/17520.jpg');
+  });
 });
 
 describe('image-CDN rule batch (2026-07-16 Tier-1 site-coverage sweep)', () => {

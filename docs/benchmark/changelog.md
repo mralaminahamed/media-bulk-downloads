@@ -10,6 +10,19 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Wallpaper hubs (2026-07-16)** — two passive path-swap CDN rules in
+  `imageUrl.ts`, both curl-verified live against real SFW assets (#407/#412):
+  - **Wallpapers.com** (#407) — `s#/images/(thumbnail|high)/#/images/hd/#` on
+    `wallpapers.com`. Size is a path segment (thumbnail ~11 KB < high ~75 KB <
+    hd ~300 KB); `hd` is the largest and equals the page's og:image. Extension
+    preserved (.jpg and .webp both served); speculative larger segments
+    (download/original/4k) 404. BunnyCDN, no signing. Verified 11 KB → 319 KB.
+  - **WallpaperAccess** (#412) — `s#/thumb/#/full/#` on `wallpaperaccess.com`,
+    gated to the `/thumb/<id>.<ext>` image path so the site's `/download/<slug>-<id>`
+    **HTML route** (not an image) is never rewritten. Plain numeric paths, no
+    signing. The HTML pages are Cloudflare-gated (403 to curl/WebFetch), but the
+    image host itself is open — grammar read from the live in-browser DOM, byte
+    deltas curl-verified on 8 IDs. Verified 32 KB → 797 KB.
 - ✅ **Tier-1 sweep batch 2 (2026-07-16)** — twelve passive CDN rules in
   `imageUrl.ts`, each curl-verified against a real (SFW) asset before shipping
   (#370/#371/#376/#377/#378/#379/#383/#390/#392/#399/#409/#421):
