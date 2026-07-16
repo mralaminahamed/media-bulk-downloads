@@ -23,6 +23,10 @@ const LAZY_SRC_ATTRS = [
   'data-lazy-src', 'data-lazy', 'data-lazyload',
   'data-hi-res-src', 'data-src-large', 'data-full-src',
   'data-image', 'data-echo', 'data-flickity-lazyload',
+  // WEBTOON/LINE Webtoons keeps the real panel URL in data-url (src is a
+  // transparent-pixel placeholder). Non-media data-url values (tracking/AJAX
+  // endpoints) are dropped downstream by the media-likeness filter.
+  'data-url',
 ];
 const LAZY_SRCSET_ATTRS = ['srcset', 'data-srcset', 'data-lazy-srcset'];
 const LAZY_BG_ATTRS = ['data-bg', 'data-background', 'data-background-image'];

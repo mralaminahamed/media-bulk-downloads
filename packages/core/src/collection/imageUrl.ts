@@ -1057,6 +1057,35 @@ const RULES: CdnRule[] = [
     match: (u) => u.hostname === 'i.ibb.co' && /\.(?:md|th)\.[a-z0-9]+$/i.test(u.pathname),
     rewrite: (u) => { u.pathname = u.pathname.replace(/\.(?:md|th)(\.[a-z0-9]+)$/i, '$1'); },
   },
+  // ── Tier-2 sweep batch 2 (2026-07-16): 3 CdnRules that turned out to be pure
+  // URL-grammar upgrades (VSCO/Saatchi/WEBTOON images). Verified in a real browser
+  // (their CDNs bot-block curl) — needs-live-confirmation on the exact transforms.
+  {
+    // VSCO (im.vsco.co): the displayed image is `<responsiveUrl>?w=<N>&dpr=<N>` (a
+    // resize of the master); the bare path (no query) is the full original that the
+    // page's __PRELOADED_STATE__ exposes as medias.byId[id].responsiveUrl. Drop the
+    // resize query. img.vsco.co video (mp4/HLS) goes through the A/V path, not here.
+    // (#384)
+    match: (u) => u.hostname === 'im.vsco.co',
+    rewrite: (u) => dropParams(u, RESIZE_PARAMS),
+  },
+  {
+    // Saatchi Art (images.saatchiart.com): art renders at a trailing size token
+    // `<file>-<N>.jpg` (og:image is -7 / 770px, -22 is an LQIP blur); -8 is the
+    // largest offered and its URL is already present in the page DOM. Swap the
+    // trailing size token to -8. Verified -7 46 KB -> -8 237 KB; no hotlink. (#393)
+    match: (u) => u.hostname === 'images.saatchiart.com' && /-\d+\.jpe?g$/i.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/-\d+(\.jpe?g)$/i, '-8$1'); },
+  },
+  {
+    // WEBTOON / LINE Webtoons ([s]webtoon-phinf.pstatic.net): comic panels serve a
+    // `?type=q90` recompress; the same URL with no type query is the original
+    // (type=q100 404s). The panel's real URL lives in `data-url` (added to the
+    // lazy-attr collector). pstatic hotlink-403s without a webtoons.com Referer —
+    // the #197 opt-in supplies it. Verified q90 57 KB -> original 159 KB. (#403)
+    match: (u) => /^s?webtoon-phinf\.pstatic\.net$/.test(u.hostname),
+    rewrite: (u) => { u.searchParams.delete('type'); },
+  },
   {
     // Self-hosted WordPress: any host serving /wp-content/uploads/ with a resize
     // query (?w=&h=&resize=) and/or a stored -WxH / -scaled thumbnail suffix.

@@ -7,6 +7,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Six more sweep sites (tier-2 batch 2).** **VSCO** (`im.vsco.co` — strip the
+  `?w=/dpr` resize query to the master), **Saatchi Art** (`images.saatchiart.com` —
+  swap the size token to the largest `-8`), and **WEBTOON** (`pstatic.net` panels —
+  strip the `?type=q90` recompress; the panel's `data-url` is now read by the lazy
+  collector, and download uses the existing webtoons.com Referer retry) ship as CDN
+  rules; **Pikabu** ships as a story-image resolver (fail-closed, community-selector
+  based — its pages are anti-bot walled). **Tapas** already worked (its signed panel
+  URL is read straight from `data-src`). **Coub** is deferred (its combined mp4 lives
+  in page JSON and needs the video-collection path, not a CDN/DOM upgrade).
 - **4chan archive support (FoolFuuka).** A resolver for **desuarchive** and
   **4plebs** — reads each post's full media (images + webm) from the
   `thread_image_link`, element-scoped and pinned to the archive's own CDN. Selectors
