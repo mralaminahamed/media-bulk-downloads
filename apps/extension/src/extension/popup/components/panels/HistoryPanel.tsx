@@ -100,7 +100,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
         aria-modal="true"
         aria-labelledby="history-title"
         tabIndex={-1}
-        className="drawer-in mbd:flex mbd:h-full mbd:w-full mbd:max-w-[380px] mbd:flex-col mbd:bg-(--panel) mbd:shadow-2xl mbd:focus:outline-none"
+        className="sheet-in mbd:flex mbd:h-full mbd:w-full mbd:max-w-[380px] mbd:flex-col mbd:bg-(--panel) mbd:shadow-2xl mbd:focus:outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="mbd:flex mbd:items-center mbd:justify-between mbd:border-b hairline mbd:px-4 mbd:py-3">
