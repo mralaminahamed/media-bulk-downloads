@@ -21,6 +21,7 @@ import { twitterGifCandidate, twitterVideoPending } from '@mbd/core/resolvers/si
 import { instagramPageMedia } from '@mbd/core/resolvers/sites/instagram';
 import { facebookPageMedia } from '@mbd/core/resolvers/sites/facebook';
 import { pinterestPageMedia } from '@mbd/core/resolvers/sites/pinterest';
+import { shopifyPageMedia } from '@mbd/core/resolvers/sites/shopify';
 import { youtubeVideoId } from '@mbd/core/resolvers/sites/youtube';
 import { vimeoVideoId } from '@mbd/core/resolvers/sites/vimeo';
 import { dailymotionVideoId } from '@mbd/core/resolvers/sites/dailymotion';
@@ -900,6 +901,15 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     // virtualized/unhydrated grid hides. No-ops off a /pin/ page; deduped by
     // canonicalSrcKey against the walk above.
     for (const cand of pinterestPageMedia(pageUrl)) {
+      pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
+    }
+
+    // Shopify product page: surface the complete media set (every variant image +
+    // product videos) from the store's /products/<handle>.js, primed by the
+    // same-origin fetch in the GET_IMAGES prelude (ensureShopifyProduct). No-ops
+    // off a product page / non-Shopify site; images dedup against the DOM walk and
+    // then upgrade to originals via the passive cdn.shopify.com rule.
+    for (const cand of shopifyPageMedia(pageUrl)) {
       pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
     }
   }

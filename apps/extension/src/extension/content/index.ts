@@ -8,6 +8,7 @@
 
 import { SettingsData, DeepScanProgress, SettingsChangedMessage } from '@mbd/core/types';
 import { collectMedia } from '@/extension/content/collect';
+import { ensureShopifyProduct } from '@/extension/content/shopify-product';
 import { ingestSniffedIgMedia } from '@mbd/core/resolvers/sites/instagram';
 import { ingestSniffedFbMedia } from '@mbd/core/resolvers/sites/facebook';
 import { ingestSniffedPinterestMedia } from '@mbd/core/resolvers/sites/pinterest';
@@ -144,7 +145,12 @@ chrome.runtime.onMessage.addListener(
       // (#293). smartPageDefaults may reorder collectMedia's hero pass; the
       // channel stays open for the async storage read.
       void loadEffectiveSettingsForHost(location.hostname)
-        .then((s) => {
+        .then(async (s) => {
+          // Prime the Shopify store (same-origin /products/<handle>.js fetch) before
+          // the synchronous, network-free collectMedia reads it. Best-effort and
+          // no-op off a Shopify product page — never blocks collection beyond its
+          // own short timeout.
+          await ensureShopifyProduct(location.href);
           sendResponse(collectMedia(undefined, { smartPageDefaults: s.smartPageDefaults, resolveOriginals: s.resolveOriginals }));
         })
         // If the per-host settings read rejects, still answer (best-effort default
