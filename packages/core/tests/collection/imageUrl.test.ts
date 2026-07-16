@@ -518,6 +518,22 @@ describe('deproxy', () => {
     // a relative non-media inner path is still ignored
     expect(deproxy('https://nextjs.org/_next/image?url=' + encodeURIComponent('/about') + '&w=48')).toBeNull();
   });
+  it('unwraps a Misskey /proxy/ media URL (path ends in .webp, beats the MEDIA_EXT guard)', () => {
+    const original = 'https://media.misskeyusercontent.com/io/webpublic-abc.webp';
+    expect(deproxy('https://p1.a9z.dev/proxy/static.webp?url=' + encodeURIComponent(original) + '&static=1'))
+      .toBe(original);
+  });
+  it('unwraps the misskey.io path-encoded proxy (proxy.misskeyusercontent.jp)', () => {
+    // scheme-stripped, percent-encoded original carried IN the path
+    const enc = encodeURIComponent('media.misskeyusercontent.com/io/webpublic-abc.webp');
+    expect(deproxy('https://proxy.misskeyusercontent.jp/image/' + enc + '?static=1'))
+      .toBe('https://media.misskeyusercontent.com/io/webpublic-abc.webp');
+  });
+  it('unwraps a Lemmy image_proxy URL via the generic ?url= pass (no ext on the path)', () => {
+    const original = 'https://sopuli.xyz/pictrs/image/abc.jpeg';
+    expect(deproxy('https://lemmy.ml/api/v3/image_proxy?url=' + encodeURIComponent(original)))
+      .toBe(original);
+  });
   it('upgradeToOriginal de-proxies then keeps the wrapper as thumbnail', () => {
     const u = 'https://site.com/_next/image?url=' + encodeURIComponent('https://cdn.com/a.jpg') + '&w=64';
     expect(upgradeToOriginal(u)).toEqual({ original: 'https://cdn.com/a.jpg', thumbnail: u });
@@ -1015,5 +1031,35 @@ describe('image-CDN rule batch (2026-07-16 tier-2 sweep 2)', () => {
     // no type query -> unchanged
     expect(orig('https://webtoon-phinf.pstatic.net/x/y/z.jpg'))
       .toBe('https://webtoon-phinf.pstatic.net/x/y/z.jpg');
+  });
+});
+
+describe('image-CDN rule batch (2026-07-16 fediverse trio)', () => {
+  const orig = (u: string) => upgradeToOriginal(u).original;
+
+  it('Pixelfed: strips _thumb before the ext on the /m/_v2/ media path', () => {
+    // Host-agnostic: CDN (pxscdn.com) + self-hosted /storage/, both share /m/_v2/.
+    // Verified _thumb 143 KB -> original 345 KB.
+    expect(orig('https://pxscdn.com/public/m/_v2/2/0d402c64b/VxFJORg41OVz/dUXg16Id8_thumb.jpg'))
+      .toBe('https://pxscdn.com/public/m/_v2/2/0d402c64b/VxFJORg41OVz/dUXg16Id8.jpg');
+    expect(orig('https://gram.social/storage/m/_v2/2/0d402c64b/VxFJORg41OVz/abc_thumb.jpeg'))
+      .toBe('https://gram.social/storage/m/_v2/2/0d402c64b/VxFJORg41OVz/abc.jpeg');
+    // already the bare original -> unchanged
+    expect(orig('https://pxscdn.com/public/m/_v2/2/0d402c64b/VxFJORg41OVz/dUXg16Id8.jpg'))
+      .toBe('https://pxscdn.com/public/m/_v2/2/0d402c64b/VxFJORg41OVz/dUXg16Id8.jpg');
+    // a _thumb OUTSIDE a Pixelfed /m/_v2/ path is left alone (no false positive)
+    expect(orig('https://example.com/images/photo_thumb.jpg'))
+      .toBe('https://example.com/images/photo_thumb.jpg');
+  });
+
+  it('Lemmy/pict-rs: strips ?thumbnail/?format to the stored original', () => {
+    // Verified: pict-rs honours the params (thumbnail=256 = 11 KB); bare = 577 KB.
+    expect(orig('https://lemmy.world/pictrs/image/abc.jpeg?thumbnail=256&format=webp'))
+      .toBe('https://lemmy.world/pictrs/image/abc.jpeg');
+    expect(orig('https://lemmy.ml/pictrs/image/xyz.png?format=webp'))
+      .toBe('https://lemmy.ml/pictrs/image/xyz.png');
+    // a bare pict-rs original (no params) -> unchanged (the post.url free-ride)
+    expect(orig('https://lemmy.world/pictrs/image/abc.jpeg'))
+      .toBe('https://lemmy.world/pictrs/image/abc.jpeg');
   });
 });

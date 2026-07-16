@@ -7,6 +7,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Fediverse image originals (Pixelfed, Misskey, Lemmy).** One host-agnostic rule
+  per network, matched on the media path across any instance (like the existing
+  Mastodon rule): **Pixelfed** strips the `_thumb` grid-preview suffix, **Misskey**
+  (and Sharkey) unwraps the `/proxy/…?url=` media proxy to the real original, and
+  **Lemmy** strips the pict-rs `?thumbnail/?format` resize query (its
+  `image_proxy?url=` wrapper was already unwrapped). All verified live on public
+  instances.
 - **Six more sweep sites (tier-2 batch 2).** **VSCO** (`im.vsco.co` — strip the
   `?w=/dpr` resize query to the master), **Saatchi Art** (`images.saatchiart.com` —
   swap the size token to the largest `-8`), and **WEBTOON** (`pstatic.net` panels —

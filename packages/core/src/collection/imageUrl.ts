@@ -209,6 +209,31 @@ export function deproxy(url: string): string | null {
     }
   }
 
+  // Misskey / Sharkey media proxy (host-agnostic). Two shapes, both unwrapped to
+  // the real original — and both MUST run before the MEDIA_EXT guard below, since
+  // the proxy path deceptively ends in `.webp`:
+  //   (a) <instance>/proxy/<name>.webp?url=<encoded-original>  → the `url` param
+  //       (drops the &static=/&emoji=/&avatar= flags, which live on the proxy URL).
+  //   (b) proxy.misskeyusercontent.jp/(image|static|avatar|emoji)/<encoded-original>
+  //       → the original percent-encoded (scheme stripped) IN the path (misskey.io).
+  // A note's own files[].url is already the original and isn't a /proxy/ URL, so it
+  // falls straight through. See #410.
+  if (/\/proxy\/[^/]+$/.test(u.pathname)) {
+    const raw = u.searchParams.get('url');
+    if (raw) {
+      const decoded = safeDecode(raw);
+      if (/^https?:\/\//i.test(decoded) && looksLikeMediaUrl(decoded)) return decoded;
+    }
+  }
+  if (u.hostname === 'proxy.misskeyusercontent.jp') {
+    const m = u.pathname.match(/^\/(?:image|static|avatar|emoji)\/(.+)$/);
+    if (m) {
+      const decoded = safeDecode(m[1]);
+      const abs = /^https?:\/\//i.test(decoded) ? decoded : `https://${decoded}`;
+      if (looksLikeMediaUrl(abs)) return abs;
+    }
+  }
+
   // A URL whose OWN path is already a media file (…/photo.jpg) is a real asset that
   // merely carries a ?src=/?url= tracking param — not a proxy. Unwrapping it would
   // swap the real image for whatever the param points at, so skip the generic pass.
@@ -1085,6 +1110,35 @@ const RULES: CdnRule[] = [
     // the #197 opt-in supplies it. Verified q90 57 KB -> original 159 KB. (#403)
     match: (u) => /^s?webtoon-phinf\.pstatic\.net$/.test(u.hostname),
     rewrite: (u) => { u.searchParams.delete('type'); },
+  },
+  // ── Fediverse host-agnostic rules (2026-07-16 sweep). One rule per network,
+  // matched on the media path (any instance host), à la the Mastodon resolver.
+  // (Misskey's proxy-unwrap lives in deproxy() above.)
+  {
+    // Pixelfed (host-agnostic): feed/grid thumbnails append `_thumb` before the
+    // extension on the media path (…/m/_v2/…/<hash>_thumb.<ext>); the same path
+    // without `_thumb` is the original. Works on both self-hosted `/storage/m/_v2/`
+    // and the pxscdn.com `/public/m/_v2/` CDN — the `/m/_v2/` segment is the shared
+    // Pixelfed signature, so gating on it avoids stripping a coincidental `_thumb`
+    // on an unrelated site. Random base62 filenames carry no underscores, so
+    // `_thumb` is unambiguous. Verified _thumb 143 KB -> original 345 KB. (#406)
+    match: (u) => /\/m\/_v2\/.*_thumb\.[a-z0-9]+$/i.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/_thumb(\.[a-z0-9]+)$/i, '$1'); },
+  },
+  {
+    // Lemmy / pict-rs (host-agnostic): a /pictrs/image/<file> URL carrying a
+    // `?thumbnail=<N>` (dynamic resize) and/or `?format=<fmt>` (transcode) renders a
+    // smaller/re-encoded variant; dropping those params returns the stored original
+    // in its own format. Current 0.19.x more often uses separate-UUID thumbnails
+    // (not param-addressable — the API's post.url is the original there) or an
+    // `/api/v3/image_proxy?url=` wrapper (already unwrapped by the generic de-proxy
+    // above), so this covers the legacy / param-carrying case. Verified: pict-rs
+    // honours the params (thumbnail=256 = 11 KB) and the bare path is the 577 KB
+    // original. (#411)
+    match: (u) =>
+      /\/pictrs\/image\//.test(u.pathname) &&
+      (u.searchParams.has('thumbnail') || u.searchParams.has('format')),
+    rewrite: (u) => { u.searchParams.delete('thumbnail'); u.searchParams.delete('format'); },
   },
   {
     // Self-hosted WordPress: any host serving /wp-content/uploads/ with a resize
