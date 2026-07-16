@@ -166,12 +166,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Downloads retry transient failures.** Opt-in resolve fetches and HLS/DASH
   segment fetches now retry transient 429 / 5xx / network blips with bounded
   backoff (honouring `Retry-After`) before giving up.
-- **Side panels slide in from the right.** The right-anchored drawers — Settings,
-  Favourites, Excluded, Download-history, and the Tab picker — now animate in with
-  a right→left slide instead of the shared rise-and-fade, matching their drawer
+- **Side panels slide in and out from the right.** The right-anchored drawers —
+  Settings, Favourites, Excluded, Download-history, and the Tab picker — now
+  animate in with a right→left slide (instead of the shared rise-and-fade) and
+  slide back out to the right on close instead of vanishing, matching their drawer
   layout. The on-page bubble keeps the old entrance, the centred image-preview
   modal now appears without an entrance transform (its rise-and-scale pop clashed
-  with the drawers), and the slide is disabled under `prefers-reduced-motion`.
+  with the drawers), and both the slide and the exit are disabled under
+  `prefers-reduced-motion`.
 
 ### Fixed
 - **Extension audit — 10 correctness fixes.** A deep scan / video resolve is no
