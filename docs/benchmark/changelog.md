@@ -10,6 +10,45 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Tier-1 sweep batch 2 (2026-07-16)** — twelve passive CDN rules in
+  `imageUrl.ts`, each curl-verified against a real (SFW) asset before shipping
+  (#370/#371/#376/#377/#378/#379/#383/#390/#392/#399/#409/#421):
+  - **Shopee** (#370) — strip the `_tn` / `@resize_w<N>_nl` suffix on a
+    `/file/<hash>` key → bare original. Host-agnostic across `down-{cc}.img.susercontent.com`.
+    Verified 13/21 KB → 91 KB.
+  - **Mercado Libre** (#371) — rewrite the trailing size code (`O/OO/V/W/AB/F`) to
+    `-F.jpg` (Full, largest; the JPG beats the WebP and ignores the `D_NQ_/2X` prefix).
+    Verified `-AB.webp` 21 KB → `-F.jpg` 211 KB.
+  - **Tokopedia** (#376) — drop the `/img/cache/<size>/` resizer segment. Verified 42 KB → 621 KB.
+  - **Hepsiburada** (#377) — pin the `/s/<store>/<SIZE>/` segment to `2000` (CDN cap;
+    2560+ 404). Verified 550 17 KB → 2000 86 KB.
+  - **Leboncoin** (#378) — `?rule=<name>` → `ad-large` (named size, no HMAC). Verified 8 KB → 263 KB.
+  - **Meesho** (#379) — `?width=<N>` → 2000 (overrides the `_NNN` filename token,
+    clamps to ~1200px native). Verified 58 KB → 122 KB.
+  - **Domestika** (#383) — an UNSIGNED imgproxy `/unsafe/<opts>/plain/src://…` URL:
+    drop the `w:/rs:/dpr:` processing opts → the untouched `-original` source. Verified 30 KB → 161 KB.
+  - **Sahibinden** (#390) — pin the `/photos/dd/dd/dd/` filename prefix to `x5_`
+    (thmb_ < bare < x5_; orj_ is blocked). Not signed. Verified thmb_ 6 KB → x5_ 65 KB.
+  - **Wattpad** (#392) — pin the cover width token to `512` (max; unlisted widths fall
+    back to the 256 baseline, so set it exactly rather than strip). Verified 23 KB → 77 KB.
+  - **Naver Blog** (#399) — `?type=w<N>` → `w3840` on `postfiles`/`mblogthumb-phinf.pstatic.net`.
+    CORRECTION vs the sweep's "strip like WEBTOON" note: stripping `?type` returns a
+    4.5 KB placeholder, so bump to a large whitelisted width (clamps to native) instead.
+    Verified w773 93 KB → w3840 315 KB.
+  - **Lofter** (#409) — drop the entire NetEase-NOS `?imageView&thumbnail=…&quality=…`
+    query on `imglf<N>.lf127.net` (corroborated by gallery-dl's `lofter.py`). Verified 77 KB → 209 KB.
+  - **nostr.build** (#421) — strip the `/thumb/` and `/resp/<size>/` path segments →
+    the bare `<sha256>.<ext>` original (what clients embed is already the original =
+    free-ride). Verified /thumb/ 9 KB → 82 KB.
+  - **Catbox** (#422) — free-ride: `files.catbox.moe/<id>.<ext>` is always the raw
+    upload (no thumbnail/resize variants exist), so it needs no rule — just recognition.
+  - Deferred from this batch: **Der Spiegel** (#380, per-image width whitelist — needs
+    srcset reading, not a strip), **Pinkvilla** (#382, `-sq` crop is already full-res;
+    the hero is a separately-named file, not suffix-derivable), **UOL** (#389, could not
+    sample a real content photo — avatars only), **Onedio** (#391, HMAC-**signed** size
+    params — any edit 404s), **Sabq** (#394, `gumlet.assettype.com` 403s datacenter
+    requests — transform unverified), **News24** (#395, `news24cobalt.24.co.za` per-image
+    discrete renditions — the og rendition is already the largest generated).
 - ✅ **Fediverse trio (2026-07-16)** — one host-agnostic rule per network in
   `imageUrl.ts` (matched on the media path across any instance, like the Mastodon
   resolver), each curl-verified on live public instances (#406/#410/#411):
