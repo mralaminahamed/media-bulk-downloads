@@ -110,9 +110,8 @@ Resolved (this benchmark drove the fixes):
     `[]` (→ generic identity) when the DOM lists nothing larger, so a preview is never
     replaced by a guessed URL that could 404 (a blind resolution bump does — not every
     wallpaper has 4K).
-  - Deferred to a further follow-up: **Twitch clips** and **9GAG**. **RedGifs media**
-    was the only member of this batch that was previously called infeasible — the #197
-    hotlink path is what makes it shippable.
+  - **RedGifs media** was the only member of this batch that was previously called
+    infeasible — the #197 hotlink path is what makes it shippable.
 - ✅ **Twitch clips resolver (#354, 2026-07-16)** — a `clips.twitch.tv/<slug>`, a
   channel `twitch.tv/<ch>/clip/<slug>` permalink, or an embed player's `?clip=<slug>`
   (link or `<iframe>`) surfaces a pending video (`resolveHint 'twitch'`). The opt-in
@@ -128,6 +127,18 @@ Resolved (this benchmark drove the fixes):
   resolves to null (fail-closed: never a URL that would 403/404). *The GQL chain is
   implemented from the documented (yt-dlp/streamlink) shape against a crafted fixture;
   the live op/hash still wants a real-clip confirmation.*
+- ✅ **9GAG resolver (#354, 2026-07-16)** — a `9gag.com/gag/<id>` post that carries a
+  `<video>` (a video/GIF post) surfaces a pending video (`resolveHint '9gag'`). The
+  resolve pass is network-free (like reddit): the post file is id-derived and unsigned,
+  so the universal H.264 rendition `img-9gag-fun.9cache.com/photo/<id>_460sv.mp4` is
+  rebuilt straight from the id, host-pinned to `9cache.com`. The image-vs-video
+  disambiguation that deferred this — an image post must never become a would-404
+  `_460sv.mp4` — is handled **by construction**: collect.ts emits the hint only when the
+  post's own container (`<article>` / `jsid-post-<id>`, never a page-wide wrapper) holds a
+  `<video>`, so an image post (no `<video>`, file `<id>_700.jpg`) can't fire. If neither
+  per-post container matches the live markup, the feature stays inert rather than guess.
+  *The `_460sv.mp4` shape is from the documented 9cache scheme; 9GAG's exact post markup
+  wants a live confirmation to widen the container match if needed.*
 
 Corrected:
 - 🔧 **YouTube** — `→maxresdefault` replaced a working `hqdefault` with a dead link when

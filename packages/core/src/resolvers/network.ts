@@ -563,6 +563,20 @@ async function sankaku(id: string, deps: NetDeps): Promise<ResolvedMedia | null>
   }
 }
 
+/**
+ * 9GAG. Deterministic, no fetch (like reddit/bsky-video): a video/GIF post's file is
+ * id-derived and unsigned, so the universal H.264 rendition
+ * `img-9gag-fun.9cache.com/photo/<id>_460sv.mp4` is rebuilt straight from the id.
+ * collect.ts only emits this hint when the post has a `<video>`, so an image post
+ * (file `<id>_700.jpg`) never reaches here — the mp4 can't 404 by construction.
+ * Host-pinned to 9cache.com.
+ */
+function ninegag(id: string): ResolvedMedia | null {
+  if (!/^[A-Za-z0-9]+$/.test(id)) return null;
+  const url = `https://img-9gag-fun.9cache.com/photo/${id}_460sv.mp4`;
+  return pinnedUrl(url, '9cache.com') ? { url } : null;
+}
+
 // Twitch serves clip mp4s from two CDN families (current + legacy); accept either.
 const TWITCH_CLIP_HOSTS = ['twitchcdn.net', 'twitch.tv'];
 
@@ -632,6 +646,7 @@ export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise
     case 'redgifs': return redgifs(hint.id, deps);
     case 'sankaku': return sankaku(hint.id, deps);
     case 'twitch': return twitch(hint.id, deps);
+    case '9gag': return ninegag(hint.id);
     default: return null;
   }
 }

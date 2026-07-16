@@ -657,6 +657,44 @@ describe('collectMedia — RedGifs videos', () => {
   });
 });
 
+describe('collectMedia — 9GAG posts', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+  const ninegag = (m: { resolveHint?: { platform: string } }[]) => m.filter((i) => i.resolveHint?.platform === '9gag');
+
+  it('surfaces a video post (article with a <video>) as a pending video with a resolve hint', () => {
+    setBody('<article><a href="https://9gag.com/gag/aOMMxxA">post</a><video><source src="https://img-9gag-fun.9cache.com/photo/aOMMxxA_460svvp9.webm"></video></article>');
+    expect(ninegag(collectMedia())[0]).toMatchObject({
+      kind: 'video', type: 'mp4', unresolvedVideo: true,
+      src: 'https://9gag.com/gag/aOMMxxA', resolveHint: { platform: '9gag', id: 'aOMMxxA' },
+    });
+  });
+
+  it('accepts 9GAG\'s jsid-post container', () => {
+    setBody('<div id="jsid-post-a1b2c3d"><a href="https://9gag.com/gag/a1b2c3d">post</a><video></video></div>');
+    expect(ninegag(collectMedia())).toHaveLength(1);
+  });
+
+  it('does NOT surface an image post (no <video>) — cannot 404 by construction', () => {
+    setBody('<article><a href="https://9gag.com/gag/xYz1234">post</a><img src="https://img-9gag-fun.9cache.com/photo/xYz1234_700.jpg"></article>');
+    expect(ninegag(collectMedia())).toHaveLength(0);
+  });
+
+  it('does NOT let an image post borrow a sibling video post\'s <video>', () => {
+    setBody(
+      '<article id="jsid-post-vid1"><a href="https://9gag.com/gag/vid1abc">v</a><video></video></article>' +
+      '<article id="jsid-post-img1"><a href="https://9gag.com/gag/img1abc">i</a><img src="https://img-9gag-fun.9cache.com/photo/img1abc_700.jpg"></article>',
+    );
+    const hits = ninegag(collectMedia());
+    expect(hits).toHaveLength(1);
+    expect(hits[0]).toMatchObject({ resolveHint: { platform: '9gag', id: 'vid1abc' } });
+  });
+
+  it('ignores a 9GAG section page (no post id)', () => {
+    setBody('<article><a href="https://9gag.com/trending">trending</a><video></video></article>');
+    expect(ninegag(collectMedia())).toHaveLength(0);
+  });
+});
+
 describe('collectMedia — shadow DOM', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
