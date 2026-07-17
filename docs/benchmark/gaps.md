@@ -22,6 +22,14 @@ Open (not upgradeable — signed / already-original):
   row by fileId (largest, displayed `WB_DFT` wins — passive, no-auth). Still open:
   video notes are out of scope; a larger/un-watermarked original would need the
   opt-in authenticated Tier-2.
+- **Der Spiegel** (#380, resolver shipped — re-scoped from a CDN rule) — images on
+  `cdn.prod.www.spiegel.de` are served as `<uuid>_w<width>_r<ratio>_…` at many
+  widths/crops (separate filenames). A fixed-width rewrite 404s (max width is
+  per-image bounded), so instead the resolver reads the element's `srcset` (and its
+  `<picture>` `<source>`s) and returns the widest same-`<uuid>` rendition the page
+  offers — every displayed thumbnail resolves to its full-size original, and all
+  widths converge on one row. Only URLs the page listed (never a fabricated width),
+  never a downgrade. No network, no URL rewrite.
 - **preview.redd.it** — signed (left byte-identical by design, verified live).
 - **Guardian** stays open (above); Giphy / Tenor **moved to Resolved** (2026-07-15) — the
   downsized-variant upgrade is now a shipped Tier-1 CdnRule (see the

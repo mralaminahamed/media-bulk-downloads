@@ -7,6 +7,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Der Spiegel image originals.** On `cdn.prod.www.spiegel.de`, each photo is served
+  at many widths and crops (`<uuid>_w<width>_r<ratio>_…`) as separate files. For every
+  image the extension now reads the page's `srcset` and downloads the **widest**
+  rendition offered — a displayed thumbnail resolves to its full-size original, and
+  the many widths collapse to one row. No fabricated width is ever requested (Der
+  Spiegel's max width is per-image bounded, so a fixed rewrite would 404). (#380)
 - **LiveJournal image originals (tier-1 CDN rule).** `ic.pics.livejournal.com` photo
   URLs now swap their size token (`_800`/`_640`/`_100x100`/…) for the FAQ-documented
   `_original` largest — curl-verified `_800` 137 KB → `_original` 593 KB. (#381)
