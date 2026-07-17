@@ -163,6 +163,12 @@ describe('resolve — generic fallback', () => {
     expect(ids.indexOf('xiaohongshu')).toBeLessThan(ids.indexOf('generic'));
   });
 
+  it('includes spiegelResolver before genericResolver', () => {
+    const ids = REGISTRY.map((r) => r.id);
+    expect(ids).toContain('spiegel');
+    expect(ids.indexOf('spiegel')).toBeLessThan(ids.indexOf('generic'));
+  });
+
   it('routes a signed RED note-image URL through the xiaohongshu resolver with a fileId mediaKey', () => {
     const url = 'https://sns-webpic-qc.xhscdn.com/202607170815/45adde89ae6c42409ccefc665e8ab669/notes_pre_post/1040g3k8321i4pbs37k7g5o5dgbqgbkc6gdrpq90!nd_dft_wlteh_webp_3';
     const [c] = resolve(url, ctx);
