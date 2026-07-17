@@ -7,6 +7,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Onedio image originals.** On `img-s1/2/3.onedio.com`, each photo is served at
+  several widths (`/id-<id>/…/w-300`, `w-600`, `w-900`, `w-1200`) as separate,
+  individually **signed** URLs listed in the page's `srcset`. For every image the
+  extension now reads that `srcset` and downloads the widest same-`id` rendition
+  already offered — a displayed thumbnail resolves to its largest version, and the
+  widths collapse to one row keyed on the image id. No fabricated width is ever
+  requested (each size is separately signed, so an unlisted width 404s —
+  curl-verified 300w 21 KB → 1200w 170 KB). (#391)
 - **Der Spiegel image originals.** On `cdn.prod.www.spiegel.de`, each photo is served
   at many widths and crops (`<uuid>_w<width>_r<ratio>_…`) as separate files. For every
   image the extension now reads the page's `srcset` and downloads the **widest**

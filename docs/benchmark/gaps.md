@@ -30,6 +30,18 @@ Open (not upgradeable — signed / already-original):
   offers — every displayed thumbnail resolves to its full-size original, and all
   widths converge on one row. Only URLs the page listed (never a fabricated width),
   never a downgrade. No network, no URL rewrite.
+- **Onedio** (#391, resolver shipped — re-scoped from a CDN rule) — images on
+  `img-s1/2/3.onedio.com` use a `/id-<id>/rev-<n>/w-<W>/h-<H>/f-<fmt>/s-<sig>` path
+  where each width is separately signed, so a dimension rewrite 404s (curl-verified).
+  Instead the resolver reads the element's `srcset` (and its `<picture>` `<source>`s)
+  and returns the widest same-`id` rendition already listed (300w→1200w, ~21 KB→170 KB),
+  keyed on the image id so widths converge on one row. Only pre-signed URLs the page
+  offered, never a downgrade. Sibling gaps closed as not-applicable: **Pinkvilla**
+  (#382) serves each `<img>` at its full stored size with no `srcset` and no transform
+  layer (suffix-strip 404s — the generic resolver already collects the full asset);
+  **UOL** (#389, `conteudo.imguol.com.br`) references one size per photo (its
+  `<picture>` switches format only, not width) and fabricated sizes 403 — nothing to
+  upgrade past what is collected.
 - **preview.redd.it** — signed (left byte-identical by design, verified live).
 - **Guardian** stays open (above); Giphy / Tenor **moved to Resolved** (2026-07-15) — the
   downsized-variant upgrade is now a shipped Tier-1 CdnRule (see the
