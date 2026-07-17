@@ -13,7 +13,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   image's fileId, the largest displayed rendition (`WB_DFT`) winning, with downloads
   named by the correct extension. Passive and no-auth: the displayed image is already
   RED's best network-free rendition, so this dedups rather than upgrades. Video notes
-  are out of scope. Verified live (logged-out and logged-in).
+  are out of scope. Verified live (logged-out and logged-in). rednote.com's
+  international CDN (`rednotecdn.com`) is now recognised too — it serves the
+  identical signed shape for the same global fileId, so an image opened via
+  rednote.com folds to the same row as its `xhscdn.com` counterpart.
 - **Two video hosts (opt-in network resolvers).** With "Resolve originals" enabled,
   **Rutube** and **Rumble** watch pages, player embeds, and links now surface a
   pending video that resolves to a capturable HLS master. Rutube reads its public

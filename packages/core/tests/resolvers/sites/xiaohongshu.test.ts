@@ -6,11 +6,21 @@ const detail = (proto = 'https') => `${proto}://sns-webpic-qc.xhscdn.com/2026071
 const run = (href: string) => xiaohongshuResolver.resolve(new URL(href), { allowNetwork: false });
 const m = (href: string) => xiaohongshuResolver.match(new URL(href), { allowNetwork: false });
 
+// International (rednote.com) CDN — same signed shape, served from rednotecdn.com
+// instead of xhscdn.com, with an extra ?src= query the resolver must preserve.
+const REDNOTE_TOK = 'notes_pre_post/1040g3k0322hharh1mu005papn09i5n1lbf83ci0';
+const rednote =
+  `https://sns-web-i10.rednotecdn.com/202607170815/${H}/${REDNOTE_TOK}!nd_dft_wlteh_webp_3?src=A`;
+
 describe('xiaohongshuResolver — match', () => {
   it('matches signed RED note-image URLs, not other hosts or non-signed paths', () => {
     expect(m(detail())).toBe(true);
     expect(m('https://cdn.example.com/x.jpg')).toBe(false);
     expect(m('https://sns-webpic-qc.xhscdn.com/static/logo.png')).toBe(false); // no /ts/hash/ prefix
+  });
+
+  it('matches signed rednote.com international CDN (rednotecdn.com) note images', () => {
+    expect(m(rednote)).toBe(true);
   });
 });
 
@@ -34,5 +44,15 @@ describe('xiaohongshuResolver — resolve', () => {
     const jpeg = `https://sns-webpic-qc.xhscdn.com/202607170815/${H}/${TOK}!nd_dft_wlteh_jpeg_3`;
     const [c] = run(jpeg);
     expect(c).toEqual({ url: jpeg, kind: 'image', ext: 'jpg', mediaKey: `xhs ${TOK}` });
+  });
+
+  it('resolves a rednote.com international CDN (rednotecdn.com) note image, preserving ?src=', () => {
+    const [c] = run(rednote);
+    expect(c).toEqual({
+      url: rednote,
+      kind: 'image',
+      ext: 'webp',
+      mediaKey: `xhs ${REDNOTE_TOK}`,
+    });
   });
 });

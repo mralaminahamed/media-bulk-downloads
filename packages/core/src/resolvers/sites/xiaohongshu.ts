@@ -4,8 +4,12 @@ import { MediaCandidate, Resolver } from '@mbd/core/resolvers/types';
 //   https://sns-webpic-qc.xhscdn.com/<ts>/<hash>/<bucket>/<token>!<rendition>
 // <ts> (12-digit) + <hash> (32-hex) are a per-rendition signature that rotates on
 // every re-sign; <bucket>/<token> is the note's stable fileId; the format lives in
-// the rendition tag (…_webp_3), not a path extension.
-const XHS_HOST = /(?:^|\.)xhscdn\.com$/i;
+// the rendition tag (…_webp_3), not a path extension. RED runs two CDN families for
+// the identical signed shape: China (xhscdn.com) and international / rednote.com
+// (rednotecdn.com, e.g. sns-web-i10.rednotecdn.com) — the only differences are the
+// host and an extra `?src=` query, which `u.pathname` already excludes. The
+// <token> fileId is RED's global image id, so both families fold to one identity.
+const XHS_HOST = /(?:^|\.)(?:xhscdn|rednotecdn)\.com$/i;
 const XHS_SIGNED = /^\/\d{6,}\/[0-9a-f]{32}\/([a-z0-9_]+\/[A-Za-z0-9_-]+)!([^/]*)$/i;
 
 // The rendition tag carries the format (e.g. nd_dft_wlteh_webp_3); the path has no
@@ -28,7 +32,7 @@ function extFromRendition(tag: string): string | undefined {
  */
 export const xiaohongshuResolver: Resolver = {
   id: 'xiaohongshu',
-  hosts: ['xhscdn.com', 'xiaohongshu.com'], // xiaohongshu.com is inert today (match only accepts xhscdn.com); seam for a future opt-in authed Tier-2 (RED note API)
+  hosts: ['xhscdn.com', 'rednotecdn.com', 'xiaohongshu.com'], // xhscdn.com (China) + rednotecdn.com (international / rednote.com) are the two CDN families; xiaohongshu.com is inert today (match only accepts the CDN hosts) — seam for a future opt-in authed Tier-2 (RED note API)
   match: (u) => XHS_HOST.test(u.hostname) && XHS_SIGNED.test(u.pathname),
   resolve: (u): MediaCandidate[] => {
     const found = u.pathname.match(XHS_SIGNED);

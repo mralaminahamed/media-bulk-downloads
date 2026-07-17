@@ -30,7 +30,13 @@ const SANKAKU_MEDIA =
 //   /<ts:12-digit>/<hash:32-hex>/<bucket>/<token>!<rendition>
 // The <ts>+<hash> are a per-rendition signature that rotates on every re-sign; the
 // <bucket>/<token> is the note's stable fileId (shared across cover/detail/re-signs).
-const XHS_HOST = /(?:^|\.)xhscdn\.com$/i;
+// RED also runs an international CDN family for rednote.com (rednotecdn.com, e.g.
+// sns-web-i10.rednotecdn.com) serving the identical signed shape for the same
+// fileId. XHS_HOST matches both, but the key prefix below is deliberately the
+// fixed string 'xhscdn.com' (not host-derived): an xhscdn.com URL and a
+// rednotecdn.com URL for the SAME fileId must produce the SAME key so the two CDN
+// families fold to one identity — mirroring the fbcdn rule folding cdninstagram.
+const XHS_HOST = /(?:^|\.)(?:xhscdn|rednotecdn)\.com$/i;
 const XHS_SIGNED_PREFIX = /^\/\d{6,}\/[0-9a-f]{32}\//i;
 
 export const SRC_KEY_RULES: SrcKeyRule[] = [
@@ -131,14 +137,17 @@ export const SRC_KEY_RULES: SrcKeyRule[] = [
     key: (u) => `sankakucomplex.com/data/${u.pathname.match(SANKAKU_MEDIA)![1].toLowerCase()}`,
   },
   {
-    // RED / Xiaohongshu (sns-webpic-qc.xhscdn.com & siblings): a note image's feed
-    // cover (!nc_n_webp_mw_1), opened detail (!nd_dft_wlteh_webp_3), and every
-    // re-signed copy share the fileId <bucket>/<token> in the path and differ only
-    // in the rotating /<ts>/<hash>/ signature prefix and the !<rendition> suffix.
-    // Key on the fileId alone so all fold to one identity (the largest, displayed
-    // WB_DFT wins) and the rotating signature never enters the key. There is
-    // deliberately no imageUrl.ts RULES entry: the signature is path-embedded, so a
-    // rewrite would drop it and 404.
+    // RED / Xiaohongshu (sns-webpic-qc.xhscdn.com & siblings, plus the
+    // rednotecdn.com international family): a note image's feed cover
+    // (!nc_n_webp_mw_1), opened detail (!nd_dft_wlteh_webp_3), and every re-signed
+    // copy — from EITHER CDN family — share the fileId <bucket>/<token> in the path
+    // and differ only in the rotating /<ts>/<hash>/ signature prefix and the
+    // !<rendition> suffix. Key on the fileId alone, under the fixed 'xhscdn.com'
+    // prefix (not the actual hostname), so a China xhscdn.com URL and an
+    // international rednotecdn.com URL of the SAME fileId fold to one identity
+    // (the largest, displayed WB_DFT wins) and the rotating signature never enters
+    // the key. There is deliberately no imageUrl.ts RULES entry: the signature is
+    // path-embedded, so a rewrite would drop it and 404.
     match: (u) => XHS_HOST.test(u.hostname) && XHS_SIGNED_PREFIX.test(u.pathname),
     key: (u) => `xhscdn.com${u.pathname.replace(XHS_SIGNED_PREFIX, '/').replace(/![^/]*$/, '')}`,
   },
