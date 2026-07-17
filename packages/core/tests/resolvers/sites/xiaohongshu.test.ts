@@ -22,6 +22,15 @@ describe('xiaohongshuResolver — match', () => {
   it('matches signed rednote.com international CDN (rednotecdn.com) note images', () => {
     expect(m(rednote)).toBe(true);
   });
+
+  it('does not over-match a look-alike host (dot-boundary anchoring)', () => {
+    const path = `/202607170815/${H}/${TOK}!nd_dft_wlteh_webp_3`;
+    // A prefix that isn't a real subdomain boundary, and the CDN name used as a
+    // left-label of a different registrable domain, must both be rejected.
+    expect(m(`https://evil-xhscdn.com${path}`)).toBe(false);
+    expect(m(`https://xhscdn.com.evil.com${path}`)).toBe(false);
+    expect(m(`https://rednotecdn.com.evil.com${path}`)).toBe(false);
+  });
 });
 
 describe('xiaohongshuResolver — resolve', () => {

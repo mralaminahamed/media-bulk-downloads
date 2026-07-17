@@ -217,6 +217,12 @@ describe('SRC_KEY_RULES cross-CDN families', () => {
     // Same host as the signed CDN, but missing the /<ts>/<hash>/ prefix → falls
     // through to generic keying, not folded under an xhscdn.com/... key.
     expect(canonicalSrcKey('https://sns-webpic-qc.xhscdn.com/static/logo.png')).toBe('sns-webpic-qc.xhscdn.com/static/logo.png');
+    // Look-alike hosts (non-boundary prefix, or the CDN name as a left-label of a
+    // different domain) must NOT be claimed by the fileId rule, even with a valid
+    // signed path — the host regex is dot-boundary + end anchored.
+    const signed = `/202607170815/${H}/notes_pre_post/1040aaaa!nd_dft_webp_3`;
+    expect(canonicalSrcKey(`https://evil-xhscdn.com${signed}`)).not.toMatch(/^xhscdn\.com\//);
+    expect(canonicalSrcKey(`https://rednotecdn.com.evil.com${signed}`)).not.toMatch(/^xhscdn\.com\//);
   });
 
   it('keeps distinct googleusercontent multi-= tokens distinct', () => {
