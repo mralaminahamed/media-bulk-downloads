@@ -238,6 +238,16 @@ describe('upgradeToOriginal', () => {
       'https://c0.wallpaperflare.com/preview/283/479/652/ancient-antique-art-thumbnail.jpg',
       'https://c0.wallpaperflare.com/preview/283/479/652/ancient-antique-art.jpg',
     ],
+    [
+      'LiveJournal swaps the size token for _original',
+      'https://ic.pics.livejournal.com/livejournal/21331/110834/110834_800.png',
+      'https://ic.pics.livejournal.com/livejournal/21331/110834/110834_original.png',
+    ],
+    [
+      'LiveJournal swaps a WxH size token (100x100) for _original',
+      'https://ic.pics.livejournal.com/someuser/12345/67890/67890_100x100.jpg',
+      'https://ic.pics.livejournal.com/someuser/12345/67890/67890_original.jpg',
+    ],
   ];
 
   it.each(cases)('%s', (_name, input, expected) => {
@@ -281,6 +291,13 @@ describe('upgradeToOriginal', () => {
       expect(r.original).toBe(url);
       expect(r.thumbnail).toBeUndefined();
     }
+  });
+
+  it('LiveJournal is idempotent on an already-original URL (no-op, no thumbnail)', () => {
+    const url = 'https://ic.pics.livejournal.com/livejournal/21331/110834/110834_original.png';
+    const r = upgradeToOriginal(url);
+    expect(r.original).toBe(url);
+    expect(r.thumbnail).toBeUndefined();
   });
 
   it('leaves a pbs.twimg.com URL unchanged when it carries no name param to rewrite', () => {

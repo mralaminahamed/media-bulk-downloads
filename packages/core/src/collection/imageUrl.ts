@@ -578,6 +578,19 @@ const RULES: CdnRule[] = [
       u.pathname = u.pathname.replace(/-thumbnail(\.(?:jpe?g|png|webp))$/i, '$1');
     },
   },
+  {
+    // LiveJournal photo hosting (ic.pics.livejournal.com): an uploaded image is
+    // served as /<user>/<uid>/<pid>/<pid>_<size>.<ext> where <size> is a rendition
+    // token (800, 640, 320, 100x100, …); swap it for the FAQ-documented `_original`
+    // largest. The pid repeats as the filename's leading digits, so the anchored
+    // `/<digits>_<size>.<ext>$` match never touches a numeric path folder. Already
+    // `_original` is idempotent (re-writes to itself). Verified _800=137 KB ->
+    // _original=593 KB. See #381.
+    match: (u) => u.hostname === 'ic.pics.livejournal.com',
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/(\/\d+_)[^/]+(\.(?:jpe?g|png|gif|webp|bmp))$/i, '$1original$2');
+    },
+  },
   // ──────────────────────────────────────────────────────────────────────────
   {
     // Cloudinary: strip the leading transformation segment(s) right after
