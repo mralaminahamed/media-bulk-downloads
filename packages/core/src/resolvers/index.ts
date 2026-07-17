@@ -12,6 +12,7 @@ import { genericResolver } from '@mbd/core/resolvers/sites/generic';
 import { instagramResolver } from '@mbd/core/resolvers/sites/instagram';
 import { magnificResolver } from '@mbd/core/resolvers/sites/magnific';
 import { mastodonResolver } from '@mbd/core/resolvers/sites/mastodon';
+import { onedioResolver } from '@mbd/core/resolvers/sites/onedio';
 import { pikabuResolver } from '@mbd/core/resolvers/sites/pikabu';
 import { pinterestResolver } from '@mbd/core/resolvers/sites/pinterest';
 import { pixivResolver } from '@mbd/core/resolvers/sites/pixiv';
@@ -29,7 +30,7 @@ import { wallpaperscraftResolver } from '@mbd/core/resolvers/sites/wallpaperscra
 import { youtubeResolver } from '@mbd/core/resolvers/sites/youtube';
 import { zerochanResolver } from '@mbd/core/resolvers/sites/zerochan';
 
-export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, facebookResolver, threadsResolver, unsplashResolver, wallhavenResolver, behanceResolver, bskyResolver, pinterestResolver, redditResolver, flickrResolver, artstationResolver, pixivResolver, magnificResolver, arcxpResolver, youtubeResolver, mastodonResolver, booruResolver, zerochanResolver, wallpaperscraftResolver, sankakuResolver, postimagesResolver, fourchanResolver, foolfuukaResolver, pikabuResolver, wallpaperHostsResolver, xiaohongshuResolver, spiegelResolver, genericResolver];
+export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, facebookResolver, threadsResolver, unsplashResolver, wallhavenResolver, behanceResolver, bskyResolver, pinterestResolver, redditResolver, flickrResolver, artstationResolver, pixivResolver, magnificResolver, arcxpResolver, youtubeResolver, mastodonResolver, booruResolver, zerochanResolver, wallpaperscraftResolver, sankakuResolver, postimagesResolver, fourchanResolver, foolfuukaResolver, pikabuResolver, wallpaperHostsResolver, xiaohongshuResolver, spiegelResolver, onedioResolver, genericResolver];
 
 // Suffix → resolvers that declared it, preserving REGISTRY order within a bucket.
 const hostIndex = new Map<string, Resolver[]>();

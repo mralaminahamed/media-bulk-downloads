@@ -169,6 +169,27 @@ describe('resolve — generic fallback', () => {
     expect(ids.indexOf('spiegel')).toBeLessThan(ids.indexOf('generic'));
   });
 
+  it('includes onedioResolver before genericResolver', () => {
+    const ids = REGISTRY.map((r) => r.id);
+    expect(ids).toContain('onedio');
+    expect(ids.indexOf('onedio')).toBeLessThan(ids.indexOf('generic'));
+  });
+
+  it('routes a signed Onedio multi-width srcset image through the onedio resolver with an id mediaKey', () => {
+    const img600 = document.createElement('img');
+    img600.setAttribute('src', 'https://img-s2.onedio.com/id-6a5798a6104117297cb4e914/rev-0/w-600/h-450/f-jpg/s-abc.jpg');
+    img600.setAttribute(
+      'srcset',
+      'https://img-s2.onedio.com/id-6a5798a6104117297cb4e914/rev-0/w-600/h-450/f-jpg/s-abc.jpg 600w, https://img-s2.onedio.com/id-6a5798a6104117297cb4e914/rev-0/w-1200/h-900/f-jpg/s-def.jpg 1200w',
+    );
+    const [c] = resolve('https://img-s2.onedio.com/id-6a5798a6104117297cb4e914/rev-0/w-600/h-450/f-jpg/s-abc.jpg', { el: img600, allowNetwork: false });
+    expect(c).toMatchObject({
+      kind: 'image',
+      url: 'https://img-s2.onedio.com/id-6a5798a6104117297cb4e914/rev-0/w-1200/h-900/f-jpg/s-def.jpg',
+      mediaKey: 'onedio 6a5798a6104117297cb4e914',
+    });
+  });
+
   it('routes a signed RED note-image URL through the xiaohongshu resolver with a fileId mediaKey', () => {
     const url = 'https://sns-webpic-qc.xhscdn.com/202607170815/45adde89ae6c42409ccefc665e8ab669/notes_pre_post/1040g3k8321i4pbs37k7g5o5dgbqgbkc6gdrpq90!nd_dft_wlteh_webp_3';
     const [c] = resolve(url, ctx);
