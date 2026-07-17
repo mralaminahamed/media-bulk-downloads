@@ -7,6 +7,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **LiveJournal image originals (tier-1 CDN rule).** `ic.pics.livejournal.com` photo
+  URLs now swap their size token (`_800`/`_640`/`_100x100`/…) for the FAQ-documented
+  `_original` largest — curl-verified `_800` 137 KB → `_original` 593 KB. (#381)
 - **Xiaohongshu / RED note images.** RED (`xhscdn.com`) note images are now recognised
   as one family: a note's cover and detail renditions — and the CDN's rotating
   re-signed URLs for the same image — fold to a single download row keyed on the
