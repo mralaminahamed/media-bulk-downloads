@@ -185,6 +185,27 @@ describe('SRC_KEY_RULES cross-CDN families', () => {
     expect(canonicalSrcKey(mp4)).not.toMatch(/^sankakucomplex\.com\/data\/[0-9a-f]{32}$/);
   });
 
+  it('Xiaohongshu: cover/detail renditions and re-signs collapse to one fileId identity', () => {
+    const key = (s: string) => canonicalSrcKey(s);
+    const tok = 'notes_pre_post/1040g3k8321i4pbs37k7g5o5dgbqgbkc6gdrpq90';
+    const id = `xhscdn.com/${tok}`;
+    const H = '45adde89ae6c42409ccefc665e8ab669'; // placeholder 32-hex signature
+    // Feed cover, opened detail, and a re-signed detail copy — different ts/hash/rendition.
+    expect(key(`https://sns-webpic-qc.xhscdn.com/202607170814/${H}/${tok}!nc_n_webp_mw_1`)).toBe(id);
+    expect(key(`https://sns-webpic-qc.xhscdn.com/202607170815/${H}/${tok}!nd_dft_wlteh_webp_3`)).toBe(id);
+    expect(key(`https://sns-webpic-qc.xhscdn.com/202607180900/${H}/${tok}!nd_dft_wlteh_webp_3`)).toBe(id);
+  });
+
+  it('Xiaohongshu: different fileId tokens stay distinct; a non-signed path is untouched', () => {
+    const H = '45adde89ae6c42409ccefc665e8ab669';
+    const a = `https://sns-webpic-qc.xhscdn.com/202607170815/${H}/notes_pre_post/1040aaaa!nd_dft_webp_3`;
+    const b = `https://sns-webpic-qc.xhscdn.com/202607170815/${H}/notes_pre_post/1040bbbb!nd_dft_webp_3`;
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+    // No /<ts>/<hash>/ signed prefix → rule must not claim it.
+    expect(canonicalSrcKey('https://ci.xiaohongshu.com/static/logo.png'))
+      .not.toMatch(/^xhscdn\.com\//);
+  });
+
   it('keeps distinct googleusercontent multi-= tokens distinct', () => {
     const a = 'https://lh3.googleusercontent.com/a/AAtokenPART1=AAtokenPART2=s96-c';
     const b = 'https://lh3.googleusercontent.com/a/AAtokenPART1=BBtokenPART2=s96-c';
