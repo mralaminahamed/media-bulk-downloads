@@ -7,6 +7,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Xiaohongshu / RED note images.** RED (`xhscdn.com`) note images are now recognised
+  as one family: a note's cover and detail renditions — and the CDN's rotating
+  re-signed URLs for the same image — fold to a single download row keyed on the
+  image's fileId, the largest displayed rendition (`WB_DFT`) winning, with downloads
+  named by the correct extension. Passive and no-auth: the displayed image is already
+  RED's best network-free rendition, so this dedups rather than upgrades. Video notes
+  are out of scope. Verified live (logged-out and logged-in).
 - **Two video hosts (opt-in network resolvers).** With "Resolve originals" enabled,
   **Rutube** and **Rumble** watch pages, player embeds, and links now surface a
   pending video that resolves to a capturable HLS master. Rutube reads its public
