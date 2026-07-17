@@ -185,6 +185,46 @@ describe('SRC_KEY_RULES cross-CDN families', () => {
     expect(canonicalSrcKey(mp4)).not.toMatch(/^sankakucomplex\.com\/data\/[0-9a-f]{32}$/);
   });
 
+  it('Xiaohongshu: cover/detail renditions and re-signs collapse to one fileId identity', () => {
+    const key = (s: string) => canonicalSrcKey(s);
+    const tok = 'notes_pre_post/1040g3k8321i4pbs37k7g5o5dgbqgbkc6gdrpq90';
+    const id = `xhscdn.com/${tok}`;
+    // Feed cover, opened detail, and a re-signed detail copy — different ts/hash/rendition.
+    expect(key(`https://sns-webpic-qc.xhscdn.com/202607170814/45adde89ae6c42409ccefc665e8ab669/${tok}!nc_n_webp_mw_1`)).toBe(id);
+    expect(key(`https://sns-webpic-qc.xhscdn.com/202607170815/c553a9123d3598f16f0907b31b6f57a5/${tok}!nd_dft_wlteh_webp_3`)).toBe(id);
+    expect(key(`https://sns-webpic-qc.xhscdn.com/202607180900/d9635405b52636af1de8a4a6aa511469/${tok}!nd_dft_wlteh_webp_3`)).toBe(id);
+  });
+
+  it('Xiaohongshu: rednote.com international CDN (rednotecdn.com) folds to the SAME key as xhscdn.com for the same fileId', () => {
+    const key = (s: string) => canonicalSrcKey(s);
+    const tok = 'notes_pre_post/1040g3k0322hharh1mu005papn09i5n1lbf83ci0';
+    const id = `xhscdn.com/${tok}`;
+    const china = `https://sns-webpic-qc.xhscdn.com/202607170814/45adde89ae6c42409ccefc665e8ab669/${tok}!nc_n_webp_mw_1`;
+    const intl = `https://sns-web-i10.rednotecdn.com/202607170815/c553a9123d3598f16f0907b31b6f57a5/${tok}!nd_dft_wlteh_webp_3?src=A`;
+    expect(key(china)).toBe(id);
+    expect(key(intl)).toBe(id);
+    expect(key(china)).toBe(key(intl));
+  });
+
+  it('Xiaohongshu: different fileId tokens stay distinct; a non-signed path is untouched', () => {
+    const H = '45adde89ae6c42409ccefc665e8ab669';
+    const a = `https://sns-webpic-qc.xhscdn.com/202607170815/${H}/notes_pre_post/1040aaaa!nd_dft_webp_3`;
+    const b = `https://sns-webpic-qc.xhscdn.com/202607170815/${H}/notes_pre_post/1040bbbb!nd_dft_webp_3`;
+    expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
+    // No /<ts>/<hash>/ signed prefix → rule must not claim it.
+    expect(canonicalSrcKey('https://ci.xiaohongshu.com/static/logo.png'))
+      .not.toMatch(/^xhscdn\.com\//);
+    // Same host as the signed CDN, but missing the /<ts>/<hash>/ prefix → falls
+    // through to generic keying, not folded under an xhscdn.com/... key.
+    expect(canonicalSrcKey('https://sns-webpic-qc.xhscdn.com/static/logo.png')).toBe('sns-webpic-qc.xhscdn.com/static/logo.png');
+    // Look-alike hosts (non-boundary prefix, or the CDN name as a left-label of a
+    // different domain) must NOT be claimed by the fileId rule, even with a valid
+    // signed path — the host regex is dot-boundary + end anchored.
+    const signed = `/202607170815/${H}/notes_pre_post/1040aaaa!nd_dft_webp_3`;
+    expect(canonicalSrcKey(`https://evil-xhscdn.com${signed}`)).not.toMatch(/^xhscdn\.com\//);
+    expect(canonicalSrcKey(`https://rednotecdn.com.evil.com${signed}`)).not.toMatch(/^xhscdn\.com\//);
+  });
+
   it('keeps distinct googleusercontent multi-= tokens distinct', () => {
     const a = 'https://lh3.googleusercontent.com/a/AAtokenPART1=AAtokenPART2=s96-c';
     const b = 'https://lh3.googleusercontent.com/a/AAtokenPART1=BBtokenPART2=s96-c';

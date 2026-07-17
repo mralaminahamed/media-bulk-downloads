@@ -177,3 +177,10 @@ original still downloads via the #197 referer opt-in). **DeviantArt** (row: wixm
 shipped (#319): its tiers share an md5 content-hash, so an opened post's
 already-signed original is collected and its preview folds by md5 (passive,
 no-auth); grid-only originals still need the opt-in authenticated Tier-2 (#319).
+**Xiaohongshu / RED** Tier-1 shipped (#405), Sankaku-Tier-1-style: a note's
+cover/detail renditions and every re-sign share the fileId `<bucket>/<token>` in
+their signed `xhscdn.com` path, so RED media URLs are claimed, https-upgraded,
+and fold to one row by fileId — the largest, displayed `WB_DFT` rendition wins
+(passive, no-auth; the displayed image is already the ceiling, so this is a
+dedup fold, not an upgrade). Video notes are out of scope; a larger,
+un-watermarked original would need the opt-in authenticated Tier-2.
