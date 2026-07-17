@@ -29,4 +29,10 @@ describe('xiaohongshuResolver — resolve', () => {
     const cover = `https://sns-webpic-qc.xhscdn.com/202607170814/${H}/${TOK}!nc_n_webp_mw_1`;
     expect(run(cover)[0].mediaKey).toBe(`xhs ${TOK}`);
   });
+
+  it('normalizes a jpeg rendition tag to a jpg ext', () => {
+    const jpeg = `https://sns-webpic-qc.xhscdn.com/202607170815/${H}/${TOK}!nd_dft_wlteh_jpeg_3`;
+    const [c] = run(jpeg);
+    expect(c).toEqual({ url: jpeg, kind: 'image', ext: 'jpg', mediaKey: `xhs ${TOK}` });
+  });
 });

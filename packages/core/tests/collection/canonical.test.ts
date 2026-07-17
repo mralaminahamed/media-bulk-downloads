@@ -189,11 +189,10 @@ describe('SRC_KEY_RULES cross-CDN families', () => {
     const key = (s: string) => canonicalSrcKey(s);
     const tok = 'notes_pre_post/1040g3k8321i4pbs37k7g5o5dgbqgbkc6gdrpq90';
     const id = `xhscdn.com/${tok}`;
-    const H = '45adde89ae6c42409ccefc665e8ab669'; // placeholder 32-hex signature
     // Feed cover, opened detail, and a re-signed detail copy — different ts/hash/rendition.
-    expect(key(`https://sns-webpic-qc.xhscdn.com/202607170814/${H}/${tok}!nc_n_webp_mw_1`)).toBe(id);
-    expect(key(`https://sns-webpic-qc.xhscdn.com/202607170815/${H}/${tok}!nd_dft_wlteh_webp_3`)).toBe(id);
-    expect(key(`https://sns-webpic-qc.xhscdn.com/202607180900/${H}/${tok}!nd_dft_wlteh_webp_3`)).toBe(id);
+    expect(key(`https://sns-webpic-qc.xhscdn.com/202607170814/45adde89ae6c42409ccefc665e8ab669/${tok}!nc_n_webp_mw_1`)).toBe(id);
+    expect(key(`https://sns-webpic-qc.xhscdn.com/202607170815/c553a9123d3598f16f0907b31b6f57a5/${tok}!nd_dft_wlteh_webp_3`)).toBe(id);
+    expect(key(`https://sns-webpic-qc.xhscdn.com/202607180900/d9635405b52636af1de8a4a6aa511469/${tok}!nd_dft_wlteh_webp_3`)).toBe(id);
   });
 
   it('Xiaohongshu: different fileId tokens stay distinct; a non-signed path is untouched', () => {
@@ -204,6 +203,9 @@ describe('SRC_KEY_RULES cross-CDN families', () => {
     // No /<ts>/<hash>/ signed prefix → rule must not claim it.
     expect(canonicalSrcKey('https://ci.xiaohongshu.com/static/logo.png'))
       .not.toMatch(/^xhscdn\.com\//);
+    // Same host as the signed CDN, but missing the /<ts>/<hash>/ prefix → falls
+    // through to generic keying, not folded under an xhscdn.com/... key.
+    expect(canonicalSrcKey('https://sns-webpic-qc.xhscdn.com/static/logo.png')).toBe('sns-webpic-qc.xhscdn.com/static/logo.png');
   });
 
   it('keeps distinct googleusercontent multi-= tokens distinct', () => {

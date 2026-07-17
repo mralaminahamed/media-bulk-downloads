@@ -28,7 +28,7 @@ function extFromRendition(tag: string): string | undefined {
  */
 export const xiaohongshuResolver: Resolver = {
   id: 'xiaohongshu',
-  hosts: ['xhscdn.com', 'xiaohongshu.com'],
+  hosts: ['xhscdn.com', 'xiaohongshu.com'], // xiaohongshu.com is inert today (match only accepts xhscdn.com); seam for a future opt-in authed Tier-2 (RED note API)
   match: (u) => XHS_HOST.test(u.hostname) && XHS_SIGNED.test(u.pathname),
   resolve: (u): MediaCandidate[] => {
     const found = u.pathname.match(XHS_SIGNED);
