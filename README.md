@@ -251,10 +251,14 @@ upgrade rules for:
 | Facebook                           | Passive `text/html`-NDJSON GraphQL + page-hydration sniff → full-res photo / reel mp4 (signed CDN) |
 | Bluesky                            | `/img/<rendition>/` → largest CDN sibling / `getBlob` original |
 | Threads                            | Full-resolution media (Instagram infra) + mounted-video MP4 |
+| Xiaohongshu / RED                  | Signed note image → full-resolution original (fileId fold, xhscdn / rednotecdn) |
 | Mastodon                           | `/small/` → `/original/` (any instance)             |
 | Magnific                           | Collapse signed `srcset` widths → single largest rendition |
+| Der Spiegel                        | Signed `srcset` widths → widest same-image rendition (DOM-read) |
+| Onedio                             | Signed `srcset` (`w-<W>`) → widest same-`id` rendition (DOM-read) |
 | Dailymotion                        | Embeds / links → HLS master via public player metadata |
 | Booru (Danbooru/Gelbooru/Moebooru) | Post-page DOM → original file (page-gated)           |
+| Sankaku Complex                    | Preview / sample tier → original file (md5-canonical fold) |
 | Arc XP (news publishers)           | Resizer URL → full-size source                      |
 
 …and 50+ more CDN families — see the live [coverage benchmark](./docs/BENCHMARK.md).
