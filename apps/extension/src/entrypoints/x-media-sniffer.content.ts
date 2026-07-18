@@ -18,12 +18,12 @@ export default defineContentScript({
   world: 'MAIN',
   main() {
     installResponseSniffer({
-      urlKey: '__ibdUrl',
+      urlKey: '__mbdUrl',
       isApi: (url) => /\/i\/api\/(?:graphql|2)\//.test(url),
       emit: makeSnifferEmit({
         guard: (text) => text.indexOf('video_info') !== -1,
         extract: extractVideoPairs,
-        envelope: (pairs) => ({ source: 'ibd-x-media', pairs }),
+        envelope: (pairs) => ({ source: 'mbd-x-media', pairs }),
       }),
     });
   },

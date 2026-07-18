@@ -641,26 +641,26 @@ describe('Sniffer relay listeners (generic host)', () => {
   });
 
   describe('HLS relay', () => {
-    it('feeds a valid ibd-hls envelope to ingestSniffedHls', async () => {
+    it('feeds a valid mbd-hls envelope to ingestSniffedHls', async () => {
       const { messageHandlers, ingestSniffedHls } = await loadContent();
       const urls = ['https://cdn.example.com/live/index.m3u8'];
-      fire(messageHandlers, message({ source: 'ibd-hls', urls }));
+      fire(messageHandlers, message({ source: 'mbd-hls', urls }));
       expect(ingestSniffedHls).toHaveBeenCalledWith(urls);
     });
 
     it('ignores a foreign window source, a foreign origin, a wrong tag, and a non-array urls', async () => {
       const { messageHandlers, ingestSniffedHls } = await loadContent();
-      fire(messageHandlers, message({ source: 'ibd-hls', urls: [] }, { source: {} }));
-      fire(messageHandlers, message({ source: 'ibd-hls', urls: [] }, { origin: 'https://evil.example' }));
-      fire(messageHandlers, message({ source: 'ibd-not-hls', urls: [] }));
-      fire(messageHandlers, message({ source: 'ibd-hls', urls: 5 }));
+      fire(messageHandlers, message({ source: 'mbd-hls', urls: [] }, { source: {} }));
+      fire(messageHandlers, message({ source: 'mbd-hls', urls: [] }, { origin: 'https://evil.example' }));
+      fire(messageHandlers, message({ source: 'mbd-not-hls', urls: [] }));
+      fire(messageHandlers, message({ source: 'mbd-hls', urls: 5 }));
       fire(messageHandlers, message(null));
       expect(ingestSniffedHls).not.toHaveBeenCalled();
     });
 
-    it('posts ibd-hls-ready on registration so the sniffer replays earlier manifests', async () => {
+    it('posts mbd-hls-ready on registration so the sniffer replays earlier manifests', async () => {
       const { postSpy: spy } = await loadContent();
-      expect(spy).toHaveBeenCalledWith({ source: 'ibd-hls-ready' }, window.location.origin);
+      expect(spy).toHaveBeenCalledWith({ source: 'mbd-hls-ready' }, window.location.origin);
     });
   });
 
@@ -671,13 +671,13 @@ describe('Sniffer relay listeners (generic host)', () => {
 
     it('does not forward a valid X envelope (X relay not wired here)', async () => {
       const { messageHandlers } = await loadContent();
-      fire(messageHandlers, message({ source: 'ibd-x-media', pairs: [{ url: 'https://video.twimg.com/z.mp4' }] }));
+      fire(messageHandlers, message({ source: 'mbd-x-media', pairs: [{ url: 'https://video.twimg.com/z.mp4' }] }));
       expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
     });
 
     it('does not forward a valid IG envelope (IG relay not wired here)', async () => {
       const { messageHandlers, ingestSniffedIgMedia } = await loadContent();
-      fire(messageHandlers, message({ source: 'ibd-ig-media', entries: [{ code: 'ABC', kind: 'image', url: 'u' }] }));
+      fire(messageHandlers, message({ source: 'mbd-ig-media', entries: [{ code: 'ABC', kind: 'image', url: 'u' }] }));
       expect(ingestSniffedIgMedia).not.toHaveBeenCalled();
     });
   });

@@ -25,7 +25,7 @@ export default defineContentScript({
     // oldest (Set preserves insertion order) — mirrors hls-sniff.ts's CAP=500 downstream.
     const SEEN_CAP = 500;
     const seen = new Set<string>(); // avoid re-posting the same manifest
-    const post = (urls: string[]): void => window.postMessage({ source: 'ibd-hls', urls }, location.origin);
+    const post = (urls: string[]): void => window.postMessage({ source: 'mbd-hls', urls }, location.origin);
     installUrlSniffer({
       isMatch: (url) => HLS_RE.test(url),
       onUrl: (url) => {
@@ -39,7 +39,7 @@ export default defineContentScript({
     // posts only registers at document_idle. Manifests fetched in that gap
     // (autoplay/preload players) would be lost, so when the relay announces
     // itself, re-post everything seen so far (the ingest side dedups).
-    installReplayOnReady('ibd-hls-ready', () => {
+    installReplayOnReady('mbd-hls-ready', () => {
       if (seen.size) post([...seen]);
     });
   },

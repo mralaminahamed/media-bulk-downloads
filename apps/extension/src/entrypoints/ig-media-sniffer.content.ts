@@ -20,12 +20,12 @@ export default defineContentScript({
   world: 'MAIN',
   main() {
     installResponseSniffer({
-      urlKey: '__ibdIgUrl',
+      urlKey: '__mbdIgUrl',
       isApi: (url) => url.indexOf('/api/v1/') !== -1 || url.indexOf('/graphql') !== -1,
       emit: makeSnifferEmit({
         guard: (text) => text.indexOf('image_versions2') !== -1 || text.indexOf('video_versions') !== -1,
         extract: extractIgMedia,
-        envelope: (entries) => ({ source: 'ibd-ig-media', entries }),
+        envelope: (entries) => ({ source: 'mbd-ig-media', entries }),
       }),
     });
   },

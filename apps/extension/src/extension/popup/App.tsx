@@ -265,7 +265,7 @@ const App: React.FC<AppProps> = ({
   const allShownSelected = downloadableShown > 0 && selectedCount === downloadableShown;
 
   return (
-    <div className="ibd-app mbd:flex mbd:h-full mbd:flex-col mbd:overflow-hidden mbd:bg-(--paper) mbd:text-(--ink)">
+    <div className="mbd-app mbd:flex mbd:h-full mbd:flex-col mbd:overflow-hidden mbd:bg-(--paper) mbd:text-(--ink)">
       {/* Header (doubles as the panel drag handle in the bubble surface) */}
       <header className="dotgrid mbd:border-b hairline" {...dragHandleProps}>
         <div className="mbd:flex mbd:items-center mbd:justify-between mbd:px-4 mbd:pt-3.5">

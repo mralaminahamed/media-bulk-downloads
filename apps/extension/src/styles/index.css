@@ -118,7 +118,7 @@ body {
 
 /* Base surface for the app. The popup body sets these directly; the bubble
    panel applies this class inside its Shadow DOM. */
-.ibd-app {
+.mbd-app {
   font-family: var(--font-sans);
   color: var(--ink);
   background: var(--paper);

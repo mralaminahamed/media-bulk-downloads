@@ -20,7 +20,7 @@ describe('pinterest-media-sniffer entrypoint', () => {
     expect(sniffer.matches).toContain('*://*.pinterest.com/*');
   });
 
-  it('installs a /resource/ sniffer with the images/video_list guard and ibd-pinterest-media envelope', () => {
+  it('installs a /resource/ sniffer with the images/video_list guard and mbd-pinterest-media envelope', () => {
     (sniffer.main as () => void)();
     expect(installResponseSniffer).toHaveBeenCalledTimes(1);
     const arg = (installResponseSniffer as unknown as { mock: { calls: any[][] } }).mock.calls[0][0];
@@ -29,8 +29,8 @@ describe('pinterest-media-sniffer entrypoint', () => {
     const emit = (makeSnifferEmit as unknown as { mock: { calls: any[][] } }).mock.calls[0][0];
     expect(emit.guard('… "images": {…}')).toBe(true);
     expect(emit.guard('nope')).toBe(false);
-    expect(emit.envelope([{ pinId: '1' }])).toEqual({ source: 'ibd-pinterest-media', entries: [{ pinId: '1' }] });
-    expect(installReplayOnReady).toHaveBeenCalledWith('ibd-pinterest-ready', expect.any(Function));
+    expect(emit.envelope([{ pinId: '1' }])).toEqual({ source: 'mbd-pinterest-media', entries: [{ pinId: '1' }] });
+    expect(installReplayOnReady).toHaveBeenCalledWith('mbd-pinterest-ready', expect.any(Function));
   });
 
   // The buffer is built with a loop (`for (const e of entries) buffer.push(e)`),
@@ -66,7 +66,7 @@ describe('pinterest-media-sniffer entrypoint', () => {
     emit.envelope([{ pinId: '1' }]);
     emit.envelope([{ pinId: '2' }]);
     replay();
-    expect(posted).toContainEqual({ source: 'ibd-pinterest-media', entries: [{ pinId: '1' }, { pinId: '2' }] });
+    expect(posted).toContainEqual({ source: 'mbd-pinterest-media', entries: [{ pinId: '1' }, { pinId: '2' }] });
 
     // After ready, the buffer is drained, and further emits are not buffered.
     posted.length = 0;

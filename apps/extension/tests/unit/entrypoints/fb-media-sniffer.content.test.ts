@@ -38,7 +38,7 @@ describe('fb-media-sniffer content entrypoint', () => {
 
   it('sniffs graphql under the FB url key and accepts FB text/html responses', () => {
     const { resp } = runMain();
-    expect(resp.urlKey).toBe('__ibdFbUrl');
+    expect(resp.urlKey).toBe('__mbdFbUrl');
     expect(resp.isApi('https://www.facebook.com/api/graphql/')).toBe(true);
     expect(resp.isApi('https://www.facebook.com/graphql/')).toBe(true);
     expect(resp.isApi('https://www.facebook.com/natgeo/photos')).toBe(false);
@@ -57,9 +57,9 @@ describe('fb-media-sniffer content entrypoint', () => {
     expect(emit.guard('{"user":{"id":"1"}}')).toBe(false);
   });
 
-  it('wraps extracted entries in the ibd-fb-media envelope the relay expects', () => {
+  it('wraps extracted entries in the mbd-fb-media envelope the relay expects', () => {
     const { emit } = runMain();
-    expect(emit.envelope([{ fbid: '1' }])).toEqual({ source: 'ibd-fb-media', entries: [{ fbid: '1' }] });
+    expect(emit.envelope([{ fbid: '1' }])).toEqual({ source: 'mbd-fb-media', entries: [{ fbid: '1' }] });
   });
 
   it('buffers emitted entries and replays them once the isolated relay is ready', () => {
@@ -68,13 +68,13 @@ describe('fb-media-sniffer content entrypoint', () => {
     const { emit } = runMain();
 
     // Before the relay is ready, the envelope returns the live envelope AND buffers.
-    expect(emit.envelope([{ fbid: '1' }])).toEqual({ source: 'ibd-fb-media', entries: [{ fbid: '1' }] });
+    expect(emit.envelope([{ fbid: '1' }])).toEqual({ source: 'mbd-fb-media', entries: [{ fbid: '1' }] });
     emit.envelope([{ fbid: '2' }]);
 
     const [source, replay] = (installReplayOnReady as Mock).mock.calls.at(-1)! as [string, () => void];
-    expect(source).toBe('ibd-fb-ready');
+    expect(source).toBe('mbd-fb-ready');
     replay();
-    expect(posted).toContainEqual({ source: 'ibd-fb-media', entries: [{ fbid: '1' }, { fbid: '2' }] });
+    expect(posted).toContainEqual({ source: 'mbd-fb-media', entries: [{ fbid: '1' }, { fbid: '2' }] });
   });
 
   it('caps the pre-ready buffer so a relay that never readies cannot leak unbounded memory', () => {

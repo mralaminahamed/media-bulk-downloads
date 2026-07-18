@@ -59,10 +59,10 @@ describe('Pinterest media relay (pinterest.com)', () => {
     vi.resetModules();
   });
 
-  it('feeds a valid ibd-pinterest-media envelope to ingestSniffedPinterestMedia', async () => {
+  it('feeds a valid mbd-pinterest-media envelope to ingestSniffedPinterestMedia', async () => {
     const { messageHandlers, ingestSniffedPinterestMedia } = await loadContent();
     const entries = [{ pinId: '1', kind: 'image', url: 'https://i.pinimg.com/originals/a.jpg', ext: 'jpg' }];
-    fire(messageHandlers, message({ source: 'ibd-pinterest-media', entries }));
+    fire(messageHandlers, message({ source: 'mbd-pinterest-media', entries }));
     expect(ingestSniffedPinterestMedia).toHaveBeenCalledWith(entries);
   });
 
@@ -72,18 +72,18 @@ describe('Pinterest media relay (pinterest.com)', () => {
 
   it('ignores a foreign window source, a foreign origin, a wrong tag, and a non-array entries', async () => {
     const { messageHandlers, ingestSniffedPinterestMedia } = await loadContent();
-    fire(messageHandlers, message({ source: 'ibd-pinterest-media', entries: [] }, { source: {} }));
-    fire(messageHandlers, message({ source: 'ibd-pinterest-media', entries: [] }, { origin: 'https://evil.example' }));
-    fire(messageHandlers, message({ source: 'ibd-not-pinterest', entries: [] }));
-    fire(messageHandlers, message({ source: 'ibd-pinterest-media', entries: 'nope' }));
+    fire(messageHandlers, message({ source: 'mbd-pinterest-media', entries: [] }, { source: {} }));
+    fire(messageHandlers, message({ source: 'mbd-pinterest-media', entries: [] }, { origin: 'https://evil.example' }));
+    fire(messageHandlers, message({ source: 'mbd-not-pinterest', entries: [] }));
+    fire(messageHandlers, message({ source: 'mbd-pinterest-media', entries: 'nope' }));
     fire(messageHandlers, message(null));
     expect(ingestSniffedPinterestMedia).not.toHaveBeenCalled();
   });
 
-  it('announces ibd-pinterest-ready so the MAIN sniffer can replay early /resource/ responses', async () => {
+  it('announces mbd-pinterest-ready so the MAIN sniffer can replay early /resource/ responses', async () => {
     vi.resetModules();
     const postSpy = vi.spyOn(window, 'postMessage').mockImplementation(() => undefined as never);
     await import('@/extension/content');
-    expect(postSpy).toHaveBeenCalledWith({ source: 'ibd-pinterest-ready' }, window.location.origin);
+    expect(postSpy).toHaveBeenCalledWith({ source: 'mbd-pinterest-ready' }, window.location.origin);
   });
 });

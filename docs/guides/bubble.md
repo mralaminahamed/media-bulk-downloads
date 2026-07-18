@@ -33,7 +33,7 @@ sequenceDiagram
   CS->>CS: applyBubble(newSettings) → mount or unmount
 ```
 
-Mount builds one host element, `<div id="ibd-bubble-host">`, and appends it to
+Mount builds one host element, `<div id="mbd-bubble-host">`, and appends it to
 `<html>` with `all: initial` and the max z-index. It attaches an open shadow root,
 injects the compiled app CSS into that root, and renders `<Bubble>` through a React
 root. Unmount calls `root.unmount()` and removes the host element. `mountBubble` in

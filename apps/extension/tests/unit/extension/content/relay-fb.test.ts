@@ -59,10 +59,10 @@ describe('Facebook media relay (facebook.com)', () => {
     vi.resetModules();
   });
 
-  it('feeds a valid ibd-fb-media envelope to ingestSniffedFbMedia', async () => {
+  it('feeds a valid mbd-fb-media envelope to ingestSniffedFbMedia', async () => {
     const { messageHandlers, ingestSniffedFbMedia } = await loadContent();
     const entries = [{ fbid: '100', kind: 'image', url: 'https://x.fbcdn.net/a.jpg' }];
-    fire(messageHandlers, message({ source: 'ibd-fb-media', entries }));
+    fire(messageHandlers, message({ source: 'mbd-fb-media', entries }));
     expect(ingestSniffedFbMedia).toHaveBeenCalledWith(entries);
   });
 
@@ -72,18 +72,18 @@ describe('Facebook media relay (facebook.com)', () => {
 
   it('ignores a foreign window source, a foreign origin, a wrong tag, and a non-array entries', async () => {
     const { messageHandlers, ingestSniffedFbMedia } = await loadContent();
-    fire(messageHandlers, message({ source: 'ibd-fb-media', entries: [] }, { source: {} }));
-    fire(messageHandlers, message({ source: 'ibd-fb-media', entries: [] }, { origin: 'https://evil.example' }));
-    fire(messageHandlers, message({ source: 'ibd-not-fb', entries: [] }));
-    fire(messageHandlers, message({ source: 'ibd-fb-media', entries: 'nope' }));
+    fire(messageHandlers, message({ source: 'mbd-fb-media', entries: [] }, { source: {} }));
+    fire(messageHandlers, message({ source: 'mbd-fb-media', entries: [] }, { origin: 'https://evil.example' }));
+    fire(messageHandlers, message({ source: 'mbd-not-fb', entries: [] }));
+    fire(messageHandlers, message({ source: 'mbd-fb-media', entries: 'nope' }));
     fire(messageHandlers, message(null));
     expect(ingestSniffedFbMedia).not.toHaveBeenCalled();
   });
 
-  it('announces ibd-fb-ready so the MAIN sniffer can replay early graphql', async () => {
+  it('announces mbd-fb-ready so the MAIN sniffer can replay early graphql', async () => {
     vi.resetModules();
     const postSpy = vi.spyOn(window, 'postMessage').mockImplementation(() => undefined as never);
     await import('@/extension/content');
-    expect(postSpy).toHaveBeenCalledWith({ source: 'ibd-fb-ready' }, window.location.origin);
+    expect(postSpy).toHaveBeenCalledWith({ source: 'mbd-fb-ready' }, window.location.origin);
   });
 });

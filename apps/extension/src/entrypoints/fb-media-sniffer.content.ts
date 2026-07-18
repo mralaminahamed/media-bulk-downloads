@@ -25,7 +25,7 @@ export default defineContentScript({
     const buffer: FbMediaEntry[] = [];
     let relayReady = false;
     installResponseSniffer({
-      urlKey: '__ibdFbUrl',
+      urlKey: '__mbdFbUrl',
       isApi: (url) => url.indexOf('/api/graphql') !== -1 || url.indexOf('/graphql') !== -1,
       contentTypeOk: () => true,
       emit: makeSnifferEmit({
@@ -44,14 +44,14 @@ export default defineContentScript({
             // page's heap without bound. Mirrors the Pinterest sniffer. Newest wins.
             if (buffer.length > 8000) buffer.splice(0, buffer.length - 8000);
           }
-          return { source: 'ibd-fb-media', entries };
+          return { source: 'mbd-fb-media', entries };
         },
         ndjson: true,
       }),
     });
-    installReplayOnReady('ibd-fb-ready', () => {
+    installReplayOnReady('mbd-fb-ready', () => {
       relayReady = true;
-      if (buffer.length) window.postMessage({ source: 'ibd-fb-media', entries: buffer.splice(0) }, location.origin);
+      if (buffer.length) window.postMessage({ source: 'mbd-fb-media', entries: buffer.splice(0) }, location.origin);
     });
   },
 });
