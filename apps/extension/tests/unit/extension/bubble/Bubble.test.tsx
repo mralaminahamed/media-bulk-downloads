@@ -356,7 +356,7 @@ describe('Bubble', () => {
     await dispatchToggle();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
 
-    const scrim = document.querySelector('.ibd-bubble-scrim') as HTMLElement;
+    const scrim = document.querySelector('.mbd-bubble-scrim') as HTMLElement;
     expect(scrim).toBeInTheDocument();
     expect(scrim.style.pointerEvents).toBe('none'); // page stays interactive
 

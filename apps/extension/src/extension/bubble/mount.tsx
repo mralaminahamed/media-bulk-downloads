@@ -6,8 +6,8 @@ import Bubble from '@/extension/bubble/Bubble';
 // styles can't leak in and ours can't leak out.
 import styles from '@/styles/index.css?inline';
 
-export const HOST_ID = 'ibd-bubble-host';
-const PROP_STYLE_ID = 'ibd-tw-properties';
+export const HOST_ID = 'mbd-bubble-host';
+const PROP_STYLE_ID = 'mbd-tw-properties';
 
 export interface BubbleController {
   unmount: () => void;

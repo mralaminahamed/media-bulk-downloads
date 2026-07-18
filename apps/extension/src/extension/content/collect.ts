@@ -640,7 +640,7 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     els.forEach((el) => {
       // Discover open shadow roots regardless of layout (a not-rendered host can
       // still contain visible media once its component mounts) — EXCEPT our own
-      // on-page bubble (mount.tsx's `#ibd-bubble-host`, an open shadow root by
+      // on-page bubble (mount.tsx's `#mbd-bubble-host`, an open shadow root by
       // necessity for its own styling). Without this exclusion a re-scan while
       // the bubble is showing a not-yet-upgraded grid thumbnail "discovers" that
       // thumbnail as if it were new page content and re-adds it — untagged (the

@@ -6,7 +6,7 @@
  * hosts (`matches: ['*://x.com/*', '*://twitter.com/*']` — no `*.` wildcard), so
  * the isolated relay in content/index.ts must gate on those exact hosts too. On
  * an x.com SUBDOMAIN the sniffer never runs, so the relay must NOT register its
- * `ibd-x-media` listener there — otherwise any first-party script on the subdomain
+ * `mbd-x-media` listener there — otherwise any first-party script on the subdomain
  * could forge an envelope the real sniffer would never have produced.
  */
 import type { Mock } from 'vitest';
@@ -35,14 +35,14 @@ describe('X media relay — subdomain gate (M1)', () => {
     vi.restoreAllMocks();
   });
 
-  it('does not relay ibd-x-media on an x.com subdomain (sniffer never injected there)', async () => {
+  it('does not relay mbd-x-media on an x.com subdomain (sniffer never injected there)', async () => {
     const { handlers, sendMessage } = await loadContent();
     // A same-window, same-origin, correctly-tagged envelope — valid in every way
     // except that the host is a subdomain the sniffer never runs on.
     const event = {
       source: window,
       origin: window.location.origin,
-      data: { source: 'ibd-x-media', pairs: [['1', { url: 'https://video.twimg.com/x.mp4' }]] },
+      data: { source: 'mbd-x-media', pairs: [['1', { url: 'https://video.twimg.com/x.mp4' }]] },
     };
     handlers.forEach((h) => h(event));
 

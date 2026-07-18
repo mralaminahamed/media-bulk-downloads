@@ -38,7 +38,7 @@ describe('ig-media-sniffer content entrypoint', () => {
 
   it('sniffs the Instagram GraphQL / api/v1 responses under the IG url key', () => {
     const { resp } = runMain();
-    expect(resp.urlKey).toBe('__ibdIgUrl');
+    expect(resp.urlKey).toBe('__mbdIgUrl');
     expect(resp.isApi('https://www.instagram.com/api/v1/feed/timeline/')).toBe(true);
     expect(resp.isApi('https://www.instagram.com/graphql/query')).toBe(true);
     // A normal page navigation or a static asset must not trip the sniffer.
@@ -56,10 +56,10 @@ describe('ig-media-sniffer content entrypoint', () => {
     expect(emit.extract).toBe(extractIgMedia);
   });
 
-  it('wraps extracted entries in the ibd-ig-media envelope the relay expects', () => {
+  it('wraps extracted entries in the mbd-ig-media envelope the relay expects', () => {
     const { emit } = runMain();
     expect(emit.envelope([{ src: 'a' }, { src: 'b' }])).toEqual({
-      source: 'ibd-ig-media',
+      source: 'mbd-ig-media',
       entries: [{ src: 'a' }, { src: 'b' }],
     });
   });

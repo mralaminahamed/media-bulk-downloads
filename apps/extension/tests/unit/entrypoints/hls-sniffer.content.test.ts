@@ -55,8 +55,8 @@ describe('hls-sniffer content entrypoint', () => {
       onUrl('https://cdn.example.com/a.m3u8'); // same URL — must not re-post
       onUrl('https://cdn.example.com/b.mpd');
       expect(post).toHaveBeenCalledTimes(2);
-      expect(post).toHaveBeenNthCalledWith(1, { source: 'ibd-hls', urls: ['https://cdn.example.com/a.m3u8'] }, location.origin);
-      expect(post).toHaveBeenNthCalledWith(2, { source: 'ibd-hls', urls: ['https://cdn.example.com/b.mpd'] }, location.origin);
+      expect(post).toHaveBeenNthCalledWith(1, { source: 'mbd-hls', urls: ['https://cdn.example.com/a.m3u8'] }, location.origin);
+      expect(post).toHaveBeenNthCalledWith(2, { source: 'mbd-hls', urls: ['https://cdn.example.com/b.mpd'] }, location.origin);
     } finally {
       post.mockRestore();
     }
@@ -71,11 +71,11 @@ describe('hls-sniffer content entrypoint', () => {
       post.mockClear();
 
       const [source, replay] = (installReplayOnReady as Mock).mock.calls.at(-1)!;
-      expect(source).toBe('ibd-hls-ready');
+      expect(source).toBe('mbd-hls-ready');
       (replay as () => void)();
       expect(post).toHaveBeenCalledTimes(1);
       expect(post).toHaveBeenCalledWith(
-        { source: 'ibd-hls', urls: ['https://cdn.example.com/a.m3u8', 'https://cdn.example.com/b.mpd'] },
+        { source: 'mbd-hls', urls: ['https://cdn.example.com/a.m3u8', 'https://cdn.example.com/b.mpd'] },
         location.origin,
       );
     } finally {
@@ -109,7 +109,7 @@ describe('hls-sniffer content entrypoint', () => {
       post.mockClear();
       onUrl('https://cdn.example.com/first.m3u8'); // evicted → treated as new → posts again
       expect(post).toHaveBeenCalledTimes(1);
-      expect(post).toHaveBeenCalledWith({ source: 'ibd-hls', urls: ['https://cdn.example.com/first.m3u8'] }, location.origin);
+      expect(post).toHaveBeenCalledWith({ source: 'mbd-hls', urls: ['https://cdn.example.com/first.m3u8'] }, location.origin);
     } finally {
       post.mockRestore();
     }

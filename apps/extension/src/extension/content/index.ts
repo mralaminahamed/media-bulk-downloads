@@ -45,7 +45,7 @@ if (onXHost) {
   window.addEventListener('message', (event: MessageEvent) => {
     if (event.source !== window || event.origin !== location.origin) return;
     const data = event.data as { source?: unknown; pairs?: unknown } | null;
-    if (!data || data.source !== 'ibd-x-media' || !Array.isArray(data.pairs)) return;
+    if (!data || data.source !== 'mbd-x-media' || !Array.isArray(data.pairs)) return;
     chrome.runtime.sendMessage({ type: 'X_MEDIA_SEEN', pairs: data.pairs }).catch(() => {
       /* background may be asleep / no receiver */
     });
@@ -64,7 +64,7 @@ if (onIgHost) {
   window.addEventListener('message', (event: MessageEvent) => {
     if (event.source !== window || event.origin !== location.origin) return;
     const data = event.data as { source?: unknown; entries?: unknown } | null;
-    if (!data || data.source !== 'ibd-ig-media' || !Array.isArray(data.entries)) return;
+    if (!data || data.source !== 'mbd-ig-media' || !Array.isArray(data.entries)) return;
     ingestSniffedIgMedia(data.entries);
   });
 }
@@ -81,14 +81,14 @@ if (onFbHost) {
   window.addEventListener('message', (event: MessageEvent) => {
     if (event.source !== window || event.origin !== location.origin) return;
     const data = event.data as { source?: unknown; entries?: unknown } | null;
-    if (!data || data.source !== 'ibd-fb-media' || !Array.isArray(data.entries)) return;
+    if (!data || data.source !== 'mbd-fb-media' || !Array.isArray(data.entries)) return;
     ingestSniffedFbMedia(data.entries);
   });
 
   // Tell the MAIN-world FB sniffer we're listening now, so it replays any
   // /api/graphql it captured before this relay registered (mirrors the HLS relay
   // below). The sniffer's replay listener validates same-window + same-origin.
-  window.postMessage({ source: 'ibd-fb-ready' }, location.origin);
+  window.postMessage({ source: 'mbd-fb-ready' }, location.origin);
 }
 
 // Relay the MAIN-world Pinterest media sniffer's findings into the resolver. The
@@ -103,14 +103,14 @@ if (onPinterestHost) {
   window.addEventListener('message', (event: MessageEvent) => {
     if (event.source !== window || event.origin !== location.origin) return;
     const data = event.data as { source?: unknown; entries?: unknown } | null;
-    if (!data || data.source !== 'ibd-pinterest-media' || !Array.isArray(data.entries)) return;
+    if (!data || data.source !== 'mbd-pinterest-media' || !Array.isArray(data.entries)) return;
     ingestSniffedPinterestMedia(data.entries);
   });
 
   // Tell the MAIN-world sniffer we're listening now, so it replays any /resource/
   // response captured before this relay registered (the initial feed loads at
   // document_start). Mirrors the FB ready-replay.
-  window.postMessage({ source: 'ibd-pinterest-ready' }, location.origin);
+  window.postMessage({ source: 'mbd-pinterest-ready' }, location.origin);
 }
 
 // Relay the MAIN-world HLS/DASH sniffer's findings into the collector's store.
@@ -122,13 +122,13 @@ if (onPinterestHost) {
 window.addEventListener('message', (event: MessageEvent) => {
   if (event.source !== window || event.origin !== location.origin) return;
   const data = event.data as { source?: unknown; urls?: unknown } | null;
-  if (!data || data.source !== 'ibd-hls' || !Array.isArray(data.urls)) return;
+  if (!data || data.source !== 'mbd-hls' || !Array.isArray(data.urls)) return;
   ingestSniffedHls(data.urls);
 });
 // The sniffer runs at document_start but this relay only registered now
 // (document_idle). Announce readiness so the sniffer re-posts any manifests it
 // saw before this listener existed (ingestSniffedHls dedups the replay).
-window.postMessage({ source: 'ibd-hls-ready' }, location.origin);
+window.postMessage({ source: 'mbd-hls-ready' }, location.origin);
 
 // Answer image-collection requests from the popup and background worker, and
 // the popup's page-type classification request (used to seed filter defaults

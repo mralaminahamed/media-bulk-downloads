@@ -395,7 +395,7 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
         // instead of blending in. Visual only — pointer-events: none keeps the
         // page fully interactive; the panel (higher z-index) sits above the dim.
         <div
-          className="ibd-app ibd-bubble-scrim overlay-in"
+          className="mbd-app mbd-bubble-scrim overlay-in"
           aria-hidden="true"
           style={{ position: 'fixed', inset: 0, zIndex: 2147483646, background: 'var(--overlay)', pointerEvents: 'none' }}
         />
@@ -403,7 +403,7 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
       {open && (
         <div
           ref={panelRef}
-          className="ibd-app sheet-in mbd:overflow-hidden mbd:rounded-[14px] mbd:border hairline mbd:bg-(--paper) mbd:shadow-2xl"
+          className="mbd-app sheet-in mbd:overflow-hidden mbd:rounded-[14px] mbd:border hairline mbd:bg-(--paper) mbd:shadow-2xl"
           style={panelStyle}
         >
           <div className="mbd:h-full">
@@ -464,13 +464,13 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
         onPointerCancel={onPointerUp}
         title={open ? 'Close Media Bulk Downloads' : 'Open Media Bulk Downloads'}
         aria-label="Media Bulk Downloads"
-        className="ibd-app mbd:grid mbd:place-items-center mbd:rounded-full mbd:text-white mbd:shadow-2xl mbd:transition-transform mbd:hover:scale-105 mbd:active:scale-95"
+        className="mbd-app mbd:grid mbd:place-items-center mbd:rounded-full mbd:text-white mbd:shadow-2xl mbd:transition-transform mbd:hover:scale-105 mbd:active:scale-95"
         style={{
           ...anchorStyle(corner, pos.x, pos.y),
           width: FAB,
           height: FAB,
           background: 'var(--brand-ink)',
-          color: '#fff', // white icon on the indigo FAB; inline beats .ibd-app's --ink color
+          color: '#fff', // white icon on the indigo FAB; inline beats .mbd-app's --ink color
           cursor: grabbing ? 'grabbing' : 'pointer',
           touchAction: 'none',
         }}

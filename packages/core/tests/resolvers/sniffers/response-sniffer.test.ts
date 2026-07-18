@@ -347,16 +347,16 @@ describe('installReplayOnReady', () => {
 
   it('runs the replay when the ready envelope arrives from the same window + origin', () => {
     const replay = vi.fn();
-    installReplayOnReady('ibd-hls-ready', replay);
-    fire({ source: 'ibd-hls-ready' });
+    installReplayOnReady('mbd-hls-ready', replay);
+    fire({ source: 'mbd-hls-ready' });
     expect(replay).toHaveBeenCalledTimes(1);
   });
 
   it('ignores a wrong origin, a foreign window source, and a non-ready envelope', () => {
     const replay = vi.fn();
-    installReplayOnReady('ibd-hls-ready', replay);
-    fire({ source: 'ibd-hls-ready' }, { origin: 'https://evil.example' });
-    fire({ source: 'ibd-hls-ready' }, { source: null });
+    installReplayOnReady('mbd-hls-ready', replay);
+    fire({ source: 'mbd-hls-ready' }, { origin: 'https://evil.example' });
+    fire({ source: 'mbd-hls-ready' }, { source: null });
     fire({ source: 'something-else' });
     expect(replay).not.toHaveBeenCalled();
   });

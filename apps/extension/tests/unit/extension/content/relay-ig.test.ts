@@ -59,10 +59,10 @@ describe('Instagram media relay (instagram.com)', () => {
     vi.resetModules();
   });
 
-  it('feeds a valid ibd-ig-media envelope to ingestSniffedIgMedia', async () => {
+  it('feeds a valid mbd-ig-media envelope to ingestSniffedIgMedia', async () => {
     const { messageHandlers, ingestSniffedIgMedia } = await loadContent();
     const entries = [{ code: 'ABC', kind: 'image', url: 'https://scontent.cdninstagram.com/a.jpg' }];
-    fire(messageHandlers, message({ source: 'ibd-ig-media', entries }));
+    fire(messageHandlers, message({ source: 'mbd-ig-media', entries }));
     expect(ingestSniffedIgMedia).toHaveBeenCalledWith(entries);
   });
 
@@ -72,10 +72,10 @@ describe('Instagram media relay (instagram.com)', () => {
 
   it('ignores a foreign window source, a foreign origin, a wrong tag, and a non-array entries', async () => {
     const { messageHandlers, ingestSniffedIgMedia } = await loadContent();
-    fire(messageHandlers, message({ source: 'ibd-ig-media', entries: [] }, { source: {} }));
-    fire(messageHandlers, message({ source: 'ibd-ig-media', entries: [] }, { origin: 'https://evil.example' }));
-    fire(messageHandlers, message({ source: 'ibd-not-ig', entries: [] }));
-    fire(messageHandlers, message({ source: 'ibd-ig-media', entries: 'nope' }));
+    fire(messageHandlers, message({ source: 'mbd-ig-media', entries: [] }, { source: {} }));
+    fire(messageHandlers, message({ source: 'mbd-ig-media', entries: [] }, { origin: 'https://evil.example' }));
+    fire(messageHandlers, message({ source: 'mbd-not-ig', entries: [] }));
+    fire(messageHandlers, message({ source: 'mbd-ig-media', entries: 'nope' }));
     fire(messageHandlers, message(null));
     expect(ingestSniffedIgMedia).not.toHaveBeenCalled();
   });

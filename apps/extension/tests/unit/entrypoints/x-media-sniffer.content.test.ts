@@ -38,7 +38,7 @@ describe('x-media-sniffer content entrypoint', () => {
 
   it('sniffs the X GraphQL / v2 API responses under the X url key', () => {
     const { resp } = runMain();
-    expect(resp.urlKey).toBe('__ibdUrl');
+    expect(resp.urlKey).toBe('__mbdUrl');
     expect(resp.isApi('https://x.com/i/api/graphql/abc/TweetDetail')).toBe(true);
     expect(resp.isApi('https://x.com/i/api/2/notifications/all.json')).toBe(true);
     // Other API versions or non-API paths must not trip the sniffer.
@@ -56,9 +56,9 @@ describe('x-media-sniffer content entrypoint', () => {
     expect(emit.extract).toBe(extractVideoPairs);
   });
 
-  it('wraps extracted [mediaId, mp4] pairs in the ibd-x-media envelope the relay expects', () => {
+  it('wraps extracted [mediaId, mp4] pairs in the mbd-x-media envelope the relay expects', () => {
     const { emit } = runMain();
     const pairs = [['123', 'https://video.twimg.com/a.mp4']];
-    expect(emit.envelope(pairs)).toEqual({ source: 'ibd-x-media', pairs });
+    expect(emit.envelope(pairs)).toEqual({ source: 'mbd-x-media', pairs });
   });
 });

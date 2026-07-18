@@ -56,10 +56,10 @@ describe('X media relay (x.com)', () => {
     vi.resetModules();
   });
 
-  it('forwards a valid ibd-x-media envelope as X_MEDIA_SEEN', async () => {
+  it('forwards a valid mbd-x-media envelope as X_MEDIA_SEEN', async () => {
     const { messageHandlers } = await loadContent();
     const pairs = [{ poster: 'https://pbs.twimg.com/p.jpg', url: 'https://video.twimg.com/x.mp4' }];
-    fire(messageHandlers, message({ source: 'ibd-x-media', pairs }));
+    fire(messageHandlers, message({ source: 'mbd-x-media', pairs }));
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'X_MEDIA_SEEN', pairs });
   });
 
@@ -69,20 +69,20 @@ describe('X media relay (x.com)', () => {
 
   it('ignores a foreign window source', async () => {
     const { messageHandlers } = await loadContent();
-    fire(messageHandlers, message({ source: 'ibd-x-media', pairs: [] }, { source: {} }));
+    fire(messageHandlers, message({ source: 'mbd-x-media', pairs: [] }, { source: {} }));
     expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
   });
 
   it('ignores a foreign origin', async () => {
     const { messageHandlers } = await loadContent();
-    fire(messageHandlers, message({ source: 'ibd-x-media', pairs: [] }, { origin: 'https://evil.example' }));
+    fire(messageHandlers, message({ source: 'mbd-x-media', pairs: [] }, { origin: 'https://evil.example' }));
     expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
   });
 
   it('ignores a wrong source tag, a non-array pairs, and a null payload', async () => {
     const { messageHandlers } = await loadContent();
-    fire(messageHandlers, message({ source: 'ibd-not-x', pairs: [] }));
-    fire(messageHandlers, message({ source: 'ibd-x-media', pairs: 'nope' }));
+    fire(messageHandlers, message({ source: 'mbd-not-x', pairs: [] }));
+    fire(messageHandlers, message({ source: 'mbd-x-media', pairs: 'nope' }));
     fire(messageHandlers, message(null));
     expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
   });

@@ -11,7 +11,7 @@ import { PINTEREST_MATCHES } from '@mbd/core/resolvers/sniffers/pinterest-hosts'
  * video_list`). It forges NO requests; it only reads what the page already loaded,
  * then postMessages the extracted entries to the isolated content script. The
  * initial feed response fires before the isolated relay registers, so entries are
- * buffered and replayed when the relay announces `ibd-pinterest-ready`.
+ * buffered and replayed when the relay announces `mbd-pinterest-ready`.
  */
 export default defineContentScript({
   matches: PINTEREST_MATCHES,
@@ -31,18 +31,18 @@ export default defineContentScript({
           for (const e of entries) buffer.push(e);
           if (buffer.length > 8000) buffer.splice(0, buffer.length - 8000);
         }
-        return { source: 'ibd-pinterest-media', entries };
+        return { source: 'mbd-pinterest-media', entries };
       },
     });
     installResponseSniffer({
-      urlKey: '__ibdPinUrl',
+      urlKey: '__mbdPinUrl',
       isApi: (url) => url.indexOf('/resource/') !== -1 && url.indexOf('/get/') !== -1,
       emit,
     });
     // Replay everything buffered so far when the isolated relay says it is ready.
-    installReplayOnReady('ibd-pinterest-ready', () => {
+    installReplayOnReady('mbd-pinterest-ready', () => {
       relayReady = true;
-      if (buffer.length) window.postMessage({ source: 'ibd-pinterest-media', entries: buffer.splice(0) }, location.origin);
+      if (buffer.length) window.postMessage({ source: 'mbd-pinterest-media', entries: buffer.splice(0) }, location.origin);
     });
   },
 });
