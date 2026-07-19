@@ -33,6 +33,9 @@ import { coubMediaFromJson } from '@mbd/core/resolvers/sites/coub';
 import { fanboxPageMedia } from '@mbd/core/resolvers/sites/fanbox';
 import { tiktokPageMedia } from '@mbd/core/resolvers/sites/tiktok';
 import { patreonPageMedia } from '@mbd/core/resolvers/sites/patreon';
+import { eromePageMedia } from '@mbd/core/resolvers/sites/erome';
+import { imgchestPageMedia } from '@mbd/core/resolvers/sites/imagechest';
+import { kemonoPageMedia } from '@mbd/core/resolvers/sites/kemono';
 import { soundcloudTrackUrl } from '@mbd/core/resolvers/sites/soundcloud';
 import { streamableVideoId } from '@mbd/core/resolvers/sites/streamable';
 import { redgifsVideoId } from '@mbd/core/resolvers/sites/redgifs';
@@ -1102,6 +1105,34 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     // download relies on the #197 Referer opt-in.
     if (/(?:^|\.)patreon\.com$/i.test(location.hostname)) {
       for (const cand of patreonPageMedia(pageUrl)) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
+
+    // Erome album page: each `<div class="media-group">` ships one item's CDN URL
+    // (a `<video><source>` or a lazy `<img data-src>`) — surface them directly.
+    // Host-gated; a private/removed album renders no media-groups → nothing.
+    if (/(?:^|\.)erome\.com$/i.test(location.hostname)) {
+      for (const cand of eromePageMedia(pageUrl)) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
+
+    // Image Chest post page: the Inertia app serializes every file's CDN URL
+    // (cdn.imgchest.com/files/…) into the `data-page` payload — read them. Host-
+    // gated; a private/empty post ships no file URLs → nothing.
+    if (/(?:^|\.)imgchest\.com$/i.test(location.hostname)) {
+      for (const cand of imgchestPageMedia(pageUrl)) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
+
+    // Kemono / Coomer post page: the post's files/attachments render as `<host>/data/…`
+    // links (public paths, no token) — surface this post's originals, skipping the
+    // `/thumbnail/` preview server. Host-gated to the known kemono/coomer TLDs; a
+    // post the viewer can't access renders no `/data/` links → nothing (fails closed).
+    if (/(?:^|\.)(?:kemono|coomer)\.(?:cr|su|st|party)$/i.test(location.hostname)) {
+      for (const cand of kemonoPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }

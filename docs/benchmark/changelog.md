@@ -10,6 +10,21 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Kemono/Coomer + Erome + Image Chest (2026-07-19)** — a gallery-dl-referenced batch
+  of three network-free page readers (endpoints/URL patterns taken from the gallery-dl
+  extractors as facts only — no source copied). **Kemono/Coomer** (a Patreon/Fanbox/etc.
+  mirror on rotating TLDs `{kemono,coomer}.{cr,su,st,party}`): a post
+  (`/<service>/user/<id>/post/<postId>`) server-renders its files/attachments as
+  `<host>/data/<hash>.<ext>?f=<name>` links (public, no token); collect.ts surfaces this
+  post's originals (image/gif/video), ext from the path or the `?f=` filename, skipping the
+  `/thumbnail/` preview server and off-host URLs — fail-closed when a post isn't accessible.
+  **Erome** (`erome.com/a/<id>`): each `<div class="media-group">` ships one item — a video
+  `<source>` or a lazy image `data-src` — read directly, host-pinned to `*.erome.com`.
+  **Image Chest** (`imgchest.com/p/<id>`): the Inertia app serializes the post into the root
+  element's `data-page` attribute, so every `cdn.imgchest.com/files/…` original is in the
+  markup — scanned out (images/GIF/mp4), deduped. All three are grade **L** (network-free,
+  no `ResolvePlatform`/network.ts change), fail-closed, and **needs-live-confirmation**
+  (Kemono is DDoS-Guard-fronted, so automation can't inject a live page). Core tests +28.
 - ✅ **TikTok / Twitch VOD / SoundCloud / Patreon (2026-07-19)** — a top-traffic-gap batch
   (the four picked from a "most-visited media sites" audit). **TikTok** (#400, un-parked from
   the Kick-class deferral): a video/photo page embeds the item in

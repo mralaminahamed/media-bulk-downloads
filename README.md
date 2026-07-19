@@ -269,6 +269,9 @@ upgrade rules for:
 | Twitch                             | Clips → direct mp4; VODs → usher HLS master (opt-in)  |
 | SoundCloud                         | Track → audio (api-v2 transcoding → m4a/MP3 capture, opt-in) |
 | Patreon                            | Post page → every image original (`patreonusercontent.com`); paid needs access |
+| Kemono / Coomer                    | Post page → files & attachments (`<host>/data`, images/GIF/video); no access → nothing |
+| Erome                              | Album page → every item's video/image (`*.erome.com`)  |
+| Image Chest                        | Post page → every file original (`cdn.imgchest.com`)   |
 | Arc XP (news publishers)           | Resizer URL → full-size source                      |
 
 …and 50+ more CDN families — see the live [coverage benchmark](./docs/BENCHMARK.md).
