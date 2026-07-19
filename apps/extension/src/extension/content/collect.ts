@@ -38,6 +38,9 @@ import { imgchestPageMedia } from '@mbd/core/resolvers/sites/imagechest';
 import { kemonoPageMedia } from '@mbd/core/resolvers/sites/kemono';
 import { fapelloPageMedia } from '@mbd/core/resolvers/sites/fapello';
 import { cheveretoPageMedia, CHEVERETO_HOST_RE } from '@mbd/core/resolvers/sites/chevereto';
+import { imgurPageMedia } from '@mbd/core/resolvers/sites/imgur';
+import { tenorPageMedia } from '@mbd/core/resolvers/sites/tenor';
+import { pexelsPageMedia } from '@mbd/core/resolvers/sites/pexels';
 import { soundcloudTrackUrl } from '@mbd/core/resolvers/sites/soundcloud';
 import { streamableVideoId } from '@mbd/core/resolvers/sites/streamable';
 import { redgifsVideoId } from '@mbd/core/resolvers/sites/redgifs';
@@ -1153,6 +1156,32 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     // og:image on some instances is skipped, not decrypted). Host-gated.
     if (CHEVERETO_HOST_RE.test(location.hostname)) {
       for (const cand of cheveretoPageMedia(pageUrl)) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
+
+    // Imgur post/album/gallery page: the whole post is assigned to
+    // `window.postDataJSON`; surface each `media[]` original on i.imgur.com. Host-
+    // gated; a removed/empty post carries no media → nothing.
+    if (/(?:^|\.)imgur\.(?:com|io)$/i.test(location.hostname)) {
+      for (const cand of imgurPageMedia()) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
+
+    // Tenor view page: the item's `media_formats` (gif/mp4/webm) live in the
+    // `store-cache` JSON — surface the animated GIF (else the muxed video). Host-gated.
+    if (/(?:^|\.)tenor\.com$/i.test(location.hostname)) {
+      for (const cand of tenorPageMedia(pageUrl)) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
+
+    // Pexels photo/video page: the free full-res original (`download_link`) lives in
+    // `__NEXT_DATA__` — read it same-origin (the page is Cloudflare-gated, so a
+    // background fetch can't). Host-gated; no `medium` → nothing.
+    if (/(?:^|\.)pexels\.com$/i.test(location.hostname)) {
+      for (const cand of pexelsPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }

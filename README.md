@@ -274,6 +274,10 @@ upgrade rules for:
 | Image Chest                        | Post page → every file original (`cdn.imgchest.com`)   |
 | Fapello                            | Post page → the image (`.md`/`.th` stripped) / video + poster |
 | Chevereto (jpgfish/imglike/putmega)| Image page → full-res original (`og:image`, plaintext only) |
+| Imgur                              | Post/album/gallery → every original (`i.imgur.com`, page JSON) |
+| Tenor                              | View page → animated GIF / mp4 original (`media.tenor.com`) |
+| Pexels                             | Photo/video page → free full-res original (`__NEXT_DATA__`) |
+| Civitai                            | Image URL → un-resized original (`original=true` transform) |
 | Arc XP (news publishers)           | Resizer URL → full-size source                      |
 
 …and 50+ more CDN families — see the live [coverage benchmark](./docs/BENCHMARK.md).

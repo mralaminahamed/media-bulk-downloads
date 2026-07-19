@@ -679,6 +679,21 @@ const RULES: CdnRule[] = [
     },
   },
   {
+    // Civitai: image.civitai.com/<bucket>/<uuid>/<transform>/<name> — the segment
+    // before the filename is a resize/anim transform (`width=450`, `anim=false,...`);
+    // set it to `original=true` for the un-resized original. A URL already at
+    // `original=true`, or with no transform segment (`=`), is left as-is.
+    match: (u) => u.hostname === 'image.civitai.com',
+    rewrite: (u) => {
+      const parts = u.pathname.split('/');
+      const i = parts.length - 2; // transform segment sits just before the filename
+      if (i >= 1 && parts[i].includes('=') && !/(?:^|,)original=/.test(parts[i])) {
+        parts[i] = 'original=true';
+        u.pathname = parts.join('/');
+      }
+    },
+  },
+  {
     // Medium: miro.medium.com/v2/resize:fit:NNN/format:webp/<id> -> /<id> (drop chained transforms).
     match: (u) => u.hostname === 'miro.medium.com',
     rewrite: (u) => {

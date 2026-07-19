@@ -7,6 +7,24 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Imgur posts, albums & galleries.** On an Imgur post page (`imgur.com/<id>`,
+  `/a/<id>`, `/gallery/<id>`) the extension now surfaces every item's original on
+  `i.imgur.com`, read from the post JSON the page assigns to `window.postDataJSON`
+  (covers albums the DOM lazy-loads). Network-free; a removed/empty post shows
+  nothing (fails closed). Referenced from gallery-dl; imgur verified live.
+- **Tenor GIFs.** On a Tenor view page (`tenor.com/view/<slug>-<id>`) the extension
+  now surfaces the animated GIF original (else the muxed mp4/webm) on
+  `media.tenor.com`, read from the page's `store-cache` JSON. Network-free.
+  Referenced from gallery-dl; verified live.
+- **Pexels photos & videos.** On a Pexels photo/video page the extension now
+  surfaces the free full-resolution original (`images.pexels.com` /
+  `videos.pexels.com`) from the page's `__NEXT_DATA__`. Read same-origin in the page
+  (the site is Cloudflare-gated, so a background fetch can't). Network-free.
+  Referenced from gallery-dl.
+- **Civitai originals.** Civitai image URLs (`image.civitai.com/…/<transform>/…`)
+  now upgrade to the un-resized original — the resize/anim transform segment is
+  rewritten to `original=true` — so a collected thumbnail resolves to full size. A
+  URL already at `original=true` is left untouched.
 - **Fapello posts.** On a Fapello post page (`fapello.com/<model>/<id>/`, also `.su`)
   the extension now surfaces that post's media — the image (with the `.md`/`.th`
   thumbnail suffix stripped to the original) or the video with its poster — read

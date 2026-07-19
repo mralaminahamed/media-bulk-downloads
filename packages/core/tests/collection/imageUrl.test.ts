@@ -628,6 +628,20 @@ describe('CDN rules — path-based upgrades', () => {
   it('Medium strips chained transform segments', () => {
     expect(orig('https://miro.medium.com/v2/resize:fit:720/format:webp/1*xyz.png')).toBe('https://miro.medium.com/1*xyz.png');
   });
+  it('Civitai transform segment -> original=true', () => {
+    expect(orig('https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/uuid-1/width=450/name.jpeg')).toBe(
+      'https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/uuid-1/original=true/name.jpeg',
+    );
+    // A multi-key transform (anim=false,width=…) is replaced wholesale.
+    expect(orig('https://image.civitai.com/bkt/uuid-2/anim=false,width=300/x.png')).toBe(
+      'https://image.civitai.com/bkt/uuid-2/original=true/x.png',
+    );
+    // Already original / no transform segment: left untouched (idempotent).
+    expect(orig('https://image.civitai.com/bkt/uuid-3/original=true/x.png')).toBe(
+      'https://image.civitai.com/bkt/uuid-3/original=true/x.png',
+    );
+    expect(orig('https://image.civitai.com/bkt/uuid-4/x.png')).toBe('https://image.civitai.com/bkt/uuid-4/x.png');
+  });
   it('does not match look-alike hostnames', () => {
     expect(orig('https://evilgoogleusercontent.com/abc=s200')).toBe('https://evilgoogleusercontent.com/abc=s200');
     expect(orig('https://fakemedia-amazon.com/x._SX300_.jpg')).toBe('https://fakemedia-amazon.com/x._SX300_.jpg');
