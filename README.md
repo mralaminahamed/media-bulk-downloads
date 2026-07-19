@@ -409,10 +409,9 @@ Found a vulnerability? See [SECURITY.md](./SECURITY.md) for private disclosure.
 
 Site-coverage research for many of the platform resolvers — the public media
 endpoints and the URL-match patterns each site uses to expose its media — was
-informed by [**gallery-dl**](https://github.com/mikf/gallery-dl) (via the
-[mralaminahamed/mikf-gallery-dl](https://github.com/mralaminahamed/mikf-gallery-dl)
-fork), an excellent and comprehensive media-download project, and a continuing
-reference as we add support for more sites.
+informed by [**gallery-dl**](https://github.com/mikf/gallery-dl) by Mike Fährmann,
+an excellent and comprehensive media-download project, and a continuing reference as
+we add support for more sites.
 
 gallery-dl is used **only as a factual reference** — for *how* a site exposes its
 media (endpoints, URL shapes, embedded-JSON keys). It is licensed **GPL-2.0**, and
