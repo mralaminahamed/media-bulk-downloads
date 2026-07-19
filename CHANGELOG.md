@@ -7,6 +7,24 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Kemono / Coomer posts.** On a Kemono or Coomer post page
+  (`{kemono,coomer}.{cr,su,st,party}/<service>/user/<id>/post/<postId>` — a
+  Patreon/Fanbox/etc. mirror) the extension now surfaces the post's files and
+  attachments (images, GIFs, and video), read straight from the `<host>/data/…`
+  links the page renders (public paths, no token). Scoped to that post's originals —
+  the `/thumbnail/` preview server and off-host URLs are skipped — and network-free;
+  a post the viewer can't access shows nothing (fails closed). Endpoint/URL shapes
+  referenced from gallery-dl; needs live confirmation on a post page.
+- **Erome albums.** On an Erome album page (`erome.com/a/<id>`) the extension now
+  surfaces every item — each `<div class="media-group">`'s video (`<source>`) or
+  lazy-loaded image (`data-src`) — read straight from the page's own CDN URLs
+  (`*.erome.com`, host-pinned). Network-free; a private/removed album shows nothing
+  (fails closed). Referenced from gallery-dl; needs live confirmation.
+- **Image Chest posts.** On an Image Chest post page (`imgchest.com/p/<id>`) the
+  extension now surfaces every file's original (`cdn.imgchest.com/files/…`), read
+  from the post JSON the page serializes into its `data-page` attribute (images,
+  GIFs, mp4). Network-free; a private/empty post shows nothing (fails closed).
+  Referenced from gallery-dl; needs live confirmation.
 - **TikTok videos & photo posts.** On a TikTok video/photo page
   (`tiktok.com/@<user>/video/<id>` or `/photo/<id>`) the extension now surfaces the clip's
   highest-bitrate mp4 (or one image per photo-mode slide) — read straight from the page's
