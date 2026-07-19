@@ -10,6 +10,20 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Pixiv Fanbox post images (2026-07-19)** — #416, a video-tier/creator-support sweep site,
+  live-verified. `api.fanbox.cc/post.info?postId=<id>` → `body.post.body.imageMap` (article) /
+  `.images` (image post), each entry's `originalUrl` on `downloads.fanbox.cc/images/post/<id>/
+  <key>.<ext>` — the same originals also appear verbatim in the rendered post page's hydrated
+  markup (the visible `<img>` are lazy/icon-only). Shipped as a **network-free scrape** rather
+  than the opt-in network fetch the issue proposed: collect.ts reads the originals straight
+  from the page HTML, scoped to the URL's `<postId>` so a related-post preview can't leak in,
+  emitting one candidate per image (Fanbox posts are multi-image, which a single-URL network
+  resolver can't represent). Free posts are public; a paid post the viewer can't access renders
+  no originals → `[]` (fails closed, no circumvention). `downloads.fanbox.cc` is hotlink-
+  protected, so the download reuses the #197 Referer opt-in (the fanbox page URL becomes the
+  injected Referer, like pximg/RedGifs). Verified live logged-out (free post, 4 originals) and
+  with a logged-in session (paid access). A content-script `post.info` fetch would be a more
+  render-independent follow-up.
 - ✅ **AnimePictures.net login-gated original (2026-07-19)** — #423, un-deferred once a
   logged-in session was available. The batch premise ("md5-sharded CDN original") was WRONG:
   the true original is served only by the session-gated `api.anime-pictures.net/pictures/

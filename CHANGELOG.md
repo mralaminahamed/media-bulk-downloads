@@ -7,6 +7,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Pixiv Fanbox post images.** On a Fanbox post page (`<creator>.fanbox.cc/posts/<id>`) the
+  extension now surfaces every full-resolution original in the post
+  (`downloads.fanbox.cc/images/post/<id>/…`) — the visible thumbnails are lazy/icon-only, but
+  the originals are present in the page and read straight from it, scoped to that post so a
+  related-post preview can't leak in. Free posts work for anyone; a paid post shows its
+  originals only to a viewer who can access it (logged out / not subscribed → nothing, no
+  circumvention). `downloads.fanbox.cc` is hotlink-protected, so the download uses the
+  existing Referer opt-in (#197). Verified live. (#416)
 - **AnimePictures.net full-resolution originals.** On an `anime-pictures.net` post page the
   extension now upgrades the displayed AVIF preview to the true full-size original (e.g. a
   319×600 preview → the 2177×4096 source). The original is the one the page's own download

@@ -264,6 +264,7 @@ upgrade rules for:
 | Booru (Danbooru/Gelbooru/Moebooru) | Post-page DOM → original file (page-gated)           |
 | Sankaku Complex                    | Preview / sample tier → original file (md5-canonical fold) |
 | AnimePictures.net                  | Preview → full-res original via the page's download link (login-gated) |
+| Pixiv Fanbox                       | Post page → every full-res original (`downloads.fanbox.cc`); paid needs access |
 | Arc XP (news publishers)           | Resizer URL → full-size source                      |
 
 …and 50+ more CDN families — see the live [coverage benchmark](./docs/BENCHMARK.md).

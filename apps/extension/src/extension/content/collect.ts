@@ -30,6 +30,7 @@ import { rumbleWatchUrl } from '@mbd/core/resolvers/sites/rumble';
 import { peertubeEmbedUrl } from '@mbd/core/resolvers/sites/peertube';
 import { loomVideoId } from '@mbd/core/resolvers/sites/loom';
 import { coubMediaFromJson } from '@mbd/core/resolvers/sites/coub';
+import { fanboxPageMedia } from '@mbd/core/resolvers/sites/fanbox';
 import { streamableVideoId } from '@mbd/core/resolvers/sites/streamable';
 import { redgifsVideoId } from '@mbd/core/resolvers/sites/redgifs';
 import { twitchClipId } from '@mbd/core/resolvers/sites/twitch';
@@ -1020,6 +1021,18 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     if (/(?:^|\.)coub\.com$/i.test(location.hostname)) {
       const coubJson = document.getElementById('coubPageCoubJson')?.textContent;
       for (const cand of coubMediaFromJson(coubJson)) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
+
+    // Pixiv Fanbox post page: the visible <img> tags are lazy/icon-only, but the
+    // post's full-resolution originals (downloads.fanbox.cc/images/post/<id>/…) are
+    // present in the hydrated markup — scrape them, scoped to this post's id. Host-
+    // gated; no-ops off a Fanbox post page, and a paid post the viewer can't access
+    // renders no originals → nothing (fails closed). downloads.fanbox.cc is
+    // hotlink-protected, so the download uses the #197 Referer opt-in.
+    if (/(?:^|\.)fanbox\.cc$/i.test(location.hostname)) {
+      for (const cand of fanboxPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
