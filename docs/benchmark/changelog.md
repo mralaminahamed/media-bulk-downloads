@@ -10,6 +10,23 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Sabq — verified free-ride (2026-07-19)** — closed #394 as **no rule needed**. The
+  tier-1 batch-2 deferral pinned Sabq's images to `gumlet.assettype.com/sabq/…` (Quintype
+  CMS + Gumlet CDN) but couldn't verify (Gumlet 403s datacenter fetches). A re-check found
+  that premise **stale**: sabq.org is now a bespoke React SPA (`cdn.sabq.org` app bundle)
+  that fetches article data from a same-origin API (`/api/homepage-lite`), and images come
+  from two hosts, **both already served at their largest**:
+  - `media.sabq.org/news/<YYYY>/<MM>/<uuid>/w<width>.webp` — the `w<width>` is the image's
+    **stored native width** (arbitrary per image: w640, w902, w1179, w1600…), NOT a
+    resizable thumbnail param. Every larger width 404s (w640 image → w960/w1280/w1600 all
+    404; w902 → w1200/w1600 404), and there is no `/original`, no bare-path, no `.jpg`
+    sibling. The displayed file IS the original.
+  - `imagedelivery.net/<hash>/<id>/public` — Cloudflare Images; the `public` variant is the
+    delivered image (1024² sample), the `original` variant is **403-disabled**, and flexible
+    `w=` variants are off (source-capped). `public` is the largest accessible.
+  The generic collector already ingests both (plain `<img>` webp/element-typed URLs) at full
+  resolution, so no CdnRule or resolver applies — curl-verified live (browser UA; the app
+  serves the API only client-side). Recorded as a coverage-matrix free-ride row, not a rule.
 - ✅ **News24 CDN rule (2026-07-19)** — un-deferred from tier-1 batch 2 (#395). Real host
   `news24cobalt.24.co.za`; images at `/resources/<id>/format/<crop>/<file>`. The batch-2
   note deferred it believing the `inline`/og rendition was already the largest — a
@@ -107,8 +124,9 @@ Resolved (this benchmark drove the fixes):
     srcset reading, not a strip), **Pinkvilla** (#382, `-sq` crop is already full-res;
     the hero is a separately-named file, not suffix-derivable), **UOL** (#389, could not
     sample a real content photo — avatars only), **Onedio** (#391, HMAC-**signed** size
-    params — any edit 404s), **Sabq** (#394, `gumlet.assettype.com` 403s datacenter
-    requests — transform unverified), ~~**News24**~~ (#395 — **shipped 2026-07-19**, see the
+    params — any edit 404s), ~~**Sabq**~~ (#394 — **resolved 2026-07-19 as a free-ride**, see
+    the entry above; the site has since migrated off Gumlet/Quintype and serves
+    already-original media), ~~**News24**~~ (#395 — **shipped 2026-07-19**, see the
     entry above; the batch-2 read that "the og rendition is already the largest" was
     WRONG — stripping `/format/<crop>/` reaches a ~4× original).
 - ✅ **Fediverse trio (2026-07-16)** — one host-agnostic rule per network in
