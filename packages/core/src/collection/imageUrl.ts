@@ -1275,6 +1275,19 @@ const RULES: CdnRule[] = [
     rewrite: (u) => { u.pathname = u.pathname.replace(/\/(?:thumb|resp\/[^/]+)\//, '/'); },
   },
   {
+    // News24 (news24cobalt.24.co.za): images are served at
+    //   /resources/<id>/format/<crop>/<file>
+    // where <crop> (smallThumb / mediumThumb / largeThumb / inline / …) is a
+    // resized-and-cropped rendition. Dropping the /format/<crop>/ segment returns
+    // the full-resolution stored original — crop-name-independent and unsigned, so
+    // no width/crop has to be guessed. Verified inline 1080x720 93 KB -> bare
+    // 4000x2667 1.5 MB; smallThumb 176x176 -> bare 1875x1875. A URL with no
+    // /format/ segment (the SVG placeholder, or an already-bare original) does not
+    // match and is left untouched. (#395)
+    match: (u) => u.hostname === 'news24cobalt.24.co.za' && /^\/resources\/[^/]+\/format\/[a-zA-Z0-9]+\//.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/\/format\/[a-zA-Z0-9]+\//, '/'); },
+  },
+  {
     // Self-hosted WordPress: any host serving /wp-content/uploads/ with a resize
     // query (?w=&h=&resize=) and/or a stored -WxH / -scaled thumbnail suffix.
     // WordPress keeps the untouched original beside its generated sizes, so drop
