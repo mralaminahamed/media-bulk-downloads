@@ -7,6 +7,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Simple image hosts.** One shared reader now surfaces the full-resolution original
+  from a family of image-host single-image pages — ImageBam, ImageVenue, PixHost,
+  ImageTwist/ImageHaha, imgspice, imgpv, picstate, and imgdrive/imgtaxi/imgwallet —
+  reading it straight from the page (`og:image`, a specific `<img>`, or a CDN `<img>`),
+  same-site-pinned. Network-free; a non-image or gate page shows nothing (fails closed).
 - **Lensdump images.** On a Lensdump image page (`lensdump.com/i/<id>`) the extension
   now surfaces the full-resolution original from the page's `og:image` (validated as a
   plaintext image on the Lensdump CDN). Network-free; fails closed otherwise.
