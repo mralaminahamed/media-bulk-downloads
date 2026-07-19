@@ -7,6 +7,17 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **PeerTube videos (opt-in network resolver).** With "Resolve originals" enabled,
+  a PeerTube video — the watch page you're on, a player embed, or a link — surfaces a
+  pending video that resolves to the widest downloadable file (or an HLS master to
+  capture). PeerTube is federated with no fixed host, so the resolver works on **any**
+  instance: it confirms the host really is PeerTube via `/api/v1/config` before fetching,
+  reads `/api/v1/videos/<id>` for the largest rendition, and — because a video's media
+  can live on the instance, an object-storage subdomain, or another federated instance
+  entirely — SSRF-guards both the instance request and every returned media URL rather
+  than trusting a fixed host. Public videos only; private / password / internal videos
+  resolve to nothing. Verified live against public SFW instances (framatube.org,
+  tube.tchncs.de). (#419)
 - **Onedio image originals.** On `img-s1/2/3.onedio.com`, each photo is served at
   several widths (`/id-<id>/…/w-300`, `w-600`, `w-900`, `w-1200`) as separate,
   individually **signed** URLs listed in the page's `srcset`. For every image the

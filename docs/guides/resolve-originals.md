@@ -43,6 +43,7 @@ only — never in a content script or the popup — and dispatches on `hint.plat
 | `dailymotion` | `https://www.dailymotion.com/player/metadata/video/<id>`                                                                                                                                                                                                   | The public player metadata. Returns the `qualities.auto` HLS master to capture — modern Dailymotion is HLS-only. Videos flagged `protected_delivery:true` or carrying an `error` (DRM or geo-locked) return `null`.                                                                                     |
 | `rutube`      | `https://rutube.ru/api/play/options/<id>/?format=json`                                                                                                                                                                                                     | The public play-options API (no auth). Returns `video_balancer.m3u8`, the unsigned `bl.rutube.ru` HLS master (the balancer mints the signed per-variant playlists itself), pinned to `rutube.ru`. HLS-only; adult/premium/geo-gated streams simply yield no usable master.                              |
 | `rumble`      | *(hint = the rumble.com-pinned watch/embed URL)* the embed id from an `/embed/<id>/` URL, else `https://rumble.com/api/Media/oembed.json?url=<watch>`, then `https://rumble.com/embedJS/u3/?request=video&ver=2&v=<embedId>`                                | The watch HTML is Cloudflare-gated, but the JSON APIs are open. Derives the embed id (oEmbed when needed), then returns the `ua.hls.auto.url` HLS master, pinned to the Rumble-CDN allowlist. HLS-only — 2026 samples expose no progressive mp4.                                                          |
+| `peertube`    | *(hint = the canonical `https://<instance>/videos/embed/<id>` URL)* `<instance>/api/v1/config`, then `<instance>/api/v1/videos/<id>`                                                                                                                        | Host-agnostic across the federation. The instance host is SSRF-guarded, then `/api/v1/config` must report a `serverVersion` (confirming PeerTube) before the video is fetched — a `/w/<id>` shape on an arbitrary host can't drive a blind fetch. Returns the widest direct `fileUrl` (progressive + HLS rendition lists), else the `streamingPlaylists[0].playlistUrl` master. The media host is not fixed (instance / object storage / federated), so **every returned URL is re-guarded with `isSafeCaptureUrl()`** instead of host-pinned. Private/password/internal videos expose no file → `null`. |
 | `bsky`        | *(video)* `https://video.bsky.app/watch/<did>/<cid>/playlist.m3u8`, built directly. *(blob)* the account's PDS, resolved from its DID doc (`plc.directory` for `did:plc`, the `did:web` domain's `/.well-known/did.json`), then `<pds>/xrpc/com.atproto.sync.getBlob?did=<did>&cid=<cid>` | A video hint returns the HLS master with no fetch. A blob hint fetches the uploaded original via `getBlob`.                                                                                                                                                                              |
 | `pinterest`   | `https://widgets.pinterest.com/v3/pidgets/pins/info/?pin_ids=<id>`                                                                                                                                                                                         | The public, unauthenticated pin-widget record. Returns the progressive mp4 (`V_720P`) when present, else an HLS master (`V_HLSV4` / `V_HLSV3_MOBILE`) to capture.                                                                                                                                       |
 | `reddit`      | *(no fetch)*                                                                                                                                                                                                                                                | Builds `https://v.redd.it/<id>/HLSPlaylist.m3u8`, the signature-free HLS master. The extension's HLS engine muxes back its separate audio rendition.                                                                                                                                                    |
@@ -57,6 +58,13 @@ allowlist (`rumble.com`, `1a-1791.com`, `rmbl.ws`, `rumble.cloud`), `bsky.app`,
 `pinimg.com`, `v.redd.it`, `staticflickr.com`, `artstation.com`, or the account's
 own PDS host for a Bluesky blob. Anything else — a malformed URL, an unexpected redirect
 target — resolves to `null` instead of becoming a downloadable URL.
+
+Two host-agnostic resolvers can't name a fixed family. The Bluesky blob path and
+PeerTube instead require `https:` **plus** `isSafeCaptureUrl()` — the SSRF policy
+that rejects any internal / loopback / link-local / object-storage-metadata target
+— on both the page-controlled request host and the returned media URL. PeerTube
+uses this because a video's media may sit on the instance, an object-storage
+subdomain, or another federated instance entirely, so there is no suffix to pin.
 `resolveOriginal()` never throws; a failed lookup for one item just leaves that
 item as collected, or (for a per-item "Get video" request) surfaces it as failed
 rather than silently dropping it (see [On-demand](#on-demand-the-get-video-button)
@@ -172,8 +180,8 @@ marked failed — turning on stream capture resolves it next time.)
   enrichment — either reads only what the page already loaded, or (image-size
   `HEAD` requests) stays on the same host. This is the one setting that talks to an
   external host on your behalf: Twitter, Wallhaven, Unsplash, Vimeo, Dailymotion,
-  Rutube, Rumble, Bluesky, Pinterest, Reddit, Flickr, or ArtStation, whichever the
-  hinted item came from.
+  Rutube, Rumble, PeerTube (whichever instance the video is on), Bluesky, Pinterest,
+  Reddit, Flickr, or ArtStation, whichever the hinted item came from.
 - What's sent is minimal: the id already visible in the page's own URL (a tweet
   status id, a Wallhaven wallpaper id, a Flickr photo id, and so on), or nothing at
   all — Unsplash, Reddit, and Bluesky video just build a URL. No cookies or auth

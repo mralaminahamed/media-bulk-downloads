@@ -392,6 +392,97 @@ describe('resolveOriginal — rumble', () => {
   });
 });
 
+describe('resolveOriginal — peertube', () => {
+  const UUID = '9c9de5e8-0a1e-484a-b099-e80766180a6d';
+  const EMBED = `https://framatube.org/videos/embed/${UUID}`;
+  const CONFIG = { serverVersion: '8.2.2' };
+  // A federated video: the API host (framatube.org) serves media from a DIFFERENT
+  // object-storage host (media.tube.example) — the variable-host case that can't
+  // be pinned to a fixed suffix, only SSRF-guarded.
+  const detail = (over: Record<string, unknown> = {}) => ({
+    streamingPlaylists: [{
+      playlistUrl: 'https://media.tube.example/hls/master.m3u8',
+      files: [
+        { resolution: { id: 480 }, fileUrl: 'https://media.tube.example/hls/480.mp4' },
+        { resolution: { id: 1080 }, fileUrl: 'https://media.tube.example/hls/1080.mp4' },
+      ],
+    }],
+    files: [{ resolution: { id: 720 }, fileUrl: 'https://framatube.org/static/720.mp4' }],
+    ...over,
+  });
+  // Dispatches config vs. video by URL so the two-hop probe→fetch is exercised.
+  const seqFetch = (route: (url: string) => { ok?: boolean; payload: unknown }) =>
+    (async (input: unknown) => {
+      const { ok = true, payload } = route(String(input));
+      return { ok, json: async () => payload };
+    }) as unknown as typeof fetch;
+  const route = (over?: (url: string) => { ok?: boolean; payload: unknown } | null) =>
+    seqFetch((url) => {
+      const o = over?.(url);
+      if (o) return o;
+      return url.includes('/api/v1/config') ? { payload: CONFIG } : { payload: detail() };
+    });
+
+  it('returns the widest direct file across the HLS + progressive lists (host-agnostic)', async () => {
+    // 1080 (object-storage HLS rendition) beats the 720 progressive + 480 — and its
+    // host is neither the instance nor a fixed suffix, only SSRF-allowed.
+    expect(await resolveOriginal({ platform: 'peertube', id: EMBED }, { fetch: route() }))
+      .toEqual({ url: 'https://media.tube.example/hls/1080.mp4' });
+  });
+
+  it('falls back to fileDownloadUrl when a file has no fileUrl', async () => {
+    const fetch = route((url) => url.includes('/videos/')
+      ? { payload: { files: [{ resolution: { id: 1080 }, fileDownloadUrl: 'https://framatube.org/download/1080.mp4' }] } }
+      : null);
+    expect(await resolveOriginal({ platform: 'peertube', id: EMBED }, { fetch }))
+      .toEqual({ url: 'https://framatube.org/download/1080.mp4' });
+  });
+
+  it('falls back to the HLS master when no direct file is exposed', async () => {
+    const fetch = route((url) => url.includes('/videos/')
+      ? { payload: { streamingPlaylists: [{ playlistUrl: 'https://media.tube.example/hls/master.m3u8', files: [] }], files: [] } }
+      : null);
+    expect(await resolveOriginal({ platform: 'peertube', id: EMBED }, { fetch }))
+      .toEqual({ url: 'https://media.tube.example/hls/master.m3u8', hls: true });
+  });
+
+  it('returns null (and never fetches the video) when /api/v1/config is not PeerTube', async () => {
+    let videoCalls = 0;
+    const fetch = seqFetch((url) => {
+      if (url.includes('/api/v1/config')) return { payload: {} }; // no serverVersion
+      videoCalls++; return { payload: detail() };
+    });
+    expect(await resolveOriginal({ platform: 'peertube', id: EMBED }, { fetch })).toBeNull();
+    expect(videoCalls).toBe(0);
+  });
+
+  it('returns null on a private video (video fetch not ok)', async () => {
+    const fetch = route((url) => url.includes('/videos/') ? { ok: false, payload: {} } : null);
+    expect(await resolveOriginal({ platform: 'peertube', id: EMBED }, { fetch })).toBeNull();
+  });
+
+  it('returns null without fetching when the instance host is internal (SSRF)', async () => {
+    let calls = 0;
+    const fetch = seqFetch(() => { calls++; return { payload: CONFIG }; });
+    expect(await resolveOriginal({ platform: 'peertube', id: `https://169.254.169.254/videos/embed/${UUID}` }, { fetch })).toBeNull();
+    expect(calls).toBe(0);
+  });
+
+  it('rejects a media URL that resolves to an internal host (returned-URL SSRF)', async () => {
+    const fetch = route((url) => url.includes('/videos/')
+      ? { payload: { files: [{ resolution: { id: 720 }, fileUrl: 'https://127.0.0.1/secret.mp4' }] } }
+      : null);
+    expect(await resolveOriginal({ platform: 'peertube', id: EMBED }, { fetch })).toBeNull();
+  });
+
+  it('returns null on a hint URL that is not an /videos/embed/ shape (never fetches)', async () => {
+    let calls = 0;
+    const fetch = seqFetch(() => { calls++; return { payload: CONFIG }; });
+    expect(await resolveOriginal({ platform: 'peertube', id: 'https://framatube.org/about' }, { fetch })).toBeNull();
+    expect(calls).toBe(0);
+  });
+});
+
 describe('resolveOriginal — bsky (getBlob)', () => {
   const pdsDoc = {
     service: [

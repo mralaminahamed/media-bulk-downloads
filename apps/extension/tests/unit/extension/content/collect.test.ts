@@ -702,6 +702,43 @@ describe('collectMedia — Rumble videos', () => {
   });
 });
 
+describe('collectMedia — PeerTube videos', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+  const UUID = '9c9de5e8-0a1e-484a-b099-e80766180a6d';
+  const SHORT = 'mo5vmqkuY4gELdHF6adkbf';
+  const EMBED = `https://framatube.org/videos/embed/${SHORT}`;
+  const peertube = (m: { resolveHint?: { platform: string } }[]) => m.filter((i) => i.resolveHint?.platform === 'peertube');
+
+  it('surfaces a PeerTube player <iframe> as a pending video with the embed-URL hint', () => {
+    setBody(`<iframe src="${EMBED}"></iframe>`);
+    expect(peertube(collectMedia())[0]).toMatchObject({
+      kind: 'video', type: 'mp4', unresolvedVideo: true,
+      src: EMBED, resolveHint: { platform: 'peertube', id: EMBED },
+    });
+  });
+
+  it('canonicalises a legacy /videos/watch/ link to the embed-URL hint', () => {
+    setBody(`<a href="https://framatube.org/videos/watch/${UUID}">watch</a>`);
+    expect(peertube(collectMedia())[0]).toMatchObject({
+      src: `https://framatube.org/videos/embed/${UUID}`,
+      resolveHint: { platform: 'peertube', id: `https://framatube.org/videos/embed/${UUID}` },
+    });
+  });
+
+  it('dedupes a modern /w/ watch link and its embed iframe to one item', () => {
+    setBody(
+      `<iframe src="${EMBED}"></iframe>` +
+      `<a href="https://framatube.org/w/${SHORT}">same</a>`,
+    );
+    expect(peertube(collectMedia())).toHaveLength(1);
+  });
+
+  it('ignores a PeerTube channel/account page (no video id)', () => {
+    setBody('<a href="https://framatube.org/a/framasoft/video-channels">channel</a>');
+    expect(peertube(collectMedia())).toHaveLength(0);
+  });
+});
+
 describe('collectMedia — RedGifs videos', () => {
   afterEach(() => { document.body.innerHTML = ''; });
   const redgifs = (m: { resolveHint?: { platform: string } }[]) => m.filter((i) => i.resolveHint?.platform === 'redgifs');

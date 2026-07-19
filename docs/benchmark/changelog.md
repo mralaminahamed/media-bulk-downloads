@@ -10,6 +10,24 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **PeerTube video resolver (2026-07-19)** — the deferred third of the video batch
+  below, now shipped (#419). Host-agnostic across the whole federation, like the
+  Mastodon media rule: the collect-side hint carries the canonical
+  `https://<instance>/videos/embed/<id>` URL, and `resolvers/network.ts` SSRF-guards the
+  (page-controlled) instance host, probes `/api/v1/config` for a `serverVersion` to
+  confirm the host is really PeerTube before any video fetch, then reads
+  `/api/v1/videos/<id>` → the widest direct `fileUrl` (across the progressive web-video
+  list and the per-rendition HLS list, each a single complete mp4/fmp4), falling back to
+  the `streamingPlaylists[0].playlistUrl` HLS master. The media host is **variable** —
+  a video's files can be served from the instance, an object-storage subdomain
+  (`media.<instance>`), or (for a federated video) another instance entirely — so unlike
+  the fixed-suffix `pinnedUrl()` resolvers it can't be host-pinned: both the instance
+  request and every returned URL go through `isSafeCaptureUrl()` (the same SSRF policy
+  the capture engines use), the exact host-agnostic care that deferred it from the
+  Rutube/Rumble PR. Public unsigned; private/password/internal videos expose no file →
+  `null`. Live-verified against framatube.org (v8.2.2) and tube.tchncs.de (v8.1.8),
+  including a federated video whose media resolved to `media.tube.tchncs.de` off
+  framatube's API.
 - ✅ **Rutube + Rumble video resolvers (2026-07-16)** — two opt-in network-tier
   resolvers on the Dailymotion pattern (collect-side id/URL hint → `resolvers/network.ts`
   fetch → HLS master), both live-verified against public SFW videos (#385/#404):
@@ -27,11 +45,8 @@ Resolved (this benchmark drove the fixes):
     (`rumble.com`, `1a-1791.com`, `*.rmbl.ws`, `*.rumble.cloud`). HLS-only in 2026 samples
     (no progressive mp4; `ua` holds tar/audio/timeline/hls — timeline is a scrub preview).
     Unsigned, no auth. Follows the gallery-page precedent of carrying a URL in the hint.
-  - **PeerTube** (#419) DEFERRED — also CONFIRMED (`/api/v1/videos/<id>` → HLS master +
-    per-resolution mp4, unsigned, detect via `/api/v1/config` or nodeinfo), but its
-    host-agnostic federation with a variable (possibly remote-object-storage) media host
-    needs SSRF handling on both the page-controlled instance fetch and the returned URL —
-    a dedicated PR, like the Mastodon host-agnostic rule.
+  - **PeerTube** (#419) was DEFERRED here for exactly that host-agnostic/variable-host
+    SSRF work — **now shipped** as its own entry above (2026-07-19).
 - ✅ **Wallpaper hubs (2026-07-16)** — two passive path-swap CDN rules in
   `imageUrl.ts`, both curl-verified live against real SFW assets (#407/#412):
   - **Wallpapers.com** (#407) — `s#/images/(thumbnail|high)/#/images/hd/#` on
