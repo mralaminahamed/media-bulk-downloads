@@ -45,6 +45,7 @@ import { xvideosPageMedia } from '@mbd/core/resolvers/sites/xvideos';
 import { xhamsterPageMedia } from '@mbd/core/resolvers/sites/xhamster';
 import { lensdumpPageMedia } from '@mbd/core/resolvers/sites/lensdump';
 import { motherlessPageMedia } from '@mbd/core/resolvers/sites/motherless';
+import { imagehostsPageMedia, isImageHost } from '@mbd/core/resolvers/sites/imagehosts';
 import { soundcloudTrackUrl } from '@mbd/core/resolvers/sites/soundcloud';
 import { streamableVideoId } from '@mbd/core/resolvers/sites/streamable';
 import { redgifsVideoId } from '@mbd/core/resolvers/sites/redgifs';
@@ -1220,6 +1221,15 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     // the Motherless CDN. Host-gated; a gallery/listing (no `__fileurl`) → nothing.
     if (/(?:^|\.)motherless\.com$/i.test(location.hostname)) {
       for (const cand of motherlessPageMedia(pageUrl)) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
+
+    // Simple image hosts (imgbam/imagevenue/pixhost/imgspice/…): one shared reader
+    // pulls the original off the single-image page (og:image / a specific `<img>` /
+    // a CDN `<img>`), same-site-pinned. Host-gated; a non-image page → nothing.
+    if (isImageHost(location.hostname)) {
+      for (const cand of imagehostsPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }

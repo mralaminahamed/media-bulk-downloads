@@ -10,6 +10,19 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Simple image hosts — shared reader (2026-07-19)** — one host-gated `sites/imagehosts.ts`
+  (grade **L**) covering a family of simple image hosts (gallery-dl `imagehosts.py` reference):
+  **ImageBam, ImageVenue, PixHost, ImageTwist/ImageHaha, imgspice, imgpv, picstate,
+  imgdrive/imgtaxi/imgwallet**. A per-host rule reads the single-image page's original —
+  `og:image` (imgdrive-family, `/small/`→`/big/`), a specific `<img>` id/class, or an
+  `<img>` on the host's own CDN (skipping `loader.svg`) — then validates it as an `https`
+  image on the **same registrable site** as the page (cheap host-pin), else fails closed.
+  All keyless; the cookie-gated hosts (ImageBam `nsfw_inter`, PixHost/ImageVenue session)
+  work because the reader runs in the user's own tab where the rendered `<img>` and cookies
+  already exist — it reads what's there, it does not set cookies. Deferred: POST ad-interstitial
+  hosts (imx.to/acidimg/imgclick/silverpic — original only appears after a "Continue" page),
+  API-only (**imageshack** `/rest_api/v2/images/<id>` → a keyless network resolver, not a DOM
+  read), **lexica** (search-only POST API, no per-image page), adult (imgadult/fappic). Core tests +16.
 - ✅ **Lensdump + Motherless (2026-07-19)** — two more network-free page readers (grade
   **L**, collect.ts host-gated), single clean signal each. **Lensdump** (`/i/<id>`): the
   image page's `og:image` is the full-res original — read only when it's a plaintext https
