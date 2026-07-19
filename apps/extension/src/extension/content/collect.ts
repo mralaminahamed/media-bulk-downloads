@@ -28,6 +28,8 @@ import { dailymotionVideoId } from '@mbd/core/resolvers/sites/dailymotion';
 import { rutubeVideoId } from '@mbd/core/resolvers/sites/rutube';
 import { rumbleWatchUrl } from '@mbd/core/resolvers/sites/rumble';
 import { peertubeEmbedUrl } from '@mbd/core/resolvers/sites/peertube';
+import { loomVideoId } from '@mbd/core/resolvers/sites/loom';
+import { coubMediaFromJson } from '@mbd/core/resolvers/sites/coub';
 import { streamableVideoId } from '@mbd/core/resolvers/sites/streamable';
 import { redgifsVideoId } from '@mbd/core/resolvers/sites/redgifs';
 import { twitchClipId } from '@mbd/core/resolvers/sites/twitch';
@@ -388,6 +390,22 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       src: url, alt: '', width: 0, height: 0, type: 'mp4',
       fileSize: 0, isBase64: false, kind: 'video',
       unresolvedVideo: true, resolveHint: { platform: 'rumble', id: url },
+    });
+  };
+
+  // A Loom recording (share page, embed iframe, or link) surfaced as a pending
+  // video: Loom mints the mp4 server-side (an unauthenticated POST returns a
+  // CloudFront-signed cdn.loom.com file), so the real media is fetched on the
+  // opt-in resolve pass (resolveHint 'loom'), like a Vimeo/Dailymotion embed.
+  // Keyed by the canonical share URL so an embed + a link to the same recording
+  // collapse to one item.
+  const pushLoom = (id: string): void => {
+    const share = `https://www.loom.com/share/${id}`;
+    if (!seenSources.addIfNew(share)) return;
+    media.push({
+      src: share, alt: '', width: 0, height: 0, type: 'mp4',
+      fileSize: 0, isBase64: false, kind: 'video',
+      unresolvedVideo: true, resolveHint: { platform: 'loom', id },
     });
   };
 
@@ -795,6 +813,8 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       else if (resolvedHref && rumbleWatchUrl(resolvedHref)) pushRumble(rumbleWatchUrl(resolvedHref)!);
 
       else if (resolvedHref && peertubeEmbedUrl(resolvedHref)) pushPeerTube(peertubeEmbedUrl(resolvedHref)!);
+
+      else if (resolvedHref && loomVideoId(resolvedHref)) pushLoom(loomVideoId(resolvedHref)!);
       // A link to a Streamable video — surface as a pending video resolved on demand.
       else if (resolvedHref && streamableVideoId(resolvedHref)) pushStreamable(streamableVideoId(resolvedHref)!);
       // A link to a RedGifs video — surface as a pending video resolved on demand.
@@ -839,6 +859,8 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       else if (resolvedEmbed && rumbleWatchUrl(resolvedEmbed)) pushRumble(rumbleWatchUrl(resolvedEmbed)!);
 
       else if (resolvedEmbed && peertubeEmbedUrl(resolvedEmbed)) pushPeerTube(peertubeEmbedUrl(resolvedEmbed)!);
+
+      else if (resolvedEmbed && loomVideoId(resolvedEmbed)) pushLoom(loomVideoId(resolvedEmbed)!);
       // A Streamable player <iframe> — surface as a pending video (resolved on demand).
       else if (resolvedEmbed && streamableVideoId(resolvedEmbed)) pushStreamable(streamableVideoId(resolvedEmbed)!);
       // A RedGifs player <iframe> — surface as a pending video (resolved on demand).
@@ -986,6 +1008,21 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     // treatment; the resolve pass confirms the instance before fetching.
     const peertubePageUrl = peertubeEmbedUrl(pageUrl);
     if (peertubePageUrl) pushPeerTube(peertubePageUrl);
+    // …or a Loom share page the user is on.
+    const loomPageId = loomVideoId(pageUrl);
+    if (loomPageId) pushLoom(loomPageId);
+
+    // Coub watch page: the full coub object is embedded as JSON in
+    // <script id="coubPageCoubJson">. Parse it and surface the combined-muxed
+    // `share.default` mp4 (audio+video, no HLS/mux) as a ready video. No-ops off a
+    // coub page (element absent); host-gated so an injected element elsewhere can't
+    // fire it, and every URL is coub.com-pinned inside coubMediaFromJson.
+    if (/(?:^|\.)coub\.com$/i.test(location.hostname)) {
+      const coubJson = document.getElementById('coubPageCoubJson')?.textContent;
+      for (const cand of coubMediaFromJson(coubJson)) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
   }
 
   // HLS manifests the MAIN-world sniffer caught (hls.js / native players fetch

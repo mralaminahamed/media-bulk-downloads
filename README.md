@@ -259,6 +259,8 @@ upgrade rules for:
 | News24                             | Strip `/format/<crop>/` → full-resolution bare original |
 | Dailymotion                        | Embeds / links → HLS master via public player metadata |
 | PeerTube (any instance)            | Watch/embed → widest file / HLS master via `/api/v1/videos` (opt-in, host-agnostic) |
+| Coub                               | Watch-page JSON → combined audio+video mp4 (network-free) |
+| Loom                               | Share/embed → transcoded mp4 via public transcode API (opt-in) |
 | Booru (Danbooru/Gelbooru/Moebooru) | Post-page DOM → original file (page-gated)           |
 | Sankaku Complex                    | Preview / sample tier → original file (md5-canonical fold) |
 | Arc XP (news publishers)           | Resizer URL → full-size source                      |

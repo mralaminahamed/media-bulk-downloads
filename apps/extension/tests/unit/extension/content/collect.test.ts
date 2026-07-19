@@ -739,6 +739,34 @@ describe('collectMedia — PeerTube videos', () => {
   });
 });
 
+describe('collectMedia — Loom videos', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+  const ID = '473fad25ebd24b5ea8091503253dfecf';
+  const loom = (m: { resolveHint?: { platform: string } }[]) => m.filter((i) => i.resolveHint?.platform === 'loom');
+
+  it('surfaces a Loom share link as a pending video (hint carries the 32-hex id)', () => {
+    setBody(`<a href="https://www.loom.com/share/${ID}">watch</a>`);
+    expect(loom(collectMedia())[0]).toMatchObject({
+      kind: 'video', type: 'mp4', unresolvedVideo: true,
+      src: `https://www.loom.com/share/${ID}`,
+      resolveHint: { platform: 'loom', id: ID },
+    });
+  });
+
+  it('surfaces a Loom embed <iframe> and dedupes an embed + link to the same recording', () => {
+    setBody(
+      `<iframe src="https://www.loom.com/embed/${ID}"></iframe>` +
+      `<a href="https://www.loom.com/share/${ID}">same</a>`,
+    );
+    expect(loom(collectMedia())).toHaveLength(1);
+  });
+
+  it('ignores a Loom folder page (no share id)', () => {
+    setBody('<a href="https://www.loom.com/looms/videos">folder</a>');
+    expect(loom(collectMedia())).toHaveLength(0);
+  });
+});
+
 describe('collectMedia — RedGifs videos', () => {
   afterEach(() => { document.body.innerHTML = ''; });
   const redgifs = (m: { resolveHint?: { platform: string } }[]) => m.filter((i) => i.resolveHint?.platform === 'redgifs');

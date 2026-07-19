@@ -7,6 +7,17 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Coub videos.** A Coub watch page (`coub.com/view/<permalink>`) now surfaces its loop
+  as a ready-to-download video. Coub embeds the full clip object as JSON in the page, and
+  the extension reads the combined `share` render — a single mp4 with audio, so no stream
+  capture or audio-muxing is needed. Network-free (works with "Resolve originals" off) and
+  host-pinned to Coub's CDN. Verified live. (#388)
+- **Loom recordings (opt-in network resolver).** With "Resolve originals" enabled, a public
+  Loom recording — the share page you're on, an embed, or a link — resolves to its
+  downloadable mp4. The extension asks Loom's own (unauthenticated) transcode endpoint for
+  the recording's CloudFront-signed `cdn.loom.com` file; recordings with no transcoded mp4
+  yet fall back to the raw HLS master to capture. Workspace-restricted looms resolve to
+  nothing. Verified live against public shares. (#415)
 - **News24 image originals (tier-1 CDN rule).** On `news24cobalt.24.co.za`, photos are
   served at `/resources/<id>/format/<crop>/<file>` where `<crop>` (`smallThumb`,
   `mediumThumb`, `largeThumb`, `inline`, …) is a resized-and-cropped rendition. The

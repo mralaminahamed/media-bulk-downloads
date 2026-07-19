@@ -10,6 +10,29 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Coub + Loom videos (2026-07-19)** — two video-tier sweep sites, both live-verified
+  against public SFW content (#388/#415):
+  - **Coub** (#388) — network-free. The watch page (`coub.com/view/<permalink>`) embeds the
+    clip object in `<script id="coubPageCoubJson" type="text/json">` (single-quote attrs —
+    a double-quote grep misses it); collect.ts reads it and surfaces
+    `file_versions.share.default`, a single combined audio+video mp4 (no HLS, no A/V mux),
+    host-pinned to the coub.com CDN (`attachments-cdn-s.coub.com`; the sweep's guessed
+    `coubsecure-s.akamaihd.net` is legacy). Unsigned, no referer/auth. This is a `collect.ts`
+    page-JSON read, NOT a `resolvers/sites/` entry (video never routes through the resolver
+    registry). Third-party embeds (no page JSON) are a follow-up.
+  - **Loom** (#415) — opt-in network. 32-hex id from `loom.com/share|embed/<id>`; the hint
+    carries it and `network.ts` POSTs (unauthenticated) `campaigns/sessions/<id>/transcoded-url`
+    → a CloudFront-signed `cdn.loom.com` mp4 (direct, time-signed — resolved on demand, never
+    cached). A 204 (no transcoded render yet) falls back to `raw-url` → the `luna.loom.com`
+    HLS master. Both hosts pinned to loom.com; workspace-restricted looms 401/403 → null.
+  - **AnimePictures** (#423) DEFERRED — verification overturned the issue's premise. The
+    original is NOT a public md5-sharded CDN path; it routes through the **access-gated**
+    `api.anime-pictures.net/pictures/download_image/<slug>` endpoint, which 403s to background
+    AND credentialed-CORS fetch (even with CF-clearance from the allowed origin) — it needs a
+    top-level navigation / logged-in session. The download href IS in the post-page DOM, but
+    the only ungated rendition (the big-preview avif) is already the og:image the collector
+    grabs, so there is no clean ungated upgrade. Reclassified login-gated (like VK/Snapchat);
+    needs a logged-in session-download test. `erotics` int field flags NSFW (0 = SFW).
 - ✅ **Sabq — verified free-ride (2026-07-19)** — closed #394 as **no rule needed**. The
   tier-1 batch-2 deferral pinned Sabq's images to `gumlet.assettype.com/sabq/…` (Quintype
   CMS + Gumlet CDN) but couldn't verify (Gumlet 403s datacenter fetches). A re-check found

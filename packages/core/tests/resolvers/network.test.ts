@@ -483,6 +483,53 @@ describe('resolveOriginal — peertube', () => {
   });
 });
 
+describe('resolveOriginal — loom', () => {
+  const ID = '473fad25ebd24b5ea8091503253dfecf';
+  const MP4 = 'https://cdn.loom.com/sessions/transcoded/473fad25-1784350318000.mp4?Policy=x&Signature=y&Key-Pair-Id=z';
+  const HLS = 'https://luna.loom.com/id/473fad25/rev/abc123/resource/hls/playlist-split.m3u8';
+  // Dispatches by URL + lets a route set the status, so the transcoded→raw fallback
+  // (204 → HLS) is exercised. The POST body/options arg is ignored.
+  const seqFetch = (route: (url: string) => { ok?: boolean; status?: number; payload: unknown }) =>
+    (async (input: unknown) => {
+      const { ok = true, status = 200, payload } = route(String(input));
+      return { ok, status, json: async () => payload };
+    }) as unknown as typeof fetch;
+
+  it('returns the transcoded cdn.loom.com mp4 (loom.com-pinned)', async () => {
+    const fetch = seqFetch((u) => u.includes('/transcoded-url') ? { payload: { url: MP4 } } : { ok: false, payload: {} });
+    expect(await resolveOriginal({ platform: 'loom', id: ID }, { fetch })).toEqual({ url: MP4 });
+  });
+
+  it('falls back to the raw luna.loom.com HLS master on a 204 transcoded response', async () => {
+    let rawCalled = false;
+    const fetch = seqFetch((u) => {
+      if (u.includes('/transcoded-url')) return { status: 204, payload: {} };
+      rawCalled = true; return { payload: { url: HLS } };
+    });
+    expect(await resolveOriginal({ platform: 'loom', id: ID }, { fetch })).toEqual({ url: HLS, hls: true });
+    expect(rawCalled).toBe(true);
+  });
+
+  it('returns null on a non-hex id (never fetches)', async () => {
+    let calls = 0;
+    const fetch = seqFetch(() => { calls++; return { payload: { url: MP4 } }; });
+    expect(await resolveOriginal({ platform: 'loom', id: 'not-a-hex-id' }, { fetch })).toBeNull();
+    expect(calls).toBe(0);
+  });
+
+  it('returns null when the transcoded mp4 host is not loom.com (pin)', async () => {
+    const fetch = seqFetch((u) => u.includes('/transcoded-url')
+      ? { payload: { url: 'https://evil.example.com/x.mp4' } }
+      : { ok: false, payload: {} });
+    expect(await resolveOriginal({ platform: 'loom', id: ID }, { fetch })).toBeNull();
+  });
+
+  it('returns null when the loom is restricted (both endpoints 403)', async () => {
+    const fetch = seqFetch(() => ({ ok: false, status: 403, payload: {} }));
+    expect(await resolveOriginal({ platform: 'loom', id: ID }, { fetch })).toBeNull();
+  });
+});
+
 describe('resolveOriginal — bsky (getBlob)', () => {
   const pdsDoc = {
     service: [
