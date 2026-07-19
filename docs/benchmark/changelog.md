@@ -10,6 +10,19 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **AnimePictures.net login-gated original (2026-07-19)** — #423, un-deferred once a
+  logged-in session was available. The batch premise ("md5-sharded CDN original") was WRONG:
+  the true original is served only by the session-gated `api.anime-pictures.net/pictures/
+  download_image/<slug>` endpoint that the post page's own download `<a class="icon-download">`
+  links. A network-free DOM resolver (`sites/animepictures.ts`) reads that href and pins it to
+  `anime-pictures.net`, upgrading the displayed `opreviews` AVIF preview
+  (`<md5[0:3]>/<md5>_bp.avif`) to it — but ONLY for the main image (its md5 must match the
+  og:image, so the related-post preview thumbnails on the page aren't all mapped to this post's
+  single download link). The endpoint 403s to a background/CORS fetch, but the browser's own
+  download (`chrome.downloads`, cookie-carrying) succeeds for a logged-in user exactly as the
+  site's download button does — no circumvention (logged out → 403). Verified live end-to-end
+  with a logged-in session: 319×600 preview → 2177×4096 original (`erotics` int flags rating,
+  0 = SFW; the transform is rating-independent).
 - ✅ **Coub + Loom videos (2026-07-19)** — two video-tier sweep sites, both live-verified
   against public SFW content (#388/#415):
   - **Coub** (#388) — network-free. The watch page (`coub.com/view/<permalink>`) embeds the
@@ -25,14 +38,8 @@ Resolved (this benchmark drove the fixes):
     → a CloudFront-signed `cdn.loom.com` mp4 (direct, time-signed — resolved on demand, never
     cached). A 204 (no transcoded render yet) falls back to `raw-url` → the `luna.loom.com`
     HLS master. Both hosts pinned to loom.com; workspace-restricted looms 401/403 → null.
-  - **AnimePictures** (#423) DEFERRED — verification overturned the issue's premise. The
-    original is NOT a public md5-sharded CDN path; it routes through the **access-gated**
-    `api.anime-pictures.net/pictures/download_image/<slug>` endpoint, which 403s to background
-    AND credentialed-CORS fetch (even with CF-clearance from the allowed origin) — it needs a
-    top-level navigation / logged-in session. The download href IS in the post-page DOM, but
-    the only ungated rendition (the big-preview avif) is already the og:image the collector
-    grabs, so there is no clean ungated upgrade. Reclassified login-gated (like VK/Snapchat);
-    needs a logged-in session-download test. `erotics` int field flags NSFW (0 = SFW).
+  - **AnimePictures** (#423) was DEFERRED here — **now shipped 2026-07-19** as a login-gated
+    resolver (see the entry above), once a logged-in session confirmed the gated download works.
 - ✅ **Sabq — verified free-ride (2026-07-19)** — closed #394 as **no rule needed**. The
   tier-1 batch-2 deferral pinned Sabq's images to `gumlet.assettype.com/sabq/…` (Quintype
   CMS + Gumlet CDN) but couldn't verify (Gumlet 403s datacenter fetches). A re-check found

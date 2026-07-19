@@ -1,4 +1,5 @@
 import { MediaCandidate, Resolver, ResolveContext } from '@mbd/core/resolvers/types';
+import { animePicturesResolver } from '@mbd/core/resolvers/sites/animepictures';
 import { arcxpResolver } from '@mbd/core/resolvers/sites/arcxp';
 import { artstationResolver } from '@mbd/core/resolvers/sites/artstation';
 import { behanceResolver } from '@mbd/core/resolvers/sites/behance';
@@ -30,7 +31,7 @@ import { wallpaperscraftResolver } from '@mbd/core/resolvers/sites/wallpaperscra
 import { youtubeResolver } from '@mbd/core/resolvers/sites/youtube';
 import { zerochanResolver } from '@mbd/core/resolvers/sites/zerochan';
 
-export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, facebookResolver, threadsResolver, unsplashResolver, wallhavenResolver, behanceResolver, bskyResolver, pinterestResolver, redditResolver, flickrResolver, artstationResolver, pixivResolver, magnificResolver, arcxpResolver, youtubeResolver, mastodonResolver, booruResolver, zerochanResolver, wallpaperscraftResolver, sankakuResolver, postimagesResolver, fourchanResolver, foolfuukaResolver, pikabuResolver, wallpaperHostsResolver, xiaohongshuResolver, spiegelResolver, onedioResolver, genericResolver];
+export const REGISTRY: Resolver[] = [twitterResolver, instagramResolver, facebookResolver, threadsResolver, unsplashResolver, wallhavenResolver, behanceResolver, bskyResolver, pinterestResolver, redditResolver, flickrResolver, artstationResolver, pixivResolver, magnificResolver, arcxpResolver, youtubeResolver, mastodonResolver, booruResolver, zerochanResolver, wallpaperscraftResolver, sankakuResolver, postimagesResolver, fourchanResolver, foolfuukaResolver, pikabuResolver, wallpaperHostsResolver, xiaohongshuResolver, spiegelResolver, onedioResolver, animePicturesResolver, genericResolver];
 
 // Suffix → resolvers that declared it, preserving REGISTRY order within a bucket.
 const hostIndex = new Map<string, Resolver[]>();

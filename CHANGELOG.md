@@ -7,6 +7,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **AnimePictures.net full-resolution originals.** On an `anime-pictures.net` post page the
+  extension now upgrades the displayed AVIF preview to the true full-size original (e.g. a
+  319×600 preview → the 2177×4096 source). The original is the one the page's own download
+  button links (`api.anime-pictures.net/pictures/download_image/…`), read straight from the
+  DOM — never fabricated — and pinned to the site's domain. That endpoint is **login-gated**:
+  a logged-in visitor's session unlocks it (the browser download carries your cookies, like
+  clicking the site's download button); logged out it returns nothing, no circumvention.
+  Only the main post image is upgraded (related-post thumbnails are left as-is). Verified
+  live end-to-end. (#423)
 - **Coub videos.** A Coub watch page (`coub.com/view/<permalink>`) now surfaces its loop
   as a ready-to-download video. Coub embeds the full clip object as JSON in the page, and
   the extension reads the combined `share` render — a single mp4 with audio, so no stream
