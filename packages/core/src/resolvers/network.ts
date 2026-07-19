@@ -63,6 +63,8 @@ interface RutubePlayOptions { video_balancer?: { m3u8?: string; default?: string
 
 interface RumbleEmbedJs { ua?: { hls?: { auto?: { url?: string } } } }
 
+interface LoomTranscoded { url?: string }
+
 interface PeerTubeConfig { serverVersion?: string }
 interface PeerTubeResolution { id?: number }
 interface PeerTubeFile { resolution?: PeerTubeResolution; fileUrl?: string; fileDownloadUrl?: string }
@@ -308,6 +310,40 @@ async function rumble(watchUrl: string, deps: NetDeps): Promise<ResolvedMedia | 
     const hls = j?.ua?.hls?.auto?.url;
     const pinned = RUMBLE_HOSTS.reduce<string | null>((acc, h) => acc ?? pinnedUrl(hls, h), null);
     return pinned ? { url: pinned, hls: true } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Loom (opt-in). A public Loom share's transcoded mp4 is minted by an
+ * unauthenticated POST to `campaigns/sessions/<id>/transcoded-url`, returning a
+ * CloudFront-signed `cdn.loom.com` mp4 — a direct, time-limited download (resolved
+ * on demand, never cached). Some shares have no transcoded render yet (HTTP 204);
+ * for those, `raw-url` returns the `luna.loom.com` HLS master to capture instead.
+ * Workspace-restricted looms 401/403 on both and resolve to null (no circumvention).
+ * Both hosts are under loom.com, so the returned URL is pinned to that family.
+ */
+async function loom(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  try {
+    if (!/^[0-9a-f]{32}$/i.test(id)) return null;
+    const post = (kind: string): Promise<Response> =>
+      deps.fetch(`https://www.loom.com/api/campaigns/sessions/${encodeURIComponent(id)}/${kind}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+
+    const t = await post('transcoded-url');
+    if (t.ok && t.status !== 204) {
+      const mp4 = pinnedUrl(((await t.json()) as LoomTranscoded)?.url, 'loom.com');
+      if (mp4) return { url: mp4 };
+    }
+    // No transcoded mp4 (204 / empty) — fall back to the raw HLS master to capture.
+    const r = await post('raw-url');
+    if (!r.ok || r.status === 204) return null;
+    const hls = pinnedUrl(((await r.json()) as LoomTranscoded)?.url, 'loom.com');
+    return hls ? { url: hls, hls: true } : null;
   } catch {
     return null;
   }
@@ -792,6 +828,7 @@ export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise
     case 'rutube': return rutube(hint.id, deps);
     case 'rumble': return rumble(hint.id, deps);
     case 'peertube': return peertube(hint.id, deps);
+    case 'loom': return loom(hint.id, deps);
     case 'bsky': return bsky(hint.id, deps);
     case 'pinterest': return pinterest(hint.id, deps);
     case 'reddit': return reddit(hint.id);
