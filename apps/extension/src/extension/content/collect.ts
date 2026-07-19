@@ -31,9 +31,12 @@ import { peertubeEmbedUrl } from '@mbd/core/resolvers/sites/peertube';
 import { loomVideoId } from '@mbd/core/resolvers/sites/loom';
 import { coubMediaFromJson } from '@mbd/core/resolvers/sites/coub';
 import { fanboxPageMedia } from '@mbd/core/resolvers/sites/fanbox';
+import { tiktokPageMedia } from '@mbd/core/resolvers/sites/tiktok';
+import { patreonPageMedia } from '@mbd/core/resolvers/sites/patreon';
+import { soundcloudTrackUrl } from '@mbd/core/resolvers/sites/soundcloud';
 import { streamableVideoId } from '@mbd/core/resolvers/sites/streamable';
 import { redgifsVideoId } from '@mbd/core/resolvers/sites/redgifs';
-import { twitchClipId } from '@mbd/core/resolvers/sites/twitch';
+import { twitchClipId, twitchVodId } from '@mbd/core/resolvers/sites/twitch';
 import { nineGagId } from '@mbd/core/resolvers/sites/ninegag';
 import { sniffedHlsManifests } from '@mbd/core/resolvers/sniffers/hls-sniff';
 import { HOST_ID } from '@/extension/bubble/mount';
@@ -471,6 +474,35 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     });
   };
 
+  // A Twitch VOD (a `/videos/<id>` watch page, link, or player embed) surfaced as a
+  // pending video: a VOD has no single mp4 — its usher HLS master is minted behind a
+  // GQL access-token call, so the master is fetched on the opt-in resolve pass
+  // (resolveHint 'twitch', id `vod <id>`) and captured. Keyed by the canonical VOD
+  // permalink so an embed + a link to the same VOD collapse to one item.
+  const pushTwitchVod = (id: string): void => {
+    const watch = `https://www.twitch.tv/videos/${id}`;
+    if (!seenSources.addIfNew(watch)) return;
+    media.push({
+      src: watch, alt: '', width: 0, height: 0, type: 'm3u8',
+      fileSize: 0, isBase64: false, kind: 'video',
+      unresolvedVideo: true, resolveHint: { platform: 'twitch', id: `vod ${id}` },
+    });
+  };
+
+  // A SoundCloud track (a track page or a link to one) surfaced as a pending item:
+  // the playable audio lives behind SoundCloud's api-v2 resolve + transcoding
+  // endpoints (a scraped client_id is required), so it is fetched on the opt-in
+  // resolve pass (resolveHint 'soundcloud'). An HLS transcoding is captured to an
+  // m4a/mp3 by the audio-only path. Keyed by the canonical track URL.
+  const pushSoundcloud = (trackUrl: string): void => {
+    if (!seenSources.addIfNew(trackUrl)) return;
+    media.push({
+      src: trackUrl, alt: '', width: 0, height: 0, type: 'm3u8',
+      fileSize: 0, isBase64: false, kind: 'video',
+      unresolvedVideo: true, resolveHint: { platform: 'soundcloud', id: trackUrl },
+    });
+  };
+
   // A 9GAG video/GIF post surfaced as a pending video: the mp4 is id-derived and
   // unsigned, so the real file is built network-free on the resolve pass
   // (resolveHint '9gag'). Keyed by the canonical post URL. Only ever called for a
@@ -822,6 +854,10 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       else if (resolvedHref && redgifsVideoId(resolvedHref)) pushRedgifs(redgifsVideoId(resolvedHref)!);
       // A link to a Twitch clip — surface as a pending video resolved on demand.
       else if (resolvedHref && twitchClipId(resolvedHref)) pushTwitch(twitchClipId(resolvedHref)!);
+      // A link to a Twitch VOD (`/videos/<id>`) — surface as a pending video (HLS).
+      else if (resolvedHref && twitchVodId(resolvedHref)) pushTwitchVod(twitchVodId(resolvedHref)!);
+      // A link to a SoundCloud track — surface as a pending audio item resolved on demand.
+      else if (resolvedHref && soundcloudTrackUrl(resolvedHref)) pushSoundcloud(soundcloudTrackUrl(resolvedHref)!);
       // A link to a 9GAG post that carries a <video> (a video/GIF post) — surface
       // as a pending video resolved on demand. Image posts (no <video>) are skipped.
       else if (resolvedHref && nineGagId(resolvedHref) && nineGagPostHasVideo(a)) pushNineGag(nineGagId(resolvedHref)!);
@@ -868,6 +904,8 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       else if (resolvedEmbed && redgifsVideoId(resolvedEmbed)) pushRedgifs(redgifsVideoId(resolvedEmbed)!);
       // A Twitch clip player <iframe> — surface as a pending video (resolved on demand).
       else if (resolvedEmbed && twitchClipId(resolvedEmbed)) pushTwitch(twitchClipId(resolvedEmbed)!);
+      // A Twitch VOD player <iframe> (player.twitch.tv?video=…) — pending video (HLS).
+      else if (resolvedEmbed && twitchVodId(resolvedEmbed)) pushTwitchVod(twitchVodId(resolvedEmbed)!);
 
       let doc: Document | null;
       try {
@@ -1012,6 +1050,12 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     // …or a Loom share page the user is on.
     const loomPageId = loomVideoId(pageUrl);
     if (loomPageId) pushLoom(loomPageId);
+    // …or a Twitch VOD watch page (`/videos/<id>`) — pending video (usher HLS master).
+    const twitchVodPageId = twitchVodId(pageUrl);
+    if (twitchVodPageId) pushTwitchVod(twitchVodPageId);
+    // …or a SoundCloud track page — pending audio resolved on the opt-in pass.
+    const soundcloudPageUrl = soundcloudTrackUrl(pageUrl);
+    if (soundcloudPageUrl) pushSoundcloud(soundcloudPageUrl);
 
     // Coub watch page: the full coub object is embedded as JSON in
     // <script id="coubPageCoubJson">. Parse it and surface the combined-muxed
@@ -1033,6 +1077,31 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     // hotlink-protected, so the download uses the #197 Referer opt-in.
     if (/(?:^|\.)fanbox\.cc$/i.test(location.hostname)) {
       for (const cand of fanboxPageMedia(pageUrl)) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
+
+    // TikTok video/photo page: the item's signed CDN URLs (highest-bitrate mp4, or
+    // one image per photo-mode slide) are embedded in the
+    // `__UNIVERSAL_DATA_FOR_REHYDRATION__` JSON — read them (the URLs TikTok itself
+    // signed, never forged). Host-gated so an injected element elsewhere can't fire
+    // it; a private/removed video renders no itemStruct → nothing (fails closed).
+    // The playAddr edges are session/hotlink-bound → download uses the browser's
+    // cookies + the #197 Referer opt-in.
+    if (/(?:^|\.)tiktok\.com$/i.test(location.hostname)) {
+      for (const cand of tiktokPageMedia()) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
+
+    // Patreon post page: every post image's originals (patreonusercontent.com,
+    // scoped to this post's id) are present in the hydrated markup at multiple
+    // sizes — scrape and keep the largest per image, signed query intact. Host-
+    // gated; a paid/locked post the viewer can't access ships no originals →
+    // nothing (fails closed). patreonusercontent.com is token-gated, so the
+    // download relies on the #197 Referer opt-in.
+    if (/(?:^|\.)patreon\.com$/i.test(location.hostname)) {
+      for (const cand of patreonPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }

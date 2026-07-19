@@ -648,6 +648,51 @@ describe('collectMedia — Streamable videos', () => {
   });
 });
 
+describe('collectMedia — Twitch VODs', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+  const vods = (m: { resolveHint?: { platform: string; id: string } }[]) =>
+    m.filter((i) => i.resolveHint?.platform === 'twitch' && i.resolveHint.id.startsWith('vod '));
+
+  it('surfaces a Twitch VOD link as a pending HLS video with a `vod <id>` hint', () => {
+    setBody('<a href="https://www.twitch.tv/videos/1234567890">vod</a>');
+    expect(vods(collectMedia())[0]).toMatchObject({
+      kind: 'video', type: 'm3u8', unresolvedVideo: true,
+      src: 'https://www.twitch.tv/videos/1234567890', resolveHint: { platform: 'twitch', id: 'vod 1234567890' },
+    });
+  });
+
+  it('surfaces a player.twitch.tv?video= embed and dedupes an embed + link to the same VOD', () => {
+    setBody(
+      '<iframe src="https://player.twitch.tv/?video=v1234567890&parent=example.com"></iframe>' +
+      '<a href="https://www.twitch.tv/videos/1234567890">same</a>',
+    );
+    expect(vods(collectMedia())).toHaveLength(1);
+  });
+
+  it('does not treat a clip as a VOD', () => {
+    setBody('<a href="https://clips.twitch.tv/AwkwardHelplessSalamanderSwiftRage">clip</a>');
+    expect(vods(collectMedia())).toHaveLength(0);
+  });
+});
+
+describe('collectMedia — SoundCloud tracks', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+  const sc = (m: { resolveHint?: { platform: string } }[]) => m.filter((i) => i.resolveHint?.platform === 'soundcloud');
+
+  it('surfaces a SoundCloud track link as a pending item with a resolve hint', () => {
+    setBody('<a href="https://soundcloud.com/artist/my-track">track</a>');
+    expect(sc(collectMedia())[0]).toMatchObject({
+      kind: 'video', type: 'm3u8', unresolvedVideo: true,
+      src: 'https://soundcloud.com/artist/my-track', resolveHint: { platform: 'soundcloud', id: 'https://soundcloud.com/artist/my-track' },
+    });
+  });
+
+  it('ignores a SoundCloud user profile and a playlist', () => {
+    setBody('<a href="https://soundcloud.com/artist">profile</a><a href="https://soundcloud.com/artist/sets/mix">set</a>');
+    expect(sc(collectMedia())).toHaveLength(0);
+  });
+});
+
 describe('collectMedia — Rutube videos', () => {
   afterEach(() => { document.body.innerHTML = ''; });
   const ID = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';

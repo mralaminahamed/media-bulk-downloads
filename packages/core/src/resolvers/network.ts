@@ -1,7 +1,7 @@
 import { ResolveHint, ResolvedMedia } from '@mbd/core/types';
 import { isSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
 import { stripUrlSecrets } from '@mbd/core/net/url-secrets';
-import { TWITCH_CLIENT_ID, TWITCH_GQL_OP, TWITCH_GQL_SHA256 } from '@mbd/core/resolvers/twitch-constants';
+import { TWITCH_CLIENT_ID, TWITCH_GQL_OP, TWITCH_GQL_SHA256, TWITCH_VOD_GQL_QUERY } from '@mbd/core/resolvers/twitch-constants';
 
 export interface NetDeps { fetch: typeof fetch }
 
@@ -80,6 +80,12 @@ interface TwitchClipQuality { quality?: string; sourceURL?: string }
 interface TwitchPlaybackAccessToken { signature?: string; value?: string }
 interface TwitchClip { videoQualities?: TwitchClipQuality[]; playbackAccessToken?: TwitchPlaybackAccessToken }
 interface TwitchGqlResponse { data?: { clip?: TwitchClip | null } }
+interface TwitchVodGqlResponse { data?: { videoPlaybackAccessToken?: TwitchPlaybackAccessToken | null } }
+
+interface ScTranscodingFormat { protocol?: string; mime_type?: string }
+interface ScTranscoding { url?: string; preset?: string; format?: ScTranscodingFormat }
+interface ScTrack { kind?: string; media?: { transcodings?: ScTranscoding[] } }
+interface ScStreamUrl { url?: string }
 
 /**
  * A URL taken from an API JSON response is untrusted: constrain it to https and
@@ -781,6 +787,9 @@ const TWITCH_CLIP_HOSTS = ['twitchcdn.net', 'twitch.tv'];
  * both the single-object and array (batched-op) GQL envelope shapes.
  */
 async function twitch(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  // The hint id is either a bare clip slug or `'vod <numericId>'` (twitchVodId).
+  const vod = /^vod (\d+)$/.exec(id);
+  if (vod) return twitchVod(vod[1], deps);
   try {
     if (!/^[A-Za-z0-9_-]+$/.test(id)) return null;
     const r = await deps.fetch('https://gql.twitch.tv/gql', {
@@ -816,6 +825,112 @@ async function twitch(id: string, deps: NetDeps): Promise<ResolvedMedia | null> 
   }
 }
 
+/**
+ * Twitch VODs. A single anonymous GQL `PlaybackAccessToken` query (raw, not
+ * persisted — see twitch-constants) with the public web Client-ID mints a
+ * short-lived sig+token that authorizes the VOD's usher HLS master. That master
+ * (`usher.ttvnw.net/vod/<id>.m3u8`) is returned to capture — unlike a clip, a VOD
+ * has no single progressive mp4. Any missing token field → null (fail-closed).
+ * Sub-only/private VODs still mint a token but usher then serves 403 on it, so the
+ * capture fails downstream (no circumvention). The token is used only to build the
+ * URL and is never logged/persisted; the master is host-pinned to ttvnw.net.
+ */
+async function twitchVod(vodId: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  try {
+    if (!/^\d+$/.test(vodId)) return null;
+    const r = await deps.fetch('https://gql.twitch.tv/gql', {
+      method: 'POST',
+      headers: { 'Client-ID': TWITCH_CLIENT_ID, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        operationName: 'PlaybackAccessToken',
+        query: TWITCH_VOD_GQL_QUERY,
+        variables: { isLive: false, login: '', isVod: true, vodID: vodId, playerType: 'site' },
+      }),
+    });
+    if (!r.ok) return null;
+    const j = (await r.json()) as TwitchVodGqlResponse | TwitchVodGqlResponse[];
+    const token = (Array.isArray(j) ? j[0] : j)?.data?.videoPlaybackAccessToken;
+    if (!token || typeof token.signature !== 'string' || typeof token.value !== 'string') return null;
+    const master = new URL(`https://usher.ttvnw.net/vod/${encodeURIComponent(vodId)}.m3u8`);
+    master.searchParams.set('allow_source', 'true');
+    master.searchParams.set('allow_audio_only', 'true');
+    master.searchParams.set('player', 'twitchweb');
+    master.searchParams.set('platform', 'web');
+    master.searchParams.set('sig', token.signature);
+    master.searchParams.set('token', token.value);
+    return pinnedUrl(master.href, 'ttvnw.net') ? { url: master.href, hls: true } : null;
+  } catch {
+    return null;
+  }
+}
+
+// SoundCloud's web bundles (which carry the anonymous client_id) load from
+// a-v2.sndcdn.com; the id is embedded as `client_id:"…"` / `client_id="…"`.
+const SC_BUNDLE_RE = /https:\/\/a-v2\.sndcdn\.com\/assets\/[0-9a-zA-Z._-]+\.js/g;
+
+/** Scrape an anonymous client_id from the track page's app bundles (the id lives in
+ *  one of the later bundles, so scan from the end). Null if none carries it. */
+async function soundcloudClientId(pageHtml: string, deps: NetDeps): Promise<string | null> {
+  const bundles = (pageHtml.match(SC_BUNDLE_RE) ?? []).reverse();
+  for (const src of bundles) {
+    try {
+      const r = await deps.fetch(src);
+      if (!r.ok) continue;
+      const id = (await r.text()).match(/client_id\s*[:=]\s*"([0-9a-zA-Z]{16,64})"/)?.[1];
+      if (id) return id;
+    } catch { /* try the next bundle */ }
+  }
+  return null;
+}
+
+/**
+ * SoundCloud (opt-in). The hint id is a soundcloud.com track-page URL. SoundCloud
+ * needs an anonymous `client_id` (scraped from the page's own JS bundle) for its
+ * public `api-v2` endpoints, so: fetch the page → scrape the client_id → `resolve`
+ * the URL to the track JSON → pick a transcoding → exchange it for the CDN stream
+ * URL. An HLS transcoding is preferred (the capture engine turns SoundCloud's
+ * audio-only HLS master into an m4a/mp3 via the existing audio-only path, honouring
+ * the user's MP3-transcode setting); a progressive rendition is the single-file
+ * fallback. A URL that resolves to a non-track (user/playlist page) → null. The
+ * page/track URL is pinned to soundcloud.com and the final stream to sndcdn.com
+ * (both API JSON and the resolve target are untrusted). Private/go+ tracks expose
+ * no usable transcoding → null (no circumvention).
+ */
+async function soundcloud(pageUrl: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  try {
+    const track = pinnedUrl(pageUrl, 'soundcloud.com');
+    if (!track) return null;
+    const page = await deps.fetch(track);
+    if (!page.ok) return null;
+    const clientId = await soundcloudClientId(await page.text(), deps);
+    if (!clientId) return null;
+
+    const res = await deps.fetch(
+      `https://api-v2.soundcloud.com/resolve?url=${encodeURIComponent(track)}&client_id=${encodeURIComponent(clientId)}`,
+    );
+    if (!res.ok) return null;
+    const t = (await res.json()) as ScTrack;
+    if (t?.kind !== 'track') return null;
+    const transcodings = t.media?.transcodings ?? [];
+
+    const hls = transcodings.find((x) => x?.format?.protocol === 'hls' && typeof x.url === 'string');
+    const progressive = transcodings.find((x) => x?.format?.protocol === 'progressive' && typeof x.url === 'string');
+    const chosen = hls ?? progressive;
+    // The transcoding endpoint is on api-v2.soundcloud.com (…soundcloud.com family).
+    const api = pinnedUrl(chosen?.url, 'soundcloud.com');
+    if (!api) return null;
+
+    const sep = api.includes('?') ? '&' : '?';
+    const s = await deps.fetch(`${api}${sep}client_id=${encodeURIComponent(clientId)}`);
+    if (!s.ok) return null;
+    const media = pinnedUrl(((await s.json()) as ScStreamUrl)?.url, 'sndcdn.com');
+    if (!media) return null;
+    return chosen === hls ? { url: media, hls: true } : { url: media };
+  } catch {
+    return null;
+  }
+}
+
 /** Resolve one hint to a final media target, or null on failure. Never throws. */
 export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise<ResolvedMedia | null> {
   switch (hint.platform) {
@@ -829,6 +944,7 @@ export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise
     case 'rumble': return rumble(hint.id, deps);
     case 'peertube': return peertube(hint.id, deps);
     case 'loom': return loom(hint.id, deps);
+    case 'soundcloud': return soundcloud(hint.id, deps);
     case 'bsky': return bsky(hint.id, deps);
     case 'pinterest': return pinterest(hint.id, deps);
     case 'reddit': return reddit(hint.id);

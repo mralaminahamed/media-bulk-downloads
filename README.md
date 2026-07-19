@@ -265,6 +265,10 @@ upgrade rules for:
 | Sankaku Complex                    | Preview / sample tier → original file (md5-canonical fold) |
 | AnimePictures.net                  | Preview → full-res original via the page's download link (login-gated) |
 | Pixiv Fanbox                       | Post page → every full-res original (`downloads.fanbox.cc`); paid needs access |
+| TikTok                             | Video/photo page → highest-bitrate mp4 / per-slide image (page JSON, signed CDN) |
+| Twitch                             | Clips → direct mp4; VODs → usher HLS master (opt-in)  |
+| SoundCloud                         | Track → audio (api-v2 transcoding → m4a/MP3 capture, opt-in) |
+| Patreon                            | Post page → every image original (`patreonusercontent.com`); paid needs access |
 | Arc XP (news publishers)           | Resizer URL → full-size source                      |
 
 …and 50+ more CDN families — see the live [coverage benchmark](./docs/BENCHMARK.md).
