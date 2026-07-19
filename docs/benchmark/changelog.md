@@ -10,6 +10,16 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **imgpile (2026-07-19)** — a network-free page reader (grade **L**, collect.ts
+  host-gated) for imgpile post pages (`imgpile.com/p/<slug>`): the page renders each file
+  in a `post-media` block whose `<a href>` is the full-resolution original, so collect.ts
+  splits on those blocks and surfaces every `<a href>` that is a plaintext `https` media URL
+  (image/gif/video) — a multi-image post yields every item, deduped, in order. Fail-closed.
+  **imageshack DEFERRED** (had been flagged a next-pick): it is a SPA whose JS-rendered
+  `imagizer.imageshack.com` `<img>` the generic DOM walk already collects; a dedicated
+  network resolver (`/rest_api/v2/images/<id>` → `direct_link`) would emit a *duplicate*
+  pending item needing the imagizer thumbnail-key to dedup — disproportionate complexity
+  for a marginal full-res upgrade over what the walk already yields. Core tests +6.
 - ✅ **Simple image hosts — shared reader (2026-07-19)** — one host-gated `sites/imagehosts.ts`
   (grade **L**) covering a family of simple image hosts (gallery-dl `imagehosts.py` reference):
   **ImageBam, ImageVenue, PixHost, ImageTwist/ImageHaha, imgspice, imgpv, picstate,

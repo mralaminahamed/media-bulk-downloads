@@ -46,6 +46,7 @@ import { xhamsterPageMedia } from '@mbd/core/resolvers/sites/xhamster';
 import { lensdumpPageMedia } from '@mbd/core/resolvers/sites/lensdump';
 import { motherlessPageMedia } from '@mbd/core/resolvers/sites/motherless';
 import { imagehostsPageMedia, isImageHost } from '@mbd/core/resolvers/sites/imagehosts';
+import { imgpilePageMedia } from '@mbd/core/resolvers/sites/imgpile';
 import { soundcloudTrackUrl } from '@mbd/core/resolvers/sites/soundcloud';
 import { streamableVideoId } from '@mbd/core/resolvers/sites/streamable';
 import { redgifsVideoId } from '@mbd/core/resolvers/sites/redgifs';
@@ -1230,6 +1231,15 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     // a CDN `<img>`), same-site-pinned. Host-gated; a non-image page → nothing.
     if (isImageHost(location.hostname)) {
       for (const cand of imagehostsPageMedia(pageUrl)) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
+
+    // imgpile post page: each `post-media` block's `<a href>` is a full-resolution
+    // original (a multi-image post ships several). Host-gated; a post with no
+    // accessible media → nothing.
+    if (/(?:^|\.)imgpile\.com$/i.test(location.hostname)) {
+      for (const cand of imgpilePageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
