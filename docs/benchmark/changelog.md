@@ -10,6 +10,22 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Imgur + Tenor + Pexels + Civitai (2026-07-19)** — a gallery-dl-referenced batch
+  of **SFW, high-traffic** gaps (facts from the extractors only). First three are
+  network-free page readers (grade **L**, collect.ts host-gated); Civitai is a one-line
+  CdnRule (grade **C**). **Imgur** (`imgur.com/<id>`,`/a/`,`/gallery/`): the page assigns
+  the post to `window.postDataJSON`; collect.ts parses that JS-string literal → each
+  `media[].url` on i.imgur.com (album ships every item), CDN-pinned — **verified live**
+  (`media[0].url = i.imgur.com/…`). **Tenor** (`/view/<slug>-<id>`): `<script id="store-cache">`
+  → `gifs.byId[<id>].media_formats` → the animated `gif` (else `mp4`/`webm`) on
+  media*.tenor.com — **verified live**. **Pexels** (photo/video page): `__NEXT_DATA__` →
+  `pageProps.medium.{video,image}.download_link` on the Pexels CDN — read **same-origin in
+  the content script** because the page is Cloudflare-gated (a background fetch 403s; the
+  Kick/Shopify lesson), then the existing images.pexels.com query-strip rule bares it to the
+  original. **Civitai**: `image.civitai.com/…/<transform>/<name>` → rewrite the transform
+  segment to `original=true` (bucket-agnostic, idempotent). Deferred from the research set:
+  **500px** (pure GraphQL SPA + `x-csrf-token`, nothing embedded), **wikiart** (og:image is
+  only the `!Large` rendition; true original needs the `?json=2` search API). Core tests +21.
 - ✅ **Fapello + Chevereto (2026-07-19)** — a second gallery-dl-referenced batch of
   network-free page readers (grade **L**, collect.ts host-gated, no `ResolvePlatform`
   change; facts from the extractors only). **Fapello** (`fapello.com/<model>/<id>/`):
