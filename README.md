@@ -278,6 +278,8 @@ upgrade rules for:
 | Tenor                              | View page → animated GIF / mp4 original (`media.tenor.com`) |
 | Pexels                             | Photo/video page → free full-res original (`__NEXT_DATA__`) |
 | Civitai                            | Image URL → un-resized original (`original=true` transform) |
+| XVideos                            | Watch page → direct mp4 stream (`html5player`, page JS) |
+| xHamster                           | Watch page → highest-quality mp4 (`window.initials`, page JS) |
 | Arc XP (news publishers)           | Resizer URL → full-size source                      |
 
 …and 50+ more CDN families — see the live [coverage benchmark](./docs/BENCHMARK.md).

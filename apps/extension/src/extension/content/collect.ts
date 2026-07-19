@@ -41,6 +41,8 @@ import { cheveretoPageMedia, CHEVERETO_HOST_RE } from '@mbd/core/resolvers/sites
 import { imgurPageMedia } from '@mbd/core/resolvers/sites/imgur';
 import { tenorPageMedia } from '@mbd/core/resolvers/sites/tenor';
 import { pexelsPageMedia } from '@mbd/core/resolvers/sites/pexels';
+import { xvideosPageMedia } from '@mbd/core/resolvers/sites/xvideos';
+import { xhamsterPageMedia } from '@mbd/core/resolvers/sites/xhamster';
 import { soundcloudTrackUrl } from '@mbd/core/resolvers/sites/soundcloud';
 import { streamableVideoId } from '@mbd/core/resolvers/sites/streamable';
 import { redgifsVideoId } from '@mbd/core/resolvers/sites/redgifs';
@@ -1182,6 +1184,24 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     // background fetch can't). Host-gated; no `medium` → nothing.
     if (/(?:^|\.)pexels\.com$/i.test(location.hostname)) {
       for (const cand of pexelsPageMedia(pageUrl)) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
+
+    // XVideos watch page: the inline `html5player.setVideoUrlHigh('<mp4>')` is the
+    // direct single-file stream — surface it, host-pinned. Host-gated; a
+    // removed/geo-blocked page has no player setters → nothing.
+    if (/(?:^|\.)xvideos[0-9]*\.com$/i.test(location.hostname)) {
+      for (const cand of xvideosPageMedia(pageUrl)) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
+
+    // xHamster watch page: the highest-quality mp4 in `window.initials`'
+    // `videoModel.sources` — surface it, host-pinned to *.xhcdn.com. Host-gated; no
+    // initials / no mp4 source → nothing.
+    if (/(?:^|\.)xhamster[0-9]*\.(?:com|desi|one)$/i.test(location.hostname)) {
+      for (const cand of xhamsterPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }

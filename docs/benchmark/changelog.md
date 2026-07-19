@@ -10,6 +10,21 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **XVideos + xHamster (2026-07-19)** — the top-traffic **adult video-tube** gap (the
+  #1 by traffic from the original coverage audit). Two network-free page readers (grade
+  **L**, collect.ts host-gated) reading the stream URL straight from the watch page's own
+  JS — no fetch, no token, no decryption. **XVideos** (`/video<id>/`): inline
+  `html5player.setVideoUrlHigh('<mp4>')` (else `setVideoUrlLow`) → the direct mp4, pinned to
+  the XVideos CDN family. **xHamster** (`/videos/<slug>-<id>`, + `.desi`/`.one` mirrors):
+  the `window.initials` JSON global → `videoModel.sources.{mp4, standard.h264[]}` → the
+  highest-quality mp4, extracted with a balanced-brace/string-aware scan (the blob is huge)
+  and pinned to `*.xhcdn.com`. Both roots are reachable (not CF-bot-walled like Kick), but
+  the reader is content-script/in-page anyway; **needs-live-confirmation** on a watch page.
+  NOTE: gallery-dl's xvideos/xhamster/pornhub/eporner extractors are **image/gallery-only**
+  (video is yt-dlp's domain) — the video-player structure here is **public player interface**,
+  not lifted from those files. Deferred: **eporner** (stream needs one same-origin `/xhr/video/<id>?hash=`
+  fetch — not a pure page read), **pornhub** (`flashvars` is obfuscated + a secondary
+  `get_media` call + token-signed URLs). Core tests +13.
 - ✅ **Imgur + Tenor + Pexels + Civitai (2026-07-19)** — a gallery-dl-referenced batch
   of **SFW, high-traffic** gaps (facts from the extractors only). First three are
   network-free page readers (grade **L**, collect.ts host-gated); Civitai is a one-line
