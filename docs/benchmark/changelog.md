@@ -17,8 +17,8 @@ Resolved (this benchmark drove the fixes):
   same og:image mechanism. **Motherless** (`/<id>`): the file URL is the page's `__fileurl`
   JS var, pinned to *.motherlessmedia.com and classified by ext (image/gif/video); a
   gallery/listing has no `__fileurl` → fails closed. This batch also adds a README
-  **Acknowledgements** section crediting gallery-dl (mikf/gallery-dl + the mralaminahamed
-  fork) as the factual reference for site coverage — GPL-2.0, reference-only, no source
+  **Acknowledgements** section crediting upstream [gallery-dl](https://github.com/mikf/gallery-dl)
+  (mikf) as the factual reference for site coverage — GPL-2.0, reference-only, no source
   copied. Deferred: **sex.com** (heterogeneous a-href/`<source>`/`player.updateSrc` extraction
   per pin type — more per-case handling than a single clean signal). Core tests +17.
 - ✅ **XVideos + xHamster (2026-07-19)** — the top-traffic **adult video-tube** gap (the
