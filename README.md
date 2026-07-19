@@ -284,6 +284,7 @@ upgrade rules for:
 | Motherless                         | Media page → file original (`__fileurl`, page JS)    |
 | Image hosts (ImageBam, ImageVenue, PixHost, ImageTwist, imgspice, imgdrive, …) | Single-image page → full-res original |
 | imgpile                            | Post page → every image/video original (multi-image) |
+| szurubooru (snootbooru, …)         | Post page → original (`/data/posts/…`, SPA-safe)     |
 | Arc XP (news publishers)           | Resizer URL → full-size source                      |
 
 …and 50+ more CDN families — see the live [coverage benchmark](./docs/BENCHMARK.md).

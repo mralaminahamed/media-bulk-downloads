@@ -47,6 +47,7 @@ import { lensdumpPageMedia } from '@mbd/core/resolvers/sites/lensdump';
 import { motherlessPageMedia } from '@mbd/core/resolvers/sites/motherless';
 import { imagehostsPageMedia, isImageHost } from '@mbd/core/resolvers/sites/imagehosts';
 import { imgpilePageMedia } from '@mbd/core/resolvers/sites/imgpile';
+import { szurubooruPageMedia } from '@mbd/core/resolvers/sites/szurubooru';
 import { soundcloudTrackUrl } from '@mbd/core/resolvers/sites/soundcloud';
 import { streamableVideoId } from '@mbd/core/resolvers/sites/streamable';
 import { redgifsVideoId } from '@mbd/core/resolvers/sites/redgifs';
@@ -1240,6 +1241,15 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     // accessible media → nothing.
     if (/(?:^|\.)imgpile\.com$/i.test(location.hostname)) {
       for (const cand of imgpilePageMedia(pageUrl)) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
+
+    // szurubooru post page (Vue SPA): once hydrated, the post's original is a
+    // distinctive `<host>/data/posts/<file>` URL the virtualized view can otherwise
+    // hide. Host-gated; an unrendered/removed post → nothing.
+    if (/(?:^|\.)(?:snootbooru\.com|bcbnsfw\.space)$/i.test(location.hostname)) {
+      for (const cand of szurubooruPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
