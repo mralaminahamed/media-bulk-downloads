@@ -7,6 +7,18 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Fapello posts.** On a Fapello post page (`fapello.com/<model>/<id>/`, also `.su`)
+  the extension now surfaces that post's media — the image (with the `.md`/`.th`
+  thumbnail suffix stripped to the original) or the video with its poster — read
+  from the page's own `uk-align-center` block. Network-free; a listing or an
+  inaccessible post shows nothing (fails closed). Referenced from gallery-dl; needs
+  live confirmation.
+- **Chevereto image hosts.** On a Chevereto image page — jpgfish
+  (`jpg*.{cr,su,pet,fish,church}`), `imglike.com`, `putmega.com`/`putme.ga` — at
+  `/img/<id>` (or `/image/`, `/i/`), the extension now surfaces the full-resolution
+  original from the page's `og:image`. Read only when that is a plaintext image URL;
+  instances that ship an encrypted `og:image` are skipped, not decrypted (fails
+  closed). Referenced from gallery-dl; needs live confirmation.
 - **Kemono / Coomer posts.** On a Kemono or Coomer post page
   (`{kemono,coomer}.{cr,su,st,party}/<service>/user/<id>/post/<postId>` — a
   Patreon/Fanbox/etc. mirror) the extension now surfaces the post's files and

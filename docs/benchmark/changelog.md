@@ -10,6 +10,22 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Fapello + Chevereto (2026-07-19)** — a second gallery-dl-referenced batch of
+  network-free page readers (grade **L**, collect.ts host-gated, no `ResolvePlatform`
+  change; facts from the extractors only). **Fapello** (`fapello.com/<model>/<id>/`):
+  one media item lives in a `uk-align-center` block — an `<img src>` with the `.md`/`.th`
+  thumbnail suffix stripped to the original, or a video (`type="video"`, `poster` kept);
+  category/listing first-segments (`trending`/`videos`/…) are excluded so pagination
+  can't be mistaken for a post. **Chevereto** (jpgfish `jpg*.{cr,su,pet,fish,church}` /
+  `imglike.com` / `putme(ga)`): the viewer page's `og:image` is the original — read only
+  when it's a plaintext `https` media URL, so instances that XOR-encrypt `og:image` (the
+  `simpcity` anti-scraper key) or ship a `loading.svg` placeholder are skipped, not
+  decrypted (fails closed, no circumvention). Both are automation-bot-walled (403), so
+  structure is documented → **needs-live-confirmation**. Deferred from this batch: **Bunkr**
+  (single-file page needs a separate POST API + XOR — a crawl, not a page read), **Nekohouse**
+  (Kemono-fork but its file-path scheme differs from kemono's `/data/` and it's DDoS-Guard-
+  fronted — unverifiable), **Weasyl**/**Pixeldrain** (API-key / arbitrary-file-type mismatch).
+  Core tests +22.
 - ✅ **Kemono/Coomer + Erome + Image Chest (2026-07-19)** — a gallery-dl-referenced batch
   of three network-free page readers (endpoints/URL patterns taken from the gallery-dl
   extractors as facts only — no source copied). **Kemono/Coomer** (a Patreon/Fanbox/etc.

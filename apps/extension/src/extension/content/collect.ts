@@ -36,6 +36,8 @@ import { patreonPageMedia } from '@mbd/core/resolvers/sites/patreon';
 import { eromePageMedia } from '@mbd/core/resolvers/sites/erome';
 import { imgchestPageMedia } from '@mbd/core/resolvers/sites/imagechest';
 import { kemonoPageMedia } from '@mbd/core/resolvers/sites/kemono';
+import { fapelloPageMedia } from '@mbd/core/resolvers/sites/fapello';
+import { cheveretoPageMedia, CHEVERETO_HOST_RE } from '@mbd/core/resolvers/sites/chevereto';
 import { soundcloudTrackUrl } from '@mbd/core/resolvers/sites/soundcloud';
 import { streamableVideoId } from '@mbd/core/resolvers/sites/streamable';
 import { redgifsVideoId } from '@mbd/core/resolvers/sites/redgifs';
@@ -1133,6 +1135,24 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     // post the viewer can't access renders no `/data/` links → nothing (fails closed).
     if (/(?:^|\.)(?:kemono|coomer)\.(?:cr|su|st|party)$/i.test(location.hostname)) {
       for (const cand of kemonoPageMedia(pageUrl)) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
+
+    // Fapello post page: the single media item in the `uk-align-center` block (image
+    // with the `.md`/`.th` size suffix stripped, or a video). Host-gated; a listing
+    // or an inaccessible post yields nothing.
+    if (/(?:^|\.)fapello\.(?:com|su)$/i.test(location.hostname)) {
+      for (const cand of fapelloPageMedia(pageUrl)) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
+
+    // Chevereto image page (jpgfish / imglike / putmega instances): the original is
+    // the page's `og:image` — read it when it's a plaintext https media URL (encrypted
+    // og:image on some instances is skipped, not decrypted). Host-gated.
+    if (CHEVERETO_HOST_RE.test(location.hostname)) {
+      for (const cand of cheveretoPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
