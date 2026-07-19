@@ -7,6 +7,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **XVideos videos.** On an XVideos watch page (`xvideos.com/video<id>/…`) the
+  extension now surfaces the direct mp4 stream, read from the page's own inline
+  `html5player.setVideoUrlHigh(...)` call and pinned to the XVideos CDN. Network-free;
+  a removed/geo-blocked page shows nothing (fails closed).
+- **xHamster videos.** On an xHamster watch page (`xhamster.com/videos/<slug>-<id>`,
+  plus mirror hosts) the extension now surfaces the highest-quality mp4 from the page's
+  `window.initials` JSON (`videoModel.sources`), pinned to `*.xhcdn.com`. Network-free;
+  a page with no usable source shows nothing (fails closed).
 - **Imgur posts, albums & galleries.** On an Imgur post page (`imgur.com/<id>`,
   `/a/<id>`, `/gallery/<id>`) the extension now surfaces every item's original on
   `i.imgur.com`, read from the post JSON the page assigns to `window.postDataJSON`
