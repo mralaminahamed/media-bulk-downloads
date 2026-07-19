@@ -27,6 +27,7 @@ import { vimeoVideoId } from '@mbd/core/resolvers/sites/vimeo';
 import { dailymotionVideoId } from '@mbd/core/resolvers/sites/dailymotion';
 import { rutubeVideoId } from '@mbd/core/resolvers/sites/rutube';
 import { rumbleWatchUrl } from '@mbd/core/resolvers/sites/rumble';
+import { peertubeEmbedUrl } from '@mbd/core/resolvers/sites/peertube';
 import { streamableVideoId } from '@mbd/core/resolvers/sites/streamable';
 import { redgifsVideoId } from '@mbd/core/resolvers/sites/redgifs';
 import { twitchClipId } from '@mbd/core/resolvers/sites/twitch';
@@ -387,6 +388,22 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       src: url, alt: '', width: 0, height: 0, type: 'mp4',
       fileSize: 0, isBase64: false, kind: 'video',
       unresolvedVideo: true, resolveHint: { platform: 'rumble', id: url },
+    });
+  };
+
+  // A PeerTube video (watch page, embed, or link) surfaced as a pending video.
+  // PeerTube is host-agnostic across the federation with no fixed media host, so
+  // the hint carries the canonical embed URL and the opt-in resolve pass
+  // (resolveHint 'peertube') confirms the instance via /api/v1/config, then reads
+  // the widest direct file / HLS master from /api/v1/videos/<id> — like Rumble's
+  // URL-carrying hint. Keyed by the canonical embed URL so a watch page + an
+  // embed/link to the same video collapse to one item.
+  const pushPeerTube = (embedUrl: string): void => {
+    if (!seenSources.addIfNew(embedUrl)) return;
+    media.push({
+      src: embedUrl, alt: '', width: 0, height: 0, type: 'mp4',
+      fileSize: 0, isBase64: false, kind: 'video',
+      unresolvedVideo: true, resolveHint: { platform: 'peertube', id: embedUrl },
     });
   };
 
@@ -776,6 +793,8 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       else if (resolvedHref && rutubeVideoId(resolvedHref)) pushRutube(rutubeVideoId(resolvedHref)!);
       // A link to a Rumble video — surface as a pending video resolved on demand.
       else if (resolvedHref && rumbleWatchUrl(resolvedHref)) pushRumble(rumbleWatchUrl(resolvedHref)!);
+
+      else if (resolvedHref && peertubeEmbedUrl(resolvedHref)) pushPeerTube(peertubeEmbedUrl(resolvedHref)!);
       // A link to a Streamable video — surface as a pending video resolved on demand.
       else if (resolvedHref && streamableVideoId(resolvedHref)) pushStreamable(streamableVideoId(resolvedHref)!);
       // A link to a RedGifs video — surface as a pending video resolved on demand.
@@ -818,6 +837,8 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       else if (resolvedEmbed && rutubeVideoId(resolvedEmbed)) pushRutube(rutubeVideoId(resolvedEmbed)!);
       // A Rumble player <iframe> — surface as a pending video (resolved on demand).
       else if (resolvedEmbed && rumbleWatchUrl(resolvedEmbed)) pushRumble(rumbleWatchUrl(resolvedEmbed)!);
+
+      else if (resolvedEmbed && peertubeEmbedUrl(resolvedEmbed)) pushPeerTube(peertubeEmbedUrl(resolvedEmbed)!);
       // A Streamable player <iframe> — surface as a pending video (resolved on demand).
       else if (resolvedEmbed && streamableVideoId(resolvedEmbed)) pushStreamable(streamableVideoId(resolvedEmbed)!);
       // A RedGifs player <iframe> — surface as a pending video (resolved on demand).
@@ -961,6 +982,10 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     if (rutubePageId) pushRutube(rutubePageId);
     const rumblePageUrl = rumbleWatchUrl(pageUrl);
     if (rumblePageUrl) pushRumble(rumblePageUrl);
+    // …or a PeerTube watch page (any federated instance) — same pending-video
+    // treatment; the resolve pass confirms the instance before fetching.
+    const peertubePageUrl = peertubeEmbedUrl(pageUrl);
+    if (peertubePageUrl) pushPeerTube(peertubePageUrl);
   }
 
   // HLS manifests the MAIN-world sniffer caught (hls.js / native players fetch

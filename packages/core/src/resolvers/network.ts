@@ -63,6 +63,12 @@ interface RutubePlayOptions { video_balancer?: { m3u8?: string; default?: string
 
 interface RumbleEmbedJs { ua?: { hls?: { auto?: { url?: string } } } }
 
+interface PeerTubeConfig { serverVersion?: string }
+interface PeerTubeResolution { id?: number }
+interface PeerTubeFile { resolution?: PeerTubeResolution; fileUrl?: string; fileDownloadUrl?: string }
+interface PeerTubeStreamingPlaylist { playlistUrl?: string; files?: PeerTubeFile[] }
+interface PeerTubeVideoDetail { streamingPlaylists?: PeerTubeStreamingPlaylist[]; files?: PeerTubeFile[] }
+
 interface RedgifsAuth { token?: string }
 interface RedgifsUrls { hd?: string; sd?: string }
 interface RedgifsGif { urls?: RedgifsUrls }
@@ -83,6 +89,25 @@ function pinnedUrl(url: string | null | undefined, hostSuffix: string): string |
     const u = new URL(url);
     const ok = u.protocol === 'https:' && (u.hostname === hostSuffix || u.hostname.endsWith(`.${hostSuffix}`));
     return ok ? u.href : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * An API URL whose host cannot be pinned to a fixed family — PeerTube serves a
+ * video's media from the instance itself, an object-storage subdomain, OR (for a
+ * federated video) another instance's domain entirely, so there is no known
+ * suffix to check. Constrain it to https + the SSRF host policy (no internal /
+ * loopback / link-local target) instead, the same guard the capture engines use
+ * on page-controlled manifest URLs.
+ */
+function safeFederatedUrl(url: string | null | undefined): string | null {
+  if (typeof url !== 'string') return null;
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'https:') return null;
+    return isSafeCaptureUrl(u.href) ? u.href : null;
   } catch {
     return null;
   }
@@ -283,6 +308,61 @@ async function rumble(watchUrl: string, deps: NetDeps): Promise<ResolvedMedia | 
     const hls = j?.ua?.hls?.auto?.url;
     const pinned = RUMBLE_HOSTS.reduce<string | null>((acc, h) => acc ?? pinnedUrl(hls, h), null);
     return pinned ? { url: pinned, hls: true } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * PeerTube (host-agnostic, opt-in). The hint carries the canonical embed URL
+ * `https://<instance>/videos/embed/<id>`. The instance host is page-controlled,
+ * so it is SSRF-guarded before any fetch, then `/api/v1/config` must confirm the
+ * host is really PeerTube (top-level `serverVersion`) before the video metadata
+ * is fetched — a `/w/<id>` or `/videos/watch/<id>` shape on an arbitrary host
+ * must not drive a blind API call. `/api/v1/videos/<id>` then yields the widest
+ * direct single file (`fileUrl`, from both the progressive web-video list and
+ * the per-rendition HLS list — each entry is one complete mp4/fmp4), falling
+ * back to the HLS master (`streamingPlaylists[0].playlistUrl`) to capture.
+ * Because PeerTube can serve media from remote object storage (host ≠ instance)
+ * and a federated video comes off another instance entirely, every returned URL
+ * is re-guarded with the SSRF policy rather than pinned to a fixed suffix.
+ * Private / password / internal videos expose no public file → null.
+ */
+async function peertube(embedUrl: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  try {
+    const u = new URL(embedUrl);
+    if (u.protocol !== 'https:') return null;
+    const id = /^\/videos\/embed\/([0-9A-Za-z-]{8,40})$/.exec(u.pathname)?.[1];
+    if (!id) return null;
+    const origin = u.origin;
+    if (!isSafeCaptureUrl(origin)) return null;
+
+    const cfg = await deps.fetch(`${origin}/api/v1/config`);
+    if (!cfg.ok) return null;
+    const cj = (await cfg.json()) as PeerTubeConfig;
+    if (typeof cj?.serverVersion !== 'string') return null;
+
+    const r = await deps.fetch(`${origin}/api/v1/videos/${encodeURIComponent(id)}`);
+    if (!r.ok) return null;
+    const j = (await r.json()) as PeerTubeVideoDetail;
+
+    // Widest single downloadable file across the progressive web-video list and
+    // the per-rendition HLS list (both expose one complete file per resolution).
+    // `resolution.id` is the height; `fileUrl` is the direct asset (object-storage
+    // or instance), `fileDownloadUrl` the instance /download proxy as a fallback.
+    let best: { h: number; url: string } | null = null;
+    for (const f of [...(j.files ?? []), ...(j.streamingPlaylists?.[0]?.files ?? [])]) {
+      const url = safeFederatedUrl(f?.fileUrl) ?? safeFederatedUrl(f?.fileDownloadUrl);
+      if (!url) continue;
+      const h = Number(f?.resolution?.id) || 0;
+      if (!best || h > best.h) best = { h, url };
+    }
+    if (best) return { url: best.url };
+
+    // No direct file exposed (HLS-only instance) — hand the master to the HLS
+    // engine, which muxes the demuxed audio rendition so the capture has sound.
+    const master = safeFederatedUrl(j.streamingPlaylists?.[0]?.playlistUrl);
+    return master ? { url: master, hls: true } : null;
   } catch {
     return null;
   }
@@ -711,6 +791,7 @@ export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise
     case 'dailymotion': return dailymotion(hint.id, deps);
     case 'rutube': return rutube(hint.id, deps);
     case 'rumble': return rumble(hint.id, deps);
+    case 'peertube': return peertube(hint.id, deps);
     case 'bsky': return bsky(hint.id, deps);
     case 'pinterest': return pinterest(hint.id, deps);
     case 'reddit': return reddit(hint.id);
