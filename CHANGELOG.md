@@ -7,6 +7,27 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **TikTok videos & photo posts.** On a TikTok video/photo page
+  (`tiktok.com/@<user>/video/<id>` or `/photo/<id>`) the extension now surfaces the clip's
+  highest-bitrate mp4 (or one image per photo-mode slide) — read straight from the page's
+  own `__UNIVERSAL_DATA_FOR_REHYDRATION__` JSON, the URLs TikTok itself signed and shipped
+  (passive, never forged, like the Instagram/Facebook readers). Network-free; a private or
+  removed video shows nothing (fails closed). The CDN edges are session/hotlink-bound, so
+  the download uses the browser's own cookies plus the existing Referer opt-in (#197). (#400)
+- **Twitch VODs.** A Twitch VOD (`twitch.tv/videos/<id>`, a link, or a `player.twitch.tv`
+  embed) now resolves to its stream: an anonymous access-token call mints the `usher.ttvnw.net`
+  HLS master, captured to a single file. Opt-in ("Resolve originals"). Complements the existing
+  clip support; sub-only/private VODs simply fail to capture (no circumvention).
+- **SoundCloud tracks.** A SoundCloud track page (or a link to one) now resolves to its audio:
+  the extension scrapes an anonymous `client_id` from the page, reads the track's transcodings,
+  and captures the HLS rendition to an m4a (optionally MP3) — reusing the existing audio-only
+  stream path. Opt-in ("Resolve originals"). Private/go+ tracks expose no usable stream → nothing.
+- **Patreon post images.** On a Patreon post page (`patreon.com/posts/<slug>-<id>`) the
+  extension now surfaces every post image's largest rendition — the un-resized original when the
+  page ships it, else the widest — scraped from the hydrated markup (`patreonusercontent.com`)
+  and scoped to that post so campaign art / recommended-post media can't leak in. Network-free;
+  a paid/locked post the viewer can't access shows nothing (fails closed). Media is token-gated,
+  so the download uses the existing Referer opt-in (#197).
 - **Pixiv Fanbox post images.** On a Fanbox post page (`<creator>.fanbox.cc/posts/<id>`) the
   extension now surfaces every full-resolution original in the post
   (`downloads.fanbox.cc/images/post/<id>/…`) — the visible thumbnails are lazy/icon-only, but

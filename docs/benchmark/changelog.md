@@ -10,6 +10,26 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **TikTok / Twitch VOD / SoundCloud / Patreon (2026-07-19)** — a top-traffic-gap batch
+  (the four picked from a "most-visited media sites" audit). **TikTok** (#400, un-parked from
+  the Kick-class deferral): a video/photo page embeds the item in
+  `__UNIVERSAL_DATA_FOR_REHYDRATION__` (`__DEFAULT_SCOPE__["webapp.video-detail"]
+  .itemInfo.itemStruct`); collect.ts reads the URLs TikTok itself signed — the highest-`Bitrate`
+  rendition's `PlayAddr.UrlList[0]` (else `playAddr`) as one mp4, or a photo-mode `imagePost`
+  as one image per slide — network-free, host-pinned, fail-closed. Automation is bot-walled
+  (403 like Kick), so structure is documented not live-injected → needs-live-confirmation; a
+  real user's content script runs in their own session where the JSON is present.
+  **Twitch VOD**: extends the clip resolver — an anonymous `PlaybackAccessToken` GQL query
+  (raw, public web Client-ID) mints the sig+token for `usher.ttvnw.net/vod/<id>.m3u8` (a VOD
+  has no single mp4), pinned to `ttvnw.net`; the clip vs VOD split rides the `vod ` id prefix.
+  **SoundCloud**: the extension's first audio resolver — scrape an anonymous `client_id` from
+  the page bundle → `api-v2` `resolve` → a `media.transcodings[]` entry → the CDN stream;
+  prefers HLS (captured to m4a/mp3 by the existing audio-only path), pinned `soundcloud.com`
+  → `sndcdn.com`. **Patreon**: Fanbox-style network-free scrape of `patreonusercontent.com`
+  post media, scoped to the URL's `<postId>` (campaign/other-post media excluded), grouped per
+  image with the largest rendition kept — the un-resized original (transform decodes to
+  `{"a":1,…}`) when shipped, else widest — signed query intact; images/GIFs only (video/audio
+  attachments a follow-up), URL shapes verified against real samples → needs-live-confirmation.
 - ✅ **Pixiv Fanbox post images (2026-07-19)** — #416, a video-tier/creator-support sweep site,
   live-verified. `api.fanbox.cc/post.info?postId=<id>` → `body.post.body.imageMap` (article) /
   `.images` (image post), each entry's `originalUrl` on `downloads.fanbox.cc/images/post/<id>/

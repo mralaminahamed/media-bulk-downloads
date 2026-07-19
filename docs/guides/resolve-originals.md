@@ -50,13 +50,16 @@ only — never in a content script or the popup — and dispatches on `hint.plat
 | `reddit`      | *(no fetch)*                                                                                                                                                                                                                                                | Builds `https://v.redd.it/<id>/HLSPlaylist.m3u8`, the signature-free HLS master. The extension's HLS engine muxes back its separate audio rendition.                                                                                                                                                    |
 | `flickr`      | `https://www.flickr.com/photo.gne?id=<id>`, then that photo's `/sizes/` page                                                                                                                                                                               | Two chained keyless fetches: the canonical photo page (host-pinned to `flickr.com`), then its sizes page, whose HTML carries the correct-secret URL for the largest size — a size served under a different secret than the thumbnail.                                                                    |
 | `artstation`  | *(image)* the `/4k/` sibling of the `/large/` URL. *(video)* `https://www.artstation.com/projects/<hash>.json`, then the clip's signed embed page                                                                                                          | An image hint probes `/4k/` and returns it only on an ok image response. A video hint reads the project JSON, fetches its embed page, and returns the largest unsigned `<source>` mp4.                                                                                                                   |
+| `twitch` (VOD) | *(hint = `vod <id>`)* an anonymous `PlaybackAccessToken` GQL query (raw, not persisted; public web Client-ID) at `https://gql.twitch.tv/gql`                                                                                                              | Mints the sig+token authorizing `https://usher.ttvnw.net/vod/<id>.m3u8`, the HLS master (a VOD has no single mp4), returned to capture and pinned to `ttvnw.net`. Shares the `twitch` platform tag with the clip resolver, told apart by the `vod ` id prefix. Sub-only/private VODs mint a token usher then 403s — capture fails (no circumvention).                                        |
+| `soundcloud`  | *(hint = the track-page URL)* the page → its `a-v2.sndcdn.com` bundle (client_id) → `https://api-v2.soundcloud.com/resolve?url=<track>&client_id=<id>` → a `media.transcodings[]` entry → that entry's `?client_id=` URL                                    | SoundCloud's `api-v2` needs an anonymous `client_id`, scraped from the page's own JS bundle. Prefers the HLS transcoding (captured to m4a/mp3 by the audio-only path, honouring the MP3-transcode setting), else a progressive single file. The track URL is pinned to `soundcloud.com`, the final stream to `sndcdn.com`. A non-track (user/playlist) or a private/go+ track yields nothing. |
 
 Every URL pulled from a fetched response — JSON or HTML — passes through
 `pinnedUrl()` before it's trusted. It must be `https:`, and its hostname must
 equal (or be a subdomain of) the expected host family: `twimg.com`,
 `wallhaven.cc`, `vimeocdn.com`, `dailymotion.com`, `rutube.ru`, the Rumble-CDN
 allowlist (`rumble.com`, `1a-1791.com`, `rmbl.ws`, `rumble.cloud`), `bsky.app`,
-`pinimg.com`, `v.redd.it`, `staticflickr.com`, `artstation.com`, `loom.com`, or the
+`pinimg.com`, `v.redd.it`, `staticflickr.com`, `artstation.com`, `loom.com`,
+`ttvnw.net` (Twitch VOD master), `sndcdn.com` (SoundCloud stream), or the
 account's own PDS host for a Bluesky blob. Anything else — a malformed URL, an unexpected redirect
 target — resolves to `null` instead of becoming a downloadable URL.
 
@@ -182,7 +185,8 @@ marked failed — turning on stream capture resolves it next time.)
   `HEAD` requests) stays on the same host. This is the one setting that talks to an
   external host on your behalf: Twitter, Wallhaven, Unsplash, Vimeo, Dailymotion,
   Rutube, Rumble, PeerTube (whichever instance the video is on), Loom, Bluesky,
-  Pinterest, Reddit, Flickr, or ArtStation, whichever the hinted item came from.
+  Pinterest, Reddit, Flickr, ArtStation, Twitch (a VOD's access token + master),
+  or SoundCloud (the track page + api-v2), whichever the hinted item came from.
 - What's sent is minimal: the id already visible in the page's own URL (a tweet
   status id, a Wallhaven wallpaper id, a Flickr photo id, and so on), or nothing at
   all — Unsplash, Reddit, and Bluesky video just build a URL. No cookies or auth

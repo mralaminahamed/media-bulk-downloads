@@ -22,3 +22,16 @@ export const TWITCH_GQL_OP = 'VideoAccessToken_Clip';
 // sha256 of the persisted query Twitch registered for `TWITCH_GQL_OP`.
 export const TWITCH_GQL_SHA256 =
   '36b89d2507fce29e5ca551df756d27c1cfe079e2609642b4390aa4c35796eb11';
+
+// VOD playback-access-token query (a *raw* GQL query, not a persisted hash — the
+// public `PlaybackAccessToken` query yt-dlp/streamlink send anonymously with the
+// web Client-ID). It mints the short-lived sig+token that authorizes the VOD's
+// usher HLS master. Only the `isVod` branch is exercised here (isLive:false);
+// the streamPlaybackAccessToken half is retained verbatim so the query matches
+// the shape Twitch expects. Refresh from a current yt-dlp/streamlink release if
+// Twitch changes the query.
+export const TWITCH_VOD_GQL_QUERY =
+  'query PlaybackAccessToken($login: String!, $isLive: Boolean!, $vodID: ID!, $isVod: Boolean!, $playerType: String!) {' +
+  ' streamPlaybackAccessToken(channelName: $login, params: {platform: "web", playerBackend: "mediaplayer", playerType: $playerType}) @include(if: $isLive) { value signature __typename }' +
+  ' videoPlaybackAccessToken(id: $vodID, params: {platform: "web", playerBackend: "mediaplayer", playerType: $playerType}) @include(if: $isVod) { value signature __typename }' +
+  ' }';

@@ -1,4 +1,4 @@
-import { twitchClipId } from '@mbd/core/resolvers/sites/twitch';
+import { twitchClipId, twitchVodId } from '@mbd/core/resolvers/sites/twitch';
 
 describe('twitchClipId', () => {
   it.each([
@@ -28,5 +28,39 @@ describe('twitchClipId', () => {
 
   it('accepts a URL object', () => {
     expect(twitchClipId(new URL('https://clips.twitch.tv/AwkwardHelplessSalamanderSwiftRage'))).toBe('AwkwardHelplessSalamanderSwiftRage');
+  });
+});
+
+describe('twitchVodId', () => {
+  it.each([
+    ['a /videos/<id> permalink', 'https://www.twitch.tv/videos/1234567890', '1234567890'],
+    ['a bare twitch.tv host', 'https://twitch.tv/videos/987654321', '987654321'],
+    ['a mobile host', 'https://m.twitch.tv/videos/1234567890', '1234567890'],
+    ['a permalink with query', 'https://www.twitch.tv/videos/1234567890?t=1h2m3s', '1234567890'],
+    ['a player embed ?video=v<id>', 'https://player.twitch.tv/?video=v1234567890&parent=example.com', '1234567890'],
+    ['a player embed ?video=<id>', 'https://player.twitch.tv/?video=987654321&parent=example.com', '987654321'],
+  ])('extracts the VOD id from %s', (_label, url, id) => {
+    expect(twitchVodId(url)).toBe(id);
+  });
+
+  it.each([
+    ['a clip', 'https://clips.twitch.tv/AwkwardHelplessSalamanderSwiftRage'],
+    ['a channel /clip/ permalink', 'https://www.twitch.tv/somestreamer/clip/AwkwardHelplessSalamanderSwiftRage'],
+    ['a channel page (live)', 'https://www.twitch.tv/somestreamer'],
+    ['the directory', 'https://www.twitch.tv/directory'],
+    ['a player embed with no video param', 'https://player.twitch.tv/?channel=somestreamer&parent=example.com'],
+    ['a non-Twitch host', 'https://nottwitch.tv/videos/1234567890'],
+    ['a malformed URL', 'http://'],
+  ])('returns null for %s', (_label, url) => {
+    expect(twitchVodId(url)).toBeNull();
+  });
+
+  it('does not mistake a clip slug for a VOD, nor a VOD for a clip', () => {
+    const vod = 'https://www.twitch.tv/videos/1234567890';
+    const clip = 'https://clips.twitch.tv/AwkwardHelplessSalamanderSwiftRage';
+    expect(twitchVodId(vod)).toBe('1234567890');
+    expect(twitchClipId(vod)).toBeNull();
+    expect(twitchClipId(clip)).toBe('AwkwardHelplessSalamanderSwiftRage');
+    expect(twitchVodId(clip)).toBeNull();
   });
 });

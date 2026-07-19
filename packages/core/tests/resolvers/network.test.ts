@@ -1161,3 +1161,101 @@ describe('resolveOriginal — 9gag', () => {
     expect(await resolveOriginal({ platform: '9gag', id: '' }, { fetch: noFetch })).toBeNull();
   });
 });
+
+describe('resolveOriginal — twitch VOD', () => {
+  const VID = '1234567890';
+  const okToken = { data: { videoPlaybackAccessToken: { value: 'TOKEN_VALUE', signature: 'SIG' } } };
+
+  it('mints the usher HLS master with sig+token, pinned to ttvnw.net', async () => {
+    const res = await resolveOriginal({ platform: 'twitch', id: `vod ${VID}` }, { fetch: mockFetch(okToken) });
+    expect(res).not.toBeNull();
+    expect(res!.hls).toBe(true);
+    const u = new URL(res!.url);
+    expect(u.hostname).toBe('usher.ttvnw.net');
+    expect(u.pathname).toBe(`/vod/${VID}.m3u8`);
+    expect(u.searchParams.get('sig')).toBe('SIG');
+    expect(u.searchParams.get('token')).toBe('TOKEN_VALUE');
+    expect(u.searchParams.get('allow_source')).toBe('true');
+  });
+
+  it('tolerates a GQL array-envelope response', async () => {
+    const res = await resolveOriginal({ platform: 'twitch', id: `vod ${VID}` }, { fetch: mockFetch([okToken]) });
+    expect(new URL(res!.url).pathname).toBe(`/vod/${VID}.m3u8`);
+  });
+
+  it('returns null (fail-closed) when the access token is missing or incomplete', async () => {
+    expect(await resolveOriginal({ platform: 'twitch', id: `vod ${VID}` }, { fetch: mockFetch({ data: { videoPlaybackAccessToken: null } }) })).toBeNull();
+    expect(await resolveOriginal({ platform: 'twitch', id: `vod ${VID}` }, { fetch: mockFetch({ data: { videoPlaybackAccessToken: { value: 'v' } } }) })).toBeNull();
+  });
+
+  it('returns null on a non-ok response or a throw', async () => {
+    expect(await resolveOriginal({ platform: 'twitch', id: `vod ${VID}` }, { fetch: mockFetch(okToken, false) })).toBeNull();
+    const throwing = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
+    expect(await resolveOriginal({ platform: 'twitch', id: `vod ${VID}` }, { fetch: throwing })).toBeNull();
+  });
+});
+
+describe('resolveOriginal — soundcloud', () => {
+  const TRACK = 'https://soundcloud.com/artist/my-track';
+  const CLIENT = 'abcDEF1234567890';
+  const pageHtml =
+    '<script crossorigin src="https://a-v2.sndcdn.com/assets/0-abc.js"></script>' +
+    '<script crossorigin src="https://a-v2.sndcdn.com/assets/50-app.js"></script>';
+  const bundleJs = `window.__sc={};client_id:"${CLIENT}",env:"production"`;
+  const hlsApi = 'https://api-v2.soundcloud.com/media/soundcloud:tracks:1/abc/stream/hls';
+  const progApi = 'https://api-v2.soundcloud.com/media/soundcloud:tracks:1/abc/stream/progressive';
+  const trackJson = () => ({ kind: 'track', media: { transcodings: [
+    { url: progApi, format: { protocol: 'progressive', mime_type: 'audio/mpeg' } },
+    { url: hlsApi, format: { protocol: 'hls', mime_type: 'audio/mpeg' } },
+  ] } });
+
+  // Route by URL: page → HTML, bundle → JS (client_id), resolve → track JSON,
+  // transcoding endpoint → { url } CDN stream.
+  const route = (opts: { track?: unknown; hlsUrl?: string; progUrl?: string; noClient?: boolean } = {}) =>
+    (async (input: unknown) => {
+      const url = String(input);
+      if (url.includes('a-v2.sndcdn.com')) return { ok: true, text: async () => (opts.noClient ? 'no id' : bundleJs) };
+      if (url.includes('/resolve')) return { ok: true, json: async () => (opts.track ?? trackJson()) };
+      if (url.startsWith(hlsApi)) return { ok: true, json: async () => ({ url: opts.hlsUrl ?? 'https://cf-hls-media.sndcdn.com/media/1/hls.m3u8' }) };
+      if (url.startsWith(progApi)) return { ok: true, json: async () => ({ url: opts.progUrl ?? 'https://cf-media.sndcdn.com/media/1/128.mp3' }) };
+      if (url === TRACK) return { ok: true, text: async () => pageHtml };
+      return { ok: false, json: async () => ({}), text: async () => '' };
+    }) as unknown as typeof fetch;
+
+  it('resolves the HLS transcoding to a sndcdn.com master (hls), scraping the client_id', async () => {
+    const res = await resolveOriginal({ platform: 'soundcloud', id: TRACK }, { fetch: route() });
+    expect(res).toEqual({ url: 'https://cf-hls-media.sndcdn.com/media/1/hls.m3u8', hls: true });
+  });
+
+  it('falls back to a progressive transcoding (direct file, no hls) when no HLS rendition exists', async () => {
+    const t = { kind: 'track', media: { transcodings: [{ url: progApi, format: { protocol: 'progressive' } }] } };
+    expect(await resolveOriginal({ platform: 'soundcloud', id: TRACK }, { fetch: route({ track: t }) }))
+      .toEqual({ url: 'https://cf-media.sndcdn.com/media/1/128.mp3' });
+  });
+
+  it('returns null when the URL resolves to a non-track (user/playlist)', async () => {
+    expect(await resolveOriginal({ platform: 'soundcloud', id: TRACK }, { fetch: route({ track: { kind: 'user' } }) })).toBeNull();
+  });
+
+  it('returns null when no client_id can be scraped', async () => {
+    expect(await resolveOriginal({ platform: 'soundcloud', id: TRACK }, { fetch: route({ noClient: true }) })).toBeNull();
+  });
+
+  it('rejects a final stream URL that is not on sndcdn.com (untrusted JSON)', async () => {
+    expect(await resolveOriginal({ platform: 'soundcloud', id: TRACK }, { fetch: route({ hlsUrl: 'https://evil.example/x.m3u8' }) })).toBeNull();
+  });
+
+  it('rejects a track-page URL that is not soundcloud.com (pin), never fetching', async () => {
+    let calls = 0;
+    const spyFetch = (async () => { calls++; return { ok: true, text: async () => '' }; }) as unknown as typeof fetch;
+    expect(await resolveOriginal({ platform: 'soundcloud', id: 'https://evil.example/a/b' }, { fetch: spyFetch })).toBeNull();
+    expect(calls).toBe(0);
+  });
+
+  it('returns null on a non-ok page fetch or a throw', async () => {
+    const notOk = (async () => ({ ok: false, text: async () => '', json: async () => ({}) })) as unknown as typeof fetch;
+    expect(await resolveOriginal({ platform: 'soundcloud', id: TRACK }, { fetch: notOk })).toBeNull();
+    const throwing = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
+    expect(await resolveOriginal({ platform: 'soundcloud', id: TRACK }, { fetch: throwing })).toBeNull();
+  });
+});

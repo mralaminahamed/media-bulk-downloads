@@ -1,10 +1,13 @@
 /**
- * Twitch clip slug extraction. A clip's progressive MP4 lives behind a GQL
- * persisted query (resolvers/network.ts → twitch), not the page, so the generic
- * passes miss it. This slug feeds the opt-in network resolve path.
+ * Twitch clip + VOD extraction. A clip's progressive MP4 and a VOD's HLS master
+ * both live behind a GQL access-token call (resolvers/network.ts → twitch), not
+ * the page, so the generic passes miss them. These feed the opt-in network resolve
+ * path.
  *
- * Only clips resolve — VODs (`/videos/<id>`) and live channels have no slug shape
- * here and are left alone (no circumvention of subscriber/live gating).
+ * Clips resolve to a direct mp4; VODs (`/videos/<id>`) resolve to the usher HLS
+ * master. Live channels have no id shape here and are left alone (no circumvention
+ * of live gating); sub-only/private VODs mint a token that usher rejects → the
+ * capture simply fails, no circumvention.
  */
 
 // Twitch clip slugs are either word-concatenated (AwkwardHelplessSalamander…) or
@@ -43,6 +46,34 @@ export function twitchClipId(raw: string | URL): string | null {
   }
   if (host === 'twitch.tv' || host.endsWith('.twitch.tv')) {
     return validSlug(u.pathname.match(CHANNEL_CLIP_RE)?.[1] ?? clipParam);
+  }
+  return null;
+}
+
+// twitch.tv/videos/<id>  — VOD ids are all-numeric.
+const VOD_PATH_RE = /^\/videos\/(\d+)(?:[/?#]|$)/;
+
+/**
+ * Extracts a Twitch VOD id from a `/videos/<id>` permalink (twitch.tv or a
+ * subdomain like m.twitch.tv) or a `player.twitch.tv?video=<[v]id>` embed, or null
+ * when the URL isn't a single VOD (a clip, channel, directory, or non-Twitch host).
+ * VOD ids are numeric — the returned id is digits only.
+ */
+export function twitchVodId(raw: string | URL): string | null {
+  let u: URL;
+  try {
+    u = raw instanceof URL ? raw : new URL(raw, document.baseURI);
+  } catch {
+    return null;
+  }
+  const host = u.hostname.toLowerCase();
+  if (host === 'player.twitch.tv') {
+    // Embed players carry the VOD in ?video=v<id> (or a bare numeric id).
+    const v = u.searchParams.get('video');
+    return v ? (v.match(/^v?(\d+)$/)?.[1] ?? null) : null;
+  }
+  if (host === 'twitch.tv' || host.endsWith('.twitch.tv')) {
+    return u.pathname.match(VOD_PATH_RE)?.[1] ?? null;
   }
   return null;
 }
