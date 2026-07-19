@@ -10,6 +10,23 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Pornhub (2026-07-19)** — the **#1-by-traffic** adult video-tube, previously
+  deferred as "obfuscated `flashvars` + secondary `get_media` + token-signed". A **live
+  structural probe** overturned that: the watch page's inline `flashvars_<id>` object
+  carries a **direct, un-obfuscated HLS master** — `mediaDefinitions[].videoUrl` →
+  `…/master.m3u8` on `hv-h.phncdn.com`, confirmed present in the served markup — and one
+  adaptive manifest already carries every rendition, so the token-signed **mp4**
+  `get_media` entry (the part that would need a secondary fetch + deobfuscation) is simply
+  **skipped**. So it fits the network-free reader model after all: a page reader (grade
+  **L**, collect.ts host-gated) extracts the `flashvars` object (balanced-brace,
+  string-aware), prefers the master (its `quality` is the full array over the per-rendition
+  singles), host-pins to `*.phncdn.com`, and pushes it as an `m3u8` video routed through
+  the HLS capture path (respects the user's HLS opt-in). No flashvars / no pinned master
+  (an obfuscated-variant or paid page) → [] (fails closed — no deobfuscation attempted).
+  Root reachable (openresty, not CF-bot-walled); **needs-live-confirmation** on a watch
+  page. gallery-dl referenced only for the flashvars key names. Still deferred: **eporner**
+  (unreachable from here — GET `status=000` — so its `/xhr/video/<id>?hash=` shape can't be
+  verified → dead-code risk), **sex.com** (heterogeneous per-pin extraction). Core tests +9.
 - ✅ **szurubooru (2026-07-19)** — a network-free page reader (grade **L**, collect.ts
   host-gated) for szurubooru instances (snootbooru.com, booru.bcbnsfw.space, `/post/<id>`).
   szurubooru is a Vue SPA with no server-rendered image, but once hydrated the post's original

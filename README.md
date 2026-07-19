@@ -280,6 +280,7 @@ upgrade rules for:
 | Civitai                            | Image URL → un-resized original (`original=true` transform) |
 | XVideos                            | Watch page → direct mp4 stream (`html5player`, page JS) |
 | xHamster                           | Watch page → highest-quality mp4 (`window.initials`, page JS) |
+| Pornhub                            | Watch/embed page → HLS master stream (`flashvars`, page JS) |
 | Lensdump                           | Image page → full-res original (`og:image`)          |
 | Motherless                         | Media page → file original (`__fileurl`, page JS)    |
 | Image hosts (ImageBam, ImageVenue, PixHost, ImageTwist, imgspice, imgdrive, …) | Single-image page → full-res original |

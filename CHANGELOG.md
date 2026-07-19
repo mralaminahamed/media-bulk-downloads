@@ -7,6 +7,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Pornhub videos.** On a Pornhub watch/embed page (`pornhub.com/view_video.php?viewkey=…`,
+  `/embed/<id>`) the extension now surfaces the HLS master stream — the
+  `format:"hls"` `videoUrl` in the page's inline `flashvars_<id>` object, on
+  `*.phncdn.com` — one adaptive manifest that carries every quality, routed through
+  HLS capture. Network-free; the mp4 `get_media` entry (needs a signed fetch) is
+  skipped, and an obfuscated/paid page shows nothing (fails closed). Referenced from
+  gallery-dl for the flashvars key names.
 - **szurubooru posts.** On a szurubooru post page (snootbooru.com,
   booru.bcbnsfw.space, `/post/<id>`) the extension now surfaces the post's original —
   the distinctive `/data/posts/<id>_<hash>.<ext>` file the Vue SPA can otherwise hide
