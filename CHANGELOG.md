@@ -7,6 +7,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **imgpile posts.** On an imgpile post page (`imgpile.com/p/<slug>`) the extension now
+  surfaces every image/video in the post — each `post-media` block's `<a href>`
+  full-resolution original — read straight from the page. Network-free; a post with no
+  accessible media shows nothing (fails closed).
 - **Simple image hosts.** One shared reader now surfaces the full-resolution original
   from a family of image-host single-image pages — ImageBam, ImageVenue, PixHost,
   ImageTwist/ImageHaha, imgspice, imgpv, picstate, and imgdrive/imgtaxi/imgwallet —
