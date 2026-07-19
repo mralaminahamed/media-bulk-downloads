@@ -10,6 +10,18 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **szurubooru (2026-07-19)** — a network-free page reader (grade **L**, collect.ts
+  host-gated) for szurubooru instances (snootbooru.com, booru.bcbnsfw.space, `/post/<id>`).
+  szurubooru is a Vue SPA with no server-rendered image, but once hydrated the post's original
+  is a distinctive `<host>/data/posts/<id>_<hash>.<ext>` URL; collect.ts reads the first such
+  path (relative or absolute), resolves + same-host-pins it, and classifies by ext — recovering
+  the original the virtualized viewer can hide. A booru-coverage audit (gelbooru_v01/v02,
+  moebooru, philomena, shimmie2, paheal, szuru) found this was the **only** genuinely
+  resolver-worthy gap: e621/rule34/derpibooru/twibooru/sakugabooru/etc. are **already covered**
+  by `sites/booru.ts`, and the other uncovered engines are **free-rides** — the post `<img>` on
+  `*.booru.org` (gelbooru_v01), `rule34.paheal.net`→`paheal-cdn.net` (paheal), and the shimmie2
+  sites is **already the original**, collected directly by the generic DOM walk (lolibooru rejected
+  by content policy). Core tests +7.
 - ✅ **imgpile (2026-07-19)** — a network-free page reader (grade **L**, collect.ts
   host-gated) for imgpile post pages (`imgpile.com/p/<slug>`): the page renders each file
   in a `post-media` block whose `<a href>` is the full-resolution original, so collect.ts

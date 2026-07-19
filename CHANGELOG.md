@@ -7,6 +7,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **szurubooru posts.** On a szurubooru post page (snootbooru.com,
+  booru.bcbnsfw.space, `/post/<id>`) the extension now surfaces the post's original —
+  the distinctive `/data/posts/<id>_<hash>.<ext>` file the Vue SPA can otherwise hide
+  behind its virtualized viewer — read from the rendered page, same-host-pinned.
+  Network-free; an unrendered/removed post shows nothing (fails closed).
 - **imgpile posts.** On an imgpile post page (`imgpile.com/p/<slug>`) the extension now
   surfaces every image/video in the post — each `post-media` block's `<a href>`
   full-resolution original — read straight from the page. Network-free; a post with no
