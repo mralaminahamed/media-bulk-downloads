@@ -256,6 +256,7 @@ upgrade rules for:
 | Magnific                           | Collapse signed `srcset` widths → single largest rendition |
 | Der Spiegel                        | Signed `srcset` widths → widest same-image rendition (DOM-read) |
 | Onedio                             | Signed `srcset` (`w-<W>`) → widest same-`id` rendition (DOM-read) |
+| News24                             | Strip `/format/<crop>/` → full-resolution bare original |
 | Dailymotion                        | Embeds / links → HLS master via public player metadata |
 | PeerTube (any instance)            | Watch/embed → widest file / HLS master via `/api/v1/videos` (opt-in, host-agnostic) |
 | Booru (Danbooru/Gelbooru/Moebooru) | Post-page DOM → original file (page-gated)           |

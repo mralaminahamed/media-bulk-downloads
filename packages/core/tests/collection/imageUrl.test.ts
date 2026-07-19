@@ -1208,4 +1208,18 @@ describe('image-CDN rule batch (2026-07-16 Tier-1 sweep batch 2)', () => {
     expect(orig('https://image.nostr.build/0746072cb145f1.jpg'))
       .toBe('https://image.nostr.build/0746072cb145f1.jpg');
   });
+
+  it('News24: strips /format/<crop>/ to the full-resolution bare original', () => {
+    // Verified inline 1080x720 93 KB -> bare 4000x2667 1.5 MB; smallThumb 176x176 -> bare 1875x1875.
+    const bare = 'https://news24cobalt.24.co.za/resources/02a6-20e9c1e1b4f7-41e17453e6e5-1000/tl_2580441.jpeg';
+    for (const crop of ['inline', 'smallThumb', 'mediumThumb', 'largeThumb']) {
+      expect(orig(`https://news24cobalt.24.co.za/resources/02a6-20e9c1e1b4f7-41e17453e6e5-1000/format/${crop}/tl_2580441.jpeg`))
+        .toBe(bare);
+    }
+    // Already-bare original -> unchanged (free-ride); the crop segment is the only upgrade.
+    expect(orig(bare)).toBe(bare);
+    // The SVG placeholder / any URL with no /format/ segment is left untouched.
+    expect(orig('https://news24cobalt.24.co.za/resources/0298-1d871305422b-1f344fa39f36-1000/news24.svg'))
+      .toBe('https://news24cobalt.24.co.za/resources/0298-1d871305422b-1f344fa39f36-1000/news24.svg');
+  });
 });

@@ -10,6 +10,17 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **News24 CDN rule (2026-07-19)** — un-deferred from tier-1 batch 2 (#395). Real host
+  `news24cobalt.24.co.za`; images at `/resources/<id>/format/<crop>/<file>`. The batch-2
+  note deferred it believing the `inline`/og rendition was already the largest — a
+  **re-verification disproved that**: dropping the `/format/<crop>/` segment returns the
+  bare full-resolution stored original (crop-name-independent, unsigned), e.g. inline
+  1080×720 93 KB → bare 4000×2667 1.5 MB, and smallThumb 176×176 → 1875×1875. The trailing
+  `-<n>` on the id is an opaque resource marker, not a width (a `-2000` bump 404s), and
+  `/format/original` / `/format/full` don't exist — only the crop-strip works. A CdnRule in
+  `imageUrl.ts` (not a srcset resolver — there is no multi-width srcset; the size lives in
+  the crop name). URLs with no `/format/` segment (SVG placeholder / already-bare) are
+  untouched. Curl-verified live (browser UA; the CDN 403s a bare datacenter fetch).
 - ✅ **PeerTube video resolver (2026-07-19)** — the deferred third of the video batch
   below, now shipped (#419). Host-agnostic across the whole federation, like the
   Mastodon media rule: the collect-side hint carries the canonical
@@ -97,8 +108,9 @@ Resolved (this benchmark drove the fixes):
     the hero is a separately-named file, not suffix-derivable), **UOL** (#389, could not
     sample a real content photo — avatars only), **Onedio** (#391, HMAC-**signed** size
     params — any edit 404s), **Sabq** (#394, `gumlet.assettype.com` 403s datacenter
-    requests — transform unverified), **News24** (#395, `news24cobalt.24.co.za` per-image
-    discrete renditions — the og rendition is already the largest generated).
+    requests — transform unverified), ~~**News24**~~ (#395 — **shipped 2026-07-19**, see the
+    entry above; the batch-2 read that "the og rendition is already the largest" was
+    WRONG — stripping `/format/<crop>/` reaches a ~4× original).
 - ✅ **Fediverse trio (2026-07-16)** — one host-agnostic rule per network in
   `imageUrl.ts` (matched on the media path across any instance, like the Mastodon
   resolver), each curl-verified on live public instances (#406/#410/#411):

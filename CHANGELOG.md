@@ -7,6 +7,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **News24 image originals (tier-1 CDN rule).** On `news24cobalt.24.co.za`, photos are
+  served at `/resources/<id>/format/<crop>/<file>` where `<crop>` (`smallThumb`,
+  `mediumThumb`, `largeThumb`, `inline`, …) is a resized-and-cropped rendition. The
+  extension now drops the `/format/<crop>/` segment to reach the full-resolution stored
+  original — crop-name-independent and unsigned, so nothing is guessed. A displayed
+  `inline` article image (1080×720) resolves to its 4000×2667 original, and a square
+  `smallThumb` (176×176) to the full 1875×1875. URLs with no `/format/` segment (an
+  already-bare original, or the SVG placeholder) are left untouched. (Corrects an earlier
+  read that took the `inline`/og rendition as already-largest — the bare path is ~4× the
+  dimensions; curl-verified.) (#395)
 - **PeerTube videos (opt-in network resolver).** With "Resolve originals" enabled,
   a PeerTube video — the watch page you're on, a player embed, or a link — surfaces a
   pending video that resolves to the widest downloadable file (or an HLS master to
