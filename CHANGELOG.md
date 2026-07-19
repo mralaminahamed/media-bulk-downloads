@@ -7,6 +7,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Lensdump images.** On a Lensdump image page (`lensdump.com/i/<id>`) the extension
+  now surfaces the full-resolution original from the page's `og:image` (validated as a
+  plaintext image on the Lensdump CDN). Network-free; fails closed otherwise.
+- **Motherless media.** On a Motherless media page (`motherless.com/<id>`) the
+  extension now surfaces the file (image/gif/video) from the page's `__fileurl`,
+  pinned to the Motherless CDN. Network-free; a gallery/listing shows nothing (fails
+  closed).
 - **XVideos videos.** On an XVideos watch page (`xvideos.com/video<id>/…`) the
   extension now surfaces the direct mp4 stream, read from the page's own inline
   `html5player.setVideoUrlHigh(...)` call and pinned to the XVideos CDN. Network-free;

@@ -280,6 +280,8 @@ upgrade rules for:
 | Civitai                            | Image URL → un-resized original (`original=true` transform) |
 | XVideos                            | Watch page → direct mp4 stream (`html5player`, page JS) |
 | xHamster                           | Watch page → highest-quality mp4 (`window.initials`, page JS) |
+| Lensdump                           | Image page → full-res original (`og:image`)          |
+| Motherless                         | Media page → file original (`__fileurl`, page JS)    |
 | Arc XP (news publishers)           | Resizer URL → full-size source                      |
 
 …and 50+ more CDN families — see the live [coverage benchmark](./docs/BENCHMARK.md).
@@ -402,6 +404,21 @@ yarn test:e2e:headed   # visible browser
 ## Security
 
 Found a vulnerability? See [SECURITY.md](./SECURITY.md) for private disclosure.
+
+## Acknowledgements
+
+Site-coverage research for many of the platform resolvers — the public media
+endpoints and the URL-match patterns each site uses to expose its media — was
+informed by [**gallery-dl**](https://github.com/mikf/gallery-dl) (via the
+[mralaminahamed/mikf-gallery-dl](https://github.com/mralaminahamed/mikf-gallery-dl)
+fork), an excellent and comprehensive media-download project, and a continuing
+reference as we add support for more sites.
+
+gallery-dl is used **only as a factual reference** — for *how* a site exposes its
+media (endpoints, URL shapes, embedded-JSON keys). It is licensed **GPL-2.0**, and
+**no gallery-dl source code is copied, adapted, or bundled** into this extension;
+every resolver here is an independent implementation. Our thanks to its maintainers
+and contributors.
 
 ## License
 
