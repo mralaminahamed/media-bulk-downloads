@@ -10,6 +10,17 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Lensdump + Motherless (2026-07-19)** — two more network-free page readers (grade
+  **L**, collect.ts host-gated), single clean signal each. **Lensdump** (`/i/<id>`): the
+  image page's `og:image` is the full-res original — read only when it's a plaintext https
+  image on the Lensdump CDN (i*.lensdump.com / l3n.co), else skipped. Not Chevereto, but the
+  same og:image mechanism. **Motherless** (`/<id>`): the file URL is the page's `__fileurl`
+  JS var, pinned to *.motherlessmedia.com and classified by ext (image/gif/video); a
+  gallery/listing has no `__fileurl` → fails closed. This batch also adds a README
+  **Acknowledgements** section crediting gallery-dl (mikf/gallery-dl + the mralaminahamed
+  fork) as the factual reference for site coverage — GPL-2.0, reference-only, no source
+  copied. Deferred: **sex.com** (heterogeneous a-href/`<source>`/`player.updateSrc` extraction
+  per pin type — more per-case handling than a single clean signal). Core tests +17.
 - ✅ **XVideos + xHamster (2026-07-19)** — the top-traffic **adult video-tube** gap (the
   #1 by traffic from the original coverage audit). Two network-free page readers (grade
   **L**, collect.ts host-gated) reading the stream URL straight from the watch page's own

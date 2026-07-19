@@ -43,6 +43,8 @@ import { tenorPageMedia } from '@mbd/core/resolvers/sites/tenor';
 import { pexelsPageMedia } from '@mbd/core/resolvers/sites/pexels';
 import { xvideosPageMedia } from '@mbd/core/resolvers/sites/xvideos';
 import { xhamsterPageMedia } from '@mbd/core/resolvers/sites/xhamster';
+import { lensdumpPageMedia } from '@mbd/core/resolvers/sites/lensdump';
+import { motherlessPageMedia } from '@mbd/core/resolvers/sites/motherless';
 import { soundcloudTrackUrl } from '@mbd/core/resolvers/sites/soundcloud';
 import { streamableVideoId } from '@mbd/core/resolvers/sites/streamable';
 import { redgifsVideoId } from '@mbd/core/resolvers/sites/redgifs';
@@ -1202,6 +1204,22 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     // initials / no mp4 source → nothing.
     if (/(?:^|\.)xhamster[0-9]*\.(?:com|desi|one)$/i.test(location.hostname)) {
       for (const cand of xhamsterPageMedia(pageUrl)) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
+
+    // Lensdump image page: the original is the page's `og:image` (plaintext, on the
+    // Lensdump CDN). Host-gated; anything else → nothing.
+    if (/(?:^|\.)lensdump\.com$/i.test(location.hostname)) {
+      for (const cand of lensdumpPageMedia(pageUrl)) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
+
+    // Motherless media page: the file URL is the page's `__fileurl` JS var, pinned to
+    // the Motherless CDN. Host-gated; a gallery/listing (no `__fileurl`) → nothing.
+    if (/(?:^|\.)motherless\.com$/i.test(location.hostname)) {
+      for (const cand of motherlessPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
