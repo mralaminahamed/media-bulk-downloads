@@ -43,6 +43,7 @@ import { tenorPageMedia } from '@mbd/core/resolvers/sites/tenor';
 import { pexelsPageMedia } from '@mbd/core/resolvers/sites/pexels';
 import { xvideosPageMedia } from '@mbd/core/resolvers/sites/xvideos';
 import { xhamsterPageMedia } from '@mbd/core/resolvers/sites/xhamster';
+import { pornhubPageMedia } from '@mbd/core/resolvers/sites/pornhub';
 import { lensdumpPageMedia } from '@mbd/core/resolvers/sites/lensdump';
 import { motherlessPageMedia } from '@mbd/core/resolvers/sites/motherless';
 import { imagehostsPageMedia, isImageHost } from '@mbd/core/resolvers/sites/imagehosts';
@@ -1207,6 +1208,16 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     // initials / no mp4 source → nothing.
     if (/(?:^|\.)xhamster[0-9]*\.(?:com|desi|one)$/i.test(location.hostname)) {
       for (const cand of xhamsterPageMedia(pageUrl)) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
+
+    // Pornhub watch/embed page: the inline `flashvars_<id>` object holds an HLS
+    // master (`mediaDefinitions[].videoUrl` → master.m3u8 on *.phncdn.com) that
+    // carries every rendition. Surface it (host-pinned), routed through HLS capture.
+    // Host-gated; the mp4 `get_media` entry / obfuscated / paid pages → nothing.
+    if (/(?:^|\.)pornhub\.com$/i.test(location.hostname)) {
+      for (const cand of pornhubPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
