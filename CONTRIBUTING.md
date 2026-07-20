@@ -49,7 +49,10 @@ runs the package projects (merged coverage) then the app suite.
 ## Proposing a change
 
 1. Branch off `main` (`feat/…`, `fix/…`, `docs/…`, `chore/…`).
-2. Keep the change focused. Match the surrounding code's style and comment density.
+2. Keep the change focused and match the surrounding code's style. Keep comments
+   **minimal** — the code should read for itself; reserve them for JSDoc on real
+   API surfaces and functional directives (`eslint-disable`, `@ts-*`). Don't add
+   verbose multi-line `//` "why" blocks.
 3. Make sure all four checks above pass.
 4. Open a PR describing **what** changed and **why**, and how you verified it.
 
