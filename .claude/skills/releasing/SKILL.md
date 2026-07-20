@@ -32,6 +32,25 @@ Convention here: bump version + CHANGELOG on a branch → PR → merge to main �
 tag the merge commit. Manual store uploads (step 5) are still done by hand except
 Chrome, which the tag can auto-publish (below).
 
+Store status: Chrome / Firefox (AMO) / Edge are **live**; Opera and Safari are
+**submitted, under review**.
+
+## Safari (Mac App Store) — separate flow
+
+Safari is **not** in `zip:all`/`build:all`. It ships as a native macOS app wrapping
+the extension, built on macOS only:
+
+```bash
+corepack yarn build:safari        # → apps/extension/.output/safari-mv3
+./apps/safari-native/convert.sh   # safari-web-extension-converter → Xcode project
+```
+
+Then sign + submit through Xcode / App Store Connect (needs an Apple Developer
+account). The Safari manifest drops `downloads`/`offscreen` + optional
+`notifications`/DNR; the `@mbd/platform` seam supplies the fallbacks, and MAIN-world
+sniffers are inert (DOM-only collection). Full runbook + caveats:
+`docs/store-submissions/SAFARI_APPSTORE.md`, `apps/safari-native/README.md`.
+
 ## Automated release (`.github/workflows/release.yml`)
 
 Pushing a `vX.Y.Z` tag runs three jobs:
@@ -131,21 +150,26 @@ extension declares `['none']`).
 
 The full submission package — paste-ready name/summary/description, category,
 per-permission justifications, privacy/data disclosures, screenshot specs — lives
-in `docs/store-submissions/CHROME_WEBSTORE.md`. Privacy policy: `PRIVACY.md` (hosted at the repo's
-public URL). Screenshots: 1280×800 or 640×400, 24-bit PNG, no alpha (there's a
-`assets/v1/screenshot-1280x800.png`). Other Chromium browsers (Brave/Opera/Vivaldi)
-use the Chrome zip.
+in `docs/store-submissions/CHROME_WEBSTORE.md` (and the per-store siblings
+`EDGE_ADDONS.md`, `FIREFOX_AMO.md`, `OPERA_ADDONS.md`, `SAFARI_APPSTORE.md`).
+Privacy policy: `PRIVACY.md` (hosted at the repo's public URL). Screenshots: seven
+1280×800 24-bit PNGs (no alpha) — `assets/v2/screenshot-1-…-1280x800.png` through
+`-7-…`; Opera also wants `assets/v2/opera-promo-300x188.png`. Other Chromium
+browsers (Brave/Opera/Vivaldi) use the Chrome zip.
 
 ## References
 
-- Submission package (this repo) — `docs/store-submissions/CHROME_WEBSTORE.md`, `PRIVACY.md`, `CHANGELOG.md`
-- Release workflow (this repo) — `.github/workflows/release.yml`
+- Submission packages (this repo) — `docs/store-submissions/{CHROME_WEBSTORE,EDGE_ADDONS,FIREFOX_AMO,OPERA_ADDONS,SAFARI_APPSTORE}.md`, `PRIVACY.md`, `SECURITY.md`, `CHANGELOG.md`
+- Safari wrapper (this repo) — `apps/safari-native/README.md`, `apps/safari-native/convert.sh`
+- Release workflow (this repo) — `.github/workflows/release.yml`; manifest source `apps/extension/wxt.config.ts`
 - WXT publishing / zip — https://wxt.dev/guide/essentials/publishing
 - Chrome Web Store publishing — https://developer.chrome.com/docs/webstore/publish
 - Chrome Web Store **API** (endpoints + OAuth) — https://developer.chrome.com/docs/webstore/using-api
 - Google OAuth Playground (mint the refresh token) — https://developers.google.com/oauthplayground/
 - Edge Add-ons submission — https://learn.microsoft.com/en-us/microsoft-edge/extensions-chromium/publish/publish-extension
 - Firefox AMO submission — https://extensionworkshop.com/documentation/publish/submitting-an-add-on/
+- Safari web extensions (convert + distribute) — https://developer.apple.com/documentation/safariservices/safari-web-extensions ·
+  App Store Connect — https://developer.apple.com/help/app-store-connect/
 - Semantic Versioning — https://semver.org/
 - Permissions — declare https://developer.chrome.com/docs/extensions/develop/concepts/declare-permissions ·
   list https://developer.chrome.com/docs/extensions/reference/permissions-list ·

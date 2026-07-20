@@ -30,9 +30,13 @@ IndexedDB is the durable backstop.
    it backfills missing fields for old users and **guards nested objects**
    (`bubblePosition`, `bubblePanelPoint`) so a corrupt non-object value can't inject
    junk keys. Keep new nested objects guarded the same way.
-3. The popup **owns writing settings** (`App.handleSettingsChange` →
-   `storage.sync.set`); everything else reads. The background and bubble react via
-   `storage.onChanged`.
+3. **All settings writes go through the background** (single writer). The popup and
+   bubble send `SET_SETTINGS` (`useSettings.handleSettingsChange`) — they never call
+   `storage.sync.set` directly; the background sanitizes + writes it (`state.ts`),
+   then pushes `SETTINGS_CHANGED` to content scripts. The popup reacts via
+   `storage.onChanged`; the **bubble reacts to the `SETTINGS_CHANGED` push** and reads
+   its initial settings via `GET_SETTINGS` — Safari content scripts don't reliably
+   see sync writes or `storage.onChanged`. (Per-host overrides: `SET_PER_HOST_SETTINGS`.)
 4. Validate/clamp in the UI (Settings inputs clamp numbers on blur) and hide
    dependent fields when they don't apply.
 
@@ -93,11 +97,19 @@ detection, never treat "browser doesn't know this id" as "deleted".
 
 ## References
 
-- Settings + history source (this repo) — `packages/storage/src/settings.ts`,
-  `packages/storage/src/history.ts`, `packages/storage/src/idb.ts`,
-  `packages/storage/src/sync.ts`, `packages/core/src/types.ts`
-- Store guides (this repo) — `docs/guides/history.md`, `docs/guides/favourites.md`
+- Storage source (this repo) — `packages/storage/src/`: `settings.ts`, `history.ts`,
+  `favourites.ts`, `excluded.ts`, `download-queue.ts`, `byte-budget.ts`,
+  `per-host-settings.ts`, `per-host-scan-memory.ts`, `backup.ts`, `save-as-hint.ts`,
+  `idb.ts`, `sync.ts`; types in `packages/core/src/types.ts`
+- Settings write path (this repo) — `apps/extension/src/extension/popup/hooks/useSettings.ts`
+  (sends `SET_SETTINGS`), `.../background/state.ts` (the single sync writer +
+  `SETTINGS_CHANGED` push), `.../background/message-router.ts` (`SET_SETTINGS` /
+  `SET_PER_HOST_SETTINGS` / `RESTORE_DATA` handlers)
+- Package overview (this repo) — `packages/storage/README.md`
+- Store guides (this repo) — `docs/guides/history.md`, `docs/guides/favourites.md`;
+  message catalog + data model `docs/guides/architecture.md`
 - idb-keyval — https://github.com/jakearchibald/idb-keyval
+- IndexedDB — https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API
 - StorageManager.persist() — https://developer.mozilla.org/en-US/docs/Web/API/StorageManager/persist
 - chrome.storage — https://developer.chrome.com/docs/extensions/reference/api/storage
 - sync vs local (quotas) — https://developer.chrome.com/docs/extensions/reference/api/storage#storage-areas
