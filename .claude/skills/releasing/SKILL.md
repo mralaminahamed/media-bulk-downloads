@@ -67,41 +67,18 @@ Pushing a `vX.Y.Z` tag runs three jobs:
 The GitHub Release always works; the Chrome publish depends on credentials being
 right (below). Edge/Firefox/Opera stay manual — grab their zips from the Release.
 
-## Chrome Web Store API publishing (the auth reality)
+## Chrome Web Store API publishing
 
-We call the API directly (`developer.chrome.com/docs/webstore/using-api`):
+`publish-chrome` calls the CWS API directly with `curl` — the **v1.1 item-scoped**
+endpoint (needs only `CHROME_EXTENSION_ID`, no publisher id): OAuth token → `PUT`
+upload → `POST` publish. Four secrets, all a **matched set from one "Web
+application" OAuth client**: `CHROME_CLIENT_ID`, `CHROME_CLIENT_SECRET`,
+`CHROME_REFRESH_TOKEN`, `CHROME_EXTENSION_ID`.
 
-1. OAuth token: `POST https://oauth2.googleapis.com/token` with
-   `client_id`/`client_secret`/`refresh_token`/`grant_type=refresh_token`.
-2. Upload (**v1.1, item-scoped — needs only the item id, no publisher id**):
-   `PUT https://www.googleapis.com/upload/chromewebstore/v1.1/items/<ITEM_ID>`,
-   header `x-goog-api-version: 2`. Success ⇒ `uploadState: "SUCCESS"`.
-3. Publish: `POST https://www.googleapis.com/chromewebstore/v1.1/items/<ITEM_ID>/publish`.
-
-We deliberately use the **v1.1 item endpoint**, not the newer **v2
-publisher-scoped** one (`chromewebstore.googleapis.com/upload/v2/publishers/<PUBLISHER_ID>/items/<ID>:upload`)
-that `chrome-webstore-upload` v6 switched to — v2 adds a `publisherId` and a
-publisher-authorization failure mode we don't need.
-
-**Credential setup that actually works** (all three secrets must be a *matched
-set from one client*): `CHROME_CLIENT_ID`, `CHROME_CLIENT_SECRET`,
-`CHROME_REFRESH_TOKEN`, plus `CHROME_EXTENSION_ID`.
-- The OAuth client must be type **"Web application"**, with redirect URI
-  `https://developers.google.com/oauthplayground`.
-- Enable the **Chrome Web Store API** in that Google Cloud project.
-- Mint the refresh token in the [OAuth Playground](https://developers.google.com/oauthplayground/)
-  (gear → use your own client id/secret) with scope
-  `https://www.googleapis.com/auth/chromewebstore`, signed in as the account that
-  **owns** the item.
-
-### Error → cause
-
-| Error (where) | Cause / fix |
-|---|---|
-| `Option "publisherId" is required` (cli) | `chrome-webstore-upload-cli@4` → lib v6 uses the v2 publisher-scoped API. We avoid it by calling v1.1 item-scoped with curl. |
-| `invalid_grant` (token step) | Refresh token expired or revoked (test-mode-consent tokens expire fast). Regenerate it. |
-| `unauthorized_client` (token step) | `CLIENT_ID`/`CLIENT_SECRET` don't match the client that issued the refresh token, **or** the client isn't a "Web application". Regenerate all three as a matched set from one Web-application client. |
-| `Unauthorized` (upload step) | The token is valid but the account isn't authorized for the item: it must **own** the item, the Chrome Web Store API must be **enabled**, and after any Developer-Dashboard change you must **publish manually once** before the API will publish. |
+Full setup — minting the refresh token step by step, the v1.1-vs-v2 rationale, and
+the `invalid_grant` / `unauthorized_client` / `Unauthorized` / `publisherId` error
+catalog — is in **`references/chrome-webstore-api.md`**. Re-publish the current
+version without a new tag: `gh workflow run release.yml --ref <branch>`.
 
 ## Permissions & privacy (keep in sync with the store justifications)
 
@@ -162,6 +139,7 @@ browsers (Brave/Opera/Vivaldi) use the Chrome zip.
 - Submission packages (this repo) — `docs/store-submissions/{CHROME_WEBSTORE,EDGE_ADDONS,FIREFOX_AMO,OPERA_ADDONS,SAFARI_APPSTORE}.md`, `PRIVACY.md`, `SECURITY.md`, `CHANGELOG.md`
 - Safari wrapper (this repo) — `apps/safari-native/README.md`, `apps/safari-native/convert.sh`
 - Release workflow (this repo) — `.github/workflows/release.yml`; manifest source `apps/extension/wxt.config.ts`
+- **CWS API deep-dive** (this skill) — `references/chrome-webstore-api.md` (OAuth setup, token minting, error catalog)
 - WXT publishing / zip — https://wxt.dev/guide/essentials/publishing
 - Chrome Web Store publishing — https://developer.chrome.com/docs/webstore/publish
 - Chrome Web Store **API** (endpoints + OAuth) — https://developer.chrome.com/docs/webstore/using-api
