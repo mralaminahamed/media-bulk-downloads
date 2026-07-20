@@ -385,12 +385,10 @@ const App: React.FC<AppProps> = ({
         </div>
       </header>
 
-      {/* Filters */}
       {hasImages && !state.isLoading && (
         <FilterToolbar onFilterChange={handleFilterChange} extensionSettings={perHost.effective} available={availableFilterOptions} initialFilters={filterSeed} nearDuplicateCount={nearDuplicateCount} />
       )}
 
-      {/* Body */}
       <main className="scroll-thin mbd:flex-1 mbd:overflow-y-auto mbd:px-4 mbd:py-3">
         {state.isLoading ? (
           <SkeletonGrid thumbnailSize={settings.thumbnailSize} />
@@ -437,7 +435,6 @@ const App: React.FC<AppProps> = ({
         <StreamHandoff key={`${streamRefusal.item.src}:${streamRefusal.code}`} refusal={streamRefusal} onDismiss={() => setStreamRefusal(null)} />
       )}
 
-      {/* Action bar */}
       {hasImages && !state.isLoading && (
         <footer className="mbd:flex mbd:items-center mbd:justify-between mbd:gap-3 mbd:border-t hairline mbd:bg-(--panel) mbd:px-4 mbd:py-2.5">
           <div className="mbd:flex mbd:min-w-0 mbd:flex-1 mbd:items-center mbd:gap-2">
