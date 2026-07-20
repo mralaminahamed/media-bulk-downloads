@@ -183,6 +183,41 @@ the only message that reaches an external host (see
 The message string and type unions live in `packages/core/src/types.ts`
 (`ChromeMessage`).
 
+### Stream capture flow
+
+The one flow that spans three realms — popup, background, and the offscreen
+document — and runs to completion independent of the popup:
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant UI as Popup / Bubble
+  participant BG as Background (SW)
+  participant OFF as Offscreen doc
+  participant CDN as Stream host / CDN
+  participant DL as chrome.downloads
+
+  UI->>BG: CAPTURE_STREAM { runId, item, sourcePage }
+  Note over BG: create the shared offscreen doc if absent
+  BG->>OFF: CAPTURE_RUN { runId, manifestUrl, engine, quality, maxBytes }
+
+  OFF->>CDN: fetch manifest + chosen variant playlist
+  loop each segment (bounded by maxBytes)
+    OFF->>CDN: fetch segment
+    CDN-->>OFF: bytes (AES-128 decrypted if keyed)
+    OFF-->>UI: CAPTURE_PROGRESS { runId, done, total } (broadcast)
+  end
+  Note over OFF: mux + assemble into one .ts / .mp4 / .m4a in memory
+
+  OFF-->>BG: CAPTURE_RUN response (assembled bytes)
+  BG->>DL: chrome.downloads.download(blob)
+  DL-->>BG: downloadId
+  BG-->>UI: CAPTURE_STREAM { status } (final; the popup may already be closed)
+```
+
+`CAPTURE_RUN` and `CAPTURE_PROGRESS` are internal to this pipeline; only
+`CAPTURE_STREAM` is part of the popup-facing `ChromeMessage` union.
+
 ## Data model
 
 `collectMedia()` returns `MediaItem[]` (`MediaItem = ImageInfo`):
