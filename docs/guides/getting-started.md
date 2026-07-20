@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Node 20.19 or newer. `.nvmrc` pins 22.
-- Yarn 4 through Corepack. The repo pins `yarn@4.17.0` via `packageManager`.
+- Yarn 4 through Corepack. The repo pins `yarn@4.17.1` via `packageManager`.
 - A Chromium browser (Chrome or Edge) and/or Firefox 140+.
 
 ```bash
@@ -11,8 +11,8 @@ corepack enable
 yarn install
 ```
 
-Every script runs through Corepack Yarn. Do not use npm. WXT builds all three
-browser targets (Chrome, Firefox, Edge) from one codebase.
+Every script runs through Corepack Yarn. Do not use npm. WXT builds all four
+browser targets (Chrome, Firefox, Edge, Safari) from one codebase.
 
 ## Develop
 
@@ -86,9 +86,10 @@ Stored in `chrome.storage.sync`. The Settings sheet has four tabs.
 - **Minimum image size** in px (0–10000, default 0).
 - **Exclude Base64 images** (off) and **Exclude emoji** (off).
 - **Resolve exact originals (network requests)** (off). When on, the background
-  fetches a hinted item's exact original from one of 10 supported hosts:
-  Twitter/X, Wallhaven, Unsplash, Vimeo, Dailymotion, Bluesky, Pinterest,
-  Reddit, Flickr, ArtStation. See [Resolve Originals](./resolve-originals.md).
+  fetches a hinted item's exact original from one of ~20 supported hosts
+  (Twitter/X, Wallhaven, Unsplash, Vimeo, Dailymotion, Bluesky, Pinterest, Reddit,
+  Flickr, ArtStation, SoundCloud, Twitch, Loom, PeerTube, and more). See
+  [Resolve Originals](./resolve-originals.md) for the full list.
 - **Capture video streams (HLS & DASH)** (off). Surfaces `.m3u8` and `.mpd`
   streams as capture items.
 - **Smart page defaults** (on), **Remember scan behaviour per site** (on),

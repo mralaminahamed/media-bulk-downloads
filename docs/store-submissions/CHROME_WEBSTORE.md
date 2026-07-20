@@ -25,12 +25,13 @@ Version at time of writing: **1.2.0** · Manifest **V3**.
 - [ ] `apps/extension/.output/media-bulk-downloads-<version>-chrome.zip` produced by `yarn zip`.
 - [ ] Single-purpose description, permission justifications, and data disclosures filled in (below).
 
-> **Updating the existing listing (1.2.0 over the live 1.1.0):** 1.2.0 adds the
-> optional `declarativeNetRequestWithHostAccess` permission (the hotlink-403 Referer
-> retry) on top of the 1.1.0 permission set (`contextMenus`, `offscreen`, optional
-> `notifications`). Added permissions trigger a fuller re-review; the optional ones
-> are requested at runtime, so they don't re-prompt existing users on update — fill
-> a justification for each new permission (§4) before submitting.
+> **Adding permissions on an update:** the live listing is **1.2.0**. That release
+> (1.1.0 → 1.2.0) added the optional `declarativeNetRequestWithHostAccess` permission
+> (the hotlink-403 Referer retry) on top of the 1.1.0 permission set (`contextMenus`,
+> `offscreen`, optional `notifications`). Any update that adds a permission triggers a
+> fuller re-review; the optional ones are requested at runtime, so they don't
+> re-prompt existing users on update — fill a justification for each new permission
+> (§4) before submitting.
 
 ---
 

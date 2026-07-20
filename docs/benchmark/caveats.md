@@ -15,4 +15,5 @@
 - This measures **discovery + URL upgrading**. §A is network-free (a rewritten
   original isn't fetched during collection); §A-2 additionally loaded each
   rewritten URL to confirm it resolves and is larger. Phase-2 opt-in resolution
-  (Twitter mp4, Wallhaven ext, Unsplash `/download`) runs only when enabled.
+  (e.g. Twitter mp4, Wallhaven ext, Unsplash `/download`, and ~20 other opt-in
+  hosts) runs only when enabled.

@@ -4,10 +4,12 @@ Safari Web Extensions are distributed as a native macOS (and optionally iOS) app
 that hosts the extension, submitted through the **Mac App Store**. This is a
 different pipeline from the Chrome/Edge/Firefox/Opera zip uploads.
 
-> Status: the extension **code** targets Safari (`yarn build:safari` +
-> `apps/safari-native/`), but the native wrapper, signing, and submission require
-> **macOS + Xcode + an Apple Developer account** and have not been run. Treat
-> this as the runbook, not a completed release.
+> Status: the Safari build ships — the extension targets Safari via
+> `yarn build:safari` + the `@mbd/platform` seam, the native wrapper is generated
+> and built under `apps/safari-native/`, and the macOS app has been **submitted to
+> the Mac App Store and is under review** (not yet live). Building, signing, and
+> submitting require **macOS + Xcode + an Apple Developer account**; keep this as
+> the runbook for reproducing the wrapper and shipping updates.
 
 ## Prerequisites
 

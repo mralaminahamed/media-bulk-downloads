@@ -58,5 +58,5 @@
   row that is ✅ across image **and** video capture **and** in-page UX **and** local/open-source/free.
 - The honest ceilings: **DRM and YouTube video are ❌ for every consumer tool here** (see the video
   doc). The CLIs beat everyone on **breadth of site-aware extractors and metadata** (1,800 / 300+ vs
-  our ~20 resolvers). Those are the two fronts where we are genuinely behind — by design on the first,
+  our ~60 resolvers). Those are the two fronts where we are genuinely behind — by design on the first,
   by scope on the second.

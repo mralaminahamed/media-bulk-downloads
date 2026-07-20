@@ -309,11 +309,14 @@ Resolved (this benchmark drove the fixes):
     free-ride). Verified /thumb/ 9 KB → 82 KB.
   - **Catbox** (#422) — free-ride: `files.catbox.moe/<id>.<ext>` is always the raw
     upload (no thumbnail/resize variants exist), so it needs no rule — just recognition.
-  - Deferred from this batch: **Der Spiegel** (#380, per-image width whitelist — needs
-    srcset reading, not a strip), **Pinkvilla** (#382, `-sq` crop is already full-res;
+  - Deferred from this batch: ~~**Der Spiegel**~~ (#380 — **shipped 2026-07-18 as a DOM
+    `srcset` resolver**: reads the signed `srcset` widths already in the page and picks
+    the widest same-image rendition — the "needs srcset reading, not a strip" note was
+    exactly that re-scope), **Pinkvilla** (#382, `-sq` crop is already full-res;
     the hero is a separately-named file, not suffix-derivable), **UOL** (#389, could not
-    sample a real content photo — avatars only), **Onedio** (#391, HMAC-**signed** size
-    params — any edit 404s), ~~**Sabq**~~ (#394 — **resolved 2026-07-19 as a free-ride**, see
+    sample a real content photo — avatars only), ~~**Onedio**~~ (#391 — **shipped 2026-07-18
+    as a DOM `srcset` resolver**: the HMAC-signed size params can't be edited, so it reads
+    the widest same-`id` `w-<W>` rendition already in the page), ~~**Sabq**~~ (#394 — **resolved 2026-07-19 as a free-ride**, see
     the entry above; the site has since migrated off Gumlet/Quintype and serves
     already-original media), ~~**News24**~~ (#395 — **shipped 2026-07-19**, see the
     entry above; the batch-2 read that "the og rendition is already the largest" was

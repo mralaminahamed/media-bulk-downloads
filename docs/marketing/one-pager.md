@@ -2,14 +2,14 @@
 
 **Grab every image, video, and audio file on a page — at original quality — in one click. Private by default.**
 
-A cross-browser (Chrome · Edge · Firefox · Opera) Manifest V3 extension that turns any web page into a clean, filterable gallery of its media, then downloads what you pick — or everything — with the originals, not the thumbnails.
+A cross-browser (Chrome · Edge · Firefox · Safari) Manifest V3 extension that turns any web page into a clean, filterable gallery of its media, then downloads what you pick — or everything — with the originals, not the thumbnails.
 
 ---
 
 ## What it does
 
 - **One-click collection.** Opens a live preview of every image, video, and audio file on the current page — including lazy-loaded, `srcset`, `<picture>`, CSS-background, and shadow-DOM media a right-click would miss.
-- **Original quality, automatically.** Recognizes the size/resize patterns of **60+ major image hosts and CDN families** and rewrites a thumbnail to its full-resolution original before you download.
+- **Original quality, automatically.** Recognizes the size/resize patterns of **50+ major image hosts and CDN families** and rewrites a thumbnail to its full-resolution original before you download.
 - **Bulk or precise.** Download a single item, a filtered set (by type, format, dimensions, or size), or the whole page. A resilient queue handles large batches and resumes cleanly.
 - **Stream capture.** Assembles HLS/DASH video and audio streams into a single downloadable file.
 - **Stays organized.** Custom folder templates, filename modes, download history, and a favourites list.
@@ -36,12 +36,12 @@ An open, reproducible [collection benchmark](../BENCHMARK.md) injects the extens
 
 | | |
 |---|---|
-| **Platforms** | Chrome, Edge, Opera, Firefox 109+ (Manifest V3) |
+| **Platforms** | Chrome, Edge, Firefox 140+, Safari (Manifest V3) |
 | **Media types** | Images (incl. `srcset`/`<picture>`/CSS backgrounds), video, audio, HLS/DASH streams |
 | **Privacy** | Network-free by default · no tracking · no account · no data collection |
 | **Filters** | Type, format, dimensions, size, include/exclude inline (Base64) |
 | **Extras** | Download queue, history, favourites, custom folder/filename templates, on-page bubble |
-| **Price** | — |
+| **Price** | Free · open source (MIT) |
 
 ---
 

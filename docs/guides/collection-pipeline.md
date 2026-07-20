@@ -182,15 +182,18 @@ suffix matches the URL's hostname (kept in `REGISTRY` order), appends the
 host-agnostic resolvers (those with no `hosts`), runs each one's `match()` to
 confirm, and returns the first non-empty `MediaCandidate[]`.
 
-`REGISTRY` has **18 entries** — 17 dedicated resolvers plus the generic
+`REGISTRY` has **31 entries** — 30 dedicated resolvers plus the generic
 catch-all — in this order:
 
 `twitter → instagram → facebook → threads → unsplash → wallhaven → behance →
-bsky → pinterest → reddit → flickr → artstation → magnific → arcxp → youtube →
-mastodon → booru → generic`
+bsky → pinterest → reddit → flickr → artstation → pixiv → magnific → arcxp →
+youtube → mastodon → booru → zerochan → wallpaperscraft → sankaku → postimages →
+fourchan → foolfuuka → pikabu → wallpaperHosts → xiaohongshu → spiegel → onedio →
+animePictures → generic`
 
-Five are host-agnostic (no `hosts`, always tried as a fallback in registry
-order): `arcxp`, `youtube`, `mastodon`, `booru`, `generic`. `genericResolver`
+Several are host-agnostic (no `hosts`, always tried as a fallback in registry
+order): `arcxp`, `youtube`, `mastodon`, `booru`, and `generic` among them.
+`genericResolver`
 matches everything (`match: () => true`), so it always fires last — either as
 the real handler for an unrecognized host, or as the fallback when a dedicated
 resolver claimed the host but returned `[]` for that particular path.
