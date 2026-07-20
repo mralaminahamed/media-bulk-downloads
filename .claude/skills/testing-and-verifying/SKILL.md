@@ -15,6 +15,18 @@ setup, and alias. The EXTENSION app's config is `apps/extension/vitest.config.ts
 `apps/extension/src/` under `apps/extension/tests/` (and each package mirrors its
 own `src/` under `tests/`). Run: `yarn test` (root, all projects + coverage).
 
+## Two suites + the gate
+
+- **Unit / integration** (this skill's focus): `yarn test` — package projects
+  (merged coverage) then the app suite (~3000 tests total).
+- **End-to-end** (Playwright, real Chromium, drives the on-page bubble):
+  `yarn test:e2e` / `:e2e:headed` — it `wxt build`s first, then loads the built
+  extension. Specs/fixtures/pages under `apps/extension/tests/e2e/` (see its
+  README). **Not** part of the default `yarn test`.
+- **Check the REAL exit code.** Piping a gate through `tail`/`grep` reports the
+  pipeline's status, not tsc/eslint/vitest's — a failure reads as "looks fine".
+  Capture to a file + `echo $?`, or use `${PIPESTATUS[0]}`.
+
 ## Mocking chrome
 
 - `apps/extension/tests/unit/setupTests.ts` provides a global `chrome` mock (storage,
@@ -30,6 +42,9 @@ own `src/` under `tests/`). Run: `yarn test` (root, all projects + coverage).
   before asserting `chrome.downloads.download` was called.
 - Callback-form APIs (`chrome.storage.sync.get(keys, cb)`) →
   `mockImplementation((_k, cb) => cb({ settings: {...} }))`.
+- `chrome.permissions.request`'s callback **never fires** in headless e2e — test
+  the grant/deny branches at the **unit** layer (mock the callback); don't assert
+  the permission prompt in e2e.
 
 ## What good tests look like here
 
@@ -58,6 +73,12 @@ harness measured via the DOM:
    via the javascript tool — precise for sizing/color, and works even when the
    screenshot idle-wait fails. Clean up the server + scratch dir after.
 
+⚠️ The offscreen automation tab **won't composite CSS animation / rAF** and
+**won't decode images** (`img.complete=false`, `naturalWidth=0`, screenshots time
+out). For animated or image content, verify by **DOM state** — classes, computed
+style, geometry, element/URL presence — never by frames or pixels. (This is why
+the sizing bug below was caught by measurement, not a screenshot.)
+
 This is how the filter-control sizing bug was found (the Type dropdown measured
 428×34 instead of 120×28 — a component class defined after Tailwind was
 overriding its `h-`/`w-` utilities, fixable only with an inline `style`).
@@ -71,12 +92,16 @@ strings from any sample output (the safety filter blocks raw tokens). Record in
 
 ## References
 
-- Test config (this repo) — root `vitest.config.ts` (projects), `apps/extension/vitest.config.ts`, `apps/extension/tests/unit/setupTests.ts` (the chrome mock)
+- Test config (this repo) — root `vitest.config.ts` (projects), `apps/extension/vitest.config.ts`,
+  `packages/*/vitest.config.ts`, `apps/extension/tests/unit/setupTests.ts` (the chrome mock)
+- e2e (this repo) — `apps/extension/tests/e2e/README.md`, `apps/extension/playwright.config.ts`
 - WXT unit testing — https://wxt.dev/guide/essentials/unit-testing
 - WXT e2e testing — https://wxt.dev/guide/essentials/e2e-testing
 - Vitest — https://vitest.dev/guide/ · mocking — https://vitest.dev/guide/mocking · `vi` API — https://vitest.dev/api/vi
 - Testing Library (queries by role/label) — https://testing-library.com/docs/queries/about
+- Playwright — https://playwright.dev/docs/intro · Chrome-extension testing — https://playwright.dev/docs/chrome-extensions
 - esbuild (the preview bundler) — https://esbuild.github.io/api/
+- jsdom (the unit env) — https://github.com/jsdom/jsdom
 - Chrome extension debugging — https://developer.chrome.com/docs/extensions/get-started/tutorial/debug
 
 Related skill: `ui-design-system` (the cascade trap behind the sizing bug) —

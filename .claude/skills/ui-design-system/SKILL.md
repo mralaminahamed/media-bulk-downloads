@@ -20,8 +20,9 @@ the very front, before variants and before a negative sign (`mbd:hover:…`,
 `mbd:-mt-1`).
 
 What stays **bare** (author CSS in `index.css`, not utilities — the prefix does not
-apply): the component classes below (`.btn`, `.chip`, `.field`, `.seg`, `.switch`,
-`.card`, `.num`, `.eyebrow`, `.hairline`, `.dotgrid`, `.skeleton`, `.segwrap`, …),
+apply): the component classes below (`.btn`, `.btn-sm`, `.iconbtn`, `.iconbtn-sm`,
+`.donatebtn`, `.chip`, `.field`, `.seg`, `.switch`, `.card`, `.num`, `.eyebrow`,
+`.hairline`, `.dotgrid`, `.skeleton`, `.segwrap`, …),
 the `is-active` state class, and the `group` marker is `mbd:group` (it anchors the
 prefixed `mbd:group-hover:*` variants — write it prefixed too).
 
@@ -48,7 +49,9 @@ has no width/height, so `mbd:w-[204px] mbd:h-[28px]` work there).
   `--ink-3` (decorative only — too faint for real text). Lines: `--line`,
   `--line-strong`.
 - Accent (single indigo): `--brand`, `--brand-ink`, `--brand-soft`, `--ring`.
-- Semantic: `--warn` (errors) — separate from the accent.
+- Semantic: `--warn` (errors), and `--donate` / `--donate-ink` / `--donate-soft`
+  (a warm rose, deliberately **off** the indigo ramp — the donate/support control)
+  — both separate from the single accent. Both have a dark-mode override.
 - Scrims (theme-independent dark washes — **never** derive from `--ink`, which
   inverts light↔dark and would whiten a scrim in dark mode): `--overlay` (modals),
   `--scrim` (thumbnail hover). `--ctl-ring` for edges on floating controls (flips
@@ -57,8 +60,12 @@ has no width/height, so `mbd:w-[204px] mbd:h-[28px]` work there).
 
 ## Component heights (for aligning controls on one line)
 
-`.btn` 38 · `.btn-sm` 30 · `.field` 34 · `.chip` 27 · `.seg` 23 (in a `.segwrap`).
-Mixing these on one row looks uneven — normalize with inline height (see trap above).
+`.btn` 38 · `.btn-sm` 30 · `.iconbtn` / `.donatebtn` 32 · `.iconbtn-sm` 28 ·
+`.field` 34 · `.chip` 27 · `.seg` 23 (in a `.segwrap`). Mixing these on one row
+looks uneven — normalize with inline height (see trap above).
+
+`.donatebtn` is the highlighted rose pill (filled `--donate-soft` + solid heart)
+that stands out from the monochrome `.iconbtn` row, vs `.iconbtn` (transparent 32²).
 
 ## Tailwind v4 shorthand (write token utilities this way)
 
@@ -92,12 +99,20 @@ utility carries the `mbd:` prefix — see the prefix section above):
   (`popup/hooks/useDialog.ts`) for focus trap, Escape, focus restore. Scrim uses
   `mbd:bg-(--overlay)`.
 - Respect both themes; the tokens do the work if you use them.
+- **Honor `prefers-reduced-motion`.** Gate any perpetual/looping animation behind
+  `@media (prefers-reduced-motion: no-preference)` and keep the static styling as
+  the fallback (e.g. `.donatebtn`'s heartbeat drops, the rose pill stays).
 
 ## References
 
 - Design tokens + component classes (this repo) — `apps/extension/src/styles/index.css`
+- Surfaces that consume them (this repo) — `apps/extension/src/extension/popup/`,
+  `.../bubble/` (Shadow DOM), `.../components/BrandMark.tsx`
 - Bubble surface guide (this repo) — `docs/guides/bubble.md` (Shadow-DOM host, backdrop)
 - Tailwind CSS v4 — https://tailwindcss.com/docs
+- `prefers-reduced-motion` — https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion
+- CSS `@keyframes` / `animation` — https://developer.mozilla.org/en-US/docs/Web/CSS/animation
+- CSS custom properties (the token layer) — https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_custom_properties
 - Tailwind v4 CSS-variable shorthand & arbitrary values — https://tailwindcss.com/docs/adding-custom-styles#using-arbitrary-values
 - Tailwind v4 theme variables (how `rounded-*` maps to `--radius-*`) — https://tailwindcss.com/docs/theme
 - CSS cascade & specificity (why component classes win) — https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_cascade/Specificity

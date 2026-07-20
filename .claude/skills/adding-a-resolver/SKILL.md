@@ -12,7 +12,30 @@ The collection engine turns a raw URL into `MediaCandidate[]`. Two layers:
    CDN thumbnails to full size), `parseUrlDimensions()`, `detectType()`,
    `looksLikeMediaUrl()`. Add host-agnostic CDN rules here.
 2. **Platform resolvers** — `packages/core/src/resolvers/`. The registry in
-   `index.ts` runs platform resolvers first, then the generic one last.
+   `index.ts` runs platform resolvers first, then the generic one last (31 entries:
+   30 dedicated + `generic`; ~64 modules under `sites/` counting page-readers +
+   network-tier handlers).
+
+## Recon FIRST — is it even worth a resolver?
+
+Before writing anything, **recon-probe the live site** and build only if there's a
+real upgrade path the generic pipeline misses. Most "add site X" ideas die here —
+that is the point (the CDN sweep killed 5 of 8 probed).
+
+- **curl a real post/media URL** and confirm a *bigger* original is reachable;
+  compare bytes (small variant vs candidate original). No bigger reachable file →
+  **close it**, don't build.
+- **The generic pipeline is strong.** `bestSrcsetUrl` already returns the widest
+  `srcset`/`<picture>` candidate and `upgradeToOriginal()` covers ~60 CDN families.
+  If the page's largest *listed* rendition is the biggest that exists, a resolver
+  adds nothing. (Tumblr: each size has its own filename, so an unlisted larger size
+  is unreachable, and the widest `srcset` entry is the CDN cap — generic already
+  wins, so **no resolver**.)
+- **Signed / already-original** URLs can't be upgraded — leave them (running "open,
+  not upgradeable" list: `docs/benchmark/gaps.md`).
+- Prefer a **host-agnostic CDN rule** in `imageUrl.ts` when a plain path/param
+  rewrite curl-verifies bigger; a full resolver only when you must read DOM/JSON.
+  Record the outcome (shipped, or closed + why) in `docs/benchmark/changelog.md`.
 
 ## The Resolver contract (`resolvers/types.ts`)
 
@@ -49,8 +72,15 @@ interface MediaCandidate {
    URL to `https` + the expected host family (`pinnedUrl(url, 'host.com')`) —
    API JSON is untrusted.
 
-## Two things the newer resolvers do differently
+## Three things the newer resolvers do differently
 
+- **Read the widest rendition the page already lists — never fabricate a size.**
+  When a CDN signs each width separately (a dimension rewrite 404s) but the page
+  offers several sizes of the same image, read the element's `srcset` / `<picture>`
+  `<source>`s and return the **widest same-image** rendition, keyed so every width
+  folds to one row. Der Spiegel (`sites/spiegel.ts`) and Onedio (`sites/onedio.ts`)
+  do exactly this — only URLs the page listed, never a downgrade, no network, no
+  rewrite.
 - **Gate on the right host.** `match` usually checks `u.hostname` (the media URL).
   But when the site page and the media CDN are *different* hosts, gate on
   **`ctx.pageUrl`**'s host instead. Booru resolvers
@@ -86,10 +116,22 @@ interface MediaCandidate {
 
 - Collection pipeline (this repo) — `docs/guides/collection-pipeline.md`,
   `docs/guides/resolve-originals.md` (the opt-in network tier), `docs/BENCHMARK.md`
-- Resolver source — `packages/core/src/resolvers/` and `imageUrl.ts`
+- Benchmark detail (this repo) — `docs/benchmark/gaps.md` (open/unupgradeable),
+  `docs/benchmark/changelog.md` (shipped/closed log), `docs/benchmark/coverage-matrix.md`
+- Resolver source — `packages/core/src/resolvers/index.ts` (the `REGISTRY`),
+  `resolvers/sites/*.ts`, `resolvers/network.ts` (Phase-2), `resolvers/sniffers/*`
+  (MAIN-world fetch/XHR extractors), and `collection/imageUrl.ts` (CDN rules)
+- Wiring tests — `packages/core/tests/resolvers/sites/*.test.ts`,
+  `apps/extension/tests/unit/extension/content/collect.test.ts`
+- Acknowledgement policy — README §Acknowledgements: gallery-dl is a **factual
+  reference only** (endpoints / URL shapes); never copy its GPL source
 - URL API — https://developer.mozilla.org/en-US/docs/Web/API/URL
+- `srcset` / responsive images — https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#srcset
 - fetch() (network tier runs in the background worker) — https://developer.mozilla.org/en-US/docs/Web/API/fetch
 - Content scripts read the page DOM — https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts
+- curl (recon-probing originals) — https://curl.se/docs/manpage.html
+- HLS / DASH (stream masters some resolvers return) — https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Streaming
 
-Related skill: `testing-and-verifying` (Vitest patterns + the browser preview
-harness) — optional; this skill stands on its own.
+Related skills: `testing-and-verifying` (Vitest patterns + the browser preview
+harness), `extension-dev` (where a resolver file belongs) — optional; this skill
+stands on its own.

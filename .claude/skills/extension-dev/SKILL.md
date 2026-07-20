@@ -1,6 +1,6 @@
 ---
 name: extension-dev
-description: Develop in this WXT Manifest-V3 yarn-workspaces monorepo — where code lives and the package import boundaries, how to build/dev/zip/load for Chrome/Firefox/Edge, the MV3 pitfalls specific to this repo, how to debug the loaded extension at runtime, and the performance guardrails. Use when deciding which package a new file belongs in, wiring a browser API, resolving a moved-module import, working on entrypoints/manifest/background/content scripts, chasing a bug that reproduces only in the loaded build, or keeping the content script / popup / deep-scan fast.
+description: Develop in this WXT Manifest-V3 yarn-workspaces monorepo — where code lives and the package import boundaries, the repo comment convention, how to build/dev/zip/load for Chrome/Firefox/Edge/Safari, the MV3 pitfalls specific to this repo, how to debug the loaded extension at runtime, and the performance guardrails. Use when deciding which package a new file belongs in, wiring a browser API, resolving a moved-module import, working on entrypoints/manifest/background/content scripts, chasing a bug that reproduces only in the loaded build, or keeping the content script / popup / deep-scan fast.
 ---
 
 # Extension development (WXT · MV3 · monorepo)
@@ -46,6 +46,16 @@ lives in `packages/core`.
 
 Imports use the package name (`@mbd/core/collection/canonical`,
 `@mbd/storage/history`, `@mbd/platform`); inside the app `@/` → `apps/extension/src`.
+
+## Comment convention (this repo)
+
+Keep code **self-documenting — minimal inline comments.** The `//` explanatory
+layer was deliberately stripped repo-wide; don't reintroduce verbose multi-line
+`//` WHY blocks. Keep only: `/** */` JSDoc on real API surfaces, and functional
+directives (`// eslint-disable*`, `// @ts-*`, `// @vitest-environment`, `///`
+references). This overrides CONTRIBUTING's "match the surrounding comment density"
+line. For a bulk strip, use a TypeScript-parser pass over comment trivia — never a
+regex (it would corrupt `//` inside strings/URLs/regex/JSX text).
 
 ## Commands
 
@@ -94,6 +104,17 @@ unpacked: `apps/extension/.output/chrome-mv3` (or `firefox-mv3`). No `dist/`/`re
   `runtime.lastError`, not a throw.
 - **Content-script code-splitting under WXT** bundles the bubble into the content
   script (~300 KB); it only *mounts* when enabled. Don't add eager weight to it.
+- **The bubble surface has no `chrome.tabs`.** The popup and bubble render the same
+  `App`, but the content-script bubble can't call `chrome.tabs.*` (and an `<a>`, not
+  `chrome.tabs.create`, is how it opens a URL). Shared popup/bubble code must guard
+  on `surface` or inject a surface-specific impl — a bare `chrome.tabs` call throws
+  in the bubble.
+- **Content scripts don't get settings from `chrome.storage.sync` directly.** Safari
+  content scripts don't reliably see the popup's sync writes nor fire
+  `storage.onChanged` for them. The bubble asks the background (`GET_SETTINGS`) on
+  load and reacts to the background's `SETTINGS_CHANGED` push (sent after every
+  `SET_SETTINGS` write). All settings writes go through `SET_SETTINGS` → the single
+  background writer (see `storage-and-settings`).
 
 ## Debugging the loaded build
 
@@ -135,7 +156,14 @@ after a manual `yarn build`, hit **Reload ↻** on the extension card.
 ## References
 
 - Monorepo design — `docs/architecture/monorepo-restructure.md`; package manifests
-  `packages/{core,storage,platform}/package.json`, `apps/extension/package.json`
+  `packages/{core,storage,platform}/package.json`, `apps/extension/package.json`;
+  per-package overviews `packages/*/README.md`, `apps/*/README.md`
+- Message catalog + surfaces — `docs/guides/architecture.md` (the `ChromeMessage`
+  table + the stream-capture sequence diagram); the union itself is
+  `packages/core/src/types.ts`
+- Platform seam (per-browser impls) — `apps/extension/src/extension/platform/`
+  (`chrome.ts` / `firefox.ts` / `safari.ts` / `index.ts` / `run-capture.ts`); the
+  contracts are `packages/platform/src/`. Safari packaging: `apps/safari-native/`
 - In-repo guides — `docs/guides/`: `getting-started.md`, `architecture.md`,
   `collection-pipeline.md`, `deep-scan.md`, `download.md`, `download-paths.md`,
   `badge.md`, `bubble.md`, `history.md`, `favourites.md`, `resolve-originals.md`;
@@ -155,6 +183,9 @@ after a manual `yarn build`, hit **Reload ↻** on the extension card.
   action/popup https://developer.chrome.com/docs/extensions/reference/api/action ·
   downloads https://developer.chrome.com/docs/extensions/reference/api/downloads ·
   messaging https://developer.chrome.com/docs/extensions/develop/concepts/messaging ·
+  offscreen https://developer.chrome.com/docs/extensions/reference/api/offscreen ·
+  tabs https://developer.chrome.com/docs/extensions/reference/api/tabs ·
+  content-script `world: MAIN` https://developer.chrome.com/docs/extensions/reference/manifest/content-scripts ·
   debug tutorial https://developer.chrome.com/docs/extensions/get-started/tutorial/debug
 - Firefox — `browser_specific_settings` https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/browser_specific_settings ·
   debugging add-ons https://extensionworkshop.com/documentation/develop/debugging/ ·
