@@ -111,5 +111,7 @@ Playwright e2e setup, and the DOM-measured browser-verify harness, captured in-r
 - jsdom (the unit env) — https://github.com/jsdom/jsdom
 - Chrome extension debugging — https://developer.chrome.com/docs/extensions/get-started/tutorial/debug
 
-Related skill: `ui-design-system` (the cascade trap behind the sizing bug) —
-optional; this skill stands on its own.
+Related skill: `ui-design-system` (the cascade trap behind the sizing bug). Process
+skills (global): `superpowers:test-driven-development` (write the failing test
+first), `superpowers:verification-before-completion` (run the gate + confirm output
+before claiming pass — the real-exit-code rule above is this in practice).

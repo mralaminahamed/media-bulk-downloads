@@ -116,7 +116,7 @@ interface MediaCandidate {
 ## References
 
 **Self-contained (start here — the required data lives in-repo):**
-- `references/recon-and-cdn.md` — the recon-probe recipe, `imageUrl.ts` CDN-rule
+- `references/resolver:recon-and-cdn.md` — the recon-probe recipe, `imageUrl.ts` CDN-rule
   mechanics, URL/`srcset` API essentials, and the host-pin/SSRF pattern.
 - `references/worked-example.md` — a real DOM-`srcset`-widest resolver (Der Spiegel)
   walked through end to end, and when to copy it vs. a CDN rule / page-JSON reader /
@@ -144,5 +144,6 @@ interface MediaCandidate {
 - HLS / DASH (stream masters some resolvers return) — https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Streaming
 
 Related skills: `testing-and-verifying` (Vitest patterns + the browser preview
-harness), `extension-dev` (where a resolver file belongs) — optional; this skill
-stands on its own.
+harness), `extension-dev` (where a resolver file belongs). Process skills (global):
+`superpowers:test-driven-development` (failing test first), `superpowers:systematic-debugging`
+(a wrong "original"), `superpowers:verification-before-completion` (before shipping).

@@ -61,11 +61,21 @@ verify), **ui-design-system** (the `mbd:`-prefixed Tailwind + token/component
 classes). Each skill has self-contained `references/` files carrying the required
 data (external URLs are optional further reading only).
 
+**Global process skills (invoke when they fit — before the work, not after):**
+`superpowers:brainstorming` before building a feature; `superpowers:writing-plans`
+for a multi-step change; `superpowers:test-driven-development` when implementing
+(failing test first — the resolver commands lean on it);
+`superpowers:systematic-debugging` for any bug / test failure / unexpected
+behavior; `superpowers:verification-before-completion` before claiming done or
+shipping (evidence before assertions); `superpowers:requesting-code-review` before
+a merge; `superpowers:using-git-worktrees` for isolated feature work. A repo skill
+sets the domain approach; the process skill sets the method — use both.
+
 ## Commands (`.claude/commands/`)
 
 - **`/ship`** — branch → commit → PR → merge (merge commit, delete branch) → sync.
 - **`/gate`** — the pre-PR gate with real exit codes.
-- **Site support** — `/find-resolver` (search new sites worth supporting →
-  candidates), `/recon <site>` (probe one candidate → build-or-close),
-  `/add-resolver <site>` (build a new one end to end, TDD), `/improve-resolver
+- **Site support** — `/resolver:find` (search new sites worth supporting →
+  candidates), `/resolver:recon <site>` (probe one candidate → build-or-close),
+  `/resolver:add <site>` (build a new one end to end, TDD), `/resolver:improve
   <name>` (audit + fix an existing site/sniffer against the live site).
