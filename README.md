@@ -240,6 +240,13 @@ JSON, signed CDNs, or embeds. A representative selection:
 site, its upgrade mechanism, and how coverage was established — is the
 [**coverage matrix**](./docs/benchmark/coverage-matrix.md).
 
+> **A note on how coverage is verified.** Most sites here were recon'd and
+> validated by **AI agents** — probing the live site, comparing byte sizes, and
+> confirming the upgrade mechanism — rather than exhaustively hand-tested by a
+> person. Sites change their markup and CDNs without notice, so a resolver that
+> worked at validation time can drift. If a site stops resolving correctly,
+> please [open an issue](https://github.com/mralaminahamed/media-bulk-downloads/issues).
+
 ## HLS & DASH stream capture
 
 When a page exposes an adaptive-streaming manifest — **HLS** (`.m3u8`) or **DASH**
