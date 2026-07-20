@@ -220,75 +220,25 @@ Optional (requested only when you turn the feature on, never at install):
 
 ## Supported sites
 
-The engine works on **any website**. On top of the generic pipeline, it ships dedicated
-upgrade rules for:
+The engine works on **any website** through its generic pipeline — `srcset` /
+`<picture>`, de-proxying, and 50+ CDN-family upgrade rules. On top of that it ships
+**dedicated per-site resolvers** for platforms where the original hides behind page
+JSON, signed CDNs, or embeds. A representative selection:
 
-| Site                                | Upgrade                                             |
-|-------------------------------------|-----------------------------------------------------|
-| Wikipedia / Wikimedia / MediaWiki   | `/thumb/` path → original (incl. self-hosted wikis) |
-| YouTube                             | Embeds / links / thumbnails → `hqdefault` poster (always-present max) |
-| Twitter / X                         | `name=orig` for photos; video-poster recognition    |
-| Vimeo                               | Embeds / links → direct progressive MP4 (via config) |
-| Reddit                             | Gallery `<a href>` → direct `i.redd.it` original    |
-| Unsplash                           | Strip resize params → native-format master          |
-| Flickr                             | Size suffix → largest keyless rendition (`_k` / `_6k`) via `/sizes/` |
-| Pinterest                          | `/NNNx/` → `/originals/`                            |
-| Shopify stores                     | Drop `?width=` size queries                         |
-| WordPress (self-hosted)            | `/wp-content/uploads/` resize + `-WxH` → original   |
-| Google (Photos, Blogger)           | `=s88-…` → `=s0`                                    |
-| Adobe Scene7 (Target, REI, …)      | `?wid=` → large rendition                           |
-| ArtStation                         | Size bucket (`medium`, …) → `/large/`               |
-| Pixiv                              | Artwork page → original master (`i.pximg.net`, Referer-gated) |
-| Behance                            | `/project_modules/<size>/` → `/source/` (DOM-aware) |
-| Amazon / eBay / Etsy / Walmart / Newegg | Strip size tokens → full product image         |
-| DeviantArt (wixmp)                 | Decode token cap → largest within-cap render        |
-| imgur / Dribbble / AliExpress      | Strip thumbnail suffix → original                   |
-| BBC / NYT                          | Size token → largest editorial crop                 |
-| IKEA / StockSnap / Zillow          | Size query/token → largest preset                   |
-| Next.js / Vercel                   | De-proxy `/_next/image?url=` (absolute + relative)  |
-| Wallhaven                          | PNG/GIF detection → correct extension               |
-| Instagram                          | Post hydration + sniffed GraphQL → full-res image/video (signed CDN) |
-| Facebook                           | Passive `text/html`-NDJSON GraphQL + page-hydration sniff → full-res photo / reel mp4 (signed CDN) |
-| Bluesky                            | `/img/<rendition>/` → largest CDN sibling / `getBlob` original |
-| Threads                            | Full-resolution media (Instagram infra) + mounted-video MP4 |
-| Xiaohongshu / RED                  | Signed note image → full-resolution original (fileId fold, xhscdn / rednotecdn) |
-| Mastodon                           | `/small/` → `/original/` (any instance)             |
-| Magnific                           | Collapse signed `srcset` widths → single largest rendition |
-| Der Spiegel                        | Signed `srcset` widths → widest same-image rendition (DOM-read) |
-| Onedio                             | Signed `srcset` (`w-<W>`) → widest same-`id` rendition (DOM-read) |
-| News24                             | Strip `/format/<crop>/` → full-resolution bare original |
-| Dailymotion                        | Embeds / links → HLS master via public player metadata |
-| PeerTube (any instance)            | Watch/embed → widest file / HLS master via `/api/v1/videos` (opt-in, host-agnostic) |
-| Coub                               | Watch-page JSON → combined audio+video mp4 (network-free) |
-| Loom                               | Share/embed → transcoded mp4 via public transcode API (opt-in) |
-| Booru (Danbooru/Gelbooru/Moebooru) | Post-page DOM → original file (page-gated)           |
-| Sankaku Complex                    | Preview / sample tier → original file (md5-canonical fold) |
-| AnimePictures.net                  | Preview → full-res original via the page's download link (login-gated) |
-| Pixiv Fanbox                       | Post page → every full-res original (`downloads.fanbox.cc`); paid needs access |
-| TikTok                             | Video/photo page → highest-bitrate mp4 / per-slide image (page JSON, signed CDN) |
-| Twitch                             | Clips → direct mp4; VODs → usher HLS master (opt-in)  |
-| SoundCloud                         | Track → audio (api-v2 transcoding → m4a/MP3 capture, opt-in) |
-| Patreon                            | Post page → every image original (`patreonusercontent.com`); paid needs access |
-| Kemono / Coomer                    | Post page → files & attachments (`<host>/data`, images/GIF/video); no access → nothing |
-| Erome                              | Album page → every item's video/image (`*.erome.com`)  |
-| Image Chest                        | Post page → every file original (`cdn.imgchest.com`)   |
-| Fapello                            | Post page → the image (`.md`/`.th` stripped) / video + poster |
-| Chevereto (jpgfish/imglike/putmega)| Image page → full-res original (`og:image`, plaintext only) |
-| Imgur                              | Post/album/gallery → every original (`i.imgur.com`, page JSON) |
-| Tenor                              | View page → animated GIF / mp4 original (`media.tenor.com`) |
-| Pexels                             | Photo/video page → free full-res original (`__NEXT_DATA__`) |
-| Civitai                            | Image URL → un-resized original (`original=true` transform) |
-| XVideos                            | Watch page → direct mp4 stream (`html5player`, page JS) |
-| xHamster                           | Watch page → highest-quality mp4 (`window.initials`, page JS) |
-| Pornhub                            | Watch/embed page → HLS master stream (`flashvars`, page JS) |
-| Lensdump                           | Image page → full-res original (`og:image`)          |
-| Motherless                         | Media page → file original (`__fileurl`, page JS)    |
-| Image hosts (ImageBam, ImageVenue, PixHost, ImageTwist, imgspice, imgdrive, …) | Single-image page → full-res original |
-| imgpile                            | Post page → every image/video original (multi-image) |
-| szurubooru (snootbooru, …)         | Post page → original (`/data/posts/…`, SPA-safe)     |
-| Arc XP (news publishers)           | Resizer URL → full-size source                      |
+| Category            | Sites                                                                          |
+|---------------------|--------------------------------------------------------------------------------|
+| Social              | Twitter/X · Instagram · Facebook · Threads · Bluesky · Mastodon · Reddit · Pinterest · Xiaohongshu/RED |
+| Video & audio       | YouTube · Vimeo · Dailymotion · Twitch · SoundCloud · PeerTube · Coub · Loom   |
+| Art & photography   | Pixiv · ArtStation · Behance · DeviantArt · Flickr · Unsplash · Pexels · Wallhaven · Civitai |
+| Reference & wiki    | Wikipedia · Wikimedia Commons · any MediaWiki wiki                             |
+| E-commerce          | Amazon · eBay · Etsy · Walmart · Shopify stores · AliExpress                   |
+| News & publishing   | BBC · NYT · Der Spiegel · Arc XP publishers · self-hosted WordPress            |
+| Image hosts         | imgur · Image Chest · Tenor · Postimages · and more                           |
+| Creator platforms   | Patreon · Pixiv Fanbox                                                         |
 
-…and 50+ more CDN families — see the live [coverage benchmark](./docs/BENCHMARK.md).
+…plus **100+ more sites and CDN families**. The full, live-verified list — every
+site, its upgrade mechanism, and how coverage was established — is the
+[**coverage matrix**](./docs/benchmark/coverage-matrix.md).
 
 ## HLS & DASH stream capture
 
@@ -359,41 +309,19 @@ not a runtime dependency.
 
 ## Project structure
 
-```
-media-bulk-downloads/            # yarn-workspaces monorepo
-├── package.json                 # workspaces [packages/*, apps/*] + orchestration scripts
-├── tsconfig.base.json           # shared compiler options for the packages
-├── packages/
-│   ├── core/       @mbd/core     # browser-agnostic domain logic (zero chrome.*):
-│   │   ├── src/                  #   collection · resolvers (+ sniffers) · download
-│   │   │                         #   (zip/base64/convert/stream byte-logic) · net · types
-│   │   └── tests/                #   Vitest project (+ fixtures/)
-│   ├── storage/    @mbd/storage  # persistence over chrome.storage + IndexedDB:
-│   │   ├── src/                  #   settings · history · favourites · excluded · queue ·
-│   │   │                         #   per-host memory · backup · sync
-│   │   └── tests/                #   Vitest project
-│   └── platform/   @mbd/platform # capability contracts + detectCapabilities()
-│       ├── src/                  #   Downloader · Notifier · HeaderRules · StreamCaptureHost
-│       └── tests/                #   Vitest project
-├── apps/
-│   ├── extension/  @mbd/extension  # the WXT app (Chrome · Firefox · Edge · Safari)
-│   │   ├── wxt.config.ts        # WXT config: manifest, browser targets, zip naming
-│   │   ├── web-ext.config.ts    # dev browser-launch config (wxt dev)
-│   │   ├── src/
-│   │   │   ├── entrypoints/     # background · content · ig/x/fb/pinterest/hls sniffers ·
-│   │   │   │                     #   offscreen · popup
-│   │   │   ├── extension/       # background · content · popup · bubble · components ·
-│   │   │   │                     #   shared/active-tab · platform/ (Chrome/Firefox/Safari seam — not yet wired in)
-│   │   │   ├── styles/          # Tailwind v4 entry + design tokens
-│   │   │   ├── public/icon/     # extension icons (manifest inputs)
-│   │   │   └── types/           # ambient CSS-module declarations
-│   │   ├── tests/unit/          # Vitest unit/integration suites
-│   │   ├── tests/e2e/           # Playwright e2e (loads the built extension)
-│   │   └── .output/             # per-browser build output + zips (generated)
-│   └── safari-native/           # Safari Xcode wrapper (macOS, submitted — under review) — see #307
-├── assets/                      # icon master (SVG) + store screenshots
-└── docs/                        # guides, architecture design record, benchmark, store package
-```
+A **yarn-workspaces monorepo** — three browser-agnostic packages consumed by one
+WXT app (import direction: app → storage/platform → core):
+
+- **`packages/core`** (`@mbd/core`) — collection, resolvers (+ sniffers), download
+  byte-logic, net, types. **Zero `chrome.*`.**
+- **`packages/storage`** (`@mbd/storage`) — settings, history, favourites, excluded,
+  queue over `chrome.storage` + IndexedDB.
+- **`packages/platform`** (`@mbd/platform`) — browser-capability contracts + detection.
+- **`apps/extension`** (`@mbd/extension`) — the WXT app (Chrome · Firefox · Edge ·
+  Safari): entrypoints, background, popup, content, bubble, offscreen.
+
+Each package/app carries its own README; the full design record is the
+[monorepo restructure](./docs/architecture/monorepo-restructure.md).
 
 ## Documentation
 
@@ -415,6 +343,7 @@ media-bulk-downloads/            # yarn-workspaces monorepo
 [Feature one-pager](./docs/marketing/one-pager.md) — at-a-glance overview ·
 [Collection Benchmark](./docs/BENCHMARK.md) — live, reproducible upgrade measurements
 ([`docs/benchmark/`](./docs/benchmark/) for the per-topic breakdown) ·
+[Coverage matrix](./docs/benchmark/coverage-matrix.md) — every supported site + its upgrade rule ·
 [Monorepo restructure](./docs/architecture/monorepo-restructure.md) — packages/app design record
 
 ## Contributing
