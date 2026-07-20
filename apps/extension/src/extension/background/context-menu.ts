@@ -2,7 +2,6 @@ import { ImageInfo } from '@mbd/core/types';
 import { upgradeToOriginal, detectType } from '@mbd/core/collection/imageUrl';
 import { extensionFromUrl } from '@mbd/core/collection/mediaType';
 
-// ── Right-click context menu ─────────────────────────────────────────────────
 export const MENU = {
   downloadAll: 'mbd-download-all',
   downloadImage: 'mbd-download-image',
