@@ -193,23 +193,23 @@ sequenceDiagram
   autonumber
   participant UI as Popup / Bubble
   participant BG as Background (SW)
-  participant OFF as Offscreen doc
+  participant OS as Offscreen doc
   participant CDN as Stream host / CDN
   participant DL as chrome.downloads
 
   UI->>BG: CAPTURE_STREAM { runId, item, sourcePage }
   Note over BG: create the shared offscreen doc if absent
-  BG->>OFF: CAPTURE_RUN { runId, manifestUrl, engine, quality, maxBytes }
+  BG->>OS: CAPTURE_RUN { runId, manifestUrl, engine, quality, maxBytes }
 
-  OFF->>CDN: fetch manifest + chosen variant playlist
+  OS->>CDN: fetch manifest + chosen variant playlist
   loop each segment (bounded by maxBytes)
-    OFF->>CDN: fetch segment
-    CDN-->>OFF: bytes (AES-128 decrypted if keyed)
-    OFF-->>UI: CAPTURE_PROGRESS { runId, done, total } (broadcast)
+    OS->>CDN: fetch segment
+    CDN-->>OS: bytes (AES-128 decrypted if keyed)
+    OS-->>UI: CAPTURE_PROGRESS { runId, done, total } (broadcast)
   end
-  Note over OFF: mux + assemble into one .ts / .mp4 / .m4a in memory
+  Note over OS: mux + assemble into one .ts / .mp4 / .m4a in memory
 
-  OFF-->>BG: CAPTURE_RUN response (assembled bytes)
+  OS-->>BG: CAPTURE_RUN response (assembled bytes)
   BG->>DL: chrome.downloads.download(blob)
   DL-->>BG: downloadId
   BG-->>UI: CAPTURE_STREAM { status } (final; the popup may already be closed)
