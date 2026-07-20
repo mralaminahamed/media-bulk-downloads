@@ -116,7 +116,7 @@ interface MediaCandidate {
 ## References
 
 **Self-contained (start here — the required data lives in-repo):**
-- `references/resolver:recon-and-cdn.md` — the recon-probe recipe, `imageUrl.ts` CDN-rule
+- `references/recon-and-cdn.md` — the recon-probe recipe, `imageUrl.ts` CDN-rule
   mechanics, URL/`srcset` API essentials, and the host-pin/SSRF pattern.
 - `references/worked-example.md` — a real DOM-`srcset`-widest resolver (Der Spiegel)
   walked through end to end, and when to copy it vs. a CDN rule / page-JSON reader /
