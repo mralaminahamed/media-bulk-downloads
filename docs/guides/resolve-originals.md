@@ -17,9 +17,11 @@ runs. Phase two makes the `fetch()` calls, and runs only when the setting is on.
 | **Opt-in network resolve** | Only if `resolveOriginals` is on | Yes — a few `fetch()` calls | Background service worker (`resolvers/network.ts`)   |
 
 Phase one is [Collection Pipeline](./collection-pipeline.md)'s `resolve()`
-registry: 17 dedicated resolvers (Twitter, Instagram, Facebook, Threads,
+registry: 30 dedicated resolvers (Twitter, Instagram, Facebook, Threads,
 Unsplash, Wallhaven, Behance, Bluesky, Pinterest, Reddit, Flickr, ArtStation,
-Magnific, Arc XP, YouTube, Mastodon, Booru) plus a generic fallback, run in-page.
+Pixiv, Magnific, Arc XP, YouTube, Mastodon, Booru, Sankaku, Xiaohongshu, Der
+Spiegel, Onedio, and more — the full ordered list is in
+[Collection Pipeline](./collection-pipeline.md)) plus a generic fallback, run in-page.
 For most URLs it resolves the original with no network call: Twitter `name=orig`,
 Unsplash query-param stripping, Wallhaven full-file paths built from the DOM's own
 extension evidence. When it can't finish locally it attaches a `resolveHint` (or
@@ -52,6 +54,11 @@ only — never in a content script or the popup — and dispatches on `hint.plat
 | `artstation`  | *(image)* the `/4k/` sibling of the `/large/` URL. *(video)* `https://www.artstation.com/projects/<hash>.json`, then the clip's signed embed page                                                                                                          | An image hint probes `/4k/` and returns it only on an ok image response. A video hint reads the project JSON, fetches its embed page, and returns the largest unsigned `<source>` mp4.                                                                                                                   |
 | `twitch` (VOD) | *(hint = `vod <id>`)* an anonymous `PlaybackAccessToken` GQL query (raw, not persisted; public web Client-ID) at `https://gql.twitch.tv/gql`                                                                                                              | Mints the sig+token authorizing `https://usher.ttvnw.net/vod/<id>.m3u8`, the HLS master (a VOD has no single mp4), returned to capture and pinned to `ttvnw.net`. Shares the `twitch` platform tag with the clip resolver, told apart by the `vod ` id prefix. Sub-only/private VODs mint a token usher then 403s — capture fails (no circumvention).                                        |
 | `soundcloud`  | *(hint = the track-page URL)* the page → its `a-v2.sndcdn.com` bundle (client_id) → `https://api-v2.soundcloud.com/resolve?url=<track>&client_id=<id>` → a `media.transcodings[]` entry → that entry's `?client_id=` URL                                    | SoundCloud's `api-v2` needs an anonymous `client_id`, scraped from the page's own JS bundle. Prefers the HLS transcoding (captured to m4a/mp3 by the audio-only path, honouring the MP3-transcode setting), else a progressive single file. The track URL is pinned to `soundcloud.com`, the final stream to `sndcdn.com`. A non-track (user/playlist) or a private/go+ track yields nothing. |
+| `streamable`  | `https://api.streamable.com/videos/<id>`                                                                                                                                                                                                                    | The public video API (no auth). Returns `files.mp4.url` (else `files['mp4-mobile'].url`), the direct progressive mp4, pinned to `streamable.com`. |
+| `redgifs`     | `https://api.redgifs.com/v2/auth/temporary` (anon token), then `https://api.redgifs.com/v2/gifs/<id>` (Bearer)                                                                                                                                             | Two keyless hops — an anonymous temporary token, then the gif record. The mp4 sits on the Referer/UA-protected `media.redgifs.com`, so the resolver only *derives* the URL and hands it to the download path (the #197 Referer rewrite + the browser's real UA clear the 403); it never fetches the media host itself. |
+| `sankaku`     | `https://sankakuapi.com/v2/posts/<id>?lang=en`                                                                                                                                                                                                            | The post's API record (`credentials: include`, so a logged-in session reaches restricted posts). Returns `data.file_url`, pinned to `sankakucomplex.com`. |
+| `9gag`        | *(no fetch)*                                                                                                                                                                                                                                                | Builds `https://img-9gag-fun.9cache.com/photo/<id>_460sv.mp4`, 9GAG's deterministic video-CDN URL, pinned to `9cache.com`. |
+| `gallery-page`| *(the page URL carried in the hint)*                                                                                                                                                                                                                       | Host-agnostic fallback for gallery/post pages: `isSafeCaptureUrl()`-guarded, it fetches the page, extracts the main image, and strips URL secrets. The returned media URL is re-guarded, not host-pinned. |
 
 Every URL pulled from a fetched response — JSON or HTML — passes through
 `pinnedUrl()` before it's trusted. It must be `https:`, and its hostname must
@@ -59,19 +66,21 @@ equal (or be a subdomain of) the expected host family: `twimg.com`,
 `wallhaven.cc`, `vimeocdn.com`, `dailymotion.com`, `rutube.ru`, the Rumble-CDN
 allowlist (`rumble.com`, `1a-1791.com`, `rmbl.ws`, `rumble.cloud`), `bsky.app`,
 `pinimg.com`, `v.redd.it`, `staticflickr.com`, `artstation.com`, `loom.com`,
-`ttvnw.net` (Twitch VOD master), `sndcdn.com` (SoundCloud stream), or the
+`ttvnw.net` (Twitch VOD master), `sndcdn.com` (SoundCloud stream),
+`streamable.com`, `sankakucomplex.com`, `9cache.com` (9GAG), or the
 account's own PDS host for a Bluesky blob. Anything else — a malformed URL, an unexpected redirect
 target — resolves to `null` instead of becoming a downloadable URL.
 
-Two host-agnostic resolvers can't name a fixed family. The Bluesky blob path and
-PeerTube instead require `https:` **plus** `isSafeCaptureUrl()` — the SSRF policy
+Three host-agnostic resolvers can't name a fixed family. The Bluesky blob path,
+PeerTube, and the `gallery-page` scraper instead require `https:` **plus**
+`isSafeCaptureUrl()` — the SSRF policy
 that rejects any internal / loopback / link-local / object-storage-metadata target
 — on both the page-controlled request host and the returned media URL. PeerTube
 uses this because a video's media may sit on the instance, an object-storage
 subdomain, or another federated instance entirely, so there is no suffix to pin.
 `resolveOriginal()` never throws; a failed lookup for one item just leaves that
 item as collected, or (for a per-item "Get video" request) surfaces it as failed
-rather than silently dropping it (see [On-demand](#on-demand-the-get-video-button)
+rather than silently dropping it (see [On-demand](#on-demand-the-get-video--get-all-videos-buttons)
 below).
 
 The Bluesky blob path adds a second check. Its `did:web` domain and the resolved

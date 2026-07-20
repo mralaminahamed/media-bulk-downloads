@@ -62,29 +62,30 @@ no other single tool occupies for *all* media types.
 
 - **Only tool that is all-media generalist + site-aware in one in-page UI.** Image grabbers skip
   video; video rippers skip images; the CLIs skip the GUI. We scan any page for image **+** video **+**
-  audio, upgrade to originals (srcset / 50+ CDN families / de-proxy / ~20 per-site resolvers), **and**
+  audio, upgrade to originals (srcset / 50+ CDN families / de-proxy / ~60 per-site resolvers), **and**
   capture HLS (m3u8, AES-128 decrypt + assemble) and route DASH — no companion app.
 - **EXIF/XMP-preserving format conversion** (WebP/AVIF→PNG/JPEG, metadata kept by default, opt-in
   strip). Effectively unique — only Imageye converts at all, and only WebP→JPG with no metadata story.
 - **Trust wedge:** network-free by default, **open source (MIT)**, no accounts / analytics / servers,
   no watermark, free. Directly answers the distrust around the anonymous/acquirer-owned 2M-user leaders
   and the malware-prone site-specific tools.
-- **One tool, three browsers, current MV3** (Chrome / Firefox / Edge from one codebase) while
+- **One tool, four browsers, current MV3** (Chrome / Firefox / Edge / Safari from one codebase) while
   DownThemAll's Chrome build is dead post-MV2 and much of the field is Chrome-only.
-- **Depth the grabbers lack:** deep-scan auto-scroll, ZIP, path templates (`{host}`/`{domain}`/
-  `{date}`/`{kind}`), history, favourites, backup/restore, on-page bubble, context-menu + shortcuts.
+- **Depth the grabbers lack:** deep-scan auto-scroll, near-duplicate (pHash) detection, multi-tab
+  collection, ZIP, path templates (`{host}`/`{domain}`/`{date}`/`{kind}`), per-host settings,
+  history, favourites, backup/restore, on-page bubble, context-menu + shortcuts.
 
 ### Honest weaknesses / real threats
 
 - **DRM & YouTube video:** we deliberately refuse DRM and live, and only produce YouTube *poster
   thumbnails*, not video. This is the whole-market ceiling — parity, not a disadvantage — but users
   who want YouTube MP4s will still reach for a desktop app / CLI.
-- **Extractor breadth vs the CLIs:** ~20 resolvers against gallery-dl's 300+ and yt-dlp's 1,800+. They
+- **Extractor breadth vs the CLIs:** ~60 resolvers against gallery-dl's 300+ and yt-dlp's 1,800+. They
   also do **authenticated/private content, whole profiles/playlists, and metadata sidecars** — all
   out of scope for our passive, network-free-by-default model.
 - **Video maturity vs VDH:** VDH has 1,000+ video sites, mature variant selection, and video-format
   transcoding; our video story is younger and image-led.
-- **Niche wins we don't chase:** Fatkun's multi-tab + e-commerce product grouping; BID's
+- **Niche wins we don't chase:** Fatkun's e-commerce product-image grouping; BID's
   thumbnail→full-image link-following across thousands of host galleries.
 - **Distribution gap:** leaders have ~2M users and years of reviews; we are the newcomer — a
   discovery/brand problem more than a product one.
@@ -93,9 +94,10 @@ no other single tool occupies for *all* media types.
 
 Drawn from what competitors ship and we don't:
 
-- **More site resolvers** toward gallery-dl parity where our passive model allows — Pixiv, DeviantArt,
-  ArtStation, Flickr, Sankaku (already partly on the [BENCHMARK](../BENCHMARK.md) radar).
-- **Multi-tab batch** collection (Fatkun's standout) and **e-commerce product-image grouping**.
+- **More site resolvers** toward gallery-dl parity where our passive model allows — DeviantArt and
+  other targets still on the [BENCHMARK](../BENCHMARK.md) radar (Pixiv, ArtStation, Flickr, and
+  Sankaku have since shipped).
+- **E-commerce product-image grouping** (a Fatkun niche).
 - **Optional metadata JSON sidecar** on download — gallery-dl parity for archivists.
 - **Video variant/quality picker + audio-only (MP3) extraction** — VDH/CocoCut parity for the video
   side.

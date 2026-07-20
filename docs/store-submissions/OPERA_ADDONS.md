@@ -10,6 +10,10 @@ package as the Chrome build**). This is the Opera sibling of
 [CHROME_WEBSTORE.md](./CHROME_WEBSTORE.md) and [EDGE_ADDONS.md](./EDGE_ADDONS.md);
 the listing copy is intentionally identical so every store matches.
 
+> **Status:** submitted — **under review** in Opera's manual queue (not yet live).
+> The Chromium build is installable meanwhile from the
+> [Chrome Web Store](https://chromewebstore.google.com/detail/media-bulk-downloads/jmdhkdengijmmkelofaleinbipophckn).
+
 > **Different from Chrome / Edge — don't miss these:**
 > - Opera registration is **free** (Chrome charges a one-time $5).
 > - You upload the **`…-chrome.zip`** — there is **no separate Opera build target**
@@ -28,7 +32,7 @@ the listing copy is intentionally identical so every store matches.
 - [ ] `wxt.config.ts` name/description correct; version comes from `apps/extension/package.json`. `yarn zip` emits the Chromium package `apps/extension/.output/media-bulk-downloads-<version>-chrome.zip`.
 - [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`; optional `notifications` and
   `declarativeNetRequestWithHostAccess` (both requested at runtime).
-- [ ] Icons 16/32/48/128 present (`apps/extension/src/public/icon/`) — ✅ already in the build; Opera uses the manifest icons.
+- [ ] Icons 16/32/48/64/128 present (`apps/extension/src/public/icon/`) — ✅ already in the build; Opera uses the manifest icons.
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
 - [ ] At least **1 screenshot** (see §5) — the 1280×800 shots from the Chrome package work as-is.
 - [ ] **Promotional picture 300×188 PNG** ready for the moderator (see §5) — ✅ `assets/v2/opera-promo-300x188.png`.
@@ -383,7 +387,7 @@ Chromium package from source:
 Build environment
 - OS: macOS, Linux, or Windows (WXT is cross-platform; the OS does not affect output)
 - Node.js 22 (repo pins it in .nvmrc)
-- Yarn 4.17.0 via Corepack (pinned in package.json "packageManager") — no global install needed
+- Yarn 4.17.1 via Corepack (pinned in package.json "packageManager") — no global install needed
 
 Steps
 1. git clone https://github.com/mralaminahamed/media-bulk-downloads.git

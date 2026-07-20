@@ -6,7 +6,7 @@ fields, permission notes, the privacy disclosures, required assets, and — the
 part unique to Firefox — the **source-code submission and reproducible build
 instructions** reviewers require.
 
-Version at time of writing: **1.2.0** · Manifest **V3** (Firefox 109+). This is
+Version at time of writing: **1.2.0** · Manifest **V3** (Firefox 140+). This is
 the Firefox sibling of [CHROME_WEBSTORE.md](./CHROME_WEBSTORE.md) and
 [EDGE_ADDONS.md](./EDGE_ADDONS.md); the listing copy is intentionally identical
 so all three stores match.
@@ -22,19 +22,19 @@ so all three stores match.
     > build steps (§7). This is the one thing Chrome/Edge don't ask for.
 > - The manifest already declares **no data collection**
     > (`data_collection_permissions: { required: ['none'] }`).
-> - Minimum supported Firefox is **109.0** (`strict_min_version`).
+> - Minimum supported Firefox is **140.0** (`strict_min_version`; Android **142.0**).
 
 ---
 
 ## 1. Pre-submission checklist
 
 - [ ] **Firefox account** created and the AMO developer agreement accepted at [addons.mozilla.org/developers](https://addons.mozilla.org/developers/).
-- [ ] `wxt.config.ts` sets the Firefox `gecko.id`, `strict_min_version: '109.0'`, and `data_collection_permissions: { required: ['none'] }`. `yarn build:firefox` emits
+- [ ] `wxt.config.ts` sets the Firefox `gecko.id`, `strict_min_version: '140.0'`, and `data_collection_permissions: { required: ['none'] }`. `yarn build:firefox` emits
   `apps/extension/.output/firefox-mv3/manifest.json`.
 - [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, host `<all_urls>`; optional `notifications` and `declarativeNetRequestWithHostAccess` (both
   requested at runtime). Note: `offscreen` is **Chrome-only** — `wxt.config.ts` omits it from the Firefox build (Firefox has no `chrome.offscreen`, and AMO rejects the permission), so HLS/DASH stream
   capture is not available on Firefox.
-- [ ] Icons 16/32/48/128 present (`apps/extension/src/public/icon/`) — ✅ already in the build; AMO uses the manifest icons (no separate store logo).
+- [ ] Icons 16/32/48/64/128 present (`apps/extension/src/public/icon/`) — ✅ already in the build; AMO uses the manifest icons (no separate store logo).
 - [ ] `yarn lint` and `wxt build -b firefox` pass clean (AMO runs its own validator on upload too).
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
 - [ ] At least **1 screenshot** (see §5).
@@ -122,7 +122,7 @@ opening the toolbar popup.
 | Field           | Value                                                                                                                       | Set in                                 |
 |-----------------|-----------------------------------------------------------------------------------------------------------------------------|----------------------------------------|
 | Add-on ID       | `media-bulk-downloads@mralaminahamed`                                                                                       | `browser_specific_settings.gecko.id`   |
-| Minimum Firefox | `109.0`                                                                                                                     | `strict_min_version`                   |
+| Minimum Firefox | `140.0` (desktop) · `142.0` (Android)                                                                                       | `strict_min_version`                   |
 | Background      | MV3 **event page** (`background.scripts: ["background.js"]`) — WXT converts the service worker to Firefox's event-page form | WXT build                              |
 | Data collection | `none` (declared)                                                                                                           | `data_collection_permissions.required` |
 
@@ -243,7 +243,7 @@ the build steps so a reviewer can reproduce the exact package.
 Build environment
 - OS: macOS, Linux, or Windows
 - Node.js 22 (see .nvmrc)
-- Yarn 4.17.0 via Corepack (pinned in package.json "packageManager")
+- Yarn 4.17.1 via Corepack (pinned in package.json "packageManager")
 
 Steps
 1. corepack enable

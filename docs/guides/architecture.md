@@ -1,6 +1,6 @@
 # Architecture
 
-The extension is a cross-browser (Chrome, Firefox 140+, Edge) Manifest V3 app.
+The extension is a cross-browser (Chrome, Firefox 140+, Edge, Safari) Manifest V3 app.
 Its surfaces talk over `chrome.runtime` / `chrome.tabs` messages: a background
 service worker, an isolated content script per tab, the popup, and the in-page
 bubble. Three kinds of helper surface back them — five MAIN-world media sniffers
@@ -73,7 +73,7 @@ flowchart TB
   HIST -- chrome.storage.local --> STORE[("history + favourites")]
   CAP -- CAPTURE_RUN --> OFF
   OFF -- CAPTURE_PROGRESS --> APP1
-  RES -- "fetch() — opt-in" --> EXT[("Twitter / Wallhaven / Unsplash / Vimeo / Dailymotion /<br/>Bluesky / Pinterest / Reddit / Flickr / ArtStation")]
+  RES -- "fetch() — opt-in" --> EXT[("Twitter / Wallhaven / Unsplash / Vimeo / Dailymotion / Bluesky /<br/>Pinterest / Reddit / Flickr / ArtStation / SoundCloud / Twitch /<br/>Loom / PeerTube / … — ~20 opt-in hosts")]
 
   classDef sw fill:#e8ecff,stroke:#4f46e5,color:#111;
   classDef pop fill:#fff5e6,stroke:#d98a00,color:#111;
@@ -107,8 +107,8 @@ too. The diagram omits those duplicates.
 | `@mbd/core/collection/paths.ts` | Download-path token expansion (`{host}` / `{domain}` / `{date}` / `{kind}`) + path sanitizing |
 | `@mbd/storage/history.ts` | `HistoryEntry[]` persistence in `chrome.storage.local` — merge/dedup/cap, serialized writes |
 | `@mbd/storage/favourites.ts` | `FavouriteEntry[]` persistence in `chrome.storage.local` — same merge/dedup/cap shape |
-| `@mbd/core/resolvers/index.ts` | Resolver `REGISTRY` (`twitterResolver, instagramResolver, facebookResolver, threadsResolver, unsplashResolver, wallhavenResolver, behanceResolver, bskyResolver, pinterestResolver, redditResolver, flickrResolver, artstationResolver, magnificResolver, arcxpResolver, youtubeResolver, mastodonResolver, booruResolver, genericResolver` — 17 dedicated + the generic fallback) + host-indexed `resolve()` dispatch |
-| `@mbd/core/resolvers/sites/*.ts` (20 files: the 18 `REGISTRY` resolvers above, plus `vimeo.ts` and `dailymotion.ts` — id-extraction only, no `REGISTRY` entry, feeding the network tier) | Per-host, synchronous, network-free URL upgrades; attach `resolveHint` / `unresolvedVideo` / `unresolvedImage` when a better original needs a network fetch |
+| `@mbd/core/resolvers/index.ts` | Resolver `REGISTRY` (`twitterResolver, instagramResolver, facebookResolver, threadsResolver, unsplashResolver, wallhavenResolver, behanceResolver, bskyResolver, pinterestResolver, redditResolver, flickrResolver, artstationResolver, pixivResolver, magnificResolver, arcxpResolver, youtubeResolver, mastodonResolver, booruResolver, zerochanResolver, wallpaperscraftResolver, sankakuResolver, postimagesResolver, fourchanResolver, foolfuukaResolver, pikabuResolver, wallpaperHostsResolver, xiaohongshuResolver, spiegelResolver, onedioResolver, animePicturesResolver, genericResolver` — 30 dedicated + the generic fallback) + host-indexed `resolve()` dispatch |
+| `@mbd/core/resolvers/sites/*.ts` (64 files: the 30 `REGISTRY` resolvers above, plus id-extraction modules like `vimeo.ts` / `dailymotion.ts` and the page-reader / network-tier modules — TikTok, Imgur, Pornhub, SoundCloud, Twitch, and more — that feed the opt-in network tier without a `REGISTRY` entry) | Per-host, synchronous, network-free URL upgrades; attach `resolveHint` / `unresolvedVideo` / `unresolvedImage` when a better original needs a network fetch |
 | `@mbd/core/resolvers/sites/generic.ts` | Fallback resolver: de-proxy + CDN-rule engine, image-only |
 | `@mbd/core/resolvers/sniffers/*` (`response-sniffer`, `hls-sniff`, `x-media-sniff`, `ig-media-sniff`, `fb-media-sniff`, `pinterest-media-sniff`, `pinterest-hosts`) | Shared fetch/XHR-wrapping sniffer core + per-platform extractors (HLS/DASH manifests; X/Instagram/Facebook/Pinterest media JSON) and their in-content stores |
 | `@mbd/core/resolvers/network.ts` | `resolveOriginal()` — the opt-in network tier: one pinned-host request per hinted platform (Twitter syndication, Wallhaven, Unsplash, Vimeo/Dailymotion player config, Bluesky PDS, Pinterest widget, Flickr/ArtStation pages); Reddit and Bluesky video build the URL with no fetch. https-pinned, SSRF-guarded |
@@ -135,6 +135,7 @@ too. The diagram omits those duplicates.
 | `CAPTURE_STREAM` | popup / bubble → background | `{ type, runId, item: ImageInfo, sourcePage }` | `{ status }` (async; one composed status line; background owns the offscreen doc + download) |
 | `CAPTURE_RUN` | background → offscreen document | `{ type, runId, manifestUrl, engine: 'hls'\|'dash', quality, maxBytes }` | — (not part of the `ChromeMessage` union; internal to the capture pipeline) |
 | `CAPTURE_PROGRESS` | offscreen → all contexts (popup listens) | `{ type, runId, done, total }` | — |
+| `LIST_VARIANTS` | popup → background | `{ type, manifestUrl, engine: 'hls'\|'dash' }` | `{ ok: true, variants: StreamVariant[] } \| { ok: false, code }` — parses the master manifest for the per-stream quality picker (#314) |
 | **Downloads** | | | |
 | `DOWNLOAD_IMAGES` | popup / bubble → background | `{ type, images, sourcePage?, explicit? }` | `{ status, message }` |
 | `DOWNLOAD_ZIP` | popup / bubble → background | `{ type, b64, filename }` | `{ status, message }` |
@@ -165,6 +166,8 @@ too. The diagram omits those duplicates.
 | `CLEAR_EXCLUDED` | popup / bubble → background | `{ type }` | — |
 | **Settings & backup** | | | |
 | `SET_SETTINGS` | popup / bubble → background | `{ type, patch: Partial<SettingsData> }` | — (single serialized writer) |
+| `GET_SETTINGS` | content → background | `{ type }` | current `SettingsData` (Safari content scripts don't reliably see the popup's `chrome.storage.sync` writes, so the bubble asks directly) |
+| `SETTINGS_CHANGED` | background → content (a tab) | `{ type, settings: SettingsData }` | — (pushed after every `SET_SETTINGS` write so the on-page bubble mounts/unmounts live; replaces the `storage.onChanged` listener that doesn't fire for sync changes on Safari) |
 | `SET_PER_HOST_SETTINGS` | popup / bubble → background | `{ type, host, patch: Partial<SettingsData> \| null }` | — (`patch: null` clears the host's override and its scan memory) |
 | `SAVE_SCAN_MEMORY` | content → background | `{ type, host, sample: { settleMs, scrolls } }` | — (persists the host's learned deep-scan settle time + scroll depth) |
 | `RESTORE_DATA` | popup → background | `{ type, favourites, history, excluded }` | — (replaces all three from an imported backup) |
@@ -222,12 +225,14 @@ from the page: `HistoryEntry` (one per completed download) and `FavouriteEntry`
   JSON) and hand the URLs to the collector.
 - The **opt-in** `resolveOriginals` setting (off by default) is the only path
   that contacts an external host. When enabled, the background resolves a hinted
-  item to its true original across 10 platforms: it fetches a small, pinned set
+  item to its true original across ~20 platforms: it fetches a small, pinned set
   of host APIs — Twitter's syndication endpoint, the Wallhaven API, Unsplash's
   download endpoint, Vimeo's and Dailymotion's player config, the Bluesky/atproto
-  PDS, the Pinterest pin-widget endpoint, and Flickr's / ArtStation's public
-  pages — and builds the Reddit and Bluesky-video HLS masters deterministically,
-  with no fetch. See [Resolve Originals](./resolve-originals.md) for exactly what
+  PDS, the Pinterest pin-widget endpoint, Flickr's / ArtStation's public pages,
+  and the SoundCloud / Twitch / Loom / PeerTube / Rutube / Rumble / Streamable /
+  RedGifs / Sankaku / 9GAG endpoints — and builds the Reddit and Bluesky-video HLS
+  masters deterministically, with no fetch. See
+  [Resolve Originals](./resolve-originals.md) for exactly what
   is sent and to whom.
 
 Workflow detail: [Getting Started](./getting-started.md) ·

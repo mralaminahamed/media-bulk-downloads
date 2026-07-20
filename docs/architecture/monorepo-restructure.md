@@ -28,8 +28,9 @@ media-bulk-downloads/                 # workspaces root (private)
 │   ├── storage/    (@mbd/storage)    # persistence over chrome.storage + IndexedDB (Safari-safe API)
 │   └── platform/   (@mbd/platform)   # capability CONTRACTS + feature detection (no implementations)
 └── apps/
-    └── extension/  (@mbd/extension)  # THE WXT app — all entrypoints, background/popup/content glue, UI,
-                                      # active-tab messaging, and (future) platform implementations
+    ├── extension/  (@mbd/extension)  # THE WXT app — all entrypoints, background/popup/content glue, UI,
+    │                                 # active-tab messaging, and the platform seam
+    └── safari-native/                # Safari Xcode wrapper (macOS) over .output/safari-mv3 — see #307
 ```
 
 **Dependency graph (acyclic):** `core` (leaf) ← `storage`, `platform` ← `apps/extension`.
@@ -109,12 +110,11 @@ package is independently testable.
 
 ## Follow-ups
 
-1. **Safari enablement (#307)** — implement `apps/extension/src/extension/platform/safari/*`
-   behind the `@mbd/platform` contracts (anchor-blob `Downloader`, no-op `Notifier`/`HeaderRules`,
-   page-context `StreamCaptureHost`); add `apps/safari-native/` Xcode wrapper over `.output/safari-mv3`;
-   gate on the #307 Phase 0 spike.
-3. **Wire the capability seam** — the background currently calls `chrome.*` directly; route it
+1. ~~**Safari enablement (#307)**~~ — **done**: `platform/safari.ts` implements the `@mbd/platform`
+   contracts (anchor-blob `Downloader`, no-op `Notifier`/`HeaderRules`, page-context
+   `StreamCaptureHost`), and `apps/safari-native/` wraps `.output/safari-mv3` (submitted to the Mac
+   App Store, under review). The planned `safari/*` directory landed as a single `safari.ts` module.
+2. **Wire the capability seam** — the background currently calls `chrome.*` directly; route it
    through the `@mbd/platform` interfaces + `selectPlatform()` so degraded targets fall back cleanly.
-4. **Dependency hygiene** — the app under-declares nothing critical, but a pass to confirm each
+3. **Dependency hygiene** — the app under-declares nothing critical, but a pass to confirm each
    package declares exactly what it imports would harden independent builds.
-```
