@@ -1,8 +1,6 @@
 /** @vitest-environment jsdom */
 import { retryingFetch } from '@mbd/core/net/retry';
 
-// A fetch stub that yields the given outcomes in order. Each outcome is either a
-// status number (→ a Response with that status) or the string 'reject' (→ throws).
 function stubFetch(outcomes: Array<number | 'reject'>) {
   let i = 0;
   const calls: number[] = [];
@@ -16,10 +14,6 @@ function stubFetch(outcomes: Array<number | 'reject'>) {
   return { fn: fn as unknown as typeof fetch, calls: () => i };
 }
 
-// A fetch stub that never resolves on its own — mirrors a slow/unresponsive
-// public host that accepts the TCP connection but never answers. It only
-// settles (rejects) if the caller wires an AbortSignal into the request init
-// and that signal aborts — exactly like the real `fetch`.
 function hungFetch() {
   let n = 0;
   const fn = vi.fn((_input: unknown, init?: RequestInit) => {
@@ -33,7 +27,6 @@ function hungFetch() {
   return { fn: fn as unknown as typeof fetch, calls: () => n };
 }
 
-// Deterministic: no real timers, no real jitter.
 const noWait = { sleep: async () => {}, random: () => 0.5 };
 
 describe('retryingFetch', () => {
@@ -68,7 +61,7 @@ describe('retryingFetch', () => {
     const slept: number[] = [];
     const s = { fn: (vi.fn(async () => new Response('', { status: 429, headers: { 'Retry-After': '2' } })) as unknown) as typeof fetch };
     await retryingFetch(s.fn, { maxAttempts: 2, maxDelayMs: 5000, random: () => 0.5, sleep: async (ms) => { slept.push(ms); } })('https://x/');
-    expect(slept[0]).toBe(2000); // 2s, under the 5s cap, not jittered
+    expect(slept[0]).toBe(2000);
   });
 
   it('stops and rejects when the signal aborts during backoff', async () => {
@@ -85,9 +78,6 @@ describe('retryingFetch', () => {
     await expect(res.text()).resolves.toBe('body');
   });
 
-  // Bug: a slow/unresponsive PUBLIC host that never answers hangs the fetch
-  // forever — retryingFetch retries on rejection/retryable-status but never
-  // times out a hung attempt. Each attempt must get a bounded timeout.
   describe('per-attempt timeout', () => {
     afterEach(() => { vi.useRealTimers(); });
 
@@ -99,24 +89,21 @@ describe('retryingFetch', () => {
       p.catch(() => { settled = true; });
 
       await vi.advanceTimersByTimeAsync(29_999);
-      expect(settled).toBe(false); // not aborted early
+      expect(settled).toBe(false);
 
-      await vi.advanceTimersByTimeAsync(2); // crosses the 30_000ms boundary
+      await vi.advanceTimersByTimeAsync(2);
       await expect(p).rejects.toBeTruthy();
-      expect(h.calls()).toBe(1); // bounded — one attempt, not an infinite hang
+      expect(h.calls()).toBe(1);
     });
 
     it('bounds a hung fetch across retries too — rejects after the last attempt\'s timeout, not forever', async () => {
-      // Fake timers must be active BEFORE the per-attempt timer is scheduled —
-      // otherwise that first setTimeout is a real one, disconnected from the
-      // fake clock we advance below.
       vi.useFakeTimers();
       const h = hungFetch();
       const p = retryingFetch(h.fn, { maxAttempts: 2, timeoutMs: 1000, sleep: async () => {} })('https://x/');
       const caught = p.catch((e: unknown) => e);
 
-      await vi.advanceTimersByTimeAsync(1000); // attempt 1 times out
-      await vi.advanceTimersByTimeAsync(1000); // attempt 2 times out → exhausted
+      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
 
       const err = await caught;
       expect(err).toBeTruthy();
@@ -128,7 +115,7 @@ describe('retryingFetch', () => {
       const s = stubFetch([200]);
       const res = await retryingFetch(s.fn, { ...noWait, timeoutMs: 30_000 })('https://x/');
       expect(res.status).toBe(200);
-      expect(vi.getTimerCount()).toBe(0); // the 30s timer was cleared on settle
+      expect(vi.getTimerCount()).toBe(0);
     });
 
     it('a normal fast fetch still succeeds when no timeoutMs is configured (default unaffected)', async () => {

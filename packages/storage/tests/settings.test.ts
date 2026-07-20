@@ -28,12 +28,10 @@ describe('withDefaults', () => {
     const result = withDefaults({ downloadPath: 'Pics', minimumImageSize: 128 });
     expect(result.downloadPath).toBe('Pics');
     expect(result.minimumImageSize).toBe(128);
-    // Untouched fields fall back to defaults.
     expect(result.fileNamePrefix).toBe(DEFAULT_SETTINGS.fileNamePrefix);
   });
 
   it('deep-merges bubblePosition so legacy stored settings get the corner', () => {
-    // Legacy settings from before the bubble feature (no bubblePosition).
     const legacy = { downloadPath: '', fileNamePrefix: 'image_' };
     expect(withDefaults(legacy).bubblePosition).toEqual(DEFAULT_SETTINGS.bubblePosition);
   });
@@ -80,13 +78,10 @@ describe('deep-scan cap settings', () => {
     expect(withDefaults({}).deepScanClickLoadMore).toBe(false);
   });
   it('clamps corrupt loop bounds so a synced/hand-edited value cannot neuter or hang the scan', () => {
-    // negative → immediate loop break (near-empty scan); 0 → loop never runs;
-    // a non-numeric string → NaN comparison that removes the cap. Clamp all three.
     const s = withDefaults({ deepScanMaxItems: -5, deepScanMaxSeconds: 'abc' as never, deepScanMaxScrolls: 0 });
     expect(s.deepScanMaxItems).toBeGreaterThanOrEqual(1);
     expect(s.deepScanMaxSeconds).toBeGreaterThanOrEqual(1);
     expect(s.deepScanMaxScrolls).toBeGreaterThanOrEqual(1);
-    // a valid override is preserved
     expect(withDefaults({ deepScanMaxItems: 2500 }).deepScanMaxItems).toBe(2500);
   });
 });
@@ -148,15 +143,11 @@ describe('downloadConcurrency setting', () => {
     expect(withDefaults({}).downloadConcurrency).toBe(5);
   });
   it('clamps a corrupt (synced or imported) value to a sane range', () => {
-    // 0 / negative would stall the queue forever; clamp up to the floor of 1.
     expect(withDefaults({ downloadConcurrency: 0 as never }).downloadConcurrency).toBe(1);
     expect(withDefaults({ downloadConcurrency: -3 as never }).downloadConcurrency).toBe(1);
-    // NaN / non-numeric would remove the cap entirely; fall back to the default.
     expect(withDefaults({ downloadConcurrency: 'many' as never }).downloadConcurrency).toBe(5);
     expect(withDefaults({ downloadConcurrency: NaN as never }).downloadConcurrency).toBe(5);
-    // An absurdly large value is capped so it can't flood concurrent downloads.
     expect(withDefaults({ downloadConcurrency: 999 as never }).downloadConcurrency).toBe(20);
-    // A fractional value is floored to an integer.
     expect(withDefaults({ downloadConcurrency: 3.9 as never }).downloadConcurrency).toBe(3);
   });
 });
@@ -183,7 +174,7 @@ describe('minimumImageSize + UI-dimension settings clamping', () => {
     });
     expect(s.popupWidth).toBeGreaterThanOrEqual(320);
     expect(s.popupHeight).toBeLessThanOrEqual(600);
-    expect(s.thumbnailSize).toBe(DEFAULT_SETTINGS.thumbnailSize); // non-numeric → default
+    expect(s.thumbnailSize).toBe(DEFAULT_SETTINGS.thumbnailSize);
     expect(s.previewSize).toBeGreaterThanOrEqual(240);
     expect(s.bubbleWidth).toBeGreaterThanOrEqual(320);
     expect(s.bubbleHeight).toBeLessThanOrEqual(2160);

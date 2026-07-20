@@ -51,15 +51,9 @@ beforeEach(() => {
     runtime: { lastError: undefined },
   } as unknown as typeof chrome;
   initQueueDispatcher({ getConcurrency: () => 2, getSaveAs: () => false });
-  // pump() now starts a real setInterval progress poll once an item goes active;
-  // seed a truthy sentinel so ensureProgressPoll() sees a timer "already running"
-  // and never schedules a real one, keeping this suite free of leaked timers.
-  // (clearInterval on a bogus handle is a safe no-op if pollProgress ever self-stops.)
   __setProgressTimerForTest(1 as unknown as ReturnType<typeof setInterval>);
 });
 
-// A macrotask runs only after the entire microtask queue drains, so one tick
-// settles the whole withState promise chain up to the next download() suspension.
 const flush = async () => { await new Promise((r) => setTimeout(r, 0)); };
 
 describe('queue dispatcher', () => {
@@ -68,7 +62,7 @@ describe('queue dispatcher', () => {
       { url: 'u1', filename: 'f1' }, { url: 'u2', filename: 'f2' }, { url: 'u3', filename: 'f3' },
     ]);
     await flush();
-    if (downloadCb) downloadCb(); // resolve first download → id 100
+    if (downloadCb) downloadCb();
     await flush();
     const snap = await getQueueSnapshot();
     expect(snap.items.filter((i) => i.status === 'active').length).toBeLessThanOrEqual(2);
@@ -83,7 +77,7 @@ describe('queue dispatcher', () => {
       { url: 'u2', filename: 'f2' }, { url: 'u3', filename: 'f3' },
     ]);
     await flush();
-    if (downloadCb) downloadCb(); // first → id 100
+    if (downloadCb) downloadCb();
     await flush();
     await handleDownloadChanged({
       id: 100, state: { current: 'complete', previous: 'in_progress' },
@@ -92,13 +86,13 @@ describe('queue dispatcher', () => {
     const snap = await getQueueSnapshot();
     expect(snap.items.find((i) => i.url === 'u1')!.status).toBe('done');
     expect(recordDownloads).toHaveBeenCalledOnce();
-    expect(chrome.downloads.download).toHaveBeenCalledTimes(3); // third dispatched after slot freed
+    expect(chrome.downloads.download).toHaveBeenCalledTimes(3);
   });
 
   it('retries on interrupted (attempts increments, item leaves active)', async () => {
     await enqueueDownloads([{ url: 'u1', filename: 'f1' }]);
     await flush();
-    if (downloadCb) downloadCb(); // id 100
+    if (downloadCb) downloadCb();
     await flush();
     await handleDownloadChanged({
       id: 100, state: { current: 'interrupted', previous: 'in_progress' },
@@ -125,23 +119,23 @@ describe('hotlink 403 handling', () => {
     permGranted = true;
     await enqueueDownloads([withPage('https://cdn/x.jpg', 'https://gallery/album')]);
     await flush();
-    if (downloadCb) downloadCb(); // id 100 active
+    if (downloadCb) downloadCb();
     await flush();
 
     await handleDownloadChanged(forbidden(100));
     await flush();
     let snap = await getQueueSnapshot();
     expect(snap.items[0].useReferer).toBe(true);
-    expect(dnrRules.length).toBe(1); // rule installed for the retry dispatch
-    expect(chrome.downloads.download).toHaveBeenCalledTimes(2); // original + referer retry
+    expect(dnrRules.length).toBe(1);
+    expect(chrome.downloads.download).toHaveBeenCalledTimes(2);
 
-    if (downloadCb) downloadCb(); // retry id 101 active
+    if (downloadCb) downloadCb();
     await flush();
     await handleDownloadChanged({ id: 101, state: { current: 'complete', previous: 'in_progress' } } as chrome.downloads.DownloadDelta);
     await flush();
     snap = await getQueueSnapshot();
     expect(snap.items[0].status).toBe('done');
-    expect(dnrRules.length).toBe(0); // rule torn down after the attempt settled
+    expect(dnrRules.length).toBe(0);
     expect(recordDownloads).toHaveBeenCalledOnce();
   });
 
@@ -149,10 +143,9 @@ describe('hotlink 403 handling', () => {
     permGranted = true;
     await enqueueDownloads([withPage('https://cdn/x2.jpg', 'https://gallery/album2')]);
     await flush();
-    if (downloadCb) downloadCb(); // id 100 active
+    if (downloadCb) downloadCb();
     await flush();
 
-    // Simulate byte progress having been polled in before the 403 interrupt arrives.
     const cur = store[QUEUE_KEY] as { items: Array<Record<string, unknown>> };
     cur.items[0] = { ...cur.items[0], bytesReceived: 500, totalBytes: 1000 };
 
@@ -175,20 +168,20 @@ describe('hotlink 403 handling', () => {
     const snap = await getQueueSnapshot();
     expect(snap.items[0]).toMatchObject({ status: 'failed', hotlink: true });
     expect(dnrRules.length).toBe(0);
-    expect(chrome.downloads.download).toHaveBeenCalledTimes(1); // no retry
+    expect(chrome.downloads.download).toHaveBeenCalledTimes(1);
   });
 
   it('a Referer retry that still 403s fails as hotlink (no infinite loop)', async () => {
     permGranted = true;
     await enqueueDownloads([withPage('https://cdn/z.jpg', 'https://p')]);
     await flush();
-    if (downloadCb) downloadCb(); // id 100
+    if (downloadCb) downloadCb();
     await flush();
-    await handleDownloadChanged(forbidden(100)); // → useReferer requeue
+    await handleDownloadChanged(forbidden(100));
     await flush();
-    if (downloadCb) downloadCb(); // referer retry id 101 active
+    if (downloadCb) downloadCb();
     await flush();
-    await handleDownloadChanged(forbidden(101)); // useReferer already set → give up
+    await handleDownloadChanged(forbidden(101));
     await flush();
     const snap = await getQueueSnapshot();
     expect(snap.items[0]).toMatchObject({ status: 'failed', hotlink: true });
@@ -201,7 +194,6 @@ describe('hotlink 403 handling', () => {
     await flush();
     if (downloadCb) downloadCb();
     await flush();
-    // No error field → isForbidden falls to search() which returns [] → not forbidden.
     await handleDownloadChanged({ id: 100, state: { current: 'interrupted', previous: 'in_progress' } } as chrome.downloads.DownloadDelta);
     await flush();
     const snap = await getQueueSnapshot();
@@ -229,7 +221,7 @@ describe('user-cancelled download (Save-As dialog dismissed)', () => {
     ] });
     await handleDownloadChanged({ id: 6, state: { current: 'interrupted', previous: 'in_progress' }, error: { current: 'NETWORK_FAILED' } } as unknown as chrome.downloads.DownloadDelta);
     const s = await loadQueue();
-    expect(s.items[0].status).toBe('queued'); // scheduled retry
+    expect(s.items[0].status).toBe('queued');
     expect(s.items[0].attempts).toBe(1);
   });
 });
@@ -262,7 +254,7 @@ describe('reconcile on restart', () => {
   });
 
   it('tears down the item Referer DNR rule when reconciling a SW-dead settle (session-rule leak fix)', async () => {
-    dnrRules = [{ id: 777 }]; // a Referer rewrite rule the dead SW left installed
+    dnrRules = [{ id: 777 }];
     store[QUEUE_KEY] = { paused: false, items: [
       { id: 'r', url: 'u5', filename: 'f5', status: 'active', attempts: 0, downloadId: 500, readyAt: 0, addedAt: 0, ruleId: 777, useReferer: true },
     ] };
@@ -270,8 +262,6 @@ describe('reconcile on restart', () => {
     await reconcileQueue();
     await flush();
     expect((await getQueueSnapshot()).items[0].status).toBe('done');
-    // The rule must be removed, not left to force Referer on that URL for the
-    // rest of the browser session (the live onChanged path already does this).
     expect(dnrRules.find((r) => r.id === 777)).toBeUndefined();
   });
 
@@ -292,7 +282,6 @@ describe('reconcile on restart', () => {
         bytesReceived: 4096, totalBytes: 8192,
       },
     ] };
-    // Reports NOT complete (interrupted), so the item is requeued rather than marked done.
     (chrome.downloads.search as ReturnType<typeof vi.fn>).mockResolvedValueOnce([{ id: 300, state: 'interrupted' }]);
     await reconcileQueue();
     const snap = await getQueueSnapshot();
@@ -301,14 +290,6 @@ describe('reconcile on restart', () => {
     expect(snap.items[0].totalBytes).toBeUndefined();
   });
 
-  // Bug (HIGH): chrome.downloads.search reports a 3-state model (in_progress /
-  // complete / interrupted), but the old reconcile collapsed it to a boolean
-  // (`completed = hit?.state === 'complete'`). A download that was simply STILL
-  // RUNNING when the SW got evicted reported `in_progress` → completed=false →
-  // the item was reset to queued/downloadId:undefined → pump() dispatched a
-  // SECOND chrome.downloads.download for the same file, and the original
-  // download's later `complete` event matched no active item, so it was never
-  // recorded to history.
   it('leaves an in_progress download alone on reconcile (no duplicate dispatch)', async () => {
     store[QUEUE_KEY] = { paused: false, items: [
       { id: 'f', url: 'u7', filename: 'f7', status: 'active', attempts: 0, downloadId: 700, readyAt: 0, addedAt: 0 },
@@ -318,34 +299,20 @@ describe('reconcile on restart', () => {
     await flush();
     const snap = await getQueueSnapshot();
     expect(snap.items[0]).toMatchObject({ status: 'active', downloadId: 700 });
-    // The still-running download must not get a second, duplicate dispatch.
     expect(chrome.downloads.download).not.toHaveBeenCalled();
   });
 
-  // Bug (HIGH): claimNext persists status:'active' BEFORE chrome.downloads.download()
-  // is even called; downloadId is attached only afterward via markActive. If the SW
-  // dies in that window, the item is stuck {status:'active', downloadId:undefined}
-  // forever — every downloadId-keyed recovery path (reconcileQueue's search loop,
-  // pollProgress) filters on downloadId !== undefined, so it's invisible to all of
-  // them and permanently holds a concurrency slot.
   it('recovers a stuck-active item that never got a downloadId before the SW died', async () => {
     store[QUEUE_KEY] = { paused: false, items: [
       { id: 'e', url: 'u6', filename: 'f6', status: 'active', attempts: 0, readyAt: 0, addedAt: 0 },
     ] };
     await reconcileQueue();
     await flush();
-    // Recovered off the dead-end: pump() found it claimable again and actually
-    // re-dispatched it. Before the fix it was invisible to reconcile entirely (no
-    // downloadId to match against), so chrome.downloads.download was never called
-    // again and the item stayed active forever, holding a concurrency slot.
     expect(chrome.downloads.download).toHaveBeenCalledWith(
       expect.objectContaining({ url: 'u6' }), expect.any(Function),
     );
   });
 
-  // Bug (MEDIUM): the interrupted/missing reset never incremented `attempts` and
-  // didn't go through scheduleRetry, so a permanently-broken URL (404/DNS) retried
-  // indefinitely across SW restarts with no MAX_ATTEMPTS cap and no backoff.
   it('routes an interrupted item on reconcile through scheduleRetry (attempts increments)', async () => {
     store[QUEUE_KEY] = { paused: false, items: [
       { id: 'g', url: 'u8', filename: 'f8', status: 'active', attempts: 0, downloadId: 800, readyAt: 0, addedAt: 0 },
@@ -396,12 +363,6 @@ describe('progress poll', () => {
     expect(chrome.storage.local.set).not.toHaveBeenCalled();
   });
 
-  // Backstop for the stuck-slot bug: if the download's `complete` onChanged fired
-  // in the window before markActive persisted the item's downloadId (tiny/cached/
-  // data: downloads settle almost instantly), or the SW was briefly asleep when it
-  // fired, the item stays `active` forever holding a concurrency slot — UI shows
-  // 100% but it never finishes and starves the rest of the queue. The poll must
-  // detect chrome's terminal state and settle the item through the same path.
   it('settles a completed download whose onChanged was missed, then pumps the next (race backstop)', async () => {
     store[QUEUE_KEY] = { paused: false, items: [
       {
@@ -416,7 +377,6 @@ describe('progress poll', () => {
     const snap = await getQueueSnapshot();
     expect(snap.items.find((i) => i.id === 'a')!.status).toBe('done');
     expect(recordDownloads).toHaveBeenCalledOnce();
-    // Freed slot → the queued item is dispatched.
     expect(chrome.downloads.download).toHaveBeenCalledWith(expect.objectContaining({ url: 'u2' }), expect.any(Function));
   });
 
@@ -434,34 +394,28 @@ describe('progress poll', () => {
   });
 });
 
-// A sole flaky download whose backoff exceeds the fixed nudge interval used to hang
-// in `queued` forever: the 2nd retry's backoff is 2000ms, the old nudge fired at
-// 1100ms, found nothing ready, and nothing re-armed. pump() now arms a nudge for
-// the actual readyAt after draining, so the item reaches its final attempt.
 describe('retry re-pump when the backoff exceeds the fixed nudge (stuck-queue fix)', () => {
   it('re-dispatches a sole item after its 2nd-retry backoff', async () => {
     vi.useFakeTimers();
     try {
       __setProgressTimerForTest(1 as unknown as ReturnType<typeof setInterval>);
       await enqueueDownloads([{ url: 'u1', filename: 'f1' }]);
-      await vi.advanceTimersByTimeAsync(0); // settle enqueue → pump → download #1
-      downloadCb?.(); // attempt 1 → id 100 active
+      await vi.advanceTimersByTimeAsync(0);
+      downloadCb?.();
       await vi.advanceTimersByTimeAsync(0);
       expect(chrome.downloads.download).toHaveBeenCalledTimes(1);
 
-      // Attempt 1 interrupts → retry #1 (attempts=1, backoff 1000ms).
       await handleDownloadChanged({ id: 100, state: { current: 'interrupted', previous: 'in_progress' } } as chrome.downloads.DownloadDelta);
-      await vi.advanceTimersByTimeAsync(0); // let pump → armRetryNudge register the nudge timer
-      await vi.advanceTimersByTimeAsync(1200); // nudge fires → attempt 2
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(1200);
       expect(chrome.downloads.download).toHaveBeenCalledTimes(2);
-      downloadCb?.(); // attempt 2 → id 101 active
+      downloadCb?.();
       await vi.advanceTimersByTimeAsync(0);
 
-      // Attempt 2 interrupts → retry #2 (attempts=2, backoff 2000ms > the old 1100ms nudge).
       await handleDownloadChanged({ id: 101, state: { current: 'interrupted', previous: 'in_progress' } } as chrome.downloads.DownloadDelta);
-      await vi.advanceTimersByTimeAsync(0); // register the re-armed nudge for the real readyAt
-      await vi.advanceTimersByTimeAsync(2200); // the re-armed nudge fires at readyAt
-      expect(chrome.downloads.download).toHaveBeenCalledTimes(3); // final attempt dispatched, not stuck
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(2200);
+      expect(chrome.downloads.download).toHaveBeenCalledTimes(3);
 
       const snap = await getQueueSnapshot();
       expect(snap.items[0].status).toBe('active');
@@ -478,19 +432,16 @@ describe('retry re-pump when the backoff exceeds the fixed nudge (stuck-queue fi
       __setProgressTimerForTest(1 as unknown as ReturnType<typeof setInterval>);
       await enqueueDownloads([{ url: 'uA', filename: 'fA' }, { url: 'uB', filename: 'fB' }]);
       await vi.advanceTimersByTimeAsync(0);
-      downloadCb?.(); // A → id 100 active (pump then claims B)
+      downloadCb?.();
       await vi.advanceTimersByTimeAsync(0);
-      downloadCb?.(); // B → id 101 active
+      downloadCb?.();
       await vi.advanceTimersByTimeAsync(0);
-      expect(chrome.downloads.download).toHaveBeenCalledTimes(2); // both slots busy
+      expect(chrome.downloads.download).toHaveBeenCalledTimes(2);
 
-      // B interrupts → retry #1 (readyAt ≈ +1000). A is still downloading and never
-      // completes in this test. The retry must fire on its own backoff into the free
-      // slot, NOT block until A finishes.
       await handleDownloadChanged({ id: 101, state: { current: 'interrupted', previous: 'in_progress' } } as chrome.downloads.DownloadDelta);
-      await vi.advanceTimersByTimeAsync(0); // register the nudge
-      await vi.advanceTimersByTimeAsync(1200); // its backoff elapses
-      expect(chrome.downloads.download).toHaveBeenCalledTimes(3); // B re-dispatched while A is still active
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(1200);
+      expect(chrome.downloads.download).toHaveBeenCalledTimes(3);
       expect(chrome.downloads.download).toHaveBeenLastCalledWith(expect.objectContaining({ url: 'uB' }), expect.any(Function));
     } finally {
       vi.useRealTimers();
@@ -500,15 +451,13 @@ describe('retry re-pump when the backoff exceeds the fixed nudge (stuck-queue fi
 
 describe('cancelling an item tears down its in-flight download + DNR rule (leak fix)', () => {
   it('aborts the chrome transfer and removes the Referer rule when an active item is cancelled', async () => {
-    dnrRules = [{ id: 555 }]; // a Referer-rewrite rule installed for this download
+    dnrRules = [{ id: 555 }];
     await saveQueue({ paused: false, items: [
       { id: 'x', url: 'u', filename: 'f', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, downloadId: 42, ruleId: 555, useReferer: true },
     ] });
 
     await cancelQueue('x');
 
-    // The file must not keep downloading, and the session rule must not leak: once
-    // the item is gone, handleDownloadChanged can no longer match it to tear it down.
     expect(chrome.downloads.cancel).toHaveBeenCalledWith(42, expect.any(Function));
     expect(dnrRules.find((r) => r.id === 555)).toBeUndefined();
     expect((await getQueueSnapshot()).items).toHaveLength(0);

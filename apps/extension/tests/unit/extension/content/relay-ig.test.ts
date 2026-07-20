@@ -17,7 +17,7 @@ vi.mock('@mbd/core/resolvers/sites/instagram', async () => ({
   ingestSniffedIgMedia: vi.fn(),
 }));
 
-export {}; // isolate this file's top-level bindings to module scope
+export {};
 
 type Handler = (event: unknown) => void;
 
@@ -35,15 +35,12 @@ const loadContent = async (): Promise<{ messageHandlers: Handler[]; ingestSniffe
 
   const igMod = await import('@mbd/core/resolvers/sites/instagram');
   const ingestSniffedIgMedia = igMod.ingestSniffedIgMedia as unknown as Mock;
-  // vi.resetModules() reuses the vi.mock factory's fn (unlike jest.resetModules),
-  // so its call history persists across loadContent() calls — clear it per load.
   ingestSniffedIgMedia.mockClear();
   return { messageHandlers, ingestSniffedIgMedia };
 };
 
 const fire = (handlers: Handler[], event: unknown): void => handlers.forEach((h) => h(event));
 
-// Same-window, same-origin envelope by default; `over` swaps in a foreign field.
 const message = (data: unknown, over: { source?: unknown; origin?: string } = {}): unknown => ({
   source: 'source' in over ? over.source : window,
   origin: 'origin' in over ? over.origin : window.location.origin,

@@ -7,8 +7,6 @@ import * as excluded from '@mbd/storage/excluded';
 const urlEntry = { value: 'https://c/a.jpg', kind: 'url' as const, time: Date.now() };
 const hostEntry = { value: 'cdn.ads.com', kind: 'host' as const, time: Date.now() };
 
-// Grabs the storage.onChanged listener the panel registered on mount so a test
-// can drive a storage-change event through it.
 type ChangeListener = (changes: Record<string, chrome.storage.StorageChange>, area: string) => void;
 const lastStorageListener = (): ChangeListener => {
   const calls = (chrome.storage.onChanged.addListener as Mock).mock.calls;
@@ -43,9 +41,9 @@ describe('ExcludedPanel', () => {
     render(<ExcludedPanel onClose={() => {}} />);
     await screen.findByText('cdn.ads.com');
     const clearBtn = screen.getByRole('button', { name: /clear all/i });
-    await userEvent.click(clearBtn); // first click only arms — nothing cleared yet
+    await userEvent.click(clearBtn);
     expect(chrome.runtime.sendMessage).not.toHaveBeenCalledWith({ type: 'CLEAR_EXCLUDED' });
-    await userEvent.click(clearBtn); // second click confirms
+    await userEvent.click(clearBtn);
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'CLEAR_EXCLUDED' });
   });
 
@@ -94,12 +92,10 @@ describe('ExcludedPanel', () => {
     const listener = lastStorageListener();
     (excluded.loadExcluded as Mock).mockResolvedValue([{ value: 'evil.example', kind: 'host', time: Date.now() }]);
 
-    // Wrong area and wrong key are both ignored — no reload.
     await act(async () => { listener({ [excluded.EXCLUDED_KEY]: {} }, 'sync'); });
     await act(async () => { listener({ somethingElse: {} }, 'local'); });
     expect(excluded.loadExcluded).toHaveBeenCalledTimes(1);
 
-    // A local change to the excluded key reloads and reflects the new data.
     await act(async () => { listener({ [excluded.EXCLUDED_KEY]: {} }, 'local'); });
     expect(await screen.findByText('evil.example')).toBeInTheDocument();
     expect(excluded.loadExcluded).toHaveBeenCalledTimes(2);

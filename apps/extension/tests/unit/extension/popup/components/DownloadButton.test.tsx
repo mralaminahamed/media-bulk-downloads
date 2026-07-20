@@ -83,7 +83,6 @@ describe('DownloadButton', () => {
   });
 
   it('offers the Exclude action only when onExclude is provided', async () => {
-    // No onExclude → the split-menu variant without the Exclude item.
     render(
       <DownloadButton
         label="Download"

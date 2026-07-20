@@ -101,17 +101,14 @@ function panelPlacementStyle(
   }
 
   if (placement === 'free') {
-    // A custom point the user dragged the header to.
     return { position: 'fixed', zIndex: 2147483647, top: point.y, left: point.x, width, height: viewportHeight };
   }
 
   if (placement === 'anchored') {
-    // Sit beside the button at the same corner; reserve the button's footprint.
     const height = `min(${size.h}px, calc(100vh - ${pos.y + FAB + GAP + EDGE}px))`;
     return { ...anchorStyle(corner, pos.x, pos.y + FAB + GAP), width, height };
   }
 
-  // Pinned to a specific viewport corner, independent of the button.
   const height = `min(${size.h}px, calc(100vh - ${PANEL_MARGIN * 2}px))`;
   return { ...anchorStyle(placement, PANEL_MARGIN, PANEL_MARGIN), width, height };
 }
@@ -129,15 +126,7 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
   const origin = useRef({ x: 0, y: 0 });
   const moved = useRef(0);
 
-  // Latest GLOBAL settings, refreshed by the sync listener below, so a deep scan
-  // started after the user edits the caps honours the new values rather than the
-  // frozen mount-time snapshot. (Global only — Safari content scripts can't read
-  // chrome.storage.sync, so the background broadcasts them via SETTINGS_CHANGED.)
   const settingsRef = useRef(initialSettings);
-  // Global + this host's per-host override (#293), kept current so the bubble's
-  // collect + deep scan honour a per-host override exactly like the popup path.
-  // The per-host layer lives in chrome.storage.local (readable in a content script
-  // on every browser); the global layer comes from settingsRef (the broadcast).
   const effectiveRef = useRef(initialSettings);
   const refreshEffective = useCallback(async (): Promise<void> => {
     try {
@@ -149,27 +138,17 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
   }, []);
   useEffect(() => { void refreshEffective(); }, [refreshEffective]);
 
-  // Collect using the effective settings so `smartPageDefaults` (hero-first order)
-  // and `resolveOriginals` (gallery-page pending items) apply in the bubble too —
-  // the popup path passes these; without them both settings were dead no-ops here.
   const collectLocal = useCallback(async (): Promise<ImageInfo[]> => {
     const s = effectiveRef.current;
-    // Prime the Shopify store (same-origin /products/<handle>.js) before the
-    // synchronous collectMedia — the bubble collects in-page, so it doesn't go
-    // through the content GET_IMAGES prelude that primes it for the popup path.
     await ensureShopifyProduct(location.href);
     return collectMedia(undefined, { smartPageDefaults: s.smartPageDefaults, resolveOriginals: s.resolveOriginals });
   }, []);
 
-  // Deep scan runs in-page here (no messaging); track the in-flight controller so
-  // the Stop button can abort it.
   const deepScanAbortRef = useRef<AbortController | null>(null);
   const deepScanLocal = useCallback(async (onProgress: (p: DeepScanProgress) => void): Promise<ImageInfo[]> => {
     const ac = new AbortController();
     deepScanAbortRef.current = ac;
     const s = effectiveRef.current;
-    // Prime the Shopify store once before the scan's synchronous per-scroll
-    // collectMedia calls (ac is already set, so Stop can abort during this).
     await ensureShopifyProduct(location.href);
     return startDeepScan(
       (found, scrolls, elapsedMs, reason) => {
@@ -178,7 +157,6 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
         onProgress(p);
       },
       ac.signal,
-      // Honour the user's configured caps + Load-more toggle, same as the popup path.
       {
         maxItems: s.deepScanMaxItems,
         maxMs: s.deepScanMaxSeconds * 1000,
@@ -192,14 +170,9 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
     deepScanAbortRef.current?.abort();
   }, []);
 
-  // Free-drag of the panel via its header.
   const panelRef = useRef<HTMLDivElement>(null);
   const panelDrag = useRef<{ sx: number; sy: number; left: number; top: number; w: number; h: number } | null>(null);
 
-  // Keep corner/position/size in sync when settings change elsewhere (the popup,
-  // or the same bubble on another tab). Driven by the background's SETTINGS_CHANGED
-  // broadcast, not chrome.storage.onChanged: Safari content scripts don't receive
-  // sync storage events, so a storage listener here would never fire there.
   useEffect(() => {
     const listener = (message: unknown) => {
       if (
@@ -210,8 +183,8 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
         return;
       }
       const next = withDefaults((message as SettingsChangedMessage).settings);
-      settingsRef.current = next; // keep deep-scan caps + Load-more toggle live
-      void refreshEffective(); // re-layer this host's per-host override over the new global
+      settingsRef.current = next;
+      void refreshEffective();
       setCorner(next.bubblePosition.corner);
       setPos({ x: next.bubblePosition.x, y: next.bubblePosition.y });
       setSize({ w: next.bubbleWidth, h: next.bubbleHeight });
@@ -222,7 +195,6 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
     return () => chrome.runtime.onMessage.removeListener(listener);
   }, [refreshEffective]);
 
-  // Toolbar-icon clicks (when the popup is disabled) toggle the panel.
   useEffect(() => {
     const listener = (message: unknown) => {
       if (message === 'TOGGLE_BUBBLE') setOpen((o) => !o);
@@ -231,24 +203,11 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
     return () => chrome.runtime.onMessage.removeListener(listener);
   }, []);
 
-  // Close the panel on Escape — but only when no modal sub-dialog (Settings,
-  // History, preview) is open inside it. This listener is on window/capture and
-  // would otherwise fire before the sub-dialog's own Escape handler and collapse
-  // the whole panel instead of just the sheet.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      // Let a sub-surface handle Escape first instead of collapsing the whole
-      // panel: an open modal (preview/side panels), an open dropdown menu (the
-      // download options), or a focused text field (clear the search box).
       if (panelRef.current?.querySelector('[role="dialog"][aria-modal="true"], [role="menu"]')) return;
-      // Resolve the focused node from the panel's own root, NOT e.target: this
-      // listener is on window (light DOM), outside the bubble's shadow root, so
-      // shadow-DOM retargeting makes e.target the shadow HOST (a div) — the field
-      // check would never match and Escape-while-typing would collapse the panel.
-      // getRootNode() is the shadow root in production (activeElement scoped to the
-      // bubble) and the document under jsdom.
       const root = panelRef.current?.getRootNode() as ShadowRoot | Document | null;
       const active = root?.activeElement as HTMLElement | null;
       if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
@@ -258,26 +217,13 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
     return () => window.removeEventListener('keydown', onKey, true);
   }, [open]);
 
-  // Abort an in-flight deep scan when the panel closes (or the bubble unmounts).
-  // Otherwise startDeepScan keeps auto-scrolling the live page after the user
-  // dismissed the UI, with no way to stop it.
   useEffect(() => {
     if (!open) deepScanAbortRef.current?.abort();
   }, [open]);
 
-  // Also abort on full unmount — e.g. the bubble is turned off in Settings while a
-  // scan is running. The [open] effect above only covers the panel-close
-  // transition; without this, root.unmount() leaves the page auto-scrolling with
-  // no UI left to stop it. Empty deps → the cleanup fires only on teardown.
   useEffect(() => () => deepScanAbortRef.current?.abort(), []);
 
   const persist = useCallback((patch: Partial<SettingsData>) => {
-    // Route through the background's single serialized settings writer so a drag
-    // here and a Settings save in the popup can't clobber each other. Guard both
-    // failure shapes of an invalidated context (the extension reloaded while the
-    // bubble is open): sendMessage may reject its promise OR throw synchronously.
-    // The local state already updated, so there's nothing to recover — just don't
-    // let it escape the pointer handler as an unhandled rejection/error.
     try {
       void Promise.resolve(chrome.runtime.sendMessage({ type: 'SET_SETTINGS', patch })).catch(() => {});
     } catch {
@@ -295,9 +241,7 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
 
   const onPointerMove = (e: React.PointerEvent) => {
     if (!dragging.current) return;
-    // Travel measured from the press origin — robust where movementX is unreliable.
     moved.current = Math.abs(e.clientX - origin.current.x) + Math.abs(e.clientY - origin.current.y);
-    // Keep the FAB anchored until travel proves this is a drag, not a click.
     if (moved.current < DRAG_THRESHOLD) return;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
@@ -311,15 +255,13 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
     dragging.current = false;
     setGrabbing(false);
     if (moved.current < DRAG_THRESHOLD) {
-      setOpen((o) => !o); // treated as a click
+      setOpen((o) => !o);
     } else {
       persist({ bubblePosition: { corner, x: pos.x, y: pos.y } });
     }
   };
 
-  // Drag the panel by its header to place it anywhere (a `free` placement).
   const onHeaderPointerDown = (e: React.PointerEvent) => {
-    // Let header controls (settings, close, rescan) keep working.
     if ((e.target as Element).closest('button, a, input, select, textarea')) return;
     const rect = panelRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -352,7 +294,6 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
     persist({ bubblePanelPlacement: 'free', bubblePanelPoint: freePoint(e, d) });
   };
 
-  // Resize the panel by dragging its corner grip; persists bubble width/height.
   const { freeRight, freeBottom } = panelFreeEdges(placement, corner);
   const resizeStart = useRef<{ sx: number; sy: number; w: number; h: number } | null>(null);
 
@@ -384,16 +325,11 @@ const Bubble: React.FC<BubbleProps> = ({ initialSettings }) => {
     persist({ bubbleWidth: next.w, bubbleHeight: next.h });
   };
 
-  // The button and panel are laid out independently so opening the panel never
-  // reflows the launcher — the button stays exactly where it was placed.
   const panelStyle = panelPlacementStyle(placement, corner, pos, size, panelPoint);
 
   return (
     <>
       {open && (
-        // Dim the page behind the panel so it reads on light pages (e.g. X)
-        // instead of blending in. Visual only — pointer-events: none keeps the
-        // page fully interactive; the panel (higher z-index) sits above the dim.
         <div
           className="mbd-app mbd-bubble-scrim overlay-in"
           aria-hidden="true"

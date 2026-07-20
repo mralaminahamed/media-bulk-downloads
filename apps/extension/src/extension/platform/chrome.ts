@@ -51,9 +51,6 @@ export const chromeNotifier: Notifier = {
   },
 };
 
-// Monotonic session-rule id (seed once above any pre-existing rules, then
-// increment synchronously so overlapping callers can't collide). Mirrors the
-// hardening in hotlink-rewrite.ts.
 let ruleIdSeq = 0;
 let ruleIdSeeded: Promise<void> | null = null;
 async function nextRuleId(): Promise<number> {
@@ -92,8 +89,6 @@ export const chromeHeaderRules: HeaderRules = {
   },
 };
 
-// Chrome/Edge assemble HLS/DASH in a chrome.offscreen blob document (the service
-// worker has no createObjectURL). This host owns that doc and dispatches the run.
 const OFFSCREEN_URL = 'offscreen.html';
 export const chromeCaptureHost: StreamCaptureHost = {
   kind: 'offscreen',

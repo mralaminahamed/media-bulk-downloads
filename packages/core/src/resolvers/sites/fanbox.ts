@@ -1,8 +1,6 @@
 import { MediaCandidate } from '@mbd/core/resolvers/types';
 import { imageExtFromUrl } from '@mbd/core/collection/mediaType';
 
-// A Pixiv Fanbox post page: `<creator>.fanbox.cc/posts/<id>` or the canonical
-// `www.fanbox.cc/@<creator>/posts/<id>`.
 function isFanboxHost(host: string): boolean {
   return host === 'fanbox.cc' || host.endsWith('.fanbox.cc');
 }
@@ -19,9 +17,6 @@ export function fanboxPostId(raw: string | URL): string | null {
   return u.pathname.match(/\/posts\/(\d+)(?:[/?#]|$)/)?.[1] ?? null;
 }
 
-// A post's full-resolution originals live on downloads.fanbox.cc under the post's
-// own id: /images/post/<postId>/<key>.<ext>. Scoping the scan to <postId> keeps a
-// related-post preview elsewhere on the page from leaking in.
 function originalRe(postId: string): RegExp {
   return new RegExp(`https://downloads\\.fanbox\\.cc/images/post/${postId}/[A-Za-z0-9_-]+\\.(?:jpe?g|png|gif|webp)`, 'gi');
 }

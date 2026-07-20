@@ -1,8 +1,5 @@
 import { MediaCandidate } from '@mbd/core/resolvers/types';
 
-// TikTok serves media from its own signed CDN families (v*-webapp hosts on
-// tiktok.com plus the tiktokcdn / tiktokcdn-us edges). Every URL taken from the
-// (untrusted) page JSON is pinned to that allowlist before it becomes a candidate.
 const TIKTOK_MEDIA_HOSTS = ['tiktokcdn.com', 'tiktokcdn-us.com', 'tiktok.com'];
 
 function pinTikTok(raw: unknown): string | null {
@@ -54,7 +51,6 @@ export function tiktokMediaFromJson(text: string | null | undefined): MediaCandi
   if (!item) return [];
   const id = typeof item.id === 'string' && /^\d+$/.test(item.id) ? item.id : null;
 
-  // Photo-mode slideshow: one image per slide.
   const images = item.imagePost?.images;
   if (Array.isArray(images) && images.length) {
     const seen = new Set<string>();
@@ -70,7 +66,6 @@ export function tiktokMediaFromJson(text: string | null | undefined): MediaCandi
     return out;
   }
 
-  // Standard video: the highest-bitrate rendition, else the default playAddr.
   const video = item.video;
   if (!video) return [];
   let best: { br: number; url: string } | null = null;

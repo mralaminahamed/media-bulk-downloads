@@ -9,8 +9,6 @@
  * circumvention).
  */
 
-// Dailymotion ids are alphanumeric, `x`-prefixed (e.g. x8pp4d0); kept permissive
-// but host-gated. The [A-Za-z0-9]+ capture naturally stops at a `_slug`.
 const ID_RE = /^([A-Za-z0-9]{5,})/;
 
 function isDailymotionHost(host: string): boolean {
@@ -32,20 +30,17 @@ export function dailymotionVideoId(raw: string | URL): string | null {
   const host = u.hostname.toLowerCase();
   if (!isDailymotionHost(host)) return null;
 
-  // dai.ly/<id>  (short link; id is the first path segment)
   if (host === 'dai.ly' || host === 'www.dai.ly') {
     const m = u.pathname.slice(1).match(ID_RE);
     return m ? m[1] : null;
   }
 
-  // geo.dailymotion.com/player[...].html?video=<id>
   const q = u.searchParams.get('video');
   if (q) {
     const m = q.match(ID_RE);
     if (m) return m[1];
   }
 
-  // /video/<id> and /embed/video/<id> (tolerate a trailing _slug)
   const path = u.pathname.match(/^\/(?:embed\/)?video\/([A-Za-z0-9]{5,})/);
   return path ? path[1] : null;
 }

@@ -4,8 +4,6 @@ import type { Page } from '@playwright/test';
 
 type BoundingBox = { x: number; y: number; width: number; height: number };
 
-// Drag from a box's centre by (dx, dy) using real mouse events, which Chromium
-// turns into the pointer events the bubble listens for.
 async function dragBy(page: Page, box: BoundingBox, dx: number, dy: number): Promise<void> {
   const cx = box.x + box.width / 2;
   const cy = box.y + box.height / 2;
@@ -25,9 +23,7 @@ test.describe('drag & resize positioning', () => {
     await dragBy(page, before, -140, -160);
 
     const after = (await launcher.boundingBox())!;
-    expect(dist(before, after)).toBeGreaterThan(60); // it moved, well past the click threshold
-    // A sub-threshold drag is a click (opens the panel); this was a real drag, so
-    // the panel must NOT have opened.
+    expect(dist(before, after)).toBeGreaterThan(60);
     await expect(page.getByText(/on this page/i)).toHaveCount(0);
   });
 
@@ -37,7 +33,6 @@ test.describe('drag & resize positioning', () => {
     const panel = page.locator('.sheet-in');
     const before = (await panel.boundingBox())!;
 
-    // Grab the header on the (non-button) heading area and drag.
     const heading = page.getByRole('heading', { name: 'Media Bulk Downloads', exact: true });
     await dragBy(page, (await heading.boundingBox())!, -180, 130);
 
@@ -64,9 +59,8 @@ test.describe('drag & resize positioning', () => {
     const launcher = page.getByRole('button', { name: 'Media Bulk Downloads' });
     const before = (await launcher.boundingBox())!;
 
-    await dragBy(page, before, 3, 2); // under the 6px drag threshold → treated as a click
+    await dragBy(page, before, 3, 2);
     await expect(page.getByText(/on this page/i)).toBeVisible();
-    // The launcher didn't move.
     const after = (await launcher.boundingBox())!;
     expect(dist(before, after)).toBeLessThan(6);
   });

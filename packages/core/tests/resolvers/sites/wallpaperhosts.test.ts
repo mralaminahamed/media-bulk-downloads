@@ -14,7 +14,6 @@ describe('wallpaperHostsResolver', () => {
 
   it('4kWallpapers: returns the largest-area /images/wallpapers/ anchor (native res)', () => {
     const PAGE = 'https://4kwallpapers.com/nature/thick-forest-misty-26360.html';
-    // Standard-aspect crops + the non-standard native original; max pixel-area wins.
     document.body.innerHTML =
       '<a href="/images/wallpapers/thick-forest-misty-1920x1080-26360.jpg">1080p</a>' +
       '<a href="/images/wallpapers/thick-forest-misty-3840x2160-26360.jpg">4K</a>' +

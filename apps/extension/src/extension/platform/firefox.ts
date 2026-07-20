@@ -22,7 +22,5 @@ export const firefoxCaptureHost: StreamCaptureHost = {
   kind: 'background',
   available: true,
   ensureReady: async () => {},
-  // Dynamic-import the engine (mp4box + HLS/DASH) so it stays a lazy chunk
-  // instead of loading into the background bundle up front.
   run: (req: CaptureRunRequest) => import('./run-capture').then((m) => m.runCaptureInProcess(req)),
 };

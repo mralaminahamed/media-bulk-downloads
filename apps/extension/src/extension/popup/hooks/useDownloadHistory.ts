@@ -22,10 +22,6 @@ export function useDownloadHistory(): UseDownloadHistoryResult {
   }, [downloadedSrcs]);
 
   useEffect(() => {
-    // The "downloaded" mark reflects files still on disk, not just what history
-    // records — so an item the user deleted becomes re-downloadable (not a
-    // duplicate). chrome.downloads lives in the background, so this asks it, and
-    // re-asks whenever history changes (a new download, or a cleared entry).
     const refresh = (): void => void fetchDownloadedOnDisk().then((s) => setDownloadedSrcs(SrcKeySet.from(s)));
     refresh();
     const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {

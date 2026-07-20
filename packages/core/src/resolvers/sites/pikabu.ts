@@ -2,11 +2,8 @@ import { extensionFromUrl } from '@mbd/core/collection/mediaType';
 import { MediaCandidate, Resolver } from '@mbd/core/resolvers/types';
 import { kindFromExt, pageHost, pinnedDomUrl } from '@mbd/core/resolvers/sites/pageOriginal';
 
-// Gated on the PAGE host (media lives on cs*.pikabu.ru, a different host than the
-// story page). Images only — Pikabu "video" is a converted GIF/short clip served
-// as a direct webm/mp4, which flows through the A/V collection path, not here.
 const HOSTS = new Set(['pikabu.ru', 'www.pikabu.ru']);
-const IMG_HOSTS = ['pikabu.ru']; // cs*.pikabu.ru — same registrable domain
+const IMG_HOSTS = ['pikabu.ru'];
 
 /**
  * Pikabu story-image resolver. A post image is displayed as `img.story-image__image`
@@ -34,7 +31,7 @@ export const pikabuResolver: Resolver = {
       el.closest?.('.story-image')?.querySelector?.('a.story-image__link')?.getAttribute?.('href') ??
       null;
     const full = pinnedDomUrl(href, IMG_HOSTS);
-    if (!full || full === u.href) return []; // no bigger original / already the original
+    if (!full || full === u.href) return [];
     const ext = extensionFromUrl(full);
     const c: MediaCandidate = { url: full, kind: kindFromExt(ext), thumbnailSrc: u.href };
     if (ext) c.ext = ext;

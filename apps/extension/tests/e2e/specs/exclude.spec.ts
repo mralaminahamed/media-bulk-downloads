@@ -6,7 +6,6 @@ const itemByAlt = (page: Page, alt: string) =>
   page.locator('figure', { has: page.locator(`img[alt="${alt}"]`) });
 const fbItem = (page: Page) =>
   page.locator('figure', { has: page.locator('img[src*="fbcdn"]') });
-// The preview/details modal (the only aria-modal dialog on the grid).
 const previewModal = (page: Page) => page.locator('[role="dialog"][aria-modal="true"]');
 
 async function openPreview(page: Page, item: Locator): Promise<void> {
@@ -30,7 +29,6 @@ test.describe('exclude flow', () => {
 
     await expect(previewModal(page)).toHaveCount(0);
     await expect(itemByAlt(page, 'Alpha')).toHaveCount(0);
-    // Only Alpha went — the other data: images and the fbcdn item stay.
     await expect(itemByAlt(page, 'Beta')).toHaveCount(1);
     await expect(fbItem(page)).toHaveCount(1);
     expect(await itemCount(page)).toBe(4);
@@ -45,7 +43,7 @@ test.describe('exclude flow', () => {
     await page.getByRole('menuitem', { name: /exclude site/i }).click();
 
     await expect(fbItem(page)).toHaveCount(0);
-    await expect(itemByAlt(page, 'OtherHost')).toHaveCount(1); // different host survives
+    await expect(itemByAlt(page, 'OtherHost')).toHaveCount(1);
     expect(await itemCount(page)).toBe(4);
   });
 
@@ -63,7 +61,6 @@ test.describe('exclude flow', () => {
     await openPanel(page);
     await openPreview(page, itemByAlt(page, 'Alpha'));
     await openExcludeMenu(page);
-    // WAI-ARIA menu button: focus lands on the first item on open.
     await expect(page.getByRole('menuitem', { name: 'Exclude this image' })).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(itemByAlt(page, 'Alpha')).toHaveCount(0);
@@ -88,7 +85,7 @@ test.describe('exclude flow', () => {
     await openExcludeMenu(page);
     await page.keyboard.press('Escape');
     await expect(page.getByRole('menu')).toHaveCount(0);
-    await expect(previewModal(page)).toHaveCount(1); // preview survives
+    await expect(previewModal(page)).toHaveCount(1);
   });
 
   test('an exclusion persists across closing and reopening the panel', async ({ context }) => {
@@ -99,10 +96,9 @@ test.describe('exclude flow', () => {
     await page.getByRole('menuitem', { name: 'Exclude this image' }).click();
     await expect(itemByAlt(page, 'Alpha')).toHaveCount(0);
 
-    // Toggle the panel closed, then open it again — the exclusion is persisted.
-    await page.getByRole('button', { name: 'Media Bulk Downloads' }).click(); // close
+    await page.getByRole('button', { name: 'Media Bulk Downloads' }).click();
     await expect(previewModal(page)).toHaveCount(0);
-    await openPanel(page); // reopen (re-scans + re-filters)
+    await openPanel(page);
     await expect(itemByAlt(page, 'Alpha')).toHaveCount(0);
     expect(await itemCount(page)).toBe(4);
   });
@@ -121,8 +117,6 @@ test.describe('exclude flow', () => {
     await expect(panel).toBeVisible();
     await expect(panel.getByText('fbcdn.net')).toBeVisible();
 
-    // Remove the single entry, then rescan — the fbcdn item is no longer blocked
-    // and returns to the grid.
     await panel.getByRole('button', { name: /remove/i }).click();
     await expect(panel.getByText(/no excluded sources/i)).toBeVisible();
     await panel.getByRole('button', { name: 'Close' }).click();

@@ -26,7 +26,6 @@ export function rutubeVideoId(raw: string | URL): string | null {
     return null;
   }
   if (!isRutubeHost(u.hostname.toLowerCase())) return null;
-  // /video/<id>/ (watch), /play/embed/<id> (player), /shorts/<id> — id is 32-hex.
   const m = u.pathname.match(/^\/(?:video|play\/embed|shorts)\/([0-9a-f]{32})(?:[/?#]|$)/i);
   return m ? m[1].toLowerCase() : null;
 }

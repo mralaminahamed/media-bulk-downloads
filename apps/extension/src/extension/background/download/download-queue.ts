@@ -15,8 +15,6 @@ interface Deps {
 
 let deps: Deps = { getConcurrency: () => 5, getSaveAs: () => false };
 
-// Serialize all queue mutations through one promise chain so a concurrent
-// onChanged handler and pump() can't clobber each other's last-write-wins save.
 let chain: Promise<unknown> = Promise.resolve();
 function withState<T>(fn: (s: QueueState) => Promise<{ state: QueueState; value: T }>): Promise<T> {
   const run = chain.then(async () => {
@@ -24,17 +22,12 @@ function withState<T>(fn: (s: QueueState) => Promise<{ state: QueueState; value:
     const { state, value } = await fn(s);
     if (state !== s) {
       const persisted = await saveQueue(state);
-      // durableSet hit the storage quota (a base64/`data:`-heavy bulk enqueue is
-      // the usual trigger — live items aren't byte-capped, only finished ones).
-      // The in-memory queue still drives this session, but a SW restart would drop
-      // it — surface that instead of the previous silent loss.
       if (!persisted) {
         console.warn('[mbd] download queue exceeded the storage quota; pending items may not survive a service-worker restart.');
       }
     }
     return value;
   });
-  // Keep the chain alive regardless of individual outcomes.
   chain = run.then(() => undefined, () => undefined);
   return run;
 }
@@ -50,8 +43,6 @@ function startDownload(url: string, filename: string): Promise<number | undefine
 
 export function initQueueDispatcher(d: Deps): void {
   deps = d;
-  // Drop any pending retry nudge from a prior lifetime (a no-op on a fresh SW
-  // start; keeps the per-test re-init from leaking a timer between cases).
   if (nudgeTimer) { clearTimeout(nudgeTimer); nudgeTimer = null; nudgeReadyAt = Infinity; }
   chrome.downloads.onChanged.addListener((delta) => {
     void handleDownloadChanged(delta);
@@ -69,17 +60,12 @@ export async function enqueueDownloads(entries: EnqueueEntry[]): Promise<number>
 
 export async function pump(): Promise<void> {
   const max = deps.getConcurrency();
-  // Claim one item per turn (persisting its 'active' mark) then start it, so a
-  // freed slot refills on the next iteration.
   for (;;) {
     const claimed = await withState(async (s) => {
       const c = claimNext(s, max, Date.now());
       return c ? { state: c.state, value: c.item } : { state: s, value: null };
     });
     if (!claimed) break;
-    // Hotlink 403 retry (#197): install a scoped Referer-rewrite DNR rule before
-    // this dispatch and remember its id so the download's onChanged can tear it
-    // down. Best-effort — a rule failure just proceeds without the rewrite.
     let ruleId: number | undefined;
     if (claimed.useReferer) {
       try {
@@ -90,9 +76,6 @@ export async function pump(): Promise<void> {
           value: null,
         }));
       } catch {
-        // If the rule installed but persisting its id threw, tear it down here —
-        // otherwise its id is lost to every teardown path and it would force a
-        // Referer/Origin on this URL for the rest of the browser session.
         if (ruleId != null) await removeRefererRule(ruleId).catch(() => {});
         ruleId = undefined;
       }
@@ -105,23 +88,14 @@ export async function pump(): Promise<void> {
         value: null,
       }));
     } else {
-      // #284: pair a provenance sidecar to THIS download's real on-disk name (I6).
       if (claimed.sidecar) scheduleSidecar(downloadId, claimed.filename, claimed.sidecar);
       await withState(async (s) => ({ state: markActive(s, claimed.id, downloadId), value: null }));
       ensureProgressPoll();
     }
   }
-  // The claim loop above stops the moment nothing is immediately claimable. If the
-  // only remaining live items are retries waiting out their backoff (and nothing is
-  // active, so no download completion will re-pump), arm a timer for the soonest
-  // readyAt. Without this a backoff longer than the fixed nudge interval — every
-  // retry from the 2nd on (backoffMs ≥ 2000) — would leave the last item stuck in
-  // `queued` forever, never reaching its next attempt.
   await armRetryNudge();
 }
 
-// The interrupt reason: it may ride on the onChanged delta itself; if not, ask
-// chrome.downloads for the record. Undefined when unavailable.
 async function interruptError(delta: chrome.downloads.DownloadDelta): Promise<string | undefined> {
   if (delta.error?.current) return delta.error.current;
   try {
@@ -136,8 +110,6 @@ export async function handleDownloadChanged(delta: chrome.downloads.DownloadDelt
   const current = delta.state?.current;
   if (current !== 'complete' && current !== 'interrupted') return;
 
-  // Snapshot the matching item first: we need its flags (useReferer / ruleId)
-  // before mutating, and the 403 + permission checks are async.
   const snapshot = await loadQueue();
   const item = snapshot.items.find((i) => i.downloadId === delta.id && i.status === 'active');
   if (!item) return;
@@ -145,9 +117,6 @@ export async function handleDownloadChanged(delta: chrome.downloads.DownloadDelt
   const errCode = current === 'interrupted' ? await interruptError(delta) : undefined;
   const forbidden = errCode === 'SERVER_FORBIDDEN';
   const cancelled = errCode === 'USER_CANCELED';
-  // A 403 is worth a Referer-rewrite retry only once, and only if the user has
-  // granted the optional declarativeNetRequestWithHostAccess permission. Otherwise it fails with
-  // the hotlink flag so the popup can offer an explicit opt-in.
   const rewrite = forbidden && !item.useReferer && (await hasDnrPermission());
 
   const done = await withState(async (s) => {
@@ -156,8 +125,6 @@ export async function handleDownloadChanged(delta: chrome.downloads.DownloadDelt
     if (current === 'complete') return { state: markDone(s, cur.id), value: cur };
     if (forbidden) {
       if (rewrite) {
-        // Arm the rewrite and requeue immediately — not counted toward the normal
-        // backoff attempt cap (a bare 403 retry never changes; the referer does).
         const items = s.items.map((i) =>
           i.id === cur.id
             ? {
@@ -174,23 +141,16 @@ export async function handleDownloadChanged(delta: chrome.downloads.DownloadDelt
     return { state: scheduleRetry(s, cur.id, Date.now()), value: null };
   });
 
-  // The attempt has settled — tear down any Referer rule that was active for it.
   if (item.ruleId != null) await removeRefererRule(item.ruleId);
   if (done?.history) {
     void recordDownloads([{ ...done.history, time: Date.now(), downloadId: delta.id }]);
   }
-  // pump() re-arms the retry nudge itself (armRetryNudge) after draining.
   void pump();
 }
 
-// A retried item becomes claimable only once its backoff `readyAt` passes; a timer
-// re-pumps then. If the SW is terminated first, startup reconcile re-pumps (the
-// readyAt has already elapsed by then), so no alarm permission is needed.
 let nudgeTimer: ReturnType<typeof setTimeout> | null = null;
-let nudgeReadyAt = Infinity; // the readyAt the pending nudge targets
+let nudgeReadyAt = Infinity;
 
-// Schedule (or bring forward) a single re-pump timer aimed at `readyAt`. Keeps the
-// EARLIEST pending wake — a later request never pushes an existing sooner one back.
 function scheduleNudgeAt(readyAt: number, delayMs: number): void {
   if (nudgeTimer && nudgeReadyAt <= readyAt) return;
   if (nudgeTimer) clearTimeout(nudgeTimer);
@@ -202,20 +162,14 @@ function scheduleNudgeAt(readyAt: number, delayMs: number): void {
   }, Math.max(0, delayMs));
 }
 
-// Ensure a timer will fire at the soonest queued retry `readyAt`, so a retry whose
-// backoff exceeds any fixed interval still gets re-dispatched once its slot is free.
-// Armed only when a concurrency slot is actually FREE (active < cap): if every slot
-// is busy a completion frees one and re-pumps, so no timer is needed — but a free
-// slot must NOT wait on an unrelated long download to finish (that was the fixed
-// 1100ms nudge's job). No-op while paused or with no queued item on a future readyAt.
 async function armRetryNudge(): Promise<void> {
   let s: QueueState;
   try { s = await loadQueue(); } catch { return; }
   if (s.paused) return;
   const raw = deps.getConcurrency();
-  const cap = Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1; // mirror claimNext
+  const cap = Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1;
   const active = s.items.filter((i) => i.status === 'active').length;
-  if (active >= cap) return; // no free slot — a completion will free one and re-pump
+  if (active >= cap) return;
   const readyAts = s.items.filter((i) => i.status === 'queued').map((i) => i.readyAt);
   if (readyAts.length === 0) return;
   const soonest = Math.min(...readyAts);
@@ -232,18 +186,6 @@ function ensureProgressPoll(): void {
   if (!progressTimer) progressTimer = setInterval(() => { void pollProgress(); }, PROGRESS_POLL_MS);
 }
 
-// Poll chrome.downloads for each active item's byte progress and persist it via
-// the shared mutex. Doubles as the terminal-state backstop: an item whose
-// download chrome reports `complete`/`interrupted` but whose onChanged we never
-// processed — the event fired in the window before markActive persisted the
-// downloadId (tiny/cached/`data:` downloads settle almost instantly), or the SW
-// was briefly asleep — would otherwise stay `active` forever, holding a
-// concurrency slot and starving the rest of the queue while its bar sits at 100%.
-// Settling those through handleDownloadChanged (the same path onChanged uses) is
-// idempotent: an item already moved off `active` no longer matches, so a real
-// onChanged that DID fire simply wins the race and the poll no-ops. Self-stops
-// when nothing is active. Exported (test-only names) so the poll can be driven
-// deterministically without a real timer.
 async function pollProgress(): Promise<void> {
   const snapshot = await loadQueue();
   const actives = snapshot.items.filter((i) => i.status === 'active' && i.downloadId !== undefined);
@@ -267,13 +209,10 @@ async function pollProgress(): Promise<void> {
     await withState(async (s) => {
       let next = s;
       for (const p of progress) next = setProgress(next, p.downloadId, p.bytesReceived, p.totalBytes);
-      return { state: next, value: null }; // withState skips the write when next === s
+      return { state: next, value: null };
     });
   }
 
-  // Settle missed terminals OUTSIDE the withState lock — handleDownloadChanged
-  // takes the lock itself, so calling it from inside the poll's own withState
-  // callback would deadlock the serialization chain.
   for (const t of terminal) {
     await handleDownloadChanged({ id: t.id, state: { current: t.state, previous: 'in_progress' } } as chrome.downloads.DownloadDelta);
   }
@@ -299,10 +238,6 @@ export async function cancelQueue(target: string): Promise<void> {
     const toRemove = s.items.filter((i) => (target === 'all' ? isLive(i) : i.id === target));
     return { state: cancel(s, target), value: toRemove };
   });
-  // The reducer only drops the item from the array. For an item that is actively
-  // downloading, also abort the chrome transfer (else the file still lands on disk)
-  // and tear down its Referer-rewrite DNR rule — once removed, handleDownloadChanged
-  // no longer matches it, so the session rule would otherwise leak for the session.
   for (const it of removed) {
     if (it.downloadId != null) {
       await new Promise<void>((resolve) => {
@@ -337,28 +272,15 @@ export async function openQueueItem(id: string): Promise<void> {
   if (it && it.status === 'done' && it.downloadId !== undefined) chrome.downloads.open(it.downloadId);
 }
 
-// On service-worker startup, reconcile any items left 'active' when the worker
-// died: if Chrome finished the download meanwhile, mark it done; otherwise put it
-// back in the queue so pump() re-dispatches it. Then drain whatever is claimable.
 export async function reconcileQueue(): Promise<void> {
   let snapshot: QueueState;
   try {
     snapshot = await loadQueue();
   } catch {
-    // Storage unavailable (e.g. a worker torn down mid-read) → nothing to
-    // reconcile now; the next startup retries. Never reject (callers `void` us).
     return;
   }
   const now = Date.now();
 
-  // An item can be left `active` with NO downloadId at all if the SW died in the
-  // window between claimNext() persisting status:'active' and markActive()
-  // attaching the real id — invisible to the downloadId-keyed loop below (and to
-  // pollProgress), so it would otherwise hold a concurrency slot forever.
-  // Grace-gated (matches recoverStuckActive): only items whose claim is genuinely
-  // abandoned — never one a concurrent pump() claimed microseconds ago and is still
-  // awaiting chrome.downloads.download()'s callback (else we'd strip its DNR rule
-  // and re-dispatch a duplicate download).
   const stuckNoId = snapshot.items.filter(
     (i) => i.status === 'active' && i.downloadId === undefined && now - (i.claimedAt ?? 0) > RECOVER_GRACE_MS,
   );
@@ -375,14 +297,9 @@ export async function reconcileQueue(): Promise<void> {
     try {
       [hit] = await chrome.downloads.search({ id: item.downloadId });
     } catch {
-      hit = undefined; // search unavailable → treat as needing a requeue rather than losing the item.
+      hit = undefined;
     }
 
-    // Chrome's download state is a 3-way model (in_progress / complete /
-    // interrupted), not a boolean. A download that's STILL RUNNING must be left
-    // alone: resetting it would let pump() dispatch a SECOND chrome.downloads.download
-    // for the same file, and the original's later `complete` event would match no
-    // active item (its downloadId cleared) so it would never be recorded to history.
     if (hit?.state === 'in_progress') continue;
 
     const completed = hit?.state === 'complete';
@@ -390,22 +307,10 @@ export async function reconcileQueue(): Promise<void> {
       const cur = s.items.find((i) => i.id === item.id);
       if (!cur || cur.status !== 'active') return { state: s, value: null };
       if (completed) return { state: markDone(s, item.id), value: cur };
-      // Missing record (evicted before Chrome even registered it) or genuinely
-      // interrupted (404/DNS/etc, surviving a SW restart) → go through the normal
-      // retry/backoff reducer so attempts increments and MAX_ATTEMPTS caps a
-      // permanently-broken URL instead of retrying it forever.
       const cleared = { ...s, items: s.items.map((i) => (i.id === item.id ? { ...i, ruleId: undefined } : i)) };
       return { state: scheduleRetry(cleared, item.id, now), value: cur };
     });
-    // Tear down any Referer-rewrite DNR session rule the settled attempt left
-    // installed. The live onChanged path (handleDownloadChanged) does this; a
-    // reconcile after SW eviction must too — otherwise the session rule leaks for
-    // the rest of the browser session (forcing Referer on that URL forever), and a
-    // requeue would let the next pump() overwrite item.ruleId and orphan it.
     if (item.ruleId != null) await removeRefererRule(item.ruleId);
-    // If the SW died after Chrome finished the file, the onChanged:complete event
-    // was never delivered, so record history here — otherwise the file is on disk
-    // but missing from History and the on-disk dedupe set (silently re-downloadable).
     if (doneItem?.history) {
       void recordDownloads([{ ...doneItem.history, time: now, downloadId: item.downloadId }]);
     }

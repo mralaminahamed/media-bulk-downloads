@@ -1,8 +1,6 @@
 import { pinterestResolver, ingestSniffedPinterestMedia, pinterestPageMedia, __resetPinterestSniffed } from '@mbd/core/resolvers/sites/pinterest';
 import { ResolveContext } from '@mbd/core/resolvers/types';
 
-// Real image hash + size folders captured from a live pin (2026-07-09): one image
-// served at many /<size>/ folders plus /originals/.
 const HASH = '45/79/16/45791643dd397b203c0306f076d94e0b.jpg';
 const img = (folder: string) => `https://i.pinimg.com/${folder}/${HASH}`;
 const ORIGINALS = img('originals');
@@ -27,7 +25,6 @@ describe('pinterestResolver — match', () => {
   it('matches i.pinimg.com and nothing else', () => {
     const ctx = { allowNetwork: false };
     expect(pinterestResolver.match(new URL(img('564x')), ctx)).toBe(true);
-    // Direct video hosts are handled by the <video> collection pass, not here.
     expect(pinterestResolver.match(new URL('https://v1.pinimg.com/videos/iht/720p/x.mp4'), ctx)).toBe(false);
     expect(pinterestResolver.match(new URL('https://www.pinterest.com/pin/123/'), ctx)).toBe(false);
     expect(pinterestResolver.match(new URL('https://example.com/x.jpg'), ctx)).toBe(false);
@@ -51,9 +48,6 @@ describe('pinterestResolver — images', () => {
 
   it.each(['30x30_RS', '75x75_RS', '140x140_RS', '280x280_RS'])(
     'upgrades the responsive smart-crop folder %s -> originals', (folder) => {
-      // `_RS` folders (board covers, avatars, section covers) share the same hash
-      // path as the full image, so /originals/ resolves for them too (verified
-      // HTTP 200 against a real board). Upgrade them like any other size folder.
       const [c] = resolve(img(folder));
       expect(c).toMatchObject({ kind: 'image', url: ORIGINALS });
       expect(c.thumbnailSrc).toBe(img(folder));
@@ -78,7 +72,6 @@ describe('pinterestResolver — video pins', () => {
       poster: img('736x'),
       resolveHint: { platform: 'pinterest', id: '84301824269690044' },
     });
-    // Never surfaces the still as the downloadable media.
     expect(c.url).toBe(img('736x'));
   });
 
@@ -116,7 +109,7 @@ describe('pinterestResolver — video pins', () => {
 
 describe('pinterestResolver — edge cases', () => {
   it('does not crash and returns an image when ctx.el is absent', () => {
-    const [c] = resolve(img('736x')); // no el in ctx
+    const [c] = resolve(img('736x'));
     expect(c).toMatchObject({ kind: 'image', url: ORIGINALS });
   });
 
@@ -135,7 +128,6 @@ describe('pinterestResolver — edge cases', () => {
   });
 
   it('extracts the pin id when the /pin/ link has a query with NO trailing slash', () => {
-    // A tracking-decorated anchor: /pin/<id>?invite_code=… with no slash before `?`.
     const cell = document.createElement('div');
     cell.innerHTML = '<a href="/pin/84301824269690044?invite_code=abc"><img alt="p"><video></video></a>';
     const [c] = resolve(img('736x'), { allowNetwork: false, el: cell.querySelector('img')! });
@@ -155,7 +147,7 @@ describe('pinterestResolver — edge cases', () => {
     const cell = document.createElement('div');
     cell.innerHTML = '<a href="/pin/create/"><img alt="p"><video></video></a>';
     const [c] = resolve(img('564x'), { allowNetwork: false, el: cell.querySelector('img')! });
-    expect(c.kind).toBe('image'); // no id → falls back to the image
+    expect(c.kind).toBe('image');
     expect(c.url).toBe(ORIGINALS);
   });
 });
@@ -200,12 +192,6 @@ describe('pinterestResolver — sniffed store', () => {
 });
 
 describe('ingestSniffedPinterestMedia — very large batch (loop-push, not push(...spread))', () => {
-  // The store is built with a loop, not `sniffed.push(...clean)`: `entries`
-  // crosses the MAIN->isolated postMessage boundary from an untrusted page and
-  // can be arbitrarily large, and spreading it as call args risks a RangeError
-  // that this function's caller would otherwise swallow. Prove a single call
-  // with an array well beyond typical engine argument-count limits doesn't
-  // throw and the sniffed entry still resolves.
   it('ingests 200,000 entries in one call without throwing', () => {
     const many = Array.from({ length: 200_000 }, (_, i) => ({
       pinId: '888888888888', kind: 'image' as const, url: `https://i.pinimg.com/originals/hu/ge/${i}.jpg`, ext: 'jpg',

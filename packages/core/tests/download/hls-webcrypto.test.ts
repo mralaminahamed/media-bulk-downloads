@@ -2,13 +2,6 @@
 import { createCipheriv, randomBytes } from 'crypto';
 import { browserHlsDeps, webcryptoDecrypt } from '@mbd/core/download/stream/hls-webcrypto';
 
-// Runs in the node environment (not jsdom): jsdom is a separate JS realm, and
-// Node 20's webcrypto rejects a cross-realm typed array (ERR_INVALID_ARG_TYPE)
-// handed to importKey. Under node env the typed arrays are Node-realm and
-// globalThis.crypto is Node's real WebCrypto, so the AES-CBC path runs on every
-// supported Node version. This file exercises only crypto + global fetch (no
-// DOM), so it needs nothing jsdom provides.
-
 /** AES-128-CBC + PKCS7 encrypt via node:crypto — the exact scheme HLS uses. */
 function aesCbcEncrypt(key: Uint8Array, iv: Uint8Array, plain: Uint8Array): Uint8Array {
   const c = createCipheriv('aes-128-cbc', key, iv);
@@ -28,9 +21,6 @@ describe('webcryptoDecrypt', () => {
 
   it('decrypts a ciphertext passed as a byteOffset view (buf() must slice, not take the whole backing buffer)', async () => {
     const ct = aesCbcEncrypt(key, iv, plain);
-    // Place the ciphertext at offset 8 inside a larger buffer and hand a subarray
-    // view (byteOffset = 8). If buf() ignored the offset it would decrypt the
-    // wrong bytes and either throw or return garbage.
     const backing = new Uint8Array(8 + ct.length + 5);
     backing.set(ct, 8);
     const view = backing.subarray(8, 8 + ct.length);
@@ -62,8 +52,6 @@ describe('browserHlsDeps', () => {
     const f = vi.fn().mockResolvedValue({ ok: false, status: 206, arrayBuffer: () => Promise.resolve(new Uint8Array([1, 2, 3]).buffer) });
     global.fetch = f as unknown as typeof fetch;
     const out = await browserHlsDeps().fetchBytes('https://x/seg', { offset: 100, length: 50 });
-    // objectContaining: a per-attempt AbortSignal (the capture-fetch timeout) is
-    // also passed now — not asserting its identity, just the meaningful fields.
     expect(f).toHaveBeenCalledWith(
       'https://x/seg',
       expect.objectContaining({ headers: { Range: 'bytes=100-149' }, redirect: 'error' }),
@@ -75,12 +63,7 @@ describe('browserHlsDeps', () => {
     const f = vi.fn().mockResolvedValue({ ok: true, arrayBuffer: () => Promise.resolve(new Uint8Array([9]).buffer) });
     global.fetch = f as unknown as typeof fetch;
     expect(Array.from(await browserHlsDeps().fetchBytes('https://x/seg'))).toEqual([9]);
-    // objectContaining: a per-attempt AbortSignal (the capture-fetch timeout) is
-    // also passed now — not asserting its identity, just the meaningful fields.
     expect(f).toHaveBeenCalledWith('https://x/seg', expect.objectContaining({ redirect: 'error' }));
-    // 500 is a retryable status for retryingFetch, which reads Retry-After off
-    // `res.headers` before deciding whether to retry — so the mock needs a
-    // Headers-shaped object, not just `{ ok, status }`.
     global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500, headers: new Headers() }) as unknown as typeof fetch;
     await expect(browserHlsDeps().fetchBytes('https://x/seg')).rejects.toThrow(/500/);
   });

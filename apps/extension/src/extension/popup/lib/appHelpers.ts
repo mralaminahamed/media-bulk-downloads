@@ -1,7 +1,6 @@
 import { DeepScanStopReason, ImageInfo } from '@mbd/core/types';
 import { isPendingOrStream } from '@mbd/core/collection/filters';
 
-// Concurrent HEAD requests when enriching remote image sizes.
 export const SIZE_FETCH_CONCURRENCY = 6;
 
 /**

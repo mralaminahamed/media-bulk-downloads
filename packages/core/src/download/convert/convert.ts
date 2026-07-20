@@ -28,13 +28,9 @@ export function isAnimatedImage(header: Uint8Array): boolean {
   const fourCC = (o: number, s: string): boolean =>
     header.length >= o + 4 &&
     String.fromCharCode(header[o], header[o + 1], header[o + 2], header[o + 3]) === s;
-  // Animated WebP: RIFF/WEBP with an extended 'VP8X' chunk whose flags byte
-  // (offset 20) has the animation bit (0x02) set.
   if (fourCC(0, 'RIFF') && fourCC(8, 'WEBP') && fourCC(12, 'VP8X')) {
     return header.length > 20 && (header[20] & 0x02) !== 0;
   }
-  // Animated AVIF: an image sequence declares the 'avis' brand in its ftyp box
-  // (as the major brand or any compatible brand).
   if (fourCC(4, 'ftyp')) {
     const boxSize = Math.min(
       (header[0] << 24) | (header[1] << 16) | (header[2] << 8) | header[3],
@@ -44,17 +40,15 @@ export function isAnimatedImage(header: Uint8Array): boolean {
       if (fourCC(o, 'avis')) return true;
     }
   }
-  // Animated PNG (APNG): the PNG signature followed by an 'acTL' control chunk
-  // appearing before the first 'IDAT'. Walk the length-prefixed chunk list.
   const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
   if (header.length >= 8 && PNG_SIG.every((b, i) => header[i] === b)) {
     let o = 8;
     while (o + 8 <= header.length) {
       if (fourCC(o + 4, 'acTL')) return true;
-      if (fourCC(o + 4, 'IDAT')) return false; // first frame data, no acTL seen → static
+      if (fourCC(o + 4, 'IDAT')) return false;
       const len = (header[o] << 24) | (header[o + 1] << 16) | (header[o + 2] << 8) | header[o + 3];
-      if (len < 0) break; // corrupt/oversized length — stop rather than loop
-      o += 12 + len; // 4 (length) + 4 (type) + len (data) + 4 (CRC)
+      if (len < 0) break;
+      o += 12 + len;
     }
   }
   return false;
@@ -111,13 +105,8 @@ export async function convertImage(
 ): Promise<ConvertedImage | null> {
   const deps = opts.deps ?? defaultDeps;
   try {
-    // Preserve animation: an animated webp/avif/apng would lose every frame but
-    // the first through the canvas re-encode, so bail and let the caller download
-    // the original untouched (null = "couldn't convert, download as-is"). 4 KiB
-    // covers an APNG's acTL chunk even when ancillary chunks precede it.
     const header = new Uint8Array(await blob.slice(0, 4096).arrayBuffer());
     if (isAnimatedImage(header)) return null;
-    // Read the source metadata before decode — the canvas re-encode discards it.
     const meta: ImageMetadata = opts.preserveMetadata ? await extractMetadata(blob) : {};
     const bitmap = await deps.createImageBitmap(blob);
     const canvas = deps.makeCanvas(bitmap.width, bitmap.height);
@@ -136,7 +125,7 @@ export async function convertImage(
     let bytes: Uint8Array = new Uint8Array(await out.arrayBuffer());
     if (meta.exif || meta.xmp) {
       const injected = injectMetadata(bytes, target, meta);
-      if (!injected) return null; // couldn't re-inject → caller keeps the original
+      if (!injected) return null;
       bytes = injected;
     }
     return { bytes, ext: TARGET_EXT[target], mime: TARGET_MIME[target] };

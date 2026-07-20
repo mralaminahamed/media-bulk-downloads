@@ -22,7 +22,6 @@ export async function openBubblePage(
   );
   const page = await context.newPage();
   await page.goto(url);
-  // Playwright pierces the bubble's open shadow root, so the launcher is findable.
   await page.getByRole('button', { name: 'Media Bulk Downloads' }).waitFor();
   return page;
 }
@@ -30,7 +29,6 @@ export async function openBubblePage(
 /** Open the bubble panel and wait for the collected grid (status line) to settle. */
 export async function openPanel(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Media Bulk Downloads' }).click();
-  // The panel's App scans the page on mount; wait for the loaded status line.
   await expect(page.getByText(/on this page/i)).toBeVisible();
 }
 

@@ -21,7 +21,7 @@ export function setupContextMenus(): void {
     chrome.contextMenus.create({ id: MENU.downloadImage, title: 'Download image (original quality)', contexts: ['image'] });
     chrome.contextMenus.create({ id: MENU.favouriteImage, title: 'Add image to Favourites', contexts: ['image'] });
     chrome.contextMenus.create({ id: MENU.downloadMedia, title: 'Download this media', contexts: ['video', 'audio'] });
-    void chrome.runtime.lastError; // ignore a benign duplicate-id if menus already exist
+    void chrome.runtime.lastError;
   });
 }
 

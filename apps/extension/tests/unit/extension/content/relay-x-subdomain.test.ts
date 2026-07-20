@@ -11,7 +11,7 @@
  */
 import type { Mock } from 'vitest';
 
-export {}; // isolate this file's top-level bindings to module scope
+export {};
 
 type Handler = (event: unknown) => void;
 
@@ -37,8 +37,6 @@ describe('X media relay — subdomain gate (M1)', () => {
 
   it('does not relay mbd-x-media on an x.com subdomain (sniffer never injected there)', async () => {
     const { handlers, sendMessage } = await loadContent();
-    // A same-window, same-origin, correctly-tagged envelope — valid in every way
-    // except that the host is a subdomain the sniffer never runs on.
     const event = {
       source: window,
       origin: window.location.origin,

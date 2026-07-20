@@ -4,8 +4,6 @@ const ctx = (el: Element | undefined, pageUrl: string) => ({ el, allowNetwork: f
 const DESU = 'https://desuarchive.org/g/thread/100000000/';
 const PLEBS = 'https://archive.4plebs.org/pol/thread/200000000/';
 
-// FoolFuuka default-theme post: <a.thread_image_link> (full media) wraps the
-// lazyloaded <img.post_image> thumbnail (real thumb in data-original).
 const post = (fullHref: string, thumb: string) =>
   `<article class="post"><div class="thread_image_box">` +
   `<a class="thread_image_link" href="${fullHref}">` +
@@ -19,7 +17,7 @@ describe('foolfuukaResolver', () => {
     expect(foolfuukaResolver.match(u, ctx(undefined, DESU))).toBe(true);
     expect(foolfuukaResolver.match(u, ctx(undefined, PLEBS))).toBe(true);
     expect(foolfuukaResolver.match(u, ctx(undefined, 'https://boards.4chan.org/g/thread/1'))).toBe(false);
-    expect(foolfuukaResolver.match(u, { allowNetwork: false })).toBe(false); // no pageUrl
+    expect(foolfuukaResolver.match(u, { allowNetwork: false })).toBe(false);
   });
 
   it('desuarchive: reads the thread_image_link full media (real ext), host-pinned', () => {
@@ -54,7 +52,7 @@ describe('foolfuukaResolver', () => {
     const img2 = document.querySelectorAll('img')[1] as Element;
     const [c] = foolfuukaResolver.resolve(
       new URL('https://desu-usergeneratedcontent.xyz/g/thumb/2/2/2222s.jpg'), ctx(img2, DESU));
-    expect(c.url).toBe('https://desu-usergeneratedcontent.xyz/g/image/2/2/2222.gif'); // 2nd post's file
+    expect(c.url).toBe('https://desu-usergeneratedcontent.xyz/g/image/2/2/2222.gif');
     expect(c.kind).toBe('gif');
   });
 

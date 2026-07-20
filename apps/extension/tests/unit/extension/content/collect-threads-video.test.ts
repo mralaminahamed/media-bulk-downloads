@@ -37,7 +37,7 @@ describe('collectMedia — Threads video', () => {
     const items = collectMedia();
 
     expect(items.some((m) => m.src.startsWith('blob:'))).toBe(false);
-    expect(items.filter((m) => m.kind === 'video')).toHaveLength(0); // no video item at all, not just no blob src
+    expect(items.filter((m) => m.kind === 'video')).toHaveLength(0);
   });
 
   it('routes an .m3u8 <video> to HLS capture, not a plain mp4', () => {
@@ -46,9 +46,6 @@ describe('collectMedia — Threads video', () => {
 
     const item = collectMedia().find((m) => m.src === M3U8);
 
-    // Positively pins the HLS routing: an m3u8 <video> becomes an HLS-capture item
-    // (type 'm3u8' + hlsManifest set), never a plain downloadable mp4. Regresses if
-    // the isHlsManifest branch in collectAv is removed (item would be dropped/undefined).
     expect(item).toMatchObject({ kind: 'video', type: 'm3u8', hlsManifest: M3U8 });
   });
 

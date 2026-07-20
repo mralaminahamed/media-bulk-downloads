@@ -17,9 +17,7 @@ export interface ImageMetadata {
 
 const XMP_NS = 'http://ns.adobe.com/xap/1.0/';
 const XMP_PNG_KEYWORD = 'XML:com.adobe.xmp';
-const EXIF_SIG = [0x45, 0x78, 0x69, 0x66, 0x00, 0x00]; // "Exif\0\0"
-
-// ---- byte helpers ----------------------------------------------------------
+const EXIF_SIG = [0x45, 0x78, 0x69, 0x66, 0x00, 0x00];
 
 const bytesOf = (s: string): Uint8Array => Uint8Array.from([...s].map((c) => c.charCodeAt(0)));
 const ascii = (b: Uint8Array, o: number, n: number): string => {
@@ -47,8 +45,6 @@ const concat = (parts: Uint8Array[]): Uint8Array => {
   return out;
 };
 
-// ---- extraction ------------------------------------------------------------
-
 /** Extract raw EXIF + XMP from a source image blob. Returns {} for an
  *  unrecognised container or one that carries no metadata. Never throws. */
 export async function extractMetadata(blob: Blob): Promise<ImageMetadata> {
@@ -66,12 +62,12 @@ export async function extractMetadata(blob: Blob): Promise<ImageMetadata> {
 
 function extractFromJpeg(b: Uint8Array): ImageMetadata {
   const meta: ImageMetadata = {};
-  let o = 2; // skip SOI (FFD8)
+  let o = 2;
   while (o + 4 <= b.length) {
     if (b[o] !== 0xff) break;
     const marker = b[o + 1];
-    if (marker === 0xd9 || marker === 0xda) break; // EOI / start of scan — nothing past here
-    const len = u16be(b, o + 2); // segment length includes the 2 length bytes
+    if (marker === 0xd9 || marker === 0xda) break;
+    const len = u16be(b, o + 2);
     if (len < 2) break;
     const segStart = o + 4;
     const segEnd = o + 2 + len;
@@ -90,13 +86,13 @@ function extractFromJpeg(b: Uint8Array): ImageMetadata {
 
 function extractFromPng(b: Uint8Array): ImageMetadata {
   const meta: ImageMetadata = {};
-  let o = 8; // skip signature
+  let o = 8;
   while (o + 8 <= b.length) {
     const len = u32be(b, o);
     const type = ascii(b, o + 4, 4);
     const dataStart = o + 8;
     const dataEnd = dataStart + len;
-    if (dataEnd + 4 > b.length) break; // data must be followed by a 4-byte CRC
+    if (dataEnd + 4 > b.length) break;
     if (type === 'IEND') break;
     if (type === 'eXIf' && !meta.exif) {
       meta.exif = b.slice(dataStart, dataEnd);
@@ -104,20 +100,20 @@ function extractFromPng(b: Uint8Array): ImageMetadata {
       const kwEnd = indexOfByte(b, 0, dataStart, dataEnd);
       if (kwEnd >= 0 && ascii(b, dataStart, kwEnd - dataStart) === XMP_PNG_KEYWORD) {
         const compFlag = b[kwEnd + 1];
-        let p = kwEnd + 3; // skip null + compressionFlag + compressionMethod
-        p = indexOfByte(b, 0, p, dataEnd) + 1; // past languageTag terminator
-        p = indexOfByte(b, 0, p, dataEnd) + 1; // past translatedKeyword terminator
+        let p = kwEnd + 3;
+        p = indexOfByte(b, 0, p, dataEnd) + 1;
+        p = indexOfByte(b, 0, p, dataEnd) + 1;
         if (compFlag === 0 && p > 0 && p <= dataEnd) meta.xmp = b.slice(p, dataEnd);
       }
     }
-    o = dataEnd + 4; // skip CRC
+    o = dataEnd + 4;
   }
   return meta;
 }
 
 function extractFromWebp(b: Uint8Array): ImageMetadata {
   const meta: ImageMetadata = {};
-  let o = 12; // skip RIFF/size/WEBP
+  let o = 12;
   while (o + 8 <= b.length) {
     const fourcc = ascii(b, o, 4);
     const size = u32le(b, o + 4);
@@ -125,20 +121,16 @@ function extractFromWebp(b: Uint8Array): ImageMetadata {
     const dataEnd = dataStart + size;
     if (dataEnd > b.length) break;
     if (fourcc === 'EXIF' && !meta.exif) {
-      // Some encoders prefix the EXIF chunk payload with "Exif\0\0".
       const s = matchBytes(b, dataStart, EXIF_SIG) ? dataStart + 6 : dataStart;
       meta.exif = b.slice(s, dataEnd);
     } else if (fourcc === 'XMP ' && !meta.xmp) {
       meta.xmp = b.slice(dataStart, dataEnd);
     }
-    o = dataEnd + (size & 1); // chunks are padded to an even size
+    o = dataEnd + (size & 1);
   }
   return meta;
 }
 
-// ISOBMFF (AVIF/HEIC): metadata lives as items — an 'Exif' item and a 'mime'
-// item whose content_type is XMP. We read `meta`→`iinf` for the item ids/types
-// and `meta`→`iloc` for their byte ranges, then slice the payloads out.
 function extractFromIsobmff(b: Uint8Array): ImageMetadata {
   const meta: ImageMetadata = {};
   const metaBox = findBox(b, 0, b.length, 'meta', true);
@@ -146,14 +138,13 @@ function extractFromIsobmff(b: Uint8Array): ImageMetadata {
   const iinf = findBox(b, metaBox.start, metaBox.end, 'iinf', true);
   const iloc = findBox(b, metaBox.start, metaBox.end, 'iloc', true);
   if (!iinf || !iloc) return {};
-  const items = parseIinf(b, iinf.start, iinf.end); // id -> 'exif' | 'xmp'
-  const locs = parseIloc(b, iloc.start, iloc.end); // id -> { offset, length }
+  const items = parseIinf(b, iinf.start, iinf.end);
+  const locs = parseIloc(b, iloc.start, iloc.end);
   for (const [id, kind] of items) {
     const loc = locs.get(id);
     if (!loc || loc.offset + loc.length > b.length) continue;
     const data = b.slice(loc.offset, loc.offset + loc.length);
     if (kind === 'exif' && !meta.exif) {
-      // Payload = 4-byte exif_tiff_header_offset + TIFF block.
       const skip = data.length >= 4 ? 4 + u32be(data, 0) : 0;
       if (skip <= data.length) meta.exif = data.slice(skip);
     } else if (kind === 'xmp' && !meta.xmp) {
@@ -196,21 +187,19 @@ function findBox(
 
 function parseIinf(b: Uint8Array, start: number, end: number): Map<number, 'exif' | 'xmp'> {
   const out = new Map<number, 'exif' | 'xmp'>();
-  // findBox skipped the 4 version/flags bytes; the version byte is 4 back (mirrors
-  // parseIloc). entry_count is 16-bit for version 0, 32-bit for version >= 1.
   const version = b[start - 4];
-  let o = start + (version >= 1 ? 4 : 2); // skip entry_count; walk the infe boxes regardless
+  let o = start + (version >= 1 ? 4 : 2);
   while (o + 8 <= end) {
     const size = u32be(b, o);
     const boxType = ascii(b, o + 4, 4);
     if (size < 8 || o + size > end) break;
     if (boxType === 'infe') {
       const ver = b[o + 8];
-      let p = o + 12; // past size(4)+type(4)+version(1)+flags(3)
+      let p = o + 12;
       if (ver >= 2) {
         const id = ver === 2 ? u16be(b, p) : u32be(b, p);
         p += ver === 2 ? 2 : 4;
-        p += 2; // item_protection_index
+        p += 2;
         const itemType = ascii(b, p, 4);
         if (itemType === 'Exif') out.set(id, 'exif');
         else if (itemType === 'mime') {
@@ -226,7 +215,6 @@ function parseIinf(b: Uint8Array, start: number, end: number): Map<number, 'exif
 
 function parseIloc(b: Uint8Array, start: number, end: number): Map<number, { offset: number; length: number }> {
   const out = new Map<number, { offset: number; length: number }>();
-  // findBox skipped the 4 version/flags bytes; the version byte is 4 back.
   const version = b[start - 4];
   let o = start;
   const readN = (n: number): number => {
@@ -244,8 +232,8 @@ function parseIloc(b: Uint8Array, start: number, end: number): Map<number, { off
   for (let i = 0; i < itemCount && o < end; i++) {
     const id = version < 2 ? u16be(b, o) : u32be(b, o);
     o += version < 2 ? 2 : 4;
-    if (version === 1 || version === 2) o += 2; // construction_method
-    o += 2; // data_reference_index
+    if (version === 1 || version === 2) o += 2;
+    o += 2;
     const baseOffset = readN(baseOffsetSize);
     const extentCount = u16be(b, o);
     o += 2;
@@ -259,8 +247,6 @@ function parseIloc(b: Uint8Array, start: number, end: number): Map<number, { off
   }
   return out;
 }
-
-// ---- injection -------------------------------------------------------------
 
 /** Re-inject metadata into converted output bytes. Returns the original bytes
  *  unchanged when there is nothing to inject, or null when the metadata cannot
@@ -277,8 +263,8 @@ export function injectMetadata(
 const XMP_JPEG_PREFIX = bytesOf(XMP_NS + '\0');
 
 function app1(prefix: Uint8Array, payload: Uint8Array): Uint8Array | null {
-  const len = 2 + prefix.length + payload.length; // length field counts itself
-  if (len > 0xffff) return null; // does not fit a single APP1 segment
+  const len = 2 + prefix.length + payload.length;
+  if (len > 0xffff) return null;
   const out = new Uint8Array(4 + prefix.length + payload.length);
   out[0] = 0xff;
   out[1] = 0xe1;
@@ -290,7 +276,7 @@ function app1(prefix: Uint8Array, payload: Uint8Array): Uint8Array | null {
 }
 
 function injectIntoJpeg(b: Uint8Array, meta: ImageMetadata): Uint8Array | null {
-  if (b.length < 2 || b[0] !== 0xff || b[1] !== 0xd8) return null; // not a JPEG we produced
+  if (b.length < 2 || b[0] !== 0xff || b[1] !== 0xd8) return null;
   const segs: Uint8Array[] = [];
   if (meta.exif) {
     const s = app1(Uint8Array.from(EXIF_SIG), meta.exif);
@@ -303,7 +289,7 @@ function injectIntoJpeg(b: Uint8Array, meta: ImageMetadata): Uint8Array | null {
     segs.push(s);
   }
   if (!segs.length) return b;
-  return concat([b.slice(0, 2), ...segs, b.slice(2)]); // insert right after SOI
+  return concat([b.slice(0, 2), ...segs, b.slice(2)]);
 }
 
 const CRC_TABLE = (() => {
@@ -334,9 +320,8 @@ function pngChunk(type: string, data: Uint8Array): Uint8Array {
 }
 
 function buildXmpITxt(xmp: Uint8Array): Uint8Array {
-  // keyword \0 compressionFlag(0) compressionMethod(0) languageTag \0 translatedKeyword \0 text
   const kw = bytesOf(XMP_PNG_KEYWORD);
-  const header = new Uint8Array(kw.length + 5); // null + flag + method + langNull + transNull (all 0)
+  const header = new Uint8Array(kw.length + 5);
   header.set(kw, 0);
   return concat([header, xmp]);
 }
@@ -344,7 +329,7 @@ function buildXmpITxt(xmp: Uint8Array): Uint8Array {
 function injectIntoPng(b: Uint8Array, meta: ImageMetadata): Uint8Array | null {
   if (b.length < 16 || !matchBytes(b, 0, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return null;
   const ihdrLen = u32be(b, 8);
-  const insertAt = 8 + 8 + ihdrLen + 4; // signature + IHDR (len+type+data+crc)
+  const insertAt = 8 + 8 + ihdrLen + 4;
   if (insertAt > b.length) return null;
   const chunks: Uint8Array[] = [];
   if (meta.exif) chunks.push(pngChunk('eXIf', meta.exif));

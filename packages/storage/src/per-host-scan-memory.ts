@@ -66,8 +66,8 @@ export function evictToCap(
 ): Record<string, ScanMemory> {
   const entries = Object.entries(store);
   if (entries.length <= cap) return { ...store };
-  entries.sort((a, b) => a[1].updatedAt - b[1].updatedAt); // oldest first
-  const kept = entries.slice(entries.length - cap); // keep the newest `cap`
+  entries.sort((a, b) => a[1].updatedAt - b[1].updatedAt);
+  const kept = entries.slice(entries.length - cap);
   return Object.fromEntries(kept);
 }
 
@@ -92,8 +92,6 @@ export async function loadScanMemoryForHost(host: string): Promise<ScanMemory | 
   return store[host] ?? null;
 }
 
-// Serialized single-writer, so a save and a clear can't clobber each other
-// (mirrors per-host-settings.ts).
 let writeChain: Promise<void> = Promise.resolve();
 function serialize(task: () => Promise<void>): Promise<void> {
   const run = writeChain.then(task, task);

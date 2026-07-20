@@ -31,7 +31,6 @@ describe('buildMediaSidecar', () => {
     expect(s.height).toBeNull();
     expect(s.bytes).toBeNull();
     expect(s.resolver).toBeNull();
-    // format falls back to the canonical type when no ext.
     expect(s.format).toBe('jpeg');
   });
 
@@ -57,7 +56,7 @@ describe('serializeSidecar / sidecarName', () => {
     const json = serializeSidecar(buildMediaSidecar(item(), { url: 'https://p' }, AT));
     expect(json.endsWith('\n')).toBe(true);
     expect(JSON.parse(json).capturedAt).toBe(AT);
-    expect(json).toContain('\n  "src":'); // indented
+    expect(json).toContain('\n  "src":');
   });
 
   it('appends .json to the full media filename (keeping any subfolder + extension)', () => {

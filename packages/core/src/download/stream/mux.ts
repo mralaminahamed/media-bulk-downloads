@@ -15,8 +15,6 @@
 
 import * as MP4Box from 'mp4box';
 
-// mp4box's public types don't cover the write API (addTrack options,
-// description_boxes, DataStream buffer) we rely on, so narrow locally.
 type Mp4boxFile = ReturnType<typeof MP4Box.createFile>;
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type AnyFile = Mp4boxFile & Record<string, any>;

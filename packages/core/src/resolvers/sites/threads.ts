@@ -64,12 +64,6 @@ export const threadsResolver: Resolver = {
     const srcset = el?.getAttribute?.('srcset') || el?.getAttribute?.('data-srcset') || '';
     const best = srcset ? widestCandidate(srcset) : null;
 
-    // `srcset` is a raw page attribute: a sponsored/ad tile reusing the grid markup,
-    // or a script that mutated the tile, could smuggle a third-party image URL with a
-    // large width descriptor. Re-pin the chosen candidate to a Meta CDN host before
-    // trusting it (every sibling resolver re-pins what it didn't construct); if it
-    // isn't on an approved host, fall back to the input url, which match() already
-    // verified is Meta CDN.
     let chosen: { url: string; width: number } | null = null;
     if (best) {
       try {
@@ -86,7 +80,6 @@ export const threadsResolver: Resolver = {
     if (ext) cand.ext = ext;
     if (chosen && chosen.width > 0) {
       cand.width = chosen.width;
-      // Preserve the true aspect: the loaded thumbnail shares the original's ratio.
       if (el?.naturalWidth && el.naturalHeight) {
         cand.height = Math.round((chosen.width * el.naturalHeight) / el.naturalWidth);
       }

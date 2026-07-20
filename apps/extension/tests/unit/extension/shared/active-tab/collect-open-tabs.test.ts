@@ -14,14 +14,13 @@ const image = (src: string): ImageInfo => ({
   kind: 'image',
 });
 
-// Per-tab scripted behaviour: return images, fail (lastError), or hang (no reply).
 type Behaviour = { images: ImageInfo[] } | 'fail' | 'hang';
 
 function mockTabs(tabs: chrome.tabs.Tab[], behaviour: Record<number, Behaviour>): void {
   (chrome.tabs.query as Mock).mockResolvedValue(tabs);
   (chrome.tabs.sendMessage as Mock).mockImplementation((id: number, _msg: unknown, cb: (r: unknown) => void) => {
     const b = behaviour[id];
-    if (b === 'hang') return; // never calls back → exercises the per-tab timeout
+    if (b === 'hang') return;
     if (b === 'fail') {
       (chrome.runtime as { lastError?: unknown }).lastError = { message: 'Receiving end does not exist' };
       cb(undefined);
@@ -59,8 +58,8 @@ describe('collectOpenTabs', () => {
 
     const { items, scanned, skipped } = await collectOpenTabs();
 
-    expect(scanned).toBe(2); // tabs 1 & 2 returned media
-    expect(skipped).toBe(3); // 2 ineligible (chrome://, discarded) + 1 failed send
+    expect(scanned).toBe(2);
+    expect(skipped).toBe(3);
     expect(items.map((i) => i.src).sort()).toEqual(['https://a.com/x.jpg', 'https://b.com/y.jpg']);
     const a = items.find((i) => i.src.includes('a.com'));
     expect(a?.sourcePage).toEqual({ url: 'https://a.com/1', title: 'Tab 1' });
@@ -77,7 +76,7 @@ describe('collectOpenTabs', () => {
     const { items } = await collectOpenTabs();
     expect(items).toHaveLength(1);
     expect(items[0].width).toBe(2048);
-    expect(items[0].sourcePage?.url).toBe('https://b.com'); // kept copy keeps its tab
+    expect(items[0].sourcePage?.url).toBe('https://b.com');
   });
 
   it('restricts to the given tabIds and does not count unrequested tabs as skipped', async () => {
@@ -100,7 +99,7 @@ describe('collectOpenTabs', () => {
     });
     const seen: Array<[number, number]> = [];
     await collectOpenTabs({ onProgress: (done, total) => seen.push([done, total]) });
-    expect(seen).toContainEqual([2, 2]); // final progress reaches total
+    expect(seen).toContainEqual([2, 2]);
   });
 
   it('skips a tab that never responds, after the per-tab timeout', async () => {
@@ -111,7 +110,7 @@ describe('collectOpenTabs', () => {
         2: 'hang', // never replies
       });
       const promise = collectOpenTabs();
-      await vi.advanceTimersByTimeAsync(8000); // trip the timeout for tab 2
+      await vi.advanceTimersByTimeAsync(8000);
       const { scanned, skipped, items } = await promise;
       expect(scanned).toBe(1);
       expect(skipped).toBe(1);
@@ -132,6 +131,6 @@ describe('listOpenTabs', () => {
     const list = await listOpenTabs();
     expect(list.map((t) => t.id)).toEqual([1, 3]);
     expect(list[0].favIconUrl).toBe('https://a.com/fav.ico');
-    expect(list[1].title).toBe('https://b.com'); // blank title → url
+    expect(list[1].title).toBe('https://b.com');
   });
 });

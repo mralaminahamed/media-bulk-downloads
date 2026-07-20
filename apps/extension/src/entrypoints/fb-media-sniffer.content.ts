@@ -15,13 +15,6 @@ export default defineContentScript({
   runAt: 'document_start',
   world: 'MAIN',
   main() {
-    // This sniffer wraps XHR at document_start, but the isolated relay that
-    // ingests these posts only registers at document_idle. The /api/graphql FB
-    // streams in that gap (initial load — the above-fold photos) would be posted
-    // to a relay that isn't listening yet and lost. So buffer every entry emitted
-    // before the relay is ready, and replay it when the relay announces itself
-    // (ingestSniffedFbMedia dedups by fbid + keeps the largest, so re-posting is
-    // safe). After ready, live posts suffice, so nothing more is buffered.
     const buffer: FbMediaEntry[] = [];
     let relayReady = false;
     installResponseSniffer({
@@ -34,14 +27,7 @@ export default defineContentScript({
         extract: extractFbMedia,
         envelope: (entries) => {
           if (!relayReady) {
-            // Build with a loop, not `push(...entries)`: entries is untrusted/unbounded
-            // page data, and spreading it as call args can hit the engine's
-            // argument-count limit (RangeError, silently swallowed by the caller's try/catch).
             for (const e of entries) buffer.push(e);
-            // If the isolated relay never readies (its content script failed to run,
-            // was blocked, or threw before the FB branch), FB's SPA keeps streaming
-            // for the whole session — cap the bridge buffer so it can't leak the
-            // page's heap without bound. Mirrors the Pinterest sniffer. Newest wins.
             if (buffer.length > 8000) buffer.splice(0, buffer.length - 8000);
           }
           return { source: 'mbd-fb-media', entries };

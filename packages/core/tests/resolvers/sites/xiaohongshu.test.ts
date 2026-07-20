@@ -6,8 +6,6 @@ const detail = (proto = 'https') => `${proto}://sns-webpic-qc.xhscdn.com/2026071
 const run = (href: string) => xiaohongshuResolver.resolve(new URL(href), { allowNetwork: false });
 const m = (href: string) => xiaohongshuResolver.match(new URL(href), { allowNetwork: false });
 
-// International (rednote.com) CDN — same signed shape, served from rednotecdn.com
-// instead of xhscdn.com, with an extra ?src= query the resolver must preserve.
 const REDNOTE_TOK = 'notes_pre_post/1040g3k0322hharh1mu005papn09i5n1lbf83ci0';
 const rednote =
   `https://sns-web-i10.rednotecdn.com/202607170815/${H}/${REDNOTE_TOK}!nd_dft_wlteh_webp_3?src=A`;
@@ -16,7 +14,7 @@ describe('xiaohongshuResolver — match', () => {
   it('matches signed RED note-image URLs, not other hosts or non-signed paths', () => {
     expect(m(detail())).toBe(true);
     expect(m('https://cdn.example.com/x.jpg')).toBe(false);
-    expect(m('https://sns-webpic-qc.xhscdn.com/static/logo.png')).toBe(false); // no /ts/hash/ prefix
+    expect(m('https://sns-webpic-qc.xhscdn.com/static/logo.png')).toBe(false);
   });
 
   it('matches signed rednote.com international CDN (rednotecdn.com) note images', () => {
@@ -25,8 +23,6 @@ describe('xiaohongshuResolver — match', () => {
 
   it('does not over-match a look-alike host (dot-boundary anchoring)', () => {
     const path = `/202607170815/${H}/${TOK}!nd_dft_wlteh_webp_3`;
-    // A prefix that isn't a real subdomain boundary, and the CDN name used as a
-    // left-label of a different registrable domain, must both be rejected.
     expect(m(`https://evil-xhscdn.com${path}`)).toBe(false);
     expect(m(`https://xhscdn.com.evil.com${path}`)).toBe(false);
     expect(m(`https://rednotecdn.com.evil.com${path}`)).toBe(false);

@@ -10,22 +10,12 @@ export interface UrlCandidate {
   thumbnailSrc?: string;
 }
 
-// Ordered by preference: whatever comes first becomes the element's primary
-// candidate (index 0), which collect.ts pairs with the element's DOM dimensions.
-// WordPress/Jetpack/Gutenberg expose the TRUE original in data-orig-file /
-// data-large-file while `src` is a resized thumbnail — surface those first so the
-// original wins without needing a CDN rule. The rest are real (not placeholder)
-// lazy-load source attributes from common libraries; data-thumb/LQIP-style
-// placeholder attributes are intentionally excluded.
 const LAZY_SRC_ATTRS = [
   'data-orig-file', 'data-large-file',
   'data-src', 'data-original', 'data-original-src', 'data-actualsrc',
   'data-lazy-src', 'data-lazy', 'data-lazyload',
   'data-hi-res-src', 'data-src-large', 'data-full-src',
   'data-image', 'data-echo', 'data-flickity-lazyload',
-  // WEBTOON/LINE Webtoons keeps the real panel URL in data-url (src is a
-  // transparent-pixel placeholder). Non-media data-url values (tracking/AJAX
-  // endpoints) are dropped downstream by the media-likeness filter.
   'data-url',
 ];
 const LAZY_SRCSET_ATTRS = ['srcset', 'data-srcset', 'data-lazy-srcset'];
@@ -44,9 +34,6 @@ export function bestSrcsetUrl(srcset: string): string | null {
  *  imageUrlsFromElement split a srcset once instead of twice (best + full list). */
 function bestSrcsetFrom(entries: string[]): string | null {
   if (!entries.length) return null;
-  // A malformed descriptor (e.g. `1.2.3x`) parses to NaN; left as-is it poisons
-  // best.w/x, and since every `NaN > best.w` comparison is false no later (valid,
-  // higher-res) candidate could ever win. Coerce non-finite values to 0.
   const num = (s: string | undefined): number => {
     const n = Number(s);
     return Number.isFinite(n) ? n : 0;
@@ -75,7 +62,6 @@ export function imageUrlsFromElement(el: Element): string[] {
   for (const attr of LAZY_SRCSET_ATTRS) {
     const ss = el.getAttribute(attr);
     if (ss) {
-      // Split the srcset once, then derive both the best URL and the full list.
       const cands = splitSrcsetCandidates(ss);
       push(bestSrcsetFrom(cands));
       for (const c of cands) push(c.split(/\s+/)[0]);
@@ -110,12 +96,6 @@ export function galleryLinkCandidate(a: HTMLAnchorElement): UrlCandidate | null 
 /** <img> URLs hidden inside a <noscript> block (common no-JS lazy fallback). */
 export function noscriptImageCandidates(ns: HTMLElement): UrlCandidate[] {
   let html = ns.textContent || '';
-  // When scripting is enabled — every real browser tab a content script runs in,
-  // and jsdom's `runScripts: 'dangerously'` — <noscript> is parsed as RAWTEXT, so
-  // `textContent` returns the source with entities left un-decoded. Unescape once
-  // as a fallback so a singly-escaped `&lt;img ...&gt;` is recognized the same as
-  // `<img ...>`. (Only a scripting-disabled parse would
-  // auto-decode, in which case this branch never fires.)
   if (!html.includes('<img') && html.includes('&lt;')) {
     html = html
       .replace(/&lt;/g, '<')

@@ -152,8 +152,6 @@ describe('buildStreamCommand — security', () => {
   it('single-quotes a hostile URL so it cannot break out of its argument', () => {
     const evil = "https://x.test/a.m3u8?q='; rm -rf ~ #";
     const cmd = buildStreamCommand({ manifestUrl: evil, engine: 'yt-dlp' });
-    // The embedded single quote is neutralized as '\'' — a naive build would emit
-    // `=';` (an unquoted break-out into `; rm`); the escaped form never does.
     expect(cmd).toContain(`'\\''`);
     expect(cmd).not.toContain(`=';`);
   });

@@ -22,7 +22,6 @@ describe('classifyPage', () => {
     expect(classifyPage(sig({ imageCount: 4, density: 0.1, aspectSpread: 0.4 }))).toBe('unknown');
   });
   it('classifies a uniform role="article" grid as gallery, not feed', () => {
-    // grid tiles marked role=article (>=5) but uniform + dense → gallery must win
     expect(
       classifyPage(
         sig({ imageCount: 40, density: 0.8, aspectSpread: 0.02, hasArticle: false, dominantAreaRatio: 0.1, feedMarkers: true }),

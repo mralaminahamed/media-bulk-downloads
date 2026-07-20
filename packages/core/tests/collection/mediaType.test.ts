@@ -41,14 +41,10 @@ describe('detectAvType', () => {
     expect(detectAvType('https://ex.com/noext')).toBe('unknown');
   });
   it('ignores a non-audio/video MIME type (fromMime returns null)', () => {
-    // The MIME does not start with video/ or audio/, so fromMime bails out and
-    // detectAvType falls through to unknown.
     expect(detectAvType('https://ex.com/noext', 'image/png')).toBe('unknown');
     expect(detectAvType('https://ex.com/noext', 'text/html')).toBe('unknown');
   });
   it('ignores an av MIME whose subtype maps to no recognized format', () => {
-    // fromMime yields '3gpp'/'basic' — real av subtypes we deliberately do not
-    // support — so the VIDEO/AUDIO lookup misses and the result stays unknown.
     expect(detectAvType('https://ex.com/noext', 'video/3gpp')).toBe('unknown');
     expect(detectAvType('https://ex.com/noext', 'audio/basic')).toBe('unknown');
   });
@@ -62,17 +58,12 @@ describe('detectAvType', () => {
 
 describe('extensionFromUrl (edge)', () => {
   it('returns null when the trailing token is not a 1–5 char alphanumeric extension', () => {
-    // A dot is present, but the "extension" is too long or carries odd characters,
-    // so it fails the /^[a-z0-9]{1,5}$/ guard and is rejected.
-    expect(extensionFromUrl('https://ex.com/archive.backup')).toBeNull(); // 6 chars
-    expect(extensionFromUrl('https://ex.com/file.name_here')).toBeNull(); // underscore
-    expect(extensionFromUrl('https://ex.com/photo.jpeg2000')).toBeNull(); // 8 chars
+    expect(extensionFromUrl('https://ex.com/archive.backup')).toBeNull();
+    expect(extensionFromUrl('https://ex.com/file.name_here')).toBeNull();
+    expect(extensionFromUrl('https://ex.com/photo.jpeg2000')).toBeNull();
   });
 
   it('returns null for a leading-dot dotfile (dot at index 0 is not an extension boundary)', () => {
-    // The last path segment is `.gitignore` — the only dot is the first char, so
-    // `dot <= 0` holds and no extension is derived (would otherwise wrongly return
-    // 'gitignore').
     expect(extensionFromUrl('https://ex.com/path/.gitignore')).toBeNull();
     expect(extensionFromUrl('https://ex.com/.env')).toBeNull();
   });

@@ -2,9 +2,6 @@
 import { sankakuResolver } from '@mbd/core/resolvers/sites/sankaku';
 import post from '../../fixtures/sankaku/post.json';
 
-// Real logged-in full-view sample (issue #319, AC-6). md5/host/path/param-names are
-// real; token values are redacted in the fixture — the resolver keeps the URL intact
-// either way, so redacted signatures exercise the same path.
 const MD5 = post.md5;
 const { preview, sample, original } = post.tiers;
 const resolve = (href: string) => sankakuResolver.resolve(new URL(href), { allowNetwork: false });

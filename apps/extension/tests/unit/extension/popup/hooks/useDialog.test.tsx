@@ -22,8 +22,6 @@ const Trap: React.FC<{ onClose: () => void; active?: boolean }> = ({ onClose, ac
   );
 };
 
-// A dialog with no focusable descendants (only static text) — exercises the
-// Tab trap's empty-focusables guard.
 const Empty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const ref = useDialog(onClose);
   return (
@@ -37,11 +35,9 @@ describe('useDialog', () => {
   it('does not re-focus the panel when the parent re-renders with a fresh onClose', () => {
     const focusSpy = vi.spyOn(HTMLDivElement.prototype, 'focus');
     const { rerender } = render(<Dialog onClose={() => {}} />);
-    const afterMount = focusSpy.mock.calls.length; // panel focused once on open
+    const afterMount = focusSpy.mock.calls.length;
     expect(afterMount).toBeGreaterThanOrEqual(1);
 
-    // Each render passes a new onClose identity (as real consumers do). The
-    // effect must NOT re-run and steal focus.
     rerender(<Dialog onClose={() => {}} />);
     rerender(<Dialog onClose={() => {}} />);
     expect(focusSpy.mock.calls.length).toBe(afterMount);
@@ -105,8 +101,6 @@ describe('useDialog', () => {
   it('makes Tab a no-op in a dialog with no focusable children (no wrap, no crash)', () => {
     const onClose = vi.fn();
     render(<Empty onClose={onClose} />);
-    // querySelectorAll finds no focusables → the handler returns early: no wrap,
-    // no error, dialog stays open, onClose untouched.
     expect(() => fireEvent.keyDown(document, { key: 'Tab' })).not.toThrow();
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByRole('dialog')).toBeInTheDocument();

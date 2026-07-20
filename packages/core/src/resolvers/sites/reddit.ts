@@ -1,9 +1,6 @@
 import { imageExtFromUrl } from '@mbd/core/collection/mediaType';
 import { MediaCandidate, Resolver } from '@mbd/core/resolvers/types';
 
-// v.redd.it path: /<id>/<file> — the id is the first segment (the same id the
-// public HLS/DASH masters are served under). Also matches the bare share-link
-// form with no trailing filename (e.g. `/8tnc0d8mu3ch1`, no trailing slash).
 const VREDD_ID = /^\/([a-z0-9]+)(?:\/|$)/i;
 
 /**
@@ -34,7 +31,6 @@ export const redditResolver: Resolver = {
       }];
     }
 
-    // preview.redd.it → i.redd.it original; i.redd.it → itself with the query dropped.
     const out = new URL(u.href);
     out.hostname = 'i.redd.it';
     out.search = '';

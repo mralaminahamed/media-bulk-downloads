@@ -1,9 +1,4 @@
 import type { Mock } from 'vitest';
-// `sniffedHlsManifests` is wrapped in a vi.fn so the DASH sniffed-case test can
-// override its return value for one call (a real .mpd can never reach the actual
-// store — ingestSniffedHls only accepts .m3u8, see hls-sniff.ts). Every other test
-// keeps the real behavior: ingestSniffedHls/resetSniffedHls are spread through
-// untouched, and the default implementation just delegates to the actual function.
 vi.mock('@mbd/core/resolvers/sniffers/hls-sniff', async () => {
   const actual = await vi.importActual<typeof import('@mbd/core/resolvers/sniffers/hls-sniff')>('@mbd/core/resolvers/sniffers/hls-sniff');
   return { __esModule: true, ...actual, sniffedHlsManifests: vi.fn(actual.sniffedHlsManifests) };
@@ -33,7 +28,7 @@ describe('collectMedia — original upgrade', () => {
   it('carries the resolver-supplied file extension onto the collected item', () => {
     setBody('<img src="https://ex.com/photo.jpg">');
     const [img] = collectMedia();
-    expect(img.ext).toBe('jpg'); // generic resolver keeps the real .jpg, not the canonical 'jpeg' type
+    expect(img.ext).toBe('jpg');
   });
 
   it('leaves ext undefined when no resolver reports one', () => {
@@ -53,7 +48,6 @@ describe('collectMedia — original upgrade', () => {
   });
 
   it('fills dimensions from the URL when the DOM reports 0x0', () => {
-    // srcset candidates arrive with no element dimensions.
     setBody('<img srcset="https://cdn.shopify.com/s/files/1/x/y_800x600.jpg 1x">');
     const shop = collectMedia().find((i) => i.src.includes('shopify'));
     expect(shop).toBeDefined();
@@ -62,9 +56,6 @@ describe('collectMedia — original upgrade', () => {
   });
 
   it('does not tag a data-orig-file original with the displayed thumbnail\'s dimensions', () => {
-    // The rendered <img> measures 300x200 (its thumbnail); the full-res original in
-    // data-orig-file is a different, larger asset — it must NOT inherit 300x200, or
-    // the minimum-size filter could wrongly drop it.
     setBody('<img src="https://ex.com/thumb.jpg" data-orig-file="https://ex.com/original.jpg" width="300" height="200">');
     const media = collectMedia();
     const orig = media.find((i) => i.src === 'https://ex.com/original.jpg');
@@ -72,7 +63,6 @@ describe('collectMedia — original upgrade', () => {
     expect(orig).toBeDefined();
     expect(orig!.width).toBe(0);
     expect(orig!.height).toBe(0);
-    // The displayed thumbnail keeps its real measured size.
     expect(thumb).toBeDefined();
     expect(thumb!.width).toBe(300);
     expect(thumb!.height).toBe(200);
@@ -99,8 +89,6 @@ describe('collectMedia — video & audio', () => {
     const media = collectMedia();
     const vid = media.find((m) => m.src === 'https://ex.com/v.mp4');
     expect(vid).toMatchObject({ kind: 'video', type: 'mp4', poster: 'https://ex.com/p.jpg', alt: 'Clip' });
-    // The HLS manifest is no longer dropped — it is surfaced as a capture item
-    // (kind video, hlsManifest set) rather than a plain single-file download.
     const hls = media.find((m) => m.src === 'https://ex.com/live.m3u8');
     expect(hls).toMatchObject({ kind: 'video', type: 'm3u8', hlsManifest: 'https://ex.com/live.m3u8', poster: 'https://ex.com/p.jpg' });
   });
@@ -241,7 +229,6 @@ describe('collectMedia — native resolvers', () => {
   });
 
   it('does not leak the poster as an image when it is also a background-image', () => {
-    // X renders a video poster as BOTH an <img> and a sibling background-image.
     document.body.innerHTML =
       `<a href="/u/status/2067/video/1">` +
       `<div style="background-image:url('https://pbs.twimg.com/amplify_video_thumb/2067/img/y.jpg?format=jpg&name=360x360')"></div>` +
@@ -250,14 +237,12 @@ describe('collectMedia — native resolvers', () => {
     const media = collectMedia();
     const videos = media.filter((m) => m.kind === 'video');
     const posterImages = media.filter((m) => m.kind === 'image' && /amplify_video_thumb/.test(m.src));
-    expect(videos).toHaveLength(1); // one video (deduped across img + background)
+    expect(videos).toHaveLength(1);
     expect(videos[0]).toMatchObject({ resolveHint: { platform: 'twitter', id: '2067' }, unresolvedVideo: true });
-    expect(posterImages).toHaveLength(0); // NO poster leaked as an image
+    expect(posterImages).toHaveLength(0);
   });
 
   it('collects an extensionless GIF grid thumb as a video, never leaking it as a still', () => {
-    // On the media grid the GIF thumb is an <img> at /tweet_video_thumb/<ID> with
-    // the format only in the query string (no path extension).
     document.body.innerHTML =
       `<a href="/u/status/42"><img src="https://pbs.twimg.com/tweet_video_thumb/HJ_SQ1hWIAAcv77?format=jpg&name=small"></a>`;
     const media = collectMedia();
@@ -319,7 +304,6 @@ describe('collectMedia — background-image render guard', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
   it('skips non-rendered elements when the document has layout, but keeps visible ones', () => {
-    // jsdom reports 0×0 for everything; fake a layout so the guard activates.
     const docEl = document.documentElement;
     Object.defineProperty(docEl, 'offsetHeight', { configurable: true, value: 1000 });
     try {
@@ -338,7 +322,6 @@ describe('collectMedia — background-image render guard', () => {
       expect(srcs).toContain('https://cdn.com/visible.jpg');
       expect(srcs).not.toContain('https://cdn.com/hidden.jpg');
     } finally {
-      // Restore no-layout so other suites keep collecting every background.
       Object.defineProperty(docEl, 'offsetHeight', { configurable: true, value: 0 });
     }
   });
@@ -370,9 +353,7 @@ describe('backgroundImageUrls', () => {
   });
 
   it('keeps an image-set candidate that omits its resolution descriptor', () => {
-    // Per spec the descriptor defaults to 1x when absent — the candidate must not be dropped.
     expect(backgroundImageUrls('image-set(url("https://cdn.com/only.png"))')).toEqual(['https://cdn.com/only.png']);
-    // Mixed: a descriptor-less candidate alongside a 2x one still yields the 2x (higher res).
     const v = 'image-set("https://cdn.com/base.jpg", "https://cdn.com/hi.jpg" 2x)';
     expect(backgroundImageUrls(v)).toEqual(['https://cdn.com/hi.jpg']);
   });
@@ -445,16 +426,8 @@ describe('page-type hero reprioritisation', () => {
     document.head.querySelectorAll('meta, link').forEach((n) => n.remove());
   });
 
-  // The brief's original example host (`?name=orig` / `?name=small`) does not
-  // canonically collapse: `name` is not a recognised transform/volatile param
-  // in canonical.ts's generic dynamic-path branch, so the two URLs would keep
-  // distinct canonical keys and this test couldn't exercise dedup at all.
-  // `w=` IS a recognised TRANSFORM_PARAM (canonical.ts), so both variants of
-  // this fictitious cdn.example.com asset collapse to one canonical key
-  // (`cdn.example.com/photo/abc123`) while remaining distinct literal URLs —
-  // exactly what's needed to observe which representation wins first-come dedup.
   const HERO = 'https://cdn.example.com/photo/abc123?w=2000';
-  const THUMB = 'https://cdn.example.com/photo/abc123?w=300'; // same canonical asset
+  const THUMB = 'https://cdn.example.com/photo/abc123?w=300';
 
   function singleMediaDoc() {
     document.head.innerHTML =
@@ -468,7 +441,7 @@ describe('page-type hero reprioritisation', () => {
     const off = collectMedia(undefined, { smartPageDefaults: false });
     const on = collectMedia(undefined, { smartPageDefaults: true });
     const keys = (items: ReturnType<typeof collectMedia>) => new Set(items.map((i) => i.src.split('?')[0]));
-    expect(keys(on)).toEqual(keys(off)); // distinct-asset set unchanged
+    expect(keys(on)).toEqual(keys(off));
     expect(on.filter((i) => i.src.split('?')[0] === 'https://cdn.example.com/photo/abc123').length).toBe(1);
   });
 
@@ -486,11 +459,6 @@ describe('page-type hero reprioritisation', () => {
     expect(item?.src).toBe(HERO);
   });
 
-  // Regression guard for the C4 reorder bug: bundling the meta and preload
-  // passes into one closure shifted preload ahead of og:video even with the
-  // flag OFF. The original (pre-hero-pass) order was DOM walk -> meta ->
-  // og:video -> preload -> Instagram -> Facebook, so with the flag off the
-  // og:video item must still come before a preload-sourced image item.
   it('with the flag off, og:video is collected before a link-preload image (original pass order preserved)', () => {
     document.head.innerHTML =
       '<meta property="og:video" content="https://cdn.com/clip.mp4">' +
@@ -519,7 +487,6 @@ describe('collectMedia — same-origin iframes', () => {
   it('skips a cross-origin iframe (contentDocument null) and still reads the top document', () => {
     setBody('<img src="https://cdn.com/top.jpg">');
     const iframe = document.createElement('iframe');
-    // Cross-origin frames expose contentDocument as null.
     Object.defineProperty(iframe, 'contentDocument', { configurable: true, get() { return null; } });
     document.body.appendChild(iframe);
     let srcs: string[] = [];
@@ -612,7 +579,6 @@ describe('collectMedia — gallery link to a media file', () => {
     const m = collectMedia();
     const clip = m.find((i) => i.src === 'https://cdn.test/clip.mp4');
     expect(clip).toMatchObject({ kind: 'video' });
-    // It must NOT have been collected as an image (which would save clip.mp4 as clip.jpg).
     expect(m.filter((i) => i.src === 'https://cdn.test/clip.mp4' && i.kind === 'image')).toHaveLength(0);
   });
 
@@ -932,9 +898,7 @@ describe('collectMedia — shadow DOM', () => {
 
     const media = collectMedia();
     const srcs = media.map((i) => i.src);
-    // Bubble-host media is NOT collected (extension's own UI must not be scanned)
     expect(srcs).not.toContain('https://cdn.com/bubble-image.jpg');
-    // But other shadow roots ARE still scanned
     expect(srcs).toContain('https://cdn.com/other-shadow.jpg');
   });
 });
@@ -955,7 +919,6 @@ describe('twitter pending video collection', () => {
     const videos = media.filter((m) => m.kind === 'video');
     expect(videos).toHaveLength(1);
     expect(videos[0]).toMatchObject({ unresolvedVideo: true, resolveHint: { platform: 'twitter', id: '2006397496638206090' } });
-    // the poster never leaks in as a downloadable image, and the blob is dropped
     expect(media.some((m) => m.kind === 'image')).toBe(false);
     expect(media.some((m) => m.src.startsWith('blob:'))).toBe(false);
   });

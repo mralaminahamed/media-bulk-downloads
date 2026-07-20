@@ -1,13 +1,6 @@
 import { MediaCandidate } from '@mbd/core/resolvers/types';
 import { imageExtFromUrl, extensionFromUrl } from '@mbd/core/collection/mediaType';
 
-// Pexels serves originals from images.pexels.com / videos.pexels.com. A photo or
-// video page (`pexels.com/photo/<slug>-<id>/`, `/video/…`) embeds the item in
-// `<script id="__NEXT_DATA__">` under `props.pageProps.medium`, whose
-// `image.download_link` / `video.download_link` is the free full-resolution
-// original. Pin every URL to the Pexels CDN — the page JSON is untrusted. (The page
-// is Cloudflare-gated, so this is read same-origin in the content script, never by a
-// background fetch.)
 function pinPexels(raw: unknown): string | null {
   if (typeof raw !== 'string' || !raw) return null;
   try {

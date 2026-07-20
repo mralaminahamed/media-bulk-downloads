@@ -75,13 +75,13 @@ describe('reddit HLS master (real fixture) — the engine can mux the separate a
     expect(isMasterPlaylist(master)).toBe(true);
     const audio = parseAudioRenditions(master, base);
     expect(audio).toHaveLength(2);
-    expect(audio.every((a) => !!a.uri)).toBe(true); // separate (demuxed) tracks
+    expect(audio.every((a) => !!a.uri)).toBe(true);
   });
 
   it('the highest variant names an AUDIO group whose rendition is muxed back in', () => {
     const variants = parseMaster(master, base);
     const best = selectVariant(variants, 'highest');
-    expect(best.audioGroup).toBe('6'); // the 480x800 variant
+    expect(best.audioGroup).toBe('6');
     const audio = selectAudioRendition(parseAudioRenditions(master, base), best);
     expect(audio?.uri).toBe(`https://v.redd.it/${VID}/CMAF_AUDIO_128.m3u8`);
   });
@@ -91,7 +91,6 @@ describe('redditResolver — edge cases', () => {
   it('swaps host + drops query for a preview.redd.it URL that has no query at all', () => {
     const [c] = resolve('https://preview.redd.it/onlyfile.png');
     expect(c.url).toBe('https://i.redd.it/onlyfile.png');
-    // Host changed even without a query, so the input is kept as the thumbnail.
     expect(c.thumbnailSrc).toBe('https://preview.redd.it/onlyfile.png');
   });
 
@@ -108,7 +107,6 @@ describe('redditResolver — edge cases', () => {
   it('leaves the query on i.redd.it but strips it in the candidate (idempotent on re-resolve)', () => {
     const once = resolve('https://i.redd.it/pic.jpg?t=1')[0].url;
     expect(once).toBe('https://i.redd.it/pic.jpg');
-    // Re-resolving the already-clean output is a no-op (no thumbnail, no change).
     const twice = resolve(once)[0];
     expect(twice.url).toBe('https://i.redd.it/pic.jpg');
     expect(twice.thumbnailSrc).toBeUndefined();

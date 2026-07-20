@@ -39,9 +39,9 @@ export function dedupeByCanonical(items: readonly ImageInfo[]): ImageInfo[] {
     const incumbent = bestByKey.get(key);
     if (!incumbent) {
       bestByKey.set(key, item);
-      order.push(key); // fix this identity's slot at its first appearance
+      order.push(key);
     } else if (isLarger(item, incumbent)) {
-      bestByKey.set(key, item); // upgrade the value, keep the slot
+      bestByKey.set(key, item);
     }
   }
   return order.map((key) => bestByKey.get(key) as ImageInfo);

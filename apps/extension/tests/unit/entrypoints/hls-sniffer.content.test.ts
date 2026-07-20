@@ -1,9 +1,5 @@
 import type { Mock } from 'vitest';
 
-// Capture what the entrypoint wires into the shared URL sniffer instead of
-// installing the real fetch/XHR hooks (those are covered by response-sniffer's
-// own tests). This isolates the entrypoint-owned logic: the manifest regex, the
-// dedup, the postMessage envelope, and the replay wiring.
 vi.mock('@mbd/core/resolvers/sniffers/response-sniffer', () => ({
   installUrlSniffer: vi.fn(),
   installReplayOnReady: vi.fn(),
@@ -36,7 +32,6 @@ describe('hls-sniffer content entrypoint', () => {
     expect(isMatch('https://cdn.example.com/stream.mpd')).toBe(true);
     expect(isMatch('https://cdn.example.com/v.m3u8?token=abc')).toBe(true);
     expect(isMatch('https://cdn.example.com/v.mpd#frag')).toBe(true);
-    // Case-insensitive, since some CDNs upper-case the extension.
     expect(isMatch('https://cdn.example.com/V.M3U8')).toBe(true);
   });
 
@@ -52,7 +47,7 @@ describe('hls-sniffer content entrypoint', () => {
     try {
       const { onUrl } = runMain();
       onUrl('https://cdn.example.com/a.m3u8');
-      onUrl('https://cdn.example.com/a.m3u8'); // same URL — must not re-post
+      onUrl('https://cdn.example.com/a.m3u8');
       onUrl('https://cdn.example.com/b.mpd');
       expect(post).toHaveBeenCalledTimes(2);
       expect(post).toHaveBeenNthCalledWith(1, { source: 'mbd-hls', urls: ['https://cdn.example.com/a.m3u8'] }, location.origin);
@@ -92,9 +87,9 @@ describe('hls-sniffer content entrypoint', () => {
       const replay = (installReplayOnReady as Mock).mock.calls.at(-1)![1] as () => void;
       replay();
       const urls = (post.mock.calls.at(-1)![0] as { urls: string[] }).urls;
-      expect(urls).toHaveLength(500); // capped, not 600
-      expect(urls).toContain('https://cdn.example.com/599.m3u8'); // newest kept
-      expect(urls).not.toContain('https://cdn.example.com/0.m3u8'); // oldest evicted
+      expect(urls).toHaveLength(500);
+      expect(urls).toContain('https://cdn.example.com/599.m3u8');
+      expect(urls).not.toContain('https://cdn.example.com/0.m3u8');
     } finally {
       post.mockRestore();
     }
@@ -104,10 +99,10 @@ describe('hls-sniffer content entrypoint', () => {
     const post = vi.spyOn(window, 'postMessage').mockImplementation(() => {});
     try {
       const { onUrl } = runMain();
-      onUrl('https://cdn.example.com/first.m3u8'); // becomes the oldest, later evicted
+      onUrl('https://cdn.example.com/first.m3u8');
       for (let i = 0; i < 600; i++) onUrl(`https://cdn.example.com/f${i}.m3u8`);
       post.mockClear();
-      onUrl('https://cdn.example.com/first.m3u8'); // evicted → treated as new → posts again
+      onUrl('https://cdn.example.com/first.m3u8');
       expect(post).toHaveBeenCalledTimes(1);
       expect(post).toHaveBeenCalledWith({ source: 'mbd-hls', urls: ['https://cdn.example.com/first.m3u8'] }, location.origin);
     } finally {

@@ -32,10 +32,6 @@ export const DownloadButton: React.FC<DownloadButtonProps> = ({ label, count, di
   useEffect(() => {
     if (!open) return;
     const onPointer = (e: MouseEvent): void => {
-      // composedPath, not contains(e.target): in the on-page bubble's shadow root
-      // a document-level listener sees the event retargeted to the shadow host, so
-      // contains() would treat a click on a menu item as "outside" and close the
-      // menu before its onClick fires. composedPath includes shadow-internal nodes.
       if (ref.current && !e.composedPath().includes(ref.current)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent): void => {
@@ -62,8 +58,6 @@ export const DownloadButton: React.FC<DownloadButtonProps> = ({ label, count, di
           disabled={disabled}
           className="btn btn-primary"
           title="Download as separate files"
-          // The count renders as a separate pill span, so spell the accessible
-          // name out here — otherwise it reads as "Download5" with no space.
           aria-label={count != null ? `${label} ${count}` : label}
         >
           <ArrowDownTrayIcon className="mbd:h-4 mbd:w-4" />

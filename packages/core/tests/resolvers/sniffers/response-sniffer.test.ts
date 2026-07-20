@@ -1,10 +1,5 @@
 import { installReplayOnReady, installResponseSniffer, installUrlSniffer, makeSnifferEmit } from '@mbd/core/resolvers/sniffers/response-sniffer';
 
-// jsdom does not implement `Request`, so `input instanceof Request` (the sniffers'
-// check for a Request-shaped fetch argument) would throw a bare ReferenceError —
-// silently swallowed by the sniffers' own defensive try/catch, which would hide
-// the real branch rather than exercise it. A minimal polyfill lets `instanceof`
-// evaluate for real, the same way it does against the browser's own `Request`.
 class FakeRequest {
   constructor(public url: string) {}
 }
@@ -35,7 +30,7 @@ describe('makeSnifferEmit', () => {
   });
 
   it('skips (no parse/post) when the cheap substring guard fails', () => {
-    emit(JSON.stringify({ items: [1] })); // no "MEDIA" substring
+    emit(JSON.stringify({ items: [1] }));
     expect(posted).toEqual([]);
   });
 
@@ -114,8 +109,6 @@ describe('installResponseSniffer (fetch path)', () => {
   });
 
   it('feeds an XHR JSON API response body to emit on load', () => {
-    // Stub the native send so nothing hits the (nonexistent) network; install
-    // captures this as the "native" send it forwards to.
     XMLHttpRequest.prototype.send = vi.fn();
     const seen: string[] = [];
     installResponseSniffer({ isApi: (u) => u.includes('/api/'), emit: (t) => seen.push(t), urlKey: '__k' });
@@ -215,7 +208,7 @@ describe('installResponseSniffer (fetch path)', () => {
     const seen: string[] = [];
     installResponseSniffer({ isApi: (u) => u.includes('/api/'), emit: (t) => seen.push(t), urlKey: '__k' });
 
-    const xhr = new XMLHttpRequest(); // no .open() — the urlKey property was never set
+    const xhr = new XMLHttpRequest();
     Object.defineProperty(xhr, 'responseText', { value: '{"MEDIA":1}', configurable: true });
     xhr.getResponseHeader = vi.fn().mockReturnValue('application/json');
     xhr.send();
@@ -231,7 +224,7 @@ describe('installResponseSniffer (fetch path)', () => {
     const xhr = new XMLHttpRequest();
     xhr.open('GET', 'https://site/api/thing');
     Object.defineProperty(xhr, 'responseText', { value: '{"MEDIA":1}', configurable: true });
-    xhr.getResponseHeader = vi.fn().mockReturnValue(null); // header missing
+    xhr.getResponseHeader = vi.fn().mockReturnValue(null);
     xhr.send();
     xhr.dispatchEvent(new Event('load'));
     expect(seen).toEqual([]);
@@ -290,7 +283,7 @@ describe('installUrlSniffer', () => {
     await window.fetch('https://cdn/master.m3u8');
     await window.fetch('https://cdn/thumb.jpg');
     expect(seen).toEqual(['https://cdn/master.m3u8']);
-    expect(native).toHaveBeenCalledTimes(2); // both calls still reach native fetch
+    expect(native).toHaveBeenCalledTimes(2);
   });
 
   it('resolves a relative URL against the page before matching', () => {

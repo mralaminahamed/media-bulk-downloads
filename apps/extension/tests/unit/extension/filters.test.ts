@@ -60,10 +60,8 @@ describe('passesSettingsFilters', () => {
 
   it('keeps a half-known item — enforces the floor only on the known dimension', () => {
     const settings = { ...base, minimumImageSize: 200 };
-    // width known and above the floor, height unknown (0): kept.
     expect(passesSettingsFilters(img({ width: 500, height: 0 }), settings)).toBe(true);
     expect(passesSettingsFilters(img({ width: 0, height: 500 }), settings)).toBe(true);
-    // width known and below the floor: still dropped (that dimension is real).
     expect(passesSettingsFilters(img({ width: 50, height: 0 }), settings)).toBe(false);
   });
 
@@ -75,10 +73,8 @@ describe('passesSettingsFilters', () => {
 
   it('hides HLS streams unless capture is enabled', () => {
     const stream = img({ src: 'https://cdn.com/live.m3u8', kind: 'video', hlsManifest: 'https://cdn.com/live.m3u8' });
-    // Default (off): stream is dropped, plain media is kept.
     expect(passesSettingsFilters(stream, base)).toBe(false);
     expect(passesSettingsFilters(img({}), base)).toBe(true);
-    // Enabled: the stream passes.
     expect(passesSettingsFilters(stream, { ...base, captureHlsStreams: true })).toBe(true);
   });
 
@@ -146,7 +142,6 @@ describe('applyToolbarFilters — mediaKind', () => {
 });
 
 describe('applyToolbarFilters — size buckets (known dimensions)', () => {
-  // edge = max(width, height); bucket cutoffs are small < 256 <= medium < 1024 <= large.
   const sized = [
     item({ src: 'tiny', width: 100, height: 80 }),      // edge 100  -> small
     item({ src: 'mid', width: 512, height: 400 }),       // edge 512  -> medium
@@ -187,8 +182,6 @@ describe('applyToolbarFilters — format narrowing within a kind', () => {
       item({ src: 'v', kind: 'video', type: 'mp4' }),
       item({ src: 'm', kind: 'audio', type: 'mp3' }),
     ];
-    // The Type dropdown offers image formats when kind is 'all', so 'png' narrows
-    // images to png — it must NOT drop the video/audio (they can never be png).
     expect(applyToolbarFilters(mixed, F({ mediaKind: 'all', imageType: 'png' })).map((i) => i.src))
       .toEqual(['a', 'v', 'm']);
   });
@@ -217,16 +210,12 @@ describe('applyToolbarFilters — search', () => {
   });
 
   it('treats an item with no alt as an empty alt (nullish-coalesce fallback)', () => {
-    // alt is undefined: the `(item.alt ?? '')` branch must yield '' rather than
-    // throwing, and the match still succeeds via the type field.
     const noAlt = item({ src: 'https://cdn/pic.jpg', alt: undefined, type: 'png' });
     expect(applyToolbarFilters([noAlt], F({ search: 'png' })).map((i) => i.src)).toEqual(['https://cdn/pic.jpg']);
-    // A query that matches nothing on that same item still returns nothing.
     expect(applyToolbarFilters([noAlt], F({ search: 'nomatch' }))).toHaveLength(0);
   });
 
   it('treats an undefined search filter as "no query" (keeps everything)', () => {
-    // filters.search omitted entirely -> `filters.search ?? ''` yields '' -> match-all.
     const noSearch = { ...F({}), search: undefined } as unknown as FilterOptions;
     expect(applyToolbarFilters(items, noSearch)).toHaveLength(3);
   });
@@ -245,7 +234,6 @@ describe('applyToolbarFilters — min-size (bytes) + base64', () => {
     expect(applyToolbarFilters(sizedItems, F({ minSize: 0 })).map((i) => i.src)).toEqual(['big', 'small', 'unknown']);
   });
   it('a non-finite min-size is treated as 0 (no floor) rather than NaN*1024', () => {
-    // Number.isFinite(Infinity) is false -> the `: 0` branch -> minBytes 0 -> no drop.
     const noFloor = { ...F({}), minSize: Infinity } as FilterOptions;
     expect(applyToolbarFilters(sizedItems, noFloor)).toHaveLength(3);
     const nanFloor = { ...F({}), minSize: NaN } as FilterOptions;
@@ -282,7 +270,6 @@ describe('applyToolbarFilters — sort', () => {
     expect(applyToolbarFilters(items, F({ sortBy: 'size', sortDir: 'desc' })).map((i) => i.fileSize)).toEqual([200, 100, 0]);
   });
   it('sorts by size ascending with unknown still last', () => {
-    // 0 = unknown always sinks to the end regardless of direction.
     expect(applyToolbarFilters(items, F({ sortBy: 'size', sortDir: 'asc' })).map((i) => i.fileSize)).toEqual([100, 200, 0]);
   });
   it('sorts by dimensions (pixel area) descending', () => {
@@ -297,9 +284,6 @@ describe('applyToolbarFilters — sort', () => {
   });
 
   it('sorts by type, breaking ties on the filename', () => {
-    // Two gif items in different name order + one jpeg: the type comparison
-    // orders gif before jpeg, and within the gifs the localeCompare(name)
-    // tiebreak (right side of the `||`) settles their order.
     const typed = [
       item({ src: 'https://cdn/zebra.gif', type: 'gif' }),
       item({ src: 'https://cdn/apple.jpeg', type: 'jpeg' }),
@@ -311,23 +295,16 @@ describe('applyToolbarFilters — sort', () => {
   });
 
   it('sorts by name using the raw src when a name cannot be derived (data: URI)', () => {
-    // originalNameFromUrl returns null for a data: URI, so itemName falls back to
-    // the raw src — exercising the `?? item.src` branch inside the comparator.
     const named = [
       item({ src: 'data:image/png;base64,ZZZ' }),
       item({ src: 'https://cdn/aaa.jpg' }),
     ];
-    // itemName('https://cdn/aaa.jpg') derives 'aaa'; the data: URI has no derivable
-    // name so itemName falls back to the raw 'data:image/png;base64,ZZZ'. Ascending
-    // locale order puts 'aaa' before 'data...'.
     expect(applyToolbarFilters(named, F({ sortBy: 'name', sortDir: 'asc' })).map((i) => i.src)).toEqual([
       'https://cdn/aaa.jpg', 'data:image/png;base64,ZZZ',
     ]);
   });
 
   it('keeps every unknown-size item last and stable when several sizes are 0', () => {
-    // Two knowns + two unknowns: forces every comparator branch — both-zero
-    // (returns 0, stable), va-zero (unknown sinks), and vb-zero (known rises).
     const mixed = [
       item({ src: 'k300', fileSize: 300 }),
       item({ src: 'u0a', fileSize: 0 }),
@@ -341,7 +318,6 @@ describe('applyToolbarFilters — sort', () => {
 });
 
 describe('isExcluded / filterExcluded', () => {
-  // Host matchers hold registrable domains (see excludedMatchers / isExcluded).
   const m: ExcludedMatchers = { urls: SrcKeySet.from(['https://x/a.png']), hosts: new Set(['ads.com']) };
   it('matches an exact url', () => {
     expect(isExcluded('https://x/a.png', m)).toBe(true);
@@ -350,8 +326,6 @@ describe('isExcluded / filterExcluded', () => {
     expect(isExcluded('https://cdn.ads.com/banner.gif', m)).toBe(true);
   });
   it('host exclusion covers sibling subdomains / rotating CDN edges', () => {
-    // Excluding the site (ads.com) matches every subdomain — the fix for host
-    // exclusions that never stuck on rotating edge PoPs.
     expect(isExcluded('https://static.ads.com/x.png', m)).toBe(true);
     expect(isExcluded('https://ads.com/y.png', m)).toBe(true);
     expect(isExcluded('https://notads.com/z.png', m)).toBe(false);
@@ -369,7 +343,6 @@ describe('isExcluded / filterExcluded', () => {
   });
 
   it('filterExcluded returns the list untouched (same reference) when no matchers are set', () => {
-    // Both sets empty -> the fast-path guard returns `items` without filtering.
     const empty: ExcludedMatchers = { urls: SrcKeySet.from([]), hosts: new Set() };
     const img = (src: string) => ({ src, alt: '', width: 0, height: 0, type: 'png', fileSize: 0, isBase64: false, kind: 'image' as const });
     const items = [img('https://x/a.png'), img('https://cdn.ads.com/b.gif')];
@@ -377,8 +350,6 @@ describe('isExcluded / filterExcluded', () => {
   });
 
   it('filterExcluded still filters when only the host set is populated (urls empty)', () => {
-    // Guards against the `&&` short-circuit: urls.size === 0 but hosts is not,
-    // so the fast-path must NOT trigger and host exclusion must still apply.
     const hostsOnly: ExcludedMatchers = { urls: SrcKeySet.from([]), hosts: new Set(['ads.com']) };
     const img = (src: string) => ({ src, alt: '', width: 0, height: 0, type: 'png', fileSize: 0, isBase64: false, kind: 'image' as const });
     const items = [img('https://cdn.ads.com/b.gif'), img('https://x/keep.png')];
@@ -386,14 +357,10 @@ describe('isExcluded / filterExcluded', () => {
   });
 
   it('matches a re-signed / resized CDN variant of an excluded image via its canonical key', () => {
-    // An fbcdn image is excluded once; a different edge host + fresh signed query
-    // for the SAME path must still be recognized (canonicalSrcKey collapses host
-    // and drops the query — see SRC_KEY_RULES).
     const excluded = 'https://scontent-del1-1.xx.fbcdn.net/v/t39/photo_123.jpg?oh=AAA&oe=BBB';
     const variant = 'https://scontent-bom2-3.xx.fbcdn.net/v/t39/photo_123.jpg?oh=CCC&oe=DDD';
     const fbMatchers: ExcludedMatchers = { urls: SrcKeySet.from([excluded]), hosts: new Set() };
     expect(isExcluded(variant, fbMatchers)).toBe(true);
-    // A different path on the same CDN is NOT excluded.
     expect(isExcluded('https://scontent-bom2-3.xx.fbcdn.net/v/t39/other_999.jpg?oh=X', fbMatchers)).toBe(false);
   });
 });
@@ -419,7 +386,7 @@ describe('applyToolbarFilters — downloadState', () => {
   });
   it('composes with another filter (downloaded + a search that excludes a)', () => {
     const out = applyToolbarFilters(items, { ...base, downloadState: 'downloaded', search: 'b' }, isDownloaded);
-    expect(out).toHaveLength(0); // only "a" is downloaded, but search keeps only "b"
+    expect(out).toHaveLength(0);
   });
   it('with no predicate, downloaded keeps nothing (default () => false)', () => {
     expect(applyToolbarFilters(items, { ...base, downloadState: 'downloaded' })).toHaveLength(0);

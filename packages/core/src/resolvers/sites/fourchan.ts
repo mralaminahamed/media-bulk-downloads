@@ -2,10 +2,6 @@ import { extensionFromUrl } from '@mbd/core/collection/mediaType';
 import { MediaCandidate, Resolver } from '@mbd/core/resolvers/types';
 import { kindFromExt, pageHost, pinnedDomUrl } from '@mbd/core/resolvers/sites/pageOriginal';
 
-// Gated on the PAGE host (media lives on i.4cdn.org). A thread renders many
-// posts, so the original MUST be read element-scoped from the collected thumb's
-// own post — never document-wide (that would pin every thumb to the first post's
-// file).
 const HOSTS = new Set(['boards.4chan.org', 'boards.4channel.org']);
 const IMG_HOSTS = ['4cdn.org'];
 
@@ -28,17 +24,14 @@ export const fourchanResolver: Resolver = {
   resolve: (u, ctx): MediaCandidate[] => {
     const el = ctx.el;
     if (!el) return [];
-    // Scope to the collected thumb's own post file: the thumb <img> sits inside
-    // <a class="fileThumb">; fall back to the post's .fileText download anchor.
     const href =
       el.closest?.('a.fileThumb')?.getAttribute?.('href') ??
       el.closest?.('.file')?.querySelector?.('a.fileThumb')?.getAttribute?.('href') ??
       el.closest?.('.post, .postContainer')?.querySelector?.('.fileText a')?.getAttribute?.('href') ??
       null;
-    // 4chan hrefs are protocol-relative (//i.4cdn.org/…); give them a scheme.
     const raw = href && href.startsWith('//') ? `https:${href}` : href;
     const full = pinnedDomUrl(raw, IMG_HOSTS);
-    if (!full || full === u.href) return []; // no file link / already the original
+    if (!full || full === u.href) return [];
     const ext = extensionFromUrl(full);
     const c: MediaCandidate = { url: full, kind: kindFromExt(ext), thumbnailSrc: u.href };
     if (ext) c.ext = ext;

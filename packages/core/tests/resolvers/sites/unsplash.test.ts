@@ -12,7 +12,7 @@ describe('unsplashResolver', () => {
     const input = 'https://plus.unsplash.com/premium_photo-9?w=400&dpr=2&q=80&s=SIGNATURE';
     const r = one(input);
     expect(r.url).toBe(input);
-    expect(r.thumbnailSrc).toBeUndefined(); // output == input, no smaller preview
+    expect(r.thumbnailSrc).toBeUndefined();
   });
   it('reports ext:jpg (Unsplash originals are JPEG, URL has no path extension)', () => {
     expect(one('https://images.unsplash.com/photo-123?w=400&fm=webp').ext).toBe('jpg');
@@ -24,8 +24,6 @@ describe('unsplashResolver', () => {
     expect(r.resolveHint).toEqual({ platform: 'unsplash', id: 'xyz789' });
   });
   it('sets no thumbnailSrc when nothing is stripped (output URL equals the input)', () => {
-    // A bare photo URL with no size params: the stripped URL is identical to the
-    // input, so there is no smaller original to preview — thumbnailSrc stays unset.
     const r = one('https://images.unsplash.com/photo-abc');
     expect(r.url).toBe('https://images.unsplash.com/photo-abc');
     expect(r.thumbnailSrc).toBeUndefined();

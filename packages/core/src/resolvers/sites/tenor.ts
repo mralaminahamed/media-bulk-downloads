@@ -1,9 +1,5 @@
 import { MediaCandidate } from '@mbd/core/resolvers/types';
 
-// Tenor serves originals from media*.tenor.com. A view page
-// (`tenor.com/view/<slug>-<id>`) embeds a `<script id="store-cache">` whose
-// `gifs.byId[<id>]` carries the item's `media_formats` (gif/mp4/webm/…). Pin every
-// URL to the Tenor media CDN — the page JSON is untrusted.
 function pinTenor(raw: unknown): string | null {
   if (typeof raw !== 'string' || !raw) return null;
   try {
@@ -14,7 +10,6 @@ function pinTenor(raw: unknown): string | null {
   }
 }
 
-// Prefer the animated GIF, then the muxed video renditions.
 const FORMAT_PRIORITY: Array<{ key: string; kind: 'gif' | 'video'; ext: string }> = [
   { key: 'gif', kind: 'gif', ext: 'gif' },
   { key: 'mp4', kind: 'video', ext: 'mp4' },

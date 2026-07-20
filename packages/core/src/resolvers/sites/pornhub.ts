@@ -1,13 +1,5 @@
 import { MediaCandidate } from '@mbd/core/resolvers/types';
 
-// A Pornhub watch/embed page carries one inline `flashvars_<id> = {…}` object; its
-// `mediaDefinitions` array holds the stream renditions. The `format:"hls"` entries
-// expose a direct HLS master (`videoUrl` → `…/master.m3u8`) on the Pornhub CDN
-// (`*.phncdn.com`) — one adaptive manifest that already carries every quality, so
-// it is surfaced (host-pinned) and routed through the HLS capture path. The `mp4`
-// entry is a `remote`/`get_media` endpoint that needs a secondary signed fetch, so
-// it is skipped. gallery-dl referenced only for the flashvars key names (GPL-2.0;
-// no source copied).
 const PH_HOST_RE = /(?:^|\.)pornhub\.com$/i;
 
 function pinPhncdn(raw: unknown): string | null {
@@ -38,8 +30,6 @@ export function pornhubVideoId(raw: string | URL): string | null {
   return m ? m[1] : null;
 }
 
-// Extract the balanced `{…}` object literal that follows a marker (respecting string
-// literals), so the whole flashvars blob is read regardless of nesting / `</script>`.
 function balancedJsonAfter(html: string, marker: RegExp): string | null {
   const m = marker.exec(html);
   if (!m) return null;
@@ -97,7 +87,6 @@ export function pornhubMediaFromHtml(html: string, id?: string | null): MediaCan
   }
   const defs = Array.isArray(fv.mediaDefinitions) ? fv.mediaDefinitions : [];
 
-  // Prefer the master (its `quality` is the full array, not a single rendition).
   let master: string | null = null;
   let fallback: string | null = null;
   for (const d of defs) {

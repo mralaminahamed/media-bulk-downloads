@@ -8,9 +8,6 @@ describe('deep-scan-active-tab — abort targets the scanning tab', () => {
     (chrome.tabs.sendMessage as Mock).mockReset();
   });
 
-  // Runs first: before any scan starts there is no recorded tab, so abort falls
-  // back to the active tab. (The next test leaves a scan in flight, so ordering
-  // matters — module state persists within a file.)
   it('falls back to the active tab when no scan is running, and swallows a lastError on the abort callback', () => {
     (chrome.tabs.query as Mock).mockImplementation((_q, cb) => cb([{ id: 7 }]));
     (chrome.tabs.sendMessage as Mock).mockImplementation((_id, _msg, cb) => cb());
@@ -23,14 +20,12 @@ describe('deep-scan-active-tab — abort targets the scanning tab', () => {
   });
 
   it('aborts the tab the scan started in, even after the active tab changes', async () => {
-    // Scan starts on tab 5; keep DEEP_SCAN in flight (callback never fires).
     (chrome.tabs.query as Mock).mockResolvedValue([{ id: 5 }]);
     (chrome.tabs.sendMessage as Mock).mockImplementation(() => {});
 
     void deepScanActiveTab(() => {});
-    await new Promise((r) => setTimeout(r, 0)); // let the query resolve + record the tab id
+    await new Promise((r) => setTimeout(r, 0));
 
-    // User has since switched tabs; abort must still target tab 5, not the query.
     abortDeepScanActiveTab();
 
     expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(5, 'DEEP_SCAN_ABORT', expect.any(Function));
@@ -63,18 +58,18 @@ describe('deepScanActiveTab — scan lifecycle', () => {
     const onProgress = vi.fn();
 
     const p = deepScanActiveTab(onProgress);
-    await Promise.resolve(); // let `await chrome.tabs.query` settle + the listener register
+    await Promise.resolve();
     const listener = addL.mock.calls.at(-1)![0];
 
-    listener({ type: 'DEEP_SCAN_PROGRESS', found: 1 } as unknown as DeepScanProgress, { tab: { id: 99 } }); // other tab → ignored
-    listener({ type: 'SOMETHING' }, { tab: { id: 7 } }); // non-progress → ignored
+    listener({ type: 'DEEP_SCAN_PROGRESS', found: 1 } as unknown as DeepScanProgress, { tab: { id: 99 } });
+    listener({ type: 'SOMETHING' }, { tab: { id: 7 } });
     expect(onProgress).not.toHaveBeenCalled();
     listener({ type: 'DEEP_SCAN_PROGRESS', found: 3 } as unknown as DeepScanProgress, { tab: { id: 7 } });
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ found: 3 }));
 
     done([{ src: 'https://x/a.jpg' }]);
     await expect(p).resolves.toEqual([{ src: 'https://x/a.jpg' }]);
-    expect(removeL).toHaveBeenCalledWith(listener); // cleaned up in finally
+    expect(removeL).toHaveBeenCalledWith(listener);
   });
 
   it('normalizes a non-array response to an empty array', async () => {
@@ -99,41 +94,33 @@ describe('deepScanActiveTab — scan lifecycle', () => {
   });
 
   it("does not clear a newer overlapping scan's active tab id when an older scan finishes first", async () => {
-    // Scan A starts on tab 7 and is held open (its DEEP_SCAN callback never fires yet).
     query.mockResolvedValueOnce([{ id: 7 }]);
     let doneA!: (media: unknown) => void;
     tabsSend.mockImplementationOnce((_id, _msg, cb) => { doneA = cb; });
     const scanA = deepScanActiveTab(vi.fn());
-    await Promise.resolve(); // let A's query settle: activeScanTabId = 7
+    await Promise.resolve();
 
-    // Scan B starts on tab 9 before A finishes — overwrites the module's active-scan tab id.
     query.mockResolvedValueOnce([{ id: 9 }]);
     let doneB!: (media: unknown) => void;
     tabsSend.mockImplementationOnce((_id, _msg, cb) => { doneB = cb; });
     const scanB = deepScanActiveTab(vi.fn());
-    await Promise.resolve(); // let B's query settle: activeScanTabId = 9
+    await Promise.resolve();
 
-    // A finishes. Its finally block must see activeScanTabId(9) !== its own tabId(7)
-    // and must NOT null it out — otherwise an abort issued now would silently no-op
-    // instead of reaching B's tab.
     doneA([]);
     await scanA;
 
     query.mockReset();
     tabsSend.mockReset();
-    tabsSend.mockImplementation((_id, _msg, cb) => cb()); // actually invoke the abort callback
+    tabsSend.mockImplementation((_id, _msg, cb) => cb());
     abortDeepScanActiveTab();
     expect(tabsSend).toHaveBeenCalledWith(9, 'DEEP_SCAN_ABORT', expect.any(Function));
-    expect(query).not.toHaveBeenCalled(); // targeted B directly, no active-tab fallback needed
+    expect(query).not.toHaveBeenCalled();
 
-    // Let B settle too so activeScanTabId is clean (null) for later tests.
     doneB([]);
     await scanB;
   });
 
   it('fallback abort (no scan running) is a no-op when there is also no active tab', () => {
-    // At this point activeScanTabId is null (the previous test's scan B resolved
-    // and reset it), so abort falls through to the chrome.tabs.query callback path.
     query.mockImplementation((_q, cb) => cb([]));
     tabsSend.mockReset();
     abortDeepScanActiveTab();

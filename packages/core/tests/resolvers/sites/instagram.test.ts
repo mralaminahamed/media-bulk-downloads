@@ -39,7 +39,6 @@ describe('instagramResolver.resolve — grid thumbnail', () => {
         { media_type: 1, image_versions2: { candidates: [{ url: `${CDN}/CAR_2_1440_n.jpg`, width: 1440, height: 1440 }] } },
       ],
     });
-    // grid cell: <a href="/user/p/CAR"><img src=thumbnail></a>
     document.body.insertAdjacentHTML('beforeend', '<a href="/rashmiix/p/CAR/"><img id="t"></a>');
     const el = document.getElementById('t')!;
 
@@ -105,7 +104,6 @@ describe('instagramResolver.resolve — non-post images defer to the generic res
 
   it('does not mistake a tagged-user link (/username/) for a post code', () => {
     hydrate({ code: 'CAR', media_type: 1, image_versions2: { candidates: [{ url: `${CDN}/CAR_n.jpg`, width: 1440, height: 1440 }] } });
-    // img sits inside a tagged-user link only — must NOT resolve to a post.
     document.body.insertAdjacentHTML('beforeend', '<a href="/the_little_lens/"><img id="t"></a>');
     const el = document.getElementById('t')!;
     const out = instagramResolver.resolve(u(`${CDN}/some_thumb_n.jpg`), {
@@ -158,7 +156,6 @@ describe('instagramResolver.resolve — reels tab (cover-only clips)', () => {
       media_type: 2,
       image_versions2: { candidates: [{ url: `${CDN}/RL_cover_n.jpg`, width: 640, height: 1136 }] },
     });
-    // A reels-tab cell renders its cover as a background-image inside the /reel/ link.
     document.body.insertAdjacentHTML('beforeend', '<a href="/rashmiix/reel/RL/"><div id="bg"></div></a>');
     const el = document.getElementById('bg')!;
     const out = instagramResolver.resolve(u(`${CDN}/RL_cover_n.jpg`), { el, allowNetwork: false, pageUrl: 'https://www.instagram.com/rashmiix/reels/' });
@@ -169,9 +166,7 @@ describe('instagramResolver.resolve — reels tab (cover-only clips)', () => {
   });
 
   it('upgrades a reel to its real mp4 once the sniffer has seen it (drops the pending cover)', () => {
-    // Reels grid: cover-only pending clip.
     hydrate({ code: 'RL', media_type: 2, image_versions2: { candidates: [{ url: `${CDN}/RL_cover_n.jpg`, width: 640, height: 1136 }] } });
-    // Then the reel plays/opens and its real video is sniffed for the same code.
     ingestSniffedIgMedia([
       { code: 'RL', kind: 'video', url: `${CDN}/RL_720.mp4`, ext: 'mp4', width: 720, height: 1280, poster: `${CDN}/RL_cover_n.jpg` },
     ]);
@@ -203,9 +198,7 @@ describe('instagramResolver.resolve — sniffed GraphQL media', () => {
       { code: 'TRAV', kind: 'video', url: `${CDN}/TRAV.mp4`, ext: 'a/../b', width: 720, height: 1280, poster: `${CDN}/TRAV_p.jpg` },
     ]);
     document.body.insertAdjacentHTML('beforeend', '<a href="/user/p/EXE/"><img id="x"></a><a href="/user/p/TRAV/"><img id="y"></a>');
-    // 'exe' isn't a media extension → falls back to the image default 'jpg'.
     expect(instagramResolver.resolve(u(`${CDN}/t.jpg`), { el: document.getElementById('x')!, allowNetwork: false })[0].ext).toBe('jpg');
-    // path characters rejected → the video default 'mp4'.
     expect(instagramResolver.resolve(u(`${CDN}/t.jpg`), { el: document.getElementById('y')!, allowNetwork: false })[0].ext).toBe('mp4');
   });
 
@@ -217,9 +210,7 @@ describe('instagramResolver.resolve — sniffed GraphQL media', () => {
       { code: 'GOOD', kind: 'image', url: `${CDN}/GOOD_n.jpg`, ext: 'jpg', width: 1440, height: 1440 },
     ]);
     document.body.insertAdjacentHTML('beforeend', '<a href="/user/p/EVIL/"><img id="e"></a><a href="/user/p/GOOD/"><img id="g"></a>');
-    // The evil host / scheme entries never made it into the store.
     expect(instagramResolver.resolve(u(`${CDN}/t.jpg`), { el: document.getElementById('e')!, allowNetwork: false })).toEqual([]);
-    // The valid IG-CDN entry did.
     expect(instagramResolver.resolve(u(`${CDN}/t.jpg`), { el: document.getElementById('g')!, allowNetwork: false })).toEqual([
       { url: `${CDN}/GOOD_n.jpg`, kind: 'image', ext: 'jpg', width: 1440, height: 1440 },
     ]);
@@ -250,11 +241,10 @@ describe('ingestSniffedIgMedia — untrusted-input validation & edge cases', () 
       { code: 'OK', kind: 'image', url: `${CDN}/OK_1440_n.jpg`, ext: 'jpg', width: 1440, height: 1440 },
     ]);
     expect(resolveCode('OK')).toEqual([{ url: `${CDN}/OK_1440_n.jpg`, kind: 'image', ext: 'jpg', width: 1440, height: 1440 }]);
-    expect(resolveCode('AUD')).toEqual([]); // the audio-kind entry never entered the store
+    expect(resolveCode('AUD')).toEqual([]);
   });
 
   it('defaults a missing ext to jpg and surfaces an entry with no width/height without dimension fields', () => {
-    // No ext and no width/height on the sniffed entry — exercises both defaulting paths.
     ingestSniffedIgMedia([{ code: 'NOWH', kind: 'image', url: `${CDN}/NOWH_n.jpg` }]);
     const [c] = resolveCode('NOWH');
     expect(c).toEqual({ url: `${CDN}/NOWH_n.jpg`, kind: 'image', ext: 'jpg' });
@@ -284,29 +274,24 @@ describe('ingestSniffedIgMedia — untrusted-input validation & edge cases', () 
     }));
     ingestSniffedIgMedia(many);
     const out = resolveCode('MANY');
-    expect(out).toHaveLength(4000); // 4001 ingested, capped to the last 4000
+    expect(out).toHaveLength(4000);
     expect(out[out.length - 1].url).toBe(`${CDN}/MANY_4000_n.jpg`);
   });
 });
 
 describe('instagram buildByCode + instagramPageMedia — parsing edge cases', () => {
   it('skips script blocks with no media token and invalid-JSON blocks, keeping the good post', () => {
-    // (a) valid JSON, but no media tokens -> cheap-guard skip
     hydrate({ hello: 'world', nested: { a: 1 } });
-    // (b) mentions the token substring but is NOT valid JSON -> JSON.parse throws, swallowed
     const bad = document.createElement('script');
     bad.type = 'application/json';
     bad.textContent = 'this mentions image_versions2 but is not valid json {';
     document.body.appendChild(bad);
-    // (c) a genuine post — the good path must still resolve
     hydrate({ code: 'GOODJSON', media_type: 1, image_versions2: { candidates: [{ url: `${CDN}/GOODJSON_n.jpg`, width: 1080, height: 1080 }] } });
 
     document.body.insertAdjacentHTML('beforeend', '<a href="/user/p/GOODJSON/"><img id="t"></a>');
     const el = document.getElementById('t')!;
     const expected = [{ url: `${CDN}/GOODJSON_n.jpg`, kind: 'image', ext: 'jpg', width: 1080, height: 1080 }];
     expect(instagramResolver.resolve(u(`${CDN}/t.jpg`), { el, allowNetwork: false })).toEqual(expected);
-    // A second resolve (e.g. deep-scan re-run) must not re-parse the same <script>
-    // nodes — each is parsed exactly once — yet still return the same media.
     expect(instagramResolver.resolve(u(`${CDN}/t.jpg`), { el, allowNetwork: false })).toEqual(expected);
   });
 
@@ -333,11 +318,6 @@ describe('instagram buildByCode + instagramPageMedia — parsing edge cases', ()
 });
 
 describe('Bug fix: push loop handles very large arrays (no RangeError)', () => {
-  // Both `sniffed` (ingestSniffedIgMedia) and `parsed` (hydration parsing) are
-  // built with a loop, not `push(...items)`: `items` can be arbitrarily large
-  // (untrusted page data / a huge carousel's hydration JSON), and spreading it
-  // as call args risks a RangeError that the caller's try/catch would silently
-  // swallow. Prove a single call with 200,000 entries doesn't throw either path.
   it('ingestSniffedIgMedia ingests 200,000 entries in one call without throwing', () => {
     const many = Array.from({ length: 200_000 }, (_, i) => ({
       code: 'BIGCODE', kind: 'image' as const, url: `${CDN}/HUGE_${i}_n.jpg`, ext: 'jpg', width: 10, height: 10,
@@ -352,6 +332,6 @@ describe('Bug fix: push loop handles very large arrays (no RangeError)', () => {
     }));
     hydrate({ code: 'BIGCAP', media_type: 8, carousel_media });
     expect(() => instagramPageMedia('https://www.instagram.com/x/p/BIGCAP/')).not.toThrow();
-    expect(instagramPageMedia('https://www.instagram.com/x/p/BIGCAP/')).toHaveLength(4000); // capped, newest kept
+    expect(instagramPageMedia('https://www.instagram.com/x/p/BIGCAP/')).toHaveLength(4000);
   });
 });

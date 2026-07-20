@@ -20,7 +20,6 @@ export async function runCaptureInProcess(req: CaptureRunRequest): Promise<Captu
     const res = req.engine === 'dash'
       ? await captureDash(req.manifestUrl, browserDashDeps(onProgress), { quality: req.quality, maxBytes: req.maxBytes })
       : await captureHls(req.manifestUrl, browserHlsDeps(onProgress), { quality: req.quality, maxBytes: req.maxBytes });
-    // A standalone ArrayBuffer copy — Blob rejects a plain Uint8Array's backing under strict DOM types.
     const ab = res.bytes.buffer.slice(res.bytes.byteOffset, res.bytes.byteOffset + res.bytes.byteLength) as ArrayBuffer;
     const blobUrl = URL.createObjectURL(new Blob([ab], { type: res.mime }));
     setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);

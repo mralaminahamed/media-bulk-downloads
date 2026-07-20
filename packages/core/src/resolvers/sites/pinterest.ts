@@ -5,9 +5,6 @@ import { PinterestMediaEntry, pinPinimgUrl, pinIdFromUrl, PIN_EXT } from '@mbd/c
 
 const IMG_HOST = 'i.pinimg.com';
 
-// Pin id from the poster's own `/pin/` anchor, else the page url. Reuses
-// pinIdFromUrl (the single source of the /pin/<id> pattern) so the DOM path and
-// the sniffer path can't drift — both accept a slash/query/hash/end terminator.
 function pinIdFrom(el: Element | undefined, pageUrl: string | undefined): string | null {
   const href = el?.closest?.('a[href*="/pin/"]')?.getAttribute('href');
   return pinIdFromUrl(href) ?? pinIdFromUrl(pageUrl);
@@ -26,13 +23,11 @@ function hasVideoSignal(el: Element | undefined): boolean {
   return !!cell?.querySelector?.('video, [data-test-id*="video" i], [aria-label*="video" i]');
 }
 
-// Sniffed /resource/ media accumulates here across the SPA session. Bounded; newest wins.
 const SNIFF_CAP = 4000;
 let sniffed: PinterestMediaEntry[] = [];
 let sniffVersion = 0;
 let byPinCache: { key: number; map: Map<string, PinterestMediaEntry[]> } | null = null;
 
-// Pinterest pin ids are long numeric strings; 6 is a loose floor rejecting short board/user/other ids.
 const PIN_ID_STRICT = /^\d{6,}$/;
 
 /**
@@ -61,9 +56,6 @@ export function ingestSniffedPinterestMedia(entries: unknown): void {
     clean.push(entry);
   }
   if (!clean.length) return;
-  // Build with a loop, not `push(...clean)`: clean can be as large as the untrusted
-  // `entries` payload, and spreading it as call args can hit the engine's
-  // argument-count limit (RangeError, silently swallowed by the caller's try/catch).
   for (const e of clean) sniffed.push(e);
   if (sniffed.length > SNIFF_CAP) sniffed = sniffed.slice(sniffed.length - SNIFF_CAP);
   sniffVersion++;
@@ -127,23 +119,14 @@ export const pinterestResolver: Resolver = {
   hosts: ['pinimg.com'],
   match: (u) => u.hostname === IMG_HOST,
   resolve: (u, ctx): MediaCandidate[] => {
-    // A DOM tile whose pin id is already in the sniffed store resolves straight to
-    // the sniffed original / real video (network-free), superseding the /originals/
-    // upgrade and the opt-in widget path for video. Every slide of a carousel pin
-    // is returned (deduped downstream by canonicalSrcKey).
     const sniffedId = pinIdFrom(ctx.el, ctx.pageUrl);
     if (sniffedId) {
       const hit = byPin().get(sniffedId);
       if (hit && hit.length) return hit.map(toCandidate);
     }
 
-    // Pinterest also serves video poster thumbnails under /videos/thumbnails/…;
-    // those are stills, handled by the image path below like any other pin image.
     if (hasVideoSignal(ctx.el)) {
       const id = pinIdFrom(ctx.el, ctx.pageUrl);
-      // Only claim a video when it is actually resolvable — without a pin id the
-      // widget endpoint can't be queried, so fall through and keep the poster as a
-      // downloadable image rather than surfacing an undownloadable pending video.
       if (id) {
         return [{
           url: u.href,

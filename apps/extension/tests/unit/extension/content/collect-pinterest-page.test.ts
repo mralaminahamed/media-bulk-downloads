@@ -27,20 +27,15 @@ describe('collectMedia — Pinterest page media (opened pin page)', () => {
   });
 
   it("surfaces the opened pin's sniffed ORIGINAL (keyed by the pin id in the URL) even when the DOM has none", () => {
-    // The page URL is .../pin/698058011039781102/ — seed the resolver store
-    // for that pin id. The DOM is left empty: a virtualized/unhydrated grid
-    // means there is nothing here for the per-element resolve() walk to latch
-    // onto, so the ORIGINAL can only reach the collection via pinterestPageMedia().
     ingestSniffedPinterestMedia([
       { pinId: '698058011039781102', kind: 'image', url: ORIGINAL, ext: 'jpg', width: 1000, height: 1500 },
-      // A different pin's media must NOT leak into this page's collection.
       { pinId: '111111111111111111', kind: 'image', url: 'https://i.pinimg.com/originals/dd/ee/ff.jpg', ext: 'jpg' },
     ]);
 
     const srcs = collectMedia().map((m) => m.src);
 
-    expect(srcs).toContain(ORIGINAL); // sniffed orig the DOM walk never touched
-    expect(srcs).not.toContain('https://i.pinimg.com/originals/dd/ee/ff.jpg'); // wrong pin id
+    expect(srcs).toContain(ORIGINAL);
+    expect(srcs).not.toContain('https://i.pinimg.com/originals/dd/ee/ff.jpg');
   });
 
   it('does not re-add a page-media URL already collected from the DOM (dedup by src)', () => {

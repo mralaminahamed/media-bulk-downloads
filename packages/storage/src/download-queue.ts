@@ -67,8 +67,6 @@ export function emptyQueue(): QueueState {
   return { items: [], paused: false };
 }
 
-// Non-crypto stable id; a rolling sequence suffix avoids collisions when many
-// items are enqueued within the same millisecond (`now` alone isn't unique).
 let seq = 0;
 function makeId(now: number): string {
   seq = (seq + 1) % 1_000_000;
@@ -89,7 +87,7 @@ export const QUEUE_MAX_BYTES = 1_000_000;
 function pruneFinished(items: QueueItem[]): QueueItem[] {
   const finishedNewestFirst = items.filter((i) => !isLive(i)).sort((a, b) => b.addedAt - a.addedAt);
   const keptFinished = withinByteBudget(finishedNewestFirst.slice(0, FINISHED_CAP), QUEUE_MAX_BYTES);
-  if (keptFinished.length === finishedNewestFirst.length) return items; // nothing dropped
+  if (keptFinished.length === finishedNewestFirst.length) return items;
   const keep = new Set(keptFinished);
   return items.filter((i) => isLive(i) || keep.has(i));
 }
@@ -117,9 +115,6 @@ export function claimNext(
   state: QueueState, max: number, now: number,
 ): { state: QueueState; item: QueueItem } | null {
   if (state.paused) return null;
-  // Defensive: a corrupt `max` (0/negative → stalls forever; NaN → removes the
-  // cap and floods concurrent downloads) is clamped to a sane floor. The settings
-  // layer also clamps downloadConcurrency, so this is belt-and-braces.
   const cap = Number.isFinite(max) && max >= 1 ? Math.floor(max) : 1;
   if (activeCount(state) >= cap) return null;
   const idx = state.items.findIndex((i) => i.status === 'queued' && i.readyAt <= now);

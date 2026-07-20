@@ -22,15 +22,12 @@ describe('requestCaptureStream', () => {
 
     const promise = requestCaptureStream(item, { url: 'https://x/watch' }, onProgress);
 
-    // The runId the helper minted, read off the CAPTURE_STREAM it sent.
     const sent = (chrome.runtime.sendMessage as Mock).mock.calls.find((c) => c[0]?.type === 'CAPTURE_STREAM')![0];
     expect(typeof sent.runId).toBe('string');
     const listener = (chrome.runtime.onMessage.addListener as Mock).mock.calls.at(-1)![0];
 
-    // A concurrent capture's progress (different runId) is ignored…
     listener({ type: 'CAPTURE_PROGRESS', runId: 'other-run', done: 9, total: 9 });
     expect(onProgress).not.toHaveBeenCalled();
-    // …only this capture's own runId relays.
     listener({ type: 'CAPTURE_PROGRESS', runId: sent.runId, done: 2, total: 4 });
     expect(onProgress).toHaveBeenCalledWith(2, 4);
 
@@ -40,7 +37,7 @@ describe('requestCaptureStream', () => {
       expect.any(Function),
     );
     expect(chrome.runtime.onMessage.removeListener).toHaveBeenCalledWith(listener);
-    expect(sent.audioOnly).toBe(false); // default: full A/V capture
+    expect(sent.audioOnly).toBe(false);
   });
 
   it('sets audioOnly on the CAPTURE_STREAM message when requested (#204)', async () => {
@@ -73,7 +70,6 @@ describe('requestCaptureStream', () => {
     const promise = requestCaptureStream(item, { url: 'https://x/watch' }, vi.fn());
     const listener = (chrome.runtime.onMessage.addListener as Mock).mock.calls.at(-1)![0];
     await expect(promise).resolves.toEqual({ status: 'Couldn’t capture the stream.' });
-    // The listener added before the send must not leak.
     expect(chrome.runtime.onMessage.removeListener).toHaveBeenCalledWith(listener);
   });
 

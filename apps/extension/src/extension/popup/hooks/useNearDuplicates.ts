@@ -69,20 +69,11 @@ export function useNearDuplicates({
   const run = useCallback(async (): Promise<void> => {
     if (running) return;
     const generation = ++genRef.current;
-    // The set of srcs at start. A rescan or an originals-resolve SWAPS srcs (a
-    // pending item's placeholder → its resolved file), so the hashes (keyed by
-    // src) no longer describe the current set → discard. But size-enrichment
-    // reassigns rawImagesRef.current to a fresh array with the SAME srcs (only
-    // fileSize changes); the hashes stay valid there, so compare the src SET, not
-    // the array identity — else a HEAD response landing mid-pass silently bails
-    // the whole dedup and marks nothing.
     const startSrcs = new Set(rawImagesRef.current.map((i) => i.src));
 
-    // Eligible image candidates, re-derived from the raw set exactly as the engine
-    // does — so items hidden by min-size / exclusions aren't fetched needlessly.
     const eligible = filterExcluded(filterImagesBySettings(rawImagesRef.current, settingsRef.current), excludedRef.current);
     const targets = eligible.filter(isHashCandidate);
-    if (targets.length < 2) return; // nothing could collapse
+    if (targets.length < 2) return;
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -90,7 +81,7 @@ export function useNearDuplicates({
     setProgress({ done: 0, total: targets.length });
 
     const worker = new Worker(new URL('../workers/phash.worker.ts', import.meta.url), { type: 'module' });
-    const hashes = new Map<string, string>(); // src -> pHash
+    const hashes = new Map<string, string>();
     let processed = 0;
     const bump = (): void => {
       processed++;
@@ -99,7 +90,7 @@ export function useNearDuplicates({
 
     try {
       await new Promise<void>((resolve) => {
-        let inFlight = 0; // bytes posted to the worker, awaiting a reply
+        let inFlight = 0;
         let fetchDone = false;
         const finishIfIdle = (): void => {
           if (fetchDone && inFlight === 0) resolve();
@@ -112,27 +103,21 @@ export function useNearDuplicates({
           bump();
           finishIfIdle();
         };
-        // A worker that fails to load/run (e.g. an OffscreenCanvas gap) bails the
-        // whole pass; the set is left untouched (fail-safe, no partial marking).
         worker.onerror = (): void => resolve();
 
         void mapWithConcurrency(targets, DEDUP_FETCH_CONCURRENCY, async (img): Promise<void> => {
           try {
             if (controller.signal.aborted || generation !== genRef.current) return bump();
-            // Reuse a hash from an earlier pass — skip the fetch entirely.
             if (img.pHash) {
               hashes.set(img.src, img.pHash);
               return bump();
             }
             const bytes = await fetchImageBytes(img.src, controller.signal);
             if (!bytes || controller.signal.aborted || generation !== genRef.current) return bump();
-            // Increment only AFTER a successful post: if postMessage throws (e.g. a
-            // DataCloneError), the catch below bumps this item without leaving a
-            // phantom in-flight count that would hang the barrier forever.
             worker.postMessage({ type: 'HASH', id: img.src, bytes } satisfies HashRequest, [bytes]);
             inFlight++;
           } catch {
-            bump(); // never let one item's failure stall the barrier
+            bump();
           }
         }).then(() => {
           fetchDone = true;
@@ -146,9 +131,6 @@ export function useNearDuplicates({
       setProgress(null);
     }
 
-    // Superseded by a newer pass, cancelled, or the raw set's srcs changed (a
-    // rescan or an originals-resolve swap) while we hashed — discard; mark nothing.
-    // A same-src reassignment (size enrichment) is NOT a supersession.
     const now = rawImagesRef.current;
     const sameSrcSet = now.length === startSrcs.size && now.every((i) => startSrcs.has(i.src));
     if (generation !== genRef.current || controller.signal.aborted || !sameSrcSet) return;
@@ -160,9 +142,6 @@ export function useNearDuplicates({
     const threshold = settingsRef.current.nearDuplicateThreshold ?? DEFAULT_NEAR_DUP_THRESHOLD;
     const marks = markNearDuplicates(inputs, threshold);
 
-    // Write the fresh hashes + marks onto every item by src. An item no longer in a
-    // cluster is un-hidden (so a stricter re-run reverses a prior hide) while its
-    // cached pHash is kept, so a subsequent pass needn't refetch it.
     const applyMark = (img: ImageInfo): ImageInfo => {
       const pHash = hashes.get(img.src) ?? img.pHash;
       const mark = marks.get(img.src);

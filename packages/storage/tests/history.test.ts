@@ -27,17 +27,16 @@ describe('mergeHistory', () => {
     const many = Array.from({ length: HISTORY_CAP + 10 }, (_, i) => e(`s${i}`, i));
     const out = mergeHistory(many, []);
     expect(out).toHaveLength(HISTORY_CAP);
-    expect(out[0].time).toBe(HISTORY_CAP + 9); // newest
+    expect(out[0].time).toBe(HISTORY_CAP + 9);
   });
   it('bounds the list by serialized byte budget (big base64-style srcs), newest kept', () => {
-    // Each src alone is ~1/3 of the budget, so four entries overflow it.
     const chunk = 'x'.repeat(Math.ceil(HISTORY_MAX_BYTES / 3));
     const big = (id: string, time: number): HistoryEntry =>
       ({ src: `https://p/${id}/${chunk}`, filename: 'f.jpg', kind: 'image', type: 'jpeg', sourcePageUrl: 'https://p', time });
     const out = mergeHistory([big('a', 1), big('b', 2), big('c', 3), big('d', 4)], []);
     expect(out.length).toBeGreaterThanOrEqual(1);
-    expect(out.length).toBeLessThan(4); // at least one over-budget entry trimmed
-    expect(out[0].time).toBe(4); // newest retained first
+    expect(out.length).toBeLessThan(4);
+    expect(out[0].time).toBe(4);
   });
 });
 
@@ -79,7 +78,6 @@ describe('restoreHistory', () => {
       store = obj.downloadHistory;
     });
     await restoreHistory([e('a', 1), e('b', 3), e('a', 9)]);
-    // dedup by src (a wins at time 9), sorted newest-first — old contents dropped.
     expect(store.map((x) => x.src)).toEqual(['a', 'b']);
     expect(store[0].time).toBe(9);
   });
@@ -92,7 +90,7 @@ describe('srcsStillOnDisk', () => {
   it('keeps entries whose file the browser reports as existing', () => {
     const history = [withId('a', 10), withId('b', 20)];
     const onDisk = srcsStillOnDisk(history, (id) => (id === 10 ? 'exists' : 'deleted'));
-    expect(onDisk).toEqual(['a']); // 20 positively deleted
+    expect(onDisk).toEqual(['a']);
   });
 
   it('drops an entry only when the browser positively reports it deleted', () => {
@@ -101,7 +99,6 @@ describe('srcsStillOnDisk', () => {
   });
 
   it('KEEPS an entry whose download id is unknown to the browser (cleared Chrome history)', () => {
-    // regression guard: the bug dropped these, showing on-disk files as "not downloaded"
     const history = [withId('a', 10), withId('b', 20)];
     expect(srcsStillOnDisk(history, () => 'unknown')).toEqual(['a', 'b']);
   });
@@ -117,7 +114,7 @@ describe('history writes mirror to IDB', () => {
     (chrome.storage.local.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({});
     (chrome.storage.local.set as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
     await recordDownloads([{ src: 'z', filename: 'z', kind: 'image', type: 'jpeg', sourcePageUrl: '', time: 5 } as HistoryEntry]);
-    await new Promise((r) => setTimeout(r, 0)); // let the fire-and-forget mirror write land
+    await new Promise((r) => setTimeout(r, 0));
     const mirrored = await idbGet<HistoryEntry[]>('downloadHistory');
     expect(mirrored?.some((e) => e.src === 'z')).toBe(true);
   });

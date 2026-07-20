@@ -36,7 +36,7 @@ export interface ZipResult {
  *  stream-capture ceiling (STREAM_MAX_BYTES) so a huge selection can't exhaust the
  *  popup/bubble page's memory and lose the whole batch — items past the cap are
  *  reported in `failed` for individual download instead. */
-export const ZIP_MAX_BYTES = 1024 * 1024 * 1024; // 1 GB
+export const ZIP_MAX_BYTES = 1024 * 1024 * 1024;
 
 export interface ZipDeps {
   /** Injectable so tests don't hit the network. */
@@ -87,11 +87,6 @@ async function fetchBytes(url: string, doFetch: typeof fetch, maxBytes?: number)
   try {
     const res = await doFetch(url, { redirect: 'error' });
     if (!res.ok) return null;
-    // Skip an item the server declares is larger than the remaining budget BEFORE
-    // buffering it: arrayBuffer() materializes the entire body in the popup/bubble
-    // heap, and with several concurrent workers a few large items can OOM the page
-    // before the post-buffer cap check can intervene. A body with no (or an
-    // unparseable) content-length still buffers and is bounded by that later check.
     const declared = Number(res.headers?.get?.('content-length'));
     if (maxBytes != null && Number.isFinite(declared) && declared > maxBytes) return null;
     const buf = await res.arrayBuffer();
@@ -108,8 +103,6 @@ export async function buildZip(
   deps: ZipDeps,
 ): Promise<ZipResult> {
   const used = new Set<string>();
-  // Assign a stable internal path per image up front — index-based names keep
-  // the original order; uniquePath resolves any 'original'-mode collisions.
   const planned = images.map((image, index) => ({
     image,
     path: uniquePath(buildDownloadFilename(image, index, settings, sourcePageUrl), used),
@@ -120,14 +113,10 @@ export async function buildZip(
   const failed: ImageInfo[] = [];
   const limit = Math.max(1, deps.concurrency ?? 6);
   const cap = deps.maxBytes ?? ZIP_MAX_BYTES;
-  // #284: a sibling `<name>.json` beside each fetched item, in the same folder.
   const capturedAt = deps.capturedAt ?? new Date().toISOString();
   const encoder = new TextEncoder();
   let done = 0;
   let cursor = 0;
-  // Running total of media bytes already committed to `files`. Once an item would
-  // push it past `cap`, stop admitting items (`full`) — the rest are reported in
-  // `failed` for individual download, yielding a partial archive rather than an OOM.
   let totalBytes = 0;
   let full = false;
 
@@ -135,9 +124,6 @@ export async function buildZip(
     while (cursor < planned.length) {
       const i = cursor++;
       const { image, path } = planned[i];
-      // Once the cap is hit, skip the fetch entirely for remaining items. Pass the
-      // remaining budget so an item that declares a size past it is skipped before
-      // its body is buffered (see fetchBytes).
       const bytes = full ? null : await fetchBytes(image.src, deps.fetch, cap - totalBytes);
       if (bytes && totalBytes + bytes.length <= cap) {
         totalBytes += bytes.length;
@@ -149,8 +135,6 @@ export async function buildZip(
         }
         results[i] = { src: image.src, path, ok: true };
       } else {
-        // A fetched item that would breach the cap trips `full` so no further
-        // bytes are pulled into memory; a plain fetch miss (bytes === null) doesn't.
         if (bytes) full = true;
         results[i] = { src: image.src, path: '', ok: false };
         failed.push(image);
@@ -161,8 +145,6 @@ export async function buildZip(
   await Promise.all(Array.from({ length: Math.min(limit, planned.length) }, worker));
 
   const ok = results.filter((r) => r.ok).length;
-  // level 0 = store. Media (jpg/png/webp/mp4) is already compressed, so
-  // deflating wastes CPU for ~no size gain; storing is fast and deterministic.
   const bytes = ok > 0 ? zipSync(files, { level: 0 }) : new Uint8Array(0);
   return { bytes, ok, results, failed };
 }

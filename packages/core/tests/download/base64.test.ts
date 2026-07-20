@@ -16,7 +16,6 @@ describe('base64 <-> Uint8Array', () => {
   });
 
   it('round-trips a large array across the 0x8000 chunk boundary', () => {
-    // Exceeds the 32k-arg fromCharCode chunk so the chunking path is exercised.
     const bytes = new Uint8Array(0x8000 * 2 + 123);
     for (let i = 0; i < bytes.length; i++) bytes[i] = i % 256;
     expect(base64ToU8(u8ToBase64(bytes))).toEqual(bytes);

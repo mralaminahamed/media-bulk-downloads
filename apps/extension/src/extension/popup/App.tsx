@@ -49,33 +49,16 @@ const App: React.FC<AppProps> = ({
   const { downloadedSrcs, isDownloaded } = useDownloadHistory();
   const [showFavourites, setShowFavourites] = useState(false);
   const [showExcluded, setShowExcluded] = useState(false);
-  // Multi-tab collection scope (#283). Popup-only — the bubble has no chrome.tabs.
-  // Refs mirror the state so the `collect` closure below stays identity-stable
-  // (no useMediaEngine effect thrash) while always reading the latest scope.
   const [scope, setScope] = useState<CollectScope>('active');
   const [selectedTabIds, setSelectedTabIds] = useState<number[]>([]);
   const [showTabPicker, setShowTabPicker] = useState(false);
-  // Result banner for the last multi-tab scan (null for active-tab scope).
   const [multiTabInfo, setMultiTabInfo] = useState<{ scanned: number; skipped: number } | null>(null);
-  // Per-tab progress during a multi-tab scan ("scanning 3/12 tabs"); null when idle.
   const [tabScanProgress, setTabScanProgress] = useState<{ done: number; total: number } | null>(null);
-  // Written imperatively by changeScope (the only place scope/selection changes)
-  // right before it rescans, so the collect closure reads the latest without a
-  // render-time ref access.
   const scopeRef = useRef<CollectScope>(scope);
   const selectedTabIdsRef = useRef<number[]>(selectedTabIds);
-  // A refused stream capture (#285) → the "Copy download command" handoff banner.
-  // Set by useDownloadActions on refusal, cleared on a new attempt or a rescan.
   const [streamRefusal, setStreamRefusal] = useState<StreamRefusal | null>(null);
-  // Selective bulk download: srcs the user has ticked. Scoped to what's shown —
-  // pruned whenever the filtered view changes (see the effect below).
   const { selectedSrcs, setSelectedSrcs, handleToggleSelect, handleSelectRange, handleSelectAllShown, handleClearSelection } = useSelection();
 
-  // Defined here (ahead of its other call sites further down) so it's already
-  // initialized when useFavourites (below) is called — useFavourites must be
-  // called at this position, not later, to preserve the favourites listener's
-  // registration order (after history, before settings-sync/excluded; see the
-  // comment on the useSettings() call below).
   const currentSourcePage = async (): Promise<{ url: string; title?: string }> => {
     if (surface === 'bubble') return { url: location.href, title: document.title };
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -84,16 +67,9 @@ const App: React.FC<AppProps> = ({
 
   const { favouriteSrcs, handleToggleFavourite } = useFavourites(currentSourcePage);
 
-  // Called here — between useFavourites (above) and useExcluded (below) — so
-  // its sync 'settings' storage listener keeps its registration order
-  // relative to the favourites/excluded local listeners (tests depend on it).
   const { settings, handleSettingsChange } = useSettings();
   const perHost = usePerHostSettings(currentSourcePage, settings);
 
-  // Scope-aware collector fed to the engine. 'active' delegates to the injected
-  // active-tab `collect` (unchanged); 'all-tabs'/'selected' fan out over the
-  // window's tabs, reporting per-tab progress and a scanned/skipped tally. Stable
-  // identity (deps = [collect]) — it reads scope/selection via refs.
   const scopedCollect = useCallback(async (): Promise<ImageInfo[]> => {
     if (scopeRef.current === 'active') {
       setMultiTabInfo(null);
@@ -116,16 +92,11 @@ const App: React.FC<AppProps> = ({
   const { excludedMatch, excludedRef, applyExcludedOptimistic } = useExcluded();
 
   useEffect(() => {
-    // Only the popup sizes the document body; the bubble is sized by its host.
     if (surface !== 'popup') return;
     document.body.style.width = `${settings.popupWidth}px`;
     document.body.style.height = `${settings.popupHeight}px`;
   }, [surface, settings.popupWidth, settings.popupHeight]);
 
-  // The coupled scan/resolution/filter core: owns `state` (the collected +
-  // filtered image sets) and the refs that must stay in sync with it. Called
-  // after useSettings/useExcluded/useDownloadHistory so their return values
-  // are already initialized when threaded in as inputs.
   const {
     state,
     setState,
@@ -157,8 +128,6 @@ const App: React.FC<AppProps> = ({
     abortDeepScan,
   });
 
-  // Switch collection scope and immediately rescan. Sets the ref synchronously so
-  // the scopedCollect fired by fetchImages reads the NEW scope, not next render's.
   const changeScope = useCallback(
     (next: CollectScope, tabIds?: number[]): void => {
       scopeRef.current = next;
@@ -173,9 +142,6 @@ const App: React.FC<AppProps> = ({
     [fetchImages],
   );
 
-  // On-demand perceptual-hash near-duplicate pass (#198). Hashes the eligible
-  // images in a worker, marks near-duplicates, and hides them behind the default
-  // duplicateState filter — reversible via the Duplicates chip.
   const nearDup = useNearDuplicates({
     rawImagesRef,
     settingsRef: perHost.effectiveRef,
@@ -207,8 +173,6 @@ const App: React.FC<AppProps> = ({
 
   const selectedDownloadable = (): ImageInfo[] => downloadable(state.filteredImages).filter((i) => selectedSrcs.has(i.src));
 
-  // Keep the selection scoped to what's currently shown: drop any ticked src that
-  // a filter change or rescan removed from the downloadable view.
   useEffect(() => {
     setSelectedSrcs((prev) => {
       if (prev.size === 0) return prev;
@@ -237,10 +201,6 @@ const App: React.FC<AppProps> = ({
     setSelectedSrcs(new Set());
   };
 
-  // Data-driven filter option lists (#292) — derived from the unfiltered
-  // collected set so a filter never hides its own option list, and memoized so
-  // FilterToolbar's stale-selection-reset effect only fires when the option
-  // set actually changes, not on every render.
   const availableFilterOptions = useMemo(() => deriveFilterOptions(state.images), [state.images]);
 
   const total = state.images.length;
@@ -248,14 +208,9 @@ const App: React.FC<AppProps> = ({
   const downloadableShown = downloadable(state.filteredImages).length;
   const pendingVids = pendingVideos(state.filteredImages);
   const pendingVideoCount = pendingVids.length;
-  // The batch button reflects a batch run only — a single per-item fetch (which
-  // adds one src to fetchingSrcs) must not disable "Get all videos".
   const fetchingVideos = fetchingAllVideos;
   const hasImages = total > 0;
   const filtered = shown !== total;
-  // Near-duplicate accounting (#198): how many the pass marked, and how many of
-  // those are currently hidden (marked AND absent from the shown grid — so this
-  // auto-reflects the Duplicates filter without tracking its value here).
   const nearDuplicateCount = useMemo(() => state.images.reduce((n, i) => n + (i.nearDuplicate ? 1 : 0), 0), [state.images]);
   const hiddenNearDuplicates = useMemo(() => {
     if (nearDuplicateCount === 0) return 0;
@@ -278,9 +233,6 @@ const App: React.FC<AppProps> = ({
             </div>
           </div>
           <div className="mbd:flex mbd:items-center mbd:gap-0.5">
-            {/* Donation link — opens in a new tab. An <a> (not chrome.tabs.create)
-                so it works on both the popup and the bubble content-script surface,
-                which has no chrome.tabs. */}
             <a
               href="https://alaminahamed.com/donate"
               target="_blank"
@@ -336,7 +288,7 @@ const App: React.FC<AppProps> = ({
                 value={scope}
                 onChange={(e) => {
                   const next = e.target.value as CollectScope;
-                  if (next === 'selected') { setShowTabPicker(true); return; } // pick tabs, then rescan
+                  if (next === 'selected') { setShowTabPicker(true); return; }
                   changeScope(next);
                 }}
                 className="field mbd:shrink-0 mbd:py-0 mbd:text-[12px]"
@@ -393,8 +345,6 @@ const App: React.FC<AppProps> = ({
         {state.isLoading ? (
           <SkeletonGrid thumbnailSize={settings.thumbnailSize} />
         ) : total === 0 ? (
-          // A page-read failure and a page with simply no media are different
-          // situations and should read differently.
           state.status ? (
             <ErrorState message={state.status} onRetry={fetchImages} />
           ) : (
@@ -426,11 +376,8 @@ const App: React.FC<AppProps> = ({
 
       <SaveAsPromptHint surface={surface} />
 
-      {/* Persistent download queue: per-file status + pause/resume/cancel/retry
-          (#196). Renders nothing when the queue is empty. */}
       <DownloadQueue />
 
-      {/* Refused-stream handoff (#285): copy a yt-dlp / ffmpeg command instead. */}
       {streamRefusal && (
         <StreamHandoff key={`${streamRefusal.item.src}:${streamRefusal.code}`} refusal={streamRefusal} onDismiss={() => setStreamRefusal(null)} />
       )}
@@ -453,8 +400,6 @@ const App: React.FC<AppProps> = ({
             ) : (
             <p className="num mbd:min-w-0 mbd:truncate mbd:text-[11px] mbd:text-(--ink-2)">
               {state.status ? (
-                // A status line is sticky (cleared only on rescan/filter), so keep the
-                // Clear affordance reachable when a selection is still live underneath it.
                 <>
                   {state.status}
                   {selectedCount > 0 && (

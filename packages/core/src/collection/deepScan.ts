@@ -62,7 +62,6 @@ export interface DeepScanDeps {
    *  time (scroll → last mutation) that feeds the loop's adaptive window. */
   waitForQuiet: (signal: AbortSignal, quietWindow: { quiet: number; hardCap: number })
     => Promise<{ roots: readonly unknown[] | null; settleMs: number }>;
-  // `reason` is passed only on the final call, when the loop has stopped.
   onProgress: (found: number, scrolls: number, elapsedMs: number, reason?: DeepScanStopReason) => void;
   now: () => number;
   restoreScroll: () => void;
@@ -97,54 +96,31 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
   const merge = (scanRoots?: readonly unknown[]): number => {
     let added = 0;
     for (const m of deps.collect(scanRoots)) {
-      // Enforce the ceiling inside the merge — a single round (or the seed) can
-      // return far more than maxItems, and the between-rounds guard alone would
-      // let `found` blow past the documented cap.
       if (found.size >= opts.maxItems) break;
-      // Key by mediaKey-or-canonical-src (the same identity mergeScannedMedia
-      // uses) so a rotating CDN edge host — or a mediaKey rendition that changes
-      // between rounds (thumbnail seen early, sniffed original arriving later) —
-      // isn't re-added as a new item (double-counting + wasted budget).
       const key = identity(m);
       const existing = found.get(key);
       if (!existing) {
         found.set(key, m);
         added++;
       } else if (m.mediaKey) {
-        // Same underlying media re-resolved this run: upgrade in place, keeping
-        // its slot and NOT counting it as a new item.
         found.set(key, m);
       }
     }
     return added;
   };
 
-  // Why the loop ends. Defaults to a natural finish; each early-exit path sets its
-  // own cap reason so the UI can tell "ran dry" apart from "hit a limit".
   let reason: DeepScanStopReason = 'complete';
-  // `scrolls` counts loop iterations entered (drives max-scrolls detection);
-  // `completed` counts scroll steps actually performed (drives progress reporting),
-  // so an exit before the first scrollStep reports 0 rather than 1.
-  let scrolls: number; // assigned by the for-init before any read
+  let scrolls: number;
   let completed = 0;
-  // Seed the settle EMA from history when present; the quiet/hardCap clamps below
-  // still bound whatever value this is, so a bad seed can widen but never break.
   let settleEma = opts.seed ? clamp(opts.seed.settleMs, 0, ADAPT_WINDOW.hardCapMax) : ADAPT_WINDOW.seedSettleMs;
-  // Drives the NEXT scroll's multiplier: null only before the first scroll
-  // (which always steps at the normal 1.0), then the previous round's yield.
   let lastAdded: number | null = null;
-  // Dynamic scroll cap: starts at maxScrolls, can be extended (bounded) while the
-  // scan is still richly yielding new items. maxMs/maxItems remain hard caps,
-  // checked at the loop top before this cap is ever consulted.
   const scrollCeiling = ADAPT_CONTINUE.ceilingFactor * opts.maxScrolls;
-  // Raise-only: a remembered-deep site pre-extends its cap toward the ceiling, but
-  // the user's base maxScrolls is never lowered; maxMs/maxItems/idle still stop it.
   let scrollCap = opts.seed
     ? clamp(opts.seed.scrolls, opts.maxScrolls, scrollCeiling)
     : opts.maxScrolls;
 
   try {
-    merge(); // seed from the current DOM
+    merge();
     deps.onProgress(found.size, 0, 0);
 
     let idle = 0;
@@ -163,7 +139,7 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
       const { roots: mutatedRoots, settleMs } = await deps.waitForQuiet(opts.signal, quietWindow);
       settleEma = (1 - ADAPT_WINDOW.emaWeight) * settleEma + ADAPT_WINDOW.emaWeight * settleMs;
       if (opts.signal.aborted) { reason = 'aborted'; break; }
-      completed = scrolls; // a full scroll step finished this iteration
+      completed = scrolls;
 
       const added = merge(mutatedRoots ?? undefined);
       lastAdded = added;
@@ -176,34 +152,18 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
         if (deps.atBottom()) { reason = 'complete'; break; }
       } else {
         idle = 0;
-        // Keep going when rich: about to hit the cap but still yielding richly and
-        // under the hard caps → grant a bounded extension (maxMs/maxItems still stop
-        // first, checked at the loop top).
         if (scrolls >= scrollCap && added >= ADAPT_CONTINUE.richThreshold && scrollCap < scrollCeiling) {
           scrollCap = Math.min(scrollCap + ADAPT_CONTINUE.grant, scrollCeiling);
         }
       }
     }
-    // Loop ran to the last iteration without breaking → the scroll cap stopped it.
     if (scrolls > scrollCap) reason = 'max-scrolls';
   } catch {
-    // A throw from deps.collect()/scrollStep mid-scan must not discard what we've
-    // already gathered — mark the run errored and return the partial set so the
-    // popup still gets those items and a surfaced reason instead of an empty list.
     reason = 'error';
   } finally {
     deps.restoreScroll();
   }
 
-  // Final safety sweep: incremental rounds only rescan MutationObserver-visible
-  // subtrees, which can't see mutations inside pre-existing shadow roots /
-  // same-origin iframes or media reachable only via the seeded page-JSON passes.
-  // When the scan finished naturally (not a cap/abort), do ONE full-document walk
-  // so the completed result matches a full scan — the incremental speedup is kept
-  // for every round up to here; only this closing sweep pays a full walk.
-  // A throw from the closing full-walk sweep (it reaches into shadow roots /
-  // same-origin iframes) must not discard everything the loop already gathered —
-  // same invariant the loop's own try/catch protects. On failure, keep the set.
   if (reason === 'complete') {
     try {
       merge();
@@ -213,10 +173,6 @@ export async function runDeepScan(deps: DeepScanDeps, opts: DeepScanOpts): Promi
   }
 
   deps.onProgress(found.size, completed, deps.now() - start, reason);
-  // Surface the run's final learned state (settle EMA + scroll depth used). Placed
-  // after the completion sweep and final progress so `reason`, `settleEma`, and
-  // `completed` are all final. The caller decides what to persist.
-  // A throwing onLearned callback must not discard the scan result.
   try { deps.onLearned?.({ settleMs: settleEma, scrolls: completed, reason }); } catch { /* keep result */ }
   return [...found.values()];
 }

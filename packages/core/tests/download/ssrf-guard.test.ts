@@ -4,7 +4,7 @@ describe('isSafeCaptureUrl — SSRF guard for stream capture', () => {
   it('allows ordinary public http(s) hosts', () => {
     expect(isSafeCaptureUrl('https://cdn.example.com/seg1.ts')).toBe(true);
     expect(isSafeCaptureUrl('http://media.example.org/init.mp4')).toBe(true);
-    expect(isSafeCaptureUrl('https://8.8.8.8/seg.ts')).toBe(true); // public IP
+    expect(isSafeCaptureUrl('https://8.8.8.8/seg.ts')).toBe(true);
   });
 
   it('rejects non-http(s) schemes', () => {
@@ -39,7 +39,6 @@ describe('isSafeCaptureUrl — SSRF guard for stream capture', () => {
     expect(isSafeCaptureUrl('http://172.16.0.1/x')).toBe(false);
     expect(isSafeCaptureUrl('http://172.31.255.255/x')).toBe(false);
     expect(isSafeCaptureUrl('http://192.168.1.1/x')).toBe(false);
-    // 172.15 and 172.32 are public (just outside the /12) — must stay allowed.
     expect(isSafeCaptureUrl('http://172.15.0.1/x')).toBe(true);
     expect(isSafeCaptureUrl('http://172.32.0.1/x')).toBe(true);
   });
@@ -52,11 +51,9 @@ describe('isSafeCaptureUrl — SSRF guard for stream capture', () => {
   });
 
   it('rejects IPv4 encoded as decimal / hex / octal (SSRF bypass tricks)', () => {
-    // All of these decode to 127.0.0.1.
-    expect(isSafeCaptureUrl('http://2130706433/x')).toBe(false); // decimal
-    expect(isSafeCaptureUrl('http://0x7f000001/x')).toBe(false); // hex
-    expect(isSafeCaptureUrl('http://017700000001/x')).toBe(false); // octal
-    // 3232235521 === 192.168.0.1
+    expect(isSafeCaptureUrl('http://2130706433/x')).toBe(false);
+    expect(isSafeCaptureUrl('http://0x7f000001/x')).toBe(false);
+    expect(isSafeCaptureUrl('http://017700000001/x')).toBe(false);
     expect(isSafeCaptureUrl('http://3232235521/x')).toBe(false);
   });
 
@@ -76,32 +73,25 @@ describe('isSafeCaptureUrl — SSRF guard for stream capture', () => {
   it('rejects the .internal reserved-use suffix (cloud metadata name alias)', () => {
     expect(isSafeCaptureUrl('http://metadata.google.internal/computeMetadata/v1/')).toBe(false);
     expect(isSafeCaptureUrl('http://svc.internal/x')).toBe(false);
-    // A public host that merely contains "internal" as a label is still allowed.
     expect(isSafeCaptureUrl('http://internal.example.com/x')).toBe(true);
   });
 
   it('rejects wildcard-DNS names that embed a blocked IP (nip.io / sslip.io class)', () => {
-    // These resolve, on the FIRST and only lookup, to the embedded internal IP —
-    // not DNS rebinding, just a name that statically points at a blocked range.
-    // dotted forms
     expect(isSafeCaptureUrl('http://169.254.169.254.nip.io/latest/meta-data/')).toBe(false);
     expect(isSafeCaptureUrl('http://127.0.0.1.nip.io/x')).toBe(false);
     expect(isSafeCaptureUrl('http://10.0.0.1.sslip.io/x')).toBe(false);
-    // a blocked quad not at the head of the name
     expect(isSafeCaptureUrl('http://sub.192.168.1.1.nip.io/x')).toBe(false);
-    // dashed forms (nip.io / sslip.io / plex.direct LAN form)
     expect(isSafeCaptureUrl('http://10-0-0-1.sslip.io/x')).toBe(false);
     expect(isSafeCaptureUrl('http://192-168-1-100.abc123.plex.direct/x')).toBe(false);
-    // 8-hex-digit label (sslip.io hex form) — 7f000001 === 127.0.0.1
     expect(isSafeCaptureUrl('http://7f000001.sslip.io/x')).toBe(false);
   });
 
   it('still allows DNS names that merely contain digits or a PUBLIC embedded IP', () => {
     expect(isSafeCaptureUrl('http://cdn123.example.com/seg.ts')).toBe(true);
-    expect(isSafeCaptureUrl('http://8.8.8.8.nip.io/x')).toBe(true); // public embedded IP
+    expect(isSafeCaptureUrl('http://8.8.8.8.nip.io/x')).toBe(true);
     expect(isSafeCaptureUrl('http://1.2.3.4.example.com/x')).toBe(true);
     expect(isSafeCaptureUrl('http://video-720.cdn.example.com/x')).toBe(true);
-    expect(isSafeCaptureUrl('http://deadbeef.example.com/x')).toBe(true); // 8 hex → 222.173.190.239, public
+    expect(isSafeCaptureUrl('http://deadbeef.example.com/x')).toBe(true);
   });
 
   it('rejects unparseable input', () => {

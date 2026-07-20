@@ -19,7 +19,6 @@ describe('buildDeepScanDeps', () => {
   it('produces deps that restore the original scroll position', () => {
     window.scrollTo(0, 0);
     const { deps } = buildDeepScanDeps(() => {});
-    // jsdom has no layout; just assert the binding shape + restoreScroll is callable.
     expect(typeof deps.scrollStep).toBe('function');
     expect(typeof deps.waitForQuiet).toBe('function');
     expect(() => deps.restoreScroll()).not.toThrow();
@@ -28,7 +27,6 @@ describe('buildDeepScanDeps', () => {
 
   it('exposes atBottom and now bindings that delegate to the scroller and the clock', () => {
     const { deps } = buildDeepScanDeps(() => {});
-    // atBottom() runs the scroller's page-scroll math; now() reads the wall clock.
     expect(typeof deps.atBottom()).toBe('boolean');
     const before = Date.now();
     const t = deps.now();
@@ -42,21 +40,16 @@ describe('buildDeepScanDeps', () => {
     let settled = false;
     const p = deps.waitForQuiet(ctrl.signal, { quiet: 400, hardCap: 2000 }).then(() => { settled = true; });
 
-    // A DOM mutation fires the observer callback, which clears and re-arms the
-    // 400ms quiet timer — so the wait is still pending after only microtasks flush.
     document.body.appendChild(document.createElement('div'));
-    await new Promise((r) => setTimeout(r, 0)); // deliver the MutationRecords
+    await new Promise((r) => setTimeout(r, 0));
     expect(settled).toBe(false);
 
-    // The abort path resolves waitForQuiet immediately.
     ctrl.abort();
     await p;
     expect(settled).toBe(true);
   });
 
   it('waitForQuiet observes attribute mutations so lazy src swaps reset the quiet window', () => {
-    // Lazy loaders swap data-src → src on the same node; without attribute
-    // observation the quiet timer never resets for those pages.
     interface ObserveOptions {
       attributes?: boolean;
       childList?: boolean;
@@ -75,7 +68,6 @@ describe('buildDeepScanDeps', () => {
     try {
       const { deps } = buildDeepScanDeps(() => {});
       const ctrl = new AbortController();
-      // Kick off the quiet wait (resolves on abort below); we only inspect observe().
       void deps.waitForQuiet(ctrl.signal, { quiet: 400, hardCap: 2000 });
       expect(observeSpy).toHaveBeenCalledTimes(1);
       const options = observeSpy.mock.calls[0][1] as ObserveOptions;
@@ -97,8 +89,8 @@ describe('buildDeepScanDeps', () => {
       const p = waitForQuiet(ac.signal, { quiet: 400, hardCap: 2000 });
       const added = document.createElement('div');
       added.innerHTML = '<img src="https://c/new.jpg">';
-      document.body.appendChild(added); // childList mutation on body's subtree
-      await vi.advanceTimersByTimeAsync(500); // past the 400ms quiet window
+      document.body.appendChild(added);
+      await vi.advanceTimersByTimeAsync(500);
       const { roots } = await p;
       expect(Array.isArray(roots)).toBe(true);
       expect((roots as Element[]).some((el) => el === added || added.contains(el))).toBe(true);
@@ -115,12 +107,12 @@ describe('buildDeepScanDeps', () => {
       await vi.advanceTimersByTimeAsync(100);
       const d = document.createElement('div');
       d.innerHTML = '<img src="https://c/n.jpg">';
-      document.body.appendChild(d); // a mutation ~100ms into the wait
-      await vi.advanceTimersByTimeAsync(500); // past the 400ms quiet window
+      document.body.appendChild(d);
+      await vi.advanceTimersByTimeAsync(500);
       const { roots, settleMs } = await p;
-      expect((roots as Element[]).length).toBeGreaterThan(0); // the added div is a mutated root
-      expect(settleMs).toBeGreaterThanOrEqual(100);           // mutation landed ~100ms into the wait
-      expect(settleMs).toBeLessThan(4000);                    // under the hard cap
+      expect((roots as Element[]).length).toBeGreaterThan(0);
+      expect(settleMs).toBeGreaterThanOrEqual(100);
+      expect(settleMs).toBeLessThan(4000);
     } finally {
       vi.useRealTimers();
     }
@@ -135,9 +127,9 @@ describe('startDeepScan config', () => {
     await startDeepScan(() => {}, new AbortController().signal, { maxScrolls: 7 });
     expect(mockRun).toHaveBeenCalledTimes(1);
     const opts = mockRun.mock.calls[0][1];
-    expect(opts.maxScrolls).toBe(7); // overridden
-    expect(opts.maxItems).toBe(DEEP_SCAN_DEFAULTS.maxItems); // default
-    expect(opts.maxMs).toBe(DEEP_SCAN_DEFAULTS.maxMs); // default
+    expect(opts.maxScrolls).toBe(7);
+    expect(opts.maxItems).toBe(DEEP_SCAN_DEFAULTS.maxItems);
+    expect(opts.maxMs).toBe(DEEP_SCAN_DEFAULTS.maxMs);
   });
 
   it('ignores falsy cap overrides and uses all defaults', async () => {
@@ -157,8 +149,8 @@ describe('findLoadMoreButtons', () => {
       '<button id="b">Show More Posts</button>' +
       '<div id="c" role="button">See more</div>' +
       '<button id="d">Buy now</button>' +
-      '<a id="e" href="/next">Load more</a>' + // plain anchor would navigate → excluded
-      '<a id="f" href="/next" role="button">Load more</a>'; // role=button anchor STILL navigates → excluded
+      '<a id="e" href="/next">Load more</a>' +
+      '<a id="f" href="/next" role="button">Load more</a>';
     expect(findLoadMoreButtons(document).map((e) => e.id).sort()).toEqual(['a', 'b', 'c']);
   });
 
@@ -222,21 +214,21 @@ describe('nestedScrollables', () => {
     const visible = document.getElementById('visible')!;
     mockMetrics(auto, 1000, 300, 0);
     mockMetrics(scroll, 1000, 300, 0);
-    mockMetrics(visible, 1000, 300, 0); // overflows but overflow-y is visible → excluded
+    mockMetrics(visible, 1000, 300, 0);
     expect(nestedScrollables(document).map((e) => e.id).sort()).toEqual(['auto', 'scroll']);
   });
 
   it('ignores containers already scrolled to the bottom', () => {
     document.body.innerHTML = '<div id="done" style="overflow-y:auto"></div>';
     const done = document.getElementById('done')!;
-    mockMetrics(done, 1000, 300, 700); // 700 + 300 >= 1000 → at bottom
+    mockMetrics(done, 1000, 300, 700);
     expect(nestedScrollables(document)).toHaveLength(0);
   });
 
   it('ignores elements that do not meaningfully overflow', () => {
     document.body.innerHTML = '<div id="small" style="overflow-y:auto"></div>';
     const small = document.getElementById('small')!;
-    mockMetrics(small, 350, 300, 0); // 50px of overflow, under the 200 threshold
+    mockMetrics(small, 350, 300, 0);
     expect(nestedScrollables(document)).toHaveLength(0);
   });
 });
@@ -246,19 +238,13 @@ describe('startDeepScan — learned-scan wiring', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
-    // location.hostname → registrableDomain('www.example.com') === 'example.com'
     Object.defineProperty(window, 'location', { value: new URL('https://www.example.com/gallery'), writable: true });
-    // Writes now go through chrome.runtime.sendMessage (#293 phase-2, NEW-1): reset
-    // call history from prior tests (it's a plain vi.fn(), not a vi.spyOn(), so
-    // vi.restoreAllMocks() above doesn't clear it) and give it a resolved promise
-    // so the runner's `.catch()` on the fire-and-forget send is valid.
     (chrome.runtime.sendMessage as unknown as Mock).mockReset().mockResolvedValue(undefined);
   });
 
   it('reads memory, passes it as seed, and sends SAVE_SCAN_MEMORY with a fresh sample when the toggle is on', async () => {
     vi.spyOn(scanMem, 'loadScanMemoryForHost').mockResolvedValue({ settleMs: 700, scrolls: 15, updatedAt: 1 });
     const runSpy = vi.spyOn(loop, 'runDeepScan').mockImplementation(async (deps: unknown, opts: unknown) => {
-      // Assert we got the seed, then fire onLearned like the real loop would.
       expect((opts as loop.DeepScanOpts).seed).toEqual({ settleMs: 700, scrolls: 15 });
       (deps as loop.DeepScanDeps).onLearned?.({ settleMs: 720, scrolls: 16, reason: 'complete' });
       return [];
@@ -278,7 +264,6 @@ describe('startDeepScan — learned-scan wiring', () => {
   it('first visit (no prior memory): toggle on + reason complete still sends the bootstrap sample', async () => {
     const load = vi.spyOn(scanMem, 'loadScanMemoryForHost').mockResolvedValue(null);
     const runSpy = vi.spyOn(loop, 'runDeepScan').mockImplementation(async (deps: unknown, opts: unknown) => {
-      // No prior memory → no seed is passed to runDeepScan.
       expect((opts as loop.DeepScanOpts).seed).toBeUndefined();
       (deps as loop.DeepScanDeps).onLearned?.({ settleMs: 450, scrolls: 8, reason: 'complete' });
       return [];
@@ -323,7 +308,6 @@ describe('startDeepScan — learned-scan wiring', () => {
   it('write rule: a budget-truncated stop keeps the prior scroll depth', async () => {
     vi.spyOn(scanMem, 'loadScanMemoryForHost').mockResolvedValue({ settleMs: 500, scrolls: 30, updatedAt: 1 });
     vi.spyOn(loop, 'runDeepScan').mockImplementation(async (deps: unknown) => {
-      // max-time truncates depth → scrolls this run (5) under-counts; keep prior 30.
       (deps as loop.DeepScanDeps).onLearned?.({ settleMs: 600, scrolls: 5, reason: 'max-time' });
       return [];
     });

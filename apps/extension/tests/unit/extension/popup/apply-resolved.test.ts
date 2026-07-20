@@ -41,7 +41,6 @@ describe('applyResolved', () => {
   it('derives the format from the resolved URL for an unknown-type pending image (#287)', () => {
     const item = { src: 'https://booru/post/1', kind: 'image', type: 'unknown', unresolvedImage: true,
       resolveHint: { platform: 'gallery-page', id: 'https://booru/post/1' } } as any;
-    // A resolved .png must not download as .jpg.
     expect(applyResolved(item, { url: 'https://cdn/full/1.png' }, false)).toMatchObject({ type: 'png' });
     expect(applyResolved(item, { url: 'https://cdn/full/1.jpg' }, false)).toMatchObject({ type: 'jpeg' });
   });

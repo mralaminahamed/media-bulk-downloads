@@ -15,7 +15,6 @@ describe('pinIgUrl', () => {
     expect(pinIgUrl(undefined)).toBeNull();
   });
   it('returns null (never throws) for a string the URL constructor rejects', () => {
-    // A malformed string is untrusted page JSON — `new URL()` throws, the catch swallows it.
     expect(pinIgUrl('not a url')).toBeNull();
     expect(pinIgUrl('https://')).toBeNull();
   });
@@ -34,8 +33,6 @@ describe('shortcodeFromUrl', () => {
     expect(shortcodeFromUrl('not a url')).toBeNull();
   });
   it('returns null for a non-string input without throwing', () => {
-    // Callers pass values pulled from untrusted page JSON; a non-string must not
-    // reach `.match` (which would throw) — it short-circuits to null.
     expect(shortcodeFromUrl(undefined)).toBeNull();
     expect(shortcodeFromUrl(null)).toBeNull();
     expect(shortcodeFromUrl(1234)).toBeNull();
@@ -82,8 +79,6 @@ describe('bestIgImage', () => {
     expect(bestIgImage([{ url: 'https://evil.com/x.jpg', width: 1, height: 1 }])).toBeNull();
   });
   it('defaults a candidate with missing width/height to 0/0 rather than NaN', () => {
-    // Some IG candidates ship a url but omit dimensions; Number(undefined) is NaN,
-    // which the `|| 0` coerces so the size stays a real number (and comparisons work).
     expect(bestIgImage([{ url: 'https://x.cdninstagram.com/only_url_n.jpg' }])).toEqual({
       url: 'https://x.cdninstagram.com/only_url_n.jpg',
       width: 0,
@@ -127,9 +122,6 @@ describe('extractIgMedia', () => {
   });
 
   it('falls back to a pending video when video_versions is present but empty (transcoding)', () => {
-    // A reel whose video_versions is [] (still transcoding) but which ships a cover
-    // must surface as a pending video, not silently vanish (regression: it used to
-    // `return` unconditionally after the failed video extraction).
     const out = extractIgMedia({
       code: 'REEL',
       media_type: 2,
@@ -142,8 +134,6 @@ describe('extractIgMedia', () => {
   });
 
   it('falls back to the cover image when every video variant fails the CDN host-pin', () => {
-    // video_versions present but all off-CDN → bestSized returns null; the node must
-    // still surface its cover rather than dropping the slide.
     const out = extractIgMedia({
       code: 'HP',
       media_type: 1,
@@ -156,8 +146,6 @@ describe('extractIgMedia', () => {
   });
 
   it('flattens a carousel into one entry per slide, all under the parent code, ignoring the parent cover', () => {
-    // Real IG carousel children carry no `code` of their own — they inherit the
-    // parent post's shortcode. That inheritance is what this asserts.
     const carousel = {
       code: 'CAR',
       media_type: 8,
@@ -229,7 +217,6 @@ describe('extractIgMedia', () => {
   });
 
   it('rejects a video whose only video_versions url is off the IG CDN (security host-pin)', () => {
-    // The mp4 URL comes from untrusted page JSON — a non-IG host must not be surfaced.
     const out = extractIgMedia({
       code: 'EVIL',
       media_type: 2,
@@ -239,8 +226,6 @@ describe('extractIgMedia', () => {
   });
 
   it('emits a leaf with a media_type but neither video_versions nor image_versions2 as nothing', () => {
-    // A media object stripped of both version arrays (e.g. an ad/placeholder node)
-    // must not produce a bogus entry.
     expect(extractIgMedia({ code: 'BARE', media_type: 1 })).toEqual([]);
   });
 

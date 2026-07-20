@@ -29,7 +29,7 @@ describe('fanboxImagesFromHtml', () => {
 
   it('scrapes every original for the post id, deduped, excluding other posts', () => {
     const out = fanboxImagesFromHtml(html, POST);
-    expect(out.map((c) => c.url)).toEqual([u1, u2]); // u1 deduped (appears twice), other-post excluded
+    expect(out.map((c) => c.url)).toEqual([u1, u2]);
     expect(out[0]).toEqual({ url: u1, kind: 'image', ext: imageExtFromUrl(u1), mediaKey: 'fanbox C80oWmIvB32WmAmqymXYK6UC' });
   });
 

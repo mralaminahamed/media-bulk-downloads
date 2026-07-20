@@ -1,7 +1,5 @@
 import type { Mock } from 'vitest';
 
-// Capture what the entrypoint wires into the shared sniffer rather than
-// installing the real fetch/XHR hooks (covered by response-sniffer's own tests).
 vi.mock('@mbd/core/resolvers/sniffers/response-sniffer', () => ({
   installResponseSniffer: vi.fn(),
   makeSnifferEmit: vi.fn(() => () => {}),
@@ -42,7 +40,6 @@ describe('fb-media-sniffer content entrypoint', () => {
     expect(resp.isApi('https://www.facebook.com/api/graphql/')).toBe(true);
     expect(resp.isApi('https://www.facebook.com/graphql/')).toBe(true);
     expect(resp.isApi('https://www.facebook.com/natgeo/photos')).toBe(false);
-    // FB serves graphql as text/html, not application/json — the sniffer must accept it.
     expect(resp.contentTypeOk?.('text/html; charset=utf-8')).toBe(true);
     expect(resp.contentTypeOk?.('application/json')).toBe(true);
   });
@@ -67,7 +64,6 @@ describe('fb-media-sniffer content entrypoint', () => {
     (window.postMessage as unknown) = vi.fn((m: unknown) => posted.push(m));
     const { emit } = runMain();
 
-    // Before the relay is ready, the envelope returns the live envelope AND buffers.
     expect(emit.envelope([{ fbid: '1' }])).toEqual({ source: 'mbd-fb-media', entries: [{ fbid: '1' }] });
     emit.envelope([{ fbid: '2' }]);
 
@@ -82,23 +78,16 @@ describe('fb-media-sniffer content entrypoint', () => {
     (window.postMessage as unknown) = vi.fn((m: unknown) => posted.push(m as never));
     const { emit } = runMain();
 
-    // Relay never becomes ready; FB streams responses for the whole session.
     for (let i = 0; i < 8100; i++) emit.envelope([{ fbid: String(i) }]);
 
     const replay = (installReplayOnReady as Mock).mock.calls.at(-1)![1] as () => void;
     replay();
     const drained = posted.at(-1)!.entries;
-    expect(drained).toHaveLength(8000); // capped, not 8100
-    expect(drained[0]).toEqual({ fbid: '100' }); // oldest 100 evicted
-    expect(drained.at(-1)).toEqual({ fbid: '8099' }); // newest kept
+    expect(drained).toHaveLength(8000);
+    expect(drained[0]).toEqual({ fbid: '100' });
+    expect(drained.at(-1)).toEqual({ fbid: '8099' });
   });
 
-  // The buffer is built with a loop (`for (const e of entries) buffer.push(e)`),
-  // not `buffer.push(...entries)` — entries crosses the MAIN->isolated boundary
-  // from an untrusted page and can be arbitrarily large; spreading it as call
-  // args risks a RangeError (silently dropping the whole batch since this sits
-  // inside the sniffer's try/catch). Feed one very large batch in a single call
-  // and confirm it doesn't throw and all (capped) entries make it through.
   it('buffers a single very large batch without throwing (loop-push, not push(...spread))', () => {
     const { emit } = runMain();
     const bigBatch = Array.from({ length: 200_000 }, (_, i) => ({ fbid: String(i) }));
@@ -111,8 +100,8 @@ describe('fb-media-sniffer content entrypoint', () => {
     replay();
 
     const drained = posted.at(-1)!.entries;
-    expect(drained).toHaveLength(8000); // capped, same bound as the many-small-calls test above
-    expect(drained.at(-1)).toEqual({ fbid: '199999' }); // newest survives the cap
+    expect(drained).toHaveLength(8000);
+    expect(drained.at(-1)).toEqual({ fbid: '199999' });
   });
 
   it('does not buffer entries emitted after the relay is ready (no double replay)', () => {
@@ -121,11 +110,11 @@ describe('fb-media-sniffer content entrypoint', () => {
     const { emit } = runMain();
     const replay = (installReplayOnReady as Mock).mock.calls.at(-1)![1] as () => void;
 
-    replay(); // relay ready, nothing buffered yet -> no post
+    replay();
     expect(posted).toHaveLength(0);
 
-    emit.envelope([{ fbid: '9' }]); // post-ready -> live only, not buffered
-    replay(); // buffer empty -> still no replay post
+    emit.envelope([{ fbid: '9' }]);
+    replay();
     expect(posted).toHaveLength(0);
   });
 });

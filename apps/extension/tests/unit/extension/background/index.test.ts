@@ -31,8 +31,6 @@ const loadBackground = async (): Promise<{ handlers: Handler[]; mark: Mock }> =>
 
   const hintMod = await import('@mbd/storage/save-as-hint');
   const mark = hintMod.markSaveAsPromptSeen as unknown as Mock;
-  // vi.resetModules() reuses the vi.mock factory's fn (unlike jest.resetModules),
-  // so its call history persists across loadBackground() calls — clear it per load.
   mark.mockClear();
   return { handlers, mark };
 };

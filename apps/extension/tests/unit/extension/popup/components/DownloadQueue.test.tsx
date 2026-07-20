@@ -67,7 +67,6 @@ it('does not retry when the referer permission request is denied', async () => {
   render(<DownloadQueue />);
   await userEvent.click(await screen.findByRole('button', { name: /retry w\/ referer/i }));
   await waitFor(() => expect(chrome.permissions.request).toHaveBeenCalledWith({ permissions: ['declarativeNetRequestWithHostAccess'] }));
-  // Flush the microtask queue past the `if (granted)` check before asserting the negative.
   await Promise.resolve();
   await Promise.resolve();
   expect(send).not.toHaveBeenCalledWith({ type: 'QUEUE_RETRY', id: 'e', referer: true });
@@ -111,7 +110,6 @@ it('collapses and expands the per-item list via the toggle', async () => {
   expect(await screen.findByRole('list')).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: /collapse/i }));
   await waitFor(() => expect(screen.queryByRole('list')).not.toBeInTheDocument());
-  // Header summary stays visible while collapsed.
   expect(screen.getByRole('status')).toHaveTextContent('0 / 1');
   await userEvent.click(screen.getByRole('button', { name: /expand/i }));
   expect(await screen.findByRole('list')).toBeInTheDocument();

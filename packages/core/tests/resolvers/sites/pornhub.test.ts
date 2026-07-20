@@ -51,20 +51,16 @@ describe('pornhubMediaFromHtml', () => {
   });
 
   it('skips the remote/get_media mp4 entry and off-CDN urls; fails closed', () => {
-    // Only a remote mp4 entry (needs a signed fetch) → nothing usable.
     expect(
       pornhubMediaFromHtml(
         wrap({ mediaDefinitions: [{ format: 'mp4', videoUrl: 'https://www.pornhub.com/video/get_media?s=1', quality: ['720'], remote: true }] }),
         '1',
       ),
     ).toEqual([]);
-    // An HLS entry pointing off the phncdn CDN is dropped.
     expect(
       pornhubMediaFromHtml(wrap({ mediaDefinitions: [{ format: 'hls', videoUrl: 'https://evil.com/master.m3u8', quality: ['720'] }] }), '1'),
     ).toEqual([]);
-    // No flashvars at all.
     expect(pornhubMediaFromHtml('<div>no flashvars</div>', '1')).toEqual([]);
-    // Obfuscated: mediaDefinitions is a string, not an array.
     expect(pornhubMediaFromHtml(wrap({ mediaDefinitions: 'ENCODED' }), '1')).toEqual([]);
   });
 });

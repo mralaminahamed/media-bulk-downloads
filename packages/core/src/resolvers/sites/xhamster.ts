@@ -1,10 +1,5 @@
 import { MediaCandidate } from '@mbd/core/resolvers/types';
 
-// An xHamster watch page (`xhamster.com/videos/<slug>-<id>`, plus mirror hosts)
-// carries one big `window.initials = {…}` JSON global; its
-// `videoModel.sources.{mp4, standard.h264[]}` hold the direct mp4 renditions. The
-// highest-quality mp4 is surfaced as a single-file download, pinned to the xHamster
-// CDN (`*.xhcdn.com`).
 function pinXhamster(raw: unknown): string | null {
   if (typeof raw !== 'string' || !raw) return null;
   try {
@@ -29,9 +24,6 @@ export function xhamsterVideoId(raw: string | URL): string | null {
   return u.pathname.match(/\/videos\/(?:.*-)?([a-z0-9]+)(?:[/?#]|$)/i)?.[1] ?? null;
 }
 
-// Extract the balanced `{…}` object literal that follows a marker (respecting string
-// literals), so a huge nested JSON blob is read whole regardless of `</script>` or
-// nesting.
 function balancedJsonAfter(html: string, marker: RegExp): string | null {
   const m = marker.exec(html);
   if (!m) return null;

@@ -27,9 +27,7 @@ it('shows the hint when seen and not dismissed; Open opens Chrome download setti
 it('hides the Open-settings button in the bubble surface (chrome.tabs is undefined there)', async () => {
   vi.spyOn(store, 'loadSaveAsHintState').mockResolvedValue({ seen: true, dismissed: false });
   render(<SaveAsPromptHint surface="bubble" />);
-  // The actionable hint text still shows...
   expect(await screen.findByText(/ask where to save each file/i)).toBeInTheDocument();
-  // ...but not the button whose onClick would throw on `chrome.tabs.create`.
   expect(screen.queryByRole('button', { name: /open download settings/i })).not.toBeInTheDocument();
 });
 

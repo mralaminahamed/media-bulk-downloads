@@ -16,7 +16,7 @@ describe('TabPickerPanel', () => {
     render(<TabPickerPanel onClose={() => {}} onConfirm={() => {}} loadTabs={loadTabs()} />);
     expect(await screen.findByText('Alpha')).toBeInTheDocument();
     expect(screen.getByText('Beta')).toBeInTheDocument();
-    expect(screen.getByText('c.com')).toBeInTheDocument(); // host line
+    expect(screen.getByText('c.com')).toBeInTheDocument();
   });
 
   it('confirms with the ticked tab ids', async () => {
@@ -24,7 +24,6 @@ describe('TabPickerPanel', () => {
     render(<TabPickerPanel onClose={() => {}} onConfirm={onConfirm} loadTabs={loadTabs()} />);
     await screen.findByText('Alpha');
 
-    // Confirm is disabled until something is selected.
     const confirm = screen.getByRole('button', { name: /Select tabs to scan/i });
     expect(confirm).toBeDisabled();
 
@@ -38,7 +37,6 @@ describe('TabPickerPanel', () => {
 
   it('preselects initialSelected and drops ids no longer open', async () => {
     const onConfirm = vi.fn();
-    // id 9 is not in the open set → it must be pruned from the count.
     render(<TabPickerPanel onClose={() => {}} onConfirm={onConfirm} initialSelected={[2, 9]} loadTabs={loadTabs()} />);
     await screen.findByText('Beta');
 

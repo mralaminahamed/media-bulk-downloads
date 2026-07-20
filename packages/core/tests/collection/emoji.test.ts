@@ -14,7 +14,6 @@ describe('isEmojiUrl', () => {
     expect(isEmojiUrl('https://www.facebook.com/images/emoji.php/v9/t4c/1/16/1f600.png')).toBe(true);
   });
   it('flags Facebook static UI sprites/glyphs (the rsrc.php resource endpoint)', () => {
-    // The reported reaction/emoji sprite — and the rsrc.php class it belongs to.
     expect(isEmojiUrl('https://static.xx.fbcdn.net/rsrc.php/yk/r/5ak_tKfzmQv.webp')).toBe(true);
     expect(isEmojiUrl('https://static.xx.fbcdn.net/rsrc.php/v3/yh/r/abcDEF123.png')).toBe(true);
     expect(isEmojiUrl('https://www.facebook.com/rsrc.php/v3/y8/r/glyph.svg')).toBe(true);
@@ -38,23 +37,21 @@ describe('isEmojiUrl', () => {
     expect(isEmojiUrl('https://cdn.joypixels.com/emoji/v6/png/64/1f600.png')).toBe(true);
   });
   it('does not flag normal images or unparseable input', () => {
-    expect(isEmojiUrl('https://pbs.twimg.com/media/abc.jpg')).toBe(false); // Twitter media, not emoji
+    expect(isEmojiUrl('https://pbs.twimg.com/media/abc.jpg')).toBe(false);
     expect(isEmojiUrl('https://example.com/logo.svg')).toBe(false);
-    expect(isEmojiUrl('https://example.com/1f600.svg')).toBe(false); // hex name, wrong host
+    expect(isEmojiUrl('https://example.com/1f600.svg')).toBe(false);
     expect(isEmojiUrl('not a url')).toBe(false);
-    expect(isEmojiUrl('https://abs.twimg.com/media/x.jpg')).toBe(false); // twitter, non-emoji path
-    expect(isEmojiUrl('https://s.w.org/images/core/other.svg')).toBe(false); // wordpress, non-emoji path
-    expect(isEmojiUrl('https://cdn.jsdelivr.net/gh/foo/bar/x.svg')).toBe(false); // jsdelivr, non-twemoji path
-    expect(isEmojiUrl('https://fakegithubassets.com/images/icons/emoji/1f600.png')).toBe(false); // look-alike host
-    // real fbcdn PHOTO (not the emoji.php path) must stay downloadable
+    expect(isEmojiUrl('https://abs.twimg.com/media/x.jpg')).toBe(false);
+    expect(isEmojiUrl('https://s.w.org/images/core/other.svg')).toBe(false);
+    expect(isEmojiUrl('https://cdn.jsdelivr.net/gh/foo/bar/x.svg')).toBe(false);
+    expect(isEmojiUrl('https://fakegithubassets.com/images/icons/emoji/1f600.png')).toBe(false);
     expect(isEmojiUrl('https://scontent.xx.fbcdn.net/v/t39.30808-6/photo.jpg')).toBe(false);
-    expect(isEmojiUrl('https://www.facebook.com/photo/?fbid=123')).toBe(false); // facebook, non-emoji path
-    expect(isEmojiUrl('https://evilfbcdn.net/images/emoji.php/x.png')).toBe(false); // look-alike host (no dot boundary)
-    // Shared hosts: only the emoji path segment is excluded, real media stays downloadable.
-    expect(isEmojiUrl('https://cdn.discordapp.com/attachments/1/2/photo.png')).toBe(false); // Discord upload, not /emojis/
-    expect(isEmojiUrl('https://static-cdn.jtvnw.net/jtv_user_pictures/avatar.png')).toBe(false); // Twitch avatar, not /emoticons/
-    expect(isEmojiUrl('https://cdn.jsdelivr.net/npm/react/umd/react.js')).toBe(false); // jsdelivr non-emoji package
-    expect(isEmojiUrl('https://fonts.gstatic.com/s/roboto/v30/font.woff2')).toBe(false); // gstatic font, not notoemoji
-    expect(isEmojiUrl('https://evilzobj.net/source/apple/1f600.png')).toBe(false); // look-alike of em-content.zobj.net
+    expect(isEmojiUrl('https://www.facebook.com/photo/?fbid=123')).toBe(false);
+    expect(isEmojiUrl('https://evilfbcdn.net/images/emoji.php/x.png')).toBe(false);
+    expect(isEmojiUrl('https://cdn.discordapp.com/attachments/1/2/photo.png')).toBe(false);
+    expect(isEmojiUrl('https://static-cdn.jtvnw.net/jtv_user_pictures/avatar.png')).toBe(false);
+    expect(isEmojiUrl('https://cdn.jsdelivr.net/npm/react/umd/react.js')).toBe(false);
+    expect(isEmojiUrl('https://fonts.gstatic.com/s/roboto/v30/font.woff2')).toBe(false);
+    expect(isEmojiUrl('https://evilzobj.net/source/apple/1f600.png')).toBe(false);
   });
 });

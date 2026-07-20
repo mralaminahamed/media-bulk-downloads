@@ -28,8 +28,6 @@ function hasStringSrc(entry: unknown): entry is { src: string } {
  */
 function safeSourceUrl(v: unknown): string {
   if (typeof v !== 'string') return '';
-  // Stripping the C0 control range + space is intentional (a scheme can't hide
-  // behind them); eslint flags the control chars in the character class.
   // eslint-disable-next-line no-control-regex
   const scheme = v.replace(/[\u0000-\u0020]/g, '').match(/^([a-z][a-z0-9+.-]*):/i);
   if (scheme && scheme[1].toLowerCase() !== 'http' && scheme[1].toLowerCase() !== 'https') return '';
@@ -94,19 +92,12 @@ export function parseBackup(json: string): BackupData | null {
     version: typeof obj.version === 'number' ? obj.version : 0,
     exportedAt: typeof obj.exportedAt === 'string' ? obj.exportedAt : '',
     settings: withDefaults((obj.settings ?? {}) as Partial<SettingsData>),
-    // Coerce time (like loadX does) so a bad/missing timestamp can't feed NaN into
-    // the newest-first sort + cap on restore, and drop dangerous sourcePageUrl
-    // schemes before they reach the panel's <a href>.
     favourites: Array.isArray(obj.favourites)
       ? (obj.favourites.filter(hasStringSrc).map(normalizeEntry) as FavouriteEntry[])
       : [],
     history: Array.isArray(obj.history)
       ? (obj.history.filter(hasStringSrc).map(normalizeEntry) as HistoryEntry[])
       : [],
-    // Require a valid kind (matching loadExcluded) — an entry with a valid value
-    // but missing/invalid kind would restore into storage yet be filtered out of
-    // every read: invisible in the panel, matching nothing, undeletable, and
-    // permanently consuming a cap/byte-budget slot.
     excluded: Array.isArray(obj.excluded)
       ? (obj.excluded
           .filter((e): e is ExcludedEntry =>

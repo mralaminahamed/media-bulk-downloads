@@ -28,8 +28,6 @@ test.describe('backup import / restore', () => {
     await openPanel(page);
     await importBackup(page, validBackup);
 
-    // Import writes settings (sync) + favourites/history/excluded (local). Read
-    // them back through the service worker — the definitive restore evidence.
     const worker = await serviceWorker(context);
     await expect.poll(() =>
       worker.evaluate(() => new Promise((r) => chrome.storage.sync.get('settings', (x) => r((x.settings as { fileNamePrefix?: string })?.fileNamePrefix)))),

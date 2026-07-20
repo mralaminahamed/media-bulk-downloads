@@ -2,7 +2,6 @@ import { upgradeToOriginal } from '@mbd/core/collection/imageUrl';
 import { imageExtFromUrl } from '@mbd/core/collection/mediaType';
 import { MediaCandidate, Resolver } from '@mbd/core/resolvers/types';
 
-// An ArtStation asset path carries a size bucket: /p/assets/…/images/…/<bucket>/<file>.
 const ASSET = /\/p\/assets\/.*\/images\/.*\/(micro_square|smaller_square|small_square|small|medium|large|4k)\//i;
 const ARTWORK = /\/artwork\/([A-Za-z0-9]+)/;
 
@@ -50,7 +49,6 @@ export const artstationResolver: Resolver = {
     if (thumbnail) c.thumbnailSrc = thumbnail;
     const ext = imageExtFromUrl(original);
     if (ext) c.ext = ext;
-    // The opt-in tier probes the `/4k/` sibling of this `/large/` URL.
     c.resolveHint = { platform: 'artstation', id: `img ${original}` };
     return [c];
   },

@@ -45,8 +45,6 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
 
   const sorted = [...entries].sort((a, b) => b.time - a.time);
 
-  // Mutations go through the background (single writer); update local state
-  // optimistically for responsiveness — the storage.onChanged listener reconciles.
   const handleRemove = (entry: HistoryEntry) => {
     sendRuntimeMessage({ type: 'REMOVE_HISTORY_ENTRY', src: entry.src });
     setEntries((prev) => prev.filter((e) => e.src !== entry.src));

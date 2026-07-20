@@ -40,7 +40,6 @@ beforeEach(() => {
 
 describe('facebookResolver.match', () => {
   it('is true for an fbcdn URL while on facebook.com', () => {
-    // Prove the jsdom env is actually pinned before trusting the true result below.
     expect(location.hostname).toBe('www.facebook.com');
     expect(facebookResolver.match(u(`${CDN}/a.jpg`), { allowNetwork: false })).toBe(true);
     expect(facebookResolver.match(u('https://scontent.xx.fbcdn.net/x.mp4'), { allowNetwork: false })).toBe(true);
@@ -96,13 +95,9 @@ describe('ingestSniffedFbMedia + facebookResolver.resolve', () => {
       { fbid: 'abc', kind: 'image', url: `${CDN}/x_n.jpg`, ext: 'jpg', width: 9, height: 9 }, // bad fbid -> dropped
       { fbid: '102', kind: 'image', url: `${CDN}/x_n.exe`, ext: 'exe', width: 9, height: 9 }, // survives; ext falls back
     ]);
-    // fbid 101's forged entry was dropped, so no ORIGINAL exists — the resolver
-    // still surfaces the on-page thumbnail, tagged with the photo identity so a
-    // later original can upgrade-replace it.
     const passthrough = facebookResolver.resolve(u(`${CDN}/a.jpg`), ctxWithLink('/photo/?fbid=101'));
     expect(passthrough).toEqual([{ url: `${CDN}/a.jpg`, kind: 'image', mediaKey: 'fb:101' }]);
     const [c] = facebookResolver.resolve(u(`${CDN}/a.jpg`), ctxWithLink('/photo/?fbid=102'));
-    // Carried assertion (b): assert the actual ext VALUE, not just "not exe".
     expect(c.ext).toBe('jpg');
   });
 
@@ -137,7 +132,6 @@ describe('carried assertion (a): store cap newest-wins DIRECTION', () => {
     }));
     ingestSniffedFbMedia(many);
     const out = facebookResolver.resolve(u(`${CDN}/thumb.jpg`), ctxWithLink('/photo/?fbid=500'));
-    // Index 0 (the oldest) was evicted by the 4000 cap; the newest (index 4000) must survive.
     expect(out.some((c) => c.url === `${CDN}/MANY_0_n.jpg`)).toBe(false);
     expect(out.some((c) => c.url === `${CDN}/MANY_4000_n.jpg`)).toBe(true);
   });
@@ -244,12 +238,12 @@ describe('parseHydration — embedded script[type="application/json"] parse', ()
   });
 
   it('skips script blocks with no fbcdn/playable_url token and invalid-JSON blocks without throwing', () => {
-    hydrate({ hello: 'world', nested: { a: 1 } }); // valid JSON, no media token -> cheap-guard skip
+    hydrate({ hello: 'world', nested: { a: 1 } });
     const bad = document.createElement('script');
     bad.type = 'application/json';
     bad.textContent = 'mentions fbcdn but is not valid json {';
-    document.body.appendChild(bad); // JSON.parse throws -> swallowed
-    hydrate({ id: '701', playable_url_quality_hd: `${CDN}/ok_hd.mp4` }); // the good one still resolves
+    document.body.appendChild(bad);
+    hydrate({ id: '701', playable_url_quality_hd: `${CDN}/ok_hd.mp4` });
     expect(facebookPageMedia('https://www.facebook.com/watch/?v=701')).toEqual([
       { url: `${CDN}/ok_hd.mp4`, kind: 'video', ext: 'mp4', mediaKey: 'fb:701' },
     ]);
@@ -265,12 +259,6 @@ describe('parseHydration — embedded script[type="application/json"] parse', ()
 });
 
 describe('ingestSniffedFbMedia — very large batch (loop-push, not push(...spread))', () => {
-  // The store is built with a loop, not `store.push(...clean)`: `entries` crosses
-  // the MAIN->isolated postMessage boundary from an untrusted page and can be
-  // arbitrarily large, and spreading a huge array as call args risks a RangeError
-  // that this function's caller would otherwise swallow. Prove a single call with
-  // an array well beyond typical engine argument-count limits doesn't throw and
-  // the newest entries still survive the store's cap.
   it('ingests 200,000 entries in one call without throwing, newest survives the cap', () => {
     const many = Array.from({ length: 200_000 }, (_, i) => ({
       fbid: '999', kind: 'image' as const, url: `${CDN}/HUGE_${i}_n.jpg`, ext: 'jpg', width: 10, height: 10,

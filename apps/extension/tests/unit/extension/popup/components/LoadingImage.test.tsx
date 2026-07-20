@@ -9,7 +9,6 @@ describe('LoadingImage', () => {
     const img = screen.getByAltText('A');
     expect(img).toHaveAttribute('src', 'a.jpg');
     expect(img).toHaveAttribute('loading', 'lazy');
-    // Not yet loaded: skeleton present, image faded out.
     expect(document.querySelector('.skeleton')).toBeInTheDocument();
     expect(img).toHaveClass('mbd:opacity-0');
   });

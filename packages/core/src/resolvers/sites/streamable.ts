@@ -8,13 +8,9 @@
  * and are left unresolved (no circumvention).
  */
 
-// Streamable shortcodes are short lowercase-alnum (typically 5-6 chars).
 const CODE = '([a-z0-9]{4,12})';
-// Watch: streamable.com/<code>; embeds: /e/<code>, /o/<code>, /s/<code>.
 const EMBED_RE = new RegExp(`^/(?:e|o|s)/${CODE}(?:[/?#]|$)`);
-// A watch URL is a SINGLE path segment — `/user/foo` (two segments) is not a video.
 const WATCH_RE = new RegExp(`^/${CODE}/?(?:[?#]|$)`);
-// Non-video first path segments on streamable.com — never a shortcode.
 const RESERVED = new Set([
   'login', 'signup', 'signin', 'logout', 'terms', 'privacy', 'about', 'help',
   'settings', 'account', 'upload', 'premium', 'pricing', 'embed', 'blog', 'api',

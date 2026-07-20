@@ -28,7 +28,6 @@ describe('buildBackup', () => {
     expect(b.favourites[0].src).toBe('https://cdn.example/clip.mp4');
     expect(b.favourites[0].thumbnailSrc).toBe('https://cdn.example/thumb.jpg');
     expect(b.history[0].src).toBe('https://cdn.example/v.mp4');
-    // No signing token survives into the exported file.
     expect(JSON.stringify(b)).not.toMatch(/SECRET/);
   });
 
@@ -95,8 +94,6 @@ describe('parseBackup', () => {
   });
 
   it('drops an excluded entry with a valid value but missing/invalid kind', () => {
-    // Such an entry would restore into storage yet be filtered out of every read
-    // (loadExcluded requires kind) — invisible in the panel and undeletable.
     const b = parseBackup(JSON.stringify({
       app: BACKUP_APP,
       excluded: [
@@ -118,7 +115,7 @@ describe('parseBackup', () => {
     expect(b?.favourites).toEqual([]);
     expect(b?.history).toEqual([]);
     expect(b?.settings).toMatchObject({ namingMode: 'prefixed', minimumImageSize: 0 });
-    expect(b?.version).toBe(0); // unknown version tolerated
+    expect(b?.version).toBe(0);
   });
 
   it('does not let a hostile __proto__ payload pollute Object.prototype', () => {
@@ -128,7 +125,6 @@ describe('parseBackup', () => {
         '"favourites":[{"src":"https://a","__proto__":{"polluted2":"yes"}}]}',
     );
     expect(b).not.toBeNull();
-    // The malicious keys must not reach the global prototype.
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
     expect(({} as Record<string, unknown>).polluted2).toBeUndefined();
     expect(Object.prototype.hasOwnProperty.call(Object.prototype, 'polluted')).toBe(false);

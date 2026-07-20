@@ -18,7 +18,6 @@ vi.mock('@mbd/core/download/stream/dash', () => ({
   },
 }));
 
-// vi.mock is hoisted, so these static imports resolve to the mocked modules above.
 import { captureHls, HlsError } from '@mbd/core/download/stream/hls';
 import { captureDash, DashError } from '@mbd/core/download/stream/dash';
 
@@ -52,7 +51,7 @@ describe('offscreen capture host', () => {
     });
     const sendResponse = vi.fn();
     const ret = getListener()({ type: 'CAPTURE_RUN', runId: 'run-1', engine: 'hls', manifestUrl: 'https://x/m.m3u8', quality: 720, maxBytes: 1000 }, {}, sendResponse);
-    expect(ret).toBe(true); // async response
+    expect(ret).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
 
     expect(captureHls).toHaveBeenCalledWith('https://x/m.m3u8', expect.anything(), { quality: 720, maxBytes: 1000, audioOnly: false });
@@ -97,10 +96,6 @@ describe('offscreen capture host', () => {
   });
 
   it('#321: refuses an oversized audio input for MP3 transcode WITHOUT attempting a decode (OOM guard)', async () => {
-    // The guard must reject before decodeAudioData — decoding an input this large to
-    // PCM is exactly what OOM-crashes the document. A Proxy reports an over-ceiling
-    // byteLength while forwarding a tiny real buffer, so without the guard the code
-    // would proceed to decodeAudioData; the assertion below is that it does NOT.
     const decodeSpy = vi.fn(async () => { throw new Error('decodeAudioData must not run for oversized input'); });
     (global as unknown as { OfflineAudioContext: unknown }).OfflineAudioContext = class {
       decodeAudioData = decodeSpy;
@@ -121,7 +116,7 @@ describe('offscreen capture host', () => {
     );
     await new Promise((r) => setTimeout(r, 0));
 
-    expect(decodeSpy).not.toHaveBeenCalled(); // rejected up front, no decode attempted
+    expect(decodeSpy).not.toHaveBeenCalled();
     expect(sendResponse).toHaveBeenCalledWith({ ok: false, code: 'mp3_transcode_failed' });
   });
 

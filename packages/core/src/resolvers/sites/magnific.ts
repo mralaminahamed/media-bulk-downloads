@@ -61,8 +61,6 @@ function variantsFromEl(el: Element | undefined): Variant[] {
   for (const attr of ['srcset', 'data-srcset', 'data-lazy-srcset']) {
     const ss = el.getAttribute(attr);
     if (!ss) continue;
-    // Match `<url> <n>w|x` pairs. `[^\s,]+` keeps each URL to a single entry
-    // (magnific tokens are base64url — no commas — so this never splits a URL).
     for (const m of ss.matchAll(/([^\s,]+)\s+([\d.]+)([wx])/g)) {
       const raw = m[1];
       let host: string;
@@ -72,7 +70,7 @@ function variantsFromEl(el: Element | undefined): Variant[] {
         continue;
       }
       if (host !== CDN_HOST) continue;
-      const descr = m[3] === 'w' ? Number(m[2]) : 0; // density (x) carries no pixel width
+      const descr = m[3] === 'w' ? Number(m[2]) : 0;
       out.push({ url: raw, width: descr || widthOf(raw) });
     }
   }
@@ -84,16 +82,13 @@ export const magnificResolver: Resolver = {
   hosts: ['magnific.com'],
   match: (u) => u.hostname === CDN_HOST,
   resolve: (u, ctx: ResolveContext): MediaCandidate[] => {
-    // The input URL is always a valid candidate (it's what the page loaded).
     const candidates: Variant[] = [{ url: u.href, width: widthOf(u.href) }, ...variantsFromEl(ctx.el)];
 
-    // Widest wins; ties keep the input (stable, avoids needless churn).
     let best = candidates[0];
     for (const v of candidates) if (v.width > best.width) best = v;
 
     const c: MediaCandidate = { url: best.url, kind: 'image', ext: extOf(new URL(best.url)) };
 
-    // Smallest OTHER same-host variant makes a lighter preview thumbnail.
     let thumb: Variant | null = null;
     for (const v of candidates) {
       if (v.url === best.url) continue;
@@ -101,9 +96,6 @@ export const magnificResolver: Resolver = {
     }
     if (thumb) c.thumbnailSrc = thumb.url;
 
-    // True pixel size: the chosen width is exact; derive height from the live
-    // image's aspect ratio when the element exposes its natural dimensions, so
-    // the min-size filter and size sort treat the upgraded URL correctly.
     if (best.width > 0) {
       c.width = best.width;
       const img = ctx.el as HTMLImageElement | undefined;

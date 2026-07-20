@@ -1,10 +1,7 @@
 import { extensionFromUrl } from '@mbd/core/collection/mediaType';
 import { MediaCandidate, Resolver, ResolveContext } from '@mbd/core/resolvers/types';
 
-// Gated on the PAGE host (the media lives on static/s1/s3.zerochan.net, a
-// different host than the page). Zerochan is images-only.
 const HOSTS = new Set(['zerochan.net', 'www.zerochan.net']);
-// The full image is served from static.zerochan.net — same registrable domain.
 const IMG_HOSTS = ['zerochan.net'];
 
 function pageHost(ctx: ResolveContext): string | null {
@@ -66,17 +63,13 @@ export const zerochanResolver: Resolver = {
   resolve: (u, ctx): MediaCandidate[] => {
     const el = ctx.el;
     if (!el) return [];
-    // Only upgrade the main post image (#large): a related/grid thumbnail must
-    // not inherit the post's full-image URL.
     const large = el.closest?.('#large');
     if (!large) return [];
-    // Prefer the structured JSON-LD contentUrl; fall back to the #large "view
-    // fullsize" preview anchor. Both are host-pinned before use.
     const raw = jsonLdContentUrl(el.ownerDocument)
       ?? large.querySelector?.('a.preview')?.getAttribute?.('href')
       ?? null;
     const full = pinnedDomUrl(raw, IMG_HOSTS);
-    if (!full || full === u.href) return []; // no full / already the original
+    if (!full || full === u.href) return [];
     const c: MediaCandidate = { url: full, kind: 'image', thumbnailSrc: u.href };
     const ext = extensionFromUrl(full);
     if (ext) c.ext = ext;

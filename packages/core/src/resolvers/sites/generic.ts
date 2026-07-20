@@ -10,8 +10,6 @@ export const genericResolver: Resolver = {
     const { original, thumbnail } = upgradeToOriginal(u.href);
     const c: MediaCandidate = { url: original, kind: 'image' };
     if (thumbnail) c.thumbnailSrc = thumbnail;
-    // Keep the real file extension from the upgraded URL (e.g. Pixabay `.jpg`),
-    // so the download name matches the source rather than the canonical type.
     const ext = imageExtFromUrl(original);
     if (ext) c.ext = ext;
     return [c];

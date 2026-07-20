@@ -48,14 +48,14 @@ export function substituteTemplate(
 }
 
 export type DashErrorCode =
-  | 'no-representations' // no usable video Representation
-  | 'live' // MPD@type="dynamic"
-  | 'drm' // a <ContentProtection> element is present
-  | 'unsupported' // SegmentList / SegmentBase-only, or an undecodable mux
-  | 'audio-unavailable' // audio-only asked, but the manifest has no audio Representation
-  | 'empty' // nothing downloaded
-  | 'too-large' // assembled bytes exceeded opts.maxBytes
-  | 'fetch-failed'; // a segment could not be fetched
+  | 'no-representations'
+  | 'live'
+  | 'drm'
+  | 'unsupported'
+  | 'audio-unavailable'
+  | 'empty'
+  | 'too-large'
+  | 'fetch-failed';
 
 export class DashError extends Error {
   code: DashErrorCode;
@@ -83,7 +83,7 @@ export interface DashRepresentation {
   width?: number;
   height?: number;
   template: DashSegmentTemplate;
-  baseUrl: string; // absolute, resolved for this representation
+  baseUrl: string;
 }
 
 export interface DashManifest {
@@ -93,8 +93,6 @@ export interface DashManifest {
   audio: DashRepresentation[];
   durationSec: number;
 }
-
-// ---- MPD parsing (namespace-safe: traverse by localName) ------------------
 
 /** Direct-child elements of `el` whose localName matches `name`. */
 function kids(el: Element, name: string): Element[] {
@@ -136,11 +134,7 @@ function parseSegmentTemplate(el: Element | undefined): DashSegmentTemplate {
   return {
     initialization: el.getAttribute('initialization') || undefined,
     media: el.getAttribute('media') || undefined,
-    // `?? 1` not `|| 1`: startNumber="0" is legitimate (segments start at 0), so a
-    // present 0 must survive; only an absent attribute defaults to 1.
     startNumber: num('startNumber') ?? 1,
-    // timescale is a divisor, so 0 is invalid — coercing an absent-or-zero value
-    // to 1 is intentional (avoids a divide-by-zero downstream).
     timescale: num('timescale') || 1,
     duration: num('duration'),
     timeline,
@@ -157,16 +151,10 @@ export function parseMpd(xml: string, baseUrl: string): DashManifest {
   const hasDrm = Array.from(doc.getElementsByTagName('*')).some((e) => e.localName === 'ContentProtection');
   let durationSec = parseIso8601Duration(mpd.getAttribute('mediaPresentationDuration') || '');
 
-  // Single-period capture: only the first Period is captured — later periods
-  // (ad breaks, chaptered content) are NOT concatenated. Documented limitation.
   const periods = kids(mpd, 'Period');
   const period = periods[0];
   if (!period) return { isLive, hasDrm, video: [], audio: [], durationSec };
   const periodDuration = parseIso8601Duration(period.getAttribute('duration') || '');
-  // When the manifest has multiple periods, `mediaPresentationDuration` spans ALL
-  // of them, so applying it to Period 0's SegmentTemplate would over-count its
-  // segments. Prefer Period 0's own duration (its `duration` attr, else the gap
-  // to Period 1's `start`) in that case; single-period keeps the presentation one.
   if (periods.length > 1) {
     const nextStart = parseIso8601Duration(periods[1].getAttribute('start') || '');
     const thisStart = parseIso8601Duration(period.getAttribute('start') || '');
@@ -204,8 +192,6 @@ export function parseMpd(xml: string, baseUrl: string): DashManifest {
   return { isLive, hasDrm, video, audio, durationSec };
 }
 
-// ---- segment expansion ----------------------------------------------------
-
 /** Upper bound on the number of media segments a single Representation may expand
  *  to. The count is derived from a handful of small, page-controlled MPD
  *  attributes (duration/timescale/@r), so a hostile manifest — e.g. duration=1,
@@ -226,8 +212,6 @@ export function expandSegments(rep: DashRepresentation, durationSec: number): { 
 
   const uris: string[] = [];
   const push = (num: number, time: number): void => {
-    // Bound the array so a template that repeats/counts past the cap fails fast
-    // (this covers the SegmentTimeline @r path, whose count isn't known up front).
     if (uris.length >= MAX_DASH_SEGMENTS) {
       throw new DashError('too-large', `DASH manifest expands to more than ${MAX_DASH_SEGMENTS} segments.`);
     }
@@ -239,7 +223,6 @@ export function expandSegments(rep: DashRepresentation, durationSec: number): { 
     let time = t.timeline[0].t ?? 0;
     for (const s of t.timeline) {
       if (s.t !== undefined) time = s.t;
-      // r < 0 means "repeat to the end of the period" — fill from the total duration.
       const repeats =
         s.r >= 0 ? s.r : s.d > 0 ? Math.max(0, Math.ceil((durationSec * t.timescale - time) / s.d) - 1) : 0;
       for (let i = 0; i <= repeats; i++) {
@@ -250,21 +233,15 @@ export function expandSegments(rep: DashRepresentation, durationSec: number): { 
     }
   } else if (t.duration) {
     const count = Math.max(0, Math.ceil((durationSec * t.timescale) / t.duration));
-    // Reject before allocating: count is a pure function of small MPD attributes,
-    // so a hostile manifest can make it enormous (the `push` guard would still
-    // catch it, but this fails fast without spinning the loop up to the cap).
     if (count > MAX_DASH_SEGMENTS) {
       throw new DashError('too-large', `DASH manifest expands to ${count} segments (> ${MAX_DASH_SEGMENTS}).`);
     }
-    // $Time$ is the 0-based media-time offset (i·duration); $Number$ counts from startNumber.
     for (let i = 0; i < count; i++) push(t.startNumber + i, i * t.duration);
   } else {
     throw new DashError('unsupported', 'SegmentTemplate has neither a duration nor a SegmentTimeline.');
   }
   return { initUri, segmentUris: uris };
 }
-
-// ---- selection + guards ---------------------------------------------------
 
 export interface DashCaptureOptions {
   /** 'highest' (default) or 'lowest' bandwidth, or a target height (e.g. 720). */
@@ -308,8 +285,6 @@ export function assertDownloadable(m: DashManifest, audioOnly = false): void {
   if (!m.video.length) throw new DashError('no-representations', 'The manifest has no video representation.');
 }
 
-// ---- orchestration --------------------------------------------------------
-
 export interface DashDeps {
   fetchText: (url: string) => Promise<string>;
   fetchBytes: (url: string) => Promise<Uint8Array>;
@@ -343,11 +318,6 @@ async function fetchDashTrack(
   const total = seg.segmentUris.length;
   const parts: Uint8Array[] = new Array(total);
   let cursor = 0;
-  // Shared across every worker: as soon as ANY worker fails (a fetch throws, or
-  // the byte budget is blown), every sibling must stop pulling NEW segments
-  // rather than continue fetching over the network after the capture has
-  // already failed (Promise.all below rejects on the first throw, but without
-  // this the other in-flight workers keep looping and fetching regardless).
   const cancelled = { flag: false };
   const worker = async (): Promise<void> => {
     while (cursor < total) {
@@ -372,9 +342,6 @@ async function fetchDashTrack(
   const limit = Math.max(1, deps.concurrency ?? 6);
   await Promise.all(Array.from({ length: Math.min(limit, total) }, worker));
   const init = seg.initUri ? await deps.fetchBytes(seg.initUri) : undefined;
-  // Count the init segment against the same budget as the media segments so the
-  // per-track cap stays exact (fetched after the loop, it would otherwise let the
-  // assembled total overshoot maxBytes by one segment).
   if (init) {
     budget.used += init.length;
     if (budget.max && budget.used > budget.max) {
@@ -390,10 +357,6 @@ async function fetchDashTrack(
  * and muxes the two fMP4 tracks together.
  */
 export async function captureDash(url: string, deps: DashDeps, opts: DashCaptureOptions = {}): Promise<DashCaptureResult> {
-  // The MPD is page-controlled and every segment/init URL is resolved from it
-  // (incl. its BaseURL). Route all fetches through the SSRF guard so a hostile
-  // manifest cannot aim them at an internal/loopback/link-local host (the
-  // offscreen fetcher has <all_urls>).
   const gd: DashDeps = {
     ...deps,
     fetchText: (u) => (assertSafeCaptureUrl(u), deps.fetchText(u)),
@@ -403,9 +366,6 @@ export async function captureDash(url: string, deps: DashDeps, opts: DashCapture
   const manifest = parseMpd(xml, url);
   assertDownloadable(manifest, opts.audioOnly);
 
-  // Audio-only (#204): emit just the highest audio Representation as `.m4a`, no
-  // re-encode. DASH is always demuxed, so the audio track is directly muxable.
-  // After assertDownloadable, so DRM/live still refuse first.
   if (opts.audioOnly) {
     const audioRep = manifest.audio.length ? selectRepresentation(manifest.audio, 'highest') : undefined;
     if (!audioRep) throw new DashError('audio-unavailable', 'This stream has no separate audio track to extract as audio-only.');
@@ -419,8 +379,6 @@ export async function captureDash(url: string, deps: DashDeps, opts: DashCapture
       audioTrack = await fetchDashTrack(aExp, gd, onSegmentA, budgetA);
     } catch (e) {
       if (e instanceof DashError) throw e;
-      // A single response over the byte ceiling (readBounded) gets its own
-      // dedicated 'too-large' message rather than the generic 'fetch-failed'.
       if (e instanceof StreamTooLargeError) throw new DashError('too-large', e.message);
       throw new DashError('fetch-failed', 'A segment could not be fetched.');
     }
@@ -460,8 +418,6 @@ export async function captureDash(url: string, deps: DashDeps, opts: DashCapture
     audioTrack = aExp ? await fetchDashTrack(aExp, gd, onSegment, budget) : undefined;
   } catch (e) {
     if (e instanceof DashError) throw e;
-    // A single response over the byte ceiling (readBounded) gets its own
-    // dedicated 'too-large' message rather than the generic 'fetch-failed'.
     if (e instanceof StreamTooLargeError) throw new DashError('too-large', e.message);
     throw new DashError('fetch-failed', 'A segment could not be fetched.');
   }

@@ -50,25 +50,23 @@ function numericV4(host: string): number[] | null {
 /** True for loopback, private, link-local, CGNAT, unspecified, and multicast/reserved v4. */
 function isBlockedV4([a, b]: number[]): boolean {
   return (
-    a === 0 || // 0.0.0.0/8 (this-network / unspecified)
-    a === 127 || // loopback
-    a === 10 || // private
-    (a === 172 && b >= 16 && b <= 31) || // private
-    (a === 192 && b === 168) || // private
-    (a === 169 && b === 254) || // link-local (incl. 169.254.169.254 metadata)
-    (a === 100 && b >= 64 && b <= 127) || // CGNAT 100.64/10
-    a >= 224 // multicast (224/4) + reserved (240/4) + 255.255.255.255
+    a === 0 ||
+    a === 127 ||
+    a === 10 ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 169 && b === 254) ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    a >= 224
   );
 }
 
 /** True for IPv6 loopback, unspecified, link-local, unique-local, or IPv4-mapped-private. */
 function isBlockedV6(raw: string): boolean {
   const h = raw.replace(/^\[|\]$/g, '').toLowerCase();
-  if (h === '::1' || h === '::') return true; // loopback / unspecified
-  if (/^fe[89ab]/.test(h)) return true; // link-local fe80::/10
-  if (/^f[cd]/.test(h)) return true; // unique-local fc00::/7
-  // IPv4-mapped (::ffff:a.b.c.d), which the URL parser normalizes to hex groups
-  // (::ffff:7f00:1). Decode the embedded v4 from either form and range-check it.
+  if (h === '::1' || h === '::') return true;
+  if (/^fe[89ab]/.test(h)) return true;
+  if (/^f[cd]/.test(h)) return true;
   if (h.startsWith('::ffff:')) {
     const rest = h.slice(7);
     const dotted = dottedV4(rest);
@@ -79,7 +77,7 @@ function isBlockedV6(raw: string): boolean {
       const lo = parseInt(hex[2], 16);
       return isBlockedV4([(hi >> 8) & 255, hi & 255, (lo >> 8) & 255, lo & 255]);
     }
-    return true; // mapped but an unrecognized form — block to be safe
+    return true;
   }
   return false;
 }
@@ -96,17 +94,14 @@ function isBlockedV6(raw: string): boolean {
 function hasEmbeddedBlockedV4(host: string): boolean {
   const labels = host.split('.');
   const blocked = (parts: number[]): boolean => parts.every((p) => p <= 255) && isBlockedV4(parts);
-  // Four consecutive numeric labels forming a dotted quad, anywhere in the name.
   for (let i = 0; i + 3 < labels.length; i++) {
     const win = labels.slice(i, i + 4);
     if (win.every((l) => /^\d{1,3}$/.test(l)) && blocked(win.map(Number))) return true;
   }
   for (const label of labels) {
-    // Dashed quad inside one label (10-0-0-1, 192-168-1-100).
     for (const m of label.matchAll(/(\d{1,3})-(\d{1,3})-(\d{1,3})-(\d{1,3})/g)) {
       if (blocked([m[1], m[2], m[3], m[4]].map(Number))) return true;
     }
-    // A single 8-hex-digit label is a packed 32-bit IPv4 (7f000001 → 127.0.0.1).
     if (/^[0-9a-f]{8}$/i.test(label)) {
       const n = parseInt(label, 16);
       if (isBlockedV4([(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255])) return true;
@@ -133,19 +128,13 @@ export function isSafeCaptureUrl(rawUrl: string): boolean {
   const host = u.hostname.toLowerCase();
   if (!host) return false;
   if (BLOCKED_HOST_EXACT.has(host)) return false;
-  // Reserved internal-use name classes. `.internal` (ICANN-reserved 2024) covers
-  // cloud internal hosts like metadata.google.internal (a DNS alias for the
-  // 169.254.169.254 metadata IP) — a name-based bypass its `.local`/`.localhost`
-  // siblings already block.
   if (host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) return false;
 
-  // IPv6 literals arrive bracketed (e.g. "[::1]").
   if (host.startsWith('[') || host.includes(':')) return !isBlockedV6(host);
 
   const v4 = dottedV4(host) ?? numericV4(host);
   if (v4) return !isBlockedV4(v4);
 
-  // An ordinary DNS name — allowed unless it embeds a blocked IP (nip.io class).
   return !hasEmbeddedBlockedV4(host);
 }
 

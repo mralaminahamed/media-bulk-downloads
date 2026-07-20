@@ -15,7 +15,7 @@ describe('save-as-hint storage', () => {
   it('markSaveAsPromptSeen is set-once (a second call does not write)', async () => {
     await markSaveAsPromptSeen();
     const setSpy = vi.spyOn(chrome.storage.local, 'set');
-    setSpy.mockClear(); // Clear inherited call history from the first call
+    setSpy.mockClear();
     await markSaveAsPromptSeen();
     expect(setSpy).not.toHaveBeenCalled();
   });

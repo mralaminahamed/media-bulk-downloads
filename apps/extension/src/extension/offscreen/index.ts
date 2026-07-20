@@ -18,15 +18,13 @@ export function installOffscreenCaptureHost(): void {
     if (!message || (message as { type?: unknown }).type !== 'CAPTURE_RUN') return;
     const { runId, manifestUrl, engine, quality, maxBytes, audioOnly, audioFormat } = message as CaptureRunMessage;
     void runCapture(runId, manifestUrl, engine, quality, maxBytes, !!audioOnly, audioFormat ?? 'm4a').then(sendResponse);
-    return true; // response is sent asynchronously
+    return true;
   });
 }
 
 /** Publish assembled bytes as a same-extension blob URL, kept alive long enough
  *  for the background's chrome.downloads to read it. */
 function publish(bytes: Uint8Array, mime: string): string {
-  // A standalone ArrayBuffer copy — Blob rejects a plain Uint8Array's
-  // ArrayBufferLike backing under strict DOM types.
   const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   const blobUrl = URL.createObjectURL(new Blob([ab], { type: mime }));
   setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
@@ -43,14 +41,8 @@ function publish(bytes: Uint8Array, mime: string): string {
  * regardless of whether the decode resampled.
  */
 async function transcodeToMp3(m4a: Uint8Array, kbps: number): Promise<Uint8Array> {
-  // Refuse an extreme input before decoding: decodeAudioData would allocate ~10× its
-  // size in Float32 PCM, and near the 1 GB stream cap that OOM-crashes this document
-  // (an OOM escapes the try/catch below). The throw surfaces as mp3_transcode_failed.
   if (!canTranscodeToMp3(m4a.byteLength)) throw new Error('mp3: audio too large to transcode');
   const ab = m4a.buffer.slice(m4a.byteOffset, m4a.byteOffset + m4a.byteLength) as ArrayBuffer;
-  // A throwaway OfflineAudioContext just to reach decodeAudioData. It is NOT a
-  // hardware/realtime AudioContext, so it is exempt from Chrome's ~6-context limit
-  // and has no close() to call — it is reclaimed by GC once this frame returns.
   const ctx = new OfflineAudioContext(2, 1, 44100);
   const audio = await ctx.decodeAudioData(ab);
   const channels: Float32Array[] = [];
@@ -80,8 +72,6 @@ async function runCapture(
     return { ok: false, code };
   }
 
-  // MP3 re-encode is opt-in and audio-only; anything else keeps the original
-  // engine bytes (M4A/video) untouched — zero change to the #204/#320 path.
   const kbps = audioOnly ? mp3BitrateFor(audioFormat) : null;
   try {
     if (kbps !== null) {
@@ -90,9 +80,6 @@ async function runCapture(
     }
     return { ok: true, blobUrl: publish(res.bytes, res.mime), ext: res.ext, segmentCount: res.segmentCount, muxedAudio: !!res.muxedAudio };
   } catch {
-    // A transcode/blob failure (the audio extracted fine): surface a distinct code
-    // for MP3 — rather than silently handing back an M4A the user didn't ask for —
-    // and preserve the original path's coded failure for the passthrough case.
     return { ok: false, code: kbps !== null ? 'mp3_transcode_failed' : 'unknown' };
   }
 }

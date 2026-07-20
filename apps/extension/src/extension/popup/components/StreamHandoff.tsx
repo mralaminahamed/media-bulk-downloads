@@ -23,10 +23,8 @@ interface StreamHandoffProps {
 export const StreamHandoff: React.FC<StreamHandoffProps> = ({ refusal, onDismiss }) => {
   const [copied, setCopied] = useState<StreamCommandEngine | null>(null);
   const manifestUrl = refusal.item.hlsManifest;
-  // navigator is always present in the popup; guard only for non-DOM test envs.
   const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : undefined;
 
-  // No manifest URL → nothing to hand off (shouldn't happen for a stream item).
   if (!manifestUrl) return null;
 
   const copy = async (engine: StreamCommandEngine): Promise<void> => {

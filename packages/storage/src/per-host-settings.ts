@@ -43,11 +43,6 @@ export function pickHostFields(s: Partial<SettingsData>): Partial<SettingsData> 
 /** Effective settings = global with the host's allowlisted override on top.
  *  Precedence DEFAULT → global → host (global already has DEFAULT baked in). Pure. */
 export function applyHostOverride(global: SettingsData, override: Partial<SettingsData>): SettingsData {
-  // Re-run withDefaults so a corrupt per-host override (e.g. a negative
-  // deepScanMaxItems synced from an older version, or hand-edited) is re-clamped
-  // exactly like the global layer — a raw spread would let the override
-  // reintroduce the unbounded/neutered loop bound withDefaults just guarded.
-  // Idempotent for valid settings (global already has DEFAULT baked in).
   return withDefaults({ ...global, ...pickHostFields(override) });
 }
 
@@ -107,8 +102,6 @@ export async function savePerHostSettings(host: string, patch: Partial<SettingsD
   if (!host || Object.keys(picked).length === 0) return;
   return serialize(async () => {
     const store = await loadPerHostSettings();
-    // Re-insert at the end so the most-recently-saved host is newest in insertion
-    // order — makes the front the eviction candidate (LRU by last save).
     delete store[host];
     store[host] = picked;
     await durableSet(PER_HOST_SETTINGS_KEY, evictToCap(store));

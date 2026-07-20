@@ -1,7 +1,5 @@
 import { imgurMediaFromHtml } from '@mbd/core/resolvers/sites/imgur';
 
-// The page assigns a JSON *string* to window.postDataJSON, so the markup value is a
-// double-encoded literal — mirror that with JSON.stringify(JSON.stringify(post)).
 const wrap = (post: unknown) =>
   `<html><body><script>window.postDataJSON=${JSON.stringify(JSON.stringify(post))};</script></body></html>`;
 

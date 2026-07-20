@@ -1,12 +1,6 @@
 import { MediaCandidate } from '@mbd/core/resolvers/types';
 import { imageExtFromUrl } from '@mbd/core/collection/mediaType';
 
-// A family of simple image hosts whose single-image page exposes the full original
-// directly in the rendered markup (og:image, a specific `<img>` id/class, or an
-// `<img>` on the host's own CDN). One shared, host-gated, fail-closed reader — a page
-// that isn't a single-image view yields no matching element → nothing. All keyless.
-
-// --- extraction helpers (operate on the page's innerHTML string) ---------------
 function imgTags(html: string): string[] {
   return html.match(/<img\b[^>]*>/gi) ?? [];
 }
@@ -38,7 +32,6 @@ function ogBig(html: string): string | null {
   const og =
     /<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i.exec(html)?.[1] ??
     /<meta[^>]+content="([^"]+)"[^>]+property="og:image"/i.exec(html)?.[1];
-  // imgdrive-family thumbnails carry a `/small/` segment; `/big/` is the original.
   return og ? og.replace('/small/', '/big/') : null;
 }
 function imgInContainer(html: string, id: string): string | null {
@@ -53,17 +46,14 @@ interface ImageHostRule {
 }
 
 const RULES: ImageHostRule[] = [
-  // og:image + /small/ -> /big/
   {
     host: /^(?:www\.)?(?:imgdrive\.net|imgtaxi\.(?:com|net)|imgwallet\.(?:com|net))$/i,
     path: /^\/img-[a-z0-9]+\.html$/i,
     extract: ogBig,
   },
-  // specific <img> id
   { host: /^(?:www\.)?imgspice\.com$/i, path: /\.html$/i, extract: (h) => imgById(h, 'imgpreview') },
   { host: /^(?:www\.)?imgpv\.com$/i, path: /\.html$/i, extract: (h) => imgById(h, 'img-preview') },
   { host: /^(?:www\.)?picstate\.com$/i, path: /^\/view\/full\//i, extract: (h) => imgInContainer(h, 'image_container') },
-  // <img> on the host's own CDN
   {
     host: /(?:^|\.)imagebam\.com$/i,
     path: /^\/(?:view|image)\//i,
@@ -82,9 +72,6 @@ const RULES: ImageHostRule[] = [
   },
 ];
 
-// True when the extracted URL sits on the same registrable site as the page host
-// (page `imgspice.com` → CDN `imgNN.imgspice.com`), a cheap host-pin for the
-// selector-based extracts.
 function sameSite(srcHost: string, pageHost: string): boolean {
   const base = pageHost.split('.').slice(-2).join('.');
   return srcHost === pageHost || srcHost === base || srcHost.endsWith(`.${base}`);

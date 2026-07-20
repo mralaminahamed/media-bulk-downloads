@@ -28,21 +28,16 @@ describe('collectMedia — Facebook page media (opened photo/video page)', () =>
   });
 
   it("surfaces the opened photo's sniffed ORIGINAL (keyed by the fbid in the URL) even when the DOM has none", () => {
-    // The page URL is .../photo/?fbid=100 — seed the resolver store for that fbid.
-    // The DOM is left empty (no <img> at all): a virtualized album / viewer blob:
-    // means there is nothing here for the per-element resolve() walk to latch
-    // onto, so the ORIGINAL can only reach the collection via facebookPageMedia().
     ingestSniffedFbMedia([
       { fbid: '100', kind: 'image', url: ORIGINAL, ext: 'jpg', width: 2048, height: 1536 },
-      // A different fbid's media must NOT leak into this page's collection.
       { fbid: '999', kind: 'image', url: 'https://x.fbcdn.net/other_n.jpg', ext: 'jpg' },
     ]);
 
     const srcs = collectMedia().map((m) => m.src);
 
-    expect(srcs).toContain(ORIGINAL); // full-res original from FB's GraphQL/hydration
-    expect(srcs).not.toContain(THUMB); // never seeded/rendered — sanity check
-    expect(srcs).not.toContain('https://x.fbcdn.net/other_n.jpg'); // wrong fbid
+    expect(srcs).toContain(ORIGINAL);
+    expect(srcs).not.toContain(THUMB);
+    expect(srcs).not.toContain('https://x.fbcdn.net/other_n.jpg');
   });
 
   it('does not re-add a page-media URL already collected from the DOM (dedup by src)', () => {

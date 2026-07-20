@@ -51,9 +51,7 @@ describe('pixivResolver — match', () => {
     expect(m(master(0))).toBe(true);
     expect(m(feedSquare)).toBe(true);
     expect(m(original(0, 'png'))).toBe(true);
-    // avatar / badge — no _p<page> segment
     expect(m('https://i.pximg.net/user-profile/img/2020/01/01/00/00/00/12345678/abcd_170.jpg')).toBe(false);
-    // static / other host
     expect(m('https://s.pximg.net/common/images/logo.png')).toBe(false);
     expect(m('https://example.com/122_p0_master1200.jpg')).toBe(false);
   });
@@ -78,7 +76,6 @@ describe('pixivResolver — artwork page (preload JSON)', () => {
 
   it('ignores a preload original that is not on the pximg host (host-pinned)', () => {
     const el = artworkPage(ID, 'https://evil.example/steal.png');
-    // Falls through to the safe fallback: this master URL is returned unchanged.
     const [c] = resolve(master(0), { allowNetwork: false, el });
     expect(c.url).toBe(master(0));
   });

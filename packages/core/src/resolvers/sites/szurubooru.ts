@@ -1,10 +1,6 @@
 import { MediaCandidate } from '@mbd/core/resolvers/types';
 import { imageExtFromUrl, extensionFromUrl } from '@mbd/core/collection/mediaType';
 
-// szurubooru is a Vue-SPA booru; a post page (`/post/<id>`) has no server-rendered
-// image, but once hydrated the post's original is a distinctive same-host URL:
-// `<host>/data/posts/<id>_<hash>.<ext>` (thumbnails live under `/data/generated-thumbnails/`).
-// Read that straight from the rendered markup — no API, keyless.
 const SZURU_HOST_RE = /^(?:www\.)?(?:snootbooru\.com|booru\.bcbnsfw\.space)$/i;
 
 const VIDEO_RE = /\.(?:mp4|webm|mov|m4v)(?:[?#]|$)/i;
@@ -38,7 +34,6 @@ export function szurubooruRef(raw: string | URL): SzurubooruRef | null {
  */
 export function szurubooruMediaFromHtml(html: string, ref: SzurubooruRef): MediaCandidate[] {
   if (typeof html !== 'string') return [];
-  // Optional `https://<host>` prefix + the distinctive `/data/posts/<file>.<ext>` path.
   const re = /(?:https?:\/\/[a-z0-9.-]+)?\/data\/posts\/[A-Za-z0-9_.-]+\.[a-z0-9]{1,5}/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html)) !== null) {

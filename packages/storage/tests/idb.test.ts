@@ -17,7 +17,7 @@ describe('durableSet', () => {
   it('writes to BOTH chrome.storage.local and the IDB mirror', async () => {
     await durableSet('downloadHistory', [{ src: 'x' }]);
     expect(chrome.storage.local.set).toHaveBeenCalledWith({ downloadHistory: [{ src: 'x' }] });
-    await new Promise((r) => setTimeout(r, 0)); // let the fire-and-forget mirror write land
+    await new Promise((r) => setTimeout(r, 0));
     expect(await idbGet('downloadHistory')).toEqual([{ src: 'x' }]);
   });
 
@@ -30,7 +30,6 @@ describe('durableSet', () => {
     (chrome.storage.local.set as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
       new Error('QUOTA_BYTES quota exceeded'),
     );
-    // The outcome is surfaced to the caller instead of being swallowed as success.
     await expect(durableSet('favourites', [1])).resolves.toBe(false);
     expect(err).toHaveBeenCalled();
     err.mockRestore();

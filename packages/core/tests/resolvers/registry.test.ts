@@ -12,8 +12,6 @@ describe('resolve — generic fallback', () => {
     expect(resolve('https://ex.com/a.jpg', ctx)).toEqual([{ url: 'https://ex.com/a.jpg', kind: 'image', ext: 'jpg' }]);
   });
   it('returns no candidates for a malformed URL', () => {
-    // 'http://' is genuinely unparseable even with jsdom's baseURI present, so it
-    // exercises the catch path. An unparseable URL is not media — no candidate.
     expect(resolve('http://', ctx)).toEqual([]);
   });
 

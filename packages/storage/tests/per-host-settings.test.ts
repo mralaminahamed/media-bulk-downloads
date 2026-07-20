@@ -33,7 +33,7 @@ describe('per-host-settings — pure core', () => {
     const eff = applyHostOverride(global, { minimumImageSize: 1024, resolveOriginals: true, downloadPath: 'archive' } as never);
     expect(eff.minimumImageSize).toBe(1024);
     expect(eff.resolveOriginals).toBe(true);
-    expect(eff.downloadPath).toBe(global.downloadPath); // non-allowlisted override ignored
+    expect(eff.downloadPath).toBe(global.downloadPath);
   });
 
   it('applyHostOverride with empty override === global', () => {
@@ -46,7 +46,6 @@ describe('per-host-settings — pure core', () => {
     const eff = applyHostOverride(global, { deepScanMaxItems: -5, deepScanMaxScrolls: 0 } as never);
     expect(eff.deepScanMaxItems).toBeGreaterThanOrEqual(1);
     expect(eff.deepScanMaxScrolls).toBeGreaterThanOrEqual(1);
-    // a valid override still wins over the global value
     expect(applyHostOverride(global, { deepScanMaxItems: 250 } as never).deepScanMaxItems).toBe(250);
   });
 });
@@ -85,8 +84,8 @@ describe('per-host-settings — storage CRUD', () => {
 
   it('empty host or empty patch is a no-op (never writes a "" entry)', async () => {
     await savePerHostSettings('', { minimumImageSize: 1024 });
-    await savePerHostSettings('a.example', {}); // nothing allowlisted present
-    await savePerHostSettings('a.example', { popupWidth: 900 } as never); // non-allowlisted only
+    await savePerHostSettings('a.example', {});
+    await savePerHostSettings('a.example', { popupWidth: 900 } as never);
     expect(await loadPerHostSettings()).toEqual({});
   });
 
@@ -101,17 +100,15 @@ describe('per-host-settings — storage CRUD', () => {
     }
     const store = await loadPerHostSettings();
     expect(Object.keys(store)).toHaveLength(PER_HOST_SETTINGS_MAX_HOSTS);
-    // The 5 oldest (h0..h4) were evicted; the newest survive.
     expect(store['h0.example']).toBeUndefined();
     expect(store['h4.example']).toBeUndefined();
     expect(store[`h${PER_HOST_SETTINGS_MAX_HOSTS + 4}.example`]).toEqual({ excludeEmoji: true });
 
-    // Re-saving an about-to-be-evicted host moves it back to newest.
     await savePerHostSettings('h5.example', { excludeEmoji: false });
     await savePerHostSettings('hNew.example', { excludeEmoji: true });
     const after = await loadPerHostSettings();
-    expect(after['h5.example']).toEqual({ excludeEmoji: false }); // renewed, not evicted
-    expect(after['h6.example']).toBeUndefined(); // now the oldest, evicted instead
+    expect(after['h5.example']).toEqual({ excludeEmoji: false });
+    expect(after['h6.example']).toBeUndefined();
   });
 });
 
@@ -139,7 +136,6 @@ describe('effective settings resolver', () => {
   it('host override wins over global (keyed by registrable domain)', async () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k: unknown, cb: SyncCb) => cb({ settings: { minimumImageSize: 200, resolveOriginals: false } }));
     await chrome.storage.local.set({ perHostSettings: { 'booru.example': { minimumImageSize: 1024, resolveOriginals: true } } });
-    // A subdomain reduces to the registrable domain, so it picks up the same override.
     const eff = await loadEffectiveSettingsForHost('img.booru.example');
     expect(eff.minimumImageSize).toBe(1024);
     expect(eff.resolveOriginals).toBe(true);

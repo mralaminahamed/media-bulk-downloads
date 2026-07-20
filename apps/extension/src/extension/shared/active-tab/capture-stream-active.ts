@@ -28,12 +28,9 @@ export function requestCaptureStream(
     const runId = newCaptureRunId();
     const listener = (msg: unknown): void => {
       const p = msg as CaptureProgressMessage;
-      // Only this capture's progress — a concurrent capture in another tab
-      // broadcasts its own runId, which we ignore.
       if (p && p.type === 'CAPTURE_PROGRESS' && p.runId === runId) onProgress(p.done, p.total);
     };
     chrome.runtime.onMessage.addListener(listener);
-    // Only send an override; absent → the background applies the global default.
     const message: CaptureStreamMessage = {
       type: 'CAPTURE_STREAM', runId, item, sourcePage, audioOnly,
       ...(audioFormat ? { audioFormat } : {}),
@@ -46,9 +43,6 @@ export function requestCaptureStream(
         resolve({ status: response?.status ?? 'Couldn’t capture the stream.', refusal: response?.refusal });
       });
     } catch {
-      // Invalidated context (extension reloaded mid-call): sendMessage can throw
-      // synchronously. Remove the listener added just above and resolve a failure
-      // rather than leak it and hang the promise forever.
       chrome.runtime.onMessage.removeListener(listener);
       resolve({ status: 'Couldn’t capture the stream.' });
     }

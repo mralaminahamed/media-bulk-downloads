@@ -63,8 +63,6 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
   }));
   const sizeOptions = available.sizeBuckets.map((v) => ({ value: v, label: SIZE_LABELS[v] }));
 
-  // When a re-collect changes the present options, drop any active selection that
-  // is no longer available so no dead/empty filter survives.
   useEffect(() => {
     const patch: Partial<FilterOptions> = {};
     if (filters.mediaKind !== 'all' && !available.kinds.includes(filters.mediaKind)) patch.mediaKind = 'all';
@@ -74,9 +72,6 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
     if (filters.sizeBucket !== 'all' && !available.sizeBuckets.includes(filters.sizeBucket)) patch.sizeBucket = 'all';
     if (Object.keys(patch).length > 0) {
       const next = { ...filters, ...patch };
-      // Deliberate: syncing local filter state to a prop-driven option set (the
-      // "adjusting state when a prop changes" pattern) — not derivable during
-      // render since it must also notify the parent via onFilterChange.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setFilters(next);
       onFilterChange(next);
@@ -97,9 +92,6 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
   };
 
   const base64Disabled = extensionSettings.excludeBase64Images;
-  // Filters tucked inside the "More" popover — its badge counts only Format/Size/Min/Base64.
-  // Downloaded state lives in its own primary-row State chip (below), so it's
-  // intentionally excluded from this badge.
   const advancedCount =
     (filters.imageType !== 'all' ? 1 : 0) +
     (filters.sizeBucket !== 'all' ? 1 : 0) +
@@ -115,7 +107,6 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
 
   const showSize = filters.mediaKind === 'all' || filters.mediaKind === 'image';
 
-  // Active advanced filters mirrored as removable chips (they are SET inside More).
   const advChips: { key: string; label: string; clear: () => void }[] = [
     filters.imageType !== 'all' && {
       key: 'format',

@@ -57,8 +57,6 @@ describe('substituteTemplate', () => {
     expect(substituteTemplate('a$$b', {})).toBe('a$b');
   });
   it('drops an identifier whose value is undefined (empty substitution)', () => {
-    // The token is well-formed but the var map has no value → it collapses to '',
-    // rather than being left in the URL as a literal `$Time$`.
     expect(substituteTemplate('seg-$Time$.m4s', {})).toBe('seg-.m4s');
     expect(substituteTemplate('$RepresentationID$/$Number$', { Number: 3 })).toBe('/3');
   });
@@ -119,8 +117,8 @@ describe('parseMpd', () => {
   </AdaptationSet></Period>
 </MPD>`;
     const m = parseMpd(mpd, 'https://cdn.test/m.mpd');
-    expect(m.durationSec).toBe(10); // Period 0's duration, not the 60s presentation
-    expect(m.video).toHaveLength(1); // only Period 0 captured (documented limit)
+    expect(m.durationSec).toBe(10);
+    expect(m.video).toHaveLength(1);
   });
 
   it('flags a dynamic manifest as live', () => {
@@ -139,15 +137,12 @@ describe('parseMpd', () => {
   });
 
   it('falls back to the raw base when a BaseURL cannot be resolved (unparseable base)', () => {
-    // An MPD-level relative <BaseURL> against a non-absolute base makes `new URL`
-    // throw inside resolveBase; it must swallow it and keep the base unchanged.
     const based = VOD_MPD.replace('<Period>', '<BaseURL>video/</BaseURL><Period>');
     const m = parseMpd(based, 'not-an-absolute-url');
     expect(m.video[0].baseUrl).toBe('not-an-absolute-url');
   });
 
   it('skips a Representation whose type is neither video nor audio', () => {
-    // A text/subtitle AdaptationSet classifies to null and is dropped entirely.
     const withText = VOD_MPD.replace(
       '<AdaptationSet mimeType="audio/mp4">',
       `<AdaptationSet mimeType="application/mp4" contentType="text">
@@ -181,7 +176,6 @@ describe('parseMpd', () => {
   });
 
   it('parses a SegmentTimeline S with a missing d attribute as 0', () => {
-    // An <S> with only t → d/r default to 0 (Number(null)||0), not NaN.
     const tl = VOD_MPD.replace(
       '<SegmentTemplate initialization="v_init.m4v" media="v_seg$Number$.m4v" startNumber="1" timescale="1" duration="6"/>',
       `<SegmentTemplate media="v_seg$Number$.m4v" timescale="1000">
@@ -202,12 +196,10 @@ describe('parseMpd', () => {
   });
 
   it('throws unsupported for XML that does not parse (DOMParser error document)', () => {
-    // jsdom yields a <parsererror> root, whose localName is not "MPD".
     expect(() => parseMpd('<<<not xml at all', 'https://cdn.test/m.mpd')).toThrow(/unsupported|not an mpd/i);
   });
 
   it('leaves durationSec 0 when neither the MPD nor the Period declares a duration', () => {
-    // No mediaPresentationDuration and no Period@duration → duration stays 0.
     const xml = `<?xml version="1.0"?>
 <MPD xmlns="urn:mpeg:dash:schema:mpd:2011">
   <Period><AdaptationSet mimeType="video/mp4"><Representation id="v" bandwidth="1">
@@ -228,9 +220,6 @@ describe('parseMpd', () => {
   });
 
   it('fills SegmentTemplate defaults, inherits an AdaptationSet template + codecs, and reads Period@duration', () => {
-    // No @type (→ static/VOD), no mediaPresentationDuration (→ Period@duration),
-    // an AdaptationSet-level <SegmentTemplate> with only @media, and a bare
-    // <Representation> (no id/bandwidth/codecs/mimeType) classified by @contentType.
     const xml = `<?xml version="1.0"?>
 <MPD xmlns="urn:mpeg:dash:schema:mpd:2011">
   <Period duration="PT12S">
@@ -246,7 +235,6 @@ describe('parseMpd', () => {
     expect(m.video).toHaveLength(1);
     const r = m.video[0];
     expect(r).toMatchObject({ id: '', bandwidth: 0, contentType: 'video', codecs: 'avc1.42c01e' });
-    // Defaults: no initialization, startNumber 1, timescale 1, no duration/timeline.
     expect(r.template).toMatchObject({ media: 'seg-$Number$.m4s', startNumber: 1, timescale: 1 });
     expect(r.template.initialization).toBeUndefined();
     expect(r.template.duration).toBeUndefined();
@@ -254,8 +242,6 @@ describe('parseMpd', () => {
   });
 
   it('returns default template + undefined codecs for a Representation with no SegmentTemplate anywhere', () => {
-    // Neither the Representation nor its AdaptationSet defines a SegmentTemplate,
-    // and neither carries @codecs → template defaults, codecs undefined.
     const xml = `<?xml version="1.0"?>
 <MPD xmlns="urn:mpeg:dash:schema:mpd:2011" mediaPresentationDuration="PT5S">
   <Period><AdaptationSet mimeType="video/mp4"><Representation id="v"/></AdaptationSet></Period>
@@ -278,9 +264,6 @@ describe('parseMpd', () => {
   });
 
   it('parses ONLY the first Period — a multi-period MPD drops later periods', () => {
-    // LIMITATION (see report): captureDash reads Period[0] only, so a multi-period
-    // VOD loses every representation after the first period. This test pins the
-    // current behaviour so a future multi-period fix is a deliberate change.
     const xml = `<?xml version="1.0"?>
 <MPD xmlns="urn:mpeg:dash:schema:mpd:2011" mediaPresentationDuration="PT12S">
   <Period id="p1"><AdaptationSet mimeType="video/mp4"><Representation id="v1" bandwidth="1"><SegmentTemplate media="a$Number$.m4s" duration="6" timescale="1"/></Representation></AdaptationSet></Period>
@@ -300,7 +283,6 @@ describe('expandSegments', () => {
   it('duration mode: computes count from total and numbers from startNumber', () => {
     const out = expandSegments(rep({ initialization: 'init-$RepresentationID$.m4s', media: 'seg-$Number$.m4s', duration: 4, timescale: 1, startNumber: 1 }), 10);
     expect(out.initUri).toBe('https://cdn.test/x/init-v0.m4s');
-    // ceil(10*1/4) = 3 segments, numbered 1..3
     expect(out.segmentUris).toEqual([
       'https://cdn.test/x/seg-1.m4s',
       'https://cdn.test/x/seg-2.m4s',
@@ -330,8 +312,6 @@ describe('expandSegments', () => {
   });
 
   it('throws too-large in duration mode when a hostile MPD would expand past the cap', () => {
-    // duration=1, timescale=90000, 2h period → ceil(7200*90000/1) = 648,000,000
-    // segments. Must fail fast (before allocating the array), not OOM.
     try {
       expandSegments(rep({ media: 'seg-$Number$.m4s', duration: 1, timescale: 90000, startNumber: 1 }), 7200);
       throw new Error('expected expandSegments to throw');
@@ -360,13 +340,11 @@ describe('expandSegments', () => {
   });
 
   it('duration mode: $Time$ is the 0-based media offset, independent of startNumber', () => {
-    // count = ceil(10*1/5) = 2; times must be 0 and 5 even though startNumber is 10.
     const out = expandSegments(rep({ media: 'seg-$Time$.m4s', duration: 5, timescale: 1, startNumber: 10 }), 10);
     expect(out.segmentUris).toEqual(['https://cdn.test/x/seg-0.m4s', 'https://cdn.test/x/seg-5.m4s']);
   });
 
   it('timeline mode: S@r=-1 repeats to the end of the period duration', () => {
-    // 250s at d=100 → segments at t=0,100,200 (3 segments), numbered 1..3.
     const out = expandSegments(rep({
       media: 'seg-$Number$.m4s', timescale: 1, startNumber: 1,
       timeline: [{ t: 0, d: 100, r: -1 }],
@@ -379,7 +357,6 @@ describe('expandSegments', () => {
   });
 
   it('timeline mode: a first S without @t starts media-time at 0 and accumulates d', () => {
-    // No `t` on any S → time begins at 0 and advances by d. r=1 → 2 segs per S.
     const out = expandSegments(rep({
       media: 'seg-$Time$.m4s', timescale: 1, startNumber: 1,
       timeline: [{ d: 100, r: 1 }],
@@ -388,8 +365,6 @@ describe('expandSegments', () => {
   });
 
   it('timeline mode: an r=-1 with d=0 yields exactly one segment (no divide-by-zero fill)', () => {
-    // s.r < 0 but s.d is not > 0, so the "fill to end" math is skipped and the
-    // S emits a single segment rather than looping forever.
     const out = expandSegments(rep({
       media: 'seg-$Number$.m4s', timescale: 1, startNumber: 1,
       timeline: [{ t: 0, d: 0, r: -1 }],
@@ -412,7 +387,6 @@ describe('selectRepresentation', () => {
     expect(selectRepresentation(reps, 720)?.id).toBe('c');
   });
   it('falls back to highest bandwidth for a numeric target when no rep carries a height', () => {
-    // A height target with no `height` metadata to match against → highest bw wins.
     const reps = [v('a', 100), v('c', 900), v('b', 500)];
     expect(selectRepresentation(reps, 720)?.id).toBe('c');
   });
@@ -442,12 +416,9 @@ describe('assertDownloadable', () => {
   });
   it('with audioOnly, checks the AUDIO track instead of requiring video', () => {
     const withAudio = [{ id: 'a', bandwidth: 1, contentType: 'audio', baseUrl: 'https://x/', template: { startNumber: 1, timescale: 1 } }] as never;
-    // video-less but audio-bearing → allowed for audioOnly, refused otherwise.
     expect(() => assertDownloadable({ ...base, video: [] as never, audio: withAudio }, true)).not.toThrow();
     expect(() => assertDownloadable({ ...base, video: [] as never, audio: withAudio })).toThrow(/no video|representation/i);
-    // still refuses when there is no audio either.
     expect(() => assertDownloadable({ ...base, video: [] as never, audio: [] as never }, true)).toThrow(/audio/i);
-    // DRM/live still refuse first, even with audioOnly.
     expect(() => assertDownloadable({ ...base, hasDrm: true, video: [] as never, audio: withAudio }, true)).toThrow(/DRM/i);
   });
 });
@@ -476,7 +447,6 @@ describe('captureDash — e2e mux', () => {
     expect(tracksOf(res.bytes)).toHaveLength(1);
   });
 
-  // ── audio-only (#204) ──────────────────────────────────────────────────────
   it('audioOnly emits just the audio Representation → single-track .m4a', async () => {
     const res = await captureDash('https://cdn.test/manifest.mpd', deps(), { audioOnly: true });
     expect(res.ext).toBe('m4a');
@@ -504,7 +474,6 @@ describe('captureDash — e2e mux', () => {
   });
 
   it('audioOnly extracts a video-LESS (audio-only) MPD instead of refusing no-representations', async () => {
-    // A podcast/radio-style MPD: only an audio AdaptationSet, no video at all.
     const audioOnlyMpd = VOD_MPD.replace(/<AdaptationSet mimeType="video\/mp4">[\s\S]*?<\/AdaptationSet>/, '');
     const res = await captureDash('https://cdn.test/manifest.mpd', deps(audioOnlyMpd), { audioOnly: true });
     expect(res.ext).toBe('m4a');
@@ -529,7 +498,6 @@ describe('captureDash — e2e mux', () => {
   });
 
   it('throws too-large when the summed bytes exceed maxBytes', async () => {
-    // v_seg1.m4v is ~90 KB; 1000 bytes forces the video track over budget.
     await expect(captureDash('https://cdn.test/manifest.mpd', deps(), { maxBytes: 1000 })).rejects.toMatchObject({
       code: 'too-large',
     });
@@ -554,16 +522,11 @@ describe('captureDash — e2e mux', () => {
   });
 
   it('maps an undecodable mux to unsupported', async () => {
-    // Non-empty garbage passes the init/empty guards but mp4box cannot demux it,
-    // so muxTracks throws and captureDash reports `unsupported`.
     const videoOnly = VOD_MPD.replace(/<AdaptationSet mimeType="audio\/mp4">[\s\S]*?<\/AdaptationSet>/, '');
     const garbage: DashDeps = {
       fetchText: async () => videoOnly,
       fetchBytes: async () => new Uint8Array([1, 2, 3, 4]),
     };
-    // mp4box logs its own BoxParser/ISOFile parse failure to console.error while
-    // rejecting the undecodable bytes — expected on this path (we assert the
-    // rejection), so mute it to keep the test output clean.
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       await expect(captureDash('https://cdn.test/manifest.mpd', garbage)).rejects.toMatchObject({ code: 'unsupported' });
@@ -574,8 +537,6 @@ describe('captureDash — e2e mux', () => {
 
   it('refuses segments a BaseURL aims at an internal host, without fetching them (SSRF guard)', async () => {
     const fetched: string[] = [];
-    // An MPD-level absolute <BaseURL> relocates every segment/init URL to a
-    // link-local host — the classic SSRF target. The guard must block the fetch.
     const internal = VOD_MPD.replace('<Period>', '<BaseURL>http://169.254.169.254/</BaseURL><Period>');
     const d: DashDeps = {
       fetchText: async () => internal,
@@ -586,8 +547,6 @@ describe('captureDash — e2e mux', () => {
   });
 
   it('rejects unsupported when the SegmentTemplate has no initialization segment', () => {
-    // media+duration expand fine, but with no @initialization the video track has
-    // no init segment (initUri stays ''), which fMP4 muxing requires.
     const NO_INIT_MPD = `<?xml version="1.0"?>
 <MPD xmlns="urn:mpeg:dash:schema:mpd:2011" type="static" mediaPresentationDuration="PT6S">
   <Period><AdaptationSet mimeType="video/mp4">
@@ -606,7 +565,6 @@ describe('captureDash — e2e mux', () => {
   });
 
   it('rejects empty when the muxer returns zero bytes', async () => {
-    // muxTracks succeeds (no throw) but yields an empty file — the final guard.
     const spy = vi.spyOn(mux, 'muxTracks').mockReturnValueOnce(new Uint8Array(0));
     try {
       const videoOnly = VOD_MPD.replace(/<AdaptationSet mimeType="audio\/mp4">[\s\S]*?<\/AdaptationSet>/, '');
@@ -619,15 +577,10 @@ describe('captureDash — e2e mux', () => {
     }
   });
 
-  // Bug: fetchDashTrack's `Promise.all(workers)` rejects as soon as ONE worker
-  // throws, but the other in-flight workers keep pulling and fetching NEW
-  // segments over the network — wasted work after the capture has already
-  // failed. Sibling workers must share a cancel signal and stop at the top of
-  // their next loop iteration once it's set.
   it('stops sibling workers from pulling new segments once one fails', async () => {
     vi.useFakeTimers();
     try {
-      const TOTAL = 24; // 4 rounds at the default concurrency of 6
+      const TOTAL = 24;
       const manyMpd = `<?xml version="1.0"?>
 <MPD xmlns="urn:mpeg:dash:schema:mpd:2011" type="static" mediaPresentationDuration="PT${TOTAL * 6}S">
   <Period>
@@ -645,9 +598,7 @@ describe('captureDash — e2e mux', () => {
         fetchBytes: async (u: string) => {
           const name = u.split('/').pop()!;
           calls.push(name);
-          if (name === 'v_seg1.m4v') throw new Error('boom'); // first segment grabbed, fails fast
-          // Every other segment "downloads" after a short delay — long enough
-          // for the failure (and the shared cancel flag) to land first.
+          if (name === 'v_seg1.m4v') throw new Error('boom');
           return new Promise<Uint8Array>((resolve) => setTimeout(() => resolve(new Uint8Array([1])), 10));
         },
       };
@@ -655,15 +606,11 @@ describe('captureDash — e2e mux', () => {
       const p = captureDash('https://cdn.test/manifest.mpd', d);
       const caught = p.catch((e: unknown) => e);
 
-      // Give the sibling workers plenty of virtual time to keep going, if
-      // nothing stops them — enough rounds to drain all 24 segments.
       await vi.advanceTimersByTimeAsync(500);
 
       const err = await caught;
       expect(err).toBeInstanceOf(DashError);
 
-      // Only the in-flight first round (bounded by concurrency=6) should ever
-      // have been fetched; the fix must stop siblings before they pull round 2+.
       expect(calls.length).toBeLessThanOrEqual(6);
       expect(calls.length).toBeLessThan(TOTAL);
     } finally {

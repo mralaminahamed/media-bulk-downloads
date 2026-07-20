@@ -1,9 +1,6 @@
 import { MediaCandidate } from '@mbd/core/resolvers/types';
 import { imageExtFromUrl } from '@mbd/core/collection/mediaType';
 
-// A Lensdump image page (`lensdump.com/i/<id>`) exposes the full-resolution original
-// in its `og:image` meta tag; the media lives on the Lensdump CDN
-// (i*.lensdump.com / w.l3n.co).
 const LENSDUMP_PAGE_RE = /(?:^|\.)lensdump\.com$/i;
 const LENSDUMP_CDN_RE = /(?:^|\.)(?:lensdump\.com|l3n\.co)$/i;
 

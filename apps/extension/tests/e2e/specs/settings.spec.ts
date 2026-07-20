@@ -25,9 +25,9 @@ test.describe('settings panel (draft + Save)', () => {
     await selectTab(page, /Media/i);
     const sw = panel(page).getByRole('switch', { name: /exclude base64 images/i });
     await sw.click();
-    await expect(save(page)).toBeEnabled();     // dirty
-    await sw.click();                            // back to original
-    await expect(save(page)).toBeDisabled();     // clean again
+    await expect(save(page)).toBeEnabled();
+    await sw.click();
+    await expect(save(page)).toBeDisabled();
   });
 
   test('every switch flips its stored value through Save', async ({ context }) => {
@@ -35,10 +35,6 @@ test.describe('settings panel (draft + Save)', () => {
     await openPanel(page);
     await openSettings(page);
 
-    // showImageCount defaults on, the rest off — so assert each flips from its
-    // own initial state rather than assuming they all go to true.
-    // Each entry's optional 3rd element navigates to the tab/Advanced section that
-    // control now lives behind, run once right before that control is first used.
     const switches: Array<[RegExp, string, (() => Promise<void>) | undefined]> = [
       [/ask where to save/i, 'saveAs', undefined],
       [/exclude base64 images/i, 'excludeBase64Images', () => selectTab(page, /Media/i)],
@@ -135,12 +131,12 @@ test.describe('settings panel (draft + Save)', () => {
     await selectTab(page, /Media/i);
     await openAdvanced(page);
     const maxItems = panel(page).getByRole('spinbutton', { name: /max items/i });
-    await maxItems.fill('99999'); // above max 5000
+    await maxItems.fill('99999');
     await maxItems.blur();
     await expect(maxItems).toHaveValue('5000');
 
     const maxTime = panel(page).getByRole('spinbutton', { name: /max time/i });
-    await maxTime.fill('1'); // below min 5
+    await maxTime.fill('1');
     await maxTime.blur();
     await expect(maxTime).toHaveValue('5');
   });
@@ -148,13 +144,13 @@ test.describe('settings panel (draft + Save)', () => {
   test('editing then Save applies "Exclude Base64 images" on the next scan', async ({ context }) => {
     const page = await openBubblePage(context, '/media.html');
     await openPanel(page);
-    expect(await itemCount(page)).toBe(5); // 3 data: SVGs + fbcdn + other host
+    expect(await itemCount(page)).toBe(5);
 
     await openSettings(page);
     await selectTab(page, /Media/i);
     await panel(page).getByRole('switch', { name: /exclude base64 images/i }).click();
     await save(page).click();
-    await expect(panel(page)).toHaveCount(0); // Save closes the panel
+    await expect(panel(page)).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Rescan page' }).click();
     await expectItemCount(page, 2);
@@ -187,12 +183,6 @@ test.describe('settings panel (draft + Save)', () => {
     await openPanel(page);
     await openSettings(page);
     await openAdvanced(page);
-    // Enabling notify optimistically flips on and writes straight to storage
-    // (SET_SETTINGS), so the choice survives the popup closing while the optional
-    // `notifications` prompt is up. This asserts that real background round-trip.
-    // The grant/deny rollback branch is covered deterministically in the unit test
-    // (Settings.test.tsx) — a real permission prompt cannot resolve headlessly, so
-    // its callback never fires here and cannot be exercised end-to-end.
     const notify = panel(page).getByRole('switch', { name: /notify when downloads finish/i });
     await notify.click();
     await expect(notify).toHaveAttribute('aria-checked', 'true');
@@ -205,8 +195,6 @@ test.describe('settings panel (draft + Save)', () => {
     await openSettings(page);
     await selectTab(page, /Data/i);
 
-    // The export routes the JSON through the background's chrome.downloads (not a
-    // page-context download), so assert the in-panel confirmation instead.
     await panel(page).getByRole('button', { name: /export backup/i }).click();
     await expect(panel(page).getByText(/backup exported/i)).toBeVisible();
   });

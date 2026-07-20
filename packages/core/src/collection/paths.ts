@@ -63,7 +63,7 @@ export const toSegment = (value: string): string => sanitizePathSegment(value).r
 export function expandPathTemplate(template: string, tokens: PathTokens): string {
   const filled = template
     .replace(KNOWN_TOKENS, (_match, key: keyof PathTokens) => toSegment(tokens[key] ?? ''))
-    .replace(/\{[^}]*\}/g, ''); // drop unknown tokens rather than leaving braces
+    .replace(/\{[^}]*\}/g, '');
   return sanitizePathSegment(filled);
 }
 

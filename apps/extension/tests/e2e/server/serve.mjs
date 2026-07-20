@@ -1,5 +1,3 @@
-// Minimal static server for the e2e fixture pages. No dependency — Playwright's
-// `webServer` launches this and waits for the port.
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -13,7 +11,6 @@ createServer(async (req, res) => {
   try {
     const { pathname } = new URL(req.url, 'http://localhost');
     const rel = pathname === '/' ? '/media.html' : pathname;
-    // Keep the read inside pagesDir (no traversal).
     const file = normalize(join(pagesDir, rel));
     if (!file.startsWith(pagesDir)) {
       res.writeHead(403).end('forbidden');

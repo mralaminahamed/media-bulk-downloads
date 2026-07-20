@@ -19,30 +19,16 @@ import { IgMediaEntry, extractIgMedia, shortcodeFromUrl, pinIgUrl } from '@mbd/c
 
 const IG_CDN = /(?:^|\.)(?:cdninstagram\.com|fbcdn\.net)$/;
 
-// Sniffed GraphQL/api media accumulates here across the session (SPA navigation
-// keeps the content script alive). Bounded; newest wins.
 const SNIFF_CAP = 4000;
 let sniffed: IgMediaEntry[] = [];
 
-// Media parsed from embedded `<script>` JSON, accumulated across calls. Each
-// script node is parsed exactly once (tracked in `parsedScripts`) so a deep scan
-// re-running collectMedia every scroll round never re-parses the same blocks.
 let parsed: IgMediaEntry[] = [];
 let parsedScripts = new WeakSet<Element>();
-// Monotonic version of `parsed`'s content, bumped on every append. `parsed.length`
-// can't be the cache key: once it pins at SNIFF_CAP each append slices back to the
-// same length, so the key would stop changing while the content rotated (stale
-// cache → freshly-opened posts silently resolve to nothing).
 let parsedVersion = 0;
 
-// `parsed` + `sniffed` grouped by shortcode. Regrouped only when either grows.
 let cache: { key: string; byCode: Map<string, IgMediaEntry[]> } | null = null;
 
 const SHORTCODE = /^[A-Za-z0-9_-]{1,64}$/;
-// The extension flows verbatim into the download filename, so a forged envelope
-// must not smuggle an executable ('exe') or path characters through it. IG serves
-// only images/videos, so restrict to known media extensions; anything else falls
-// back to the kind's default below.
 const EXT = /^(?:jpe?g|png|webp|gif|avif|heic|mp4|mov|webm|m4v)$/i;
 
 /**
@@ -72,9 +58,6 @@ export function ingestSniffedIgMedia(entries: unknown): void {
     clean.push(entry);
   }
   if (!clean.length) return;
-  // Build with a loop, not `push(...clean)`: clean can be as large as the untrusted
-  // `entries` payload, and spreading it as call args can hit the engine's
-  // argument-count limit (RangeError, silently swallowed by the caller's try/catch).
   for (const e of clean) sniffed.push(e);
   if (sniffed.length > SNIFF_CAP) sniffed = sniffed.slice(sniffed.length - SNIFF_CAP);
   cache = null;
@@ -89,27 +72,19 @@ export function __resetIgResolver(): void {
 }
 
 function buildByCode(): Map<string, IgMediaEntry[]> {
-  // Parse only script nodes not seen before — embedded blocks are stable, so a
-  // deep scan's repeated collectMedia calls parse each block once.
   document.querySelectorAll('script[type="application/json"]').forEach((s) => {
     if (parsedScripts.has(s)) return;
     parsedScripts.add(s);
     const text = s.textContent || '';
-    // Cheap guard: only parse blocks that could carry media.
     if (text.indexOf('image_versions2') === -1 && text.indexOf('video_versions') === -1) return;
     try {
       const before = parsed.length;
-      // Build with a loop, not `push(...extractIgMedia(...))`: the extracted list can
-      // be as large as the page's own hydration JSON, and spreading it as call args
-      // can hit the engine's argument-count limit (RangeError, swallowed by this try/catch).
       for (const m of extractIgMedia(JSON.parse(text))) parsed.push(m);
       if (parsed.length !== before) parsedVersion++;
     } catch {
       /* not JSON / not ours — ignore */
     }
   });
-  // Bound `parsed` the same way as `sniffed`: a long SPA session parses many
-  // hydration blocks and would otherwise grow this list without limit (newest wins).
   if (parsed.length > SNIFF_CAP) parsed = parsed.slice(parsed.length - SNIFF_CAP);
 
   const key = `${parsedVersion}|${sniffed.length}`;
@@ -141,8 +116,6 @@ function toCandidate(e: IgMediaEntry): MediaCandidate {
   if (typeof e.width === 'number') cand.width = e.width;
   if (typeof e.height === 'number') cand.height = e.height;
   if (e.kind === 'video' && e.poster) cand.poster = e.poster;
-  // A reels-grid clip we only have the cover for — shown by its poster, not
-  // downloadable until the reel's real mp4 is sniffed (on play/open).
   if (e.pending) cand.unresolvedVideo = true;
   return cand;
 }

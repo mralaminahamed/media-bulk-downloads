@@ -19,8 +19,6 @@ describe('sidecar-writer — completion-driven, filename-matched (#284, I6)', ()
   });
 
   it("names the sidecar from the media file's ACTUAL (uniquified) name, not the requested one", async () => {
-    // The media collided on disk and Chrome saved it as 'image_1 (1).jpg'; the
-    // sidecar must pair with THAT, not the requested 'image_1.jpg' (the I6 bug).
     (chrome.downloads.search as Mock).mockResolvedValueOnce([{ id: 7, filename: '/home/u/Downloads/image_1 (1).jpg' }]);
     scheduleSidecar(7, 'image_1.jpg', '{"pageUrl":"https://s/p"}');
 
@@ -29,7 +27,7 @@ describe('sidecar-writer — completion-driven, filename-matched (#284, I6)', ()
 
     const call = jsonCall();
     expect(call).toBeTruthy();
-    expect(call![0].filename).toBe('image_1 (1).jpg.json'); // NOT image_1.jpg.json
+    expect(call![0].filename).toBe('image_1 (1).jpg.json');
     expect(call![0].saveAs).toBe(false);
     expect(call![0].conflictAction).toBe('uniquify');
     expect(String(call![0].url)).toMatch(/^data:application\/json;base64,/);
@@ -54,7 +52,7 @@ describe('sidecar-writer — completion-driven, filename-matched (#284, I6)', ()
   });
 
   it('ignores completion events for downloads it did not schedule', async () => {
-    scheduleSidecar(1, 'a.jpg', '{}'); // arms the listener; id 1 is the only scheduled one
+    scheduleSidecar(1, 'a.jpg', '{}');
     onChanged()({ id: 999, state: { current: 'complete' } });
     await flush();
     expect(jsonCall()).toBeUndefined();
@@ -64,7 +62,7 @@ describe('sidecar-writer — completion-driven, filename-matched (#284, I6)', ()
     (chrome.downloads.search as Mock).mockResolvedValue([{ id: 5, filename: '/d/a.jpg' }]);
     scheduleSidecar(5, 'a.jpg', '{}');
     onChanged()({ id: 5, state: { current: 'complete' } });
-    onChanged()({ id: 5, state: { current: 'complete' } }); // a duplicate event must not double-write
+    onChanged()({ id: 5, state: { current: 'complete' } });
     await flush();
     const jsonCalls = (chrome.downloads.download as Mock).mock.calls.filter((c) => String(c[0].filename).endsWith('.json'));
     expect(jsonCalls).toHaveLength(1);

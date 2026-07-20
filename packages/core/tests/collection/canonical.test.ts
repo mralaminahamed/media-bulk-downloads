@@ -1,8 +1,6 @@
 import { canonicalSrcKey, SrcKeySet } from '@mbd/core/collection/canonical';
 
 describe('canonicalSrcKey', () => {
-  // Two loads of the SAME Facebook photo: different edge PoP host AND different
-  // signed query (oh/oe/_nc_*), same path.
   const fbA = 'https://scontent-del3-1.xx.fbcdn.net/v/t15.5256-10/739312998_4473652832891496_6461361541517645187_n.jpg?stp=dst-jpg_tt6&_nc_ohc=AAA&oh=00_ONE&oe=6A52D851';
   const fbB = 'https://scontent-bom1-2.xx.fbcdn.net/v/t15.5256-10/739312998_4473652832891496_6461361541517645187_n.jpg?stp=dst-jpg_s960x960&_nc_ohc=BBB&oh=00_TWO&oe=6B00FFFF';
 
@@ -55,20 +53,14 @@ describe('canonicalSrcKey', () => {
   });
 
   it('collapses size/transform variants of the same dynamic image (universal, any host)', () => {
-    // Gravatar: the avatar hash in the path is the identity; ?s= only picks a
-    // size, so every size of the same avatar must key identically — the fix that
-    // makes exclude/dedup work on any host, not just the fbcdn special case.
     const s52 = canonicalSrcKey('https://secure.gravatar.com/avatar/d8e25969?s=52&d=mm&r=g');
     const s96 = canonicalSrcKey('https://secure.gravatar.com/avatar/d8e25969?s=96&d=mm&r=g');
     expect(s52).toBe(s96);
-    // a generic sized CDN endpoint collapses across w/h/quality too
     expect(canonicalSrcKey('https://img.site.com/render?id=7&w=200&h=200&q=80'))
       .toBe(canonicalSrcKey('https://img.site.com/render?id=7&w=1600&h=1600&q=40'));
   });
 
   it('keeps genuinely different dynamic images distinct despite the transform strip', () => {
-    // Only size/format params are stripped — a differing identity param (id) must
-    // still split the key, so two different avatars/renditions never merge.
     expect(canonicalSrcKey('https://img.site.com/render?id=7&w=200'))
       .not.toBe(canonicalSrcKey('https://img.site.com/render?id=8&w=200'));
   });
@@ -161,7 +153,6 @@ describe('SRC_KEY_RULES cross-CDN families', () => {
     const key = (s: string) => canonicalSrcKey(s);
     const md5 = '2620d86cb72802a5dcd9e1e189b75e64';
     const id = `sankakucomplex.com/data/${md5}`;
-    // Same post, three tiers, different folders + exts + signed tokens.
     expect(key(`https://v.sankakucomplex.com/data/26/20/${md5}.jpg?e=1&expires=1&m=a&token=b`)).toBe(id);
     expect(key(`https://v.sankakucomplex.com/data/preview/26/20/${md5}.avif?e=2&expires=2&m=c&token=d`)).toBe(id);
     expect(key(`https://s.sankakucomplex.com/data/sample/26/20/${md5}.jpg?e=3&expires=3&m=e&token=f`)).toBe(id);
@@ -171,7 +162,6 @@ describe('SRC_KEY_RULES cross-CDN families', () => {
     const a = 'https://v.sankakucomplex.com/data/26/20/2620d86cb72802a5dcd9e1e189b75e64.jpg';
     const b = 'https://v.sankakucomplex.com/data/11/23/1123a36e511a4172e0e3bd899361c9c6.jpg';
     expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
-    // Analytics host matches the domain but carries no md5 stem → rule must not claim it.
     expect(canonicalSrcKey('https://a.sankakucomplex.com/piwik.php?idsite=1'))
       .not.toMatch(/^sankakucomplex\.com\/data\//);
   });
@@ -180,7 +170,6 @@ describe('SRC_KEY_RULES cross-CDN families', () => {
     const md5 = '2620d86cb72802a5dcd9e1e189b75e64';
     const mp4 = `https://v.sankakucomplex.com/data/26/20/${md5}.mp4?e=1&expires=1&m=a&token=b`;
     const poster = `https://v.sankakucomplex.com/data/preview/26/20/${md5}.jpg?e=2&expires=2&m=c&token=d`;
-    // A video original must not collapse into its same-md5 poster.
     expect(canonicalSrcKey(mp4)).not.toBe(canonicalSrcKey(poster));
     expect(canonicalSrcKey(mp4)).not.toMatch(/^sankakucomplex\.com\/data\/[0-9a-f]{32}$/);
   });
@@ -189,7 +178,6 @@ describe('SRC_KEY_RULES cross-CDN families', () => {
     const key = (s: string) => canonicalSrcKey(s);
     const tok = 'notes_pre_post/1040g3k8321i4pbs37k7g5o5dgbqgbkc6gdrpq90';
     const id = `xhscdn.com/${tok}`;
-    // Feed cover, opened detail, and a re-signed detail copy — different ts/hash/rendition.
     expect(key(`https://sns-webpic-qc.xhscdn.com/202607170814/45adde89ae6c42409ccefc665e8ab669/${tok}!nc_n_webp_mw_1`)).toBe(id);
     expect(key(`https://sns-webpic-qc.xhscdn.com/202607170815/c553a9123d3598f16f0907b31b6f57a5/${tok}!nd_dft_wlteh_webp_3`)).toBe(id);
     expect(key(`https://sns-webpic-qc.xhscdn.com/202607180900/d9635405b52636af1de8a4a6aa511469/${tok}!nd_dft_wlteh_webp_3`)).toBe(id);
@@ -211,15 +199,9 @@ describe('SRC_KEY_RULES cross-CDN families', () => {
     const a = `https://sns-webpic-qc.xhscdn.com/202607170815/${H}/notes_pre_post/1040aaaa!nd_dft_webp_3`;
     const b = `https://sns-webpic-qc.xhscdn.com/202607170815/${H}/notes_pre_post/1040bbbb!nd_dft_webp_3`;
     expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
-    // No /<ts>/<hash>/ signed prefix → rule must not claim it.
     expect(canonicalSrcKey('https://ci.xiaohongshu.com/static/logo.png'))
       .not.toMatch(/^xhscdn\.com\//);
-    // Same host as the signed CDN, but missing the /<ts>/<hash>/ prefix → falls
-    // through to generic keying, not folded under an xhscdn.com/... key.
     expect(canonicalSrcKey('https://sns-webpic-qc.xhscdn.com/static/logo.png')).toBe('sns-webpic-qc.xhscdn.com/static/logo.png');
-    // Look-alike hosts (non-boundary prefix, or the CDN name as a left-label of a
-    // different domain) must NOT be claimed by the fileId rule, even with a valid
-    // signed path — the host regex is dot-boundary + end anchored.
     const signed = `/202607170815/${H}/notes_pre_post/1040aaaa!nd_dft_webp_3`;
     expect(canonicalSrcKey(`https://evil-xhscdn.com${signed}`)).not.toMatch(/^xhscdn\.com\//);
     expect(canonicalSrcKey(`https://rednotecdn.com.evil.com${signed}`)).not.toMatch(/^xhscdn\.com\//);
@@ -274,8 +256,6 @@ describe('SRC_KEY_RULES cross-CDN families', () => {
   });
 
   it('still keeps a single-token look-alike folder distinct (not a real transform key)', () => {
-    // "my_folder" has the key_value SHAPE but "my" is not a real Cloudinary
-    // transform key, so it must not be stripped (guards against over-collapse).
     const a = 'https://res.cloudinary.com/demo/image/upload/my_folder/hero.jpg';
     const b = 'https://res.cloudinary.com/demo/image/upload/hero.jpg';
     expect(canonicalSrcKey(a)).not.toBe(canonicalSrcKey(b));
@@ -304,11 +284,11 @@ describe('canonicalSrcKey — MEDIA_EXT coverage (bug #2)', () => {
 
 describe('SrcKeySet', () => {
   const fbA = 'https://scontent-del3-1.xx.fbcdn.net/v/t15/739_444_661_n.jpg?oh=ONE&oe=A';
-  const fbB = 'https://scontent-bom1-2.xx.fbcdn.net/v/t15/739_444_661_n.jpg?oh=TWO&oe=B'; // same image, new host+query
+  const fbB = 'https://scontent-bom1-2.xx.fbcdn.net/v/t15/739_444_661_n.jpg?oh=TWO&oe=B';
 
   it('matches a src by any of its CDN variants', () => {
     const s = SrcKeySet.from([fbA]);
-    expect(s.has(fbB)).toBe(true); // recognized despite host+query change
+    expect(s.has(fbB)).toBe(true);
     expect(s.has('https://scontent-x.xx.fbcdn.net/v/t15/OTHER_n.jpg?oh=Z')).toBe(false);
   });
 
@@ -319,10 +299,10 @@ describe('SrcKeySet', () => {
   it('withAdded / withoutSrc are immutable and canonicalize', () => {
     const base = new SrcKeySet();
     const added = base.withAdded(fbA);
-    expect(base.size).toBe(0); // original untouched
+    expect(base.size).toBe(0);
     expect(added.has(fbB)).toBe(true);
-    const removed = added.withoutSrc(fbB); // remove via a different variant
+    const removed = added.withoutSrc(fbB);
     expect(removed.has(fbA)).toBe(false);
-    expect(added.has(fbA)).toBe(true); // withoutSrc didn't mutate `added`
+    expect(added.has(fbA)).toBe(true);
   });
 });

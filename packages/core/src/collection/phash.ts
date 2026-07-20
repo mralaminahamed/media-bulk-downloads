@@ -12,8 +12,8 @@
  * worker produces it via OffscreenCanvas). Everything here is unit-testable.
  */
 
-const SIZE = 32; // downscaled edge the DCT runs on
-const LOW = 8; // top-left low-frequency block kept for the hash (8×8 = 64 bits)
+const SIZE = 32;
+const LOW = 8;
 
 /**
  * Default Hamming threshold for "near-duplicate" on a 64-bit DCT pHash. A faithful
@@ -47,8 +47,6 @@ export function computePHash(gray: readonly number[]): string {
     throw new Error(`computePHash expects ${SIZE * SIZE} samples, got ${gray.length}`);
   }
 
-  // Separable 2-D DCT-II, computing only the LOW×LOW top-left block.
-  // Row pass: rows[x][v] = Σ_y gray[x][y]·cos_v(y) for v ∈ [0, LOW).
   const rows: number[][] = [];
   for (let x = 0; x < SIZE; x++) {
     const base = x * SIZE;
@@ -61,7 +59,6 @@ export function computePHash(gray: readonly number[]): string {
     }
     rows.push(out);
   }
-  // Column pass: block[u][v] = Σ_x rows[x][v]·cos_u(x).
   const coeffs = new Array<number>(LOW * LOW);
   for (let u = 0; u < LOW; u++) {
     const cu = cosTable[u];
@@ -72,15 +69,9 @@ export function computePHash(gray: readonly number[]): string {
     }
   }
 
-  // Threshold against the median of the 63 AC coefficients (drop the DC term at
-  // [0,0] — it carries overall brightness and would skew the median). Excluding DC
-  // also makes the hash invariant to a global brightness offset: a constant added
-  // to every pixel moves only the DC coefficient, leaving all AC bits unchanged.
   const ac = coeffs.slice(1).sort((a, b) => a - b);
-  const median = ac[(ac.length - 1) / 2]; // 63 values → exact middle at index 31
+  const median = ac[(ac.length - 1) / 2];
 
-  // 64 bits, MSB-first, packed 4-per-hex-nibble. The DC bit is included (always
-  // above the AC median → constant), keeping the hash a fixed 64 bits.
   let hex = '';
   for (let nib = 0; nib < 16; nib++) {
     let v = 0;

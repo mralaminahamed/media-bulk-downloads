@@ -2,11 +2,6 @@ import { MediaCandidate, Resolver, ResolveContext } from '@mbd/core/resolvers/ty
 import { imageExtFromUrl } from '@mbd/core/collection/mediaType';
 import { parseSrcset } from '@mbd/core/collection/imageUrl';
 
-// Onedio image CDN. Rendition path shape:
-//   /id-<hex>/rev-<n>/w-<width>[/h-<height>]/f-<fmt>/s-<sig>.<ext>
-// <hex> is a per-photo id shared by every width/format rendition of one photo;
-// <width>/<height> are the pixel dimensions; <sig> signs THIS exact rendition —
-// so a fabricated width 404s, every offered size is separately pre-signed.
 const ONEDIO_HOST = /^img-s\d+\.onedio\.com$/i;
 const ONEDIO_IMG = /^\/id-([0-9a-f]+)\/rev-\d+\/w-(\d+)(?:\/h-(\d+))?\/f-[a-z0-9]+\/s-[0-9a-f]+\.[a-z0-9]+$/i;
 
@@ -52,8 +47,6 @@ export const onedioResolver: Resolver = {
     const input = parseOnedio(u.href);
     if (!input) return [];
 
-    // Widen to the largest same-<id> rendition offered by this element's srcset
-    // (and, for a <picture>, its sibling <source>s). Only same-id, only wider.
     let best = input;
     const el = ctx.el;
     if (el && typeof el.getAttribute === 'function') {

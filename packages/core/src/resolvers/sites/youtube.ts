@@ -17,11 +17,8 @@ import { MediaCandidate, Resolver } from '@mbd/core/resolvers/types';
  * synthesizing them would hand back dead links (same reasoning as #74).
  */
 
-// YouTube video ids are exactly 11 chars of [A-Za-z0-9_-].
 const ID_RE = /^[A-Za-z0-9_-]{11}$/;
 
-// Hosts that serve a watch/embed page (NOT the i.ytimg thumbnail CDN — those
-// stay with the generic resolver's existing CDN-upgrade rule, see registry test).
 const PAGE_HOSTS = new Set([
   'youtube.com',
   'www.youtube.com',
@@ -32,8 +29,6 @@ const PAGE_HOSTS = new Set([
   'www.youtube-nocookie.com',
 ]);
 
-// Path forms that carry the id as the segment after a known prefix:
-//   /embed/ID  /shorts/ID  /live/ID  /v/ID  /e/ID
 const PATH_ID_RE = /^\/(?:embed|shorts|live|v|e)\/([A-Za-z0-9_-]{11})(?:[/?#]|$)/;
 
 /**
@@ -50,7 +45,6 @@ export function youtubeVideoId(raw: string | URL): string | null {
   }
   const host = u.hostname.toLowerCase();
 
-  // youtu.be/<id>  (short-link form; id is the first path segment)
   if (host === 'youtu.be') {
     const id = u.pathname.slice(1).split('/')[0];
     return ID_RE.test(id) ? id : null;
@@ -58,7 +52,6 @@ export function youtubeVideoId(raw: string | URL): string | null {
 
   if (!PAGE_HOSTS.has(host)) return null;
 
-  // /watch?v=ID (also YouTube Music) — the ?v param wins even alongside &list=.
   const v = u.searchParams.get('v');
   if (v && ID_RE.test(v)) return v;
 

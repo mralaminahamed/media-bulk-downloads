@@ -11,19 +11,10 @@
  * NOT redacted — callers handling such URLs must treat the path itself as sensitive.
  */
 
-// Query-param NAMES that carry auth material. Case-insensitive so CloudFront's
-// `Signature`/`Expires`/`Key-Pair-Id`/`Policy` and lowercase variants both match.
-// We strip aggressively: a leaked signing token is far worse than a URL that
-// needs re-authentication.
 const SECRET_PARAM_EXACT =
   /^(?:__)?(?:token|access[-_]?token|auth|authorization|apikey|api[-_]?key|key|keyid|key[-_]?pair[-_]?id|sig|signature|signed|sign|hmac|secret|policy|credential|expires?|expiry|hdnts|hdnea|nva|nvb)(?:__)?$/i;
-// Whole presigned-URL families: any member means the URL is signed, so drop
-// every `x-amz-*` / `x-goog-*` param (AWS SigV4, GCS).
 const SECRET_PARAM_PREFIX = /^(?:x-amz-|x-goog-)/i;
 
-// Some hosts sign with ultra-short param names (Sankaku's `e` + `m`, the latter an
-// HMAC) that are far too common to strip globally — `e`/`m` are benign params on
-// countless other hosts. Strip them only for the matching host family.
 const HOST_SCOPED_SECRETS: ReadonlyArray<{ host: RegExp; params: ReadonlySet<string> }> = [
   { host: /(?:^|\.)sankakucomplex\.com$/i, params: new Set(['e', 'm']) },
 ];
@@ -31,9 +22,6 @@ const HOST_SCOPED_SECRETS: ReadonlyArray<{ host: RegExp; params: ReadonlySet<str
 const isSecretParam = (name: string): boolean =>
   SECRET_PARAM_EXACT.test(name) || SECRET_PARAM_PREFIX.test(name);
 
-// A PATH segment that is an Akamai-style token rather than a real path component:
-// a `~`-joined key=value list carrying an auth-ish key (`exp=…~acl=…~hmac=…`). The
-// `~` + a signing key is high-signal, so false positives on real paths are near zero.
 const PATH_TOKEN_KEY = /(?:^|~)(?:exp|st|acl|hmac|hdnts?|hdnea?|token|sig|signature|nva|nvb)=/i;
 const isTokenSegment = (seg: string): boolean => seg.includes('~') && PATH_TOKEN_KEY.test(seg);
 

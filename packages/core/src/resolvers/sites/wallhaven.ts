@@ -22,14 +22,8 @@ function idFrom(u: URL, ctx: ResolveContext): string | null {
   if (m) return m[1];
 
   const fig = ctx.el?.closest?.('figure') as HTMLElement | null;
-  // Both grid-DOM fallbacks are page-controlled and get interpolated into a URL
-  // path, so require the real id shape (alphanumeric) — a value with '/', '?', or
-  // '..' could bend the constructed wallhaven URL.
-  // (a) The figure's `data-wallpaper-id`.
   const dataId = fig?.dataset?.wallpaperId;
   if (dataId && /^[a-z0-9]+$/i.test(dataId)) return dataId;
-  // (b) The figure's preview link (`a.preview` -> `/w/<id>`) — a second source when
-  //     the id attribute is absent. The `[a-z0-9]+` capture is inherently id-shaped.
   const href = fig?.querySelector?.('a.preview')?.getAttribute?.('href') ?? '';
   const hm = href.match(/\/w\/([a-z0-9]+)(?:[/?#]|$)/i);
   return hm ? hm[1] : null;
@@ -45,9 +39,6 @@ function extFrom(ctx: ResolveContext, id: string): 'jpg' | 'png' | 'gif' | null 
   const idMatches = (m: RegExpMatchArray | null | undefined): 'jpg' | 'png' | 'gif' | null =>
     m && m[1].toLowerCase() === id.toLowerCase() ? (m[2].toLowerCase() as 'jpg' | 'png' | 'gif') : null;
 
-  // (1) A full <img> carrying this id — the element itself, or the /w/<id> detail
-  //     page's unique #wallpaper. Id-scoped, so a sibling wallpaper's full <img>
-  //     can't leak. (The old document-wide `img[src*=/full/]` selector did leak.)
   const own = ((el.getAttribute?.('src') || '') + ' ' + (el.getAttribute?.('data-src') || '')).match(FULL_SRC);
   const byOwn = idMatches(own);
   if (byOwn) return byOwn;
@@ -55,15 +46,13 @@ function extFrom(ctx: ResolveContext, id: string): 'jpg' | 'png' | 'gif' | null 
   const byMain = idMatches(main);
   if (byMain) return byMain;
 
-  // (2) The PNG/GIF badge on grid figures (`span.png` / `span.gif`, confirmed live);
-  //     Wallhaven only badges non-jpg, so an unbadged figure is genuinely jpg.
   const fig = el.closest?.('figure');
   if (fig) {
     if (fig.querySelector('span.png')) return 'png';
     if (fig.querySelector('span.gif')) return 'gif';
     return 'jpg';
   }
-  return null; // bare thumb, no context -> Phase 2 probe
+  return null;
 }
 
 /** Real wallpaper dimensions from the grid figure's resolution label
@@ -87,12 +76,8 @@ export const wallhavenResolver: Resolver = {
     if (!id) return [];
     const dims = dimsFrom(ctx);
     const ext = extFrom(ctx, id);
-    // Sharper-but-lightweight grid preview: a tiny /small/ thumb bumps up to /lg/.
     const thumbnailSrc = upgradeThumb(u.href, 'lg');
     if (!ext) {
-      // No DOM extension evidence: hand back the largest guaranteed-existing jpg
-      // (/orig/) as the downloadable and tag for opt-in exact resolve — never a
-      // blind w.wallhaven.cc full-file URL that could 404 for a png.
       return [{ url: upgradeThumb(u.href, 'orig'), kind: 'image', thumbnailSrc, resolveHint: { platform: 'wallhaven', id }, ...(dims ?? {}) }];
     }
     const ab = id.slice(0, 2);

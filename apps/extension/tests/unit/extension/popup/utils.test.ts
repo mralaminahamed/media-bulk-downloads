@@ -55,9 +55,6 @@ describe('utils', () => {
       await expect(getImageFileSize('https://example.com/a.png')).resolves.toBe(4096);
     });
 
-    // SSRF guard (2026-07-15 audit): a page-controlled img.src pointing at an
-    // internal/loopback host must never reach fetch — this HEAD is fired
-    // automatically by enrichImageSizes on every popup open.
     it('returns 0 WITHOUT calling fetch when the URL targets a blocked host (cloud metadata)', async () => {
       global.fetch = vi.fn() as unknown as typeof fetch;
 
@@ -87,7 +84,6 @@ describe('utils', () => {
       vi.restoreAllMocks();
     });
 
-    // Same SSRF guard, applied to the near-duplicate pass's byte-fetch path.
     it('returns null WITHOUT calling fetch when the URL targets a blocked host', async () => {
       global.fetch = vi.fn() as unknown as typeof fetch;
 
@@ -243,7 +239,6 @@ describe('utils', () => {
       expect(relativeTime(now - 90_000)).toBe('1m');
       expect(relativeTime(now - 3 * 3600_000)).toBe('3h');
       expect(relativeTime(now - 2 * 86400_000)).toBe('2d');
-      // beyond a week → an absolute date (not one of the compact tokens)
       expect(relativeTime(now - 10 * 86400_000)).not.toMatch(/^(now|\d+[mhd])$/);
     });
 

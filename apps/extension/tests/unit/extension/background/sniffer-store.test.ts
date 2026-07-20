@@ -6,19 +6,14 @@ describe('resolveOriginalsBatch default deps', () => {
     let n = 0;
     const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
       n++;
-      // First call 503 (transient), then a minimal tweet-result JSON the
-      // resolver accepts (empty mediaDetails is fine — this test only cares
-      // that the default fetch retries the transient, not the resolved value).
       if (n === 1) return new Response('', { status: 503 });
       return new Response(JSON.stringify({}), { status: 200 });
     });
     try {
-      // A Twitter photo hint routes through network.ts's twitter() -> deps.fetch
-      // (the wrapped default), proving the default resolver fetch is retried.
       await resolveOriginalsBatch([
         { src: 'https://pbs.twimg.com/media/A.jpg', hint: { platform: 'twitter', id: 'photo 1 1' } },
       ]);
-      expect(n).toBeGreaterThanOrEqual(2); // the 503 was retried
+      expect(n).toBeGreaterThanOrEqual(2);
     } finally {
       spy.mockRestore();
     }
@@ -45,11 +40,9 @@ describe('resolveOriginalsBatch authed gate', () => {
 
   it('aborts an authed batch after repeated failure with no successes', async () => {
     const spy = vi.fn(fail);
-    // Distinct ids → distinct detail URLs, so memoizeFetch does NOT collapse them
-    // and each is a real attempt; the early-abort must stop before all 8 fire.
     const hints = Array.from({ length: 8 }, (_, n) => h(`p${n}`, 'sankaku', `id${n}aaaaaaaa`));
     const out = await resolveOriginalsBatch(hints, { fetch: spy as unknown as typeof fetch }, undefined, true);
     expect(out).toEqual({});
-    expect(spy.mock.calls.length).toBeLessThan(8); // stopped early, did not hammer all 8
+    expect(spy.mock.calls.length).toBeLessThan(8);
   });
 });

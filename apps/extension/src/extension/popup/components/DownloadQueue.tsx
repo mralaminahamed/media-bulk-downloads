@@ -4,8 +4,6 @@ import { loadQueue, QUEUE_KEY, type QueueState } from '@mbd/storage/download-que
 import { sendRuntimeMessage } from '@/extension/popup/utils';
 import { QueueRow } from '@/extension/popup/components/QueueRow';
 
-// Persisted in chrome.storage.local so the collapsed choice survives the popup
-// remounting on every reopen (a long queue would otherwise re-expand each time).
 const COLLAPSE_KEY = 'downloadQueueCollapsed';
 
 /**
@@ -46,15 +44,12 @@ export function DownloadQueue() {
   const failed = items.filter((i) => i.status === 'failed').length;
   const finished = items.filter((i) => i.status === 'done' || i.status === 'failed').length;
 
-  // Overall bar: bytes-weighted across items whose size is known, else done/total.
   const sized = items.filter((i) => i.totalBytes && i.totalBytes > 0);
   const overallPct = sized.length
     ? Math.round((sized.reduce((a, i) => a + Math.min(i.bytesReceived ?? 0, i.totalBytes as number), 0) /
         sized.reduce((a, i) => a + (i.totalBytes as number), 0)) * 100)
     : Math.round((done / items.length) * 100);
 
-  // Requesting an optional permission must happen in a user gesture — do it here
-  // on the click, then message the background to retry with the Referer rewrite.
   const retryWithReferer = async (id: string) => {
     const granted = await chrome.permissions.request({ permissions: ['declarativeNetRequestWithHostAccess'] });
     if (granted) sendRuntimeMessage({ type: 'QUEUE_RETRY', id, referer: true });

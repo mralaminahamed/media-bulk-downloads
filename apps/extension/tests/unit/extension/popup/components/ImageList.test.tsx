@@ -39,7 +39,6 @@ describe('ImageList Component', () => {
     const onDownload = vi.fn();
     render(<ImageList images={mockImages} onImageDownload={onDownload} />);
     fireEvent.click(screen.getAllByTitle('View Details')[0]);
-    // The modal's download button is the only one with visible text.
     fireEvent.click(screen.getByText('Download'));
     expect(onDownload).toHaveBeenCalledWith(mockImages[0]);
   });
@@ -47,10 +46,8 @@ describe('ImageList Component', () => {
   it('keeps the previewed item when the list reorders underneath it (tracks by src)', () => {
     const onDownload = vi.fn();
     const { rerender } = render(<ImageList images={mockImages} onImageDownload={onDownload} />);
-    fireEvent.click(screen.getAllByTitle('View Details')[0]); // preview mockImages[0]
-    // The list re-sorts async (e.g. streamed sizes): mockImages[0] moves to the end.
+    fireEvent.click(screen.getAllByTitle('View Details')[0]);
     rerender(<ImageList images={[mockImages[1], mockImages[0]]} onImageDownload={onDownload} />);
-    // The modal still acts on the originally-previewed item, not whatever is now index 0.
     fireEvent.click(screen.getByText('Download'));
     expect(onDownload).toHaveBeenCalledWith(mockImages[0]);
   });
@@ -59,7 +56,6 @@ describe('ImageList Component', () => {
     const { rerender } = render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
     fireEvent.click(screen.getAllByTitle('View Details')[0]);
     expect(screen.getByText('Preview')).toBeInTheDocument();
-    // A re-filter removes mockImages[0]; the modal must not linger on a gone item.
     rerender(<ImageList images={[mockImages[1]]} onImageDownload={vi.fn()} />);
     expect(screen.queryByText('Preview')).not.toBeInTheDocument();
   });
@@ -73,11 +69,9 @@ describe('ImageList Component', () => {
     const { rerender } = render(<ImageList images={[pending]} onImageDownload={vi.fn()} onFetchVideo={onFetchVideo} />);
     fireEvent.click(screen.getByTitle('View Details'));
 
-    // Idle: the modal offers "Get video" and wires the per-item fetch.
     fireEvent.click(screen.getByText('Get video'));
     expect(onFetchVideo).toHaveBeenCalledWith(pending);
 
-    // In flight (e.g. during a bulk "Get all videos"): the modal shows Fetching….
     rerender(
       <ImageList images={[pending]} onImageDownload={vi.fn()} onFetchVideo={onFetchVideo} fetchingSrcs={new Set(['poster.jpg'])} />,
     );
@@ -94,7 +88,6 @@ describe('ImageList Component', () => {
     render(<ImageList images={[reel]} onImageDownload={vi.fn()} />);
     expect(screen.getByText('play to fetch')).toBeInTheDocument();
     expect(screen.queryByText("can't fetch")).not.toBeInTheDocument();
-    // No download / Get-video button on a pending reel (no resolveHint).
     expect(screen.queryByTitle('Download')).not.toBeInTheDocument();
     expect(screen.queryByTitle('Get video')).not.toBeInTheDocument();
   });
@@ -137,9 +130,7 @@ describe('ImageList Component', () => {
       poster: 'https://ex.com/p.jpg',
     }];
     render(<ImageList images={media} onImageDownload={() => {}} />);
-    // poster used as the tile image
     expect(screen.getByRole('img', { name: 'Clip' })).toHaveAttribute('src', 'https://ex.com/p.jpg');
-    // open preview → <video> present
     await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
     expect(document.querySelector('video')).toBeTruthy();
   });
@@ -238,18 +229,10 @@ describe('ImageList Component', () => {
 
     it('renders a pending placeholder for an unresolvedImage item (no status-URL <img>)', () => {
       const { container } = render(<ImageList images={[pendingImage]} onImageDownload={vi.fn()} />);
-      // Raw DOM query, not screen.getByRole('img'): the pending fixture's alt is
-      // '', so an <img alt=""> carries NO ARIA img role and a role-based query
-      // would return 0 results even if a regression reintroduced
-      // <img src="https://x.com/...">. Query the actual DOM instead so this guard
-      // can fail.
       const tileImgs = Array.from(container.querySelectorAll('img'));
       expect(tileImgs.some((img) => (img.getAttribute('src') ?? '').includes('x.com/'))).toBe(false);
       expect(tileImgs).toHaveLength(0);
-      // Same pending affordance a pending video gets: an eyebrow label (it carries
-      // a resolveHint, so it reads "not fetched", matching the video case).
       expect(screen.getByText('not fetched')).toBeInTheDocument();
-      // No manual fetch/download action — pending images resolve automatically.
       expect(screen.queryByTitle('Download')).not.toBeInTheDocument();
       expect(screen.queryByTitle('Get video')).not.toBeInTheDocument();
     });
@@ -260,8 +243,6 @@ describe('ImageList Component', () => {
     });
 
     it('still mounts the tile (View Details action) for a pending image, despite it emitting no <img>', () => {
-      // Sanity check that a pending image is rendered at all (tile present) even
-      // though it contributes no <img> — the figure/tile itself still mounts.
       render(<ImageList images={[pendingImage]} onImageDownload={vi.fn()} />);
       expect(screen.getByRole('button', { name: 'View Details' })).toBeInTheDocument();
     });
@@ -302,9 +283,6 @@ describe('ImageList Component', () => {
       render(<ImageList images={[pendingImage]} onImageDownload={vi.fn()} />);
       await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
       const dialog = screen.getByRole('dialog');
-      // A pending image has no poster (unlike a pending video) — the preview must
-      // degrade gracefully, not render a broken/placeholder <img>. Raw DOM query
-      // for the same reason as the tile assertion above (alt='' has no img role).
       const dialogImgs = Array.from(dialog.querySelectorAll('img'));
       expect(dialogImgs.some((img) => (img.getAttribute('src') ?? '').includes('x.com/'))).toBe(false);
       expect(dialogImgs).toHaveLength(0);
@@ -333,11 +311,9 @@ describe('ImageList Component', () => {
       const boxes = screen.getAllByRole('checkbox');
       expect(boxes).toHaveLength(2);
 
-      // Plain click sets the range anchor and toggles that one item.
       fireEvent.click(boxes[0]);
       expect(onToggleSelect).toHaveBeenCalledWith(mockImages[0]);
 
-      // Shift-click extends from the anchor (0) to the clicked index (1).
       fireEvent.click(boxes[1], { shiftKey: true });
       expect(onSelectRange).toHaveBeenCalledWith(mockImages);
     });
@@ -345,7 +321,6 @@ describe('ImageList Component', () => {
     it('renders no selection checkbox on an HLS/DASH stream tile (captured individually)', () => {
       const hls = { src: 'https://x/live.m3u8', alt: '', width: 0, height: 0, type: 'm3u8', fileSize: 0, isBase64: false, kind: 'video' as const, hlsManifest: 'https://x/live.m3u8' };
       render(<ImageList images={[hls]} onImageDownload={vi.fn()} onToggleSelect={vi.fn()} />);
-      // The App selection guards skip hlsManifest, so an inert checkbox must not render.
       expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     });
 
@@ -355,8 +330,8 @@ describe('ImageList Component', () => {
         <ImageList images={mockImages} onImageDownload={vi.fn()} onToggleSelect={vi.fn()} onSelectRange={onSelectRange} />,
       );
       const boxes = screen.getAllByRole('checkbox');
-      fireEvent.click(boxes[1]); // anchor = 1
-      fireEvent.click(boxes[0], { shiftKey: true }); // anchor(1) > index(0) → [0, 1]
+      fireEvent.click(boxes[1]);
+      fireEvent.click(boxes[0], { shiftKey: true });
       expect(onSelectRange).toHaveBeenCalledWith(mockImages);
     });
 
@@ -382,7 +357,6 @@ describe('ImageList Component', () => {
       fireEvent.keyDown(window, { key: 'ArrowLeft' });
       expect(screen.getByText('1 / 2')).toBeInTheDocument();
 
-      // Clamps at the ends — ArrowLeft on the first image is a no-op.
       fireEvent.keyDown(window, { key: 'ArrowLeft' });
       expect(screen.getByText('1 / 2')).toBeInTheDocument();
     });
@@ -398,9 +372,9 @@ describe('ImageList Component', () => {
 
     it('clamps arrow paging at the last image', () => {
       render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
-      fireEvent.click(screen.getAllByTitle('View Details')[1]); // open on the last image
+      fireEvent.click(screen.getAllByTitle('View Details')[1]);
       expect(screen.getByText('2 / 2')).toBeInTheDocument();
-      fireEvent.keyDown(window, { key: 'ArrowRight' }); // no-op past the end
+      fireEvent.keyDown(window, { key: 'ArrowRight' });
       expect(screen.getByText('2 / 2')).toBeInTheDocument();
     });
 
@@ -413,7 +387,6 @@ describe('ImageList Component', () => {
       fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /add favourite/i }));
       expect(onToggleFavourite).toHaveBeenCalledWith(mockImages[0]);
 
-      // When already saved, the same header control reads "Remove favourite".
       rerender(
         <ImageList images={mockImages} onImageDownload={vi.fn()} onToggleFavourite={onToggleFavourite} favouriteSrcs={SrcKeySet.from([mockImages[0].src])} />,
       );
@@ -445,9 +418,6 @@ describe('ImageList Component', () => {
     it('excludes the whole host and closes the modal', () => {
       const onExclude = vi.fn();
       openMenu(onExclude);
-      // The site item is a two-line label: "Exclude site" + the registrable
-      // domain on a muted second line, so the accessible name is
-      // "Exclude site example.com" (cdn.example.com reduces to example.com).
       const hostItem = screen.getByRole('menuitem', { name: /exclude site/i });
       expect(hostItem).toHaveTextContent('example.com');
       fireEvent.click(hostItem);
@@ -469,9 +439,9 @@ describe('ImageList Component', () => {
 
       fireEvent.keyDown(menu, { key: 'ArrowDown' });
       expect(host).toHaveFocus();
-      fireEvent.keyDown(menu, { key: 'ArrowDown' }); // wraps to first
+      fireEvent.keyDown(menu, { key: 'ArrowDown' });
       expect(url).toHaveFocus();
-      fireEvent.keyDown(menu, { key: 'ArrowUp' }); // wraps to last
+      fireEvent.keyDown(menu, { key: 'ArrowUp' });
       expect(host).toHaveFocus();
       fireEvent.keyDown(menu, { key: 'Home' });
       expect(url).toHaveFocus();
@@ -488,8 +458,6 @@ describe('ImageList Component', () => {
 
     it('closes only the exclude menu on Escape, keeping the modal open', () => {
       openMenu(vi.fn());
-      // Escape is handled on a capture-phase document listener that stops
-      // propagation, so the dialog's own Escape-to-close never fires.
       fireEvent.keyDown(screen.getByRole('button', { name: 'Exclude source' }), { key: 'Escape' });
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
       expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -517,12 +485,10 @@ describe('ImageList Component', () => {
         type: 'png', fileSize: 0, isBase64: true, kind: 'image',
       };
       render(<ImageList images={[b64]} onImageDownload={vi.fn()} />);
-      // Tile type tag reads B64 rather than the raw type.
       expect(screen.getByText('B64')).toBeInTheDocument();
 
       await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
       const dialog = screen.getByRole('dialog');
-      // 0×0 → "Unknown" dimensions; the Type row appends "· Base64".
       expect(within(dialog).getByText(/Unknown/)).toBeInTheDocument();
       expect(within(dialog).getByText(/·\s*Base64/)).toBeInTheDocument();
     });
@@ -534,13 +500,10 @@ describe('ImageList Component', () => {
       };
       render(<ImageList images={[clip]} onImageDownload={vi.fn()} />);
       await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
-      // Videos carry no pixel dimensions → the Size row leads with an em dash.
       expect(within(screen.getByRole('dialog')).getByText(/—\s*·\s*4 KB/)).toBeInTheDocument();
     });
 
     it('defaults the favourite toggle to unpressed when no favourites set is provided', async () => {
-      // App always passes favouriteSrcs, but the prop is optional — the `?? false`
-      // default must hold on both the grid tile and the modal header.
       render(<ImageList images={[mockImages[0]]} onImageDownload={vi.fn()} onToggleFavourite={vi.fn()} />);
       expect(screen.getByRole('button', { name: /add favourite/i })).toHaveAttribute('aria-pressed', 'false');
       await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
@@ -551,10 +514,8 @@ describe('ImageList Component', () => {
 
     it('closes the preview when the shown image is removed from the list underneath it', () => {
       const { rerender } = render(<ImageList images={mockImages} onImageDownload={vi.fn()} />);
-      fireEvent.click(screen.getAllByTitle('View Details')[1]); // open on the last (index 1) image
+      fireEvent.click(screen.getAllByTitle('View Details')[1]);
       expect(screen.getByRole('dialog')).toBeInTheDocument();
-      // The list shrinks to one item (the previewed one got excluded/filtered) →
-      // images[1] is now undefined → selectedImage falls back to null → modal closes.
       rerender(<ImageList images={[mockImages[0]]} onImageDownload={vi.fn()} />);
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
@@ -575,33 +536,22 @@ describe('ImageList Component', () => {
     });
 
     it('renders a film-glyph placeholder (no <img>) for a pending video with no poster (can\'t-fetch)', async () => {
-      // Non-Instagram src, no poster (exercises isIgUrl(undefined)), no resolveHint.
       const noPoster: ImageInfo = {
         src: 'https://pbs.twimg.com/x.jpg', alt: 'v', width: 0, height: 0, type: 'mp4',
         fileSize: 0, isBase64: false, kind: 'video', unresolvedVideo: true,
       };
       render(<ImageList images={[noPoster]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} />);
-      // Tile label resolves to "can't fetch" (not an IG reel, no resolve path).
       expect(screen.getByText("can't fetch")).toBeInTheDocument();
 
       await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
       const dialog = screen.getByRole('dialog');
-      // With no poster the modal must NEVER point an <img> at src (src is not
-      // necessarily a real image/file) — it degrades to the same neutral glyph
-      // the grid tile uses.
       expect(within(dialog).queryByRole('img')).toBeNull();
       expect(dialog.querySelector('svg')).toBeTruthy();
-      // …and the footer still says the file can't be fetched, with no Get-video action.
       expect(within(dialog).getByText(/can't be fetched/i)).toBeInTheDocument();
       expect(within(dialog).queryByText('Get video')).toBeNull();
     });
 
     it('never points a modal <img> at a pending video\'s status-link src when it has no poster (regression: unpainted /status/<id>/video/<n> cell)', async () => {
-      // Shape of a pending VIDEO surfaced by pushTwitterPending for an unpainted
-      // grid cell: no poster at all (unlike twitterVideoPending items, which
-      // always carry a poster), and `src` is the x.com status permalink itself —
-      // not an image or media file. Opening "View Details" must never hand this
-      // to an <img src>, which would fire a real GET to x.com/....
       const pendingNoPoster: ImageInfo = {
         src: 'https://x.com/u/status/1/video/1', alt: '', width: 0, height: 0, type: 'mp4',
         fileSize: 0, isBase64: false, kind: 'video', unresolvedVideo: true,
@@ -609,9 +559,6 @@ describe('ImageList Component', () => {
       render(<ImageList images={[pendingNoPoster]} onImageDownload={vi.fn()} onFetchVideo={vi.fn()} />);
       await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
       const dialog = screen.getByRole('dialog');
-      // Raw DOM query, not screen.getByRole('img'): alt='' carries no ARIA img
-      // role, so a role-based query would miss a regression that reintroduced
-      // <img src="https://x.com/...">.
       const dialogImgs = Array.from(dialog.querySelectorAll('img'));
       expect(dialogImgs.some((img) => (img.getAttribute('src') ?? '').includes('x.com/'))).toBe(false);
       expect(dialogImgs).toHaveLength(0);
@@ -668,9 +615,7 @@ describe('ImageList Component', () => {
 
       await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
       const dialog = screen.getByRole('dialog');
-      // The poster stands in for the un-playable manifest.
       expect(within(dialog).getByRole('img', { name: 'stream' })).toHaveAttribute('src', 'https://x/poster.jpg');
-      // The footer action reads "Capture stream", and routes to onImageDownload.
       fireEvent.click(within(dialog).getByRole('button', { name: 'Capture stream' }));
       expect(onDownload).toHaveBeenCalledWith(hls);
     });
@@ -683,21 +628,16 @@ describe('ImageList Component', () => {
       render(<ImageList images={[hls]} onImageDownload={vi.fn()} />);
       await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
       const dialog = screen.getByRole('dialog');
-      // No poster → no preview <img>; a film glyph renders instead.
       expect(within(dialog).queryByRole('img')).toBeNull();
       expect(dialog.querySelector('svg')).toBeTruthy();
     });
   });
 
   describe('ImageList — stream variant picker (#314)', () => {
-    // Each case uses a UNIQUE manifest URL: useStreamVariants caches renditions at
-    // module scope, so a reused URL would be served from cache and skip the fetch.
     const streamItem = (manifest: string): ImageInfo => ({
       src: manifest, alt: 'stream', width: 0, height: 0, type: 'm3u8',
       fileSize: 0, isBase64: false, kind: 'video', hlsManifest: manifest,
     });
-    // A fresh sendMessage that resolves a single 1080p rendition (mirrors
-    // useStreamVariants.test.ts). Reassigns the global mock installed by setupTests.
     const mockOneRendition = (): void => {
       (chrome.runtime.sendMessage as unknown as ReturnType<typeof vi.fn>) = vi.fn().mockResolvedValue({
         ok: true, variants: [{ height: 1080, bandwidth: 5_000_000, label: '1080p · 5.0 Mbps' }],
@@ -709,11 +649,9 @@ describe('ImageList Component', () => {
       const hls = streamItem('https://cdn.test/grid.m3u8');
       const onCaptureStream = vi.fn();
       render(<ImageList images={[hls]} onImageDownload={vi.fn()} onCaptureStream={onCaptureStream} />);
-      // Focusing the picker lazily fetches renditions (never on render).
       fireEvent.focus(screen.getByRole('combobox', { name: 'Stream quality' }));
       await waitFor(() => expect(screen.getByRole('option', { name: '1080p · 5.0 Mbps' })).toBeInTheDocument());
       fireEvent.change(screen.getByRole('combobox', { name: 'Stream quality' }), { target: { value: '1080' } });
-      // The capture button now routes through onCaptureStream with the chosen height.
       fireEvent.click(screen.getByRole('button', { name: 'Capture stream' }));
       expect(onCaptureStream).toHaveBeenCalledWith(hls, 1080);
     });
@@ -724,7 +662,6 @@ describe('ImageList Component', () => {
       const onCaptureStream = vi.fn();
       render(<ImageList images={[hls]} onImageDownload={vi.fn()} onCaptureStream={onCaptureStream} />);
       await userEvent.click(screen.getByRole('button', { name: 'View Details' }));
-      // Two pickers now exist (grid tile + preview); scope to the dialog's.
       const dialog = screen.getByRole('dialog');
       fireEvent.focus(within(dialog).getByRole('combobox', { name: 'Stream quality' }));
       await waitFor(() => expect(within(dialog).getByRole('option', { name: '1080p · 5.0 Mbps' })).toBeInTheDocument());
@@ -737,7 +674,6 @@ describe('ImageList Component', () => {
       const hls = streamItem('https://cdn.test/auto.m3u8');
       const onCaptureStream = vi.fn();
       render(<ImageList images={[hls]} onImageDownload={vi.fn()} onCaptureStream={onCaptureStream} />);
-      // No pick made → heightBySrc has no entry → quality omitted (global applies).
       fireEvent.click(screen.getByRole('button', { name: 'Capture stream' }));
       expect(onCaptureStream).toHaveBeenCalledWith(hls, undefined);
     });
@@ -746,7 +682,6 @@ describe('ImageList Component', () => {
       const hls = streamItem('https://cdn.test/unwired.m3u8');
       const onImageDownload = vi.fn();
       render(<ImageList images={[hls]} onImageDownload={onImageDownload} />);
-      // No onCaptureStream → no picker, and the capture button uses the plain path.
       expect(screen.queryByRole('combobox', { name: 'Stream quality' })).toBeNull();
       fireEvent.click(screen.getByRole('button', { name: 'Capture stream' }));
       expect(onImageDownload).toHaveBeenCalledWith(hls);
@@ -754,8 +689,6 @@ describe('ImageList Component', () => {
   });
 
   it('applies content-visibility and an intrinsic-size box to every tile', () => {
-    // No renderImageList/sampleImages helper exists in this file — reuse the
-    // exact render call + inline ImageInfo shape the other tests here use.
     const three: ImageInfo[] = [
       { src: 'v1.jpg', alt: 'V1', width: 100, height: 100, type: 'jpeg', fileSize: 1024, isBase64: false, kind: 'image' },
       { src: 'v2.png', alt: 'V2', width: 200, height: 200, type: 'png', fileSize: 2048, isBase64: false, kind: 'image' },
@@ -767,8 +700,6 @@ describe('ImageList Component', () => {
     figures.forEach((fig) => {
       const style = (fig as HTMLElement).style;
       expect(style.contentVisibility).toBe('auto');
-      // Per-axis `auto <length>` — thumbnailSize-square fallback before first
-      // paint, self-correcting to the tile's real measured size afterward.
       expect(style.containIntrinsicSize).toBe('auto 120px auto 120px');
     });
   });

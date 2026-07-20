@@ -7,7 +7,7 @@
 /** Soft cap on assembled bytes for an offscreen capture (HLS or DASH). The whole
  *  file is held in memory before muxing, so an unbounded stream could OOM the
  *  offscreen document; this bounds it to a clean 'too-large' error instead. */
-export const STREAM_MAX_BYTES = 1024 * 1024 * 1024; // 1 GB
+export const STREAM_MAX_BYTES = 1024 * 1024 * 1024;
 
 /** Default capture quality — the variant/representation closest to 720p, a sane
  *  size/quality balance for typical VOD clips. */

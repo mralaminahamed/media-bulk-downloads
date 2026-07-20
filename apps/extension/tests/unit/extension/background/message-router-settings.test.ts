@@ -29,7 +29,7 @@ describe('GET_SETTINGS router handler', () => {
   it('responds with the background currentSettings (content scripts cannot read storage.sync on Safari)', async () => {
     const respond = vi.fn();
     const ret = messageRouter.GET_SETTINGS!({ type: 'GET_SETTINGS' }, sender, respond);
-    expect(ret).toBe(true); // response is sent asynchronously (after the settings gate)
+    expect(ret).toBe(true);
     await flush();
     expect(respond).toHaveBeenCalledWith(MOCK);
   });
@@ -51,7 +51,7 @@ describe('SET_SETTINGS router handler', () => {
 
   it('pushes SETTINGS_CHANGED with the merged settings to every tab', async () => {
     messageRouter.SET_SETTINGS!({ type: 'SET_SETTINGS', patch: { bubbleEnabled: true } }, sender, vi.fn());
-    await flush(); // writeSettingsPatch resolves → tabs.query → sendMessage per tab
+    await flush();
     expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(1, { type: 'SETTINGS_CHANGED', settings: MOCK });
     expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(2, { type: 'SETTINGS_CHANGED', settings: MOCK });
   });

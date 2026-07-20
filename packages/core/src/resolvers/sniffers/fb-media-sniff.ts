@@ -59,21 +59,10 @@ export function numOr(v: unknown): number | undefined {
   return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined;
 }
 
-// HD first — the walk takes the first present key, so order = priority.
-// `progressive_url` is last: reels carry only this key, and regular videos keep
-// preferring the HD/playable variants above it.
 export const VIDEO_URL_KEYS = ['playable_url_quality_hd', 'browser_native_hd_url', 'playable_url', 'browser_native_sd_url', 'progressive_url'];
 
-// Minimum edge (px) an fbcdn image must clear on BOTH dimensions to count as real
-// media. FB payloads carry many UI-icon objects with the identical
-// `{ uri, width, height }` shape as photos — live capture showed glyphs/sprites
-// topping out at 72×72 while the smallest real photo measured 213×320. A 128px
-// floor sits in that gap: it drops every observed icon and keeps every photo.
 const MIN_MEDIA_PX = 128;
 
-// Parent keys whose child image is chrome, not the original: blur/preview
-// placeholders, thumbnails, and icon glyphs (primary_icon / secondary_icon /
-// active_secondary_icon / icon — all match /icon/).
 const CHROME_KEY = /blur|preview|placeholder|thumbnail|icon/i;
 
 /**
@@ -102,7 +91,6 @@ export function extractFbMedia(root: unknown): FbMediaEntry[] {
     const obj = node as Record<string, unknown>;
     const ownId = typeof obj.id === 'string' && /^\d{1,32}$/.test(obj.id) ? obj.id : fbid;
 
-    // Video: first present pinned video URL key (HD-first priority).
     for (const vk of VIDEO_URL_KEYS) {
       const vurl = pinFbUrl(obj[vk]);
       if (vurl && ownId) {
@@ -115,8 +103,6 @@ export function extractFbMedia(root: unknown): FbMediaEntry[] {
       }
     }
 
-    // Image: this object itself carries uri + width + height, is not chrome
-    // (blur/preview/thumbnail/icon), and clears the icon-vs-photo size floor.
     if (!CHROME_KEY.test(parentKey)) {
       const iurl = pinFbUrl(obj.uri);
       const w = numOr(obj.width), h = numOr(obj.height);

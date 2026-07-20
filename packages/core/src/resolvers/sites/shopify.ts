@@ -27,7 +27,7 @@ interface ShopifyVideoSource {
 interface ShopifyPreviewImage { src?: unknown; width?: unknown; height?: unknown }
 interface ShopifyMedia {
   id?: unknown;
-  media_type?: unknown; // 'image' | 'video' | 'external_video' | 'model'
+  media_type?: unknown;
   src?: unknown;
   preview_image?: ShopifyPreviewImage;
   sources?: unknown;
@@ -36,9 +36,6 @@ interface ShopifyMedia {
 }
 interface ShopifyProduct { media?: unknown }
 
-// Shopify serves product media from its own CDN families; a store on a custom
-// domain also serves images from its OWN origin under /cdn/shop/, so the page's
-// host is accepted too. Anything else in the (untrusted) JSON is rejected.
 const SHOPIFY_CDN = /(?:^|\.)(?:shopify\.com|shopifycdn\.com|shopifycdn\.net)$/i;
 
 /** Resolve a media URL (absolute or protocol-relative `//host/…`) and accept it
@@ -130,8 +127,6 @@ export function extractShopifyMedia(product: unknown, pageHost: string): MediaCa
   return out;
 }
 
-// Product media keyed by handle, filled by the content-script fetch. Bounded by
-// the number of distinct products visited in one SPA session (small).
 const HANDLE_CAP = 200;
 const store = new Map<string, MediaCandidate[]>();
 
@@ -155,7 +150,7 @@ export function ingestShopifyProduct(handle: string, product: unknown, pageHost:
   if (!handle) return;
   const cands = extractShopifyMedia(product, pageHost);
   if (!cands.length) return;
-  store.delete(handle); // re-insert as newest for the LRU cap
+  store.delete(handle);
   store.set(handle, cands);
   for (const h of [...store.keys()].slice(0, Math.max(0, store.size - HANDLE_CAP))) store.delete(h);
 }

@@ -11,12 +11,10 @@ describe('postimagesResolver', () => {
     expect(postimagesResolver.match(u, ctx(undefined, PAGE))).toBe(true);
     expect(postimagesResolver.match(u, ctx(undefined, 'https://postimages.org/x'))).toBe(true);
     expect(postimagesResolver.match(u, ctx(undefined, 'https://example.com/'))).toBe(false);
-    expect(postimagesResolver.match(u, { allowNetwork: false })).toBe(false); // no pageUrl
+    expect(postimagesResolver.match(u, { allowNetwork: false })).toBe(false);
   });
 
   it('reads the #download original, not the downscaled display/og:image', () => {
-    // The displayed image (SxpZ0Qty) is a resized render on a DIFFERENT hash; the
-    // true original is the #download button target (9CDs7rdq).
     const dl = document.createElement('a');
     dl.id = 'download';
     dl.setAttribute('href', 'https://i.postimg.cc/9CDs7rdq/image.jpg?dl=1');
@@ -25,7 +23,7 @@ describe('postimagesResolver', () => {
     img.setAttribute('src', 'https://i.postimg.cc/SxpZ0Qty/image.jpg');
     document.body.appendChild(img);
     const [c] = postimagesResolver.resolve(new URL('https://i.postimg.cc/SxpZ0Qty/image.jpg'), ctx(img, PAGE));
-    expect(c.url).toBe('https://i.postimg.cc/9CDs7rdq/image.jpg'); // ?dl=1 stripped
+    expect(c.url).toBe('https://i.postimg.cc/9CDs7rdq/image.jpg');
     expect(c.kind).toBe('image');
     expect(c.ext).toBe('jpg');
     expect(c.thumbnailSrc).toBe('https://i.postimg.cc/SxpZ0Qty/image.jpg');

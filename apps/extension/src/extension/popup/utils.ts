@@ -49,9 +49,6 @@ export async function fetchImageBytes(url: string, signal?: AbortSignal): Promis
  * Use for messages whose response we don't consume.
  */
 export function sendRuntimeMessage(message: unknown): void {
-    // MV3's promise form rejects when no receiver is listening; read that rejection
-    // so it doesn't surface as an Unchecked lastError. Guard the return value —
-    // some environments (and test mocks) hand back void, with nothing to catch.
     const result = chrome.runtime.sendMessage(message) as Promise<unknown> | undefined;
     if (result && typeof result.then === 'function') {
         result.catch(() => {
@@ -89,7 +86,7 @@ export function fetchDownloadedOnDisk(): Promise<Set<string>> {
   return new Promise((resolve) => {
     try {
       chrome.runtime.sendMessage({ type: 'GET_DOWNLOADED_SRCS' }, (srcs?: string[]) => {
-        void chrome.runtime.lastError; // swallow "no receiver" when the worker is asleep
+        void chrome.runtime.lastError;
         resolve(new Set(Array.isArray(srcs) ? srcs : []));
       });
     } catch {

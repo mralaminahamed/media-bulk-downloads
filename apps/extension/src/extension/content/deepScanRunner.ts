@@ -63,14 +63,7 @@ export function waitForQuiet(
     }
     function onAbort() { done(); }
     signal.addEventListener('abort', onAbort, { once: true });
-    // document.body can be null very early or on non-HTML documents; fall back to
-    // the root element, and if neither exists the hard cap still resolves.
     const target = document.body ?? document.documentElement;
-    // Watch attribute mutations too, not just added/removed nodes: most lazy
-    // loaders hydrate by swapping data-src → src (or mutating srcset/style) on the
-    // SAME node, which is an attribute change with no child added. Without this the
-    // quiet timer never resets for those pages and the hard cap can fire before
-    // images finish committing their real URLs.
     if (target) {
       obs.observe(target, {
         childList: true,
@@ -92,18 +85,14 @@ export function waitForQuiet(
 export function nestedScrollables(root: Document | ShadowRoot = document): HTMLElement[] {
   const out: HTMLElement[] = [];
   root.querySelectorAll<HTMLElement>('*').forEach((el) => {
-    if (el.scrollHeight - el.clientHeight <= 200) return; // not meaningfully scrollable
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 4) return; // already at bottom
+    if (el.scrollHeight - el.clientHeight <= 200) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 4) return;
     const oy = window.getComputedStyle(el).overflowY;
     if (oy === 'auto' || oy === 'scroll') out.push(el);
   });
   return out;
 }
 
-// Conservative "load more" matcher: only common expander phrasings, so we don't
-// click unrelated controls. Matches "load/show/view/see/read more", "load additional",
-// and "more results/items/photos/images/posts". "learn more" is deliberately absent —
-// it's usually a nav link rather than an in-place expander.
 const LOAD_MORE_RE = /\b(load|show|view|see|read)\s+more\b|\bload\s+additional\b|\bmore\s+(results|items|photos|images|posts)\b/i;
 
 /**
@@ -115,9 +104,6 @@ const LOAD_MORE_RE = /\b(load|show|view|see|read)\s+more\b|\bload\s+additional\b
 export function findLoadMoreButtons(root: Document | ShadowRoot = document): HTMLElement[] {
   const out: HTMLElement[] = [];
   root.querySelectorAll<HTMLElement>('button, [role="button"]').forEach((el) => {
-    // Never an <a> — even one with role="button" navigates on click, which would
-    // tear down the scan. The [role="button"] selector matches such anchors, so
-    // exclude them explicitly here rather than trusting the selector alone.
     if (el.tagName === 'A') return;
     if ((el as HTMLButtonElement).disabled || el.getAttribute('aria-disabled') === 'true') return;
     const label = `${el.getAttribute('aria-label') || ''} ${el.textContent || ''}`.trim();
@@ -133,8 +119,6 @@ export interface BuildDeepScanOpts {
   onLearned?: DeepScanDeps['onLearned'];
 }
 
-// At most this many load-more buttons are clicked per scroll round, so an opt-in
-// scan can't fire dozens of clicks at once.
 const MAX_LOAD_MORE_CLICKS = 3;
 
 export function buildDeepScanDeps(
@@ -148,10 +132,7 @@ export function buildDeepScanDeps(
       collect: (scanRoots) => collectMedia(scanRoots as ScanRoot[] | undefined),
       scrollStep: (multiplier: number) => {
         scroller.by(window.innerHeight * multiplier);
-        // Also advance any nested scroll pane that lazy-loads its own content,
-        // by the same proportion.
         for (const el of nestedScrollables()) el.scrollTop += el.clientHeight * multiplier;
-        // Opt-in: click a bounded number of "load more" buttons.
         if (opts.clickLoadMore) {
           for (const btn of findLoadMoreButtons().slice(0, MAX_LOAD_MORE_CLICKS)) btn.click();
         }
@@ -184,23 +165,12 @@ export async function startDeepScan(
   const host = registrableDomain(location.hostname);
   const learn = !!config.rememberScanBehaviour && !!host;
 
-  // Degrade to a cold start if the read fails — never let storage abort a scan.
   const seedMem = learn ? await loadScanMemoryForHost(host).catch(() => null) : null;
 
   const onLearned: DeepScanDeps['onLearned'] = learn
     ? ({ settleMs, scrolls, reason }) => {
-        // Write rule: never persist an aborted/errored run; blend the fresh scroll
-        // depth only on a genuine depth signal (complete / hit the scroll cap).
-        // A budget-truncated stop (time/items) under-counts depth, so keep the
-        // prior remembered value instead of lowering it.
         if (reason === 'aborted' || reason === 'error') return;
         const trustScrolls = reason === 'complete' || reason === 'max-scrolls';
-        // Routed through the background (SAVE_SCAN_MEMORY) rather than written
-        // directly here: each tab has its own module-local write chain in
-        // per-host-scan-memory, so a per-tab write can't share ordering with the
-        // background's clear path (#293 phase-2, NEW-1). Fire-and-forget with a
-        // .catch — the background may be unavailable (worker suspended /
-        // extension reloading); learned memory is best-effort and self-healing.
         void chrome.runtime.sendMessage({
           type: 'SAVE_SCAN_MEMORY',
           host,
@@ -216,7 +186,6 @@ export async function startDeepScan(
 
   return runDeepScan(deps, {
     ...DEEP_SCAN_DEFAULTS,
-    // Apply only the caps the user actually set (ignore 0/NaN/undefined).
     ...(config.maxItems ? { maxItems: config.maxItems } : {}),
     ...(config.maxMs ? { maxMs: config.maxMs } : {}),
     ...(config.maxScrolls ? { maxScrolls: config.maxScrolls } : {}),

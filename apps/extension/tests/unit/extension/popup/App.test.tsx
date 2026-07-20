@@ -29,36 +29,25 @@ vi.mock('@/extension/shared/active-tab/resolve-originals-active', () => ({
   requestResolveOriginals: vi.fn(async () => ({ 'poster.jpg': { url: 'https://video.twimg.com/hi.mp4' } })),
 }));
 
-// App's default `collect` prop is `collectFromActiveTab` from this module, but every
-// test below passes its own `collect` prop, so that export is never actually invoked.
-// `getPageType` IS exercised for real (via useMediaEngine's smartPageDefaults gate),
-// so it's mocked here per-test below to control the classified PageType.
 vi.mock('@/extension/shared/active-tab/collect-active-tab', () => ({
   collectFromActiveTab: vi.fn(),
   getPageType: vi.fn(async () => 'unknown'),
 }));
 
 vi.mock('@mbd/storage/excluded', async () => {
-  // urls must be a real SrcKeySet — the optimistic exclude path calls withAdded().
   const { SrcKeySet: KeySet } = await vi.importActual<typeof import('@mbd/core/collection/canonical')>('@mbd/core/collection/canonical');
   return {
     excludedMatchers: vi.fn(async () => ({ urls: new KeySet(), hosts: new Set() })),
-    // ExcludedPanel (opened from the header) loads the raw list; keep it empty.
     loadExcluded: vi.fn(async () => []),
     EXCLUDED_KEY: 'excluded',
   };
 });
 
-// ZIP is built in the popup context — mock so tests drive the ok/partial/total-fail
-// branches without hitting the network. zipFileName is deterministic here.
 vi.mock('@mbd/core/download/zip', () => ({
   buildZip: vi.fn(),
   zipFileName: vi.fn(() => 'example.com-media-2026-07-07.zip'),
 }));
 
-// Keep the real isConvertible (a pure classifier the download path branches on) so
-// the passthrough/convert split is exercised for real; only the canvas-backed
-// convertImage (unavailable under jsdom) is mocked.
 vi.mock('@mbd/core/download/convert/convert', async () => ({
   ...(await vi.importActual<typeof import('@mbd/core/download/convert/convert')>('@mbd/core/download/convert/convert')),
   convertImage: vi.fn(),
@@ -86,15 +75,12 @@ describe('App Component', () => {
   it('renders the brand header', async () => {
     render(<App collect={async () => []} />);
     expect(screen.getByText('Media Bulk Downloads')).toBeInTheDocument();
-    // Let the async mount (collect + settings/favourites/excluded loads) settle
-    // inside act so its state updates don't leak past the test.
     await screen.findByText('No media here');
   });
 
   it('shows the scanning state initially', async () => {
     render(<App collect={() => new Promise(() => {})} />);
     expect(screen.getByText('scanning this page')).toBeInTheDocument();
-    // collect never resolves, but the storage loads do — flush them inside act.
     await act(async () => {});
   });
 
@@ -119,8 +105,6 @@ describe('App Component', () => {
   });
 
   it('a per-host override drives the grid while the editor still edits global (#293)', async () => {
-    // Global min-size 0 (both pass); host override raises it to 500 → the tiny image
-    // is hidden, so only 1 of 2 is downloadable → "Download 1" (not "Download 2").
     (chrome.storage.sync.get as Mock).mockImplementation(
       (_k: unknown, cb: (r: { settings: unknown }) => void) => cb({ settings: { minimumImageSize: 0 } }),
     );
@@ -135,14 +119,10 @@ describe('App Component', () => {
     expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /download 2/i })).toBeNull();
     await chrome.storage.local.clear();
-    (chrome.tabs.query as Mock).mockResolvedValue([]); // shared mock accumulates across the suite — restore the default
+    (chrome.tabs.query as Mock).mockResolvedValue([]);
   });
 
   it('FilterToolbar Base64 control reflects the per-host effective setting, not global (#293)', async () => {
-    // Global keeps Base64 enabled; the host override excludes it. The toolbar's
-    // Base64 switch must reflect the effective (override) value — disabled — so it
-    // agrees with the grid, which filters by effective. (Regression guard: the
-    // toolbar used to read global settings, desyncing it from the grid.)
     (chrome.storage.sync.get as Mock).mockImplementation(
       (_k: unknown, cb: (r: { settings: unknown }) => void) => cb({ settings: { excludeBase64Images: false } }),
     );
@@ -150,14 +130,11 @@ describe('App Component', () => {
     (chrome.tabs.query as Mock).mockResolvedValue([{ id: 1, url: 'https://e.com/gallery', title: 't' }]);
     render(<App collect={async () => [image({ src: 'https://e.com/a.jpg', width: 800, height: 800 })]} />);
     await screen.findByText('Filters');
-    // The FilterToolbar's "More" disclosure (there's also a Download "More"),
-    // identified by aria-controls="filter-more".
     const filterMore = screen.getAllByRole('button', { name: /More/i }).find((b) => b.getAttribute('aria-controls') === 'filter-more');
     fireEvent.click(filterMore!);
-    // The per-host override loads async; the switch becomes disabled once effective reflects it.
     await waitFor(() => expect(screen.getByRole('switch', { name: /base64/i })).toBeDisabled());
     await chrome.storage.local.clear();
-    (chrome.tabs.query as Mock).mockResolvedValue([]); // restore the suite default
+    (chrome.tabs.query as Mock).mockResolvedValue([]);
   });
 
   it('shows the empty state when no images are found', async () => {
@@ -180,11 +157,9 @@ describe('App Component', () => {
     render(<App collect={async () => initial} />);
     await screen.findByText('Filters');
 
-    // Filter to Video only → just the clip shows.
     fireEvent.click(screen.getByRole('button', { name: 'Video' }));
     expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
 
-    // Deep scan adds image-kind items; the filter must still hold (not repopulate).
     fireEvent.click(screen.getByRole('button', { name: /deep scan/i }));
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument(),
@@ -216,12 +191,10 @@ describe('App Component', () => {
     render(<App collect={async () => [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })]} />);
     await screen.findByText('Filters');
 
-    // Before selecting: the plain bulk button downloads everything.
     expect(screen.getByRole('button', { name: /download 2/i })).toBeInTheDocument();
 
     await userEvent.click(screen.getAllByRole('checkbox', { name: /select item/i })[0]);
 
-    // Footer swaps to the selective action.
     await userEvent.click(await screen.findByRole('button', { name: /download selected 1/i }));
 
     await waitFor(() =>
@@ -285,7 +258,6 @@ describe('App Component', () => {
     render(<App collect={async () => [image({ src: 'https://cdn.example.com/remote.jpg', fileSize: 0 })]} />);
     await screen.findByText('Filters');
 
-    // Card meta shows the enriched size.
     expect(await screen.findByText('2 KB')).toBeInTheDocument();
   });
 
@@ -300,10 +272,7 @@ describe('App Component', () => {
     render(<App collect={async () => [image({ src: 'https://cdn.example.com/remote.jpg', fileSize: 0 }), pendingImage]} />);
     await screen.findByText('Filters');
 
-    // The real image's size is enriched…
     expect(await screen.findByText('2 KB')).toBeInTheDocument();
-    // …but the placeholder x.com URL is never HEAD/GET-requested (opt-in/passive
-    // collection constraint — it's a tweet-page URL, not a real file).
     const fetchedUrls = fetchSpy.mock.calls.map((c) => c[0]);
     expect(fetchedUrls).not.toContain(pendingImage.src);
   });
@@ -326,34 +295,28 @@ describe('App Component', () => {
     await screen.findByText('Filters');
 
     fireEvent.click(screen.getByTitle('Settings'));
-    fireEvent.click(screen.getByRole('tab', { name: /Display/i })); // showImageCount now lives on the Display tab
+    fireEvent.click(screen.getByRole('tab', { name: /Display/i }));
     fireEvent.click(screen.getByRole('switch', { name: /show image count/i }));
     fireEvent.click(screen.getByText('Save'));
 
-    // Settings persist through the background's single serialized writer.
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'SET_SETTINGS', patch: expect.objectContaining({ showImageCount: false }) }),
     );
   });
 
   it('persists the Bubble corner + Panel position dropdowns, keeping the drag-only offsets', async () => {
-    // Stored state carries a dragged button offset (x/y) and a freeform panel
-    // point — neither has a Settings control, so both must survive a form save.
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) =>
       cb({ settings: { bubblePosition: { corner: 'bottom-right', x: 99, y: 88 }, bubblePanelPoint: { x: 77, y: 66 } } }));
     render(<App collect={async () => [image({})]} />);
     await screen.findByText('Filters');
 
     fireEvent.click(screen.getByTitle('Settings'));
-    fireEvent.click(screen.getByRole('tab', { name: /Display/i })); // bubble controls now live on the Display tab
-    fireEvent.click(screen.getByRole('switch', { name: /show floating bubble/i })); // reveals the bubble controls
+    fireEvent.click(screen.getByRole('tab', { name: /Display/i }));
+    fireEvent.click(screen.getByRole('switch', { name: /show floating bubble/i }));
     fireEvent.change(screen.getByLabelText('Bubble corner:'), { target: { value: 'top-left' } });
     fireEvent.change(screen.getByLabelText('Panel position:'), { target: { value: 'center' } });
     fireEvent.click(screen.getByText('Save'));
 
-    // The popup sends a patch with the form-owned fields but WITHOUT the drag-only
-    // ones (bubblePosition.x/y, bubblePanelPoint) — the background's serialized
-    // merge preserves those from storage, so a concurrent bubble drag isn't lost.
     const call = (chrome.runtime.sendMessage as Mock).mock.calls.find((c) => c[0]?.type === 'SET_SETTINGS');
     expect(call?.[0].patch).toEqual(expect.objectContaining({
       bubbleEnabled: true,
@@ -372,18 +335,14 @@ describe('App Component', () => {
     render(<App collect={async () => [image({})]} />);
     await screen.findByText('Filters');
 
-    // The on-page bubble is resized elsewhere → storage.sync 'settings' changes.
-    // Fire the change on every listener this mount registered; only the popup's
-    // sync listener reacts (the local-key listeners ignore area 'sync').
     const mountListeners = addListener.mock.calls.slice(before).map((c) => c[0]);
     await act(async () => {
       mountListeners.forEach((fn) =>
         fn({ settings: { newValue: { bubbleEnabled: true, bubbleWidth: 600, bubbleHeight: 700 } } }, 'sync'));
     });
 
-    // Saving an unrelated Setting must carry the fresh 600/700, not the stale snapshot.
     fireEvent.click(screen.getByTitle('Settings'));
-    fireEvent.click(screen.getByRole('tab', { name: /Display/i })); // showImageCount now lives on the Display tab
+    fireEvent.click(screen.getByRole('tab', { name: /Display/i }));
     fireEvent.click(screen.getByRole('switch', { name: /show image count/i }));
     fireEvent.click(screen.getByText('Save'));
     const call = (chrome.runtime.sendMessage as Mock).mock.calls.find((c) => c[0]?.type === 'SET_SETTINGS');
@@ -414,25 +373,17 @@ describe('App Component', () => {
     await screen.findByText('Filters');
     const headerCount = () => container.querySelector('header .num')?.textContent;
 
-    // Both images are eligible under the default (0) minimum size.
     await waitFor(() => expect(headerCount()).toBe('2'));
 
-    // Raise the minimum size via Settings so the small image is excluded from
-    // the visible/eligible list, even though it's still collected.
     fireEvent.click(screen.getByTitle('Settings'));
-    fireEvent.click(screen.getByRole('tab', { name: /Media/i })); // minimumImageSize now lives on the Media tab
+    fireEvent.click(screen.getByRole('tab', { name: /Media/i }));
     fireEvent.change(screen.getByLabelText(/minimum image size/i), { target: { value: '200' } });
     fireEvent.click(screen.getByText('Save'));
     await waitFor(() => expect(headerCount()).toBe('1'));
 
     fireEvent.click(screen.getByRole('button', { name: /deep scan/i }));
-    // Deep scan mock adds two new items, both with unknown (0x0) dimensions,
-    // which always pass the size filter regardless of minimumImageSize.
     await waitFor(() => expect(headerCount()).toBe('3'));
 
-    // Relax the settings again so the previously-filtered small image should
-    // reappear — this only happens if it survived in rawImagesRef.current
-    // through the deep-scan merge instead of being silently dropped.
     fireEvent.click(screen.getByTitle('Settings'));
     fireEvent.click(screen.getByRole('tab', { name: /Media/i }));
     fireEvent.change(screen.getByLabelText(/minimum image size/i), { target: { value: '0' } });
@@ -442,9 +393,6 @@ describe('App Component', () => {
   });
 
   it('live re-filters the grid when Exclude emoji is toggled on', async () => {
-    // Regression: the settings-change effect's dependency array omitted
-    // settings.excludeEmoji, so toggling this setting alone (without a
-    // re-scan) left the emoji tile stuck in the grid.
     const emojiItem = image({
       src: 'https://abs.twimg.com/emoji/v2/svg/1f9f8.svg', type: 'svg', kind: 'image',
       width: 0, height: 0, fileSize: 0, isBase64: false, alt: '',
@@ -455,21 +403,19 @@ describe('App Component', () => {
     await screen.findByText('Filters');
     const headerCount = () => container.querySelector('header .num')?.textContent;
 
-    // Both items are eligible before the setting is enabled.
     await waitFor(() => expect(headerCount()).toBe('2'));
 
     fireEvent.click(screen.getByTitle('Settings'));
-    fireEvent.click(screen.getByRole('tab', { name: /Media/i })); // excludeEmoji now lives on the Media tab
+    fireEvent.click(screen.getByRole('tab', { name: /Media/i }));
     fireEvent.click(screen.getByRole('switch', { name: /exclude emoji/i }));
     fireEvent.click(screen.getByText('Save'));
 
-    // The emoji tile drops out immediately — no re-scan required.
     await waitFor(() => expect(headerCount()).toBe('1'));
   });
 
   it('live-removes excluded sources from the grid on a storage change', async () => {
     const matchersMock = excludedMatchers as Mock;
-    matchersMock.mockResolvedValueOnce({ urls: new SrcKeySet(), hosts: new Set() }); // initial load: nothing excluded yet
+    matchersMock.mockResolvedValueOnce({ urls: new SrcKeySet(), hosts: new Set() });
 
     const { container } = render(
       <App
@@ -482,18 +428,10 @@ describe('App Component', () => {
     await screen.findByText('Filters');
     const headerCount = () => container.querySelector('header .num')?.textContent;
 
-    // Both items are eligible before anything is excluded.
     await waitFor(() => expect(headerCount()).toBe('2'));
 
-    // Next call to excludedMatchers() (triggered by the storage change below)
-    // returns a host match for the ads.com site (registrable-domain scoped).
     matchersMock.mockResolvedValueOnce({ urls: new SrcKeySet(), hosts: new Set(['ads.com']) });
 
-    // App registers its excluded-storage listener last (after history and
-    // favourites) on every mount, so the most recently recorded addListener
-    // call is this render's — pick that one rather than every accumulated
-    // call across the whole suite (which would re-consume the queued
-    // mockResolvedValueOnce on a stale, already-unmounted listener).
     const addListenerMock = chrome.storage.onChanged.addListener as Mock;
     const excludedListener = addListenerMock.mock.calls[addListenerMock.mock.calls.length - 1][0];
     await act(async () => {
@@ -502,7 +440,6 @@ describe('App Component', () => {
       await Promise.resolve();
     });
 
-    // The excluded host's item drops out immediately — no re-scan required.
     await waitFor(() => expect(headerCount()).toBe('1'));
   });
 
@@ -520,17 +457,15 @@ describe('App Component', () => {
     await screen.findByText('Filters');
     const headerCount = () => container.querySelector('header .num')?.textContent;
 
-    // Both items are on the page — the pending video is shown, just not resolved.
     await waitFor(() => expect(headerCount()).toBe('2'));
     expect(requestResolveOriginals).not.toHaveBeenCalled();
-    // Only the normal image counts toward the downloadable total.
     expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
   });
 
   it('"Get all videos" resolves every pending video in one batch and makes them downloadable', async () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: false } }));
     const resolveMock = requestResolveOriginals as Mock;
-    resolveMock.mockClear(); // shared across tests; reset call count without touching the default impl
+    resolveMock.mockClear();
     resolveMock.mockResolvedValueOnce({
       'poster1.jpg': { url: 'https://video.twimg.com/a.mp4' },
       'poster2.jpg': { url: 'https://video.twimg.com/b.mp4' },
@@ -546,22 +481,18 @@ describe('App Component', () => {
     );
     await screen.findByText('Filters');
 
-    // Setting is off, so nothing auto-resolves; the bulk button shows the count.
     const btn = await screen.findByRole('button', { name: /get all videos \(2\)/i });
     expect(requestResolveOriginals).not.toHaveBeenCalled();
 
     fireEvent.click(btn);
 
-    // One batched request carrying both targets.
     await waitFor(() => expect(resolveMock).toHaveBeenCalledTimes(1));
     expect(resolveMock).toHaveBeenCalledWith([
       { src: 'poster1.jpg', hint: { platform: 'twitter', id: '1' } },
       { src: 'poster2.jpg', hint: { platform: 'twitter', id: '2' } },
     ]);
 
-    // Both resolve to real mp4s → downloadable → "Download 2".
     await waitFor(() => expect(screen.getByRole('button', { name: /download 2/i })).toBeInTheDocument());
-    // And the bulk button is gone (no pending videos left).
     expect(screen.queryByRole('button', { name: /get all videos/i })).not.toBeInTheDocument();
   });
 
@@ -587,11 +518,6 @@ describe('App Component', () => {
   });
 
   it('resolves and updates src when resolveOriginals is on', async () => {
-    // Settings load from chrome.storage asynchronously relative to the very
-    // first scan (which always fires with the component's initial settings),
-    // so the setting only takes effect starting with the next scan — trigger
-    // a rescan (as a real user would after changing this option) to exercise
-    // the gate with the loaded `resolveOriginals: true`.
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: true } }));
 
     const { container } = render(
@@ -609,7 +535,6 @@ describe('App Component', () => {
     const headerCount = () => container.querySelector('header .num')?.textContent;
 
     await waitFor(() => expect(requestResolveOriginals).toHaveBeenCalled());
-    // The item survives (still 1) once resolved, rather than being dropped.
     await waitFor(() => expect(headerCount()).toBe('1'));
 
     fireEvent.click(screen.getByRole('button', { name: 'View Details' }));
@@ -620,11 +545,8 @@ describe('App Component', () => {
   });
 
   it('a video that fails to resolve stays visible as a pending poster and does not wipe the other items', async () => {
-    // Regression: a pending video must not flicker in and then be dropped when
-    // resolution returns nothing — it stays shown (as a pending poster, still
-    // excluded from downloads), leaving the rest of the grid intact.
     const resolveMock = requestResolveOriginals as Mock;
-    resolveMock.mockResolvedValue({}); // nothing resolves for this test
+    resolveMock.mockResolvedValue({});
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: true } }));
 
     const { container } = render(
@@ -639,22 +561,19 @@ describe('App Component', () => {
     const headerCount = () => container.querySelector('header .num')?.textContent;
 
     await waitFor(() => expect(resolveMock).toHaveBeenCalled());
-    // Both items show — the pending video is never dropped, just not downloadable.
     await waitFor(() => expect(headerCount()).toBe('2'));
-    await new Promise((r) => setTimeout(r, 30)); // let any late setState land
-    expect(headerCount()).toBe('2'); // no override / drop
-    expect(container.querySelector('video')).toBeNull(); // no preview modal opened
+    await new Promise((r) => setTimeout(r, 30));
+    expect(headerCount()).toBe('2');
+    expect(container.querySelector('video')).toBeNull();
     expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
 
-    resolveMock.mockResolvedValue({ 'poster.jpg': { url: 'https://video.twimg.com/hi.mp4' } }); // restore default
+    resolveMock.mockResolvedValue({ 'poster.jpg': { url: 'https://video.twimg.com/hi.mp4' } });
   });
 
   it('shows a pending video but excludes it from the download count', async () => {
     render(<App collect={async () => [image({ src: 'a.jpg' }), pendingVideo]} />);
     await screen.findByText('Filters');
-    // both items are on the page (image + pending video) → plural header…
     expect(screen.getByText('items on this page')).toBeInTheDocument();
-    // …but only the real image is downloadable
     expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
   });
 
@@ -665,9 +584,7 @@ describe('App Component', () => {
     });
     render(<App collect={async () => [image({ src: 'a.jpg' }), pendingImage]} />);
     await screen.findByText('Filters');
-    // both items are on the page (image + pending image) → plural header…
     expect(screen.getByText('items on this page')).toBeInTheDocument();
-    // …but only the real image is downloadable
     expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
   });
 
@@ -675,7 +592,6 @@ describe('App Component', () => {
     render(<App collect={async () => []} />);
     await userEvent.click(await screen.findByRole('button', { name: /favourites/i }));
     expect(await screen.findByText('Saved media')).toBeInTheDocument();
-    // Escape closes the panel (invoking the onClose that flips showFavourites off).
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByText('Saved media')).toBeNull());
   });
@@ -687,7 +603,6 @@ describe('App Component', () => {
     await waitFor(() =>
       expect(requestResolveOriginals).toHaveBeenCalledWith([{ src: 'poster.jpg', hint: { platform: 'twitter', id: '123' } }]),
     );
-    // once resolved it becomes downloadable
     expect(await screen.findByRole('button', { name: /download 1/i })).toBeInTheDocument();
   });
 
@@ -720,13 +635,6 @@ describe('App Component', () => {
   });
 
   it('keeps a per-item-fetched video downloadable after a settings change re-filters the grid', async () => {
-    // Regression: handleFetchVideo used to swap the resolved item into
-    // state.images/filteredImages only, leaving rawImagesRef.current still
-    // holding the old pending (unresolvedVideo) entry. The settings-change
-    // effect re-derives the grid from rawImagesRef, so changing a setting
-    // (e.g. minimumImageSize) would revert the just-resolved video back to a
-    // pending tile. handleFetchVideo now mirrors the swap into rawImagesRef
-    // too, so the upgrade survives the re-filter below.
     (requestResolveOriginals as Mock).mockResolvedValueOnce({ 'poster.jpg': { url: 'https://video.twimg.com/hi.mp4' } });
     render(<App collect={async () => [pendingVideo]} />);
 
@@ -734,17 +642,13 @@ describe('App Component', () => {
     await waitFor(() =>
       expect(requestResolveOriginals).toHaveBeenCalledWith([{ src: 'poster.jpg', hint: { platform: 'twitter', id: '123' } }]),
     );
-    // Resolved → downloadable.
     expect(await screen.findByRole('button', { name: /download 1/i })).toBeInTheDocument();
 
-    // Trigger the settings-change effect, which re-derives the grid from
-    // rawImagesRef.current (keyed on minimumImageSize/excludeBase64Images/resolveOriginals).
     fireEvent.click(screen.getByTitle('Settings'));
-    fireEvent.click(screen.getByRole('tab', { name: /Media/i })); // minimumImageSize now lives on the Media tab
+    fireEvent.click(screen.getByRole('tab', { name: /Media/i }));
     fireEvent.change(screen.getByLabelText(/minimum image size/i), { target: { value: '10' } });
     fireEvent.click(screen.getByText('Save'));
 
-    // Still downloadable — the resolved video was not reverted to pending.
     expect(await screen.findByRole('button', { name: /download 1/i })).toBeInTheDocument();
   });
 
@@ -752,9 +656,8 @@ describe('App Component', () => {
     render(<App collect={async () => [image({ src: 'https://cdn.ads.com/a.png' })]} />);
     await screen.findByText('Filters');
 
-    // open the target item's preview modal first (the exclude control now lives there)
     const detailButtons = await screen.findAllByRole('button', { name: 'View Details' });
-    await userEvent.click(detailButtons[0]); // the sole/target seeded item
+    await userEvent.click(detailButtons[0]);
     await userEvent.click(screen.getByTitle('Exclude source'));
     await userEvent.click(await screen.findByText('Exclude this image'));
 
@@ -764,9 +667,6 @@ describe('App Component', () => {
         entry: expect.objectContaining({ value: 'https://cdn.ads.com/a.png', kind: 'url', time: expect.any(Number) }),
       }),
     );
-    // Excluding the shown image closes the preview (deterministic) rather than
-    // silently reindexing it to a neighbour — the exclude control lived only in
-    // the modal, so its disappearance proves the modal closed.
     await waitFor(() => expect(screen.queryByTitle('Exclude source')).toBeNull());
   });
 
@@ -774,14 +674,11 @@ describe('App Component', () => {
     render(<App collect={async () => [image({ src: 'https://cdn.ads.com/a.png' })]} />);
     await screen.findByText('Filters');
 
-    // open the target item's preview modal first (the exclude control now lives there)
     const detailButtons = await screen.findAllByRole('button', { name: 'View Details' });
-    await userEvent.click(detailButtons[0]); // the sole/target seeded item
+    await userEvent.click(detailButtons[0]);
     await userEvent.click(screen.getByTitle('Exclude source'));
     await userEvent.click(await screen.findByRole('menuitem', { name: /exclude site/i }));
 
-    // Host exclusions are scoped to the registrable domain (cdn.ads.com -> ads.com)
-    // so they cover sibling subdomains / rotating CDN edges.
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'ADD_EXCLUDED',
@@ -792,11 +689,10 @@ describe('App Component', () => {
 
   it('exposes the exclude control only in the preview modal, not the grid hover', async () => {
     render(<App collect={async () => [image({ src: 'https://cdn.ads.com/a.png' })]} />);
-    // enable capture-independent render; wait for the grid
     await screen.findAllByRole('button', { name: 'View Details' });
-    expect(screen.queryByTitle('Exclude source')).toBeNull(); // not in the hover overlay
+    expect(screen.queryByTitle('Exclude source')).toBeNull();
     await userEvent.click((await screen.findAllByRole('button', { name: 'View Details' }))[0]);
-    expect(screen.getByTitle('Exclude source')).toBeInTheDocument(); // in the modal
+    expect(screen.getByTitle('Exclude source')).toBeInTheDocument();
   });
 
   it('bulk Exclude dispatches an ADD_EXCLUDED per selected item', async () => {
@@ -824,7 +720,6 @@ describe('App Component', () => {
     ).toHaveLength(2);
   });
 
-  // ── Convert-on-download ────────────────────────────────────────────────────
   it('converts raster images to PNG and passes svg/video through untouched', async () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) =>
       cb({ settings: { convertImagesTo: 'png' } }));
@@ -845,12 +740,10 @@ describe('App Component', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /download 3/i }));
 
-    // The convertible jpeg is re-encoded and saved as bytes (PNG mime).
     await waitFor(() => expect(convertImage).toHaveBeenCalled());
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'DOWNLOAD_BYTES', mime: 'image/png' }),
     );
-    // The svg (vector) and the video (non-raster) are downloaded in original form.
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'DOWNLOAD_IMAGES',
@@ -885,7 +778,7 @@ describe('App Component', () => {
   it('falls back to the original file when a per-item convert fails', async () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) =>
       cb({ settings: { convertImagesTo: 'png' } }));
-    (convertImage as Mock).mockResolvedValue(null); // decode/encode failure
+    (convertImage as Mock).mockResolvedValue(null);
     global.fetch = vi.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['x']) }) as unknown as typeof fetch;
 
     render(<App collect={async () => [image({ src: 'https://cdn.example.com/broken.jpg', type: 'jpeg', kind: 'image' })]} />);
@@ -893,7 +786,6 @@ describe('App Component', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /download 1/i }));
 
-    // The item that couldn't convert is downloaded in its original form…
     await waitFor(() =>
       expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -902,16 +794,12 @@ describe('App Component', () => {
         }),
       ),
     );
-    // …and no DOWNLOAD_BYTES was ever sent for it.
     expect(
       (chrome.runtime.sendMessage as Mock).mock.calls.filter((c) => c[0]?.type === 'DOWNLOAD_BYTES'),
     ).toHaveLength(0);
     expect(await screen.findByText(/couldn't convert/i)).toBeInTheDocument();
   });
 
-  // SSRF guard (2026-07-15 audit): a page-controlled img.src pointing at an
-  // internal/loopback host must never reach convertAndDownload's fetch, and the
-  // blocked item must not fall through to a plain chrome.downloads either.
   it('skips a convert-on-download item whose src targets a blocked host (SSRF) — no fetch, no fallback download', async () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) =>
       cb({ settings: { convertImagesTo: 'png' } }));
@@ -934,7 +822,6 @@ describe('App Component', () => {
     ).toHaveLength(0);
   });
 
-  // ── ZIP download ───────────────────────────────────────────────────────────
   const openMenuAndChoose = async (menuItem: RegExp): Promise<void> => {
     await userEvent.click(await screen.findByRole('button', { name: /more download options/i }));
     await userEvent.click(await screen.findByRole('menuitem', { name: menuItem }));
@@ -952,8 +839,6 @@ describe('App Component', () => {
 
     await waitFor(() =>
       expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
-        // b64 is a STRING, not a Uint8Array — a typed array wouldn't survive
-        // Chrome's JSON message serialization (would arrive with no .length).
         expect.objectContaining({ type: 'DOWNLOAD_ZIP', filename: 'example.com-media-2026-07-07.zip', b64: expect.any(String) }),
         expect.any(Function),
       ),
@@ -978,22 +863,18 @@ describe('App Component', () => {
 
     await openMenuAndChoose(/as zip archive/i);
 
-    // Total-fetch-failure routes through the browser's own fetch (DOWNLOAD_IMAGES)…
     await waitFor(() =>
       expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'DOWNLOAD_IMAGES' }),
         expect.any(Function),
       ),
     );
-    // …and never dispatches a DOWNLOAD_ZIP for an empty archive.
     expect(
       (chrome.runtime.sendMessage as Mock).mock.calls.filter((c) => c[0]?.type === 'DOWNLOAD_ZIP'),
     ).toHaveLength(0);
   });
 
   it('the ZIP fallback archives originals — convert-on does not convert the un-fetchable items', async () => {
-    // Convert-on-download applies only to "As separate files". The ZIP action
-    // archives originals, so even its all-fetch-failed fallback must NOT convert.
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) =>
       cb({ settings: { convertImagesTo: 'png' } }));
     (buildZip as Mock).mockResolvedValue({
@@ -1008,14 +889,12 @@ describe('App Component', () => {
 
     await openMenuAndChoose(/as zip archive/i);
 
-    // Fallback dispatches a plain DOWNLOAD_IMAGES…
     await waitFor(() =>
       expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'DOWNLOAD_IMAGES' }),
         expect.any(Function),
       ),
     );
-    // …and never converts: no convertImage call, no DOWNLOAD_BYTES dispatched.
     expect(convertImage).not.toHaveBeenCalled();
     expect(
       (chrome.runtime.sendMessage as Mock).mock.calls.filter((c) => c[0]?.type === 'DOWNLOAD_BYTES'),
@@ -1035,7 +914,6 @@ describe('App Component', () => {
 
     await openMenuAndChoose(/as zip archive/i);
 
-    // The failed item falls back to a per-file download…
     await waitFor(() =>
       expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1044,14 +922,12 @@ describe('App Component', () => {
         }),
       ),
     );
-    // …while the rest still go out as a ZIP, and the status notes the split.
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'DOWNLOAD_ZIP' }), expect.any(Function),
     );
     expect(await screen.findByText(/couldn't be fetched/i)).toBeInTheDocument();
   });
 
-  // ── Copy / export links ────────────────────────────────────────────────────
   it('copies the shown media links to the clipboard', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
@@ -1078,22 +954,18 @@ describe('App Component', () => {
     expect(await screen.findByText('Exported 2 links.')).toBeInTheDocument();
   });
 
-  // ── Selection ──────────────────────────────────────────────────────────────
   it('shift-click selects the whole range between two checkboxes', async () => {
     render(<App collect={async () => [image({ src: 'a.jpg' }), image({ src: 'b.jpg' }), image({ src: 'c.jpg' })]} />);
     await screen.findByText('Filters');
 
     const boxes = () => screen.getAllByRole('checkbox', { name: /select item|deselect item/i });
-    fireEvent.click(boxes()[0]); // anchor on the first item
-    fireEvent.click(boxes()[2], { shiftKey: true }); // extend selection across the run
+    fireEvent.click(boxes()[0]);
+    fireEvent.click(boxes()[2], { shiftKey: true });
 
     expect(await screen.findByRole('button', { name: /download selected 3/i })).toBeInTheDocument();
   });
 
   it('shift-click range excludes a pending image caught in the middle of the run', async () => {
-    // Regression: handleSelectRange used to only guard unresolvedVideo/hlsManifest,
-    // so a pending Twitter image (unresolvedImage) sitting inside the clicked span
-    // got silently added to the selection too, inflating the "N selected" count.
     const pendingImage = image({
       src: 'https://x.com/u/status/1/photo/1', kind: 'image',
       unresolvedImage: true, resolveHint: { platform: 'twitter', id: 'photo 1 1' },
@@ -1101,13 +973,11 @@ describe('App Component', () => {
     render(<App collect={async () => [image({ src: 'a.jpg' }), pendingImage, image({ src: 'c.jpg' })]} />);
     await screen.findByText('Filters');
 
-    // The pending image renders no checkbox, so only a.jpg and c.jpg have one.
     const boxes = () => screen.getAllByRole('checkbox', { name: /select item|deselect item/i });
     expect(boxes()).toHaveLength(2);
-    fireEvent.click(boxes()[0]); // anchor on a.jpg (full-list index 0)
-    fireEvent.click(boxes()[1], { shiftKey: true }); // extend to c.jpg (full-list index 2) — spans the pending image
+    fireEvent.click(boxes()[0]);
+    fireEvent.click(boxes()[1], { shiftKey: true });
 
-    // Only the two real items are selected — the pending image never joined the set.
     expect(await screen.findByRole('button', { name: /download selected 2/i })).toBeInTheDocument();
   });
 
@@ -1119,13 +989,11 @@ describe('App Component', () => {
     render(<App collect={async () => [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })]} />);
     await screen.findByText('Filters');
 
-    // Tick only the first item, then zip the selection.
     await userEvent.click(screen.getAllByRole('checkbox', { name: /select item/i })[0]);
     await screen.findByRole('button', { name: /download selected 1/i });
     await openMenuAndChoose(/as zip archive/i);
 
     await waitFor(() => expect(buildZip).toHaveBeenCalled());
-    // buildZip acts on the one ticked src, not the whole shown set.
     expect(buildZip).toHaveBeenCalledWith(
       [expect.objectContaining({ src: 'a.jpg' })],
       expect.anything(), expect.anything(), expect.anything(),
@@ -1135,12 +1003,10 @@ describe('App Component', () => {
     );
   });
 
-  // ── Favourite toggle ───────────────────────────────────────────────────────
   it('toggles a favourite on (ADD_FAVOURITE) and back off (REMOVE_FAVOURITE)', async () => {
     render(<App collect={async () => [image({ src: 'fav.jpg' })]} />);
     await screen.findByText('Filters');
 
-    // Add: dispatches ADD_FAVOURITE and stars the tile.
     await userEvent.click(screen.getByRole('button', { name: /add favourite/i }));
     await waitFor(() =>
       expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
@@ -1150,7 +1016,6 @@ describe('App Component', () => {
     const removeBtn = await screen.findByRole('button', { name: /remove favourite/i });
     expect(screen.getByLabelText('Favourited')).toBeInTheDocument();
 
-    // Remove: dispatches REMOVE_FAVOURITE and un-stars the tile.
     await userEvent.click(removeBtn);
     await waitFor(() =>
       expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
@@ -1160,7 +1025,6 @@ describe('App Component', () => {
     expect(await screen.findByRole('button', { name: /add favourite/i })).toBeInTheDocument();
   });
 
-  // ── Footer status / counts ─────────────────────────────────────────────────
   it('footer shows the shown/total counts and switches to a selected/Clear affordance', async () => {
     const { container } = render(
       <App collect={async () => [image({ src: 'a.jpg', type: 'jpeg' }), image({ src: 'b.png', type: 'png' })]} />,
@@ -1168,15 +1032,12 @@ describe('App Component', () => {
     await screen.findByText('Filters');
     const footerText = () => container.querySelector('footer')?.textContent ?? '';
 
-    // Unfiltered, unselected: the count reads "2 / 2" (no "shown" suffix).
     await waitFor(() => expect(footerText()).toMatch(/2\s*\/\s*2/));
 
-    // Filter to jpeg → 1 of 2 shown. (Format now lives in the "More" popover.)
     fireEvent.click(screen.getByRole('button', { name: 'More' }));
     fireEvent.change(screen.getByLabelText('Media format'), { target: { value: 'jpeg' } });
     await waitFor(() => expect(footerText()).toMatch(/1\s*\/\s*2\s*shown/));
 
-    // Clear the filter, then select all → footer reads "1 selected" with Clear.
     fireEvent.change(screen.getByLabelText('Media format'), { target: { value: 'all' } });
     await userEvent.click(await screen.findByRole('checkbox', { name: /select all shown/i }));
     await waitFor(() => expect(footerText()).toMatch(/2\s*selected/));
@@ -1193,12 +1054,10 @@ describe('App Component', () => {
     await userEvent.click(screen.getAllByRole('checkbox', { name: /select item/i })[0]);
     await userEvent.click(await screen.findByRole('button', { name: /download selected 1/i }));
 
-    // The response status is shown, and Clear stays reachable underneath it.
     expect(await screen.findByText('Downloaded 1 file.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^clear$/i })).toBeInTheDocument();
   });
 
-  // ── Deep scan failure ──────────────────────────────────────────────────────
   it('surfaces a deep scan failure as a status message', async () => {
     (deepScanActiveTab as Mock).mockRejectedValueOnce(new Error('scan crashed'));
     render(<App collect={async () => [image({ src: 'a.jpg' })]} />);
@@ -1209,7 +1068,6 @@ describe('App Component', () => {
     expect(await screen.findByText('scan crashed')).toBeInTheDocument();
   });
 
-  // ── Deep-scan cap notices ──────────────────────────────────────────────────
   it('notes remaining media when a deep scan stops at the time limit', async () => {
     (deepScanActiveTab as Mock).mockImplementationOnce(async (onProgress) => {
       onProgress({ type: 'DEEP_SCAN_PROGRESS', found: 1, scrolls: 1, elapsedMs: 100, reason: 'max-time' });
@@ -1236,10 +1094,7 @@ describe('App Component', () => {
     expect(await screen.findByText(/stopped at the scroll limit/i)).toBeInTheDocument();
   });
 
-  // ── Live badge sync via storage.onChanged ──────────────────────────────────
   it('re-checks downloaded-on-disk when history changes, revealing the Downloaded badge', async () => {
-    // The on-disk set is asked for over the background (GET_DOWNLOADED_SRCS); it
-    // starts empty and gains the item after the "download" writes a history entry.
     let disk: string[] = [];
     (chrome.runtime.sendMessage as Mock).mockImplementation((msg, cb) => {
       if (msg?.type === 'GET_DOWNLOADED_SRCS' && cb) cb(disk);
@@ -1249,16 +1104,9 @@ describe('App Component', () => {
 
     render(<App collect={async () => [image({ src: 'https://c/a.jpg' })]} />);
     await screen.findByText('Filters');
-    // Nothing downloaded yet → no badge.
     expect(screen.queryByLabelText('Downloaded')).toBeNull();
 
-    // The download lands: history changes, so the downloaded-mark listener re-asks
-    // and now the file is on disk. The listener registered first on this mount is
-    // the downloaded-mark one (before history/favourites/excluded).
     disk = ['https://c/a.jpg'];
-    // Fire the change on every listener registered this mount (the download-queue
-    // panel also subscribes; it ignores non-queue changes) so this stays robust to
-    // listener registration order.
     const fireAll = (change: Record<string, unknown>) =>
       addListener.mock.calls.slice(before).forEach(([fn]) => fn(change, 'local'));
     await act(async () => {
@@ -1270,11 +1118,6 @@ describe('App Component', () => {
   });
 
   it('re-derives the filtered grid live when a download completes while the Downloaded filter is active', async () => {
-    // Unlike the badge test above, the Downloaded filter is switched on FIRST (via
-    // the toolbar → handleFilterChange), and only THEN does a download land and
-    // history change. The user never re-touches the filter afterwards, so the only
-    // thing that can reveal photo-a is the live re-filter effect (App.tsx ~86-93)
-    // re-applying applyToolbarFilters off the updated downloadedSrcs set.
     let disk: string[] = [];
     (chrome.runtime.sendMessage as Mock).mockImplementation((msg, cb) => {
       if (msg?.type === 'GET_DOWNLOADED_SRCS' && cb) cb(disk);
@@ -1292,18 +1135,12 @@ describe('App Component', () => {
     );
     await screen.findByText('Filters');
 
-    // Turn the Downloaded filter on via the toolbar's State chip (handleFilterChange path).
     fireEvent.click(screen.getByRole('button', { name: 'State' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Downloaded' }));
 
-    // Nothing is on disk yet, so the active filter hides both items.
     expect(screen.queryByAltText('photo-a')).toBeNull();
     expect(screen.queryByAltText('photo-b')).toBeNull();
 
-    // The download lands: history changes while the Downloaded filter is STILL
-    // active and untouched. Fire on every listener registered this mount (the
-    // download-queue panel also subscribes; it ignores non-queue changes) so this
-    // stays robust to listener registration order.
     disk = ['https://c/a.jpg'];
     const fireAll = (change: Record<string, unknown>) =>
       addListener.mock.calls.slice(before).forEach(([fn]) => fn(change, 'local'));
@@ -1312,8 +1149,6 @@ describe('App Component', () => {
       await Promise.resolve();
     });
 
-    // Only the now-downloaded item reappears — the still-not-downloaded one stays
-    // hidden — proving the grid was re-derived from downloadedSrcs, not just a badge.
     expect(await screen.findByAltText('photo-a')).toBeInTheDocument();
     expect(screen.queryByAltText('photo-b')).toBeNull();
   });
@@ -1326,10 +1161,6 @@ describe('App Component', () => {
     await screen.findByText('Filters');
     expect(screen.queryByLabelText('Favourited')).toBeNull();
 
-    // The favourites listener re-reads the committed store (not the event's
-    // newValue), so seed storage before firing. Fire on every mount listener (the
-    // download-queue panel subscribes too and ignores non-queue changes) to stay
-    // robust to registration order.
     const fireAll = (change: Record<string, unknown>) =>
       addListener.mock.calls.slice(before).forEach(([fn]) => fn(change, 'local'));
     await act(async () => {
@@ -1346,10 +1177,6 @@ describe('App Component', () => {
     render(<App collect={async () => [image({ src: 'https://c/fav.jpg' })]} />);
     await screen.findByText('Filters');
 
-    // The listener re-reads the committed store on any FAVOURITES_KEY change, so
-    // drive it by mutating storage: first add the favourite, then clear it. Fire on
-    // every mount listener (the queue panel subscribes too, ignoring non-queue
-    // changes) so this is robust to listener registration order.
     const fireAll = (change: Record<string, unknown>) =>
       addListener.mock.calls.slice(before).forEach(([fn]) => fn(change, 'local'));
     await act(async () => {
@@ -1364,12 +1191,11 @@ describe('App Component', () => {
     await waitFor(() => expect(screen.queryByLabelText('Favourited')).toBeNull());
   });
 
-  // ── Header panels ──────────────────────────────────────────────────────────
   it('opens and closes the Excluded sources panel from the header', async () => {
     render(<App collect={async () => []} />);
     await userEvent.click(await screen.findByRole('button', { name: /excluded sources/i }));
     expect(await screen.findByRole('dialog', { name: 'Excluded sources' })).toBeInTheDocument();
-    await userEvent.keyboard('{Escape}'); // onClose → setShowExcluded(false)
+    await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Excluded sources' })).toBeNull());
   });
 
@@ -1377,11 +1203,10 @@ describe('App Component', () => {
     render(<App collect={async () => []} />);
     await userEvent.click(await screen.findByRole('button', { name: /download history/i }));
     expect(await screen.findByRole('dialog', { name: 'Download History' })).toBeInTheDocument();
-    await userEvent.keyboard('{Escape}'); // onClose → setShowHistory(false)
+    await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Download History' })).toBeNull());
   });
 
-  // ── Convert-on-download: passthrough-only ──────────────────────────────────
   it('reports a plain send when conversion is on but nothing is convertible', async () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { convertImagesTo: 'png' } }));
     (chrome.runtime.sendMessage as Mock).mockImplementation((_m, cb) => { if (cb) cb({ status: 'success', message: 'ok' }); });
@@ -1398,7 +1223,6 @@ describe('App Component', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /download 2/i }));
 
-    // Both items are non-convertible → sent as-is; no canvas conversion runs.
     await waitFor(() =>
       expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1414,12 +1238,10 @@ describe('App Component', () => {
     expect(convertImage).not.toHaveBeenCalled();
   });
 
-  // ── ZIP: the popup-supplied fetch + progress relay ─────────────────────────
   it('drives the ZIP builder with a working fetch and a live progress relay', async () => {
     const fetchSpy = vi.fn().mockResolvedValue({ ok: true, blob: async () => new Blob(['x']) });
     global.fetch = fetchSpy as unknown as typeof fetch;
     (buildZip as Mock).mockImplementation(async (_imgs, _s, _url, opts) => {
-      // Exercise exactly the fetch + onProgress the popup wires into buildZip.
       await opts.fetch('https://c/a.jpg');
       opts.onProgress(1, 2);
       return { bytes: new Uint8Array([1]), ok: 1, failed: [], results: [] };
@@ -1434,7 +1256,6 @@ describe('App Component', () => {
     await openMenuAndChoose(/as zip archive/i);
 
     await waitFor(() => expect(buildZip).toHaveBeenCalled());
-    // The fetch the popup handed to buildZip really reaches the network layer.
     expect(fetchSpy).toHaveBeenCalledWith('https://c/a.jpg');
     expect(await screen.findByText('Saved ZIP archive.')).toBeInTheDocument();
   });
@@ -1456,24 +1277,19 @@ describe('App Component', () => {
     expect(await screen.findByText(/error: disk full/i)).toBeInTheDocument();
   });
 
-  // ── Selection pruning on a filter change ───────────────────────────────────
   it('drops a ticked item from the selection when a filter hides it', async () => {
     render(<App collect={async () => [image({ src: 'a.jpg', type: 'jpeg' }), image({ src: 'b.png', type: 'png' })]} />);
     await screen.findByText('Filters');
 
-    // Tick the jpeg.
     await userEvent.click(screen.getAllByRole('checkbox', { name: /select item/i })[0]);
     expect(await screen.findByRole('button', { name: /download selected 1/i })).toBeInTheDocument();
 
-    // Filter to PNG only → the ticked jpeg is no longer shown → selection is pruned.
     fireEvent.click(screen.getByRole('button', { name: 'More' }));
     fireEvent.change(screen.getByLabelText('Media format'), { target: { value: 'png' } });
     await waitFor(() => expect(screen.queryByRole('button', { name: /download selected/i })).toBeNull());
-    // Footer reverts to the plain bulk button for the one shown png.
     expect(screen.getByRole('button', { name: /^download 1$/i })).toBeInTheDocument();
   });
 
-  // ── Copy / export links for the SELECTED set ───────────────────────────────
   it('copies only the selected media links', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
@@ -1504,11 +1320,8 @@ describe('App Component', () => {
     expect(await screen.findByText('Exported 1 link.')).toBeInTheDocument();
   });
 
-  // ── HLS capture progress relay ─────────────────────────────────────────────
   it('relays HLS capture progress into the footer while the stream is captured', async () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { captureHlsStreams: true } }));
-    // Intercept CAPTURE_STREAM: keep its runId + callback so the test can stream a
-    // progress event first, then complete the capture.
     let captureCb: ((r: { status: string }) => void) | undefined;
     let runId: string | undefined;
     (chrome.runtime.sendMessage as Mock).mockImplementation((msg, cb) => {
@@ -1524,26 +1337,21 @@ describe('App Component', () => {
 
     fireEvent.click(await screen.findByTitle('Capture stream'));
 
-    // requestCaptureStream has sent CAPTURE_STREAM and registered its progress listener.
     await waitFor(() => expect(runId).toBeDefined());
     const onMessageCalls = (chrome.runtime.onMessage.addListener as Mock).mock.calls;
     const progressListener = onMessageCalls[onMessageCalls.length - 1][0];
 
-    // The background broadcasts progress for this run → the footer shows 3/8.
     await act(async () => progressListener({ type: 'CAPTURE_PROGRESS', runId, done: 3, total: 8 }));
     const bar = await screen.findByRole('progressbar', { name: 'Capturing stream' });
     expect(bar).toHaveAttribute('aria-valuenow', '3');
     expect(bar).toHaveAttribute('aria-valuemax', '8');
 
-    // Completing the capture replaces the progress line with the returned status.
     await act(async () => captureCb!({ status: 'Captured clip.mp4 — 8 segments.' }));
     expect(await screen.findByText(/Captured clip\.mp4 — 8 segments/)).toBeInTheDocument();
   });
 
-  // ── Corrupt / empty collection results ─────────────────────────────────────
   it('treats a non-array collection result as an empty page', async () => {
     render(<App collect={async () => null as unknown as ImageInfo[]} />);
-    // raw normalises to [] → the empty (not error) state renders.
     expect(await screen.findByText('No media here')).toBeInTheDocument();
   });
 
@@ -1561,7 +1369,6 @@ describe('App Component', () => {
     expect(await screen.findByText('deep scan failed')).toBeInTheDocument();
   });
 
-  // ── Storage listeners ignore irrelevant changes ────────────────────────────
   it('ignores storage changes for the wrong area or key', async () => {
     const addListener = chrome.storage.onChanged.addListener as Mock;
     const before = addListener.mock.calls.length;
@@ -1570,19 +1377,17 @@ describe('App Component', () => {
     const [downloaded, fav, excluded] = [before, before + 1, before + 2].map((i) => addListener.mock.calls[i][0]);
 
     await act(async () => {
-      downloaded({ [HISTORY_KEY]: {} }, 'sync'); // right key, wrong area
-      downloaded({ other: {} }, 'local'); // right area, wrong key
-      fav({ [FAVOURITES_KEY]: { newValue: [{ src: 'https://c/other.jpg' }] } }, 'sync'); // wrong area
-      excluded({ [EXCLUDED_KEY]: {} }, 'sync'); // wrong area
+      downloaded({ [HISTORY_KEY]: {} }, 'sync');
+      downloaded({ other: {} }, 'local');
+      fav({ [FAVOURITES_KEY]: { newValue: [{ src: 'https://c/other.jpg' }] } }, 'sync');
+      excluded({ [EXCLUDED_KEY]: {} }, 'sync');
       await Promise.resolve();
     });
 
-    // Nothing reacted: no favourite badge, item still shown, still downloadable.
     expect(screen.queryByLabelText('Favourited')).toBeNull();
     expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument();
   });
 
-  // ── HLS-gated single-video resolution ──────────────────────────────────────
   it('leaves a video pending (not failed) when it resolves to an HLS stream but capture is off', async () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) =>
       cb({ settings: { resolveOriginals: false, captureHlsStreams: false } }));
@@ -1592,31 +1397,26 @@ describe('App Component', () => {
     fireEvent.click(await screen.findByTitle('Get video'));
     await waitFor(() => expect(requestResolveOriginals).toHaveBeenCalled());
 
-    // applyResolved returns null (HLS + capture off) → NOT a hard failure: the tile
-    // stays quietly pending ("not fetched"), never "couldn't fetch".
     await waitFor(() => expect(screen.getByText('not fetched')).toBeInTheDocument());
     expect(screen.queryByText(/couldn't fetch/i)).toBeNull();
   });
 
-  // ── Selection toggle off + header-checkbox clear ───────────────────────────
   it('unticks an item on a second click, and the header checkbox clears a full selection', async () => {
     render(<App collect={async () => [image({ src: 'a.jpg' }), image({ src: 'b.jpg' })]} />);
     await screen.findByText('Filters');
     const firstTile = () => screen.getAllByRole('checkbox', { name: /select item|deselect item/i })[0];
 
-    await userEvent.click(firstTile()); // select a.jpg
+    await userEvent.click(firstTile());
     expect(await screen.findByRole('button', { name: /download selected 1/i })).toBeInTheDocument();
-    await userEvent.click(firstTile()); // toggle a.jpg back off
+    await userEvent.click(firstTile());
     await waitFor(() => expect(screen.queryByRole('button', { name: /download selected/i })).toBeNull());
 
-    // Select-all, then click the header checkbox again (now "Clear selection") to reset.
     await userEvent.click(screen.getByRole('checkbox', { name: /select all shown/i }));
     expect(await screen.findByRole('button', { name: /download selected 2/i })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('checkbox', { name: /clear selection/i }));
     await waitFor(() => expect(screen.queryByRole('button', { name: /download selected/i })).toBeNull());
   });
 
-  // ── Bubble surface uses the current page as the download source ─────────────
   it('uses the current page URL as the download source in the bubble surface', async () => {
     (chrome.runtime.sendMessage as Mock).mockImplementation((_m, cb) => {
       if (cb) cb({ status: 'success', message: 'Downloaded 1 file.' });
@@ -1624,10 +1424,9 @@ describe('App Component', () => {
     render(<App surface="bubble" collect={async () => [image({ src: 'a.jpg' })]} />);
     await screen.findByText('Filters');
 
-    (chrome.tabs.query as Mock).mockClear(); // shared mock accumulates across the suite
+    (chrome.tabs.query as Mock).mockClear();
     fireEvent.click(screen.getByRole('button', { name: /download 1/i }));
 
-    // In the bubble, the source is location.href — chrome.tabs is never queried.
     await waitFor(() =>
       expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'DOWNLOAD_IMAGES', sourcePage: expect.objectContaining({ url: expect.any(String) }) }),
@@ -1637,10 +1436,9 @@ describe('App Component', () => {
     expect(chrome.tabs.query).not.toHaveBeenCalled();
   });
 
-  // ── Download error with no message → "unknown error" ───────────────────────
   it('falls back to "unknown error" when a download error carries no message', async () => {
     (chrome.runtime.sendMessage as Mock).mockImplementation((_m, cb) => {
-      (chrome.runtime as { lastError?: unknown }).lastError = {}; // present but message-less
+      (chrome.runtime as { lastError?: unknown }).lastError = {};
       cb(undefined);
       (chrome.runtime as { lastError?: unknown }).lastError = undefined;
     });
@@ -1651,11 +1449,10 @@ describe('App Component', () => {
     await waitFor(() => expect(document.body.textContent).toMatch(/error: unknown error/i));
   });
 
-  // ── "Get all videos": partial failure ──────────────────────────────────────
   it('flags only the videos that fail during a batch "Get all videos"', async () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { resolveOriginals: false } }));
     const resolveMock = requestResolveOriginals as Mock;
-    resolveMock.mockResolvedValueOnce({ 'poster1.jpg': { url: 'https://video.twimg.com/a.mp4' } }); // poster2 unresolved
+    resolveMock.mockResolvedValueOnce({ 'poster1.jpg': { url: 'https://video.twimg.com/a.mp4' } });
 
     render(
       <App
@@ -1669,12 +1466,10 @@ describe('App Component', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /get all videos \(2\)/i }));
 
-    // poster1 resolves → downloadable; poster2 stays and is flagged failed.
     await waitFor(() => expect(screen.getByRole('button', { name: /download 1/i })).toBeInTheDocument());
     expect(await screen.findByText(/couldn't fetch/i)).toBeInTheDocument();
   });
 
-  // ── Convert: source fetch fails → original saved ───────────────────────────
   it('downloads the original when the source fetch is not ok during conversion', async () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { convertImagesTo: 'png' } }));
     global.fetch = vi.fn().mockResolvedValue({ ok: false }) as unknown as typeof fetch;
@@ -1684,7 +1479,6 @@ describe('App Component', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /download 1/i }));
 
-    // A non-ok fetch throws before convertImage runs → the item is saved as-is.
     await waitFor(() =>
       expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'DOWNLOAD_IMAGES', images: expect.arrayContaining([expect.objectContaining({ src: 'https://cdn.example.com/x.jpg' })]) }),
@@ -1694,7 +1488,6 @@ describe('App Component', () => {
     expect(await screen.findByText(/couldn't convert/i)).toBeInTheDocument();
   });
 
-  // ── Favourite entry carries poster thumbnail + page title ──────────────────
   it('records a favourite with its poster thumbnail and the source page title', async () => {
     (chrome.tabs.query as Mock).mockResolvedValue([{ url: 'https://pg', title: 'My Page' }]);
     render(<App collect={async () => [image({ src: 'v.mp4', kind: 'video', poster: 'https://c/p.jpg' })]} />);
@@ -1712,26 +1505,16 @@ describe('App Component', () => {
     );
   });
 
-  // ── Size enrichment leaves already-known sizes untouched ───────────────────
   it('enriches only the remote image lacking a size, leaving the known one intact', async () => {
     global.fetch = vi.fn().mockResolvedValue({ headers: { get: () => '4096' } }) as unknown as typeof fetch;
     render(<App collect={async () => [image({ src: 'known.jpg', fileSize: 1024 }), image({ src: 'https://cdn.example.com/remote.jpg', fileSize: 0 })]} />);
     await screen.findByText('Filters');
 
-    // remote.jpg enriches to 4 KB; known.jpg keeps its 1 KB (the map's pass-through arm).
     expect(await screen.findByText('4 KB')).toBeInTheDocument();
     expect(screen.getByText('1 KB')).toBeInTheDocument();
   });
 });
 
-// ── smartPageDefaults (opt-in page-type-seeded filters, #292 Task C3) ──────────
-// useMediaEngine.fetchImages awaits getPageType() only when the loaded settings
-// have smartPageDefaults on, then seeds FilterToolbar's initialFilters from
-// pageDefaults(pageType). Exercised here (rather than a standalone
-// useMediaEngine.test.ts) because App is the only existing harness that mounts
-// the hook, and it already establishes the exact machinery needed — vi.mock of
-// an active-tab module (see deep-scan-active-tab / resolve-originals-active
-// above) — so no new test infrastructure is introduced.
 describe('smartPageDefaults (page-type-seeded filters)', () => {
   beforeEach(() => {
     (getPageType as Mock).mockReset();
@@ -1741,9 +1524,6 @@ describe('smartPageDefaults (page-type-seeded filters)', () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { smartPageDefaults: true } }));
     (getPageType as Mock).mockResolvedValue('gallery');
 
-    // 500x500 lands in the 'medium' size bucket (256-1024 edge) so it's a live
-    // option in availableFilterOptions — otherwise FilterToolbar's stale-option
-    // cleanup effect would immediately reset the seeded sizeBucket back to 'all'.
     render(
       <App
         collect={async () => [
@@ -1755,10 +1535,8 @@ describe('smartPageDefaults (page-type-seeded filters)', () => {
     await screen.findByText('Filters');
 
     expect(getPageType).toHaveBeenCalled();
-    // pageDefaults('gallery') === { sizeBucket: 'medium', sortBy: 'size', sortDir: 'desc' },
-    // merged over DEFAULT_FILTERS as FilterToolbar's initial state.
     expect(screen.getByLabelText('Sort order')).toHaveValue('size');
-    expect(screen.getByRole('button', { name: 'Medium' })).toBeInTheDocument(); // active size chip
+    expect(screen.getByRole('button', { name: 'Medium' })).toBeInTheDocument();
   });
 
   it('leaves the default (unseeded) filters alone when smartPageDefaults is off', async () => {

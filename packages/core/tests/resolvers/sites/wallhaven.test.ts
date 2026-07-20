@@ -42,7 +42,6 @@ describe('wallhavenResolver', () => {
   });
   it('bare thumb (no DOM ext) upgrades to the /orig jpg + wallhaven hint (no blind full-file url)', () => {
     const r = wallhavenResolver.resolve(u(THUMB), { allowNetwork: false })[0];
-    // largest guaranteed-existing jpg, not a w.wallhaven.cc full URL that could 404 for a png
     expect(r.url).toBe('https://th.wallhaven.cc/orig/ab/abcdef.jpg');
     expect(r.resolveHint).toEqual({ platform: 'wallhaven', id: 'abcdef' });
   });
@@ -64,7 +63,7 @@ describe('wallhavenResolver', () => {
     document.body.appendChild(fig);
     const [c] = wallhavenResolver.resolve(u(ORIG), { el: img, allowNetwork: false });
     expect(c.url).toBe('https://w.wallhaven.cc/full/ab/wallhaven-abcdef.jpg');
-    expect(c.thumbnailSrc).toBe(ORIG); // kept, not downgraded to /lg
+    expect(c.thumbnailSrc).toBe(ORIG);
   });
 
   it('reads the id from the figure preview link when data-wallpaper-id is absent', () => {
@@ -150,7 +149,6 @@ describe('wallhaven true resolution', () => {
     document.body.innerHTML = '';
     const img = document.createElement('img');
     img.setAttribute('src', 'https://th.wallhaven.cc/small/zz/zz9999.jpg');
-    // not appended to any <figure>
     const [c] = wallhavenResolver.resolve(new URL(img.getAttribute('src')!), { el: img, allowNetwork: false });
     expect(c).toMatchObject({ resolveHint: { platform: 'wallhaven', id: 'zz9999' } });
     expect(c.width).toBeUndefined();
@@ -158,13 +156,10 @@ describe('wallhaven true resolution', () => {
   });
 });
 
-// When the URL path is NOT the canonical /size/xx/id.jpg thumb, idFrom can't read
-// the id from the URL and must fall back to the grid figure's DOM. A `.png`-suffixed
-// thumb URL (no `.jpg`) is the simplest way to force that fallback path.
 describe('wallhaven idFrom DOM fallbacks (non-standard thumb URL)', () => {
   afterEach(() => { document.body.innerHTML = ''; });
 
-  const NONSTD = 'https://th.wallhaven.cc/small/ab/abcdef'; // no `.jpg` -> URL-regex misses
+  const NONSTD = 'https://th.wallhaven.cc/small/ab/abcdef';
 
   function figure(opts: { dataId?: string; previewHref?: string; badge?: 'png' | 'gif' }): HTMLImageElement {
     document.body.innerHTML = '';

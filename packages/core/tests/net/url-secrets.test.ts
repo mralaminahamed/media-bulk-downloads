@@ -25,7 +25,6 @@ describe('stripUrlSecrets — query params', () => {
 
 describe('stripUrlSecrets — Akamai-style path tokens (I19)', () => {
   it('redacts an hdnts token segment embedded in the path', () => {
-    // Real Akamai encodes the acl slash as %2f, keeping the token in one segment.
     const out = stripUrlSecrets('https://cdn.example.com/exp=1700000000~acl=%2f*~hmac=deadbeef/hi/segment.m3u8');
     expect(out).toBe('https://cdn.example.com/REDACTED/hi/segment.m3u8');
     expect(out).not.toContain('hmac');
@@ -43,15 +42,12 @@ describe('stripUrlSecrets — Akamai-style path tokens (I19)', () => {
   });
 
   it('leaves ordinary path segments alone (no false positives)', () => {
-    // Real content paths — including a `~user` segment and a long hex content hash —
-    // carry no `key=value~key=value` auth shape and must NOT be redacted.
     expect(stripUrlSecrets('https://cdn.example.com/~user/2024/photo.jpg')).toBe(
       'https://cdn.example.com/~user/2024/photo.jpg',
     );
     expect(stripUrlSecrets('https://cdn.example.com/a1b2c3d4e5f6a7b8/master.m3u8')).toBe(
       'https://cdn.example.com/a1b2c3d4e5f6a7b8/master.m3u8',
     );
-    // A `~`-joined pair without an auth key stays (e.g. a matrix-param-ish segment).
     expect(stripUrlSecrets('https://cdn.example.com/size=large~fit=cover/img.jpg')).toBe(
       'https://cdn.example.com/size=large~fit=cover/img.jpg',
     );

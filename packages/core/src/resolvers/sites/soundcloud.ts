@@ -8,10 +8,6 @@
  * yields nothing).
  */
 
-// A SoundCloud track page is `soundcloud.com/<user>/<track-slug>` — exactly two
-// path segments. The first segment is a user handle; these reserved words are
-// SoundCloud's own app routes, never a user, so a `/<reserved>/<x>` path is not a
-// track page.
 const RESERVED_USER = new Set([
   'you', 'discover', 'stream', 'search', 'upload', 'settings', 'messages',
   'notifications', 'tags', 'charts', 'feed', 'library', 'popular-tracks',
@@ -19,9 +15,6 @@ const RESERVED_USER = new Set([
   'mobile', 'signin', 'login', 'directory', 'embed', 'oembed', 'stations',
 ]);
 
-// A track's own sub-pages/collections — the second segment when the URL is a
-// user's collection, not a single track (`/<user>/sets/<x>` is a playlist,
-// `/<user>/tracks` the track list, etc.). Excluded so only real tracks match.
 const NON_TRACK_SLUG = new Set([
   'sets', 'tracks', 'albums', 'reposts', 'likes', 'comments', 'following',
   'followers', 'popular-tracks', 'stats', 'insights',
@@ -51,8 +44,6 @@ export function soundcloudTrackUrl(raw: string | URL): string | null {
   if (segs.length !== 2) return null;
   const [user, slug] = segs;
   if (RESERVED_USER.has(user.toLowerCase()) || NON_TRACK_SLUG.has(slug.toLowerCase())) return null;
-  // Both segments must be plausible SoundCloud permalink slugs (lower-case
-  // alnum + hyphen/underscore) so a stray path can't drive the resolve fetch.
   if (!/^[a-z0-9][a-z0-9_-]*$/i.test(user) || !/^[a-z0-9][a-z0-9_-]*$/i.test(slug)) return null;
   return `https://soundcloud.com/${user}/${slug}`;
 }

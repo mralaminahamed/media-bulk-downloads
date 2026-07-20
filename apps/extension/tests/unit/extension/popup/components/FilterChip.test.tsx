@@ -29,7 +29,7 @@ describe('FilterChip', () => {
     expect(onClear).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Remove State filter' }));
     expect(onClear).toHaveBeenCalledTimes(1);
-    expect(onOpen).toHaveBeenCalledTimes(1); // body not re-fired
+    expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
   it('forwards aria-expanded/controls to the body button', () => {

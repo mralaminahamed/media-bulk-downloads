@@ -6,12 +6,6 @@ const item = (page: Page, alt: string) =>
   page.locator('figure', { has: page.locator(`img[alt="${alt}"]`) });
 const historyPanel = (page: Page) => page.getByRole('dialog', { name: /download history/i });
 
-// NOTE: bulk selection + ZIP building are driven through the item checkboxes and
-// the popup-side ZIP encoder, which the Vitest suite (App.test.tsx) covers in
-// full. These e2e tests assert the real-browser integration that unit tests
-// can't: a click actually reaching chrome.downloads and the background recording
-// history, plus the split-button menu wiring.
-
 test.describe('download flow', () => {
   test('downloads a single item and records it in Download History', async ({ context }) => {
     const page = await openBubblePage(context, '/media.html');
@@ -33,7 +27,6 @@ test.describe('download flow', () => {
     await item(page, 'Beta').getByRole('button', { name: 'Download' }).click();
 
     await page.getByRole('button', { name: 'Download history' }).click();
-    // Two distinct data: images downloaded → two recorded files.
     await expect(historyPanel(page).getByText(/\.svg/i)).toHaveCount(2);
   });
 

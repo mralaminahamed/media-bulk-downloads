@@ -1,9 +1,6 @@
 import { MediaCandidate } from '@mbd/core/resolvers/types';
 import { imageExtFromUrl, extensionFromUrl } from '@mbd/core/collection/mediaType';
 
-// A Motherless media page (`motherless.com/<id>`) carries its media URL in a
-// `__fileurl = '…'` JS variable; the media lives on the Motherless CDN
-// (*.motherlessmedia.com). Pin every URL to that family — the page JS is untrusted.
 function pinMotherless(raw: unknown): string | null {
   if (typeof raw !== 'string' || !raw) return null;
   try {
@@ -25,8 +22,6 @@ export function motherlessMediaId(raw: string | URL): string | null {
     return null;
   }
   if (!/(?:^|\.)motherless\.com$/i.test(u.hostname.toLowerCase())) return null;
-  // A single-segment path is a media/gallery page; the `__fileurl` presence is the
-  // real gate (a gallery/group/user page carries none → fails closed).
   return u.pathname.match(/^\/([0-9A-Za-z]+)\/?$/)?.[1] ?? null;
 }
 
