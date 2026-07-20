@@ -438,6 +438,15 @@ yarn test:e2e:headed   # visible browser
 
 Found a vulnerability? See [SECURITY.md](./SECURITY.md) for private disclosure.
 
+## Support
+
+Media Bulk Downloads is free and open source. If it saves you time, you can help:
+
+- **Sponsor** — via the **Sponsor** button on this repo, or directly at
+  [alaminahamed.com/donate](https://alaminahamed.com/donate) (also the **Support the
+  project** heart in the extension's popup).
+- **Star** the repo, report bugs, and send PRs — see [Contributing](./CONTRIBUTING.md).
+
 ## Acknowledgements
 
 Site-coverage research for many of the platform resolvers — the public media
