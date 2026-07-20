@@ -1,4 +1,4 @@
-# @mbd/platform
+# @mbd/platform — Browser Capability Seam
 
 The **browser-capability seam**: capability *contracts* and runtime feature
 detection, kept separate from any concrete implementation. It lets the rest of

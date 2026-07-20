@@ -1,4 +1,4 @@
-# @mbd/storage
+# @mbd/storage — Persistence Layer
 
 The extension's **persistence layer**: settings, download history, favourites,
 excluded sources, the download queue, per-host memory, and backup/sync — over

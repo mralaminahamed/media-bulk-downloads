@@ -1,4 +1,4 @@
-# @mbd/core
+# @mbd/core — Domain Core
 
 Browser-agnostic domain library for **Media Bulk Downloads**: media collection,
 per-site resolvers, HLS/DASH byte-logic, and the shared type contracts. **Zero

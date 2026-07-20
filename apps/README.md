@@ -6,7 +6,7 @@ packages under `../packages/` into something shippable.
 
 | App                  | Path         | What it is                                                                                                                                                                                               | Imports                                      |
 |----------------------|--------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------|
-| **`@mbd/extension`** | `extension/` | The WXT Manifest-V3 browser extension (Chrome / Firefox / Edge; Safari WIP). `entrypoints/` (background, content scripts, MAIN-world sniffers, offscreen) + `extension/{background,content,popup,bubble,offscreen}`. | `@mbd/core`, `@mbd/storage`, `@mbd/platform` |
+| **`@mbd/extension`** | `extension/` | The WXT Manifest-V3 browser extension (Chrome / Firefox / Edge live; Safari submitted, under review). `entrypoints/` (background, content scripts, MAIN-world sniffers, offscreen) + `extension/{background,content,popup,bubble,offscreen}`. | `@mbd/core`, `@mbd/storage`, `@mbd/platform` |
 
 The app is the only place that touches `chrome.*` freely; everything reusable and
 browser-agnostic lives in `../packages/`. Import direction is one-way:
@@ -14,15 +14,15 @@ browser-agnostic lives in `../packages/`. Import direction is one-way:
 
 `safari-native/` is **not** a yarn workspace (no `package.json`) — it holds the
 native macOS/iOS Xcode wrapper that hosts the Safari build (`-b safari`),
-generated on macOS by Apple's `safari-web-extension-converter`. Safari support is
-**work-in-progress**; see `safari-native/README.md`.
+generated on macOS by Apple's `safari-web-extension-converter`. The Safari app is
+**submitted to the Mac App Store and under review**; see `safari-native/README.md`.
 
 ## Build & run (from the repo root)
 
 ```bash
 yarn dev            # Chrome dev (HMR) → apps/extension/.output/chrome-mv3
 yarn build          # also :firefox, :edge, :all
-yarn build:safari   # Safari (WIP) → apps/extension/.output/safari-mv3
+yarn build:safari   # Safari → apps/extension/.output/safari-mv3
 yarn zip            # store zips in apps/extension/.output/
 ```
 
@@ -34,4 +34,4 @@ runs through the native wrapper — see `safari-native/README.md`.
 - Monorepo layout & rationale — `../docs/architecture/monorepo-restructure.md`
 - Guides — `../docs/guides/` (architecture, collection-pipeline, download, badge, bubble)
 - Full dev/build/debug workflow — the `extension-dev` skill (`.claude/skills/extension-dev/`)
-- Safari (WIP) — `safari-native/README.md`, `../docs/store-submissions/SAFARI_APPSTORE.md`
+- Safari (submitted, under review) — `safari-native/README.md`, `../docs/store-submissions/SAFARI_APPSTORE.md`
