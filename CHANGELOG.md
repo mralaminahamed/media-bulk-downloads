@@ -7,6 +7,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Support / donate button.** A highlighted rose heart now sits beside the
+  Favourites star in the popup and on-page-bubble header, linking to
+  `https://alaminahamed.com/donate`. It opens in a new tab from either surface
+  (a plain `<a>`, so it works in the bubble content script where `chrome.tabs`
+  is unavailable), and honours `prefers-reduced-motion` — the gentle heartbeat
+  is dropped, the highlighted pill stays.
 - **Pornhub videos.** On a Pornhub watch/embed page (`pornhub.com/view_video.php?viewkey=…`,
   `/embed/<id>`) the extension now surfaces the HLS master stream — the
   `format:"hls"` `videoUrl` in the page's inline `flashvars_<id>` object, on

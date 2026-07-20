@@ -24,6 +24,7 @@ import { deepScanActiveTab, abortDeepScanActiveTab } from '@/extension/shared/ac
 import { hostFromUrl, registrableDomain } from '@mbd/core/collection/paths';
 import { sendRuntimeMessage } from '@/extension/popup/utils';
 import { Cog6ToothIcon, ArrowPathIcon, ChevronDoubleDownIcon, ClockIcon, XMarkIcon, StarIcon, VideoCameraIcon, NoSymbolIcon, Square2StackIcon } from '@heroicons/react/24/outline';
+import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 import { downloadable, pendingVideos } from '@/extension/popup/lib/appHelpers';
 import { useDownloadHistory } from '@/extension/popup/hooks/useDownloadHistory';
 import { useFavourites } from '@/extension/popup/hooks/useFavourites';
@@ -277,6 +278,19 @@ const App: React.FC<AppProps> = ({
             </div>
           </div>
           <div className="mbd:flex mbd:items-center mbd:gap-0.5">
+            {/* Donation link — opens in a new tab. An <a> (not chrome.tabs.create)
+                so it works on both the popup and the bubble content-script surface,
+                which has no chrome.tabs. */}
+            <a
+              href="https://alaminahamed.com/donate"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="donatebtn"
+              title="Support the project — donate"
+              aria-label="Support the project — donate"
+            >
+              <HeartSolidIcon className="mbd:h-4.5 mbd:w-4.5" />
+            </a>
             <button onClick={() => setShowFavourites(true)} className="iconbtn" title="Favourites" aria-label="Favourites">
               <StarIcon className="mbd:h-4.5 mbd:w-4.5" />
             </button>

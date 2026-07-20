@@ -32,6 +32,12 @@
   /* Semantic warning tone (errors), kept separate from the indigo accent. */
   --warn: #b45309;
 
+  /* Donation accent — a warm rose, deliberately off the indigo brand ramp so the
+     "support" control reads as its own highlighted affordance in the toolbar. */
+  --donate: #e11d48;
+  --donate-ink: #be123c;
+  --donate-soft: #ffe4e6;
+
   /* Modal scrim. A theme-independent dark wash with a faint indigo-cool cast
      (never derived from --ink, which inverts light↔dark and would whiten the
      overlay in dark mode). Alpha baked in — apply as bg-[var(--overlay)]. */
@@ -85,6 +91,10 @@
     --ring: rgba(129, 140, 248, 0.4);
     --skeleton-sheen: rgba(255, 255, 255, 0.05);
     --warn: #fbbf24;
+    /* Brighter rose + deep-rose wash so the donate pill still reads on near-black. */
+    --donate: #fb7185;
+    --donate-ink: #fda4af;
+    --donate-soft: #3f1d2b;
     /* Deeper on the near-black canvas so lifted panels read against it. */
     --overlay: rgba(3, 4, 9, 0.66);
     /* On dark surfaces a black ring vanishes — use a faint light edge instead. */
@@ -313,6 +323,43 @@ input.num[type="number"]::-webkit-inner-spin-button {
 .iconbtn-sm {
   width: 28px;
   height: 28px;
+}
+
+/* Highlighted donation control. Same 32px footprint as .iconbtn, but a filled
+   rose pill instead of a transparent square so it stands out from the monochrome
+   icon row and pulls the eye to the "support" affordance. */
+.donatebtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  color: var(--donate);
+  background: var(--donate-soft);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease, transform 0.14s ease;
+}
+.donatebtn:hover {
+  color: var(--donate-ink);
+  transform: scale(1.08);
+}
+.donatebtn:focus-visible {
+  outline: 2px solid var(--donate);
+  outline-offset: 2px;
+}
+/* Gentle heartbeat draws the eye without shouting; off for reduced-motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .donatebtn svg {
+    animation: donate-beat 2.6s ease-in-out infinite;
+    transform-origin: center;
+  }
+}
+@keyframes donate-beat {
+  0%, 30%, 100% { transform: scale(1); }
+  10% { transform: scale(1.18); }
+  20% { transform: scale(1.1); }
 }
 
 /* Buttons. */
