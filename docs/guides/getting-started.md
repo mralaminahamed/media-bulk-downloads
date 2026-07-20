@@ -125,7 +125,7 @@ packages/                       # each package: src/ + tests/ (its own Vitest pr
                                  #     paths · download-name (buildDownloadFilename)
       resolvers/                #   collection-time REGISTRY + opt-in network resolve:
         index.ts                 #     REGISTRY + resolve() dispatch
-        network.ts               #     opt-in fetch() dispatch (10 platforms)
+        network.ts               #     opt-in fetch() dispatch (~20 platforms)
         sites/                   #     per-host resolvers (+ vimeo.ts id-extraction only)
         sniffers/                #     response/hls/ig/x/fb/pinterest MAIN-world sniffers
       download/                 #   zip · base64 · convert/ · stream/ (HLS/DASH byte-logic)
