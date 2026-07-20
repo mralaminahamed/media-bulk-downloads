@@ -7,30 +7,33 @@ fallback and works everywhere, including pages where content scripts can't run.
 
 ## Lifecycle (enable / disable)
 
-The content script mounts and unmounts the bubble. It reads `settings.bubbleEnabled`
-on load, then watches `chrome.storage.sync` for later changes.
+The content script mounts and unmounts the bubble. On load it asks the background
+for settings (`GET_SETTINGS`) — **not** `chrome.storage.sync` directly, which Safari
+content scripts don't reliably see — then listens for the background's
+`SETTINGS_CHANGED` push (sent after every `SET_SETTINGS` write) to mount or unmount
+on later changes.
 
 ```mermaid
 sequenceDiagram
   autonumber
   participant CS as content/index.ts
-  participant ST as chrome.storage.sync
+  participant BG as background (SW)
   participant M as bubble/mount (lazy import)
   participant SD as Shadow DOM
 
   Note over CS: content script loads (top-level frame only)
-  CS->>ST: get(["settings"])
-  ST-->>CS: settings
+  CS->>BG: sendMessage("GET_SETTINGS")
+  BG-->>CS: SettingsData (defaults if the worker is still waking)
   alt bubbleEnabled
     CS->>M: dynamic import ../bubble/mount
-    M->>SD: createRoot + render <Bubble> in a shadow root
+    M->>SD: createRoot + render the Bubble in a shadow root
   else disabled
     CS->>CS: no bubble mounted
   end
 
-  Note over ST,CS: user toggles the setting later
-  ST-->>CS: storage.onChanged(settings)
-  CS->>CS: applyBubble(newSettings) → mount or unmount
+  Note over BG,CS: user toggles the setting later (popup writes SET_SETTINGS)
+  BG->>CS: SETTINGS_CHANGED(settings)
+  CS->>CS: applyBubble(settings) → mount or unmount
 ```
 
 Mount builds one host element, `<div id="mbd-bubble-host">`, and appends it to
