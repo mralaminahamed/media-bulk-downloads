@@ -17,6 +17,10 @@ export default [
       'apps/safari-native/Media Bulk Downloads/**',
       'apps/safari-native/MediaBulkDownloads/**',
       'assets/v2/**',
+      // Gitignored scratch: console-paste research scripts (browser globals, not
+      // part of the build). Present only on machines that ran them; linting them
+      // fails the gate locally for no reason and CI never sees them.
+      'test-samples/**',
     ],
   },
   js.configs.recommended,
