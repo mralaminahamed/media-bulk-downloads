@@ -328,6 +328,35 @@ requests of its own.
   extension in real Chromium and drive the on-page bubble (`yarn test:e2e`)
 - **web-ext** — Firefox package validation
 
+## Dependencies
+
+Media Bulk Downloads runs **entirely inside your browser**. It does **not** use
+**Scrapfly**, any third-party scraping API, or an external proxy service — no request
+is ever routed through a server operated by us or anyone else. There is no backend.
+
+- **Collection is network-free by default** — it reads the media already present in
+  the page's DOM. The optional HLS sniffer only *observes* the manifest URLs a player
+  fetches (URLs only, never response bodies) and forges no requests of its own.
+- **When it does fetch** — the opt-in *Resolve originals* setting and HLS/DASH
+  **Capture** — it uses the browser's built-in `fetch`/XHR to request the file
+  **directly from the site's own origin/CDN**, with no intermediary.
+- **Saving** goes through the browser's own download manager (`chrome.downloads`).
+
+The only runtime libraries bundled are small, pure-in-browser helpers — no HTTP
+client, no headless browser:
+
+| Package                | Role                                                |
+|------------------------|-----------------------------------------------------|
+| `fflate`               | ZIP archive assembly (in-memory)                    |
+| `mp4box`               | MP4 muxing for assembled video streams              |
+| `@breezystack/lamejs`  | MP3 transcoding for captured audio                  |
+| `idb-keyval`           | IndexedDB storage for settings / history / favourites |
+| `react` / `react-dom`  | popup and on-page-bubble UI                         |
+| `@heroicons/react`     | UI icons                                            |
+
+Everything else in the repo is build / test tooling (see [Tech stack](#tech-stack)),
+not a runtime dependency.
+
 ## Project structure
 
 ```
