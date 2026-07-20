@@ -105,10 +105,18 @@ utility carries the `mbd:` prefix — see the prefix section above):
 
 ## References
 
+**Self-contained (start here):** `references/tokens-and-classes.md` — the full
+token table (light+dark values), the component-class catalog with dimensions, the
+`mbd:` prefix + cascade-trap rules, the v4 shorthand, and the keyframe/reduced-motion
+list, captured in-repo.
+
+**In-repo:**
 - Design tokens + component classes (this repo) — `apps/extension/src/styles/index.css`
 - Surfaces that consume them (this repo) — `apps/extension/src/extension/popup/`,
   `.../bubble/` (Shadow DOM), `.../components/BrandMark.tsx`
 - Bubble surface guide (this repo) — `docs/guides/bubble.md` (Shadow-DOM host, backdrop)
+
+**Further reading (external, optional — not required; captured in the ref above):**
 - Tailwind CSS v4 — https://tailwindcss.com/docs
 - `prefers-reduced-motion` — https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion
 - CSS `@keyframes` / `animation` — https://developer.mozilla.org/en-US/docs/Web/CSS/animation

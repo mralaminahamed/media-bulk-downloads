@@ -115,9 +115,14 @@ interface MediaCandidate {
 
 ## References
 
-- **Worked example** (this skill) — `references/worked-example.md`: a real
-  DOM-`srcset`-widest resolver (Der Spiegel) walked through end to end, and when to
-  copy it vs. a CDN rule / page-JSON reader / Phase-2 fetch.
+**Self-contained (start here — the required data lives in-repo):**
+- `references/recon-and-cdn.md` — the recon-probe recipe, `imageUrl.ts` CDN-rule
+  mechanics, URL/`srcset` API essentials, and the host-pin/SSRF pattern.
+- `references/worked-example.md` — a real DOM-`srcset`-widest resolver (Der Spiegel)
+  walked through end to end, and when to copy it vs. a CDN rule / page-JSON reader /
+  Phase-2 fetch.
+
+**In-repo source:**
 - Collection pipeline (this repo) — `docs/guides/collection-pipeline.md`,
   `docs/guides/resolve-originals.md` (the opt-in network tier), `docs/BENCHMARK.md`
 - Benchmark detail (this repo) — `docs/benchmark/gaps.md` (open/unupgradeable),
@@ -129,6 +134,8 @@ interface MediaCandidate {
   `apps/extension/tests/unit/extension/content/collect.test.ts`
 - Acknowledgement policy — README §Acknowledgements: gallery-dl is a **factual
   reference only** (endpoints / URL shapes); never copy its GPL source
+
+**Further reading (external, optional — not required; captured above):**
 - URL API — https://developer.mozilla.org/en-US/docs/Web/API/URL
 - `srcset` / responsive images — https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#srcset
 - fetch() (network tier runs in the background worker) — https://developer.mozilla.org/en-US/docs/Web/API/fetch

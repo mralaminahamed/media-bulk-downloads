@@ -92,9 +92,16 @@ strings from any sample output (the safety filter blocks raw tokens). Record in
 
 ## References
 
+**Self-contained (start here):** `references/testing-patterns.md` — copy-paste
+chrome-mock/listener-grab/async-flush patterns, Testing-Library query style, the
+Playwright e2e setup, and the DOM-measured browser-verify harness, captured in-repo.
+
+**In-repo:**
 - Test config (this repo) — root `vitest.config.ts` (projects), `apps/extension/vitest.config.ts`,
   `packages/*/vitest.config.ts`, `apps/extension/tests/unit/setupTests.ts` (the chrome mock)
 - e2e (this repo) — `apps/extension/tests/e2e/README.md`, `apps/extension/playwright.config.ts`
+
+**Further reading (external, optional — not required; captured in the ref above):**
 - WXT unit testing — https://wxt.dev/guide/essentials/unit-testing
 - WXT e2e testing — https://wxt.dev/guide/essentials/e2e-testing
 - Vitest — https://vitest.dev/guide/ · mocking — https://vitest.dev/guide/mocking · `vi` API — https://vitest.dev/api/vi
