@@ -42,6 +42,7 @@ that is the point (the CDN sweep killed 5 of 8 probed).
 ```ts
 interface Resolver {
   id: string;
+  hosts?: string[];   // registrable domains → registry host-index bucket; omit = host-agnostic (tried as fallback)
   match(u: URL, ctx: ResolveContext): boolean;   // exact hostname === checks, not substring
   resolve(u: URL, ctx: ResolveContext): MediaCandidate[]; // synchronous, network-free; [] = "not mine"
 }
@@ -114,6 +115,9 @@ interface MediaCandidate {
 
 ## References
 
+- **Worked example** (this skill) — `references/worked-example.md`: a real
+  DOM-`srcset`-widest resolver (Der Spiegel) walked through end to end, and when to
+  copy it vs. a CDN rule / page-JSON reader / Phase-2 fetch.
 - Collection pipeline (this repo) — `docs/guides/collection-pipeline.md`,
   `docs/guides/resolve-originals.md` (the opt-in network tier), `docs/BENCHMARK.md`
 - Benchmark detail (this repo) — `docs/benchmark/gaps.md` (open/unupgradeable),
