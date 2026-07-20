@@ -26,6 +26,7 @@ skill first (contract + `references/`).
    shape-validated, host-pinned, minimal comments.
 5. **Verify** — `/gate`, then `superpowers:verification-before-completion` (+ a
    collection-wiring test if wiring changed).
-6. **Record + ship** — `docs/benchmark/changelog.md` (what/why) + the README row if
-   behavior changed + a `CHANGELOG.md` `[Unreleased]` entry; then `/ship` as
-   `fix(resolver): …` (or `feat` if it now covers more).
+6. **Review + record + ship** — dispatch the **`resolver-reviewer`** agent on the
+   diff, fix 🔴/🟠 findings. Then `docs/benchmark/changelog.md` (what/why) + the
+   README row if behavior changed + a `CHANGELOG.md` `[Unreleased]` entry; `/ship`
+   as `fix(resolver): …` (or `feat` if it now covers more).

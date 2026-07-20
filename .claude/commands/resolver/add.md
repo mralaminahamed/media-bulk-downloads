@@ -25,6 +25,7 @@ Add media-resolver support for: **$ARGUMENTS**. Load the `adding-a-resolver` ski
    (`apps/extension/tests/unit/extension/content/collect.test.ts`).
 4. **Verify** — `/gate`, then `superpowers:verification-before-completion` before
    claiming done. Optionally the live `window.__bench` probe (strip query strings).
-5. **Document + ship** — README supported-sites row + `docs/benchmark/changelog.md`
-   entry + `CHANGELOG.md` `[Unreleased]` line; then `/ship` as
-   `feat(resolver): add <site> …`.
+5. **Review + document + ship** — dispatch the **`resolver-reviewer`** agent on the
+   diff and fix any 🔴/🟠 findings. Then add a README supported-sites row +
+   `docs/benchmark/changelog.md` entry + `CHANGELOG.md` `[Unreleased]` line; `/ship`
+   as `feat(resolver): add <site> …`.

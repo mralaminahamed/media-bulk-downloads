@@ -79,3 +79,12 @@ sets the domain approach; the process skill sets the method — use both.
   candidates), `/resolver:recon <site>` (probe one candidate → build-or-close),
   `/resolver:add <site>` (build a new one end to end, TDD), `/resolver:improve
   <name>` (audit + fix an existing site/sniffer against the live site).
+
+## Agents (`.claude/agents/`, dispatched via the Agent tool)
+
+- **`resolver-recon`** — read-only build-or-close probe of one site; fan out in
+  parallel from `/resolver:find`.
+- **`resolver-reviewer`** — reviews a resolver diff against the contract + security
+  rules; run before shipping a resolver.
+- **`doc-auditor`** — read-only staleness audit of a doc/skill cluster vs code; fan
+  out over clusters. (Generic build/investigate/review → the `cavecrew-*` agents.)

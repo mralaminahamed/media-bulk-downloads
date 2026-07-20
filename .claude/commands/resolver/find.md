@@ -27,4 +27,6 @@ discipline). Then:
 4. Output a short prioritized table (site · category · gap · mechanism ·
    feasibility). Be honest — recommend closing categories where generic already wins.
 
-Don't build here; offer to `/resolver:recon` the top pick next.
+Don't build here. To validate fast, **fan out the `resolver-recon` agent over the
+top candidates in parallel** (one per site) — each returns a build-or-close verdict
+with byte evidence — then report which survived. Build a survivor → `/resolver:add`.
