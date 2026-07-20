@@ -1,6 +1,6 @@
 # Privacy Policy — Media Bulk Downloads
 
-_Last updated: 2026-07-15_
+_Last updated: 2026-07-21_
 
 Media Bulk Downloads ("the extension") is a browser extension that finds images,
 video, and audio on the web page you are viewing and lets you preview, filter,
@@ -59,6 +59,12 @@ no identifying information beyond a normal browser request to that host:
 - **"Retry with page referer"** (only when you click it on a download a site
   blocked with HTTP 403) sets that one request's `Referer`/`Origin` to the item's
   source page so the file downloads, then removes the rule.
+
+**The Support link.** The popup and on-page panel include an optional **Support the
+project** link to the developer's donation page (`alaminahamed.com/donate`). It is a
+plain link — the extension makes **no** automatic or background request to it and
+sends **nothing**; it opens that page in a new tab only if *you* click it, exactly
+like clicking any link on a web page.
 
 ## Permissions
 
