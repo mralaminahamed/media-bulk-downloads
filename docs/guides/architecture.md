@@ -212,7 +212,7 @@ sequenceDiagram
   OS-->>BG: CAPTURE_RUN response (assembled bytes)
   BG->>DL: chrome.downloads.download(blob)
   DL-->>BG: downloadId
-  BG-->>UI: CAPTURE_STREAM { status } (final; the popup may already be closed)
+  BG-->>UI: CAPTURE_STREAM { status } (final — the popup may already be closed)
 ```
 
 `CAPTURE_RUN` and `CAPTURE_PROGRESS` are internal to this pipeline; only
