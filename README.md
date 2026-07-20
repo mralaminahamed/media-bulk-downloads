@@ -49,7 +49,7 @@ It reads only what the page already loaded, so nothing leaves your device.
 - **HLS streams** (`.m3u8`) exposed in the page **or fetched by its player**
   (`hls.js`, via a passive network sniffer) — captured (manifest + segments
   fetched, AES-128 decrypted, assembled into one `.ts`/`.mp4`). DRM and live
-  streams are refused; see [Capture below](#hls-stream-capture)
+  streams are refused; see [Capture below](#hls--dash-stream-capture)
 - **YouTube video posters** — an embedded player `<iframe>` or a link to a video
   (`watch`, `youtu.be`, `/embed`, `/shorts`, `/live`, `youtube-nocookie`) becomes
   its downloadable poster thumbnail, even with no `<img>` on the page
