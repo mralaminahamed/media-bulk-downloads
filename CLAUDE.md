@@ -58,4 +58,14 @@ close if generic already wins), **extension-dev** (where code goes, MV3 pitfalls
 **storage-and-settings** (persistence, the settings-write path), **releasing**
 (version bump → stores → tag), **testing-and-verifying** (Vitest + browser
 verify), **ui-design-system** (the `mbd:`-prefixed Tailwind + token/component
-classes). Slash commands: `/ship`, `/gate`, `/recon`.
+classes). Each skill has self-contained `references/` files carrying the required
+data (external URLs are optional further reading only).
+
+## Commands (`.claude/commands/`)
+
+- **`/ship`** — branch → commit → PR → merge (merge commit, delete branch) → sync.
+- **`/gate`** — the pre-PR gate with real exit codes.
+- **Site support** — `/find-resolver` (search new sites worth supporting →
+  candidates), `/recon <site>` (probe one candidate → build-or-close),
+  `/add-resolver <site>` (build a new one end to end, TDD), `/improve-resolver
+  <name>` (audit + fix an existing site/sniffer against the live site).

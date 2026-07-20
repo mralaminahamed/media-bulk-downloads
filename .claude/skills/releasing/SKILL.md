@@ -140,6 +140,8 @@ browsers (Brave/Opera/Vivaldi) use the Chrome zip.
 - Safari wrapper (this repo) — `apps/safari-native/README.md`, `apps/safari-native/convert.sh`
 - Release workflow (this repo) — `.github/workflows/release.yml`; manifest source `apps/extension/wxt.config.ts`
 - **CWS API deep-dive** (this skill) — `references/chrome-webstore-api.md` (OAuth setup, token minting, error catalog)
+
+**Further reading (external, optional — not required; the CWS specifics are captured in the ref above):**
 - WXT publishing / zip — https://wxt.dev/guide/essentials/publishing
 - Chrome Web Store publishing — https://developer.chrome.com/docs/webstore/publish
 - Chrome Web Store **API** (endpoints + OAuth) — https://developer.chrome.com/docs/webstore/using-api

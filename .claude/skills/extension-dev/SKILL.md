@@ -155,6 +155,11 @@ after a manual `yarn build`, hit **Reload ↻** on the extension card.
 
 ## References
 
+**Self-contained (start here):** `references/wxt-and-mv3.md` — the WXT/manifest
+config, the `chrome.*` APIs used + their gotchas, the MV3 service-worker lifecycle,
+and the scheme allowlist, captured in-repo (no external docs needed).
+
+**In-repo:**
 - Monorepo design — `docs/architecture/monorepo-restructure.md`; package manifests
   `packages/{core,storage,platform}/package.json`, `apps/extension/package.json`;
   per-package overviews `packages/*/README.md`, `apps/*/README.md`
@@ -167,7 +172,9 @@ after a manual `yarn build`, hit **Reload ↻** on the extension card.
 - In-repo guides — `docs/guides/`: `getting-started.md`, `architecture.md`,
   `collection-pipeline.md`, `deep-scan.md`, `download.md`, `download-paths.md`,
   `badge.md`, `bubble.md`, `history.md`, `favourites.md`, `resolve-originals.md`;
-  `docs/BENCHMARK.md` for collection cost numbers
+  `docs/BENCHMARK.md` for collection cost numbers 
+
+**Further reading (external, optional — not required; captured in the ref above):**
 - WXT — installation https://wxt.dev/guide/installation · project structure
   https://wxt.dev/guide/essentials/project-structure · entrypoints
   https://wxt.dev/guide/essentials/entrypoints · config/manifest

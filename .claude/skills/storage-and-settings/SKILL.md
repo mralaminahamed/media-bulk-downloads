@@ -97,6 +97,11 @@ detection, never treat "browser doesn't know this id" as "deleted".
 
 ## References
 
+**Self-contained (start here):** `references/persistence.md` — the two realms +
+quotas, chrome.storage/idb-keyval API forms, the settings write path, and the
+`durableSet` + `syncStores` durability pattern, captured in-repo.
+
+**In-repo source:**
 - Storage source (this repo) — `packages/storage/src/`: `settings.ts`, `history.ts`,
   `favourites.ts`, `excluded.ts`, `download-queue.ts`, `byte-budget.ts`,
   `per-host-settings.ts`, `per-host-scan-memory.ts`, `backup.ts`, `save-as-hint.ts`,
@@ -108,6 +113,8 @@ detection, never treat "browser doesn't know this id" as "deleted".
 - Package overview (this repo) — `packages/storage/README.md`
 - Store guides (this repo) — `docs/guides/history.md`, `docs/guides/favourites.md`;
   message catalog + data model `docs/guides/architecture.md`
+
+**Further reading (external, optional — not required; captured in the ref above):**
 - idb-keyval — https://github.com/jakearchibald/idb-keyval
 - IndexedDB — https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API
 - StorageManager.persist() — https://developer.mozilla.org/en-US/docs/Web/API/StorageManager/persist
