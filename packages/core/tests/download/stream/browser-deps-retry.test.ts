@@ -33,8 +33,6 @@ it('browserDashDeps.fetchBytes still throws on a permanent 404', async () => {
   await expect(browserDashDeps().fetchBytes('https://x/seg.m4s')).rejects.toThrow(/404/);
 });
 
-// SSRF-guard bypass defense: every capture fetch must refuse redirects, so a
-// guard-passing host can't 302 the request at an internal target.
 it('browserHlsDeps fetches with redirect:"error"', async () => {
   const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(new Uint8Array([1]).buffer as ArrayBuffer, { status: 200 }));
   await browserHlsDeps().fetchBytes('https://x/seg.ts');

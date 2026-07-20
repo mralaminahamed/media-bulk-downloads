@@ -23,7 +23,7 @@ describe('StreamVariantSelect', () => {
   it('renders Auto + one option per height and reports the chosen height', async () => {
     const onChange = vi.fn();
     render(<StreamVariantSelect state={DONE} value={null} onEnsure={() => {}} onChange={onChange} />);
-    await waitFor(() => expect(screen.getAllByRole('option')).toHaveLength(3)); // Auto + 1080 + 480
+    await waitFor(() => expect(screen.getAllByRole('option')).toHaveLength(3));
     fireEvent.change(screen.getByRole('combobox'), { target: { value: '1080' } });
     expect(onChange).toHaveBeenCalledWith(1080);
   });

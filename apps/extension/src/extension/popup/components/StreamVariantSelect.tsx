@@ -11,8 +11,8 @@ import type { VariantState } from '@/extension/popup/hooks/useStreamVariants';
  */
 interface Props {
   state: VariantState;
-  value: number | null;             // chosen height, or null for Auto
-  onEnsure: () => void;             // fetch renditions (called on first open)
+  value: number | null;
+  onEnsure: () => void;
   onChange: (height: number | null) => void;
   className?: string;
 }

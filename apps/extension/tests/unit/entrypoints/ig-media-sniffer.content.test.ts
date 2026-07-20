@@ -1,9 +1,5 @@
 import type { Mock } from 'vitest';
 
-// Capture what the entrypoint wires into the shared response sniffer rather than
-// installing the real fetch/XHR hooks (covered by response-sniffer's own tests).
-// This isolates the entrypoint-owned logic: the API-URL predicate, the JSON
-// guard, the envelope shape, and which extractor is used.
 vi.mock('@mbd/core/resolvers/sniffers/response-sniffer', () => ({
   installResponseSniffer: vi.fn(),
   makeSnifferEmit: vi.fn(() => () => {}),
@@ -41,7 +37,6 @@ describe('ig-media-sniffer content entrypoint', () => {
     expect(resp.urlKey).toBe('__mbdIgUrl');
     expect(resp.isApi('https://www.instagram.com/api/v1/feed/timeline/')).toBe(true);
     expect(resp.isApi('https://www.instagram.com/graphql/query')).toBe(true);
-    // A normal page navigation or a static asset must not trip the sniffer.
     expect(resp.isApi('https://www.instagram.com/p/Cabc123/')).toBe(false);
     expect(resp.isApi('https://scontent.cdninstagram.com/v/photo.jpg')).toBe(false);
   });
@@ -51,8 +46,6 @@ describe('ig-media-sniffer content entrypoint', () => {
     expect(emit.guard('{"image_versions2":{"candidates":[]}}')).toBe(true);
     expect(emit.guard('{"video_versions":[]}')).toBe(true);
     expect(emit.guard('{"user":{"id":"1"}}')).toBe(false);
-    // The entrypoint delegates extraction to the shared IG extractor (tested
-    // separately) — assert it wires the real one, not a stub.
     expect(emit.extract).toBe(extractIgMedia);
   });
 

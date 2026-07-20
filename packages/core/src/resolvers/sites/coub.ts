@@ -1,9 +1,5 @@
 import { MediaCandidate } from '@mbd/core/resolvers/types';
 
-// Coub serves all media from its own CDN family (currently
-// `attachments-cdn-s.coub.com`). The share/default render is a single combined
-// audio+video mp4; every URL taken from the (untrusted) page JSON is pinned to
-// the coub.com family before it becomes a downloadable candidate.
 function pinCoub(raw: unknown): string | null {
   if (typeof raw !== 'string' || !raw) return null;
   try {

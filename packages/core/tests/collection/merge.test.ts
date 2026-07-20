@@ -13,9 +13,6 @@ describe('mergeScannedMedia', () => {
   });
 
   it('keeps the FIRST occurrence on a plain canonical-src collision (volatile query, no mediaKey)', () => {
-    // Same host + image path, differing volatile query token — canonicalSrcKey
-    // strips the query for a media-ext path, so both map to the same identity and
-    // the existing one wins (today's dedup behavior, unchanged).
     const out = mergeScannedMedia(
       [img('https://img.example.net/p/x.jpg?token=AAA')],
       [img('https://img.example.net/p/x.jpg?token=BBB')],
@@ -28,8 +25,8 @@ describe('mergeScannedMedia', () => {
     const existing = [img('https://x.fbcdn.net/grid_n.jpg', { mediaKey: 'fb:301', width: 417, height: 417 }), img('https://a/keep.jpg')];
     const found = [img('https://x.fbcdn.net/orig_n.jpg', { mediaKey: 'fb:301', width: 2048, height: 1365 })];
     const out = mergeScannedMedia(existing, found);
-    expect(out).toHaveLength(2); // NOT 3 — the grid row is replaced, not duplicated
-    expect(out[0].src).toBe('https://x.fbcdn.net/orig_n.jpg'); // upgraded, in the same (first) slot
+    expect(out).toHaveLength(2);
+    expect(out[0].src).toBe('https://x.fbcdn.net/orig_n.jpg');
     expect(out[1].src).toBe('https://a/keep.jpg');
   });
 

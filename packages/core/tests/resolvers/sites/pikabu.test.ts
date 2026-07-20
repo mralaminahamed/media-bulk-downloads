@@ -10,7 +10,7 @@ describe('pikabuResolver', () => {
     const u = new URL('https://cs14.pikabu.ru/post_img/2024/preview/1.jpg');
     expect(pikabuResolver.match(u, ctx(undefined, PAGE))).toBe(true);
     expect(pikabuResolver.match(u, ctx(undefined, 'https://example.com/'))).toBe(false);
-    expect(pikabuResolver.match(u, { allowNetwork: false })).toBe(false); // no pageUrl
+    expect(pikabuResolver.match(u, { allowNetwork: false })).toBe(false);
   });
 
   it('reads the /big/ original from the story-image link, element-scoped', () => {

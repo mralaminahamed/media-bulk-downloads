@@ -3,12 +3,8 @@ import '@testing-library/jest-dom/vitest';
 import { configure } from '@testing-library/react';
 
 // v8 coverage instrumentation + parallel workers can starve a worker's event
-// loop for seconds, so testing-library's 1000ms default for findBy* flakes.
-// Give async queries generous headroom (still under the per-test timeout).
 configure({ asyncUtilTimeout: 8000 });
 
-// jsdom does not implement Blob.prototype.arrayBuffer; some download/convert
-// code sniffs a blob's header bytes, so provide a FileReader-backed polyfill.
 if (!(Blob.prototype as { arrayBuffer?: unknown }).arrayBuffer) {
     (Blob.prototype as { arrayBuffer: () => Promise<ArrayBuffer> }).arrayBuffer = function (this: Blob) {
         return new Promise<ArrayBuffer>((resolve, reject) => {
@@ -20,21 +16,13 @@ if (!(Blob.prototype as { arrayBuffer?: unknown }).arrayBuffer) {
     };
 }
 
-// jsdom does not implement window.scrollTo/scrollBy — it logs a noisy
-// "Not implemented: Window's scrollTo() method" to the virtual console for every
-// call. The deep-scan runner drives the page by scrolling, so stub them as no-ops.
-// Guarded: some suites opt into the node environment, where `window` is undefined.
 if (typeof window !== 'undefined') {
     window.scrollTo = (() => {}) as typeof window.scrollTo;
     window.scrollBy = (() => {}) as typeof window.scrollBy;
 }
 
-// Backing store for the chrome.storage.local mock below.
 const localStorageStore: Record<string, unknown> = {};
 
-// A reasonably complete Chrome API mock so extension modules (which register
-// event listeners at import time) can be imported without crashing. Individual
-// tests override specific methods as needed.
 global.chrome = {
     runtime: {
         sendMessage: vi.fn(),
@@ -94,10 +82,6 @@ global.chrome = {
             get: vi.fn(),
             set: vi.fn(),
         },
-        // Backed by a real in-memory store so storage modules (favourites,
-        // history, excluded, ...) round-trip across get/set within a test —
-        // individual tests still override get/set with mockResolvedValue /
-        // mockImplementation when they need a specific canned shape.
         local: {
             get: vi.fn((keys?: string | string[] | Record<string, unknown> | null) => {
                 if (keys == null) return Promise.resolve({ ...localStorageStore });
@@ -159,11 +143,6 @@ global.chrome = {
     },
 } as unknown as typeof chrome;
 
-// Reset the in-memory chrome.storage.local backing store after every test so
-// state written by one test never leaks into a later test in the same file.
-// First drain a macrotask so any deferred async — the durable IDB mirror writes
-// (fire-and-forget) and serialized queue/history continuations — settles WITHIN
-// its own test boundary instead of bleeding a late set() into the next test.
 afterEach(async () => {
     await new Promise((r) => setTimeout(r, 0));
     for (const k of Object.keys(localStorageStore)) delete localStorageStore[k];

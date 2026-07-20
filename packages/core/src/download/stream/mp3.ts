@@ -95,7 +95,7 @@ export async function encodeMp3(
   const left = floatTo16(channels[0]);
   const right = stereo ? floatTo16(channels[1]) : undefined;
 
-  const BLOCK = 1152; // one MPEG-1 Layer III frame
+  const BLOCK = 1152;
   const chunks: Uint8Array[] = [];
   for (let i = 0; i < left.length; i += BLOCK) {
     const l = left.subarray(i, i + BLOCK);

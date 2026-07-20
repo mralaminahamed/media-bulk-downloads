@@ -64,10 +64,6 @@ export function isBase64Image(src: string): boolean {
 
 /** Extracts the image type from a base64 data URI. */
 export function getBase64ImageType(src: string): string {
-  // The subtype ends at the first `;` (…;base64,) or `,` (URL-encoded, no base64),
-  // so match either — otherwise an inline `data:image/svg+xml,<svg…>` reads as
-  // 'unknown'. Normalise `svg+xml` to the 'svg' that getImageType emits for .svg
-  // files, so the toolbar's imageType='svg' filter matches inline/base64 SVGs too.
   const match = src.match(/^data:image\/([\w.+-]+)\s*[;,]/i);
   if (!match) return 'unknown';
   const type = match[1].toLowerCase();
@@ -76,10 +72,6 @@ export function getBase64ImageType(src: string): string {
 
 /** Calculates the size of a base64-encoded image in bytes. */
 export function getBase64ImageSize(src: string): number {
-  // Only a genuinely base64 data URI has a computable byte length here. A
-  // URL-encoded data URI (e.g. `data:image/svg+xml,<svg viewBox="0,0,8,8">…`)
-  // is not base64 and its payload can contain commas, so split(',')[1] would be
-  // a truncated fragment and the length formula pure nonsense — report 0 instead.
   const comma = src.indexOf(',');
   if (comma === -1 || !/;base64\s*$/i.test(src.slice(0, comma))) return 0;
   const base64 = src.slice(comma + 1);
@@ -96,10 +88,6 @@ export function getImageDimensions(img: HTMLImageElement): { width: number; heig
   };
 }
 
-// `getImageType` and `parseSrcset` are pure URL/string helpers that live in the
-// browser-agnostic collection layer. They are re-exported here so the content
-// script (and its tests) keep a stable import surface without the collection
-// layer having to depend back on the content script.
 export { getImageType, parseSrcset } from '@mbd/core/collection/imageUrl';
 
 /**
@@ -122,9 +110,6 @@ export function resolveUrl(src: string): string {
  */
 function bestImageSetCandidate(inner: string): string | null {
   let best: { url: string; res: number } | null = null;
-  // The `<res>x`/`<res>dppx` descriptor is optional — a candidate written without
-  // one (e.g. `image-set("a.png" type("image/png"))`) defaults to 1, so it must
-  // still match rather than be dropped.
   const candRe = /(?:url\(\s*(['"]?)(.*?)\1\s*\)|(['"])(.*?)\3)(?:\s*([\d.]+)\s*(?:x|dppx))?/gi;
   let c: RegExpExecArray | null;
   while ((c = candRe.exec(inner)) !== null) {
@@ -150,7 +135,6 @@ export function backgroundImageUrls(bgImage: string): string[] {
   let m: RegExpExecArray | null;
   while ((m = setRe.exec(bgImage)) !== null) {
     plain.push(bgImage.slice(lastIndex, m.index));
-    // Walk to the matching close paren (url() candidates contain their own parens).
     let depth = 1;
     let i = setRe.lastIndex;
     for (; i < bgImage.length && depth > 0; i++) {
@@ -211,12 +195,8 @@ function knownThumbSize(img: HTMLImageElement | null): number {
 export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?: boolean; resolveOriginals?: boolean }): MediaItem[] {
   const incremental = scanRoots !== undefined;
   const media: MediaItem[] = [];
-  // Dedup by CANONICAL src key, not the raw URL, so the same image served from
-  // two rotating CDN edge hosts / signed queries in one scan yields one tile.
   const seenKeys = new Set<string>();
   const seenSources = {
-    // Canonicalize once per candidate (the hot path): true if newly added,
-    // false if already seen — replaces a has()+add() pair that keyed twice.
     addIfNew: (url: string): boolean => {
       const k = canonicalSrcKey(url);
       if (seenKeys.has(k)) return false;
@@ -226,19 +206,12 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
   };
   const pageUrl = location.href;
 
-  // Maps a resolved candidate to a MediaItem/ImageInfo, preserving the dimension
-  // fallback and dedup semantics of the pre-registry implementation.
   const pushCandidate = (
     cand: MediaCandidate, resolved: string, alt: string, width: number, height: number, thumbnailOverride?: string,
   ): void => {
     if (!seenSources.addIfNew(cand.url)) return;
 
     if (cand.kind === 'video' || cand.kind === 'gif') {
-      // A resolver can hand back a streaming manifest (Pinterest's HLS master when
-      // no progressive mp4 exists, etc.) as an ordinary video candidate — it is not
-      // a single downloadable file, so it must route through the same capture path
-      // (`hlsManifest`) as pushHls/pushDash, or it silently bypasses the user's
-      // captureHlsStreams opt-in and downloads as a broken manifest file.
       const isHls = cand.ext === 'm3u8' || isHlsManifest(cand.url);
       const isDash = cand.ext === 'mpd' || isDashManifest(cand.url);
       const item: MediaItem = {
@@ -255,12 +228,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       return;
     }
 
-    // A resolver-supplied true size (e.g. Wallhaven's grid resolution) wins;
-    // otherwise DOM dimensions win; otherwise fall back to whatever the URL
-    // encodes. The upgraded candidate URL often has its size hint stripped away
-    // (that's the point of the upgrade), so also try the pre-upgrade `resolved`
-    // URL, which still carries the thumbnail's size token (e.g. Shopify
-    // `_800x600`, Twitter `name=360x360`).
     let w = cand.width ?? width;
     let h = cand.height ?? height;
     if (w === 0 && h === 0) {
@@ -284,8 +251,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     const thumb = thumbnailOverride ? resolveUrl(thumbnailOverride) : cand.thumbnailSrc;
     if (thumb && thumb !== cand.url) info.thumbnailSrc = thumb;
     if (cand.resolveHint) info.resolveHint = cand.resolveHint;
-    // The resolver knows the true file extension (e.g. Wallhaven .jpg vs the
-    // canonical 'jpeg' type); carry it so the download keeps the real extension.
     if (cand.ext) info.ext = cand.ext;
     if (cand.mediaKey) info.mediaKey = cand.mediaKey;
     media.push(info);
@@ -317,19 +282,9 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     }
   };
 
-  // Computed once, applied to every scanned root: jsdom has no layout engine —
-  // every element reports 0×0 — so the not-rendered guard below is only safe to
-  // apply when the document actually has layout, otherwise it would skip every
-  // element under test.
   const hasLayout =
     (document.documentElement?.offsetHeight ?? 0) > 0 || (document.body?.offsetHeight ?? 0) > 0;
 
-  // <video> and <audio> — direct-file sources only. Streaming manifests and
-  // blob: URLs are skipped (chrome.downloads can't fetch them as one file).
-  // An HLS manifest (.m3u8) surfaced as a capturable video: it is not a single
-  // file, but the HLS engine can fetch + assemble its segments. `src` holds the
-  // manifest URL for preview/keying; `hlsManifest` marks it for the capture path
-  // so it is never handed to chrome.downloads directly.
   const pushHls = (resolved: string, alt: string, posterUrl?: string): void => {
     if (!seenSources.addIfNew(resolved)) return;
     const item: MediaItem = {
@@ -354,10 +309,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     media.push(item);
   };
 
-  // A Vimeo video (embed iframe or link) surfaced as a pending video: Vimeo hides
-  // the file behind its player config, so the real mp4 is fetched on the opt-in
-  // resolve pass (resolveHint 'vimeo'), like a Twitter video. Keyed by the canonical
-  // watch URL so an embed + a link to the same video collapse to one item.
   const pushVimeo = (id: string): void => {
     const watch = `https://vimeo.com/${id}`;
     if (!seenSources.addIfNew(watch)) return;
@@ -368,11 +319,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     });
   };
 
-  // A Dailymotion video (embed iframe or link) surfaced as a pending video:
-  // Dailymotion hides the file behind its player metadata, so the real HLS
-  // master is fetched on the opt-in resolve pass (resolveHint 'dailymotion'),
-  // like a Vimeo video. Keyed by the canonical watch URL so an embed + a link
-  // to the same video collapse to one item.
   const pushDailymotion = (id: string): void => {
     const watch = `https://www.dailymotion.com/video/${id}`;
     if (!seenSources.addIfNew(watch)) return;
@@ -383,11 +329,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     });
   };
 
-  // A Rutube video (watch page, embed, or link) surfaced as a pending video:
-  // Rutube hides the file behind its play-options API, so the real HLS master is
-  // fetched on the opt-in resolve pass (resolveHint 'rutube'), like a Dailymotion
-  // video. Keyed by the canonical watch URL so a page + an embed/link to the same
-  // video collapse to one item.
   const pushRutube = (id: string): void => {
     const watch = `https://rutube.ru/video/${id}/`;
     if (!seenSources.addIfNew(watch)) return;
@@ -398,12 +339,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     });
   };
 
-  // A Rumble video (watch page, embed, or link) surfaced as a pending video:
-  // Rumble's embed id (needed by its metadata API) isn't in the watch URL, so the
-  // hint carries the canonical URL itself and the opt-in resolve pass
-  // (resolveHint 'rumble') derives the embed id via Rumble's oEmbed endpoint, then
-  // reads the HLS master — like the gallery-page hint. Keyed by the URL so a page +
-  // an embed/link to the same video collapse to one item.
   const pushRumble = (url: string): void => {
     if (!seenSources.addIfNew(url)) return;
     media.push({
@@ -413,12 +348,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     });
   };
 
-  // A Loom recording (share page, embed iframe, or link) surfaced as a pending
-  // video: Loom mints the mp4 server-side (an unauthenticated POST returns a
-  // CloudFront-signed cdn.loom.com file), so the real media is fetched on the
-  // opt-in resolve pass (resolveHint 'loom'), like a Vimeo/Dailymotion embed.
-  // Keyed by the canonical share URL so an embed + a link to the same recording
-  // collapse to one item.
   const pushLoom = (id: string): void => {
     const share = `https://www.loom.com/share/${id}`;
     if (!seenSources.addIfNew(share)) return;
@@ -429,13 +358,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     });
   };
 
-  // A PeerTube video (watch page, embed, or link) surfaced as a pending video.
-  // PeerTube is host-agnostic across the federation with no fixed media host, so
-  // the hint carries the canonical embed URL and the opt-in resolve pass
-  // (resolveHint 'peertube') confirms the instance via /api/v1/config, then reads
-  // the widest direct file / HLS master from /api/v1/videos/<id> — like Rumble's
-  // URL-carrying hint. Keyed by the canonical embed URL so a watch page + an
-  // embed/link to the same video collapse to one item.
   const pushPeerTube = (embedUrl: string): void => {
     if (!seenSources.addIfNew(embedUrl)) return;
     media.push({
@@ -445,11 +367,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     });
   };
 
-  // A Streamable video (embed iframe or link) surfaced as a pending video:
-  // Streamable hides the mp4 behind its public video API, so the real file is
-  // fetched on the opt-in resolve pass (resolveHint 'streamable'), like a Vimeo
-  // video. Keyed by the canonical watch URL so an embed + a link to the same
-  // video collapse to one item.
   const pushStreamable = (id: string): void => {
     const watch = `https://streamable.com/${id}`;
     if (!seenSources.addIfNew(watch)) return;
@@ -460,11 +377,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     });
   };
 
-  // A RedGifs video (embed iframe or link) surfaced as a pending video: RedGifs
-  // hides the mp4 behind a token-auth'd API, so the real file is fetched on the
-  // opt-in resolve pass (resolveHint 'redgifs'), like a Vimeo video. Keyed by the
-  // canonical watch URL so an embed + a link to the same video collapse to one
-  // item.
   const pushRedgifs = (id: string): void => {
     const watch = `https://www.redgifs.com/watch/${id}`;
     if (!seenSources.addIfNew(watch)) return;
@@ -475,11 +387,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     });
   };
 
-  // A Twitch clip (embed iframe or link) surfaced as a pending video: the clip's
-  // mp4 lives behind a GQL persisted query, so the real file is fetched on the
-  // opt-in resolve pass (resolveHint 'twitch'), like a Vimeo video. Keyed by the
-  // canonical clips permalink so an embed + a link to the same clip collapse to one
-  // item.
   const pushTwitch = (id: string): void => {
     const watch = `https://clips.twitch.tv/${id}`;
     if (!seenSources.addIfNew(watch)) return;
@@ -490,11 +397,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     });
   };
 
-  // A Twitch VOD (a `/videos/<id>` watch page, link, or player embed) surfaced as a
-  // pending video: a VOD has no single mp4 — its usher HLS master is minted behind a
-  // GQL access-token call, so the master is fetched on the opt-in resolve pass
-  // (resolveHint 'twitch', id `vod <id>`) and captured. Keyed by the canonical VOD
-  // permalink so an embed + a link to the same VOD collapse to one item.
   const pushTwitchVod = (id: string): void => {
     const watch = `https://www.twitch.tv/videos/${id}`;
     if (!seenSources.addIfNew(watch)) return;
@@ -505,11 +407,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     });
   };
 
-  // A SoundCloud track (a track page or a link to one) surfaced as a pending item:
-  // the playable audio lives behind SoundCloud's api-v2 resolve + transcoding
-  // endpoints (a scraped client_id is required), so it is fetched on the opt-in
-  // resolve pass (resolveHint 'soundcloud'). An HLS transcoding is captured to an
-  // m4a/mp3 by the audio-only path. Keyed by the canonical track URL.
   const pushSoundcloud = (trackUrl: string): void => {
     if (!seenSources.addIfNew(trackUrl)) return;
     media.push({
@@ -519,11 +416,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     });
   };
 
-  // A 9GAG video/GIF post surfaced as a pending video: the mp4 is id-derived and
-  // unsigned, so the real file is built network-free on the resolve pass
-  // (resolveHint '9gag'). Keyed by the canonical post URL. Only ever called for a
-  // post whose DOM carries a <video> (see nineGagPostHasVideo) — an image post has
-  // no <video>, so it never becomes a would-404 `_460sv.mp4`.
   const pushNineGag = (id: string): void => {
     const watch = `https://9gag.com/gag/${id}`;
     if (!seenSources.addIfNew(watch)) return;
@@ -534,29 +426,9 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     });
   };
 
-  // True only when the 9GAG post that an anchor belongs to actually contains a
-  // <video> — the image-vs-video guard. The container is scoped to the single post
-  // (`<article>` or 9GAG's `jsid-post-<id>` element), never a page-wide wrapper, so
-  // an image post can't borrow a sibling video post's <video> and 404. If neither
-  // per-post container is found, the feature stays inert (no upgrade) — safe by
-  // construction. (9GAG's exact post markup wants a live confirmation.)
   const nineGagPostHasVideo = (a: Element): boolean =>
     !!a.closest('article, [id^="jsid-post-"]')?.querySelector('video');
 
-  // X/Twitter unpainted grid cells: a `/user/status/<id>/photo|video/<n>` link
-  // whose cell never rendered a real pbs.twimg.com media <img> (or a mounted
-  // <video>'s poster) — common on a fast scroll through a lazy-loading grid,
-  // which leaves the anchor in the DOM with nothing painted inside it yet. Emits
-  // a PENDING item (unresolvedImage / unresolvedVideo) keyed by the anchor's own
-  // status id + index, so the opt-in resolve pass (resolveOriginals) can still
-  // recover the original via the syndication endpoint (network.ts's twitter()
-  // photo branch / existing video branch). A cell that DID paint is already
-  // collected by the <img>/<video> passes above — this only fills the gap, it
-  // never duplicates. Gated to x.com/twitter.com so an unrelated site's own
-  // `/status/<n>` path segment is never scanned. `twitterPendingSeen` only
-  // dedupes within this single collectMedia() call (e.g. two anchors sharing a
-  // status id); cross-scan/deep-scan dedup already happens at the caller via
-  // canonicalSrcKey on `src`, which is this item's stable status-permalink URL.
   const twitterPendingSeen = new Set<string>();
   const isTwitterPage = (() => {
     try {
@@ -581,8 +453,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     if (twitterPendingSeen.has(dedupKey)) return;
     twitterPendingSeen.add(dedupKey);
 
-    // Already painted — a real media <img> or a mounted <video>'s poster inside
-    // this cell — the existing img/video passes above already collected it.
     const painted =
       [...a.querySelectorAll('img[src]')].some((img) => TWITTER_PAINTED_MEDIA.test(img.getAttribute('src') || '')) ||
       [...a.querySelectorAll('video[poster]')].some((v) => TWITTER_PAINTED_MEDIA.test(v.getAttribute('poster') || ''));
@@ -604,13 +474,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     }
   };
 
-  // Generic gallery link-following (#287, opt-in): an <a> that wraps a thumbnail
-  // <img> and points at a SAME-ORIGIN host/"view" page (not a direct media file —
-  // those are handled by galleryLinkCandidate). Emit a PENDING item carrying the
-  // page URL as its resolveHint, for the opt-in resolve pass to fetch and extract
-  // the real original from (network.ts galleryPage). Same-origin only (never
-  // follow a cross-origin link the user didn't opt into), and capped. Gated on
-  // resolveOriginals so the default, network-free scan is unchanged.
   let galleryPageCount = 0;
   const pushGalleryPage = (a: HTMLAnchorElement, resolvedHref: string): void => {
     if (galleryPageCount >= GALLERY_PAGE_CAP) return;
@@ -620,13 +483,13 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     } catch {
       return;
     }
-    if (u.origin !== location.origin) return; // same-origin only
-    if (NON_CONTENT_PATH.test(u.pathname)) return; // nav/taxonomy/account link, not a media page
+    if (u.origin !== location.origin) return;
+    if (NON_CONTENT_PATH.test(u.pathname)) return;
     const img = a.querySelector('img');
     const thumbRaw = img ? (img as HTMLImageElement).currentSrc || img.getAttribute('src') : null;
-    if (!thumbRaw) return; // must wrap a real thumbnail, else it's just a text link
+    if (!thumbRaw) return;
     const size = knownThumbSize(img as HTMLImageElement | null);
-    if (size && size < GALLERY_MIN_THUMB) return; // a known-small img is an avatar/icon, not a thumb
+    if (size && size < GALLERY_MIN_THUMB) return;
     if (!seenSources.addIfNew(resolvedHref)) return;
     galleryPageCount++;
     const thumb = resolveUrl(thumbRaw) || thumbRaw;
@@ -634,9 +497,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       src: resolvedHref, alt: img?.getAttribute('alt') || '', width: 0, height: 0,
       type: 'unknown', fileSize: 0, isBase64: false, kind: 'image',
       thumbnailSrc: thumb, unresolvedImage: true,
-      // Share the thumbnail's canonical key as this pending item's identity, so once
-      // it resolves to the original it upgrade-replaces (rather than duplicates) the
-      // standalone thumbnail — and dedups across deep-scan rounds via mergeScannedMedia.
       mediaKey: canonicalSrcKey(thumb),
       resolveHint: { platform: 'gallery-page', id: resolvedHref },
     });
@@ -651,9 +511,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
   ): void => {
     if (!rawSrc) return;
     const resolved = resolveUrl(rawSrc);
-    // HLS/DASH capture applies to <audio> manifests too (audio-only .m3u8/.mpd,
-    // e.g. live radio) — not just <video>. Without this they fall through to
-    // isUndownloadableMedia and are silently dropped regardless of the setting.
     if (isHlsManifest(resolved) && /^https?:\/\//i.test(resolved)) {
       pushHls(resolved, alt, posterUrl);
       return;
@@ -663,8 +520,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       return;
     }
     if (isUndownloadableMedia(resolved)) return;
-    // Only real http(s) files are downloadable; drop javascript:/data:/other
-    // schemes that isUndownloadableMedia (blob/streams only) doesn't cover.
     if (!/^https?:\/\//i.test(resolved)) return;
     if (!seenSources.addIfNew(resolved)) return;
     const item: MediaItem = {
@@ -676,13 +531,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     media.push(item);
   };
 
-  // Media inside open shadow DOM (web components) and same-origin <iframe>s is
-  // invisible to a document-only querySelectorAll, so scan the top document plus
-  // every open shadow root and reachable same-origin frame document. Extra roots
-  // are discovered while walking (shadow roots during the '*' pass, frames via a
-  // dedicated pass) and appended through addRoot, which dedups so a self- or
-  // cross-referencing frame can't loop. Closed shadow roots and cross-origin
-  // frames are inaccessible by design (contentDocument null/throws) and skipped.
   const roots: ScanRoot[] = scanRoots ?? [document];
   const seenRoots = new Set<ScanRoot>(roots);
   const addRoot = (r: Document | ShadowRoot | null | undefined): void => {
@@ -693,20 +541,12 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
   };
 
   const scanRoot = (root: ScanRoot): void => {
-    // Resolve computed style against the element's own window so background-image
-    // reads work for elements in a same-origin frame document, not just the top one.
     const isElement = root.nodeType === 1;
     const ownerDoc = root.nodeType === 9
       ? (root as Document)
       : (root as ShadowRoot | Element).ownerDocument;
     const view = ownerDoc.defaultView ?? window;
 
-    // ONE traversal per root. The '*' walk is mandatory anyway (background-image
-    // needs getComputedStyle on every element), so bucket the media tags and
-    // discover open shadow roots in the same pass instead of firing a separate
-    // full-subtree querySelectorAll for each of img/picture/video/audio/a/noscript/
-    // iframe. That turned eight walks of the DOM into one — a real saving on big
-    // pages, and in deep scan where scanRoot re-runs every scroll round.
     const imgs: HTMLImageElement[] = [];
     const pictures: Element[] = [];
     const videos: HTMLVideoElement[] = [];
@@ -716,22 +556,10 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     const iframes: HTMLIFrameElement[] = [];
     const backgrounds: [Element, string][] = [];
 
-    // An element root includes ITSELF plus descendants; a Document/ShadowRoot
-    // root contributes only descendants (it cannot itself be media).
     const els: HTMLElement[] = isElement
       ? [root as HTMLElement, ...Array.from((root as Element).querySelectorAll<HTMLElement>('*'))]
       : Array.from(root.querySelectorAll<HTMLElement>('*'));
     els.forEach((el) => {
-      // Discover open shadow roots regardless of layout (a not-rendered host can
-      // still contain visible media once its component mounts) — EXCEPT our own
-      // on-page bubble (mount.tsx's `#mbd-bubble-host`, an open shadow root by
-      // necessity for its own styling). Without this exclusion a re-scan while
-      // the bubble is showing a not-yet-upgraded grid thumbnail "discovers" that
-      // thumbnail as if it were new page content and re-adds it — untagged (the
-      // bubble's own markup has no enclosing page anchor for a resolver to key
-      // off of) — once the real page resolves to a different (upgraded) URL, so
-      // resolvers that tag a `mediaKey` (Task 8) could never actually dedupe an
-      // in-place upgrade while the panel is open.
       const shadow = el.id !== HOST_ID ? el.shadowRoot : null;
       if (shadow) addRoot(shadow);
 
@@ -745,23 +573,11 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
         case 'IFRAME': iframes.push(el as HTMLIFrameElement); break;
       }
 
-      // CSS background-image (handles multiple comma-separated layers). Resolving
-      // computed style for every element is the deep-scan hot path, so skip
-      // elements that aren't rendered (display:none / 0×0 can't show a background).
       if (hasLayout && el.offsetWidth === 0 && el.offsetHeight === 0) return;
       const bgImage = view.getComputedStyle(el).getPropertyValue('background-image');
       if (bgImage && bgImage !== 'none') backgrounds.push([el, bgImage]);
     });
 
-    // Process the buckets in the same order the separate passes used to run, so
-    // dedup priority (first-seen src wins its dimensions/thumbnail) is unchanged:
-    // img → picture → background → video → audio → link → noscript → frame.
-
-    // <img> tags and their srcset. The measured dimensions belong to whatever the
-    // element is actually displaying (currentSrc/src) — not to a higher-res original
-    // pulled from data-orig-file/data-large-file, which imageUrlsFromElement returns
-    // FIRST. Tagging that original with the on-screen thumbnail's size mislabels it
-    // and lets the minimum-size filter wrongly drop a genuinely large image.
     imgs.forEach((img) => {
       const { width, height } = getImageDimensions(img);
       const loaded = img.currentSrc || img.src;
@@ -771,18 +587,12 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       });
     });
 
-    // <picture> elements: only the <source srcset> variants here — the fallback
-    // <img> is already covered by the img pass above (results dedup), so re-scanning
-    // it would just repeat work.
     pictures.forEach((picture) => {
       picture.querySelectorAll('source').forEach((source) => {
         imageUrlsFromElement(source).forEach((src) => collectImageInfo(src, '', 0, 0, undefined, source));
       });
     });
 
-    // Pass the element so a resolver can read its context (e.g. a Twitter video
-    // poster set as a background-image finds the cell's /status/ link). image-set
-    // layers contribute only their highest-resolution candidate.
     backgrounds.forEach(([el, bgImage]) => {
       for (const url of backgroundImageUrls(bgImage)) {
         collectImageInfo(url, '', 0, 0, undefined, el);
@@ -809,9 +619,6 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       const rawPoster = video.getAttribute('poster');
       const posterUrl = rawPoster ? resolveUrl(rawPoster) : undefined;
       const alt = video.getAttribute('aria-label') || video.getAttribute('title') || '';
-      // Try each source rather than short-circuiting on currentSrc: a blob:-backed
-      // currentSrc would otherwise mask a genuinely downloadable mp4 in data-src.
-      // collectAv dedups and drops undownloadable entries, so redundant tries are free.
       [video.currentSrc, video.getAttribute('src'), video.getAttribute('data-src')].forEach((s) =>
         collectAv(s || '', 'video', undefined, alt, posterUrl),
       );
@@ -830,21 +637,13 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       );
     });
 
-    // Gallery / lightbox links: full-res <a href> over a thumbnail <img>.
     anchors.forEach((a) => {
       const c = galleryLinkCandidate(a);
       if (c) {
-        // A direct link to a video/audio file must not go through the image path
-        // (which would save clip.mp4 as clip.jpg and hide it from the video filter);
-        // route it to collectAv with the thumbnail as its poster. Extension-less
-        // media-CDN links (kind unknowable from the URL) still take the image path.
         if (GALLERY_VIDEO_EXT.test(c.url)) collectAv(c.url, 'video', undefined, '', c.thumbnailSrc);
         else if (GALLERY_AUDIO_EXT.test(c.url)) collectAv(c.url, 'audio', undefined, '', c.thumbnailSrc);
         else collectImageInfo(c.url, '', 0, 0, c.thumbnailSrc, a.querySelector('img') ?? a);
       }
-      // A link to a YouTube video (even a bare text link, no <img>) — surface the
-      // video's public poster thumbnail. Gated to real video ids so ordinary
-      // links don't get force-collected as images.
       const href = a.getAttribute('href');
       const resolvedHref = href ? resolveUrl(href) : '';
       if (resolvedHref && youtubeVideoId(resolvedHref)) collectImageInfo(href!, '', 0, 0, undefined, a);
@@ -886,19 +685,11 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       else if (opts?.resolveOriginals && !c && resolvedHref) pushGalleryPage(a, resolvedHref);
     });
 
-    // <noscript> fallbacks (real image often lives here for no-JS users).
     noscripts.forEach((ns) => {
       noscriptImageCandidates(ns).forEach((c) => collectImageInfo(c.url, '', 0, 0, c.thumbnailSrc));
     });
 
-    // Same-origin <iframe> documents — descend into reachable frames. Accessing
-    // contentDocument throws or returns null for cross-origin frames; guard and
-    // skip those. Nested same-origin frames are reached because their document is
-    // scanned in turn.
     iframes.forEach((frame) => {
-      // A YouTube <iframe> embed (cross-origin, so its document is unreachable
-      // below) still exposes the video id in its src — surface the public poster.
-      // Covers lazy embeds that keep the real URL in data-src until scrolled.
       const embedSrc = frame.getAttribute('src') || frame.getAttribute('data-src') || '';
       const resolvedEmbed = embedSrc ? resolveUrl(embedSrc) : '';
       if (resolvedEmbed && youtubeVideoId(resolvedEmbed)) collectImageInfo(embedSrc, '', 0, 0, undefined, frame);
@@ -933,24 +724,11 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     });
   };
 
-  // Page-type prior (opt-in via smartPageDefaults, full scans only): a
-  // single-media/article page's meta/preload hero image is usually the one
-  // full-res representation of the page's subject, while any inline <img> is
-  // often a smaller thumbnail of that SAME asset (e.g. a lightbox trigger, an
-  // OG-card preview). Running the hero passes before the DOM walk lets the
-  // hero win first-come dedup instead of the thumbnail. Off (or page type
-  // unclassified), this changes nothing — see the `if (!heroFirst)` calls
-  // below, which restore each pass to its original position relative to the
-  // DOM walk and the og:video pass.
   const pageType = !incremental && opts?.smartPageDefaults
     ? classifyPage(collectPageSignals(document))
     : 'unknown';
   const heroFirst = pageType === 'single-media' || pageType === 'article';
 
-  // Meta hero images: og:image and twitter:image often point at the
-  // highest-resolution hero that never appears as an <img> on the page.
-  // These live in the top document head only; dedup + CDN upgrade run as
-  // usual via collectImageInfo.
   const collectHeroMeta = (): void => {
     const metaSel = [
       'meta[property="og:image"]',
@@ -965,16 +743,10 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     });
   };
 
-  // Preloaded images: <link rel=preload as=image> often points at the
-  // highest-resolution hero the page will render, ahead of it ever appearing
-  // as an <img>. Kept as its own pass (separate from collectHeroMeta) so the
-  // OFF path can slot it back in after the og:video pass, exactly where it
-  // ran before hero-first reordering existed.
   const collectPreloadImages = (): void => {
     document.querySelectorAll('link[rel~="preload"][as="image"]').forEach((link) => {
       const href = link.getAttribute('href');
       if (href) collectImageInfo(href);
-      // <link rel=preload as=image imagesrcset> — take the highest-width candidate.
       const imagesrcset = link.getAttribute('imagesrcset');
       if (imagesrcset) {
         const best = bestSrcsetUrl(imagesrcset);
@@ -988,20 +760,11 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     collectPreloadImages();
   }
 
-  // Grows as scanRoot() discovers open shadow roots; the index loop picks them up.
   for (let i = 0; i < roots.length; i++) scanRoot(roots[i]);
 
   if (!incremental) {
-    // Today's order (heroFirst false / page type unclassified): the meta hero
-    // pass runs here, after the DOM walk, exactly as it always has.
     if (!heroFirst) collectHeroMeta();
 
-    // og:video: some pages (news, product, embeds) expose a direct downloadable
-    // mp4 in <meta property="og:video"> that never appears as a <video> element.
-    // collectAv surfaces streaming manifests (.m3u8/.mpd) as capturable stream
-    // items routed to the HLS/DASH engines; only blob: URLs and other
-    // undownloadable media are dropped. og:video:type supplies the mime;
-    // og:image is its poster.
     const ogVideoType = document.querySelector('meta[property="og:video:type"]')?.getAttribute('content') || undefined;
     const ogPoster = document
       .querySelector('meta[property="og:image"], meta[property="og:image:secure_url"]')
@@ -1014,70 +777,37 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
         if (content) collectAv(content, 'video', ogVideoType, '', ogPosterUrl);
       });
 
-    // Today's order (heroFirst false / page type unclassified): the preload
-    // pass runs here, after og:video, exactly as it always has.
     if (!heroFirst) collectPreloadImages();
 
-    // Instagram single-post/reel pages: surface the whole post from its page JSON
-    // (all carousel slides + the real mp4), covering media the DOM hides —
-    // virtualized carousel slides and `blob:`-backed reel videos. No-ops on a
-    // profile grid (no shortcode in the URL); deduped against the walk above.
     for (const cand of instagramPageMedia(pageUrl)) {
       pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
     }
 
-    // Facebook opened photo/video: surface the full-res original / real mp4 from
-    // the page's own GraphQL/hydration, covering media the DOM hides (viewer
-    // blob:, virtualized album). No-ops off a photo/video page; deduped by
-    // canonicalSrcKey against the walk above.
     for (const cand of facebookPageMedia(pageUrl)) {
       pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
     }
 
-    // Pinterest opened pin / feed: surface the sniffed pins (orig image, real mp4,
-    // every carousel slide) for the pin at the page URL, covering media the
-    // virtualized/unhydrated grid hides. No-ops off a /pin/ page; deduped by
-    // canonicalSrcKey against the walk above.
     for (const cand of pinterestPageMedia(pageUrl)) {
       pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
     }
 
-    // Shopify product page: surface the complete media set (every variant image +
-    // product videos) from the store's /products/<handle>.js, primed by the
-    // same-origin fetch in the GET_IMAGES prelude (ensureShopifyProduct). No-ops
-    // off a product page / non-Shopify site; images dedup against the DOM walk and
-    // then upgrade to originals via the passive cdn.shopify.com rule.
     for (const cand of shopifyPageMedia(pageUrl)) {
       pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
     }
 
-    // The current page is itself a Rutube or Rumble watch page — surface its
-    // video as a pending item (its real HLS master is fetched on the opt-in
-    // resolve pass, since neither exposes a sniffable stream in the DOM). Embeds
-    // and links to these on other pages are handled in the anchor/iframe walks.
     const rutubePageId = rutubeVideoId(pageUrl);
     if (rutubePageId) pushRutube(rutubePageId);
     const rumblePageUrl = rumbleWatchUrl(pageUrl);
     if (rumblePageUrl) pushRumble(rumblePageUrl);
-    // …or a PeerTube watch page (any federated instance) — same pending-video
-    // treatment; the resolve pass confirms the instance before fetching.
     const peertubePageUrl = peertubeEmbedUrl(pageUrl);
     if (peertubePageUrl) pushPeerTube(peertubePageUrl);
-    // …or a Loom share page the user is on.
     const loomPageId = loomVideoId(pageUrl);
     if (loomPageId) pushLoom(loomPageId);
-    // …or a Twitch VOD watch page (`/videos/<id>`) — pending video (usher HLS master).
     const twitchVodPageId = twitchVodId(pageUrl);
     if (twitchVodPageId) pushTwitchVod(twitchVodPageId);
-    // …or a SoundCloud track page — pending audio resolved on the opt-in pass.
     const soundcloudPageUrl = soundcloudTrackUrl(pageUrl);
     if (soundcloudPageUrl) pushSoundcloud(soundcloudPageUrl);
 
-    // Coub watch page: the full coub object is embedded as JSON in
-    // <script id="coubPageCoubJson">. Parse it and surface the combined-muxed
-    // `share.default` mp4 (audio+video, no HLS/mux) as a ready video. No-ops off a
-    // coub page (element absent); host-gated so an injected element elsewhere can't
-    // fire it, and every URL is coub.com-pinned inside coubMediaFromJson.
     if (/(?:^|\.)coub\.com$/i.test(location.hostname)) {
       const coubJson = document.getElementById('coubPageCoubJson')?.textContent;
       for (const cand of coubMediaFromJson(coubJson)) {
@@ -1085,180 +815,114 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       }
     }
 
-    // Pixiv Fanbox post page: the visible <img> tags are lazy/icon-only, but the
-    // post's full-resolution originals (downloads.fanbox.cc/images/post/<id>/…) are
-    // present in the hydrated markup — scrape them, scoped to this post's id. Host-
-    // gated; no-ops off a Fanbox post page, and a paid post the viewer can't access
-    // renders no originals → nothing (fails closed). downloads.fanbox.cc is
-    // hotlink-protected, so the download uses the #197 Referer opt-in.
     if (/(?:^|\.)fanbox\.cc$/i.test(location.hostname)) {
       for (const cand of fanboxPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
 
-    // TikTok video/photo page: the item's signed CDN URLs (highest-bitrate mp4, or
-    // one image per photo-mode slide) are embedded in the
-    // `__UNIVERSAL_DATA_FOR_REHYDRATION__` JSON — read them (the URLs TikTok itself
-    // signed, never forged). Host-gated so an injected element elsewhere can't fire
-    // it; a private/removed video renders no itemStruct → nothing (fails closed).
-    // The playAddr edges are session/hotlink-bound → download uses the browser's
-    // cookies + the #197 Referer opt-in.
     if (/(?:^|\.)tiktok\.com$/i.test(location.hostname)) {
       for (const cand of tiktokPageMedia()) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
 
-    // Patreon post page: every post image's originals (patreonusercontent.com,
-    // scoped to this post's id) are present in the hydrated markup at multiple
-    // sizes — scrape and keep the largest per image, signed query intact. Host-
-    // gated; a paid/locked post the viewer can't access ships no originals →
-    // nothing (fails closed). patreonusercontent.com is token-gated, so the
-    // download relies on the #197 Referer opt-in.
     if (/(?:^|\.)patreon\.com$/i.test(location.hostname)) {
       for (const cand of patreonPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
 
-    // Erome album page: each `<div class="media-group">` ships one item's CDN URL
-    // (a `<video><source>` or a lazy `<img data-src>`) — surface them directly.
-    // Host-gated; a private/removed album renders no media-groups → nothing.
     if (/(?:^|\.)erome\.com$/i.test(location.hostname)) {
       for (const cand of eromePageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
 
-    // Image Chest post page: the Inertia app serializes every file's CDN URL
-    // (cdn.imgchest.com/files/…) into the `data-page` payload — read them. Host-
-    // gated; a private/empty post ships no file URLs → nothing.
     if (/(?:^|\.)imgchest\.com$/i.test(location.hostname)) {
       for (const cand of imgchestPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
 
-    // Kemono / Coomer post page: the post's files/attachments render as `<host>/data/…`
-    // links (public paths, no token) — surface this post's originals, skipping the
-    // `/thumbnail/` preview server. Host-gated to the known kemono/coomer TLDs; a
-    // post the viewer can't access renders no `/data/` links → nothing (fails closed).
     if (/(?:^|\.)(?:kemono|coomer)\.(?:cr|su|st|party)$/i.test(location.hostname)) {
       for (const cand of kemonoPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
 
-    // Fapello post page: the single media item in the `uk-align-center` block (image
-    // with the `.md`/`.th` size suffix stripped, or a video). Host-gated; a listing
-    // or an inaccessible post yields nothing.
     if (/(?:^|\.)fapello\.(?:com|su)$/i.test(location.hostname)) {
       for (const cand of fapelloPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
 
-    // Chevereto image page (jpgfish / imglike / putmega instances): the original is
-    // the page's `og:image` — read it when it's a plaintext https media URL (encrypted
-    // og:image on some instances is skipped, not decrypted). Host-gated.
     if (CHEVERETO_HOST_RE.test(location.hostname)) {
       for (const cand of cheveretoPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
 
-    // Imgur post/album/gallery page: the whole post is assigned to
-    // `window.postDataJSON`; surface each `media[]` original on i.imgur.com. Host-
-    // gated; a removed/empty post carries no media → nothing.
     if (/(?:^|\.)imgur\.(?:com|io)$/i.test(location.hostname)) {
       for (const cand of imgurPageMedia()) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
 
-    // Tenor view page: the item's `media_formats` (gif/mp4/webm) live in the
-    // `store-cache` JSON — surface the animated GIF (else the muxed video). Host-gated.
     if (/(?:^|\.)tenor\.com$/i.test(location.hostname)) {
       for (const cand of tenorPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
 
-    // Pexels photo/video page: the free full-res original (`download_link`) lives in
-    // `__NEXT_DATA__` — read it same-origin (the page is Cloudflare-gated, so a
-    // background fetch can't). Host-gated; no `medium` → nothing.
     if (/(?:^|\.)pexels\.com$/i.test(location.hostname)) {
       for (const cand of pexelsPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
 
-    // XVideos watch page: the inline `html5player.setVideoUrlHigh('<mp4>')` is the
-    // direct single-file stream — surface it, host-pinned. Host-gated; a
-    // removed/geo-blocked page has no player setters → nothing.
     if (/(?:^|\.)xvideos[0-9]*\.com$/i.test(location.hostname)) {
       for (const cand of xvideosPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
 
-    // xHamster watch page: the highest-quality mp4 in `window.initials`'
-    // `videoModel.sources` — surface it, host-pinned to *.xhcdn.com. Host-gated; no
-    // initials / no mp4 source → nothing.
     if (/(?:^|\.)xhamster[0-9]*\.(?:com|desi|one)$/i.test(location.hostname)) {
       for (const cand of xhamsterPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
 
-    // Pornhub watch/embed page: the inline `flashvars_<id>` object holds an HLS
-    // master (`mediaDefinitions[].videoUrl` → master.m3u8 on *.phncdn.com) that
-    // carries every rendition. Surface it (host-pinned), routed through HLS capture.
-    // Host-gated; the mp4 `get_media` entry / obfuscated / paid pages → nothing.
     if (/(?:^|\.)pornhub\.com$/i.test(location.hostname)) {
       for (const cand of pornhubPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
 
-    // Lensdump image page: the original is the page's `og:image` (plaintext, on the
-    // Lensdump CDN). Host-gated; anything else → nothing.
     if (/(?:^|\.)lensdump\.com$/i.test(location.hostname)) {
       for (const cand of lensdumpPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
 
-    // Motherless media page: the file URL is the page's `__fileurl` JS var, pinned to
-    // the Motherless CDN. Host-gated; a gallery/listing (no `__fileurl`) → nothing.
     if (/(?:^|\.)motherless\.com$/i.test(location.hostname)) {
       for (const cand of motherlessPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
 
-    // Simple image hosts (imgbam/imagevenue/pixhost/imgspice/…): one shared reader
-    // pulls the original off the single-image page (og:image / a specific `<img>` /
-    // a CDN `<img>`), same-site-pinned. Host-gated; a non-image page → nothing.
     if (isImageHost(location.hostname)) {
       for (const cand of imagehostsPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
 
-    // imgpile post page: each `post-media` block's `<a href>` is a full-resolution
-    // original (a multi-image post ships several). Host-gated; a post with no
-    // accessible media → nothing.
     if (/(?:^|\.)imgpile\.com$/i.test(location.hostname)) {
       for (const cand of imgpilePageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
 
-    // szurubooru post page (Vue SPA): once hydrated, the post's original is a
-    // distinctive `<host>/data/posts/<file>` URL the virtualized view can otherwise
-    // hide. Host-gated; an unrendered/removed post → nothing.
     if (/(?:^|\.)(?:snootbooru\.com|bcbnsfw\.space)$/i.test(location.hostname)) {
       for (const cand of szurubooruPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
@@ -1266,19 +930,11 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     }
   }
 
-  // HLS manifests the MAIN-world sniffer caught (hls.js / native players fetch
-  // the .m3u8 via XHR, so it never appears in the DOM). Surfaced as capturable
-  // streams; pushHls dedupes against any manifest already found in the DOM.
   for (const manifest of sniffedHlsManifests()) {
     if (isDashManifest(manifest)) pushDash(manifest, '');
     else pushHls(manifest, '');
   }
 
-  // #287 dedup: a gallery-page pending item and the standalone thumbnail <img> it
-  // wraps are the same photo. The pending item's mediaKey IS that thumbnail's
-  // canonical key, so drop the now-duplicate plain thumbnail — the single tile shows
-  // the thumbnail as its poster and upgrades to the original once the resolve pass
-  // runs (instead of the grid showing thumbnail AND original as two tiles).
   const galleryKeys = new Set<string>();
   for (const m of media) if (m.resolveHint?.platform === 'gallery-page' && m.mediaKey) galleryKeys.add(m.mediaKey);
   if (galleryKeys.size) {

@@ -3,8 +3,6 @@ import { ResolveContext } from '@mbd/core/resolvers/types';
 
 const u = (s: string) => new URL(s);
 
-// A Threads /media grid <img>: displayed small, but its srcset ships the full
-// original (2610w) — same pathname, size encoded only in the query token.
 const BASE = 'https://scontent-del2-2.cdninstagram.com/v/t51.82787-15/742241727_18.jpg';
 const THUMB = `${BASE}?stp=dst-jpg_e35_s240x240&_nc_ht=x`;
 const SRCSET = [
@@ -78,10 +76,9 @@ describe('threadsResolver', () => {
 
     it('derives height from the element aspect ratio when the image has loaded', () => {
       const el = gridImg();
-      // jsdom has no layout, so fake the loaded thumb's intrinsic size (0.75 aspect).
       Object.defineProperty(el, 'naturalWidth', { value: 480, configurable: true });
       Object.defineProperty(el, 'naturalHeight', { value: 640, configurable: true });
-      expect(threadsResolver.resolve(u(THUMB), ctx({ el }))[0].height).toBe(3480); // 2610 * 640/480
+      expect(threadsResolver.resolve(u(THUMB), ctx({ el }))[0].height).toBe(3480);
     });
 
     it('falls back to the given URL when the element has no srcset', () => {
@@ -104,8 +101,6 @@ describe('threadsResolver', () => {
     });
 
     it('rejects a widest srcset candidate on a non-Meta host and falls back to the input url', () => {
-      // A sponsored/mutated tile whose widest candidate points at a third-party ad
-      // server: it must NOT be surfaced as the "resolved original".
       document.body.innerHTML = '';
       const img = document.createElement('img');
       img.setAttribute('srcset', [
@@ -114,9 +109,9 @@ describe('threadsResolver', () => {
       ].join(', '));
       document.body.appendChild(img);
       const out = threadsResolver.resolve(u(THUMB), ctx({ el: img }));
-      expect(out[0].url).toBe(THUMB); // the Meta-CDN input, not the ad host
+      expect(out[0].url).toBe(THUMB);
       expect(out[0].url).not.toContain('evil-cdn');
-      expect(out[0].width).toBeUndefined(); // no width from a rejected candidate
+      expect(out[0].width).toBeUndefined();
     });
 
     it('accepts the widest candidate when it IS on a Meta CDN, ignoring lower non-Meta noise', () => {

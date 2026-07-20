@@ -26,9 +26,6 @@ export function useFavourites(
   useEffect(() => {
     void favouriteSrcSet().then(setFavouriteSrcs);
     const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
-      // Reload through favouriteSrcSet() (which normalizes via loadFavourites and
-      // drops corrupt entries) rather than trusting the raw newValue — matches the
-      // initial load, the History path, and the excluded path below.
       if (area === 'local' && changes[FAVOURITES_KEY]) void favouriteSrcSet().then(setFavouriteSrcs);
     };
     chrome.storage.onChanged.addListener(onChanged);

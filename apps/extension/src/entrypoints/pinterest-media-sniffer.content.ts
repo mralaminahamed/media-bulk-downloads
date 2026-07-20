@@ -25,9 +25,6 @@ export default defineContentScript({
       extract: extractPinterestMedia,
       envelope: (entries) => {
         if (!relayReady) {
-          // Build with a loop, not `push(...entries)`: entries is untrusted/unbounded
-          // page data, and spreading it as call args can hit the engine's
-          // argument-count limit (RangeError, silently swallowed by the caller's try/catch).
           for (const e of entries) buffer.push(e);
           if (buffer.length > 8000) buffer.splice(0, buffer.length - 8000);
         }
@@ -39,7 +36,6 @@ export default defineContentScript({
       isApi: (url) => url.indexOf('/resource/') !== -1 && url.indexOf('/get/') !== -1,
       emit,
     });
-    // Replay everything buffered so far when the isolated relay says it is ready.
     installReplayOnReady('mbd-pinterest-ready', () => {
       relayReady = true;
       if (buffer.length) window.postMessage({ source: 'mbd-pinterest-media', entries: buffer.splice(0) }, location.origin);

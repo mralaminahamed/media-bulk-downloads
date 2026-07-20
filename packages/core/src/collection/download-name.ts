@@ -22,9 +22,6 @@ import { avExtensionForType, extensionFromUrl } from '@mbd/core/collection/media
 export function extensionForType(type: string): string {
   switch (type) {
     case 'jpeg':
-      // Use the conventional `.jpg` — matches what imageExtFromUrl preserves from
-      // a URL, so the same JPEG is never saved as `.jpg` one way and `.jpeg` the
-      // other depending on whether its extension was captured.
       return 'jpg';
     case 'png':
     case 'gif':
@@ -62,7 +59,6 @@ export function originalNameFromUrl(url: string): string | null {
     /* keep raw on malformed escapes */
   }
 
-  // Strip a trailing extension only when the dot isn't the first char.
   const dot = decoded.lastIndexOf('.');
   const base = dot > 0 ? decoded.slice(0, dot) : decoded;
 
@@ -92,9 +88,6 @@ export function buildDownloadFilename(
   sourcePageUrl?: string,
 ): string {
   const extension = downloadExtension(image);
-  // The prefix is a single filename segment, not a path — sanitize with toSegment
-  // (not sanitizePathSegment) so an embedded `/` can't inject an unintended
-  // chrome.downloads subfolder (e.g. fileNamePrefix: 'sub/dir_').
   const prefixed = `${toSegment(settings.fileNamePrefix) || 'image_'}${index + 1}.${extension}`;
 
   let fileName: string;
@@ -105,8 +98,6 @@ export function buildDownloadFilename(
     fileName = prefixed;
   }
 
-  // Multi-tab items (#283) carry their own source tab; prefer it so each lands in
-  // its own {host}/{domain} folder. Falls back to the batch-level active-tab URL.
   const host = hostFromUrl(image.sourcePage?.url ?? sourcePageUrl);
   const dir = expandPathTemplate(settings.downloadPath, {
     host,

@@ -11,7 +11,6 @@ describe('pinFbUrl', () => {
     expect(pinFbUrl('http://scontent.xx.fbcdn.net/x.jpg')).toBeNull();
     expect(pinFbUrl(42)).toBeNull();
     expect(pinFbUrl('https://notfbcdn.net.evil.com/x.jpg')).toBeNull();
-    // Userinfo bypass: `fbcdn.net` is the username, the real host is evil.com.
     expect(pinFbUrl('https://fbcdn.net@evil.com/x.jpg')).toBeNull();
   });
   it('accepts an uppercase host (URL normalizes the hostname to lowercase)', () => {
@@ -35,7 +34,7 @@ describe('fbidFromUrl', () => {
   it('parses the /photo/<id> and /photos/<id> path forms (grid tile anchors)', () => {
     expect(fbidFromUrl('/natgeo/photos/777/')).toBe('777');
     expect(fbidFromUrl('/photo/888')).toBe('888');
-    expect(fbidFromUrl('/some/photos/')).toBeNull(); // no id → null
+    expect(fbidFromUrl('/some/photos/')).toBeNull();
   });
 });
 
@@ -43,11 +42,9 @@ describe('extFromPath', () => {
   it('reads a media extension from the path, else jpg', () => {
     expect(extFromPath('https://x.fbcdn.net/v/t39/a_n.jpg?oh=1')).toBe('jpg');
     expect(extFromPath('https://x.fbcdn.net/v/t39/a_n.mp4')).toBe('mp4');
-    expect(extFromPath('https://x.fbcdn.net/v/t39/a_n.svg')).toBe('jpg'); // off-allowlist → default
+    expect(extFromPath('https://x.fbcdn.net/v/t39/a_n.svg')).toBe('jpg');
   });
   it('reads the ext from the path, never the query string', () => {
-    // The query is stripped before matching, so an extension smuggled into it
-    // cannot spoof (or rescue) the real path extension.
     expect(extFromPath('https://x.fbcdn.net/a.mp4?x=.exe')).toBe('mp4');
     expect(extFromPath('https://x.fbcdn.net/a.exe?x=.mp4')).toBe('jpg');
   });
@@ -95,17 +92,13 @@ describe('extractFbMedia', () => {
   });
 
   it('drops media with no resolvable ancestor id and rejects non-fbcdn urls', () => {
-    const json = { image: { uri: 'https://evil.com/x.jpg', width: 800, height: 600 } };            // bad host
-    const json2 = { image: { uri: 'https://x.fbcdn.net/y_n.jpg', width: 800, height: 600 } };      // no id
+    const json = { image: { uri: 'https://evil.com/x.jpg', width: 800, height: 600 } };
+    const json2 = { image: { uri: 'https://x.fbcdn.net/y_n.jpg', width: 800, height: 600 } };
     expect(extractFbMedia(json)).toHaveLength(0);
     expect(extractFbMedia(json2)).toHaveLength(0);
   });
 
   it('handles a deeply-nested benign structure without throwing and still yields the leaf', () => {
-    // Deep nesting wrapping one owned media leaf. Depth 1000 is ~20-50x realistic
-    // FB nesting yet a safe margin below the JS call-stack limit — the walk (like
-    // its recursive twin) is depth-bounded by the stack, which the step guard does
-    // not extend, so we stay well clear of that separate boundary here.
     const leaf = { id: '9', image: { uri: 'https://x.fbcdn.net/deep_n.jpg', width: 800, height: 600 } };
     let nested: unknown = leaf;
     for (let i = 0; i < 1000; i++) nested = { a: nested };
@@ -119,12 +112,10 @@ describe('extractFbMedia', () => {
   });
 
   it('is cycle-guarded: a self-referential graph terminates and still yields the leaf', () => {
-    // Exercises the nodeSeen guard directly: without it this object/array cycle
-    // recurses forever (stack overflow). With it, each node is visited once.
     const root: Record<string, unknown> = { id: '9', image: { uri: 'https://x.fbcdn.net/cyc_n.jpg', width: 800, height: 600 } };
-    root.self = root;               // object cycle
+    root.self = root;
     const arr: unknown[] = [root];
-    arr.push(arr);                  // array cycle
+    arr.push(arr);
     root.list = arr;
     let out: ReturnType<typeof extractFbMedia> = [];
     expect(() => { out = extractFbMedia(root); }).not.toThrow();
@@ -157,16 +148,8 @@ describe('extractFbMedia', () => {
 });
 
 describe('extractFbMedia — UI-chrome rejection (discovery-spike reconciliation)', () => {
-  // Live capture on facebook.com photos + photo-viewer surfaces showed the
-  // hydration/GraphQL payload is dominated by UI-icon objects that share the
-  // exact `{ uri, width, height }` shape as real photos but are 12–72px glyphs
-  // (reaction icons, sprite bundles). They inherit an ancestor `id`, so without
-  // a size floor they surface as fake downloadable "media". Real photos measured
-  // 213×320 up to 2048×1536; icons never exceeded 72×72.
 
   it('drops small UI-icon nodes even when they carry uri + width + height + an ancestor id', () => {
-    // Icons under a NON icon-named key (a numeric sprite id and a generic key),
-    // so only the size floor — not a parent-key filter — can reject them.
     const json = { id: '777', __typename: 'CometUIStory',
       '1876411': { uri: 'https://x.fbcdn.net/rsrc/sprite_n.png', width: 20, height: 20, scale: 1 },
       glyph: { uri: 'https://x.fbcdn.net/rsrc/g_n.png', width: 72, height: 72 } };
@@ -174,15 +157,11 @@ describe('extractFbMedia — UI-chrome rejection (discovery-spike reconciliation
   });
 
   it('excludes an image under an `icon` parent key regardless of size', () => {
-    // Named icon keys observed live: primary_icon / secondary_icon /
-    // active_secondary_icon / icon. Guards the (rare) icon that clears the floor.
     const json = { id: '778', icon: { uri: 'https://x.fbcdn.net/rsrc/bigicon_n.png', width: 200, height: 200 } };
     expect(extractFbMedia(json).filter((e) => e.kind === 'image')).toHaveLength(0);
   });
 
   it('keeps the real photo while dropping a sibling reaction icon at the same FBID', () => {
-    // Real GraphQL Photo node shape: { __typename:'Photo', id:<18 digits>,
-    // image:{ uri, width, height }, ... } with chrome icons alongside.
     const json = { id: '888', __typename: 'Photo',
       image: { uri: 'https://x.fbcdn.net/v/real_n.jpg', width: 960, height: 1280 },
       reaction: { uri: 'https://x.fbcdn.net/rsrc/like_n.png', width: 24, height: 24 } };
@@ -200,8 +179,6 @@ describe('extractFbMedia — UI-chrome rejection (discovery-spike reconciliation
   });
 
   it('still surfaces the `viewer_image` key seen in profile-photos hydration', () => {
-    // Profile-photos hydration keys the full image as `viewer_image` (the
-    // GraphQL viewer keys it as `image`); both must resolve.
     const json = { id: '999', __typename: 'Photo',
       viewer_image: { uri: 'https://x.fbcdn.net/v/vi_n.jpg', width: 1366, height: 2048 } };
     const imgs = extractFbMedia(json).filter((e) => e.kind === 'image');

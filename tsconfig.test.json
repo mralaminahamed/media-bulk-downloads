@@ -1,9 +1,4 @@
 {
-  // Type-checks the workspace PACKAGE test suites (packages/*/tests). They moved
-  // out of apps/extension/tests during the co-location, so they are no longer
-  // covered by the app's `tsc --noEmit`; this config restores that coverage.
-  // Standalone (does not extend tsconfig.base, whose composite/declaration emit
-  // options don't apply to a pure noEmit type-check pass).
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",

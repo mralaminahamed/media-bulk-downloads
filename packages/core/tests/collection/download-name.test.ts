@@ -8,9 +8,6 @@ import { ImageInfo, SettingsData } from '@mbd/core/types';
 
 describe('downloadExtension', () => {
   it('honors an explicit ext override on a video item even though the type maps to a different extension', () => {
-    // A captured HLS stream: the manifest is `.m3u8`, but the offscreen engine
-    // muxed it down to an mp4 blob — `ext` must win so the download isn't
-    // saved with the manifest's extension.
     const item: ImageInfo = {
       kind: 'video', type: 'm3u8', src: 'https://x/master.m3u8', ext: 'mp4',
       width: 0, height: 0, fileSize: 0, isBase64: false, alt: '',
@@ -51,8 +48,6 @@ describe('downloadExtension', () => {
   });
 
   it('derives an av extension from the URL when the type is unrecognized', () => {
-    // No ext, kind is video/audio, but the type maps to nothing (avExtensionForType
-    // returns null), so the extension is read from the URL instead.
     const item: ImageInfo = {
       kind: 'video', type: 'unknown', src: 'https://x/clip.webm',
       width: 0, height: 0, fileSize: 0, isBase64: false, alt: '',
@@ -80,7 +75,6 @@ describe('downloadExtension', () => {
 describe('originalNameFromUrl', () => {
   it('derives a safe basename from a normal URL, dropping the extension', () => {
     expect(originalNameFromUrl('https://cdn.com/path/photo.jpg')).toBe('photo');
-    // Only the final dot is treated as the extension boundary.
     expect(originalNameFromUrl('https://cdn.com/a/b/report.final.pdf')).toBe('report.final');
   });
 
@@ -89,12 +83,10 @@ describe('originalNameFromUrl', () => {
   });
 
   it('keeps the raw basename when the percent-escape is malformed', () => {
-    // decodeURIComponent throws on `%ZZ`; the raw (still-encoded) name is used.
     expect(originalNameFromUrl('https://cdn.com/bad%ZZ.jpg')).toBe('bad%ZZ');
   });
 
   it('keeps a leading-dot dotfile intact (no extension to strip)', () => {
-    // The dot is the first char, so it is not treated as an extension separator.
     expect(originalNameFromUrl('https://cdn.com/.htaccess')).toBe('.htaccess');
   });
 
@@ -113,7 +105,6 @@ describe('originalNameFromUrl', () => {
   });
 
   it('returns null when sanitizing leaves nothing usable', () => {
-    // A basename made entirely of illegal filename characters sanitizes to ''.
     expect(originalNameFromUrl('https://cdn.com/%3C%3E%7C.jpg')).toBeNull();
   });
 });
@@ -128,10 +119,8 @@ describe('extensionForType', () => {
     }
   });
   it('falls back to jpg for any unrecognized type', () => {
-    // The default branch: an unknown or non-image type should still yield a safe,
-    // openable extension rather than an empty or bogus one.
     expect(extensionForType('unknown')).toBe('jpg');
-    expect(extensionForType('jfif')).toBe('jpg'); // canonicalizes to jpeg elsewhere, not in this table
+    expect(extensionForType('jfif')).toBe('jpg');
     expect(extensionForType('')).toBe('jpg');
   });
 });
@@ -181,16 +170,12 @@ describe('buildDownloadFilename', () => {
   });
 
   it('prefixed mode: builds <prefix><index+1>.<ext>, index is 1-based', () => {
-    // index 0 -> _1; the extension comes from the type (jpeg -> jpg).
     expect(buildDownloadFilename(image({}), 0, settings)).toBe('image_1.jpg');
     expect(buildDownloadFilename(image({}), 4, settings)).toBe('image_5.jpg');
   });
 
   it('prefixed mode: falls back to image_ when the configured prefix sanitizes to empty', () => {
-    // A prefix made only of illegal path chars sanitizes to '' -> the `|| 'image_'`
-    // fallback keeps the name well-formed.
     expect(buildDownloadFilename(image({}), 0, { ...settings, fileNamePrefix: '<<<' })).toBe('image_1.jpg');
-    // A custom prefix is honored otherwise.
     expect(buildDownloadFilename(image({}), 0, { ...settings, fileNamePrefix: 'shot-' })).toBe('shot-1.jpg');
   });
 
@@ -200,15 +185,11 @@ describe('buildDownloadFilename', () => {
   });
 
   it('original mode: falls back to the prefixed name when the URL yields no basename', () => {
-    // A data: URI has no derivable name (originalNameFromUrl -> null), so the
-    // prefixed sequential name is used instead.
     expect(buildDownloadFilename(image({ src: 'data:image/png;base64,AAAA' }), 0, { ...settings, namingMode: 'original' }))
       .toBe('image_1.jpg');
   });
 
   it('prepends the expanded download-path template as a folder', () => {
-    // {domain} and {kind} resolve against sourcePageUrl; date is omitted to keep
-    // the assertion deterministic.
     const result = buildDownloadFilename(
       image({ kind: 'image' }),
       0,
@@ -219,8 +200,6 @@ describe('buildDownloadFilename', () => {
   });
 
   it("prefers the item's own sourcePage over the batch URL for {domain} (#283 multi-tab)", () => {
-    // A multi-tab item carries its origin tab; that must win over the batch-level
-    // active-tab URL so each item lands in its own site folder.
     const result = buildDownloadFilename(
       image({ kind: 'image', sourcePage: { url: 'https://shop.example.org/p/1' } }),
       0,
@@ -231,8 +210,6 @@ describe('buildDownloadFilename', () => {
   });
 
   it('collapses an empty {host} token segment but still returns dir/fileName', () => {
-    // No sourcePageUrl -> host '' -> the {host} segment collapses away, leaving a
-    // shorter (but non-empty) directory.
     const result = buildDownloadFilename(
       image({}),
       0,
@@ -242,8 +219,6 @@ describe('buildDownloadFilename', () => {
   });
 
   it('returns just the filename when the template expands to an empty path', () => {
-    // downloadPath resolves to '' (all tokens empty) -> the `dir ? ... : fileName`
-    // false branch returns the bare filename with no leading slash.
     const result = buildDownloadFilename(
       image({}),
       0,
@@ -259,7 +234,6 @@ describe('buildDownloadFilename', () => {
   });
 
   it('uses the item ext override in the built name (a/v capture)', () => {
-    // A captured HLS video muxed to mp4: ext override flows through downloadExtension.
     const result = buildDownloadFilename(
       image({ kind: 'video', type: 'm3u8', src: 'https://x/master.m3u8', ext: 'mp4' }),
       0,

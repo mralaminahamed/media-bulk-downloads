@@ -1,12 +1,6 @@
 import { MediaCandidate } from '@mbd/core/resolvers/types';
 import { imageExtFromUrl } from '@mbd/core/collection/mediaType';
 
-// Chevereto is image-host software running on a rotating set of instances. An image
-// viewer page (`/img/<id>`, `/image/<id>`, `/i/<id>`) exposes the full-resolution
-// original in its `og:image` meta tag. The known instances (from gallery-dl):
-//   jpgfish  — jpg/jpeg[N].{cr,su,pet,fish[ing],church}
-//   imglike  — imglike.com
-//   putmega  — putmega.com / putme.ga
 export const CHEVERETO_HOST_RE =
   /^(?:www\.)?(?:jpe?g\d?\.(?:cr|su|pet|fish(?:ing)?|church)|imglike\.com|putme(?:ga\.com|\.ga))$/i;
 
@@ -32,7 +26,6 @@ export function cheveretoImageRef(raw: string | URL): CheveretoImageRef | null {
   return { id: m[1], host };
 }
 
-// The og:image content, matched with the property either before or after content.
 function ogImage(html: string): string | null {
   return (
     /<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i.exec(html)?.[1] ??
@@ -51,8 +44,6 @@ function ogImage(html: string): string | null {
 export function cheveretoMediaFromHtml(html: string, ref: CheveretoImageRef): MediaCandidate[] {
   if (typeof html !== 'string') return [];
   const og = ogImage(html);
-  // Must be a plaintext https media URL — an encrypted blob, a relative path, or a
-  // `loading.svg` placeholder is not the original.
   if (!og || !/^https:\/\//i.test(og) || /loading\.svg(?:$|[?#])/i.test(og)) return [];
   const ext = imageExtFromUrl(og);
   const isVideo = VIDEO_RE.test(og);

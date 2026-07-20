@@ -23,9 +23,9 @@ test.describe('bubble launcher + panel', () => {
   test('reopening the panel re-scans the page', async ({ context }) => {
     const page = await openBubblePage(context, '/media.html');
     await openPanel(page);
-    await page.getByRole('button', { name: 'Media Bulk Downloads' }).click(); // close
+    await page.getByRole('button', { name: 'Media Bulk Downloads' }).click();
     await expect(page.getByText(/on this page/i)).toHaveCount(0);
-    await openPanel(page); // reopen scans again
+    await openPanel(page);
     await expect(page.getByRole('button', { name: 'View Details' })).toHaveCount(5);
   });
 });

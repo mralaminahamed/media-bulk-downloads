@@ -15,11 +15,6 @@ const FOCUSABLE =
 export function useDialog(onClose: () => void, active = true) {
   const ref = useRef<HTMLDivElement>(null);
 
-  // Read the latest onClose without making it an effect dependency. Consumers
-  // pass a fresh inline onClose every render; if the effect keyed on it, the
-  // parent re-rendering (e.g. while size-enrichment trickles in) would tear down
-  // and re-run the effect, re-focusing the panel and stealing focus from — and
-  // blurring — whatever the user is typing in.
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;

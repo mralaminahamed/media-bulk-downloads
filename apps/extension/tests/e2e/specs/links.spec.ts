@@ -12,7 +12,6 @@ test.describe('copy / export links', () => {
 
     const clip = await page.evaluate(() => navigator.clipboard.readText());
     expect(clip).toMatch(/https?:\/\//);
-    // One line per shown item (5 collected).
     expect(clip.split(/\r?\n/).filter(Boolean).length).toBe(5);
   });
 

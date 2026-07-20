@@ -1,7 +1,5 @@
 import { peertubeEmbedUrl } from '@mbd/core/resolvers/sites/peertube';
 
-// A full RFC-4122 UUID and a 22-char base58 (flickrBase58) shortUUID — the two id
-// shapes PeerTube's `/api/v1/videos/<id>` accepts, both real-instance samples.
 const UUID = '9c9de5e8-0a1e-484a-b099-e80766180a6d';
 const SHORT = 'mo5vmqkuY4gELdHF6adkbf';
 
@@ -12,7 +10,6 @@ describe('peertubeEmbedUrl', () => {
     ['modern watch (shortUUID)', `https://framatube.org/w/${SHORT}`, `https://framatube.org/videos/embed/${SHORT}`],
     ['modern watch (uuid)', `https://framatube.org/w/${UUID}`, `https://framatube.org/videos/embed/${UUID}`],
     ['legacy watch (uuid)', `https://tube.tchncs.de/videos/watch/${UUID}`, `https://tube.tchncs.de/videos/embed/${UUID}`],
-    // Host-agnostic: any federated instance host is preserved verbatim.
     ['arbitrary instance host', `https://video.example.coop/w/${SHORT}`, `https://video.example.coop/videos/embed/${SHORT}`],
     ['query/hash are dropped', `https://framatube.org/w/${SHORT}?start=10#t`, `https://framatube.org/videos/embed/${SHORT}`],
   ])('returns the canonical embed URL for a %s', (_label, url, want) => {

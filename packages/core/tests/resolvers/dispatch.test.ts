@@ -13,9 +13,6 @@ const ctx = { allowNetwork: false } as const;
 
 describe('resolve — host-bucket routing', () => {
   it('routes an unknown host to the generic image default', () => {
-    // genericResolver (match: () => true) handles unknown hosts; it also reads
-    // the real file extension off the URL, so the candidate carries `ext: 'jpg'`
-    // in addition to url/kind — captured here to characterize actual behaviour.
     expect(resolve('https://example.com/photo.jpg', ctx)).toEqual([{ url: 'https://example.com/photo.jpg', kind: 'image', ext: 'jpg' }]);
   });
 

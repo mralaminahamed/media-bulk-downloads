@@ -7,7 +7,6 @@ describe('bestSrcsetUrl', () => {
     expect(bestSrcsetUrl('a.jpg 320w, b.jpg 1024w, c.jpg 640w')).toBe('b.jpg');
   });
   it('prefers the densest candidate for a pure-density srcset, regardless of order', () => {
-    // Descending density: the densest is FIRST, so a naive "last wins" would pick lo.jpg.
     expect(bestSrcsetUrl('hi.jpg 2x, lo.jpg 1x')).toBe('hi.jpg');
     expect(bestSrcsetUrl('lo.jpg 1x, hi.jpg 3x')).toBe('hi.jpg');
   });
@@ -19,7 +18,6 @@ describe('bestSrcsetUrl', () => {
     expect(bestSrcsetUrl('   ')).toBeNull();
   });
   it('does not let a malformed (NaN) descriptor lock out later higher-res candidates', () => {
-    // `1.2.3x` -> NaN; if it poisoned best.x, no later `x > best.x` could ever win.
     expect(bestSrcsetUrl('a.jpg 1.2.3x, b.jpg 5x')).toBe('b.jpg');
     expect(bestSrcsetUrl('a.jpg 1.2.3w, b.jpg 1024w')).toBe('b.jpg');
   });
@@ -40,7 +38,6 @@ describe('imageUrlsFromElement', () => {
     img.setAttribute('src', 'https://cdn.com/img-300x200.jpg');
     img.setAttribute('data-orig-file', 'https://cdn.com/img.jpg');
     const urls = imageUrlsFromElement(img);
-    // index 0 is the primary (carries the element's DOM dims in collect.ts).
     expect(urls[0]).toBe('https://cdn.com/img.jpg');
     expect(urls).toContain('https://cdn.com/img-300x200.jpg');
   });
@@ -59,15 +56,12 @@ describe('imageUrlsFromElement', () => {
   it('reads data-url (WEBTOON panels keep the real URL there, src is a placeholder)', () => {
     const img = document.createElement('img');
     img.className = '_images';
-    img.setAttribute('src', 'https://www.webtoons.com/.../bg_transparency.png'); // lazy placeholder
+    img.setAttribute('src', 'https://www.webtoons.com/.../bg_transparency.png');
     img.setAttribute('data-url', 'https://webtoon-phinf.pstatic.net/x/y/z.jpg?type=q90');
     expect(imageUrlsFromElement(img)).toContain('https://webtoon-phinf.pstatic.net/x/y/z.jpg?type=q90');
   });
 
   it('dedupes a URL that appears via two different lazy attributes', () => {
-    // data-orig-file and src happen to carry the identical URL — the `push`
-    // helper's `!out.includes(u)` guard must keep it in the list exactly once,
-    // not twice, so downstream candidate ranking isn't skewed by a duplicate.
     const img = document.createElement('img');
     const same = 'https://cdn.com/same.jpg';
     img.setAttribute('data-orig-file', same);
@@ -77,8 +71,6 @@ describe('imageUrlsFromElement', () => {
   });
 
   it('falls back to the src attribute on a non-<img> element with no currentSrc property', () => {
-    // <source> (as inside <picture>) has no `currentSrc`, so the cast yields
-    // `undefined` and the code must fall back to the plain `src` attribute.
     const source = document.createElement('source');
     source.setAttribute('src', 'https://cdn.com/fallback.jpg');
     expect(imageUrlsFromElement(source)).toContain('https://cdn.com/fallback.jpg');
@@ -99,9 +91,6 @@ describe('imageUrlsFromElement', () => {
   });
 
   it('a real <picture> with two <source>s and a fallback <img> yields correct per-element candidates', () => {
-    // Complex, realistic DOM: each element is extracted independently (the
-    // module never walks siblings/parents), so a nested picture only ever
-    // contributes whichever element the caller hands to imageUrlsFromElement.
     const picture = document.createElement('picture');
     picture.innerHTML = `
       <source type="image/avif" srcset="hero-avif-480.avif 480w, hero-avif-1200.avif 1200w">
@@ -111,7 +100,6 @@ describe('imageUrlsFromElement', () => {
     const [avifSource, webpSource, img] = Array.from(picture.children) as [HTMLSourceElement, HTMLSourceElement, HTMLImageElement];
     expect(imageUrlsFromElement(avifSource)).toEqual(['hero-avif-1200.avif', 'hero-avif-480.avif']);
     expect(imageUrlsFromElement(webpSource)).toEqual(['hero-webp-1200.webp', 'hero-webp-480.webp']);
-    // data-src (lazy attr) is ordered ahead of the resized src, same as the WP case.
     expect(imageUrlsFromElement(img)).toEqual(['https://cdn.com/hero-lazy.jpg', 'https://cdn.com/hero-fallback.jpg']);
   });
 });
@@ -155,9 +143,6 @@ describe('galleryLinkCandidate', () => {
     expect(galleryLinkCandidate(a)).toBeNull();
   });
   it('returns null when the href cannot be parsed even against the base URI', () => {
-    // An unclosed IPv6 authority (`http://[`) is unparseable by the URL
-    // constructor with or without a base, so the guard returns null rather than
-    // throwing out of the collector.
     const a = document.createElement('a');
     a.setAttribute('href', 'http://[');
     expect(galleryLinkCandidate(a)).toBeNull();
@@ -177,7 +162,7 @@ describe('galleryLinkCandidate', () => {
   it('omits thumbnailSrc when the inner <img> carries no src/currentSrc', () => {
     const a = document.createElement('a');
     a.href = 'https://cdn.com/full-empty-img.jpg';
-    a.appendChild(document.createElement('img')); // no src attribute set
+    a.appendChild(document.createElement('img'));
     const result = galleryLinkCandidate(a);
     expect(result).toEqual({ url: 'https://cdn.com/full-empty-img.jpg' });
     expect(result).not.toHaveProperty('thumbnailSrc');
@@ -213,16 +198,12 @@ describe('noscriptImageCandidates', () => {
   });
 
   it('unescapes singly-escaped entities before scanning for <img> markup', () => {
-    // Simulates a scripting-enabled parse of <noscript>, where textContent
-    // returns the source un-decoded (see the function's doc comment).
     const ns = document.createElement('noscript');
     ns.textContent = '&lt;img src=&quot;https://cdn.com/escaped.jpg&quot; alt=&#39;x&#39;&gt;';
     expect(noscriptImageCandidates(ns)).toEqual([{ url: 'https://cdn.com/escaped.jpg' }]);
   });
 
   it('returns [] when escaped text decodes to something with no <img> markup', () => {
-    // Contains `&lt;` (triggers the unescape attempt) but decodes to plain text,
-    // not an <img> tag — must still fall through to the no-markup empty result.
     const ns = document.createElement('noscript');
     ns.textContent = 'price &lt; $5 and nothing else';
     expect(noscriptImageCandidates(ns)).toEqual([]);
@@ -232,8 +213,8 @@ describe('noscriptImageCandidates', () => {
     const ns = document.createElement('noscript');
     ns.textContent =
       '<img src="https://cdn.com/one.jpg">' +
-      '<img srcset="   ">' + // whitespace-only srcset -> bestSrcsetUrl returns null, nothing pushed
-      '<img srcset="https://cdn.com/two-lo.jpg 320w, https://cdn.com/two-hi.jpg 900w">'; // no src attr at all
+      '<img srcset="   ">' +
+      '<img srcset="https://cdn.com/two-lo.jpg 320w, https://cdn.com/two-hi.jpg 900w">';
     expect(noscriptImageCandidates(ns)).toEqual([
       { url: 'https://cdn.com/one.jpg' },
       { url: 'https://cdn.com/two-hi.jpg' },
@@ -244,7 +225,6 @@ describe('noscriptImageCandidates', () => {
     const ns = document.createElement('noscript');
     ns.textContent = '<img src="https://cdn.com/x.jpg">';
     const RealDOMParser = global.DOMParser;
-    // Force the defensive catch: a parser that throws must yield [] gracefully.
     (global as unknown as { DOMParser: unknown }).DOMParser = class {
       parseFromString(): Document {
         throw new Error('parse boom');

@@ -29,11 +29,11 @@ describe('zerochanResolver', () => {
   beforeEach(() => { document.body.innerHTML = ''; });
 
   it('matches on the zerochan page host, not the media host', () => {
-    const u = new URL('https://s1.zerochan.net/Tag.600.123.jpg'); // media host
+    const u = new URL('https://s1.zerochan.net/Tag.600.123.jpg');
     expect(zerochanResolver.match(u, ctx(undefined, 'https://www.zerochan.net/4708324'))).toBe(true);
     expect(zerochanResolver.match(u, ctx(undefined, 'https://zerochan.net/4708324'))).toBe(true);
     expect(zerochanResolver.match(u, ctx(undefined, 'https://example.com/'))).toBe(false);
-    expect(zerochanResolver.match(u, { allowNetwork: false })).toBe(false); // no pageUrl
+    expect(zerochanResolver.match(u, { allowNetwork: false })).toBe(false);
   });
 
   it('reads the JSON-LD ImageObject contentUrl when el is the main #large image', () => {
@@ -68,7 +68,7 @@ describe('zerochanResolver', () => {
 
   it('does not fire for a thumbnail outside #large (related/grid image)', () => {
     addJsonLd({ '@type': 'ImageObject', contentUrl: 'https://static.zerochan.net/Main.full.1.jpg' });
-    const img = document.createElement('img'); // NOT inside #large
+    const img = document.createElement('img');
     img.setAttribute('src', 'https://s3.zerochan.net/Related.240.2.jpg');
     document.body.appendChild(img);
     expect(zerochanResolver.resolve(new URL('https://s3.zerochan.net/Related.240.2.jpg'), ctx(img, 'https://www.zerochan.net/1'))).toEqual([]);

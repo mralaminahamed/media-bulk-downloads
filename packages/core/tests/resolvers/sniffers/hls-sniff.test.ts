@@ -40,7 +40,7 @@ describe('hls-sniff store', () => {
     ingestSniffedHls(urls);
     const stored = sniffedHlsManifests();
     expect(stored).toHaveLength(500);
-    expect(stored[0]).toBe('https://cdn.test/20.m3u8'); // first 20 evicted
+    expect(stored[0]).toBe('https://cdn.test/20.m3u8');
     expect(stored[stored.length - 1]).toBe('https://cdn.test/519.m3u8');
   });
 

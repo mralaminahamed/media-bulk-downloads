@@ -12,7 +12,7 @@
  * thousands of args throws `RangeError: too many arguments`).
  */
 export function u8ToBase64(bytes: Uint8Array): string {
-  const CHUNK = 0x8000; // 32k args per fromCharCode call — safely under the cap
+  const CHUNK = 0x8000;
   let binary = '';
   for (let i = 0; i < bytes.length; i += CHUNK) {
     binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));

@@ -21,8 +21,6 @@ import { MediaCandidate, Resolver, ResolveContext } from '@mbd/core/resolvers/ty
 
 const PREVIEW_HOST = 'opreviews.anime-pictures.net';
 const PAGE_HOST_RE = /^(?:www\.)?anime-pictures\.net$/i;
-// The download endpoint lives on api.anime-pictures.net — pin to the registrable
-// domain so a tampered href can't point the download off-site.
 const DOWNLOAD_RE = /\/pictures\/download_image\//;
 
 function pageHost(ctx: ResolveContext): string {
@@ -58,7 +56,6 @@ export const animePicturesResolver: Resolver = {
     const doc = ctx.el?.ownerDocument ?? (typeof document !== 'undefined' ? document : undefined);
     if (!doc) return [];
 
-    // Upgrade only the main post image (its md5 matches the og:image preview).
     const og = doc.querySelector('meta[property="og:image"]')?.getAttribute('content');
     if (!og || previewMd5(new URL(og, document.baseURI).pathname) !== md5) return [];
 

@@ -1,9 +1,5 @@
 import type { Mock, MockInstance } from 'vitest';
 import { registrableDomain } from '@mbd/core/collection/paths';
-// The relay listeners forward sniffer payloads into these resolver functions.
-// Spy on just those two entry points (keep the rest of each module real so the
-// collectMedia tests, which pull sniffedHlsManifests / instagramPageMedia from
-// the same modules, are unaffected).
 vi.mock('@mbd/core/resolvers/sites/instagram', async () => ({
   ...(await vi.importActual<typeof import('@mbd/core/resolvers/sites/instagram')>('@mbd/core/resolvers/sites/instagram')),
   ingestSniffedIgMedia: vi.fn(),
@@ -12,8 +8,6 @@ vi.mock('@mbd/core/resolvers/sniffers/hls-sniff', async () => ({
   ...(await vi.importActual<typeof import('@mbd/core/resolvers/sniffers/hls-sniff')>('@mbd/core/resolvers/sniffers/hls-sniff')),
   ingestSniffedHls: vi.fn(),
 }));
-// The deep-scan runner is a heavy DOM-scrolling driver; the content script only
-// wires its lifecycle (start / abort / respond), so stub the runner itself.
 vi.mock('@/extension/content/deepScanRunner', () => ({
   startDeepScan: vi.fn(),
 }));
@@ -29,8 +23,6 @@ import {
   collectMedia,
 } from '@/extension/content';
 
-// Resolve a relative test path the same way the content script does, so
-// assertions match the absolute URLs jsdom produces.
 const abs = (path: string): string => new URL(path, document.baseURI).href;
 
 describe('Content Script', () => {
@@ -58,10 +50,7 @@ describe('Content Script', () => {
     it('extracts correct image type from base64 string', async () => {
       expect(getBase64ImageType('data:image/png;base64,abc123')).toBe('png');
       expect(getBase64ImageType('data:image/jpeg;base64,abc123')).toBe('jpeg');
-      // svg+xml is normalised to the 'svg' that getImageType emits for .svg files,
-      // so the toolbar's imageType='svg' filter matches base64/inline SVGs.
       expect(getBase64ImageType('data:image/svg+xml;base64,abc123')).toBe('svg');
-      // Inline (URL-encoded, no `;base64`) data URIs end the subtype at the comma.
       expect(getBase64ImageType('data:image/svg+xml,%3Csvg%3E')).toBe('svg');
       expect(getBase64ImageType('data:image/png,rawbytes')).toBe('png');
       expect(getBase64ImageType('invalid string')).toBe('unknown');
@@ -70,7 +59,6 @@ describe('Content Script', () => {
 
   describe('getBase64ImageSize', () => {
     it('calculates correct size for base64 image', async () => {
-      // "YWJjZGVmZ2g=" decodes to "abcdefgh" (8 bytes).
       expect(getBase64ImageSize('data:image/png;base64,YWJjZGVmZ2g=')).toBe(8);
     });
 
@@ -79,8 +67,6 @@ describe('Content Script', () => {
     });
 
     it('returns 0 for a URL-encoded (non-base64) data URI with commas in its payload', async () => {
-      // Not base64: split(',')[1] would be the truncated "0" and the length
-      // formula meaningless. The `;base64` guard must reject it.
       expect(getBase64ImageSize('data:image/svg+xml,<svg viewBox="0,0,8,8"></svg>')).toBe(0);
       expect(getBase64ImageSize('data:image/svg+xml;charset=utf-8,<svg></svg>')).toBe(0);
     });
@@ -146,7 +132,6 @@ describe('Content Script', () => {
     it('collects all images including srcset and background images', async () => {
       const images = collectMedia();
 
-      // 5 unique <img>/<picture> sources + 2 srcset + 2 picture source srcset + 1 background
       expect(images).toHaveLength(9);
 
       const bySrc = Object.fromEntries(images.map((i) => [i.src, i]));
@@ -186,10 +171,6 @@ describe('Content Script', () => {
 
   describe('Message Handling', () => {
     it('responds with collected images when GET_IMAGES message is received', async () => {
-      // GET_IMAGES now reads the smartPageDefaults setting (Task C4) before
-      // responding, so the channel is kept open for an async chrome.storage.sync
-      // read — mock it to invoke its callback synchronously, mirroring the
-      // deep-scan handler's async storage read further down this file.
       (chrome.storage.sync.get as Mock).mockImplementation(
         (_keys: unknown, cb: (r: { settings: unknown }) => void) => cb({ settings: {} }),
       );
@@ -197,12 +178,8 @@ describe('Content Script', () => {
       const messageListener = (chrome.runtime.onMessage.addListener as Mock).mock.calls[0][0];
 
       const ret = messageListener('GET_IMAGES', {}, sendResponse);
-      expect(ret).toBe(true); // keeps the message channel open for the async reply
+      expect(ret).toBe(true);
 
-      // loadEffectiveSettingsForHost (#293) resolves the global settings AND the
-      // per-host override (both real Promises, even though the sync mock invokes
-      // its callback synchronously) before calling sendResponse, so let that
-      // microtask/macrotask chain settle before asserting.
       await new Promise((r) => setTimeout(r, 0));
 
       expect(sendResponse).toHaveBeenCalledWith(
@@ -227,10 +204,6 @@ describe('Content Script', () => {
     });
 
     it('responds with the classified page type when GET_PAGE_TYPE message is received', async () => {
-      // 6 equal-sized images inside <article>, no feed markers: imageCount > 5
-      // rules out single-media, imageCount < 20 rules out gallery, feedMarkers
-      // is false so feed never applies — hasArticle is the only signal left,
-      // so this fixture classifies unambiguously as 'article'.
       document.body.innerHTML =
         '<article>' + '<img src="a.jpg" width="100" height="100">'.repeat(6) + '</article>';
       const sendResponse = vi.fn();
@@ -267,9 +240,6 @@ describe('Content Script', () => {
     });
 
     it('drops <img> whose src carries a dangerous or non-http scheme (javascript:/file:)', async () => {
-      // Only http(s) and data:image ever become candidates. A javascript: src can
-      // never be a media file, and file: would read the local disk — neither must
-      // survive into MediaItem.src (which flows to <a href> / chrome.downloads).
       document.body.innerHTML += `
         <img src="javascript:alert(1)" alt="js-scheme">
         <img src="file:///etc/passwd" alt="file-scheme">
@@ -355,7 +325,6 @@ describe('Content Script', () => {
     });
 
     it('returns the input unchanged when it cannot be parsed', async () => {
-      // Absolute URL with an invalid host — throws even with a base.
       expect(resolveUrl('http://[')).toBe('http://[');
     });
   });
@@ -389,15 +358,10 @@ describe('Content Script', () => {
     it('tolerates an iframe whose contentDocument access throws (cross-origin) and still collects the rest', async () => {
       document.body.innerHTML = '<img src="visible.jpg"><iframe id="f"></iframe>';
       const iframe = document.getElementById('f') as HTMLIFrameElement;
-      // A cross-origin frame throws on contentDocument access; the walk must catch
-      // it, treat the frame as unreachable, and keep collecting the top document.
       Object.defineProperty(iframe, 'contentDocument', {
         configurable: true,
         get() { throw new Error('cross-origin frame'); },
       });
-      // jsdom's own getComputedStyle → selector matcher reads iframe.contentDocument
-      // (focusability check); stub it so the ONLY access is collect's explicit,
-      // guarded one — which is the branch under test.
       const styleSpy = vi
         .spyOn(window, 'getComputedStyle')
         .mockReturnValue({ getPropertyValue: () => 'none' } as unknown as CSSStyleDeclaration);
@@ -412,12 +376,9 @@ describe('Content Script', () => {
 
   describe('Performance', () => {
     it('handles a large number of images efficiently', async () => {
-      // Build the markup once and parse it in a single innerHTML assignment;
-      // `+=` in a loop re-parses the whole body each pass (O(n²) — seconds under
-      // jsdom) and isn't what this test measures.
       let html = '';
       for (let i = 0; i < 1000; i++) html += `<img src="test${i}.jpg" alt="Test ${i}">`;
-      document.body.innerHTML += html; // append once (keeps the beforeEach fixture imgs)
+      document.body.innerHTML += html;
       const start = performance.now();
       const images = collectMedia();
       const elapsed = performance.now() - start;
@@ -427,10 +388,6 @@ describe('Content Script', () => {
   });
 });
 
-// ── Deep-scan lifecycle message handling ────────────────────────────────────
-// index.ts registers a second runtime.onMessage listener that starts/aborts the
-// deep scan and streams results back through sendResponse. Re-import fresh and
-// grab that listener (the second one registered — the first answers GET_IMAGES).
 describe('Deep scan message handling', () => {
   const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
@@ -451,7 +408,6 @@ describe('Deep scan message handling', () => {
 
     await import('@/extension/content');
 
-    // index.ts registers GET_IMAGES first, then the deep-scan listener second.
     const handler = addListener.mock.calls[1][0] as Wired['handler'];
     return { handler, startDeepScan };
   };
@@ -472,7 +428,7 @@ describe('Deep scan message handling', () => {
 
     const sendResponse = vi.fn();
     const ret = handler('DEEP_SCAN', {}, sendResponse);
-    expect(ret).toBe(true); // keeps the message channel open for the async reply
+    expect(ret).toBe(true);
     await flush();
 
     expect(startDeepScan).toHaveBeenCalled();
@@ -512,8 +468,6 @@ describe('Deep scan message handling', () => {
   it('streams progress to the popup, including the stop reason', async () => {
     const { handler, startDeepScan } = await wire();
     (chrome.runtime.sendMessage as Mock).mockReset().mockResolvedValue(undefined);
-    // The runner reports progress via the onProgress callback the content script
-    // supplies; that callback forwards a DEEP_SCAN_PROGRESS message to the popup.
     startDeepScan.mockImplementation((onProgress: (f: number, s: number, e: number, r?: string) => void) => {
       onProgress(12, 3, 450, 'maxItems');
       return Promise.resolve([]);
@@ -531,7 +485,7 @@ describe('Deep scan message handling', () => {
     const { handler, startDeepScan } = await wire();
     (chrome.runtime.sendMessage as Mock).mockReset().mockResolvedValue(undefined);
     startDeepScan.mockImplementation((onProgress: (f: number, s: number, e: number, r?: string) => void) => {
-      onProgress(5, 1, 100); // no stop reason yet
+      onProgress(5, 1, 100);
       return Promise.resolve([]);
     });
 
@@ -548,7 +502,7 @@ describe('Deep scan message handling', () => {
     const sendResponse = vi.fn();
     const ret = handler('DEEP_SCAN_ABORT', {}, sendResponse);
     expect(sendResponse).toHaveBeenCalledWith(true);
-    expect(ret).toBeUndefined(); // synchronous — channel not held open
+    expect(ret).toBeUndefined();
   });
 
   it('ignores unrelated messages on the deep-scan listener', async () => {
@@ -561,16 +515,6 @@ describe('Deep scan message handling', () => {
   });
 });
 
-// ── MAIN-world sniffer relay listeners (generic host) ───────────────────────
-// index.ts registers its window 'message' relays at import time. The HLS relay
-// runs on every host, so it is exercised here at the jsdom default location
-// (localhost) — a host that is neither X nor Instagram, which also proves the
-// host-gated X/IG relays are NOT wired off their platforms.
-//
-// jsdom's window.location is `[LegacyUnforgeable]` (immutable at runtime — it
-// can neither be redefined nor reassigned to another origin), so the on-host X
-// and IG relays are covered in sibling files that pin the location per file via
-// `@vitest-environment-options` (relay-x.test.ts, relay-ig.test.ts).
 describe('Sniffer relay listeners (generic host)', () => {
   type Handler = (event: unknown) => void;
 
@@ -583,9 +527,6 @@ describe('Sniffer relay listeners (generic host)', () => {
 
   let postSpy: MockInstance | undefined;
 
-  // Re-import the content module fresh and capture the exact window 'message'
-  // handlers it registers, so assertions never depend on listeners left on
-  // `window` by an earlier import (each handler is driven directly).
   const loadContent = async (): Promise<Loaded> => {
     vi.resetModules();
     const addSpy = vi.spyOn(window, 'addEventListener');
@@ -595,9 +536,6 @@ describe('Sniffer relay listeners (generic host)', () => {
     sendMessage.mockReturnValue(Promise.resolve(undefined));
 
     await import('@/extension/content');
-    // The content module asks the background for settings on load
-    // (sendMessage GET_SETTINGS); drop that call so relay assertions below see
-    // only what the window 'message' handlers forward.
     sendMessage.mockClear();
 
     const messageHandlers = addSpy.mock.calls
@@ -607,9 +545,6 @@ describe('Sniffer relay listeners (generic host)', () => {
 
     const igMod = await import('@mbd/core/resolvers/sites/instagram');
     const hlsMod = await import('@mbd/core/resolvers/sniffers/hls-sniff');
-    // vi.resetModules() re-imports the module graph but reuses the vi.mock
-    // factory's fns (unlike jest.resetModules, which rebuilds them), so their
-    // call history persists across loadContent() calls. Clear it per load.
     (igMod.ingestSniffedIgMedia as unknown as Mock).mockClear();
     (hlsMod.ingestSniffedHls as unknown as Mock).mockClear();
     return {
@@ -622,8 +557,6 @@ describe('Sniffer relay listeners (generic host)', () => {
 
   const fire = (handlers: Handler[], event: unknown): void => handlers.forEach((h) => h(event));
 
-  // Build the fields the relay listeners read off a MessageEvent. Defaults to a
-  // same-window, same-origin envelope; `over` swaps in a foreign source/origin.
   const message = (data: unknown, over: { source?: unknown; origin?: string } = {}): unknown => ({
     source: 'source' in over ? over.source : window,
     origin: 'origin' in over ? over.origin : window.location.origin,

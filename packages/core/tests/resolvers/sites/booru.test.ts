@@ -7,10 +7,10 @@ describe('booruResolver', () => {
   beforeEach(() => { document.body.innerHTML = ''; });
 
   it('matches on the PAGE host, not the media host', () => {
-    const u = new URL('https://cdn.donmai.us/preview/ab/cd/abcd.jpg'); // media host, not a booru page host
+    const u = new URL('https://cdn.donmai.us/preview/ab/cd/abcd.jpg');
     expect(booruResolver.match(u, ctx(undefined, PAGE.danbooru))).toBe(true);
     expect(booruResolver.match(u, ctx(undefined, 'https://example.com/'))).toBe(false);
-    expect(booruResolver.match(u, { allowNetwork: false })).toBe(false); // no pageUrl
+    expect(booruResolver.match(u, { allowNetwork: false })).toBe(false);
   });
 
   it('Danbooru grid: reads data-file-url + dims + mediaKey from the article', () => {
@@ -106,7 +106,7 @@ describe('booruResolver', () => {
 
   it('returns [] on a Gelbooru grid thumb (no original in DOM)', () => {
     const a = document.createElement('a');
-    a.setAttribute('href', 'https://gelbooru.com/index.php?page=post&s=view&id=1'); // post link, not /images/
+    a.setAttribute('href', 'https://gelbooru.com/index.php?page=post&s=view&id=1');
     const img = document.createElement('img');
     img.setAttribute('src', 'https://gelbooru.com/thumbnails/ab/cd/thumbnail_hash.jpg');
     a.appendChild(img);
@@ -119,16 +119,12 @@ describe('booruResolver', () => {
     link.className = 'original-file-unchanged';
     link.setAttribute('href', 'https://files.yande.re/image/hash/x.png');
     document.body.appendChild(link);
-    const icon = document.createElement('img'); // an avatar/icon, NOT #image
+    const icon = document.createElement('img');
     icon.setAttribute('src', 'https://assets.yande.re/assets/icon.png');
     document.body.appendChild(icon);
     expect(booruResolver.resolve(new URL('https://assets.yande.re/assets/icon.png'), ctx(icon, PAGE.yan))).toEqual([]);
   });
 
-  // e621ng (Danbooru fork): the original lives in `data-file-url` on the
-  // `#image-container` section that wraps the post <img>, so the Danbooru
-  // branch reaches it via `el.closest('[data-file-url]')`. Verified live on
-  // e926.net (2026-07-15): `#image-container[data-file-url]` → static1.<host>.
   it('e621 (Danbooru fork): reads data-file-url from #image-container, pins to e621.net', () => {
     const container = document.createElement('section');
     container.id = 'image-container';
@@ -156,9 +152,6 @@ describe('booruResolver', () => {
     expect(c.ext).toBe('webm');
   });
 
-  // Gelbooru-0.2 self-hosted family (rule34.xxx / tbib / hypnohub / xbooru /
-  // realbooru): same `#image` + "Original image" `/images/` anchor as the
-  // existing gelbooru.com/safebooru.org branch, pinned to the site's own domain.
   it('rule34.xxx (Gelbooru-0.2): reads host-pinned /images/ original when el is #image', () => {
     const link = document.createElement('a');
     link.setAttribute('href', 'https://wimg.rule34.xxx/images/ab/cd/hash.jpeg');
@@ -182,11 +175,6 @@ describe('booruResolver', () => {
     expect(booruResolver.resolve(new URL('https://static1.e621.net/data/preview/x.jpg'), ctx(img, 'https://e621.net/posts/1'))).toEqual([]);
   });
 
-  // Philomena engine (derpibooru / furbooru / ponybooru) + booru-on-rails
-  // (twibooru): the renditions live in an entity-encoded JSON `data-uris` on the
-  // media container wrapping the post/grid image; the `full` key is the full-res
-  // URL. Verified live 2026-07-15 — CDN hosts differ per site (derpicdn.net,
-  // furrycdn.org, cdn.ponybooru.org, cdn.twibooru.org), so each is host-pinned.
   it('Philomena (derpibooru): reads data-uris.full, pins to derpicdn.net', () => {
     const container = document.createElement('div');
     container.className = 'image-show-container';
@@ -225,7 +213,6 @@ describe('booruResolver', () => {
     const img = document.createElement('img');
     container.appendChild(img);
     document.body.appendChild(container);
-    // post URL has no /images/ prefix on twibooru
     const [c] = booruResolver.resolve(new URL('https://cdn.twibooru.org/img/2020/7/8/1/thumb.png'), ctx(img, 'https://twibooru.org/1'));
     expect(c.url).toBe('https://cdn.twibooru.org/img/2020/7/8/1/full.png');
   });
@@ -263,11 +250,6 @@ describe('booruResolver', () => {
     expect(booruResolver.resolve(new URL('https://derpicdn.net/img/thumb.png'), ctx(img, 'https://derpibooru.org/images/1'))).toEqual([]);
   });
 
-  // Sakugabooru (Moebooru-skinned). Real post DOM captured live 2026-07-16:
-  // image/settei posts serve a `/data/sample/<hash>.jpg` downscale in `#image`
-  // and link the true original via `a.original-file-changed#highres` (which can
-  // be a different, larger format, e.g. a PNG behind a sample JPG). Originals are
-  // self-hosted on www.sakugabooru.com/data/, so the pin is the page's own host.
   it('Sakugabooru: match() recognises the www-canonical page host (and bare host)', () => {
     const u = new URL('https://www.sakugabooru.com/data/sample/hash.jpg');
     expect(booruResolver.match(u, ctx(undefined, PAGE.saku))).toBe(true);
@@ -279,7 +261,6 @@ describe('booruResolver', () => {
     const link = document.createElement('a');
     link.className = 'original-file-changed';
     link.id = 'highres';
-    // Sample shown is a JPG; the linked original is a larger PNG (post 305164).
     link.setAttribute('href', 'https://www.sakugabooru.com/data/b1a30dc88ac1d0432996cfe51d5acda1.png');
     document.body.appendChild(link);
     const img = document.createElement('img');
@@ -303,7 +284,6 @@ describe('booruResolver', () => {
     img.id = 'image';
     img.setAttribute('src', 'https://www.sakugabooru.com/data/5429cb5b929f8c311fc5ed2b9b024978.jpg');
     document.body.appendChild(img);
-    // original === displayed → pinned === u.href → [] (nothing to upgrade).
     expect(booruResolver.resolve(new URL('https://www.sakugabooru.com/data/5429cb5b929f8c311fc5ed2b9b024978.jpg'), ctx(img, PAGE.saku))).toEqual([]);
   });
 
@@ -320,18 +300,13 @@ describe('booruResolver', () => {
     expect(booruResolver.resolve(new URL('https://www.sakugabooru.com/data/sample/hash.jpg'), ctx(img, PAGE.saku))).toEqual([]);
   });
 
-  // Sakugabooru is video-first, but its videos need no resolver: the post player
-  // is a `<video><source src=".../data/<hash>.mp4">` whose source already equals
-  // the `#highres` original (verified across live posts), collected directly by
-  // content/collect.ts. The booru resolver only ever runs on the image path, so a
-  // non-`#image` element (the `<video>`) correctly yields [] here.
   it('Sakugabooru: a non-#image element (video player) is not mis-upgraded -> []', () => {
     const link = document.createElement('a');
     link.className = 'original-file-unchanged';
     link.id = 'highres';
     link.setAttribute('href', 'https://www.sakugabooru.com/data/8c0888120d6a821efdbdc882ac558787.mp4');
     document.body.appendChild(link);
-    const video = document.createElement('video'); // the main media, but NOT #image
+    const video = document.createElement('video');
     document.body.appendChild(video);
     expect(booruResolver.resolve(new URL('https://www.sakugabooru.com/data/8c0888120d6a821efdbdc882ac558787.mp4'), ctx(video, PAGE.saku))).toEqual([]);
   });

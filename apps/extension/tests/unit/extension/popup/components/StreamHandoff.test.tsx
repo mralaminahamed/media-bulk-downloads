@@ -64,7 +64,7 @@ describe('StreamHandoff', () => {
     await waitFor(() => expect(writeText).toHaveBeenCalled());
     const cmd = writeText.mock.calls[0][0] as string;
     expect(cmd).toContain('yt-dlp');
-    expect(cmd).toContain('-x'); // --extract-audio — not a full-video download
+    expect(cmd).toContain('-x');
   });
 
   it('emits an audio-only ffmpeg command (drop video, copy audio to .m4a) for an audio-only refusal (I13)', async () => {

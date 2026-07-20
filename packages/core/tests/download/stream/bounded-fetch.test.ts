@@ -30,10 +30,9 @@ describe('readBounded', () => {
   });
 
   it('aborts mid-stream once the running total exceeds the cap (never reads past it)', async () => {
-    // 4-byte chunks, cap 6: chunk 1 → 4 (ok), chunk 2 → 8 (> 6, throw). The 3rd is never pulled.
     const { res, pulled } = streamRes([new Uint8Array(4), new Uint8Array(4), new Uint8Array(4)]);
     await expect(readBounded(res, 6)).rejects.toBeInstanceOf(StreamTooLargeError);
-    expect(pulled()).toBe(2); // stopped after the chunk that blew the cap — didn't materialize the rest
+    expect(pulled()).toBe(2);
   });
 
   it('falls back to arrayBuffer when there is no readable body, still size-checked', async () => {

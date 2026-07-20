@@ -1,14 +1,4 @@
 {
-  // Shared compiler options for the workspace packages (@mbd/core, @mbd/storage,
-  // @mbd/platform). Each package tsconfig extends this and adds `rootDir`, its
-  // own `references`, and package-specific `types`. Mirrors the target/module/
-  // resolution WXT uses for the app (.wxt/tsconfig.json) so type-checking is
-  // consistent across the app and the packages.
-  //
-  // Packages are `composite` so the root can type-check the whole graph with
-  // `tsc -b` in dependency order; they emit declaration files only (never
-  // bundled — WXT/Vite consume the .ts source directly via package `exports`),
-  // into a gitignored `.tsbuild/` per package.
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",

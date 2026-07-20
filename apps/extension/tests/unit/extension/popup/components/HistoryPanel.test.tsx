@@ -9,8 +9,6 @@ const entry = {
   sourcePageUrl: 'https://page.example', time: Date.now(), downloadId: 12,
 };
 
-// Grabs the storage.onChanged listener the panel registered on mount so a test
-// can drive a storage-change event through it.
 type ChangeListener = (changes: Record<string, chrome.storage.StorageChange>, area: string) => void;
 const lastStorageListener = (): ChangeListener => {
   const calls = (chrome.storage.onChanged.addListener as Mock).mock.calls;
@@ -28,9 +26,9 @@ describe('HistoryPanel', () => {
     render(<HistoryPanel onClose={() => {}} />);
     expect(await screen.findByText('a.jpg')).toBeInTheDocument();
     const clearBtn = screen.getByRole('button', { name: /clear all/i });
-    await userEvent.click(clearBtn); // arms only
+    await userEvent.click(clearBtn);
     expect(chrome.runtime.sendMessage).not.toHaveBeenCalledWith({ type: 'CLEAR_HISTORY' });
-    await userEvent.click(clearBtn); // confirms
+    await userEvent.click(clearBtn);
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'CLEAR_HISTORY' });
   });
 
@@ -71,14 +69,8 @@ describe('HistoryPanel', () => {
     (history.loadHistory as Mock).mockResolvedValue([{ ...entry, downloadId: undefined }]);
     render(<HistoryPanel onClose={() => {}} />);
     await screen.findByText('a.jpg');
-    // The Open-file / Show-in-folder buttons are the ONLY callers of openFile /
-    // revealFile, and they only render when downloadId is defined. That is why the
-    // `if (entry.downloadId === undefined) return;` guards inside those handlers are
-    // defensively unreachable through the UI — this test documents that pairing by
-    // proving the buttons are absent for a legacy (no-downloadId) entry.
     expect(screen.queryByRole('button', { name: /open file/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /show in folder/i })).not.toBeInTheDocument();
-    // Source-URL open still works without a downloadId.
     expect(screen.getByRole('button', { name: /open source in new tab/i })).toBeInTheDocument();
   });
 
@@ -133,12 +125,10 @@ describe('HistoryPanel', () => {
     const listener = lastStorageListener();
     (history.loadHistory as Mock).mockResolvedValue([{ ...entry, src: 'https://c/b.jpg', filename: 'b.jpg' }]);
 
-    // Wrong area and wrong key are both ignored — no reload.
     await act(async () => { listener({ [history.HISTORY_KEY]: {} }, 'sync'); });
     await act(async () => { listener({ somethingElse: {} }, 'local'); });
     expect(history.loadHistory).toHaveBeenCalledTimes(1);
 
-    // A local change to the history key reloads and reflects the new data.
     await act(async () => { listener({ [history.HISTORY_KEY]: {} }, 'local'); });
     expect(await screen.findByText('b.jpg')).toBeInTheDocument();
     expect(history.loadHistory).toHaveBeenCalledTimes(2);

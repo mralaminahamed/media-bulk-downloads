@@ -12,9 +12,6 @@ const SIZE = 32;
 const TAU = 2 * Math.PI;
 const clamp = (v: number): number => Math.max(0, Math.min(255, Math.round(v)));
 
-// A photo-like continuous image: energy concentrated in the lowest spatial
-// frequencies (as most real photos are), defined over a 64-unit period so it can
-// be sampled at any source resolution.
 const field = (fx: number, fy: number): number =>
   128 +
   70 * Math.cos((TAU / 64) * fx) +
@@ -49,8 +46,8 @@ function downscale(source: number, dither = 0): number[] {
   return out;
 }
 
-const original = downscale(256); // the same picture from a 256px source
-const thumbnail = downscale(128, 4); // …and from a 128px source, JPEG-re-encoded
+const original = downscale(256);
+const thumbnail = downscale(128, 4);
 const stripes = Array.from({ length: SIZE * SIZE }, (_, i) => ((i % SIZE) % 4 < 2 ? 20 : 235));
 const otherPhoto = Array.from({ length: SIZE * SIZE }, (_, i) => {
   const x = i % SIZE;
@@ -62,7 +59,7 @@ describe('computePHash', () => {
   it('produces a stable 16-char lowercase hex string', () => {
     const h = computePHash(original);
     expect(h).toMatch(/^[0-9a-f]{16}$/);
-    expect(computePHash(original)).toBe(h); // deterministic
+    expect(computePHash(original)).toBe(h);
   });
 
   it('rejects wrong-length input', () => {
@@ -70,8 +67,6 @@ describe('computePHash', () => {
   });
 
   it('stays within the near-duplicate band across a resolution change + re-encode', () => {
-    // Same picture, 256px vs 128px source + JPEG dither — the real thumbnail/original
-    // case. Well within the default threshold (8) and nowhere near the distinct band.
     expect(hammingDistance(computePHash(original), computePHash(thumbnail))).toBeLessThanOrEqual(8);
   });
 
@@ -91,7 +86,7 @@ describe('hammingDistance', () => {
   });
 
   it('counts differing bits', () => {
-    expect(hammingDistance('0000000000000000', '0000000000000007')).toBe(3); // 0x7 = 0b0111
+    expect(hammingDistance('0000000000000000', '0000000000000007')).toBe(3);
   });
 
   it('throws on length mismatch', () => {
@@ -116,15 +111,12 @@ describe('clusterNearDuplicates', () => {
   });
 
   it('respects the threshold boundary', () => {
-    const items = [item('a', '0000000000000000'), item('b', '000000000000000f')]; // distance 4
+    const items = [item('a', '0000000000000000'), item('b', '000000000000000f')];
     expect(clusterNearDuplicates(items, 3).map((c) => c.length)).toEqual([1, 1]);
     expect(clusterNearDuplicates(items, 4).map((c) => c.length)).toEqual([2]);
   });
 
   it('does NOT chain transitively across the threshold (complete linkage, #198)', () => {
-    // a–b within 4, b–c within 4, but a–c is 8 (> threshold). Complete linkage keeps
-    // c out of {a,b} — it must be within threshold of EVERY member — so the far ends
-    // don't collapse into one group where c would be hidden as a "duplicate".
     const items = [
       item('a', '0000000000000000'),
       item('b', '000000000000000f'), // 4 from a
@@ -205,9 +197,6 @@ describe('markNearDuplicates', () => {
   });
 
   it('does not hide a distinct frame that only chains through a near neighbour (#198)', () => {
-    // a↔b and b↔c are each 6 apart (≤ threshold 8), but a↔c is 12 (> 8). Single
-    // linkage would chain all three and hide c; complete linkage keeps c its own
-    // group, so "download all" still saves it.
     const marks = markNearDuplicates(
       [
         inp('a', '0000000000000000', 100, 100),
@@ -216,8 +205,7 @@ describe('markNearDuplicates', () => {
       ],
       8,
     );
-    expect(marks.get('c')).toBeUndefined(); // the distant frame stays visible
-    // a & b ARE genuine near-duplicates → exactly one of them is marked hidden.
+    expect(marks.get('c')).toBeUndefined();
     expect([marks.get('a')?.nearDuplicate, marks.get('b')?.nearDuplicate].filter((v) => v === true)).toHaveLength(1);
   });
 

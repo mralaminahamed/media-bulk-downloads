@@ -19,15 +19,10 @@ const settings = (bubbleEnabled: boolean) => ({
   bubblePosition: { corner: 'bottom-right', x: 20, y: 20 },
 });
 
-// Dispatches a SETTINGS_CHANGED push to the content script's runtime.onMessage
-// listeners — the live mount/unmount channel that replaces storage.onChanged.
 let pushSettings: (bubbleEnabled: boolean) => void;
 let mountedOnLoad = 0;
 
 beforeAll(async () => {
-  // The content script's first act is to ask the background for settings. Answer
-  // as a page reload would with the bubble already enabled, so we can assert it
-  // mounts from that initial response (not only from a live change).
   (chrome.runtime.sendMessage as Mock).mockImplementation(
     (message: unknown, cb?: (s: unknown) => void) => {
       if ((message as { type?: string })?.type === 'GET_SETTINGS' && cb) cb(settings(true));
@@ -45,7 +40,7 @@ beforeAll(async () => {
 
 describe('content bubble lifecycle (message-driven)', () => {
   beforeEach(async () => {
-    pushSettings(false); // reset to unmounted (module state persists across tests)
+    pushSettings(false);
     await flush();
     (mountBubble as Mock).mockClear();
   });
@@ -86,9 +81,6 @@ describe('content bubble lifecycle (message-driven)', () => {
   });
 
   it('does not mount when a disable races in during the bubble chunk import', async () => {
-    // enable() suspends mountBubble at `await import(...)`; a disable arriving
-    // before the import resolves must cancel the pending mount (desired-state
-    // guard), not leave the bubble mounted against the disabled setting.
     pushSettings(true);
     pushSettings(false);
     await flush();

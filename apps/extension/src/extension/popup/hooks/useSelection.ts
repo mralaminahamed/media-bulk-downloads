@@ -27,7 +27,7 @@ export function useSelection(): UseSelectionResult {
   const [selectedSrcs, setSelectedSrcs] = useState<Set<string>>(new Set());
 
   const handleToggleSelect = (image: ImageInfo): void => {
-    if (isPendingOrStream(image)) return; // pending/stream items are captured individually, not bulk-selected
+    if (isPendingOrStream(image)) return;
     setSelectedSrcs((prev) => {
       const next = new Set(prev);
       if (next.has(image.src)) next.delete(image.src);

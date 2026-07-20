@@ -28,15 +28,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
   const [siteNote, setSiteNote] = useState('');
   const panelRef = useDialog(onClose);
 
-  // The dialog seeds its local edit buffer once at mount and otherwise never
-  // looks at the live `settings` prop again — so a concurrent change from
-  // elsewhere (another tab, the on-page bubble resizing/dragging) while the
-  // dialog is open is invisible to it, and Save would silently revert that
-  // field back to whatever it was when the dialog opened (audit 2026-07-15).
-  // Mirror any field the user hasn't touched locally forward to the fresh prop
-  // value; a field the user IS actively editing (already diverged from the
-  // last-known-external value) is left alone so an in-progress edit is never
-  // clobbered by an unrelated external change.
   const externalRef = useRef<SettingsData>(initialSettings);
   useEffect(() => {
     setSettings((prev) => {
@@ -54,9 +45,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
     externalRef.current = initialSettings;
   }, [initialSettings]);
 
-  // Auto-expand a pane's Advanced section when the sheet opens with any of its
-  // fields already non-default, so a set value is never hidden. Seed from the
-  // INITIAL settings (not live edits) so typing does not re-open it.
   const isNonDefault = (keys: (keyof SettingsData)[]) =>
     keys.some((k) => JSON.stringify(initialSettings[k]) !== JSON.stringify(DEFAULT_SETTINGS[k]));
   const downloadsAdvOpen = isNonDefault(['downloadConcurrency', 'notifyOnComplete', 'nearDuplicateThreshold']);
@@ -76,8 +64,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
     }));
   };
 
-  // Clamp a number field to its declared bounds once the user leaves it — kept
-  // off the keystroke path so intermediate values stay editable while typing.
   const clampOnBlur =
     (name: keyof SettingsData, min: number, max = Number.POSITIVE_INFINITY) =>
     (e: React.FocusEvent<HTMLInputElement>) => {
@@ -94,28 +80,16 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
     setSettings((prev) => ({ ...prev, namingMode: mode }));
   };
 
-  // Persist notifyOnComplete straight to storage (a single-field SET_SETTINGS
-  // patch), NOT just to local state gated behind the Save button. Turning it on
-  // triggers the optional `notifications` permission prompt, and Chrome closes the
-  // action popup when that prompt takes focus — which would drop both the grant
-  // callback and the unsaved toggle, so Save is never reachable. Writing now makes
-  // enabling survive the popup closing.
   const persistNotify = (value: boolean) => {
     setSettings((prev) => ({ ...prev, notifyOnComplete: value }));
     sendRuntimeMessage({ type: 'SET_SETTINGS', patch: { notifyOnComplete: value } });
   };
 
-  // Turning on completion toasts needs the optional `notifications` permission,
-  // requested here inside the click's user gesture.
   const handleNotifyToggle = () => {
     if (settings.notifyOnComplete) {
       persistNotify(false);
       return;
     }
-    // Persist the ON intent BEFORE the prompt (which may close the popup), then
-    // request. If the popup survives and the user denies, roll back. Persisting
-    // "on but not yet granted" is harmless: notifyBatchDone no-ops until the
-    // permission is actually present.
     persistNotify(true);
     chrome.permissions.request({ permissions: ['notifications'] }, (granted) => {
       if (!granted) persistNotify(false);
@@ -123,7 +97,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
   };
 
   const folderPreview = (() => {
-    // Resolve the template against a sample site so tokens render in the preview.
     const dir = expandPathTemplate(settings.downloadPath, {
       host: 'www.example.com',
       domain: 'example.com',
@@ -134,12 +107,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
   })();
 
   const handleSave = () => {
-    // Persistence is owned by the parent (App.handleSettingsChange). Send only
-    // the fields the user actually changed here — not the entire local
-    // snapshot — merged onto the LIVE settings prop, so an untouched field can
-    // never clobber a concurrent external change (e.g. the bubble resizing
-    // while this dialog was open) that the resync effect above may not have
-    // caught yet. Mirrors usePerHostSettings.saveForThisSite's delta pattern.
     const delta: Partial<SettingsData> = {};
     for (const key of Object.keys(settings) as (keyof SettingsData)[]) {
       if (JSON.stringify(settings[key]) !== JSON.stringify(initialSettings[key])) {
@@ -160,7 +127,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
     setSiteNote(`Reset ${perHost?.host}`);
   };
 
-  // ── Backup (export / import all data) ───────────────────────────────────────
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [backupNote, setBackupNote] = useState('');
 
@@ -173,15 +139,13 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
 
   const handleImportBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    e.target.value = ''; // let the same file be picked again later
+    e.target.value = '';
     if (!file) return;
     const backup = parseBackup(await file.text());
     if (!backup) {
       setBackupNote('That file is not a valid Media Bulk Downloads backup.');
       return;
     }
-    // Settings apply locally + persist; favourites/history replace via the
-    // background (single-writer).
     setSettings(backup.settings);
     onSettingsChange(backup.settings);
     sendRuntimeMessage({ type: 'RESTORE_DATA', favourites: backup.favourites, history: backup.history, excluded: backup.excluded });

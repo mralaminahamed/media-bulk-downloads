@@ -28,9 +28,7 @@ export function rumbleWatchUrl(raw: string | URL): string | null {
     return null;
   }
   if (!isRumbleHost(u.hostname.toLowerCase())) return null;
-  // Watch page: /v<id>-<slug>.html (or bare /v<id>.html).
   if (/^\/v[a-z0-9]+(?:-[^/]*)?\.html$/i.test(u.pathname)) return `https://rumble.com${u.pathname}`;
-  // Player embed: /embed/<embedId>/ — normalise a missing trailing slash.
   if (/^\/embed\/[a-z0-9]+\/?$/i.test(u.pathname)) {
     return `https://rumble.com${u.pathname.replace(/\/?$/, '/')}`;
   }

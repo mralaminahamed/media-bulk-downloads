@@ -21,15 +21,12 @@ describe('dedupeByCanonical', () => {
   });
 
   it('collapses the same canonical identity across tabs, keeping the largest area', () => {
-    // Same media path, differing volatile query (canonicalSrcKey strips it for a
-    // media-ext path) — the two are one identity; the larger rendition wins.
     const out = dedupeByCanonical([
       img('https://cdn.example/p/x.jpg?token=AAA', { width: 320, height: 240, sourcePage: { url: 'https://tab-a' } }),
       img('https://cdn.example/p/x.jpg?token=BBB', { width: 2048, height: 1536, sourcePage: { url: 'https://tab-b' } }),
     ]);
     expect(out).toHaveLength(1);
     expect(out[0].width).toBe(2048);
-    // The kept (larger) copy carries its own source tab.
     expect(out[0].sourcePage?.url).toBe('https://tab-b');
   });
 

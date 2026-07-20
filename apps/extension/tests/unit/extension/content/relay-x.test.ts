@@ -12,7 +12,7 @@
  */
 import type { Mock, MockInstance } from 'vitest';
 
-export {}; // isolate this file's top-level bindings to module scope
+export {};
 
 type Handler = (event: unknown) => void;
 
@@ -25,9 +25,6 @@ const loadContent = async (): Promise<{ messageHandlers: Handler[]; postSpy: Moc
   sendMessage.mockReturnValue(Promise.resolve(undefined));
 
   await import('@/extension/content');
-  // The content module asks the background for settings on load
-  // (sendMessage GET_SETTINGS); drop that call so the relay assertions below see
-  // only what the message handlers forward.
   sendMessage.mockClear();
 
   const messageHandlers = addSpy.mock.calls
@@ -39,7 +36,6 @@ const loadContent = async (): Promise<{ messageHandlers: Handler[]; postSpy: Moc
 
 const fire = (handlers: Handler[], event: unknown): void => handlers.forEach((h) => h(event));
 
-// Same-window, same-origin envelope by default; `over` swaps in a foreign field.
 const message = (data: unknown, over: { source?: unknown; origin?: string } = {}): unknown => ({
   source: 'source' in over ? over.source : window,
   origin: 'origin' in over ? over.origin : window.location.origin,

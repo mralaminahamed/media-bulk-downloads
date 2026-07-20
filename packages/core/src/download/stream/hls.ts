@@ -34,16 +34,16 @@ import { assertSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
 import { StreamTooLargeError } from '@mbd/core/download/stream/bounded-fetch';
 
 export type HlsErrorCode =
-  | 'no-variants' // master playlist had no usable EXT-X-STREAM-INF
-  | 'live' // media playlist has no EXT-X-ENDLIST — not a finite file
-  | 'drm' // Widevine/PlayReady/FairPlay or EXT-X-SESSION-KEY
-  | 'sample-aes' // SAMPLE-AES — DRM-adjacent, not plain AES-128
-  | 'unsupported-key' // an EXT-X-KEY METHOD we don't implement
-  | 'demuxed-unsupported' // separate audio that isn't fMP4, or mp4box couldn't mux
-  | 'audio-unavailable' // audio-only asked, but the audio is muxed into the video (no separate track)
-  | 'empty' // playlist had no segments, or nothing downloaded
-  | 'too-large' // assembled bytes exceeded opts.maxBytes
-  | 'fetch-failed'; // a segment or key could not be fetched
+  | 'no-variants'
+  | 'live'
+  | 'drm'
+  | 'sample-aes'
+  | 'unsupported-key'
+  | 'demuxed-unsupported'
+  | 'audio-unavailable'
+  | 'empty'
+  | 'too-large'
+  | 'fetch-failed';
 
 export class HlsError extends Error {
   code: HlsErrorCode;
@@ -55,12 +55,12 @@ export class HlsError extends Error {
 }
 
 export interface HlsVariant {
-  uri: string; // absolute
-  bandwidth: number; // bits/sec (AVERAGE-BANDWIDTH preferred, else BANDWIDTH)
+  uri: string;
+  bandwidth: number;
   resolution?: { width: number; height: number };
   codecs?: string;
   name?: string;
-  audioGroup?: string; // the STREAM-INF AUDIO="…" group id (demuxed audio lives there)
+  audioGroup?: string;
 }
 
 /** An `#EXT-X-MEDIA:TYPE=AUDIO` rendition. A `uri` means the audio is a separate
@@ -70,14 +70,14 @@ export interface HlsAudioRendition {
   name?: string;
   language?: string;
   isDefault: boolean;
-  uri?: string; // absolute
+  uri?: string;
 }
 
 export interface HlsKey {
-  method: string; // 'AES-128' | 'NONE' | 'SAMPLE-AES' | …
-  uri?: string; // absolute key URI (AES-128)
-  iv?: Uint8Array; // explicit 16-byte IV, when the tag carried one
-  keyformat?: string; // present for DRM (e.g. 'com.widevine…')
+  method: string;
+  uri?: string;
+  iv?: Uint8Array;
+  keyformat?: string;
 }
 
 export interface HlsByteRange {
@@ -86,18 +86,18 @@ export interface HlsByteRange {
 }
 
 export interface HlsSegment {
-  uri: string; // absolute
-  duration: number; // seconds (EXTINF)
-  seq: number; // media sequence number (for IV derivation)
-  key?: HlsKey; // the EXT-X-KEY in force for this segment (carried forward)
+  uri: string;
+  duration: number;
+  seq: number;
+  key?: HlsKey;
   byteRange?: HlsByteRange;
 }
 
 export interface HlsMediaPlaylist {
   segments: HlsSegment[];
-  initUri?: string; // EXT-X-MAP:URI (fMP4)
+  initUri?: string;
   initByteRange?: HlsByteRange;
-  isLive: boolean; // no EXT-X-ENDLIST
+  isLive: boolean;
   targetDuration: number;
   totalDuration: number;
 }
@@ -132,19 +132,16 @@ export interface HlsCaptureResult {
   ext: 'ts' | 'mp4' | 'aac' | 'm4a';
   mime: string;
   variant?: HlsVariant;
-  muxedAudio?: boolean; // true when a separate audio rendition was muxed in
+  muxedAudio?: boolean;
   segmentCount: number;
   durationSec: number;
 }
-
-// ---- parsing -------------------------------------------------------------
 
 const DRM_KEYFORMATS = /widevine|playready|fairplay|com\.apple\.streamingkeydelivery|urn:uuid/i;
 
 /** Splits an `#EXT…:a=1,b="x,y"` attribute list, respecting quoted commas. */
 function parseAttributes(list: string): Record<string, string> {
   const out: Record<string, string> = {};
-  // key=value, value either "quoted" (may contain commas) or bare up to the next comma
   const re = /([A-Z0-9-]+)=("[^"]*"|[^,]*)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(list))) {
@@ -165,7 +162,6 @@ export function parseMaster(text: string, baseUrl: string): HlsVariant[] {
     const line = lines[i].trim();
     if (!line.startsWith('#EXT-X-STREAM-INF:')) continue;
     const attrs = parseAttributes(line.slice('#EXT-X-STREAM-INF:'.length));
-    // The URI is the next non-comment, non-empty line.
     let uri = '';
     for (let j = i + 1; j < lines.length; j++) {
       const cand = lines[j].trim();
@@ -216,7 +212,6 @@ export function selectVariant(variants: HlsVariant[], quality: HlsCaptureOptions
   const byBandwidth = [...variants].sort((a, b) => a.bandwidth - b.bandwidth);
   if (quality === 'lowest') return byBandwidth[0];
   if (typeof quality === 'number') {
-    // The variant whose height is closest to the target (ties → higher bandwidth).
     const withHeight = variants.filter((v) => v.resolution);
     if (withHeight.length) {
       return withHeight.sort(
@@ -226,7 +221,7 @@ export function selectVariant(variants: HlsVariant[], quality: HlsCaptureOptions
       )[0];
     }
   }
-  return byBandwidth[byBandwidth.length - 1]; // highest
+  return byBandwidth[byBandwidth.length - 1];
 }
 
 /** Picks the audio rendition for a video variant's AUDIO group: the DEFAULT one,
@@ -243,8 +238,6 @@ export function selectAudioRendition(
 }
 
 function parseByteRange(value: string, prevEnd: number): HlsByteRange {
-  // EXT-X-BYTERANGE:<length>[@<offset>] — offset defaults to the byte after the
-  // previous sub-range of the same resource.
   const [len, off] = value.split('@');
   const length = Number(len);
   const offset = off !== undefined ? Number(off) : prevEnd;
@@ -263,7 +256,7 @@ function hexToBytes(hex: string): Uint8Array {
 export function parseMediaPlaylist(text: string, baseUrl: string): HlsMediaPlaylist {
   const lines = text.split(/\r?\n/);
   const segments: HlsSegment[] = [];
-  let seq = 0; // set from EXT-X-MEDIA-SEQUENCE; increments per segment
+  let seq = 0;
   let seqSet = false;
   let currentKey: HlsKey | undefined;
   let pendingDuration = 0;
@@ -308,7 +301,6 @@ export function parseMediaPlaylist(text: string, baseUrl: string): HlsMediaPlayl
       }
       continue;
     }
-    // A media segment URI line.
     const segment: HlsSegment = {
       uri: new URL(line, baseUrl).href,
       duration: pendingDuration,
@@ -327,27 +319,23 @@ export function parseMediaPlaylist(text: string, baseUrl: string): HlsMediaPlayl
   return { segments, initUri, initByteRange, isLive, targetDuration, totalDuration };
 }
 
-// ---- assembly ------------------------------------------------------------
-
 /** 16-byte big-endian IV from a media sequence number (HLS default when the
  *  EXT-X-KEY carries no explicit IV). */
 export function ivFromSequence(seq: number): Uint8Array {
   const iv = new Uint8Array(16);
-  // sequence numbers fit in 32 bits in practice; write into the low 4 bytes.
   new DataView(iv.buffer).setUint32(12, seq >>> 0, false);
   return iv;
 }
 
 function guessContainer(segUri: string, hasInit: boolean): HlsCaptureResult['ext'] {
-  if (hasInit) return 'mp4'; // fMP4 (EXT-X-MAP present)
+  if (hasInit) return 'mp4';
   const path = segUri.split('?')[0].toLowerCase();
   if (path.endsWith('.m4s') || path.endsWith('.mp4')) return 'mp4';
-  if (path.endsWith('.m4a')) return 'm4a'; // self-initializing fMP4 audio segment
+  if (path.endsWith('.m4a')) return 'm4a';
   if (path.endsWith('.aac')) return 'aac';
-  return 'ts'; // MPEG-TS is the overwhelming default
+  return 'ts';
 }
 
-// Video codecs that can appear in a STREAM-INF CODECS list (h264/h265/vp9/av1/…).
 const VIDEO_CODEC = /(?:^|[,.\s])(?:avc1|avc3|hvc1|hev1|vp0?9|av01|dvh1|dvhe|mp4v)/i;
 
 /**
@@ -360,11 +348,11 @@ const VIDEO_CODEC = /(?:^|[,.\s])(?:avc1|avc3|hvc1|hev1|vp0?9|av01|dvh1|dvhe|mp4
  */
 function mediaPlaylistIsAudioOnly(variant: HlsVariant | undefined, ext: HlsCaptureResult['ext']): boolean {
   if (variant) {
-    if (variant.resolution) return false; // advertises a video resolution
-    if (variant.codecs) return !VIDEO_CODEC.test(variant.codecs); // codecs list carries no video codec
-    return false; // no codecs and no resolution — can't confirm; don't assume audio
+    if (variant.resolution) return false;
+    if (variant.codecs) return !VIDEO_CODEC.test(variant.codecs);
+    return false;
   }
-  return ext === 'aac' || ext === 'm4a'; // bare media playlist: only a clearly-audio container qualifies
+  return ext === 'aac' || ext === 'm4a';
 }
 
 const MIME: Record<HlsCaptureResult['ext'], string> = {
@@ -404,16 +392,11 @@ export function assertDownloadable(pl: HlsMediaPlaylist): void {
     if (k.method !== 'AES-128') {
       throw new HlsError('unsupported-key', `Unsupported encryption method: ${k.method}.`);
     }
-    // An AES-128 declaration with no key URI can't be decrypted; without this,
-    // fetchSegment's `!seg.key.uri` branch treats it as clear and writes the
-    // still-encrypted bytes to disk as undecryptable garbage, with no error.
     if (!k.uri) {
       throw new HlsError('unsupported-key', 'AES-128 segment is missing its key URI.');
     }
   }
 }
-
-// ---- orchestration -------------------------------------------------------
 
 /** Shared byte budget across a capture's tracks; fetchTrack throws too-large when
  *  the running total exceeds `max`. */
@@ -434,17 +417,11 @@ async function fetchTrack(
   onSegment: () => void,
   budget: FetchBudget,
 ): Promise<{ init?: Uint8Array; segments: Uint8Array[] }> {
-  // Map a raw fetch rejection (network/HTTP error from deps.fetchBytes) to the
-  // declared 'fetch-failed' code, so a mid-download segment/key 404 surfaces as
-  // "part of the stream couldn't be downloaded" rather than a generic 'unknown'.
-  // Mirrors captureDash, which already wraps its fetch loop.
   const fetchBytesOrFail = async (uri: string, range?: HlsByteRange): Promise<Uint8Array> => {
     try {
       return await deps.fetchBytes(uri, range);
     } catch (e) {
       if (e instanceof HlsError) throw e;
-      // A single response over the byte ceiling (readBounded) gets its own
-      // dedicated 'too-large' message rather than the generic 'fetch-failed'.
       if (e instanceof StreamTooLargeError) throw new HlsError('too-large', e.message);
       throw new HlsError('fetch-failed', e instanceof Error ? e.message : `Could not fetch ${uri}.`);
     }
@@ -466,11 +443,6 @@ async function fetchTrack(
   const total = playlist.segments.length;
   const parts: Uint8Array[] = new Array(total);
   let cursor = 0;
-  // Shared across every worker: as soon as ANY worker fails (a fetch throws, or
-  // the byte budget is blown), every sibling must stop pulling NEW segments
-  // rather than continue fetching over the network after the capture has
-  // already failed (Promise.all below rejects on the first throw, but without
-  // this the other in-flight workers keep looping and fetching regardless).
   const cancelled = { flag: false };
 
   const fetchSegment = async (seg: HlsSegment): Promise<Uint8Array> => {
@@ -506,9 +478,6 @@ async function fetchTrack(
   await Promise.all(Array.from({ length: Math.min(limit, total) }, worker));
 
   const init = playlist.initUri ? await fetchBytesOrFail(playlist.initUri, playlist.initByteRange) : undefined;
-  // Count the fMP4 init segment against the same budget as the media segments so
-  // the per-track cap stays exact (it's fetched after the segment loop, so it
-  // would otherwise let the assembled total overshoot maxBytes by one segment).
   if (init) {
     budget.used += init.length;
     if (budget.max && budget.used > budget.max) {
@@ -530,10 +499,6 @@ export async function captureHls(
   deps: HlsDeps,
   opts: HlsCaptureOptions = {},
 ): Promise<HlsCaptureResult> {
-  // A manifest is page-controlled, and every URL below (master, media playlist,
-  // audio rendition, segments, init, EXT-X-KEY) is resolved from it. Route all
-  // fetches through the SSRF guard so a hostile manifest cannot aim them at an
-  // internal/loopback/link-local host (the offscreen fetcher has <all_urls>).
   const gd: HlsDeps = {
     ...deps,
     fetchText: (u) => (assertSafeCaptureUrl(u), deps.fetchText(u)),
@@ -548,10 +513,6 @@ export async function captureHls(
     const variants = parseMaster(rootText, url);
     variant = selectVariant(variants, opts.quality);
     mediaUrl = variant.uri;
-    // For audio-only, resolve the AUDIO group from the highest-quality variant so
-    // the best available audio is used regardless of the user's video-quality
-    // preference (mirrors captureDash's selectRepresentation(manifest.audio,
-    // 'highest')). For a full capture the audio must pair with the chosen video.
     const audioVariant = opts.audioOnly ? selectVariant(variants, 'highest') : variant;
     audioRendition = selectAudioRendition(parseAudioRenditions(rootText, url), audioVariant);
   }
@@ -560,16 +521,7 @@ export async function captureHls(
   const playlist = parseMediaPlaylist(mediaText, mediaUrl);
   assertDownloadable(playlist);
 
-  // Audio-only (#204): extract just the audio as `.m4a`, no re-encode. This needs a
-  // separately-fetchable fMP4 audio track, which exists only in the demuxed case (a
-  // distinct audio rendition). A single-muxed variant (MPEG-TS, or audio inside the
-  // video fMP4) carries no separable track, so refuse rather than ship video or
-  // transcode. The refusal runs after assertDownloadable, so DRM/live still refuse first.
   if (opts.audioOnly && !audioRendition?.uri) {
-    // No separate demuxed audio rendition. If the media playlist is ITSELF audio
-    // (a bare `.aac` playlist, or an audio-only master variant), the whole stream
-    // is the audio — fall through to the normal single-track path below, which
-    // returns those bytes. Only refuse when we can't confirm it's audio-only.
     const ext0 = guessContainer(playlist.segments[0]?.uri ?? '', !!playlist.initUri);
     if (!mediaPlaylistIsAudioOnly(variant, ext0)) {
       throw new HlsError('audio-unavailable', 'This stream has no separate audio track to extract as audio-only.');
@@ -604,15 +556,6 @@ export async function captureHls(
     };
   }
 
-  // Demuxed stream: audio ships as its own rendition (separate URI), so the video
-  // variant is video-only. mp4box can recombine fMP4 tracks; anything else fails
-  // loudly rather than saving a silent file.
-  //
-  // A demuxed stream that omits the STREAM-INF `AUDIO=` attribute (or whose
-  // renditions carry no URI) is HLS-non-conformant: we can't discover its audio
-  // and it falls through to the concat path below — a video-only file, same as
-  // this engine has always produced for such input. Not something we can fix
-  // without the manifest telling us the audio exists.
   if (audioRendition?.uri) {
     const audioText = await gd.fetchText(audioRendition.uri);
     const audioPlaylist = parseMediaPlaylist(audioText, audioRendition.uri);
@@ -662,9 +605,6 @@ export async function captureHls(
   const budget: FetchBudget = { used: 0, max: opts.maxBytes };
 
   const track = await fetchTrack(playlist, gd, onSegment, budget);
-  // Build with a loop, not `push(...segments)`: a long VOD can have tens of
-  // thousands of segments, and spreading them as call args can hit the engine's
-  // argument-count limit (RangeError).
   const chunks: Uint8Array[] = track.init ? [track.init] : [];
   for (const seg of track.segments) chunks.push(seg);
   const bytes = concat(chunks);

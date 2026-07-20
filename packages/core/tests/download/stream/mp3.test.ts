@@ -38,7 +38,6 @@ describe('mp3BitrateFor / isMp3Format', () => {
 });
 
 describe('encodeMp3', () => {
-  // ~0.25s so the encoder produces several frames, not just a flush tail.
   const mono = [sine(RATE / 4, RATE, 440)];
   const stereo = [sine(RATE / 4, RATE, 440), sine(RATE / 4, RATE, 660)];
 

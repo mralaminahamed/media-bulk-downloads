@@ -1,17 +1,11 @@
 import { MediaCandidate } from '@mbd/core/resolvers/types';
 import { imageExtFromUrl, extensionFromUrl } from '@mbd/core/collection/mediaType';
 
-// An Image Chest post page: `imgchest.com/p/<id>`. It is an Inertia app that
-// serializes the whole post — every file's CDN URL — into the root element's
-// `data-page` attribute, so the originals are present in the initial markup.
 function isImgchestHost(host: string): boolean {
   return host === 'imgchest.com' || host.endsWith('.imgchest.com');
 }
 
 const VIDEO_RE = /\.(?:mp4|webm|mov|m4v)(?:[?#]|$)/i;
-// Files are served from the Image Chest CDN: cdn.imgchest.com/files/<id>.<ext>.
-// (A JSON string inside an HTML attribute keeps its slashes unescaped, so the raw
-// URL appears verbatim in the markup and a plain scan finds it.)
 const FILE_RE = /https:\/\/cdn\.imgchest\.com\/files\/[A-Za-z0-9]+\.[a-z0-9]{1,5}/gi;
 
 /** The post id from an Image Chest post URL (`/p/<id>`), or null (not a post page). */

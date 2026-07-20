@@ -33,7 +33,7 @@ export function collectPageSignals(doc: Document): PageSignals {
     : 0;
 
   const viewport = Math.max(1, (doc.defaultView?.innerWidth || 1280) * (doc.defaultView?.innerHeight || 800));
-  const density = (imageCount * 200 * 200) / viewport; // rough: assume ~200px tiles
+  const density = (imageCount * 200 * 200) / viewport;
 
   const ogType = doc.querySelector('meta[property="og:type"]')?.getAttribute('content') || '';
   const hasArticle = !!doc.querySelector('article') || ogType.toLowerCase() === 'article';

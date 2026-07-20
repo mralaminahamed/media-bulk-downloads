@@ -3,11 +3,7 @@ import { MediaCandidate, Resolver, ResolveContext } from '@mbd/core/resolvers/ty
 const SANKAKU_HOST = /(?:^|\.)sankakucomplex\.com$/i;
 const SANKAKU_IMG =
   /\/data\/(?:preview\/|sample\/)?(?:[0-9a-f]{2}\/)*([0-9a-f]{32})\.(avif|jpe?g|png|gif|webp)$/i;
-// Grid thumbnails are the preview tier; only these need an authed upgrade to the
-// original (the original tier already IS the original).
 const SANKAKU_PREVIEW = /\/data\/preview\//i;
-// A Sankaku post id in a grid tile's link: short base64url after /posts/, must be
-// followed by a query string, hash, or end of string to ensure it's not malformed.
 const SANKAKU_POST_ID = /\/posts\/([A-Za-z0-9_-]+)(?:[?#]|$)/;
 const VALID_POST_ID = /^[A-Za-z0-9_-]{1,40}$/;
 

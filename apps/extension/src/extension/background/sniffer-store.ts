@@ -30,10 +30,6 @@ export function storeSniffedMedia(tabId: number, pairs: unknown): void {
     const pinned = pinTwimgUrl((media as ResolvedMedia).url);
     if (!pinned) continue;
     const value: ResolvedMedia = (media as ResolvedMedia).hls ? { url: pinned, hls: true } : { url: pinned };
-    // Always record: updating an existing id with a better variant must not be
-    // blocked by the cap, and a new id past the cap evicts the OLDEST entry
-    // (Map keeps insertion order) so a long session keeps its most recent clips
-    // rather than freezing on the first 800 seen.
     if (!map.has(mid) && map.size >= SNIFF_CAP_PER_TAB) {
       const oldest = map.keys().next().value;
       if (oldest !== undefined) map.delete(oldest);
@@ -122,17 +118,12 @@ function memoizeFetch(fetchFn: NetDeps['fetch']): NetDeps['fetch'] {
  */
 export async function resolveOriginalsBatch(
   hints: { src: string; hint: ResolveHint }[],
-  // redirect:'error' — the resolver tier fetches page-influenced hosts from the
-  // background's <all_urls> context; refusing redirects stops a 3xx from steering
-  // a request at an internal host (the extracted URLs are host-pinned separately).
   deps: NetDeps = { fetch: retryingFetch((url, init) => fetch(url, { ...init, redirect: 'error' })) },
   sniffed?: Map<string, ResolvedMedia>,
   authed = false,
 ): Promise<Record<string, ResolvedMedia>> {
   const out: Record<string, ResolvedMedia> = {};
   const batchDeps: NetDeps = { fetch: memoizeFetch(deps.fetch) };
-  // Authed (Sankaku) resolution hits an authenticated API, so use gentler
-  // concurrency than the anonymous resolvers.
   const limit = authed ? 2 : 4;
   let i = 0;
   let successes = 0;
@@ -141,9 +132,6 @@ export async function resolveOriginalsBatch(
   async function worker() {
     while (i < hints.length && !aborted) {
       const { src, hint } = hints[i++];
-      // The authenticated Sankaku case only runs behind the explicit opt-in
-      // marker — the passive auto-resolve path never sets it, so browsing a grid
-      // never fires an authed call.
       if (hint.platform === 'sankaku' && !authed) continue;
       let sniffedMedia: ResolvedMedia | undefined;
       if (hint.platform === 'twitter' && sniffed) {
@@ -154,8 +142,6 @@ export async function resolveOriginalsBatch(
       const res = await resolveOriginal(hint, batchDeps);
       if (res) { out[src] = res; successes++; }
       else if (authed) {
-        // Repeated failure with nothing resolved (auth unavailable / rate-limited)
-        // — stop rather than hammer the endpoint. Adherence, not evasion.
         failures++;
         if (failures >= 3 && successes === 0) aborted = true;
       }

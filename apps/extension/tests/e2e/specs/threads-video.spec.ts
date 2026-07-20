@@ -10,8 +10,6 @@ test.describe('threads video', () => {
     const page = await openBubblePage(context, '/threads-video.html');
     await openPanel(page);
 
-    // The <video>'s real https mp4 is collected by the generic collectAv path
-    // (host-independent, no sniffer); its poster attribute is carried onto the item.
     await page.getByRole('button', { name: 'Video', exact: true }).click();
     expect(await itemCount(page)).toBe(1);
     await expect(figureWithSrc(page, 'THREADS_VID_POSTER')).toHaveCount(1);

@@ -93,10 +93,6 @@ describe('getPageType', () => {
   });
 
   it('resolves "unknown" when chrome.tabs is unavailable (content-script context, e.g. the bubble)', async () => {
-    // Content scripts (the in-page bubble surface) have no chrome.tabs, so the
-    // active-tab query can't run. getPageType must degrade to 'unknown' rather
-    // than throwing a synchronous "reading 'query'" TypeError that surfaces as a
-    // "Can't read this page" scan error.
     const savedTabs = chrome.tabs;
     (chrome as { tabs?: unknown }).tabs = undefined;
     try {

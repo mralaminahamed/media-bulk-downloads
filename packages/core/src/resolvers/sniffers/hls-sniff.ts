@@ -23,7 +23,6 @@ export function ingestSniffedHls(urls: unknown): void {
   for (const raw of urls) {
     if (typeof raw !== 'string') continue;
     if (!/^https?:\/\//i.test(raw) || !(isHlsManifest(raw) || isDashManifest(raw))) continue;
-    // Re-inserting refreshes recency (Set keeps first-insert order, so delete first).
     if (manifests.has(raw)) manifests.delete(raw);
     manifests.add(raw);
     if (manifests.size > CAP) manifests.delete(manifests.values().next().value as string);

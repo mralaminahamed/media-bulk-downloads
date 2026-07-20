@@ -54,7 +54,6 @@ test.describe('favourites flow', () => {
     const page = await openBubblePage(context, '/media.html');
     await openPanel(page);
 
-    // The grid button toggles: Add favourite → Remove favourite.
     await addFavourite(page, 'Alpha');
     await item(page, 'Alpha').getByRole('button', { name: /remove favourite/i }).click();
 

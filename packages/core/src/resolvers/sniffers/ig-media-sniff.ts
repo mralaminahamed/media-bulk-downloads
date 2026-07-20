@@ -95,7 +95,7 @@ function emitLeaf(node: Record<string, unknown>, code: string, out: IgMediaEntry
   if (node.video_versions) {
     const best = bestSized(node.video_versions);
     if (best) {
-      if (seenUrls.has(best.url)) return; // this video is already emitted — skip (dedup)
+      if (seenUrls.has(best.url)) return;
       seenUrls.add(best.url);
       const poster = bestIgImage((node.image_versions2 as { candidates?: unknown } | undefined)?.candidates);
       const entry: IgMediaEntry = { code, kind: 'video', url: best.url, ext: 'mp4', width: best.width, height: best.height };
@@ -112,10 +112,6 @@ function emitLeaf(node: Record<string, unknown>, code: string, out: IgMediaEntry
     const img = bestIgImage((node.image_versions2 as { candidates?: unknown }).candidates);
     if (!img || seenUrls.has(img.url)) return;
     seenUrls.add(img.url);
-    // A clip/reel (media_type 2) that carries only a cover — the reels-grid feed
-    // ships no `video_versions`, so surface it as a pending video (poster = cover)
-    // that resolves once the reel's own response is seen. Everything else is a
-    // still image.
     if (Number(node.media_type) === 2) {
       out.push({ code, kind: 'video', url: img.url, ext: 'mp4', poster: img.url, pending: true, width: img.width, height: img.height });
     } else {

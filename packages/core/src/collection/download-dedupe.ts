@@ -35,9 +35,8 @@ export function uniquifyBatchNames(paths: readonly string[]): string[] {
     const dir = slash >= 0 ? path.slice(0, slash + 1) : '';
     const file = slash >= 0 ? path.slice(slash + 1) : path;
     const dot = file.lastIndexOf('.');
-    // dot > 0 so a dotfile (".env") keeps its whole name as the base.
     const base = dot > 0 ? file.slice(0, dot) : file;
-    const ext = dot > 0 ? file.slice(dot) : ''; // includes the leading '.'
+    const ext = dot > 0 ? file.slice(dot) : '';
     let candidate = path;
     let n = 2;
     while (taken.has(candidate.toLowerCase())) {

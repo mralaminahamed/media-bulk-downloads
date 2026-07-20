@@ -83,8 +83,6 @@ export function useDownloadActions({
 }: UseDownloadActionsParams): UseDownloadActionsResult {
   const handleDownload = async (images: ImageInfo | ImageInfo[]): Promise<void> => {
     const list = Array.isArray(images) ? images : [images];
-    // HLS streams are captured (fetch + assemble segments), not fetched as a
-    // single file — route them to the capture path, sequentially.
     const streams = list.filter((i) => i.hlsManifest);
     for (const s of streams) await captureStream(s);
     const rest = list.filter((i) => !i.hlsManifest);
@@ -110,7 +108,6 @@ export function useDownloadActions({
     qualityOverride?: number | 'highest' | 'lowest',
   ): Promise<void> => {
     const sourcePage = await currentSourcePage();
-    // Clear any prior handoff banner before this attempt (#285).
     onStreamRefused?.(null);
     const label = audioOnly ? 'Extracting audio' : 'Capturing stream';
     setProgress({ label, done: 0, total: 0 });
@@ -124,9 +121,6 @@ export function useDownloadActions({
         qualityOverride,
       );
       setState((prev) => ({ ...prev, status }));
-      // A refused stream (DRM/live/SAMPLE-AES/unsupported, or audio-unavailable when
-      // extracting audio) becomes a handoff: the page URL is the Referer for the
-      // yt-dlp/ffmpeg command the user copies (#285).
       if (refusal) onStreamRefused?.({ item, code: refusal.code, referer: sourcePage.url, audioOnly, quality: settings.streamQuality });
     } finally {
       setProgress(null);
@@ -142,7 +136,6 @@ export function useDownloadActions({
     const sourcePage = await currentSourcePage();
     const message: DownloadMessage = { type: 'DOWNLOAD_IMAGES', images: list, sourcePage };
     chrome.runtime.sendMessage(message, (response: DownloadResponse) => {
-      // chrome.runtime.lastError is only valid during this callback — capture it now.
       const error = chrome.runtime.lastError;
       const status = error ? `Error: ${error.message || 'unknown error'}` : response.message;
       setState((prev) => ({ ...prev, status }));
@@ -173,20 +166,12 @@ export function useDownloadActions({
     const failed: ImageInfo[] = [];
     await mapWithConcurrency(toConvert, 3, async (img, index) => {
       try {
-        // `img.src` is page-controlled and this fetch runs with the popup's
-        // `<all_urls>` grant (bypasses page CORS) — same SSRF exposure as
-        // zip.ts's fetchBytes. A blocked host is treated as NOT downloadable:
-        // skip it entirely, rather than falling through to `failed`, which
-        // would hand the same internal-host URL to a plain chrome.downloads.
         if (!isSafeCaptureUrl(img.src)) {
           blocked++;
           return;
         }
         const res = await fetch(img.src);
         if (!res.ok) throw new Error('fetch');
-        // preserve metadata unless the user explicitly chose to strip it. If the
-        // source's metadata can't be carried across, convertImage returns null and
-        // the item falls through to a plain download of the original (below).
         const converted = await convertImage(await res.blob(), target, {
           preserveMetadata: settings.convertMetadata !== 'strip',
         });
@@ -194,9 +179,6 @@ export function useDownloadActions({
         const filename = buildDownloadFilename({ ...img, ext: converted.ext }, index, settings, sourcePage.url);
         const msg: DownloadBytesMessage = {
           type: 'DOWNLOAD_BYTES', filename, b64: u8ToBase64(converted.bytes), mime: converted.mime,
-          // Carry the original identity so the background records it to history
-          // (the "already downloaded" mark + dedup), like a plain download — plus
-          // the alt/dimensions and output ext the metadata sidecar needs (#284).
           source: {
             src: img.src, kind: img.kind, type: img.type,
             ...(img.thumbnailSrc ?? img.poster ? { thumbnailSrc: img.thumbnailSrc ?? img.poster } : {}),
@@ -214,21 +196,16 @@ export function useDownloadActions({
     });
     setProgress(null);
 
-    // Anything that couldn't be fetched/decoded downloads in its original format.
     if (failed.length) {
       sendRuntimeMessage({ type: 'DOWNLOAD_IMAGES', images: failed, sourcePage } as DownloadMessage);
     }
     const okCount = toConvert.length - failed.length - blocked;
     const failedNote = failed.length ? ` ${failed.length} couldn't convert — saved original.` : '';
-    // An SSRF-blocked item is neither a success nor a `failed` fallback download —
-    // without this it's silently invisible in the final status (#audit 2026-07-15).
     const blockedNote = blocked ? ` ${blocked} blocked.` : '';
     setState((prev) => ({ ...prev, status: `Converted ${okCount} image${okCount === 1 ? '' : 's'} to ${target.toUpperCase()}.${failedNote}${blockedNote}` }));
   };
 
   const handleBulkDownload = (): void => {
-    // Always act on the shown (filtered) set — never fall back to the unfiltered
-    // images, which would ignore the active filter.
     void handleDownload(downloadable(filteredImages));
   };
 
@@ -238,15 +215,11 @@ export function useDownloadActions({
 
   const handleCaptureStream = (image: ImageInfo, quality?: number): void => void captureStream(image, false, undefined, quality);
 
-  // ── Selective bulk download ────────────────────────────────────────────────
   const handleDownloadSelected = (): void => {
     const chosen = downloadable(filteredImages).filter((i) => selectedSrcs.has(i.src));
     if (chosen.length) void handleDownload(chosen);
   };
 
-  // ── ZIP download ───────────────────────────────────────────────────────────
-  // Fetch + zip the media in this (extension) context — fetch here bypasses page
-  // CORS — then hand the bytes to the background to write via chrome.downloads.
   const handleDownloadZip = async (images: ImageInfo[]): Promise<void> => {
     if (!images.length) return;
     setProgress({ label: 'Zipping', done: 0, total: images.length });
@@ -256,20 +229,13 @@ export function useDownloadActions({
       fetch: (...args) => fetch(...args),
       onProgress: (done, total) => setProgress({ label: 'Zipping', done, total }),
     });
-    setProgress(null); // fetch phase done; the download itself is near-instant
+    setProgress(null);
 
-    // Nothing could be fetched (every host blocked the hotlink / offline) — fall
-    // back to individual downloads via the browser's own fetch. Use the plain
-    // path, not handleDownload: the ZIP action archives originals, so its
-    // fallback must not convert either (convert-on-download applies only to the
-    // separate-files action). `images` is already the downloadable set (no HLS).
     if (ok === 0) {
       void sendPlainDownload(images);
       return;
     }
 
-    // Items that failed to fetch fall back to a normal per-file download
-    // (fire-and-forget; the ZIP response owns the status line).
     if (failed.length) {
       const fallback: DownloadMessage = { type: 'DOWNLOAD_IMAGES', images: failed, sourcePage };
       chrome.runtime.sendMessage(fallback);
@@ -292,12 +258,7 @@ export function useDownloadActions({
     if (chosen.length) void handleDownloadZip(chosen);
   };
 
-  // ── Copy / export links ──────────────────────────────────────────────────
   const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
-  // Strip signed-URL secrets (?sig/token/Signature/Expires/…) before the URLs are
-  // copied to the clipboard or written to a shareable .txt — the same filter the
-  // metadata sidecar and the yt-dlp/ffmpeg command already apply, per the
-  // url-secrets contract ("anything we hand to the user or write to disk").
   const linkList = (images: ImageInfo[]): string => images.map((i) => stripUrlSecrets(i.src)).join('\n');
   const linksFileName = (url?: string): string => {
     const domain = registrableDomain(hostFromUrl(url));

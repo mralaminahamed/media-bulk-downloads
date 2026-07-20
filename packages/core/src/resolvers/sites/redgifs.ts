@@ -10,10 +10,7 @@
  * redgifs.com (whose page URL becomes the injected Referer).
  */
 
-// RedGifs ids are lowercase-alnum words (e.g. "brightshinyexample"). The API is
-// canonical-lowercase, so ids are lowercased before use.
 const ID = '([A-Za-z0-9]{3,})';
-// Watch page: redgifs.com/watch/<id>; embed iframe: redgifs.com/ifr/<id>.
 const RE = new RegExp(`^/(?:watch|ifr)/${ID}(?:[/?#]|$)`);
 
 /**

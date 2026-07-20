@@ -22,7 +22,7 @@ export function formatVariantLabel(height: number | undefined, bandwidth: number
  *  wins), drop height-less ones, and sort height-desc — exactly the set the
  *  capture quality plumbing (which targets a height) can address. */
 function collapse(raw: { height?: number; bandwidth: number }[]): StreamVariant[] {
-  const best = new Map<number, number>(); // height → max bandwidth
+  const best = new Map<number, number>();
   for (const r of raw) {
     if (!r.height) continue;
     const cur = best.get(r.height);

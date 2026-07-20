@@ -1,7 +1,5 @@
 import { MediaItem, DeepScanProgress } from '@mbd/core/types';
 
-// The tab a scan is running in, so Abort targets that tab even if the user has
-// since switched to another one.
 let activeScanTabId: number | null = null;
 
 /** Runs Deep scan in the active tab, streaming progress until it resolves. */
@@ -14,8 +12,6 @@ export async function deepScanActiveTab(
   activeScanTabId = tabId;
 
   const listener = (msg: unknown, sender: chrome.runtime.MessageSender) => {
-    // Only accept progress from the tab this scan is driving — otherwise a scan
-    // in another tab would cross-contaminate this one's progress.
     if (sender?.tab?.id !== tabId) return;
     if (msg && (msg as DeepScanProgress).type === 'DEEP_SCAN_PROGRESS') onProgress(msg as DeepScanProgress);
   };
@@ -35,7 +31,6 @@ export async function deepScanActiveTab(
 }
 
 export function abortDeepScanActiveTab(): void {
-  // Prefer the tab the scan actually started in; fall back to the active tab.
   if (activeScanTabId != null) {
     chrome.tabs.sendMessage(activeScanTabId, 'DEEP_SCAN_ABORT', () => void chrome.runtime.lastError);
     return;

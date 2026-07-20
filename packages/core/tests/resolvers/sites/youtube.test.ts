@@ -1,6 +1,6 @@
 import { youtubeResolver, youtubeVideoId } from '@mbd/core/resolvers/sites/youtube';
 
-const ID = 'dQw4w9WgXcQ'; // 11 chars
+const ID = 'dQw4w9WgXcQ';
 const HQ = `https://i.ytimg.com/vi/${ID}/hqdefault.jpg`;
 const MQ = `https://i.ytimg.com/vi/${ID}/mqdefault.jpg`;
 
@@ -71,8 +71,6 @@ describe('youtubeResolver', () => {
   });
 
   it('resolve() returns [] for a URL that carries no video id (guards the match gate)', () => {
-    // resolve is normally reached only after match(); called directly on a non-video
-    // page URL it must still yield nothing rather than a bogus i.ytimg poster.
     expect(youtubeResolver.resolve(new URL('https://www.youtube.com/playlist?list=PL123'), { allowNetwork: false })).toEqual([]);
   });
 });

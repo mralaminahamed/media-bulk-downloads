@@ -3,13 +3,7 @@ import { ListVariantsMessage, ListVariantsResult, StreamVariant } from '@mbd/cor
 
 export type VariantState = { status: 'idle' | 'loading' | 'done' | 'error'; variants: StreamVariant[] };
 
-// Shared across every hook instance so the grid tile and preview panel reuse one
-// fetch per manifest, and a re-mounted picker is instant. Keyed by manifest URL.
 const cache = new Map<string, StreamVariant[]>();
-// In-flight LIST_VARIANTS promises, also module-level. The per-instance
-// 'loading' guard only dedups WITHIN one hook; two separate useStreamVariants()
-// instances that call ensure(sameUrl) before the first resolves would each fire
-// a request without this. Both instances await the one shared promise instead.
 const inflight = new Map<string, Promise<ListVariantsResult>>();
 
 /**
@@ -31,8 +25,6 @@ export function useStreamVariants(): {
       const next = new Map(prev);
       if (cached) { next.set(manifestUrl, { status: 'done', variants: cached }); return next; }
       next.set(manifestUrl, { status: 'loading', variants: [] });
-      // One network send per URL across ALL instances: the first caller creates
-      // the shared promise; a concurrent caller (a second hook instance) reuses it.
       let p = inflight.get(manifestUrl);
       if (!p) {
         const msg: ListVariantsMessage = { type: 'LIST_VARIANTS', manifestUrl, engine };
@@ -46,7 +38,6 @@ export function useStreamVariants(): {
           inflight.delete(manifestUrl);
         });
       }
-      // Every instance resolves its OWN local state from the shared promise.
       void p.then((res) =>
         setStates((cur) => {
           const m = new Map(cur);

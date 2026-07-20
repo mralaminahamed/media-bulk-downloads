@@ -20,15 +20,15 @@ describe('download-queue reducer', () => {
     ];
     const s = enqueue({ items: [...finished, ...live], paused: false }, [{ url: 'https://x/new.jpg', filename: 'new.jpg' }], T0 + 9999);
     const done = s.items.filter((i) => i.status === 'done');
-    expect(done).toHaveLength(FINISHED_CAP);            // oldest 50 finished dropped
-    expect(done.every((i) => i.addedAt >= T0 + 50)).toBe(true); // newest kept
-    expect(s.items.filter((i) => i.status === 'queued')).toHaveLength(2); // both live items survive
+    expect(done).toHaveLength(FINISHED_CAP);
+    expect(done.every((i) => i.addedAt >= T0 + 50)).toBe(true);
+    expect(s.items.filter((i) => i.status === 'queued')).toHaveLength(2);
   });
 
   it('enqueue appends queued items and dedupes by url+filename against live items', () => {
     let s = emptyQueue();
     s = enqueue(s, [{ url: 'https://x/a.jpg', filename: 'a.jpg' }], T0);
-    s = enqueue(s, [{ url: 'https://x/a.jpg', filename: 'a.jpg' }], T0); // dup
+    s = enqueue(s, [{ url: 'https://x/a.jpg', filename: 'a.jpg' }], T0);
     s = enqueue(s, [{ url: 'https://x/b.jpg', filename: 'b.jpg' }], T0);
     expect(s.items.map((i) => i.url)).toEqual(['https://x/a.jpg', 'https://x/b.jpg']);
     expect(s.items.every((i) => i.status === 'queued' && i.readyAt === T0)).toBe(true);
@@ -43,7 +43,7 @@ describe('download-queue reducer', () => {
     expect(c1.item.status).toBe('active');
     const c2 = claimNext(s, 2, T0)!; s = c2.state;
     expect(activeCount(s)).toBe(2);
-    expect(claimNext(s, 2, T0)).toBeNull(); // cap reached
+    expect(claimNext(s, 2, T0)).toBeNull();
   });
 
   it('claimNext skips items whose readyAt is in the future', () => {
@@ -73,13 +73,13 @@ describe('download-queue reducer', () => {
     s = enqueue(s, [{ url: 'u1', filename: 'f1' }], T0);
     const c = claimNext(s, 5, T0)!; s = c.state;
     s = markActive(s, c.item.id, 42);
-    s = scheduleRetry(s, c.item.id, T0);          // attempt 1
+    s = scheduleRetry(s, c.item.id, T0);
     expect(s.items[0].status).toBe('queued');
     expect(s.items[0].attempts).toBe(1);
     expect(s.items[0].readyAt).toBe(T0 + backoffMs(1));
     expect(s.items[0].downloadId).toBeUndefined();
-    s.items[0].status = 'active'; s = scheduleRetry(s, c.item.id, T0); // attempt 2
-    s.items[0].status = 'active'; s = scheduleRetry(s, c.item.id, T0); // attempt 3 → fail
+    s.items[0].status = 'active'; s = scheduleRetry(s, c.item.id, T0);
+    s.items[0].status = 'active'; s = scheduleRetry(s, c.item.id, T0);
     expect(s.items[0].attempts).toBe(MAX_ATTEMPTS);
     expect(s.items[0].status).toBe('failed');
   });
@@ -174,7 +174,7 @@ describe('retryAllFailed', () => {
     expect(out.items[0].error).toBeUndefined();
     expect(out.items[0].hotlink).toBeUndefined();
     expect(out.items[0].bytesReceived).toBeUndefined();
-    expect(out.items[1].status).toBe('done'); // untouched
+    expect(out.items[1].status).toBe('done');
     expect(out.items[2]).toMatchObject({ id: 'c', status: 'queued', attempts: 0 });
   });
 });
@@ -199,7 +199,7 @@ describe('claimNext — concurrency cap validation', () => {
         { id: 'q', url: 'u2', filename: 'q.jpg', status: 'queued', attempts: 0, readyAt: T0, addedAt: T0 },
       ],
     };
-    expect(claimNext(oneActive, NaN, T0)).toBeNull(); // floor 1, already at capacity
+    expect(claimNext(oneActive, NaN, T0)).toBeNull();
   });
 });
 
@@ -208,44 +208,23 @@ describe('recoverStuckActive — SW died before markActive attached a downloadId
     const s: QueueState = {
       paused: false,
       items: [
-        // Stuck: claimNext persisted status:'active' (claimedAt: T0) but the SW
-        // died before chrome.downloads.download()'s callback could markActive() a
-        // real id. Every downloadId-keyed recovery path (reconcileQueue's search
-        // loop, pollProgress) filters on downloadId !== undefined, so this item is
-        // otherwise invisible and holds a concurrency slot forever.
         { id: 'a', url: 'u1', filename: 'f1', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, claimedAt: T0 },
-        // Normal in-flight item — must be left exactly as-is.
         { id: 'b', url: 'u2', filename: 'f2', status: 'active', attempts: 0, downloadId: 5, readyAt: 0, addedAt: 0 },
       ],
     };
-    // `now` is far in the future relative to the claim (T0 + 20s, well past
-    // GRACE_MS) — the claim died at T0 and is genuinely abandoned, so it still
-    // recovers.
     const now = T0 + 20_000;
     const out = recoverStuckActive(s, now);
     expect(out.items[0]).toMatchObject({ status: 'queued', readyAt: now });
     expect(out.items[0].downloadId).toBeUndefined();
-    // No retry/backoff cost — a download was never actually dispatched for it.
     expect(out.items[0].attempts).toBe(0);
     expect(out.items[1]).toMatchObject({ status: 'active', downloadId: 5 });
   });
 
-  // Regression (HIGH): recoverStuckActive used to sweep ANY active item with no
-  // downloadId, with no grace period. That can't distinguish a genuinely dead SW
-  // from a pump() call that claimed this item microseconds ago and is still
-  // awaiting chrome.downloads.download()'s async callback. reconcileQueue runs
-  // from TWO triggers on SW wake (onStartup + settingsReady), so it can race a
-  // fresh claim: reconcile recycles the just-claimed item back to 'queued', its
-  // trailing pump() re-claims and re-dispatches it — a SECOND download for the
-  // same file, and the original download's completion matches no active item and
-  // is silently dropped from history.
   it('does NOT recover an item claimed within the grace window — it stays active', () => {
     const now = T0;
     const s: QueueState = {
       paused: false,
       items: [
-        // Claimed at `now` itself — a pump() call microseconds ago, still awaiting
-        // chrome.downloads.download()'s callback. Must be left untouched.
         { id: 'z', url: 'u3', filename: 'f3', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, claimedAt: now },
       ],
     };
@@ -257,8 +236,6 @@ describe('recoverStuckActive — SW died before markActive attached a downloadId
 
 describe('enqueue — finished items bounded by serialized bytes (not only count)', () => {
   it('drops the oldest finished items to keep the queue under its byte budget', () => {
-    // Each finished item carries a ~200KB data-URL payload, so a handful blows the
-    // byte budget even though the count is far under FINISHED_CAP.
     const big = 'data:image/png;base64,' + 'A'.repeat(200_000);
     const finished: QueueItem[] = Array.from({ length: 12 }, (_, i) => ({
       id: `d${i}`, url: big, filename: `${i}.png`, status: 'done' as const,
@@ -269,9 +246,9 @@ describe('enqueue — finished items bounded by serialized bytes (not only count
     const s = enqueue({ items: [...finished, live], paused: false }, [], T0 + 9999);
     const done = s.items.filter((i) => i.status === 'done');
 
-    expect(done.length).toBeLessThan(12); // byte cap dropped some (count alone wouldn't)
-    expect(done.length).toBeGreaterThanOrEqual(1); // always keeps at least the newest
-    expect(Math.min(...done.map((i) => i.addedAt))).toBeGreaterThan(T0); // oldest dropped, newest kept
-    expect(s.items.some((i) => i.id === 'q1')).toBe(true); // the live item is never dropped
+    expect(done.length).toBeLessThan(12);
+    expect(done.length).toBeGreaterThanOrEqual(1);
+    expect(Math.min(...done.map((i) => i.addedAt))).toBeGreaterThan(T0);
+    expect(s.items.some((i) => i.id === 'q1')).toBe(true);
   });
 });

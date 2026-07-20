@@ -16,7 +16,7 @@ describe('safariDownloader (anchor-blob)', () => {
 
     expect(id).toBe(1);
     expect(createObjectURL).toHaveBeenCalled();
-    expect(clicked).toEqual(['photo.jpg']); // the anchor honors only a filename
+    expect(clicked).toEqual(['photo.jpg']);
     HTMLAnchorElement.prototype.click = orig;
   });
 

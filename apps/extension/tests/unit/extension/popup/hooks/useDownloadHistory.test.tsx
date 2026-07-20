@@ -9,7 +9,6 @@ const image = (over: Partial<ImageInfo>): ImageInfo => ({
 
 describe('useDownloadHistory', () => {
   it('reflects a downloaded src via isDownloaded once the on-disk set resolves', async () => {
-    // fetchDownloadedOnDisk() asks the background over GET_DOWNLOADED_SRCS.
     (chrome.runtime.sendMessage as Mock).mockImplementation((msg, cb) => {
       if (msg?.type === 'GET_DOWNLOADED_SRCS' && cb) cb(['https://c/a.jpg']);
     });

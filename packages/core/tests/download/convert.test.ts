@@ -71,9 +71,6 @@ describe('convertImage', () => {
   });
 
   it('uses the default (global) createImageBitmap + OffscreenCanvas deps when none are injected', async () => {
-    // jsdom exposes neither primitive; back both globals so the default deps
-    // (createImageBitmap(blob) / new OffscreenCanvas(w,h)) actually run. A null
-    // 2D context makes convertImage bail to null after both defaults fired.
     const g = globalThis as unknown as {
       createImageBitmap?: unknown;
       OffscreenCanvas?: unknown;
@@ -87,7 +84,6 @@ describe('convertImage', () => {
     g.createImageBitmap = bitmap;
     g.OffscreenCanvas = canvasCtor;
     try {
-      // No deps arg → defaultDeps → invokes both globals.
       expect(await convertImage(new Blob(), 'png')).toBeNull();
       expect(bitmap).toHaveBeenCalledTimes(1);
       expect(canvasCtor).toHaveBeenCalledWith(2, 2);
@@ -98,9 +94,8 @@ describe('convertImage', () => {
   });
 
   it('with preserveMetadata, copies the source EXIF into the converted output', async () => {
-    // Source JPEG carrying an APP1 EXIF segment: FFD8, APP1(Exif\0\0 + TIFF), SOS, EOI.
     const exif = new Uint8Array([0x49, 0x49, 0x2a, 0x00, 0xaa, 0xbb]);
-    const app1Len = 2 + 6 + exif.length; // length field + "Exif\0\0" + payload
+    const app1Len = 2 + 6 + exif.length;
     const source = new Blob([
       new Uint8Array([
         0xff, 0xd8,
@@ -108,7 +103,6 @@ describe('convertImage', () => {
         0xff, 0xda, 0x00, 0x02, 0xff, 0xd9,
       ]) as unknown as BlobPart,
     ]);
-    // Deps produce a minimal valid JPEG (SOI + SOS + EOI) that injection can target.
     const deps: ConvertDeps = {
       createImageBitmap: async () => ({ width: 2, height: 2, close: () => undefined }) as unknown as ImageBitmap,
       makeCanvas: () =>
@@ -136,7 +130,7 @@ describe('convertImage', () => {
             ({ arrayBuffer: async () => new Uint8Array([0xff, 0xd8, 0xff, 0xda, 0x00, 0x02, 0xff, 0xd9]).buffer }) as Blob,
         }) as unknown as OffscreenCanvas,
     };
-    const out = await convertImage(source, 'jpeg', { deps }); // preserve off
+    const out = await convertImage(source, 'jpeg', { deps });
     expect(await extractMetadata(new Blob([out!.bytes as unknown as BlobPart]))).toEqual({});
   });
 });
@@ -144,7 +138,6 @@ describe('convertImage', () => {
 describe('isAnimatedImage', () => {
   const u32 = (n: number) => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
   const cc = (s: string) => [...s].map((c) => c.charCodeAt(0));
-  // A PNG chunk: 4-byte length + 4-byte type + `dataLen` data bytes + 4-byte CRC.
   const chunk = (type: string, dataLen = 0) => [...u32(dataLen), ...cc(type), ...Array(dataLen).fill(0), ...u32(0)];
   const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
   const png = (...chunks: number[][]) => new Uint8Array([...PNG_SIG, ...chunks.flat()]);

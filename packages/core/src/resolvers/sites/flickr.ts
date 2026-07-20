@@ -2,9 +2,6 @@ import { upgradeToOriginal } from '@mbd/core/collection/imageUrl';
 import { imageExtFromUrl } from '@mbd/core/collection/mediaType';
 import { MediaCandidate, Resolver } from '@mbd/core/resolvers/types';
 
-// staticflickr path: /<server>/<photoid>_<secret>[_<size>].<ext>. The photo id is
-// the first digit run after the server; the secret differs per size class, so the
-// id (not a size-swapped URL) is what the network tier needs.
 const PHOTO = /^\/\d+\/(\d+)_[0-9a-z]+(?:_[a-z0-9]+)?\.(?:jpe?g|png|gif)$/i;
 
 /**
@@ -22,7 +19,7 @@ export const flickrResolver: Resolver = {
   match: (u) => u.hostname === 'staticflickr.com' || u.hostname.endsWith('.staticflickr.com'),
   resolve: (u): MediaCandidate[] => {
     const id = u.pathname.match(PHOTO)?.[1];
-    if (!id) return []; // not a photo asset (buddyicons, etc.) -> generic
+    if (!id) return [];
 
     const { original, thumbnail } = upgradeToOriginal(u.href);
     const c: MediaCandidate = { url: original, kind: 'image' };

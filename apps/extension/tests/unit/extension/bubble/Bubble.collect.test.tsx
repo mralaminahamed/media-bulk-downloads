@@ -9,8 +9,6 @@ import { startDeepScan } from '@/extension/content/deepScanRunner';
 import { registrableDomain } from '@mbd/core/collection/paths';
 import { DEFAULT_SETTINGS } from '@mbd/storage/settings';
 
-// The bubble's collect + deep scan read the EFFECTIVE settings (global + per-host).
-// Stub both engines so we can assert the options they receive.
 vi.mock('@/extension/content/collect', () => ({ collectMedia: vi.fn(() => []) }));
 vi.mock('@/extension/content/deepScanRunner', () => ({ startDeepScan: vi.fn(() => Promise.resolve([])) }));
 
@@ -45,20 +43,17 @@ describe('Bubble collect/deep-scan honour effective settings', () => {
   });
 
   it('applies a per-host override to the bubble deep scan (#293)', async () => {
-    // A per-host override lowers the deep-scan item cap far below the global 1000.
     localStore.perHostSettings = { [registrableDomain(location.hostname)]: { deepScanMaxItems: 7 } };
     render(<Bubble initialSettings={{ ...base, deepScanMaxItems: 1000 }} />);
     await openPanel();
     await screen.findByRole('heading', { name: 'Media Bulk Downloads' });
-    // Let refreshEffective() layer the override into effectiveRef.
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
 
     const { fireEvent, waitFor } = await import('@testing-library/react');
     fireEvent.click(screen.getByRole('button', { name: 'Deep scan' }));
 
-    // deepScanLocal awaits ensureShopifyProduct before startDeepScan.
     await waitFor(() => expect(startDeepScan as Mock).toHaveBeenCalled());
     const config = (startDeepScan as Mock).mock.calls[0][2] as { maxItems: number };
-    expect(config.maxItems).toBe(7); // the host override, not the global 1000
+    expect(config.maxItems).toBe(7);
   });
 });

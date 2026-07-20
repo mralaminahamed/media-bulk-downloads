@@ -1,9 +1,6 @@
 import { MediaCandidate } from '@mbd/core/resolvers/types';
 import { imageExtFromUrl, extensionFromUrl } from '@mbd/core/collection/mediaType';
 
-// An imgpile post page (`imgpile.com/p/<slug>`) renders each file in a `post-media`
-// block whose `<a href>` is the full-resolution original (a multi-image post ships
-// several blocks). Read straight from the markup; a single post needs no API.
 function isImgpileHost(host: string): boolean {
   return host === 'imgpile.com' || host.endsWith('.imgpile.com');
 }

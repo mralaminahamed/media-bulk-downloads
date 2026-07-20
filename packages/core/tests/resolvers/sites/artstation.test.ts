@@ -28,7 +28,7 @@ describe('artstationResolver — match', () => {
   it('matches cdn[ab].artstation.com asset paths, not the logo CDN or others', () => {
     expect(m(asset('small'))).toBe(true);
     expect(m('https://cdnb.artstation.com/p/assets/covers/images/1/2/3/large/c.jpg')).toBe(true);
-    expect(m('https://cdn.artstation.com/assets/logo-monochrome.svg')).toBe(false); // logo host, no asset path
+    expect(m('https://cdn.artstation.com/assets/logo-monochrome.svg')).toBe(false);
     expect(m('https://cdna.artstation.com/favicon.ico')).toBe(false);
     expect(m('https://example.com/x.jpg')).toBe(false);
   });

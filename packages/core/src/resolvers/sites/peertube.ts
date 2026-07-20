@@ -11,10 +11,6 @@
  * serve media from remote object storage off the instance host.
  */
 
-// A PeerTube video id is either a full RFC-4122 UUID or its base58 (flickrBase58)
-// shortUUID (~21–22 chars, the alphabet excludes 0/O/I/l); `/api/v1/videos/<id>`
-// accepts either. Matching an exact id shape (not a bare slug) keeps the modern
-// `/w/<id>` path from firing on unrelated sites that happen to use `/w/`.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SHORT_RE = /^[1-9A-HJ-NP-Za-km-z]{21,22}$/;
 

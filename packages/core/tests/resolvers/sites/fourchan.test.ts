@@ -11,11 +11,10 @@ describe('fourchanResolver', () => {
     expect(fourchanResolver.match(u, ctx(undefined, PAGE))).toBe(true);
     expect(fourchanResolver.match(u, ctx(undefined, 'https://boards.4channel.org/a/thread/1'))).toBe(true);
     expect(fourchanResolver.match(u, ctx(undefined, 'https://example.com/'))).toBe(false);
-    expect(fourchanResolver.match(u, { allowNetwork: false })).toBe(false); // no pageUrl
+    expect(fourchanResolver.match(u, { allowNetwork: false })).toBe(false);
   });
 
   it('png post: keeps the real .png ext (the thumbnail is a forced .jpg)', () => {
-    // The thumb is <tim>s.jpg; the full file's real ext lives only in the href.
     document.body.innerHTML =
       '<div class="file"><a class="fileThumb" href="//i.4cdn.org/g/1784173748866628.png">' +
       '<img src="https://i.4cdn.org/g/1784173748866628s.jpg"></a></div>';
@@ -36,7 +35,7 @@ describe('fourchanResolver', () => {
       '<a class="fileThumb" href="//i.4cdn.org/g/2222.webm"><img src="https://i.4cdn.org/g/2222s.jpg"></a></div></div>';
     const img2 = document.querySelector('#pc2 img') as Element;
     const [c] = fourchanResolver.resolve(new URL('https://i.4cdn.org/g/2222s.jpg'), ctx(img2, PAGE));
-    expect(c.url).toBe('https://i.4cdn.org/g/2222.webm'); // pc2's file, not pc1's
+    expect(c.url).toBe('https://i.4cdn.org/g/2222.webm');
     expect(c.kind).toBe('video');
     expect(c.ext).toBe('webm');
   });

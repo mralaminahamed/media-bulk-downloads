@@ -1,7 +1,7 @@
 import { rutubeVideoId } from '@mbd/core/resolvers/sites/rutube';
 
 describe('rutubeVideoId', () => {
-  const ID = 'a1b2c3d4e5f60718293a4b5c6d7e8f90'; // 32 hex
+  const ID = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
 
   it.each([
     ['watch URL', `https://rutube.ru/video/${ID}/`, ID],

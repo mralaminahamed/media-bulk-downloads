@@ -58,9 +58,6 @@ function fakeDeps(overrides: Partial<HlsDeps> = {}, texts: Record<string, string
 }
 
 describe('captureHls — SSRF guard', () => {
-  // A page-controlled manifest must not be able to drive the offscreen fetcher
-  // (which holds <all_urls>) at an internal host. Each case asserts the capture
-  // rejects AND the injected fetcher was never actually called with the URL.
   it('refuses a segment URL that targets the link-local metadata host, without fetching it', async () => {
     const fetched: string[] = [];
     const MEDIA = `#EXTM3U
@@ -134,13 +131,9 @@ seg0.ts
       fetchText: async (u) => {
         fetched.push(u);
         if (u.endsWith('master.m3u8')) return MASTER;
-        return VOD; // both the video and audio media playlists are plain TS VOD
+        return VOD;
       },
     });
-    // quality 720 → the video pick is the 480 variant (closest height), whose AUDIO
-    // group is "lo"; the fix must instead resolve audio from the highest variant ("hi").
-    // Plain-TS audio has no fMP4 init, so the capture ultimately refuses — but only
-    // AFTER choosing and fetching the audio rendition, which is what we assert.
     await expect(
       captureHls('https://cdn.test/master.m3u8', deps, { audioOnly: true, quality: 720 }),
     ).rejects.toBeInstanceOf(HlsError);
@@ -175,7 +168,7 @@ describe('isMasterPlaylist / parseMaster / selectVariant', () => {
   it('selects the variant closest to a target height', () => {
     const vs = parseMaster(MASTER, 'https://cdn.test/m.m3u8');
     expect(selectVariant(vs, 480).resolution!.height).toBe(480);
-    expect(selectVariant(vs, 300).resolution!.height).toBe(184); // 184 closer to 300 than 480
+    expect(selectVariant(vs, 300).resolution!.height).toBe(184);
   });
 
   it('throws no-variants for an empty master', () => {
@@ -192,12 +185,9 @@ hi.m3u8
 noband.m3u8
 #EXT-X-STREAM-INF:BANDWIDTH=200000`;
     const vs = parseMaster(master, 'https://cdn.test/path/master.m3u8');
-    // The trailing STREAM-INF has no following URI line → dropped entirely.
     expect(vs).toHaveLength(2);
-    // AVERAGE-BANDWIDTH is preferred over BANDWIDTH; URI resolved past the comment/blank.
     expect(vs[0]).toMatchObject({ uri: 'https://cdn.test/path/hi.m3u8', bandwidth: 500000 });
     expect(vs[0].resolution).toEqual({ width: 1280, height: 720 });
-    // No BANDWIDTH at all → 0; no RESOLUTION → undefined.
     expect(vs[1]).toMatchObject({ uri: 'https://cdn.test/path/noband.m3u8', bandwidth: 0 });
     expect(vs[1].resolution).toBeUndefined();
   });
@@ -251,7 +241,6 @@ b.ts
   });
 
   it('decodes an explicit hex IV on an EXT-X-KEY into 16 bytes', () => {
-    // Exercises hexToBytes: the `0x…` prefix is stripped and each byte pair parsed.
     const enc = `#EXTM3U
 #EXT-X-KEY:METHOD=AES-128,URI="enc.key",IV=0x000102030405060708090A0B0C0D0E0F
 #EXTINF:6,
@@ -286,8 +275,6 @@ media.ts
   });
 
   it('clears the carried-forward key when a later EXT-X-KEY:METHOD=NONE appears', () => {
-    // Real pattern: an encrypted run followed by clear segments. NONE must wipe
-    // the active key so following segments are treated as plaintext.
     const mixed = `#EXTM3U
 #EXT-X-KEY:METHOD=AES-128,URI="enc.key"
 #EXTINF:6,
@@ -323,7 +310,6 @@ a.ts
   });
 
   it('reads an EXT-X-MAP byte range even when the tag omits a URI', () => {
-    // Defensive: a MAP without URI still yields its byte range; initUri stays undefined.
     const fmp4 = `#EXTM3U
 #EXT-X-MAP:BYTERANGE="800@0"
 #EXTINF:4,
@@ -405,7 +391,6 @@ describe('captureHls — orchestration', () => {
     expect(res.mime).toBe('video/mp2t');
     expect(res.segmentCount).toBe(2);
     expect(res.variant?.bandwidth).toBe(6221600);
-    // ordered concat of the two synthetic segment bodies
     expect(strOf(res.bytes)).toBe('BODY:seg0.tsBODY:seg1.ts');
   });
 
@@ -415,7 +400,7 @@ describe('captureHls — orchestration', () => {
       { fetchText: async () => { textCalls++; return MEDIA_TS; } },
     );
     const res = await captureHls('https://cdn.test/v/index.m3u8', deps);
-    expect(textCalls).toBe(1); // media playlist fetched once, not twice
+    expect(textCalls).toBe(1);
     expect(res.segmentCount).toBe(2);
   });
 
@@ -456,7 +441,7 @@ b.ts
       { 'index.m3u8': enc },
     );
     const res = await captureHls('https://cdn.test/s/index.m3u8', deps);
-    expect(keyFetches).toBe(1); // cached across both segments
+    expect(keyFetches).toBe(1);
     expect(decryptCalls.sort()).toEqual(['ENC:a.ts', 'ENC:b.ts']);
     expect(strOf(res.bytes)).toBe('DEC:a.tsDEC:b.ts');
   });
@@ -488,7 +473,6 @@ b.ts
   });
 
   it('guesses .mp4 for fMP4 segments that have no EXT-X-MAP init', async () => {
-    // .m4s extension with no init segment → mp4 container by suffix, not ts.
     const m4s = `#EXTM3U
 #EXTINF:4,
 0.m4s
@@ -497,7 +481,7 @@ b.ts
     const res = await captureHls('https://cdn.test/f/index.m3u8', deps);
     expect(res.ext).toBe('mp4');
     expect(res.mime).toBe('video/mp4');
-    expect(strOf(res.bytes)).toBe('BODY:0.m4s'); // no init prefix
+    expect(strOf(res.bytes)).toBe('BODY:0.m4s');
   });
 
   it('guesses .aac (audio/aac) for a raw AAC segment playlist', async () => {
@@ -512,8 +496,6 @@ b.ts
   });
 
   it('audioOnly captures a bare (already-audio) .aac media playlist directly, not refusing', async () => {
-    // The whole stream IS the audio — an audioOnly request should return it, not
-    // demand a separate #EXT-X-MEDIA rendition.
     const aac = `#EXTM3U
 #EXTINF:4,
 0.aac
@@ -538,7 +520,6 @@ audio/a.m3u8
   });
 
   it('guesses m4a (audio/mp4) for a bare M4A-segment playlist, not ts', async () => {
-    // Master-less playlist whose segments are self-initializing M4A (no EXT-X-MAP).
     const m4a = `#EXTM3U
 #EXTINF:4,
 0.m4a
@@ -560,7 +541,6 @@ audio/a.m3u8
   });
 
   it('audioOnly still refuses an ambiguous .ts media playlist with no separate audio rendition', async () => {
-    // .ts can carry video; without a confirming signal we must not ship it as "audio".
     const deps = fakeDeps({}, { 'index.m3u8': MEDIA_TS });
     await expect(captureHls('https://cdn.test/v/index.m3u8', deps, { audioOnly: true })).rejects.toMatchObject({
       code: 'audio-unavailable',
@@ -590,15 +570,10 @@ a.ts
     await expect(captureHls('https://cdn.test/v/index.m3u8', deps)).rejects.toMatchObject({ code: 'empty' });
   });
 
-  // Bug: fetchTrack's `Promise.all(workers)` rejects as soon as ONE worker
-  // throws, but the other in-flight workers keep pulling and fetching NEW
-  // segments over the network — wasted work after the capture has already
-  // failed. Sibling workers must share a cancel signal and stop at the top of
-  // their next loop iteration once it's set.
   it('stops sibling workers from pulling new segments once one fails', async () => {
     vi.useFakeTimers();
     try {
-      const TOTAL = 24; // 4 rounds at the default concurrency of 6
+      const TOTAL = 24;
       let media = '#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXT-X-MEDIA-SEQUENCE:0\n';
       for (let i = 0; i < TOTAL; i++) media += `#EXTINF:6.0,\nseg${i}.ts\n`;
       media += '#EXT-X-ENDLIST\n';
@@ -608,9 +583,7 @@ a.ts
         {
           fetchBytes: async (u) => {
             calls.push(u);
-            if (u.endsWith('seg0.ts')) throw new Error('boom'); // first segment grabbed, fails fast
-            // Every other segment "downloads" after a short delay — long enough
-            // for the failure (and the shared cancel flag) to land first.
+            if (u.endsWith('seg0.ts')) throw new Error('boom');
             return new Promise<Uint8Array>((resolve) => setTimeout(() => resolve(bytesOf(u)), 10));
           },
         },
@@ -620,15 +593,11 @@ a.ts
       const p = captureHls('https://cdn.test/v/index.m3u8', deps);
       const caught = p.catch((e: unknown) => e);
 
-      // Give the sibling workers plenty of virtual time to keep going, if
-      // nothing stops them — enough rounds to drain all 24 segments.
       await vi.advanceTimersByTimeAsync(500);
 
       const err = await caught;
       expect(err).toBeInstanceOf(HlsError);
 
-      // Only the in-flight first round (bounded by concurrency=6) should ever
-      // have been fetched; the fix must stop siblings before they pull round 2+.
       expect(calls.length).toBeLessThanOrEqual(6);
       expect(calls.length).toBeLessThan(TOTAL);
     } finally {
@@ -647,7 +616,7 @@ video/v.m3u8
 describe('parseAudioRenditions', () => {
   it('parses TYPE=AUDIO rows with absolute URIs and the DEFAULT flag', () => {
     const rs = parseAudioRenditions(MASTER_DEMUX, 'https://cdn.test/path/master.m3u8');
-    expect(rs).toHaveLength(1); // subtitles ignored
+    expect(rs).toHaveLength(1);
     expect(rs[0]).toMatchObject({
       groupId: 'aud',
       name: 'English',
@@ -774,13 +743,10 @@ a_seg1.m4a
     const calls: [number, number][] = [];
     const d = { ...deps(), onProgress: (done: number, total: number) => calls.push([done, total]) };
     await captureHls('https://cdn.test/master.m3u8', d);
-    expect(calls[calls.length - 1]).toEqual([2, 2]); // 1 video + 1 audio segment
+    expect(calls[calls.length - 1]).toEqual([2, 2]);
   });
 
   it('throws too-large when the summed track bytes exceed maxBytes', async () => {
-    // 100000 is between the video segment (92461 B) and video+audio (126093 B),
-    // so the video track passes its own budget check and only the audio bytes,
-    // added to the SAME shared budget, tip it over — proving cross-track accrual.
     await expect(captureHls('https://cdn.test/master.m3u8', deps(), { maxBytes: 100000 })).rejects.toMatchObject({
       code: 'too-large',
     });
@@ -800,8 +766,6 @@ a_seg0.ts
   });
 
   it('throws demuxed-unsupported when mp4box cannot mux the fMP4 tracks', async () => {
-    // Audio playlist advertises fMP4 (EXT-X-MAP present) so it clears the init
-    // guard, but its bytes are not decodable fMP4 → muxTracks throws → fail loud.
     const AUDIO_BAD = `#EXTM3U
 #EXT-X-TARGETDURATION:6
 #EXT-X-MEDIA-SEQUENCE:0
@@ -817,9 +781,6 @@ bad_seg.m4a
         return name.startsWith('bad_') ? new Uint8Array([1, 2, 3, 4]) : fx(name);
       },
     };
-    // mp4box logs its own BoxParser/ISOFile parse failure to console.error while
-    // rejecting the undecodable bytes — expected on this path (we assert the
-    // rejection), so mute it to keep the test output clean.
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       await expect(captureHls('https://cdn.test/master.m3u8', d)).rejects.toMatchObject({
@@ -831,8 +792,6 @@ bad_seg.m4a
   });
 
   it('throws empty when the demuxed muxer returns zero bytes', async () => {
-    // muxTracks succeeds without throwing but yields an empty file — the guard
-    // after the mux must surface `empty`, not a silent zero-byte download.
     const spy = vi.spyOn(mux, 'muxTracks').mockReturnValueOnce(new Uint8Array(0));
     try {
       await expect(captureHls('https://cdn.test/master.m3u8', deps())).rejects.toMatchObject({ code: 'empty' });
@@ -843,8 +802,6 @@ bad_seg.m4a
   });
 
   it('keeps a muxed fMP4 (audio group present but no rendition URI) on the concat path', async () => {
-    // The audio rendition carries no URI → audio is muxed into the variant →
-    // selectAudioRendition returns undefined → the unchanged concat path runs.
     const MASTER_MUXED = `#EXTM3U
 #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aud",NAME="English",DEFAULT=YES
 #EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=640x360,CODECS="avc1.640028,mp4a.40.2",AUDIO="aud"
@@ -861,10 +818,9 @@ video/v.m3u8
     };
     const res = await captureHls('https://cdn.test/master.m3u8', d);
     expect(res.muxedAudio).toBeFalsy();
-    expect(res.ext).toBe('mp4'); // fMP4 concat (EXT-X-MAP present), not muxed
+    expect(res.ext).toBe('mp4');
   });
 
-  // ── audio-only (#204) ──────────────────────────────────────────────────────
   it('audioOnly extracts just the audio rendition → single-track .m4a', async () => {
     const res = await captureHls('https://cdn.test/master.m3u8', deps(), { audioOnly: true });
     expect(res.ext).toBe('m4a');
@@ -885,7 +841,6 @@ video/v.m3u8
   });
 
   it('audioOnly refuses audio-unavailable when audio is muxed into the video (no separate rendition)', async () => {
-    // A plain single media playlist (no master → no audio rendition) has nothing to extract.
     const d = fakeDeps({}, { 'index.m3u8': MEDIA_TS });
     await expect(captureHls('https://cdn.test/v/index.m3u8', d, { audioOnly: true })).rejects.toMatchObject({
       code: 'audio-unavailable',

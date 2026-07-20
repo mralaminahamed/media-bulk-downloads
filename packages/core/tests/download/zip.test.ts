@@ -10,7 +10,7 @@ const img = (src: string, extra: Partial<ImageInfo> = {}): ImageInfo =>
 type FetchTable = Record<string, number[] | 'fail' | 'throw'>;
 const makeFetch = (table: FetchTable): typeof fetch =>
   (async (input: Parameters<typeof fetch>[0]) => {
-    const url = String(input); // buildZip always calls fetch with a string URL
+    const url = String(input);
     const v = table[url];
     if (v === 'throw') throw new Error('network');
     if (v === undefined || v === 'fail') {
@@ -31,7 +31,6 @@ describe('buildZip', () => {
     expect(ok).toBe(2);
     expect(failed).toEqual([]);
     const entries = unzipSync(bytes);
-    // Default settings: prefix "image_", 1-indexed, jpeg extension, no subfolder.
     expect(Object.keys(entries).sort()).toEqual(['image_1.jpg', 'image_2.jpg']);
     expect(Array.from(entries['image_1.jpg'])).toEqual([1, 2, 3]);
     expect(Array.from(entries['image_2.jpg'])).toEqual([4, 5]);
@@ -47,11 +46,10 @@ describe('buildZip', () => {
 
     const entries = unzipSync(bytes);
     expect(Object.keys(entries).sort()).toEqual(['image_1.jpg', 'image_1.jpg.json']);
-    // Media bytes are the fetched ones; the sidecar is valid JSON beside them.
     expect(Array.from(entries['image_1.jpg'])).toEqual([1, 2, 3]);
     const meta = JSON.parse(new TextDecoder().decode(entries['image_1.jpg.json']));
     expect(meta).toMatchObject({ alt: 'first', width: 800, height: 600, pageUrl: 'https://site/page', capturedAt: '2026-07-13T12:00:00.000Z' });
-    expect(meta.src).not.toContain('SECRET'); // secret query stripped
+    expect(meta.src).not.toContain('SECRET');
   });
 
   it('caps the archive at maxBytes: items past the ceiling go to `failed` (M7)', async () => {
@@ -61,23 +59,18 @@ describe('buildZip', () => {
       'https://cdn/b.jpg': new Array(100).fill(2),
       'https://cdn/c.jpg': new Array(100).fill(3),
     });
-    // concurrency 1 → strictly sequential so the byte cap bites deterministically.
     const { bytes, ok, failed, results } = await buildZip(images, DEFAULT_SETTINGS, undefined, {
       fetch,
       concurrency: 1,
       maxBytes: 250,
     });
-    expect(ok).toBe(2); // a + b = 200B fit; c would push to 300B > 250 → skipped
+    expect(ok).toBe(2);
     expect(failed.map((f) => f.src)).toEqual(['https://cdn/c.jpg']);
     expect(results.map((r) => r.ok)).toEqual([true, true, false]);
-    // the partial archive still contains the two that fit
     expect(keysOf(bytes)).toEqual(['image_1.jpg', 'image_2.jpg']);
   });
 
   it('skips an item whose declared content-length exceeds the remaining budget without buffering it', async () => {
-    // The oversized item must be routed to `failed` BEFORE arrayBuffer() is
-    // called — otherwise the whole body materializes in the page heap regardless
-    // of the cap (which is only enforced after buffering).
     const bigArrayBuffer = vi.fn(async () => new Uint8Array(new Array(1000).fill(9)).buffer);
     const fetchStub = (async (input: string) => {
       if (input === 'https://cdn/big.jpg') {
@@ -89,9 +82,9 @@ describe('buildZip', () => {
     const images = [img('https://cdn/big.jpg'), img('https://cdn/small.jpg')];
     const { ok, failed } = await buildZip(images, DEFAULT_SETTINGS, undefined, { fetch: fetchStub, concurrency: 1, maxBytes: 250 });
 
-    expect(failed.map((f) => f.src)).toContain('https://cdn/big.jpg'); // declared 1000 > 250 budget → skipped
-    expect(bigArrayBuffer).not.toHaveBeenCalled(); // never buffered the oversized body
-    expect(ok).toBe(1); // the small item (no content-length) still fits
+    expect(failed.map((f) => f.src)).toContain('https://cdn/big.jpg');
+    expect(bigArrayBuffer).not.toHaveBeenCalled();
+    expect(ok).toBe(1);
   });
 
   it('writes no sidecar when the setting is off (default)', async () => {
@@ -109,7 +102,6 @@ describe('buildZip', () => {
 
     expect(ok).toBe(2);
     expect(failed.map((i) => i.src)).toEqual(['https://cdn/bad.jpg']);
-    // The failed item's slot name is not in the archive; the others are.
     expect(keysOf(bytes)).toEqual(['image_1.jpg', 'image_3.jpg']);
   });
 
@@ -119,7 +111,7 @@ describe('buildZip', () => {
     const { bytes, ok, failed } = await buildZip(images, DEFAULT_SETTINGS, undefined, { fetch });
     expect(ok).toBe(0);
     expect(failed).toHaveLength(1);
-    expect(bytes).toHaveLength(0); // nothing fetched → empty archive
+    expect(bytes).toHaveLength(0);
   });
 
   it('applies the folder template inside the archive', async () => {
@@ -141,7 +133,6 @@ describe('buildZip', () => {
   });
 
   it('treats an ok response with an empty body as a failure', async () => {
-    // res.ok === true but arrayBuffer is 0 bytes → fetchBytes returns null → failed.
     const images = [img('https://cdn/empty.jpg')];
     const fetch = makeFetch({ 'https://cdn/empty.jpg': [] });
     const { bytes, ok, failed } = await buildZip(images, DEFAULT_SETTINGS, undefined, { fetch });
@@ -151,8 +142,6 @@ describe('buildZip', () => {
   });
 
   it('uniquifies colliding names that live inside a subfolder (path with a slash)', async () => {
-    // original naming + a folder template makes both items resolve to
-    // `pics/photo.jpg`, so uniquePath must split the dir off the name.
     const settings: SettingsData = { ...DEFAULT_SETTINGS, namingMode: 'original', downloadPath: 'pics' };
     const images = [img('https://a.com/dir1/photo.jpg'), img('https://b.com/dir2/photo.jpg')];
     const fetch = makeFetch({ 'https://a.com/dir1/photo.jpg': [1], 'https://b.com/dir2/photo.jpg': [2] });
@@ -162,8 +151,6 @@ describe('buildZip', () => {
   });
 
   it('uniquifies a three-way name collision, incrementing past (2)', async () => {
-    // Three items colliding on the same original name must become photo.jpg,
-    // photo (2).jpg, photo (3).jpg — exercising the increment loop beyond (2).
     const settings: SettingsData = { ...DEFAULT_SETTINGS, namingMode: 'original' };
     const images = [
       img('https://a.com/d1/photo.jpg'),
@@ -181,8 +168,6 @@ describe('buildZip', () => {
   });
 
   it('refuses an internal/SSRF target up front and reports it failed — without fetching it', async () => {
-    // The popup/bubble fetch holds <all_urls> and bypasses CORS, so a page-controlled
-    // media URL aimed at cloud metadata must never reach the network.
     const images = [img('https://cdn/a.jpg'), img('http://169.254.169.254/latest/meta-data/')];
     const fetched: string[] = [];
     const spyFetch = (async (input: Parameters<typeof fetch>[0]) => {
@@ -194,13 +179,13 @@ describe('buildZip', () => {
 
     expect(ok).toBe(1);
     expect(failed.map((i) => i.src)).toEqual(['http://169.254.169.254/latest/meta-data/']);
-    expect(fetched).toEqual(['https://cdn/a.jpg']); // metadata URL never fetched
+    expect(fetched).toEqual(['https://cdn/a.jpg']);
     expect(results[1]).toMatchObject({ ok: false, path: '' });
   });
 
   it('rejects a nip.io-style name that embeds an internal IP', async () => {
     const images = [img('http://169.254.169.254.nip.io/x')];
-    const fetch = makeFetch({ 'http://169.254.169.254.nip.io/x': [1, 2, 3] }); // would succeed if reached
+    const fetch = makeFetch({ 'http://169.254.169.254.nip.io/x': [1, 2, 3] });
     const { ok, failed } = await buildZip(images, DEFAULT_SETTINGS, undefined, { fetch });
     expect(ok).toBe(0);
     expect(failed.map((i) => i.src)).toEqual(['http://169.254.169.254.nip.io/x']);
@@ -239,7 +224,6 @@ describe('zipFileName', () => {
   });
 
   it('defaults the date to today (local) when none is passed', () => {
-    // Exercises the todayISO() default parameter.
     expect(zipFileName('https://www.twitter.com/x')).toMatch(/^twitter\.com-media-\d{4}-\d{2}-\d{2}\.zip$/);
   });
 });

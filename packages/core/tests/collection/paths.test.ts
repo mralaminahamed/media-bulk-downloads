@@ -82,8 +82,6 @@ describe('expandPathTemplate', () => {
   });
 
   it('treats a missing/undefined token value as empty (defensive)', () => {
-    // A token object with an unresolved value (e.g. `kind` never set) must collapse
-    // that segment rather than emit the literal `undefined` into the path.
     const partial = { host: 'ex.com', domain: 'ex.com', date: '2026-07-04' } as unknown as PathTokens;
     expect(expandPathTemplate('{kind}/pics', partial)).toBe('pics');
     expect(expandPathTemplate('{host}/{kind}', partial)).toBe('ex.com');
@@ -97,10 +95,9 @@ describe('sanitizePathSegment (regression)', () => {
   });
 
   it('strips ASCII control characters (NUL, TAB, newline, ESC …)', () => {
-    expect(sanitizePathSegment('na\x00me.jpg')).toBe('name.jpg'); // embedded NUL
-    expect(sanitizePathSegment('a\tb\nc\r.png')).toBe('abc.png'); // TAB/LF/CR
-    expect(sanitizePathSegment('x\x1by.gif')).toBe('xy.gif'); // ESC
-    // A whitespace-only name trims to nothing usable.
+    expect(sanitizePathSegment('na\x00me.jpg')).toBe('name.jpg');
+    expect(sanitizePathSegment('a\tb\nc\r.png')).toBe('abc.png');
+    expect(sanitizePathSegment('x\x1by.gif')).toBe('xy.gif');
     expect(sanitizePathSegment(' ')).toBe('');
   });
 

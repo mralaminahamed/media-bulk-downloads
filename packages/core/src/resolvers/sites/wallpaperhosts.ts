@@ -2,20 +2,12 @@ import { extensionFromUrl } from '@mbd/core/collection/mediaType';
 import { MediaCandidate, Resolver } from '@mbd/core/resolvers/types';
 import { pageHost, pinnedDomUrl } from '@mbd/core/resolvers/sites/pageOriginal';
 
-// Self-hosted wallpaper sites where the native max resolution is NOT derivable by
-// URL grammar (non-standard aspect, unique per wallpaper) — it must be read from
-// the page's list of download links, picking the largest by pixel area. Each site
-// serves the file same-origin, so gate + host-pin on the page host itself.
 interface SiteConfig {
   /** CSS selector for the download/original anchors on the detail page. */
   selector: string;
 }
 const SITES: Record<string, SiteConfig> = {
-  // 4kWallpapers: /images/wallpapers/<slug>-<WxH>-<id>.jpg; the native original is
-  // the largest-area anchor (a#resolution.current), the rest are standard crops.
   '4kwallpapers.com': { selector: 'a[href^="/images/wallpapers/"]' },
-  // WallpapersWide: /download/<slug>-wallpaper-<WxH>.jpg in a resolutions list;
-  // the offered max varies per wallpaper, so read the list rather than guess.
   'wallpaperswide.com': { selector: 'div.wallpaper-resolutions a[href^="/download/"]' },
 };
 
@@ -53,7 +45,7 @@ export const wallpaperHostsResolver: Resolver = {
     }
     if (!best) return [];
     const full = pinnedDomUrl(best.href, [host], ctx.pageUrl);
-    if (!full || full === u.href) return []; // no download link / already the original
+    if (!full || full === u.href) return [];
     const ext = extensionFromUrl(full);
     const c: MediaCandidate = { url: full, kind: 'image', thumbnailSrc: u.href };
     if (ext) c.ext = ext;

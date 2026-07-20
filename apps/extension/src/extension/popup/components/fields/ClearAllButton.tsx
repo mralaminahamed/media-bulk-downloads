@@ -24,8 +24,6 @@ export const ClearAllButton: React.FC<ClearAllButtonProps> = ({ onClear, disable
   }, [armed]);
 
   const handleClick = (): void => {
-    // Guard the handler too: a disabled button can't be clicked, but this keeps
-    // an empty list from ever firing a clear if it's re-enabled mid-interaction.
     if (disabled) return;
     if (armed) {
       setArmed(false);

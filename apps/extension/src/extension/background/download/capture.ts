@@ -26,11 +26,6 @@ const OFFSCREEN_URL = 'offscreen.html';
  * exists, that is fine.
  */
 export async function ensureOffscreen(): Promise<void> {
-  // Firefox has no chrome.offscreen. The `!import.meta.env.FIREFOX` guard is a
-  // build-time constant, so esbuild dead-code-eliminates the whole block (and its
-  // chrome.offscreen.* references) from the Firefox bundle — AMO would otherwise
-  // flag the unsupported API. Stream capture bails earlier on Firefox (see
-  // captureStreamToFile), so this is never reached there.
   if (!import.meta.env.FIREFOX) {
     if (await chrome.offscreen.hasDocument()) return;
     try {
@@ -62,21 +57,14 @@ export async function captureStreamToFile(
   | { ok: true; filename: string; saved: boolean; segmentCount: number; muxedAudio: boolean }
   | { ok: false; code: string }
 > {
-  // HLS/DASH capture assembles segments in a chrome.offscreen blob document, which
-  // Firefox does not implement — surface a clean "unsupported" result there rather
-  // than sending a CAPTURE_RUN to a document that can never exist.
   if (import.meta.env.FIREFOX) return { ok: false, code: 'unsupported_browser' };
   await ensureOffscreen();
-  // Resolve the audio output format ONCE here (#321): the per-item override wins,
-  // else the global default. Only meaningful for audio-only captures — a video
-  // capture leaves it 'm4a' (a no-op passthrough in the offscreen host).
   const audioFormat = audioOnly ? (audioFormatOverride ?? currentSettings.audioFormat) : 'm4a';
   const result = (await chrome.runtime.sendMessage({
     type: 'CAPTURE_RUN',
     runId,
     manifestUrl: item.hlsManifest,
     engine: item.type === 'mpd' ? 'dash' : 'hls',
-    // Per-stream rendition override (#314) wins; else the global preference (#288).
     quality: qualityOverride ?? streamQualityToEngine(currentSettings.streamQuality),
     maxBytes: STREAM_MAX_BYTES,
     audioOnly,
@@ -91,9 +79,6 @@ export async function captureStreamToFile(
     ),
   );
   const saved = downloadId !== undefined;
-  // A capture can finish after the popup closes, so record history + notify HERE
-  // — both were previously skipped for the entire capture path (no "already
-  // downloaded" mark / dedup, and no finish notification for its stated use case).
   if (downloadId !== undefined) {
     void recordDownloads([{
       src: item.src,

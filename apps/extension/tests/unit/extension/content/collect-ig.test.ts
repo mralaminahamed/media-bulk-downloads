@@ -27,19 +27,17 @@ describe('collectMedia — Instagram page media (single-post page)', () => {
   });
 
   it('surfaces the opened post\'s sniffed media (keyed by the URL shortcode) even when the DOM has none', () => {
-    // The page URL is .../p/ABC123/ — seed the resolver store for that shortcode.
     ingestSniffedIgMedia([
       { code: 'ABC123', kind: 'image', url: HERO, ext: 'jpg', width: 1080, height: 1080 },
       { code: 'ABC123', kind: 'video', url: REEL_MP4, ext: 'mp4', poster: HERO },
-      // A different post's media must NOT leak into this page's collection.
       { code: 'ZZZ999', kind: 'image', url: 'https://scontent.cdninstagram.com/other.jpg', ext: 'jpg' },
     ]);
 
     const srcs = collectMedia().map((m) => m.src);
 
-    expect(srcs).toContain(HERO); // carousel image slide the DOM virtualized away
-    expect(srcs).toContain(REEL_MP4); // the real mp4 behind a blob: reel <video>
-    expect(srcs).not.toContain('https://scontent.cdninstagram.com/other.jpg'); // wrong shortcode
+    expect(srcs).toContain(HERO);
+    expect(srcs).toContain(REEL_MP4);
+    expect(srcs).not.toContain('https://scontent.cdninstagram.com/other.jpg');
   });
 
   it('does not re-add a page-media URL already collected from the DOM (dedup by src)', () => {

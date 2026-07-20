@@ -12,11 +12,6 @@ const allAvailable: AvailableOptions = {
   sizeBuckets: ['all', 'small', 'medium', 'large'],
 };
 
-// The full option set the old static IMAGE_FORMATS/VIDEO_FORMATS/AUDIO_FORMATS/
-// KIND_OPTIONS constants used to offer unconditionally. The pre-existing tests
-// below exercise specific formats/kinds (JPEG, MP3, FLAC, Audio, ...) that
-// `allAvailable` deliberately omits (it's scoped to the new data-driven cases),
-// so those renders get this broader fixture instead.
 const fullAvailable: AvailableOptions = {
   kinds: ['all', 'image', 'video', 'audio'],
   formats: {
@@ -92,7 +87,6 @@ describe('FilterToolbar Component', () => {
     renderToolbar();
     openMore();
     fireEvent.change(screen.getByLabelText('Media format'), { target: { value: 'png' } });
-    // advanced badge now reads 1 (format only)
     expect(screen.getByText('1')).toBeInTheDocument();
   });
 
@@ -170,20 +164,16 @@ describe('FilterToolbar Component', () => {
   it('flips sort direction, but only once a sort field is chosen', () => {
     renderToolbar();
     const dir = screen.getByRole('button', { name: /sort direction/i });
-    // Nothing to order under "Sort: Default", so the direction toggle is inert.
     expect(dir).toBeDisabled();
 
-    // Choosing a field enables the toggle; default direction is descending.
     fireEvent.change(screen.getByLabelText('Sort order'), { target: { value: 'name' } });
     expect(dir).toBeEnabled();
     expect(dir).toHaveAccessibleName(/descending/i);
 
-    // First click → ascending; the label and the emitted filter both flip.
     fireEvent.click(dir);
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ sortDir: 'asc' }));
     expect(dir).toHaveAccessibleName(/ascending/i);
 
-    // Second click flips back to descending.
     fireEvent.click(dir);
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ sortDir: 'desc' }));
   });
@@ -191,10 +181,8 @@ describe('FilterToolbar Component', () => {
   it('counts search + sort toward the active-filter Clear-all affordance', () => {
     renderToolbar();
     expect(screen.queryByText('Clear all')).not.toBeInTheDocument();
-    // A search term alone is an active filter → Clear all appears.
     fireEvent.change(screen.getByRole('searchbox', { name: /search media/i }), { target: { value: 'cat' } });
     expect(screen.getByText('Clear all')).toBeInTheDocument();
-    // Clearing resets search back to empty.
     fireEvent.click(screen.getByText('Clear all'));
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ search: '', sortBy: 'default' }));
   });
@@ -204,13 +192,10 @@ describe('FilterToolbar Component', () => {
     render(<FilterToolbar onFilterChange={onFilterChange} extensionSettings={DEFAULT_SETTINGS} available={fullAvailable} />);
     fireEvent.click(screen.getByRole('button', { name: /More/i }));
     const typeSelect = screen.getByLabelText('Media format');
-    // image formats by default
     expect(within(typeSelect).getByRole('option', { name: 'JPEG' })).toBeInTheDocument();
-    // switch to Video (kind stays a segmented button)
     await userEvent.click(screen.getByRole('button', { name: 'Video' }));
     expect(within(screen.getByLabelText('Media format')).getByRole('option', { name: 'MP4' })).toBeInTheDocument();
     expect(within(screen.getByLabelText('Media format')).queryByRole('option', { name: 'JPEG' })).not.toBeInTheDocument();
-    // kind change resets the format to 'all'
     expect(onFilterChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ mediaKind: 'video', imageType: 'all' }),
     );
@@ -232,7 +217,6 @@ describe('FilterToolbar Component', () => {
     const min = screen.getByRole('spinbutton');
     fireEvent.change(min, { target: { value: '100' } });
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ minSize: 100 }));
-    // Clearing the field yields '' → parseInt('' ) is NaN → falls back to 0.
     fireEvent.change(min, { target: { value: '' } });
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ minSize: 0 }));
   });
@@ -263,8 +247,7 @@ describe('FilterToolbar Component', () => {
   it('surfaces an active Size filter as a removable chip and clears it via ×', () => {
     renderToolbar();
     openMore();
-    fireEvent.click(screen.getByRole('button', { name: 'Large' })); // size seg in More
-    // a Size chip now appears in the primary row
+    fireEvent.click(screen.getByRole('button', { name: 'Large' }));
     const clearSize = screen.getByRole('button', { name: 'Remove Size filter' });
     expect(clearSize).toBeInTheDocument();
     fireEvent.click(clearSize);
@@ -274,7 +257,7 @@ describe('FilterToolbar Component', () => {
   it('surfaces an active Base64 filter as a removable chip', () => {
     renderToolbar();
     openMore();
-    fireEvent.click(screen.getByRole('switch', { name: /base64/i })); // turn base64 off
+    fireEvent.click(screen.getByRole('switch', { name: /base64/i }));
     expect(screen.getByRole('button', { name: 'Remove Base64 filter' })).toBeInTheDocument();
   });
 
@@ -282,7 +265,6 @@ describe('FilterToolbar Component', () => {
     renderToolbar();
     openMore();
     fireEvent.change(screen.getByLabelText('Media format'), { target: { value: 'webp' } });
-    // canonical label from the select's options, not filters.imageType.toUpperCase()
     expect(screen.getByRole('button', { name: 'WebP' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Remove Format filter' }));
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ imageType: 'all' }));
@@ -313,7 +295,6 @@ describe('FilterToolbar Component', () => {
     const { getByLabelText } = render(
       <FilterToolbar onFilterChange={onChange} extensionSettings={DEFAULT_SETTINGS} available={allAvailable} />,
     );
-    // open the "More" popover to reveal the Format select
     fireEvent.click(document.querySelector('[aria-controls="filter-more"]') as HTMLElement);
     const select = getByLabelText('Media format') as HTMLSelectElement;
     const values = Array.from(select.options).map((o) => o.value);
@@ -335,9 +316,6 @@ describe('FilterToolbar Component', () => {
 
   it('self-heals a seeded sizeBucket the page cannot satisfy (feed/gallery seed on a small-image page)', () => {
     const onChange = vi.fn();
-    // A page-type seed asks for sizeBucket:'medium', but the collected page has only
-    // small images, so 'medium' isn't in `available`. The stale-reset must clear it
-    // to 'all' on mount so the grid isn't left empty.
     render(
       <FilterToolbar onFilterChange={onChange} extensionSettings={DEFAULT_SETTINGS}
         available={{ kinds: ['all', 'image'], formats: { image: ['all', 'png'], video: ['all'], audio: ['all'] }, sizeBuckets: ['all', 'small'] }}
@@ -355,7 +333,6 @@ describe('FilterToolbar Component', () => {
     fireEvent.change(getByLabelText('Media format'), { target: { value: 'avif' } });
     expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ imageType: 'avif' }));
 
-    // Re-collect: AVIF no longer present.
     rerender(
       <FilterToolbar onFilterChange={onChange} extensionSettings={DEFAULT_SETTINGS}
         available={{ kinds: ['all', 'image'], formats: { image: ['all', 'png'], video: ['all'], audio: ['all'] }, sizeBuckets: ['all', 'small'] }} />,

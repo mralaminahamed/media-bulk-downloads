@@ -70,8 +70,6 @@ export function retryingFetch(rawFetch: typeof fetch, opts: RetryOpts = {}): typ
     const cap = retryAfterMs != null
       ? Math.min(maxDelayMs, retryAfterMs)
       : Math.min(maxDelayMs, baseDelayMs * 2 ** (attempt - 1));
-    // Full jitter for computed backoff; a Retry-After is a server-requested floor,
-    // so honor it as-is (don't jitter below the wait it asked for).
     const delay = retryAfterMs != null ? cap : random() * cap;
     await sleep(delay, opts.signal);
   };
@@ -83,10 +81,6 @@ export function retryingFetch(rawFetch: typeof fetch, opts: RetryOpts = {}): typ
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       if (opts.signal?.aborted) throw opts.signal.reason ?? new DOMException('Aborted', 'AbortError');
       let res: Response;
-      // Bound THIS attempt: a fresh AbortController per attempt (so a timed-out
-      // attempt never poisons the next retry), aborted either by `timeoutMs`
-      // elapsing or by the caller's own `signal` aborting mid-flight (not just
-      // during backoff, which `backoff()`'s sleep already honors).
       const attemptAc = new AbortController();
       let timer: ReturnType<typeof setTimeout> | undefined;
       const onOuterAbort = (): void => attemptAc.abort(opts.signal!.reason ?? new DOMException('Aborted', 'AbortError'));
@@ -109,14 +103,11 @@ export function retryingFetch(rawFetch: typeof fetch, opts: RetryOpts = {}): typ
         if (timer !== undefined) clearTimeout(timer);
         opts.signal?.removeEventListener('abort', onOuterAbort);
       }
-      // Non-transient status, or last attempt → return this Response unread.
       if (!RETRYABLE_STATUS.has(res.status) || attempt >= maxAttempts) return res;
-      // Transient with attempts left: read only Retry-After, discard the body, retry.
       const retryAfterMs = parseRetryAfter(res.headers.get('Retry-After'), Date.now());
       res.body?.cancel().catch(() => {});
       await backoff(attempt, retryAfterMs);
     }
-    // Unreachable — the loop always returns or throws — but satisfies the type.
     throw lastError ?? new Error('retryingFetch: exhausted');
   }) as typeof fetch;
 }

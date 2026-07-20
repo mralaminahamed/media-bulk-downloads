@@ -28,21 +28,12 @@ export let excludedCache: ExcludedMatchers = { urls: new SrcKeySet(), hosts: new
 export let excludedReady: Promise<void> = Promise.resolve();
 
 export function reloadExcluded(): void {
-  // Keep the last-known-good cache and always resolve on failure: every download
-  // and badge path awaits Promise.all([settingsReady, excludedReady]), so a
-  // rejected excludedReady (a transient storage.local error) would permanently
-  // skip their .then — hanging the popup and freezing every badge. settingsReady
-  // is likewise built to always resolve.
   excludedReady = excludedMatchers()
     .then((m) => { excludedCache = m; })
     .catch(() => { /* retain the previous cache; never wedge the gate */ });
 }
 reloadExcluded();
 
-// The service worker is ephemeral: a message can wake it and be handled before
-// the async settings read completes. `settingsReady` resolves once settings have
-// been read at least once, so a download that wakes the worker never runs against
-// DEFAULT_SETTINGS (wrong subfolder/prefix/naming/filters).
 let markSettingsLoaded: (() => void) | undefined;
 export const settingsReady: Promise<void> = new Promise((resolve) => {
   markSettingsLoaded = resolve;
@@ -55,9 +46,6 @@ export function resolveSettingsGate(): void {
   markSettingsLoaded = undefined;
 }
 
-// applySettings lives in badge.ts (it drives badges + action mode); state.ts
-// invokes it through a hook so it never has to import badge.ts (keeping the
-// module graph acyclic). index.ts wires the hook at startup.
 let applyHook: () => void = () => {};
 export function setApplySettingsHook(fn: () => void): void {
   applyHook = fn;
@@ -72,8 +60,6 @@ export function loadSettings(): void {
       currentSettings = withDefaults(result.settings);
       applyHook();
     }
-    // Resolve on the first read whether or not anything was stored — a first-run
-    // user with no saved settings correctly keeps DEFAULT_SETTINGS.
     resolveSettingsGate();
   });
 }
@@ -97,9 +83,6 @@ export function writeSettingsPatch(patch: SetSettingsMessage['patch']): Promise<
         bubblePosition: { ...stored.bubblePosition, ...(bp ?? {}) },
         ...(bpp !== undefined ? { bubblePanelPoint: bpp } : {}),
       };
-      // Re-run through withDefaults' clamping so a corrupt/hand-edited patch (e.g.
-      // minimumImageSize: "abc") can't survive the write — it would otherwise persist
-      // verbatim and later make filters.ts's size comparison NaN (hides every image).
       const sanitized = withDefaults(merged);
       chrome.storage.sync.set({ settings: sanitized }, () => resolve(sanitized));
     });

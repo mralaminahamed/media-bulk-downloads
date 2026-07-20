@@ -90,7 +90,7 @@ describe('twitterVideoPending', () => {
     document.body.innerHTML = `<video poster="https://pbs.twimg.com/tweet_video_thumb/XYZ.jpg"></video>`;
     expect(twitterVideoPending(document.querySelector('video')!)).toBeNull();
     document.body.innerHTML = `<video poster="https://pbs.twimg.com/ext_tw_video_thumb/1/pu/img/x.jpg"></video>`;
-    const cand = twitterVideoPending(document.querySelector('video')!); // no /status/ link
+    const cand = twitterVideoPending(document.querySelector('video')!);
     expect(cand).toMatchObject({ kind: 'video', unresolvedVideo: true });
     expect(cand?.resolveHint).toBeUndefined();
   });
@@ -118,7 +118,6 @@ describe('twitterResolver — video posters rendered as <img>', () => {
   });
 
   it('extensionless tweet_video_thumb <img> (format in query) -> gif mp4, never a still image', () => {
-    // X serves GIF thumbs as /tweet_video_thumb/<ID>?format=jpg with NO path extension.
     const src = 'https://pbs.twimg.com/tweet_video_thumb/HJ_SQ1hWIAAcv77?format=jpg&name=small';
     const [c] = twitterResolver.resolve(new URL(src), { allowNetwork: false });
     expect(c).toEqual({
@@ -171,8 +170,6 @@ describe('twitter status-id page-URL fallback', () => {
   });
 
   it('twitterVideoPending(): prefers the tweet\'s own timestamp permalink over a quoted tweet link', () => {
-    // A quoted tweet's link appears in the same article; the main tweet's id is the
-    // one wrapping the <time> timestamp. Must resolve the MAIN tweet, not the quote.
     const art = document.createElement('article');
     art.innerHTML =
       '<a href="/quoted/status/222">quoted</a>' +

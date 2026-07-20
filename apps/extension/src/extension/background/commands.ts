@@ -7,9 +7,6 @@ import { downloadAndRecord } from '@/extension/background/download/downloads';
 import { captureStreamToFile, captureRunTabs } from '@/extension/background/download/capture';
 import { MENU, mediaFromContext } from '@/extension/background/context-menu';
 
-// Max stream captures running at once from a single "Download all" — each can
-// buffer up to STREAM_MAX_BYTES in the shared offscreen doc, so this bounds
-// aggregate capture memory (2 × the cap) instead of N × the cap.
 const CAPTURE_CONCURRENCY = 2;
 
 /**
@@ -19,30 +16,17 @@ const CAPTURE_CONCURRENCY = 2;
  * store) has no content script → the GET_IMAGES call lastErrors and is skipped.
  */
 export function downloadAllForTab(tab?: chrome.tabs.Tab): void {
-  if (tab?.id == null) return; // narrows `tab` to defined + `tab.id` to a number
-  const tabId = tab.id; // a const keeps the narrowing inside the nested callbacks below
+  if (tab?.id == null) return;
+  const tabId = tab.id;
   const sourcePage = tab.url ? { url: tab.url, title: tab.title } : undefined;
   chrome.tabs.sendMessage(tabId, 'GET_IMAGES', (images: ImageInfo[]) => {
     if (chrome.runtime.lastError || !Array.isArray(images)) return;
     void Promise.all([settingsReady, excludedReady]).then(() => {
       const eligible = filterExcluded(filterImagesBySettings(images, currentSettings), excludedCache);
-      // HLS/DASH streams must be CAPTURED (fetch + mux segments), never handed to
-      // chrome.downloads as a manifest URL — that saves the raw .m3u8/.mpd text as
-      // a broken file. Split them out and capture each; download the rest normally.
-      // Pending videos/images (unresolved — no real file behind `src` yet) are
-      // neither streams nor downloadable: a pending image's `src` is the x.com
-      // tweet-page URL, so handing it to chrome.downloads would fetch the HTML
-      // page and save it as a bogus `.jpg`. Drop them from both buckets.
       const streams = eligible.filter((i) => i.hlsManifest);
       const regular = eligible.filter((i) => !isPendingOrStream(i));
       if (regular.length) void downloadAndRecord(regular, sourcePage, { skipDuplicates: currentSettings.skipDuplicateDownloads });
-      // Gate concurrent captures: each buffers up to STREAM_MAX_BYTES in the single
-      // shared offscreen document, so firing one per stream unbounded lets N streams
-      // aggregate to N × the cap and OOM-crash the offscreen doc (aborting every
-      // in-flight capture). Cap the number running at once.
       const captureOne = (s: ImageInfo): Promise<unknown> => {
-        // Register the capturing tab under this run's id so its progress relays
-        // to this tab's bubble (and no other concurrent capture's).
         const runId = newCaptureRunId();
         captureRunTabs.set(runId, tabId);
         return captureStreamToFile(s, sourcePage, runId)
@@ -76,8 +60,6 @@ export function onContextMenuClick(info: chrome.contextMenus.OnClickData, tab?: 
 
   if (info.menuItemId === MENU.downloadImage || info.menuItemId === MENU.downloadMedia) {
     const media = mediaFromContext(info);
-    // A single explicit right-click download is NOT run through the size/base64
-    // filters — the user picked this exact item.
     if (media) void settingsReady.then(() => downloadAndRecord([media], sourcePage, { skipDuplicates: false }));
     return;
   }

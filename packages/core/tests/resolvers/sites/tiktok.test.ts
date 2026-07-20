@@ -1,6 +1,5 @@
 import { tiktokMediaFromJson } from '@mbd/core/resolvers/sites/tiktok';
 
-// Minimal shape of the __UNIVERSAL_DATA_FOR_REHYDRATION__ payload's video-detail scope.
 const universal = (itemStruct: unknown) =>
   JSON.stringify({ __DEFAULT_SCOPE__: { 'webapp.video-detail': { itemInfo: { itemStruct } } } });
 

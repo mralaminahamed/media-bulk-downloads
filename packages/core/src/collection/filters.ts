@@ -17,23 +17,14 @@ import { hostFromUrl, registrableDomain } from '@mbd/core/collection/paths';
  * since their size can't be known at collection time.
  */
 export function passesSettingsFilters(img: ImageInfo, settings: SettingsData): boolean {
-  // Enforce the minimum only on dimensions that are actually known. A 0 is
-  // "unknown" (srcset candidates, CSS backgrounds, video/audio) and must never
-  // exclude the item — including the half-known case (e.g. 500×0), where the old
-  // AND-of-both check wrongly dropped the item on the unknown side.
   const meetsSize =
     (img.width === 0 || img.width >= settings.minimumImageSize) &&
     (img.height === 0 || img.height >= settings.minimumImageSize);
 
   const meetsBase64 = !settings.excludeBase64Images || !img.isBase64;
 
-  // Emoji graphics (twemoji from Twitter/WordPress/GitHub/etc.) are hidden only
-  // when the user opts in. Keyed off src, so harmless for non-image kinds.
   const meetsEmoji = !settings.excludeEmoji || !isEmojiUrl(img.src);
 
-  // HLS (.m3u8) streams are surfaced only when the user opts into stream capture.
-  // When off they're hidden everywhere this gate runs — badge count, popup/bubble
-  // list, and download eligibility — so no capture button or "HLS" tile appears.
   const meetsHls = settings.captureHlsStreams || !img.hlsManifest;
 
   return meetsSize && meetsBase64 && meetsHls && meetsEmoji;
@@ -60,7 +51,7 @@ function edgeToBucket(edge: number): Exclude<SizeBucket, 'all'> {
 function inSizeBucket(item: ImageInfo, bucket: SizeBucket): boolean {
   if (bucket === 'all') return true;
   const edge = Math.max(item.width, item.height);
-  if (edge <= 0) return true; // unknown dimensions are never hidden
+  if (edge <= 0) return true;
   return edgeToBucket(edge) === bucket;
 }
 
@@ -97,12 +88,11 @@ function compareBy(
   if (key === 'name') return sign * nameOf(a).localeCompare(nameOf(b), undefined, { numeric: true, sensitivity: 'base' });
   if (key === 'type') return sign * (a.type.localeCompare(b.type) || nameOf(a).localeCompare(nameOf(b)));
 
-  // Numeric keys: size (bytes) or dimensions (pixel area). 0 = unknown → last.
   const value = (i: ImageInfo): number => (key === 'size' ? i.fileSize : i.width * i.height);
   const va = value(a);
   const vb = value(b);
   if (va === 0 && vb === 0) return 0;
-  if (va === 0) return 1; // unknown always after known
+  if (va === 0) return 1;
   if (vb === 0) return -1;
   return sign * (va - vb);
 }
@@ -150,14 +140,7 @@ export function applyToolbarFilters(
   isDownloaded: (item: ImageInfo) => boolean = () => false,
 ): ImageInfo[] {
   const minBytes = (Number.isFinite(filters.minSize) ? filters.minSize : 0) * 1024;
-  // The Type dropdown offers formats for the selected kind — image formats when
-  // kind is 'all'. So the format filter applies only to items of that family;
-  // otherwise picking 'PNG' with kind 'all' would silently drop every video/audio
-  // (whose type is never an image format).
   const typeFamily = filters.mediaKind === 'all' ? 'image' : filters.mediaKind;
-  // Near-duplicate visibility (#198). Absent (undefined) behaves as 'unique' so a
-  // caller that hasn't adopted the field still hides marked duplicates once a pass
-  // has run — but with no pass, nothing is marked, so the default is a no-op.
   const duplicateState = filters.duplicateState ?? 'unique';
   const shown = items.filter((item) => {
     if (duplicateState === 'unique' && item.nearDuplicate) return false;
@@ -174,14 +157,9 @@ export function applyToolbarFilters(
 
   if (filters.sortBy && filters.sortBy !== 'default') {
     const key = filters.sortBy;
-    // Memoize each item's parsed filename once for name/type sorts. compareBy
-    // otherwise calls itemName -> originalNameFromUrl (a full URL parse + decode +
-    // sanitize) inside the comparator, i.e. O(n log n) times — janking the popup's
-    // hot per-keystroke filter path on large galleries. Numeric keys don't parse.
     const nameCache =
       key === 'name' || key === 'type' ? new Map(shown.map((i) => [i, itemName(i)])) : undefined;
     const nameOf = nameCache ? (i: ImageInfo) => nameCache.get(i) ?? itemName(i) : itemName;
-    // Copy first — sort mutates, and `items` (state) must not be reordered in place.
     return [...shown].sort((a, b) => compareBy(a, b, key, filters.sortDir, nameOf));
   }
   return shown;

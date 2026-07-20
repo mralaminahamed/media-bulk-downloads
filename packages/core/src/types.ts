@@ -23,12 +23,12 @@ export interface ImageInfo {
   alt: string;
   width: number;
   height: number;
-  type: string; // 'jpeg', 'png', 'gif', 'svg', 'webp', 'unknown', etc. — canonical, for filtering
+  type: string;
   /** True file extension for the download name, supplied by the resolver that
    *  built `src` (e.g. Wallhaven 'jpg'/'png', Twitter format). Preferred over the
    *  type-derived extension; falls back to it when absent. */
   ext?: string;
-  fileSize: number; // in bytes
+  fileSize: number;
   isBase64: boolean;
   /** Small/fast variant to preview in the grid when `src` was upgraded to the original. */
   thumbnailSrc?: string;
@@ -185,7 +185,7 @@ export interface ResolveOriginalsMessage {
 }
 
 export interface ResolveOriginalsResponse {
-  resolved: Record<string, ResolvedMedia>; // src -> resolved media (successes only)
+  resolved: Record<string, ResolvedMedia>;
 }
 
 /** Content → background: mp4/HLS URLs the page's own API responses exposed, per tab.
@@ -334,9 +334,9 @@ export interface RestoreDataMessage {
  *  a DASH video Representation, for the per-stream quality picker (#314). One entry
  *  per distinct vertical resolution — the capture selector targets a height. */
 export interface StreamVariant {
-  height?: number;   // vertical resolution when advertised
-  bandwidth: number; // bits/sec (highest at this height)
-  label: string;     // e.g. "1080p · 5.2 Mbps"
+  height?: number;
+  bandwidth: number;
+  label: string;
 }
 
 /** Popup → background: fetch + parse a stream's master manifest and return its
@@ -440,8 +440,8 @@ export interface SetSettingsMessage {
  *  serialized writer across popup + bubble (#293). */
 export interface SetPerHostSettingsMessage {
   type: 'SET_PER_HOST_SETTINGS';
-  host: string;                        // registrable domain
-  patch: Partial<SettingsData> | null; // null = clear the host's entry
+  host: string;
+  patch: Partial<SettingsData> | null;
 }
 
 /** Persist a host's learned deep-scan memory (settle time + scroll depth). Routed
@@ -450,7 +450,7 @@ export interface SetPerHostSettingsMessage {
  *  clobber a concurrent background clear. */
 export interface SaveScanMemoryMessage {
   type: 'SAVE_SCAN_MEMORY';
-  host: string;                                   // registrable domain
+  host: string;
   sample: { settleMs: number; scrolls: number };
 }
 
@@ -686,17 +686,13 @@ export interface AvailableOptions {
 export type PageType = 'gallery' | 'feed' | 'article' | 'single-media' | 'unknown';
 
 export interface PageSignals {
-  imageCount: number;        // count of <img> on the page
-  density: number;           // images per viewport-area unit (0..~)
-  aspectSpread: number;      // variance of image aspect ratios (grid uniformity → low)
-  hasArticle: boolean;       // <article> present OR og:type === 'article'
-  dominantAreaRatio: number; // largest image area / total image area (0..1)
-  feedMarkers: boolean;      // role="feed" present, or many repeated card structures
+  imageCount: number;
+  density: number;
+  aspectSpread: number;
+  hasArticle: boolean;
+  dominantAreaRatio: number;
+  feedMarkers: boolean;
 }
-
-// ── Component props ──────────────────────────────────────────────────────────
-// Central home for the popup React components' props, so each component is one
-// file that imports its props from here.
 
 export interface AppProps {
   /** How to collect images. Defaults to messaging the active tab (popup). */
@@ -759,7 +755,7 @@ export interface SettingsProps {
   settings: SettingsData;
   /** Per-host override controls (#293). Absent → the row is hidden entirely. */
   perHost?: {
-    host: string;                       // '' when unknown → controls disabled
+    host: string;
     hasOverride: boolean;
     onSaveForSite: (current: SettingsData) => void;
     onResetSite: () => void;

@@ -47,9 +47,6 @@ export function ingestSniffedFbMedia(entries: unknown): void {
     clean.push(entry);
   }
   if (!clean.length) return;
-  // Build with a loop, not `push(...clean)`: clean can be as large as the untrusted
-  // `entries` payload, and spreading it as call args can hit the engine's
-  // argument-count limit (RangeError, silently swallowed by the caller's try/catch).
   for (const e of clean) store.push(e);
   if (store.length > SNIFF_CAP) store = store.slice(store.length - SNIFF_CAP);
   version++;
@@ -77,7 +74,6 @@ function parseHydration(): void {
     if (parsedScripts.has(s)) return;
     parsedScripts.add(s);
     const text = s.textContent || '';
-    // Cheap guard: only parse blocks that could carry media.
     if (text.indexOf('fbcdn') === -1 && text.indexOf('playable_url') === -1) return;
     try {
       ingestSniffedFbMedia(extractFbMedia(JSON.parse(text)));
@@ -152,10 +148,10 @@ function collapseFbidGroup(entries: FbMediaEntry[]): FbMediaEntry[] {
       videos.push(e);
       continue;
     }
-    if (posterUrls.has(e.url)) continue; // FR2: a video's poster isn't a standalone photo
+    if (posterUrls.has(e.url)) continue;
     const area = (e.width ?? 0) * (e.height ?? 0);
     const bestArea = bestImage ? (bestImage.width ?? 0) * (bestImage.height ?? 0) : -1;
-    if (!bestImage || area >= bestArea) bestImage = e; // FR1: largest wins; ties keep the newest
+    if (!bestImage || area >= bestArea) bestImage = e;
   }
 
   return preferResolved(bestImage ? [...videos, bestImage] : videos);
@@ -195,9 +191,6 @@ export const facebookResolver: Resolver = {
     const key = `fb:${fbid}`;
     const entries = buildByFbid().get(fbid);
     if (entries && entries.length) return keyedFbidCandidates(entries, key);
-    // No original sniffed yet: surface the tile's own src (as the generic fallback
-    // would) but TAGGED with the photo identity, so when the original later lands
-    // the deep-scan merge upgrade-replaces this row instead of adding a duplicate.
     return [{ url: u.href, kind: 'image', mediaKey: key }];
   },
 };

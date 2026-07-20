@@ -38,14 +38,9 @@ export async function downloadAndRecord(
     toDownload = part.keep;
     skipped = part.skipped.length;
   }
-  // De-collide names within the batch (image.png, image-2.png) so distinct
-  // images sharing a name don't rely on Chrome's " (2)".
   const paths = uniquifyBatchNames(
     toDownload.map((image, index) => buildDownloadFilename(image, index, currentSettings, sourcePage?.url)),
   );
-  // #284: this keyboard-shortcut / context-menu surface honours the metadata
-  // sidecar setting too (I5 — it used to ignore it entirely). Written on
-  // completion, named from the file's ACTUAL on-disk name so it can't diverge (I6).
   const capturedAt = new Date().toISOString();
   const entries = await Promise.all(
     toDownload.map(
@@ -68,8 +63,6 @@ export async function downloadAndRecord(
                 kind: image.kind,
                 type: image.type,
                 thumbnailSrc: image.thumbnailSrc ?? image.poster ?? image.src,
-                // Multi-tab items (#283) carry their own origin — record it so the
-                // history row points at the true source tab, not the batch default.
                 sourcePageUrl: image.sourcePage?.url ?? sourcePage?.url ?? '',
                 sourcePageTitle: image.sourcePage?.title ?? sourcePage?.title,
                 time: Date.now(),

@@ -13,19 +13,14 @@ import { withinByteBudget } from '@mbd/storage/byte-budget';
  */
 export const EXCLUDED_KEY = 'excluded';
 export const EXCLUDED_CAP = 500;
-// Sized to co-exist under the shared ~5MB chrome.storage.local quota alongside
-// history (2MB) and favourites (1MB). See favourites.ts for the budget split.
 export const EXCLUDED_MAX_BYTES = 500_000;
 
-// URL entries dedup by canonical src key (so query/host-variant re-adds collapse);
-// host entries by their exact value.
 const keyOf = (e: ExcludedEntry): string => `${e.kind} ${e.kind === 'url' ? canonicalSrcKey(e.value) : e.value}`;
 
 /** Merge added into existing: dedup by kind+value (newest wins, front),
  *  newest-first, capped by count then serialized size. Pure. */
 export function mergeExcluded(existing: ExcludedEntry[], added: ExcludedEntry[]): ExcludedEntry[] {
   const map = new Map<string, ExcludedEntry>();
-  // Newest-wins for duplicate keys within `added` too (not array-order-last).
   for (const entry of added) {
     const k = keyOf(entry);
     const prev = map.get(k);

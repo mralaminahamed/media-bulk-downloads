@@ -1,10 +1,6 @@
 import { MediaCandidate } from '@mbd/core/resolvers/types';
 import { imageExtFromUrl, extensionFromUrl } from '@mbd/core/collection/mediaType';
 
-// Imgur serves originals from i.imgur.com. A post page (`imgur.com/<id>`,
-// `/a/<id>`, `/gallery/<id>`) assigns the whole post to `window.postDataJSON`
-// (a JSON string); its `media[]` carry the direct i.imgur.com URLs. Pin every
-// URL to that CDN — the page JSON is untrusted.
 function pinImgur(raw: unknown): string | null {
   if (typeof raw !== 'string' || !raw) return null;
   try {
@@ -38,14 +34,11 @@ export function imgurMediaFromHtml(html: string): MediaCandidate[] {
   if (typeof html !== 'string') return [];
   let post: ImgurPost;
   try {
-    // Primary form: window.postDataJSON = "<escaped-json-string>" — capture the JS
-    // string literal, then JSON.parse twice (unescape → object).
     const lit = /window\.postDataJSON\s*=\s*("(?:[^"\\]|\\.)*")/.exec(html)?.[1];
     if (lit) {
       const once = JSON.parse(lit);
       post = (typeof once === 'string' ? JSON.parse(once) : once) as ImgurPost;
     } else {
-      // Fallback: the object inlined directly (…= {…}</script>).
       const obj = /window\.postDataJSON\s*=\s*(\{[\s\S]*?\})\s*<\/script>/.exec(html)?.[1];
       if (!obj) return [];
       post = JSON.parse(obj) as ImgurPost;

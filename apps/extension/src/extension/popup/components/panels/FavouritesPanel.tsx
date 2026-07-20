@@ -29,8 +29,6 @@ const safeHost = (url: string): string => {
 const displayName = (src: string): string => {
   try {
     const { protocol, pathname, host } = new URL(src);
-    // A data: URL has no basename — its "path" is the whole base64 payload, which
-    // would render as a giant unreadable label. Show a short kind instead.
     if (protocol === 'data:') return 'Embedded image';
     const base = decodeURIComponent(pathname.split('/').filter(Boolean).pop() ?? '');
     return base || host || src;
@@ -56,8 +54,6 @@ const FavouritesPanel: React.FC<FavouritesPanelProps> = ({ onClose }) => {
 
   const sorted = [...entries].sort((a, b) => b.time - a.time);
 
-  // Mutations go through the background (single writer); update local state
-  // optimistically — the storage.onChanged listener reconciles.
   const handleRemove = (entry: FavouriteEntry) => {
     sendRuntimeMessage({ type: 'REMOVE_FAVOURITE', src: entry.src });
     setEntries((prev) => prev.filter((e) => e.src !== entry.src));

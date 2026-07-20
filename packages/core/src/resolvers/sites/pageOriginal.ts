@@ -1,11 +1,5 @@
 import { ResolveContext } from '@mbd/core/resolvers/types';
 
-// Shared helpers for page-host-gated DOM resolvers — resolvers where the collected
-// URL is on a media CDN but the true original is read from the *page* markup, so
-// matching gates on `ctx.pageUrl` and the DOM-supplied URL is host-pinned before
-// it becomes a downloadable candidate. (booru.ts / zerochan.ts predate this module
-// and keep their own inline copies; new page-gated resolvers import these.)
-
 /** Lowercased hostname of the page the media was collected from, or null. */
 export function pageHost(ctx: ResolveContext): string | null {
   try {

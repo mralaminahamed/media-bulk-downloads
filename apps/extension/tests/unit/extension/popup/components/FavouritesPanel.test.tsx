@@ -9,8 +9,6 @@ const entry = {
   sourcePageUrl: 'https://page.example', time: Date.now(),
 };
 
-// Grabs the storage.onChanged listener the panel registered on mount so a test
-// can drive a storage-change event through it.
 type ChangeListener = (changes: Record<string, chrome.storage.StorageChange>, area: string) => void;
 const lastStorageListener = (): ChangeListener => {
   const calls = (chrome.storage.onChanged.addListener as Mock).mock.calls;
@@ -28,9 +26,9 @@ describe('FavouritesPanel', () => {
     render(<FavouritesPanel onClose={() => {}} />);
     expect(await screen.findByText('a.jpg')).toBeInTheDocument();
     const clearBtn = screen.getByRole('button', { name: /clear all/i });
-    await userEvent.click(clearBtn); // arms only
+    await userEvent.click(clearBtn);
     expect(chrome.runtime.sendMessage).not.toHaveBeenCalledWith({ type: 'CLEAR_FAVOURITES' });
-    await userEvent.click(clearBtn); // confirms
+    await userEvent.click(clearBtn);
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'CLEAR_FAVOURITES' });
   });
 
@@ -106,13 +104,11 @@ describe('FavouritesPanel', () => {
     const listener = lastStorageListener();
     (favourites.loadFavourites as Mock).mockResolvedValue([{ ...entry, src: 'https://c/b.jpg' }]);
 
-    // Wrong area and wrong key are both ignored — no reload.
     await act(async () => { listener({ [favourites.FAVOURITES_KEY]: {} }, 'sync'); });
     await act(async () => { listener({ somethingElse: {} }, 'local'); });
     expect(favourites.loadFavourites).toHaveBeenCalledTimes(1);
     expect(screen.getByText('a.jpg')).toBeInTheDocument();
 
-    // A local change to the favourites key reloads and reflects the new data.
     await act(async () => { listener({ [favourites.FAVOURITES_KEY]: {} }, 'local'); });
     expect(await screen.findByText('b.jpg')).toBeInTheDocument();
     expect(favourites.loadFavourites).toHaveBeenCalledTimes(2);
@@ -130,7 +126,6 @@ describe('FavouritesPanel', () => {
       { ...entry, src: 'file:///', sourcePageUrl: '', time: 1000 },
     ]);
     render(<FavouritesPanel onClose={() => {}} />);
-    // A URL with no basename labels by host; a URL with no host labels by raw src.
     const labels = (await screen.findAllByText(/host\.example|file:\/\/\//)).map((n) => n.textContent);
     expect(labels).toEqual(['host.example', 'file:///']);
   });

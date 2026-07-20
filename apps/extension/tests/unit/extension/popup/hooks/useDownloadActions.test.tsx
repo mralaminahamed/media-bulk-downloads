@@ -6,17 +6,11 @@ import { convertImage } from '@mbd/core/download/convert/convert';
 import { sendRuntimeMessage } from '@/extension/popup/utils';
 import { useDownloadActions } from '@/extension/popup/hooks/useDownloadActions';
 
-// Keep the real isConvertible (a pure classifier) so the passthrough/convert split
-// is exercised for real; only the canvas-backed convertImage (unavailable under
-// jsdom) is mocked — mirrors App.test.tsx's convention.
 vi.mock('@mbd/core/download/convert/convert', async () => ({
   ...(await vi.importActual<typeof import('@mbd/core/download/convert/convert')>('@mbd/core/download/convert/convert')),
   convertImage: vi.fn(),
 }));
 
-// Spy on sendRuntimeMessage while keeping its real (swallow-the-rejection)
-// behavior, so the routing assertions below prove convertAndDownload calls the
-// shared helper rather than a raw chrome.runtime.sendMessage.
 vi.mock('@/extension/popup/utils', async () => {
   const actual = await vi.importActual<typeof import('@/extension/popup/utils')>('@/extension/popup/utils');
   return { ...actual, sendRuntimeMessage: vi.fn(actual.sendRuntimeMessage) };
@@ -72,7 +66,7 @@ describe('useDownloadActions — convertAndDownload send routing (audit 2026-07-
   });
 
   it('routes the failed-conversion fallback batch through sendRuntimeMessage', async () => {
-    (convertImage as Mock).mockResolvedValue(null); // forces a convert failure
+    (convertImage as Mock).mockResolvedValue(null);
     const { view } = harness({ convertImagesTo: 'png' });
     const broken = image({ src: 'https://cdn.example.com/broken.jpg', type: 'jpeg' });
 

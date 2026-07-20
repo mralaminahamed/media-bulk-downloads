@@ -10,14 +10,9 @@
  * capture simply fails, no circumvention.
  */
 
-// Twitch clip slugs are either word-concatenated (AwkwardHelplessSalamander…) or
-// the newer hyphen/underscore form (GoodPluckyEggnog-ab12CD_x): alnum plus - and _.
 const SLUG_RE = /^[A-Za-z0-9_-]{4,100}$/;
-// clips.twitch.tv/<slug>  — a single path segment.
 const CLIPS_PATH_RE = /^\/([A-Za-z0-9_-]{4,100})(?:[/?#]|$)/;
-// twitch.tv/<channel>/clip/<slug>  — channel is one non-clip segment.
 const CHANNEL_CLIP_RE = /^\/[^/]+\/clip\/([A-Za-z0-9_-]{4,100})(?:[/?#]|$)/;
-// First-segment words on clips.twitch.tv that are never a clip slug.
 const RESERVED = new Set(['embed', 'download', 'directory', 'clips']);
 
 function validSlug(s: string | null | undefined): string | null {
@@ -38,7 +33,6 @@ export function twitchClipId(raw: string | URL): string | null {
     return null;
   }
   const host = u.hostname.toLowerCase();
-  // Embed players (clips.twitch.tv/embed, player.twitch.tv) carry the slug in ?clip=.
   const clipParam = u.searchParams.get('clip');
   if (host === 'clips.twitch.tv') {
     if (u.pathname === '/embed' || u.pathname === '/embed/') return validSlug(clipParam);
@@ -50,7 +44,6 @@ export function twitchClipId(raw: string | URL): string | null {
   return null;
 }
 
-// twitch.tv/videos/<id>  — VOD ids are all-numeric.
 const VOD_PATH_RE = /^\/videos\/(\d+)(?:[/?#]|$)/;
 
 /**
@@ -68,7 +61,6 @@ export function twitchVodId(raw: string | URL): string | null {
   }
   const host = u.hostname.toLowerCase();
   if (host === 'player.twitch.tv') {
-    // Embed players carry the VOD in ?video=v<id> (or a bare numeric id).
     const v = u.searchParams.get('video');
     return v ? (v.match(/^v?(\d+)$/)?.[1] ?? null) : null;
   }

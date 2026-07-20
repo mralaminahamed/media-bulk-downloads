@@ -66,7 +66,7 @@ function variantsFromEl(el: Element | undefined, host: string): Variant[] {
         continue;
       }
       if (u.hostname !== host || !u.pathname.includes('/resizer/v2/')) continue;
-      const descr = m[3] === 'w' ? Number(m[2]) : 0; // density (x) carries no pixel width
+      const descr = m[3] === 'w' ? Number(m[2]) : 0;
       out.push({ url: raw, width: descr || widthOf(raw) });
     }
   }
@@ -75,21 +75,15 @@ function variantsFromEl(el: Element | undefined, host: string): Variant[] {
 
 export const arcxpResolver: Resolver = {
   id: 'arcxp',
-  // Host-agnostic: match the resizer path shape plus the page-issued auth token
-  // (both are always present on a real Arc resizer URL), so a plain `/resizer/`
-  // path on an unrelated site is never claimed.
   match: (u) => u.pathname.includes('/resizer/v2/') && u.searchParams.has('auth'),
   resolve: (u, ctx: ResolveContext): MediaCandidate[] => {
-    // The input URL is always a valid candidate (it's what the page loaded).
     const candidates: Variant[] = [{ url: u.href, width: widthOf(u.href) }, ...variantsFromEl(ctx.el, u.hostname)];
 
-    // Widest wins; ties keep the input (stable, avoids needless churn).
     let best = candidates[0];
     for (const v of candidates) if (v.width > best.width) best = v;
 
     const c: MediaCandidate = { url: best.url, kind: 'image', ext: extOf(new URL(best.url)) };
 
-    // Smallest OTHER same-host variant makes a lighter preview thumbnail.
     let thumb: Variant | null = null;
     for (const v of candidates) {
       if (v.url === best.url) continue;
@@ -97,8 +91,6 @@ export const arcxpResolver: Resolver = {
     }
     if (thumb) c.thumbnailSrc = thumb.url;
 
-    // True pixel size: the chosen width is exact; derive height from the live
-    // image's aspect ratio when the element exposes its natural dimensions.
     if (best.width > 0) {
       c.width = best.width;
       const img = ctx.el as HTMLImageElement | undefined;

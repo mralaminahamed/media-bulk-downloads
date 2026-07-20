@@ -2,7 +2,6 @@ import { test as base, chromium, expect as baseExpect, type BrowserContext, type
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-// tests/e2e/fixtures/ → repo root is three levels up.
 const extensionPath = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '.output', 'chrome-mv3');
 
 /**

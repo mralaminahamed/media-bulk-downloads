@@ -6,10 +6,6 @@ import { QUEUE_KEY } from '@mbd/storage/download-queue';
 import { PER_HOST_SETTINGS_KEY } from '@mbd/storage/per-host-settings';
 import { PER_HOST_SCAN_MEMORY_KEY } from '@mbd/storage/per-host-scan-memory';
 
-// Both per-host keys write through durableSet (the IDB mirror). Include them here
-// so that mirror is actually read back on startup — otherwise a chrome.storage.local
-// eviction would silently drop learned per-host preferences and scan memory that
-// the code already pays to mirror.
 export const MANAGED_KEYS = [
   HISTORY_KEY, FAVOURITES_KEY, EXCLUDED_KEY, QUEUE_KEY,
   PER_HOST_SETTINGS_KEY, PER_HOST_SCAN_MEMORY_KEY,

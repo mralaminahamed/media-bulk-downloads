@@ -16,16 +16,10 @@ const img = (over: Partial<ImageInfo>): ImageInfo => ({
 const onMessage = (chrome.runtime.onMessage.addListener as Mock).mock.calls[0][0];
 const onClicked = (chrome.action.onClicked.addListener as Mock).mock.calls[0][0];
 const onChanged = (chrome.storage.onChanged.addListener as Mock).mock.calls[0][0];
-// Tab-lifecycle + install listeners the worker registers at import time. Each is
-// its own vi.fn on the shared setup mock, so grab the first (only) registration.
 const onInstalled = (chrome.runtime.onInstalled.addListener as Mock).mock.calls[0][0];
 const onRemoved = (chrome.tabs.onRemoved.addListener as Mock).mock.calls[0][0];
 const onActivated = (chrome.tabs.onActivated.addListener as Mock).mock.calls[0][0];
 const onUpdated = (chrome.tabs.onUpdated.addListener as Mock).mock.calls[0][0];
-// The persistent queue's dispatcher (initQueueDispatcher) registers its
-// downloads.onChanged listener before index.ts's own save-as-prompt listener,
-// so calls[0] is the one that drives handleDownloadChanged → markDone →
-// recordDownloads.
 const onDownloadChanged = (chrome.downloads.onChanged.addListener as Mock).mock.calls[0][0];
 
 const setSettings = (patch: Partial<SettingsData>) =>
@@ -33,13 +27,7 @@ const setSettings = (patch: Partial<SettingsData>) =>
 
 describe('background DOWNLOAD_IMAGES handler', () => {
   beforeEach(() => {
-    // Each download succeeds (chrome hands back a numeric downloadId). The queue
-    // dispatcher invokes chrome.downloads.download per item — the mock must call
-    // the callback so startDownload resolves.
     (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb(1));
-    // The persistent queue round-trips through storage.local, so give each test a
-    // fresh, string-key-aware in-memory store (the enqueue write must be visible to
-    // pump's read). A static mockResolvedValue would make pump always read empty.
     const local: Record<string, unknown> = {};
     (chrome.storage.local.get as Mock).mockReset().mockImplementation(
       async (k: string) => (typeof k === 'string' && k in local ? { [k]: local[k] } : {}),
@@ -47,12 +35,9 @@ describe('background DOWNLOAD_IMAGES handler', () => {
     (chrome.storage.local.set as Mock).mockReset().mockImplementation(
       async (o: Record<string, unknown>) => { Object.assign(local, o); },
     );
-    setSettings({}); // reset to defaults (concurrency 5)
+    setSettings({});
   });
 
-  // The handler waits for the settings gate (resolved by setSettings above), then
-  // enqueues and the dispatcher pumps downloads; a single macrotask drains the
-  // whole withState microtask chain up to each download() call.
   const flush = () => new Promise((r) => setTimeout(r, 0));
 
   it('downloads every eligible image with a prefixed, 1-indexed name', async () => {
@@ -86,10 +71,6 @@ describe('background DOWNLOAD_IMAGES handler', () => {
   });
 
   it('still responds (never hangs) when a storage write rejects', async () => {
-    // A rejecting storage.local.set (e.g. QUOTA_BYTES near the ~5MB local quota)
-    // must not leave the port open — the popup would hang on "Sending…" forever.
-    // durableSet now swallows the rejection (logged, non-fatal), so the handler
-    // completes and responds; the download itself is unaffected.
     (chrome.storage.local.get as Mock).mockResolvedValue({ downloadHistory: [] });
     (chrome.storage.local.set as Mock).mockReset().mockRejectedValue(new Error('QUOTA_BYTES'));
     const sendResponse = vi.fn();
@@ -138,9 +119,6 @@ describe('background DOWNLOAD_IMAGES handler', () => {
   });
 
   it('acknowledges the queued count even when a download fails to start (queue retries)', async () => {
-    // The response now reports how many items were ENQUEUED — the queue owns the
-    // per-file outcome and retries a failed start with backoff, rather than the
-    // old synchronous "N failed" report.
     let n = 0;
     (chrome.downloads.download as Mock).mockImplementation((_o, cb) => {
       n += 1;
@@ -160,9 +138,6 @@ describe('background DOWNLOAD_IMAGES handler', () => {
   });
 
   it('does not report failure on a failed start — the item is left for retry, not dropped', async () => {
-    // A start that returns no id (transient error) used to be a hard failure; the
-    // queue instead requeues it with a backoff (attempts incremented), so the user
-    // never silently loses a file.
     (chrome.downloads.download as Mock).mockImplementation((_o, cb) => {
       (chrome.runtime as unknown as { lastError?: unknown }).lastError = { message: 'x' };
       cb(undefined);
@@ -177,10 +152,6 @@ describe('background DOWNLOAD_IMAGES handler', () => {
 
   it('ignores unrelated messages and returns false so the port closes (no channel leak)', () => {
     const sendResponse = vi.fn();
-    // A bare-string message (handled by content scripts), an unknown object type,
-    // a content-script broadcast with no background handler, and null/undefined —
-    // each must return `false` so Chrome tears the sendResponse channel down
-    // immediately rather than leaking an open port.
     expect(onMessage('GET_IMAGES', {}, sendResponse)).toBe(false);
     expect(onMessage({ type: 'SOMETHING_ELSE' }, {}, sendResponse)).toBe(false);
     expect(onMessage({ type: 'DEEP_SCAN_PROGRESS', found: 1 }, {}, sendResponse)).toBe(false);
@@ -199,22 +170,12 @@ describe('background DOWNLOAD_IMAGES handler', () => {
   });
 
   it('de-collides distinct images that derive the same original-mode filename, and records the de-collided name to history', async () => {
-    // namingMode:'original' is the mode where the collision actually happens —
-    // in the default 'prefixed' mode the per-index name (image_1/image_2) is
-    // already unique, so uniquifyBatchNames never has to rename anything.
     setSettings({ namingMode: 'original', skipDuplicateDownloads: false });
 
-    // Each download must resolve with a DISTINCT id so the two queue items can
-    // be completed independently below (the outer beforeEach's cb(1) would
-    // collide both items on downloadId 1).
     let nextId = 501;
     (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb(nextId++));
 
     const sendResponse = vi.fn();
-    // Two distinct images whose URLs share a basename: originalNameFromUrl
-    // takes the last pathname segment minus its extension ("photo.png" →
-    // "photo"), so both derive the same built name "photo.png" before
-    // de-collision, even though the src URLs (and hosts) differ.
     const images = [
       img({ src: 'https://a.example/x/photo.png', type: 'png' }),
       img({ src: 'https://b.example/y/photo.png', type: 'png' }),
@@ -226,17 +187,11 @@ describe('background DOWNLOAD_IMAGES handler', () => {
     expect(chrome.downloads.download).toHaveBeenCalledTimes(2);
     const filename1 = (chrome.downloads.download as Mock).mock.calls[0][0].filename as string;
     const filename2 = (chrome.downloads.download as Mock).mock.calls[1][0].filename as string;
-    // Assert on the basename, tolerating any `dir/` prefix the download-path
-    // template might add (none by default, but the naming logic is shared).
     expect(filename1).toMatch(/(^|\/)photo\.png$/);
     expect(filename2).toMatch(/(^|\/)photo-2\.png$/);
     expect(filename1).not.toBe(filename2);
     expect(sendResponse).toHaveBeenCalledWith({ status: 'success', message: 'Queued 2 downloads.' });
 
-    // History is only recorded on chrome.downloads.onChanged=complete, not on
-    // dispatch — drive both queue items to completion so recordDownloads runs,
-    // then confirm the recorded filename is the DE-COLLIDED basename, not the
-    // raw "photo.png" both images would otherwise share.
     onDownloadChanged({ id: 501, state: { current: 'complete', previous: 'in_progress' } });
     await flush();
     await flush();
@@ -255,13 +210,9 @@ describe('background DOWNLOAD_IMAGES handler', () => {
   });
 
   describe('skipDuplicateDownloads (on-disk dedupe)', () => {
-    // Scoped so a spy on downloadedOnDiskKeys never bleeds into a sibling test —
-    // the outer beforeEach re-applies the chrome mocks it owns regardless.
     afterEach(() => vi.restoreAllMocks());
 
     it('skips an already-downloaded src and reports the skipped count', async () => {
-      // skipDuplicateDownloads is on by default (DEFAULT_SETTINGS); a.png is
-      // already on disk, b.png is not — only b.png should reach chrome.downloads.
       vi.spyOn(dlKeys, 'downloadedOnDiskKeys').mockResolvedValue(SrcKeySet.from(['https://x/a.png']));
       const sendResponse = vi.fn();
       const images = [img({ src: 'https://x/a.png', type: 'png' }), img({ src: 'https://x/b.png', type: 'png' })];
@@ -281,9 +232,6 @@ describe('background DOWNLOAD_IMAGES handler', () => {
     });
 
     it('does not skip when the message is explicit', async () => {
-      // Explicit re-downloads (Favourites/History) are exactly what the user
-      // asked for, so the on-disk skip must never apply even though a.png
-      // resolves as already-downloaded here.
       vi.spyOn(dlKeys, 'downloadedOnDiskKeys').mockResolvedValue(SrcKeySet.from(['https://x/a.png']));
       const sendResponse = vi.fn();
 
@@ -385,8 +333,6 @@ describe('background tab lifecycle listeners', () => {
   const flush = () => new Promise((r) => setTimeout(r, 0));
 
   beforeEach(() => {
-    // applySettings (fired by setSettings) queries all tabs; a callback-form query
-    // that yields no tabs keeps those side effects out of the assertions below.
     (chrome.tabs.query as Mock).mockReset().mockImplementation((_q: unknown, cb?: (t: unknown[]) => void) => cb?.([]));
     (chrome.tabs.sendMessage as Mock).mockReset().mockImplementation((_id: number, _m: string, cb?: (r: unknown) => void) => cb?.([]));
     (chrome.tabs.get as Mock).mockReset();
@@ -396,9 +342,7 @@ describe('background tab lifecycle listeners', () => {
     (chrome.runtime as unknown as { lastError?: unknown }).lastError = null;
   });
 
-  // ── onRemoved: a closed tab's sniffed-media map is dropped (no leak) ─────────
   it('drops a tab\'s sniffed media when the tab closes', async () => {
-    // Seed tab 88's sniffer with a real twimg mp4 for media id 555.
     onMessage(
       { type: 'X_MEDIA_SEEN', pairs: [['555', { url: 'https://video.twimg.com/keep.mp4' }]] },
       { tab: { id: 88 } },
@@ -406,18 +350,13 @@ describe('background tab lifecycle listeners', () => {
     );
     const src = 'https://pbs.twimg.com/amplify_video_thumb/555/img/a.jpg';
 
-    // Before the tab closes, RESOLVE_ORIGINALS answers from the sniffed map — no network.
     const before = vi.fn();
     onMessage({ type: 'RESOLVE_ORIGINALS', hints: [{ src, hint: { platform: 'twitter', id: '1' } }] }, { tab: { id: 88 } }, before);
     await flush();
     expect(before).toHaveBeenCalledWith({ resolved: { [src]: { url: 'https://video.twimg.com/keep.mp4' } } });
 
-    // Tab closes → its sniffed map is deleted.
     onRemoved(88);
 
-    // Now the sniffer misses, so it falls through to the DEFAULT network dep, which
-    // we stub to fail so no real request fires; the empty resolve + the fetch call
-    // together prove the entry was really gone (a hit would have short-circuited).
     const fetchSpy = vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) });
     const realFetch = (global as unknown as { fetch: typeof fetch }).fetch;
     (global as unknown as { fetch: unknown }).fetch = fetchSpy;
@@ -429,18 +368,14 @@ describe('background tab lifecycle listeners', () => {
     (global as unknown as { fetch: unknown }).fetch = realFetch;
   });
 
-  // ── onActivated: badge refresh + action-mode sync on tab switch ──────────────
   it('refreshes the badge and the action mode when a tab is activated (count on)', async () => {
     setSettings({ showImageCount: true });
     (chrome.tabs.get as Mock).mockImplementation((_id: number, cb: (t: unknown) => void) => cb({ id: 3, url: 'https://example.com' }));
 
     onActivated({ tabId: 3 });
-    // The badge refresh now awaits the settings + blocklist caches (a microtask).
     await flush();
 
-    // showImageCount on → the active tab's badge is recomputed (GET_IMAGES round-trip).
     expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(3, 'GET_IMAGES', expect.any(Function));
-    // …and the popup/bubble action mode is synced from the fetched tab (bubble off → keep popup).
     expect(chrome.action.setPopup).toHaveBeenCalledWith({ tabId: 3, popup: 'popup.html' });
   });
 
@@ -458,12 +393,10 @@ describe('background tab lifecycle listeners', () => {
     expect(chrome.action.setPopup).not.toHaveBeenCalled();
   });
 
-  // ── onUpdated: action-mode + badge transitions across load states ────────────
   it('on load complete, syncs the action mode and refreshes the badge (count on)', async () => {
     setSettings({ showImageCount: true });
 
     onUpdated(7, { status: 'complete' }, { url: 'https://example.com' });
-    // The badge refresh now awaits the settings + blocklist caches (a microtask).
     await flush();
 
     expect(chrome.action.setPopup).toHaveBeenCalledWith({ tabId: 7, popup: 'popup.html' });
@@ -493,7 +426,6 @@ describe('background tab lifecycle listeners', () => {
 
     onUpdated(10, { audible: true }, { url: 'https://example.com' });
 
-    // No status/url change → no action-mode sync; count off → no badge either.
     expect(chrome.action.setPopup).not.toHaveBeenCalled();
     expect(chrome.action.setBadgeText).not.toHaveBeenCalled();
   });
@@ -515,9 +447,6 @@ describe('background DOWNLOAD_BYTES handler — converted-image history', () => 
     }, {}, vi.fn());
     await flush();
     await flush();
-    // Assert the entry appears in SOME history write (robust to an unrelated late
-    // set call bleeding in from another test — the durable mirror mutates on its
-    // own tick, so "the last write" is not a stable anchor).
     const written = (chrome.storage.local.set as Mock).mock.calls
       .map((c) => c[0]?.downloadHistory)
       .filter(Array.isArray)

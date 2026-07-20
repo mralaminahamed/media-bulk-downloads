@@ -11,7 +11,6 @@ import { installReplayOnReady, installUrlSniffer } from '@mbd/core/resolvers/sni
  * the new manifest URLs to the isolated content script (which relays them into
  * the collector). MAIN world can't use `chrome.*`, hence the postMessage bridge.
  */
-// Matches both HLS (.m3u8) and DASH (.mpd) manifests the page fetches.
 const HLS_RE = /\.(m3u8|mpd)(?:[?#]|$)/i;
 
 export default defineContentScript({
@@ -19,12 +18,8 @@ export default defineContentScript({
   runAt: 'document_start',
   world: 'MAIN',
   main() {
-    // Runs on <all_urls>, so a page with many distinct manifest-shaped request URLs
-    // (rotating DVR query params, or an adversarial `fetch('x'+i+'.m3u8')` loop) would
-    // otherwise grow `seen` without bound in the page's own heap. Cap it, evicting the
-    // oldest (Set preserves insertion order) — mirrors hls-sniff.ts's CAP=500 downstream.
     const SEEN_CAP = 500;
-    const seen = new Set<string>(); // avoid re-posting the same manifest
+    const seen = new Set<string>();
     const post = (urls: string[]): void => window.postMessage({ source: 'mbd-hls', urls }, location.origin);
     installUrlSniffer({
       isMatch: (url) => HLS_RE.test(url),
@@ -35,10 +30,6 @@ export default defineContentScript({
         post([url]);
       },
     });
-    // This sniffer runs at document_start; the isolated relay that ingests these
-    // posts only registers at document_idle. Manifests fetched in that gap
-    // (autoplay/preload players) would be lost, so when the relay announces
-    // itself, re-post everything seen so far (the ingest side dedups).
     installReplayOnReady('mbd-hls-ready', () => {
       if (seen.size) post([...seen]);
     });

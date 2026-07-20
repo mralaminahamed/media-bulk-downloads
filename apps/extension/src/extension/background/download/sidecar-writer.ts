@@ -55,8 +55,7 @@ function onChanged(delta: chrome.downloads.DownloadDelta): void {
   const state = delta.state?.current;
   if (state !== 'complete' && state !== 'interrupted') return;
   pending.delete(delta.id);
-  if (state !== 'complete') return; // the media download failed — no sidecar to pair
-  // The filename was determined earlier; read the settled item to get its real path.
+  if (state !== 'complete') return;
   void chrome.downloads.search({ id: delta.id }).then((items) => {
     const finalPath = items?.[0]?.filename;
     if (finalPath) writeSidecar(p, finalPath);

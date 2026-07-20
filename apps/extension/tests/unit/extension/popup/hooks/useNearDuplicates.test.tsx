@@ -7,8 +7,6 @@ import { DEFAULT_SETTINGS } from '@mbd/storage/settings';
 import { DEFAULT_FILTERS } from '@/extension/popup/components/FilterToolbar';
 import { useNearDuplicates } from '@/extension/popup/hooks/useNearDuplicates';
 
-// The fake worker answers each HASH with a pHash looked up by src (the message id),
-// or a HASH_ERROR when the src isn't in the table (models a decode failure).
 const HASH_TABLE = new Map<string, string>();
 
 class FakeWorker {
@@ -24,10 +22,6 @@ class FakeWorker {
   terminate(): void {}
 }
 
-// fetchImageBytes is stubbed to always succeed (the fake worker ignores the bytes);
-// mapWithConcurrency stays real so the batching/barrier logic is exercised. `onFetch`
-// lets a test observe/mutate state mid-pass (e.g. simulate size-enrichment reassigning
-// rawImagesRef.current while bytes are being fetched).
 const hooks = vi.hoisted(() => ({ onFetch: null as null | ((src: string) => void) }));
 vi.mock('@/extension/popup/utils', async (orig) => ({
   ...(await orig<typeof import('@/extension/popup/utils')>()),
@@ -70,7 +64,7 @@ beforeEach(() => {
 describe('useNearDuplicates', () => {
   it('marks the smaller copy of a near-duplicate cluster and hides it from the filtered view', async () => {
     HASH_TABLE.set('https://x/thumb.jpg', '0000000000000000');
-    HASH_TABLE.set('https://x/orig.jpg', '0000000000000001'); // Hamming 1 → clustered
+    HASH_TABLE.set('https://x/orig.jpg', '0000000000000001');
     const images = [
       img('https://x/thumb.jpg', { width: 320, height: 240, mediaKey: 'a' }),
       img('https://x/orig.jpg', { width: 2048, height: 1536, mediaKey: 'a' }),
@@ -84,14 +78,13 @@ describe('useNearDuplicates', () => {
     const raw = rawImagesRef.current;
     expect(raw.find((i) => i.src.endsWith('orig.jpg'))?.nearDuplicate).toBe(false);
     expect(raw.find((i) => i.src.endsWith('thumb.jpg'))?.nearDuplicate).toBe(true);
-    // The default duplicateState ('unique') drops the marked thumbnail from the grid.
     expect(getState().filteredImages.map((i) => i.src)).toEqual(['https://x/orig.jpg']);
     expect(view.result.current.running).toBe(false);
   });
 
   it('leaves distinct images untouched', async () => {
     HASH_TABLE.set('https://x/a.jpg', '0000000000000000');
-    HASH_TABLE.set('https://x/b.jpg', 'ffffffffffffffff'); // Hamming 64 → separate
+    HASH_TABLE.set('https://x/b.jpg', 'ffffffffffffffff');
     const { view, rawImagesRef } = harness([
       img('https://x/a.jpg', { width: 100, height: 100 }),
       img('https://x/b.jpg', { width: 100, height: 100 }),
@@ -107,7 +100,6 @@ describe('useNearDuplicates', () => {
   it('survives a decode failure on one item without stalling the batch', async () => {
     HASH_TABLE.set('https://x/keep.jpg', '0000000000000000');
     HASH_TABLE.set('https://x/dupe.jpg', '0000000000000001');
-    // 'broken.jpg' is absent from the table → the worker returns HASH_ERROR.
     const { view, rawImagesRef } = harness([
       img('https://x/keep.jpg', { width: 2048, height: 1536 }),
       img('https://x/dupe.jpg', { width: 320, height: 240 }),
@@ -119,7 +111,6 @@ describe('useNearDuplicates', () => {
     });
 
     expect(rawImagesRef.current.find((i) => i.src.endsWith('dupe.jpg'))?.nearDuplicate).toBe(true);
-    // The undecodable item is simply left unmarked, not merged.
     expect(rawImagesRef.current.find((i) => i.src.endsWith('broken.jpg'))?.nearDuplicate).toBeFalsy();
   });
 
@@ -142,16 +133,13 @@ describe('useNearDuplicates', () => {
 
   it('still marks duplicates when size-enrichment reassigns rawImagesRef with the same srcs mid-pass', async () => {
     HASH_TABLE.set('https://x/thumb.jpg', '0000000000000000');
-    HASH_TABLE.set('https://x/orig.jpg', '0000000000000001'); // Hamming 1 → clustered
+    HASH_TABLE.set('https://x/orig.jpg', '0000000000000001');
     const images = [
       img('https://x/thumb.jpg', { width: 320, height: 240, mediaKey: 'a' }),
       img('https://x/orig.jpg', { width: 2048, height: 1536, mediaKey: 'a' }),
     ];
     const { view, rawImagesRef } = harness(images);
 
-    // Mimic enrichImageSizes: on the first byte fetch, replace rawImagesRef.current
-    // with a NEW array whose items carry the SAME srcs (only fileSize changed). The
-    // pHashes are keyed by src and stay valid — the pass must still mark, not bail.
     let bumped = false;
     hooks.onFetch = () => {
       if (bumped) return;
@@ -166,7 +154,6 @@ describe('useNearDuplicates', () => {
     const raw = rawImagesRef.current!;
     expect(raw.find((i) => i.src.endsWith('thumb.jpg'))?.nearDuplicate).toBe(true);
     expect(raw.find((i) => i.src.endsWith('orig.jpg'))?.nearDuplicate).toBe(false);
-    // The enriched sizes survive (the mark was written onto the reassigned array).
     expect(raw.every((i) => i.fileSize === 4242)).toBe(true);
   });
 
@@ -179,8 +166,6 @@ describe('useNearDuplicates', () => {
     ];
     const { view, rawImagesRef } = harness(images);
 
-    // A genuine supersession: the src SET changes (a resolved original replaces a
-    // placeholder). The hashes no longer describe the set → discard, mark nothing.
     let bumped = false;
     hooks.onFetch = () => {
       if (bumped) return;

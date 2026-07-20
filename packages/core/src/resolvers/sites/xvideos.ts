@@ -1,9 +1,5 @@
 import { MediaCandidate } from '@mbd/core/resolvers/types';
 
-// An XVideos watch page (`xvideos.com/video<id>/<slug>` or `/video.<id>/…`) carries
-// its stream URLs in inline `html5player` setter calls: `setVideoUrlHigh('<mp4>')`,
-// `setVideoUrlLow('<mp4>')`, `setVideoHLS('<m3u8>')`. The direct mp4 (High preferred)
-// is surfaced as a single-file download. Media lives on the XVideos CDN family.
 function pinXvideos(raw: unknown): string | null {
   if (typeof raw !== 'string' || !raw) return null;
   try {

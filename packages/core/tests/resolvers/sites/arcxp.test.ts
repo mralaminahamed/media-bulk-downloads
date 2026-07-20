@@ -5,8 +5,6 @@ const ctx = { allowNetwork: false };
 const run = (s: string, c = ctx) => arcxpResolver.resolve(new URL(s), c);
 const one = (s: string, c = ctx) => run(s, c)[0];
 
-// An Arc XP resizer/v2 responsive srcset: same source, four widths, ONE auth
-// token (the token signs the source asset, not a width).
 const HOST = 'https://www.reuters.com';
 const PATH = '/resizer/v2/ABC123XYZ.jpg';
 const v = (w: number) => `${HOST}${PATH}?auth=SIGTOKEN&width=${w}`;
@@ -23,9 +21,7 @@ function imgWithSrcset(currentWidth = 720, natural = { w: 1200, h: 800 }): HTMLI
 describe('arcxpResolver', () => {
   it('matches only a /resizer/v2/ path that carries the page auth token', () => {
     expect(arcxpResolver.match(new URL(v(480)), ctx)).toBe(true);
-    // /resizer/v2/ without an auth token is not claimed (nothing to reuse).
     expect(arcxpResolver.match(new URL(`${HOST}${PATH}?width=480`), ctx)).toBe(false);
-    // a plain path on an unrelated site is not an Arc resizer.
     expect(arcxpResolver.match(new URL('https://example.com/img/photo.jpg?auth=x'), ctx)).toBe(false);
   });
 

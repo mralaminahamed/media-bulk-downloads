@@ -37,13 +37,12 @@ describe('collectMedia — Shopify product page media', () => {
 
   it("surfaces the product's image + video (keyed by the handle) even when the DOM has none", () => {
     ingestShopifyProduct('cool-shoe', product, PAGE_HOST);
-    // A different product's media must NOT leak into this page's collection.
     ingestShopifyProduct('other', { media: [{ id: 1, media_type: 'image', src: 'https://cdn.shopify.com/s/files/other.jpg' }] }, PAGE_HOST);
 
     const srcs = collectMedia().map((m) => m.src);
     expect(srcs).toContain(IMG);
     expect(srcs).toContain(MP4);
-    expect(srcs).not.toContain('https://cdn.shopify.com/s/files/other.jpg'); // wrong handle
+    expect(srcs).not.toContain('https://cdn.shopify.com/s/files/other.jpg');
   });
 
   it('routes the product video as a plain mp4 video item with its poster', () => {

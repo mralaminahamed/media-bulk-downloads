@@ -21,12 +21,10 @@ export interface HashRequest {
 /** Worker → popup: either the hash, or a decode failure (skip that item). */
 export type HashResponse = { type: 'HASHED'; id: string; pHash: string } | { type: 'HASH_ERROR'; id: string };
 
-const SIZE = 32; // the edge computePHash expects
+const SIZE = 32;
 
 const ctx = new OffscreenCanvas(SIZE, SIZE).getContext('2d', { willReadFrequently: true });
 
-// The dedicated-worker global. Typed structurally (not via the ambient
-// DedicatedWorkerGlobalScope name, which the app tsconfig's DOM lib doesn't load).
 const workerScope = self as unknown as {
   postMessage: (msg: HashResponse) => void;
   onmessage: ((e: MessageEvent<HashRequest>) => void) | null;
@@ -40,12 +38,11 @@ workerScope.onmessage = async (e: MessageEvent<HashRequest>): Promise<void> => {
     if (!ctx) throw new Error('no 2d context');
     const bitmap = await createImageBitmap(new Blob([bytes]));
     ctx.clearRect(0, 0, SIZE, SIZE);
-    ctx.drawImage(bitmap, 0, 0, SIZE, SIZE); // downscale to 32×32
+    ctx.drawImage(bitmap, 0, 0, SIZE, SIZE);
     bitmap.close();
-    const { data } = ctx.getImageData(0, 0, SIZE, SIZE); // RGBA, length 32·32·4
+    const { data } = ctx.getImageData(0, 0, SIZE, SIZE);
     const gray = new Array<number>(SIZE * SIZE);
     for (let i = 0, p = 0; i < gray.length; i++, p += 4) {
-      // Rec. 601 luma — the standard grayscale weighting for perceptual hashing.
       gray[i] = 0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2];
     }
     post({ type: 'HASHED', id, pHash: computePHash(gray) });

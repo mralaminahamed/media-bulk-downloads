@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { variantsFromMaster, variantsFromMpd, formatVariantLabel } from '@mbd/core/download/stream/variants';
 
-// Real master shape (from hls.test.ts): heights 184, 1080, 480.
 const MASTER = `#EXTM3U
 #EXT-X-STREAM-INF:BANDWIDTH=246440,RESOLUTION=320x184,CODECS="mp4a.40.5,avc1.42000d",NAME="240"
 low/index.m3u8
@@ -11,21 +10,17 @@ high/index.m3u8
 mid/index.m3u8
 `;
 
-// A single-rendition master (one STREAM-INF).
 const SINGLE_MASTER = `#EXTM3U
 #EXT-X-STREAM-INF:BANDWIDTH=6221600,RESOLUTION=1920x1080
 high/index.m3u8
 `;
 
-// A bare media playlist — not a master, no renditions.
 const MEDIA = `#EXTM3U
 #EXT-X-VERSION:3
 #EXTINF:6.0,
 seg0.ts
 `;
 
-// Two renditions at the SAME height (1080) — the collapse should keep only the
-// higher-bandwidth one, guarding against an inverted comparison in collapse().
 const SAME_HEIGHT = `#EXTM3U
 #EXT-X-STREAM-INF:BANDWIDTH=3000000,RESOLUTION=1920x1080
 a/index.m3u8
@@ -33,8 +28,6 @@ a/index.m3u8
 b/index.m3u8
 `;
 
-// One height-bearing rendition + one with NO RESOLUTION (audio-only-ish) — the
-// height-less one must be dropped, not sorted to the top.
 const MIXED = `#EXTM3U
 #EXT-X-STREAM-INF:BANDWIDTH=6000000,RESOLUTION=1920x1080
 hi/index.m3u8
@@ -42,7 +35,6 @@ hi/index.m3u8
 audio/index.m3u8
 `;
 
-// Two video reps (1080, 720) + one audio rep; each needs a SegmentTemplate to parse.
 const MPD = `<?xml version="1.0"?>
 <MPD xmlns="urn:mpeg:dash:schema:mpd:2011" type="static" mediaPresentationDuration="PT6S">
   <Period>

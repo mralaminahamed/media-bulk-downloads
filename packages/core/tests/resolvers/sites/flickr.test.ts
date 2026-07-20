@@ -9,7 +9,7 @@ const base = (size?: string) => `https://live.staticflickr.com/65535/${ID}_${SEC
 
 describe('flickrResolver — match', () => {
   it('matches staticflickr.com and its subdomains only', () => {
-    expect(m(base('n'))).toBe(true); // live.staticflickr.com
+    expect(m(base('n'))).toBe(true);
     expect(m(`https://farm5.staticflickr.com/4104/${ID}_${SECRET}_z.jpg`)).toBe(true);
     expect(m(`https://staticflickr.com/65535/${ID}_${SECRET}_b.jpg`)).toBe(true);
     expect(m('https://www.flickr.com/photos/x/1/')).toBe(false);

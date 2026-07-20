@@ -46,7 +46,6 @@ describe('collectMedia — gallery-page link following (#287)', () => {
     document.body.innerHTML = `<a href="https://booru.example/full/5.jpg"><img src="https://cdn.booru.example/thumb/5.jpg"></a>`;
     const items = collectMedia(undefined, { resolveOriginals: true });
     expect(galleryItems(items)).toHaveLength(0);
-    // …but the full image IS collected directly.
     expect(items.some((m) => m.src === 'https://booru.example/full/5.jpg')).toBe(true);
   });
 
@@ -61,11 +60,9 @@ describe('collectMedia — gallery-page link following (#287)', () => {
     expect(galleryItems(collectMedia(undefined, { resolveOriginals: true }))).toHaveLength(60);
   });
 
-  // I10: dedup the pending gallery item against the standalone thumbnail it wraps.
   it('drops the duplicate standalone thumbnail and tags the pending item with the thumb mediaKey', () => {
     document.body.innerHTML = `<a href="/post/123"><img src="https://cdn.booru.example/thumb/123.jpg" alt="cat"></a>`;
     const items = collectMedia(undefined, { resolveOriginals: true });
-    // Exactly one tile for the photo: the pending gallery item. No standalone thumb.
     expect(items.filter((m) => m.src === 'https://cdn.booru.example/thumb/123.jpg')).toHaveLength(0);
     const g = galleryItems(items);
     expect(g).toHaveLength(1);
@@ -75,11 +72,10 @@ describe('collectMedia — gallery-page link following (#287)', () => {
 
   it('keeps the standalone thumbnail when the gallery feature is off (no dedup, no change)', () => {
     document.body.innerHTML = `<a href="/post/123"><img src="https://cdn.booru.example/thumb/123.jpg"></a>`;
-    const items = collectMedia(); // resolveOriginals off
+    const items = collectMedia();
     expect(items.some((m) => m.src === 'https://cdn.booru.example/thumb/123.jpg')).toBe(true);
   });
 
-  // I11: only follow links that look like media detail pages.
   it('does NOT follow a same-origin nav/taxonomy link (author byline, tag pill, pagination)', () => {
     document.body.innerHTML = `
       <a href="/authors/jane-doe"><img src="https://cdn.booru.example/avatars/jane.jpg"></a>
@@ -92,7 +88,6 @@ describe('collectMedia — gallery-page link following (#287)', () => {
   it('does NOT follow a link whose wrapped img is a known-small avatar/icon', () => {
     document.body.innerHTML = `<a href="/profile/jane"><img src="https://cdn.booru.example/av.jpg" width="32" height="32"></a>`;
     expect(galleryItems(collectMedia(undefined, { resolveOriginals: true }))).toHaveLength(0);
-    // Even a content-looking path with a tiny thumb is rejected.
     document.body.innerHTML = `<a href="/post/9"><img src="https://cdn.booru.example/av.jpg" width="24" height="24"></a>`;
     expect(galleryItems(collectMedia(undefined, { resolveOriginals: true }))).toHaveLength(0);
   });

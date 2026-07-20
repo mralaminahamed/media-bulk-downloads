@@ -1,8 +1,6 @@
 import { onedioResolver } from '@mbd/core/resolvers/sites/onedio';
 
 const ID = '6a5798a6104117297cb4e914';
-// Each rendition is separately signed in reality; make the sig distinct per width
-// so different widths are genuinely different URLs (as on the live site).
 const sig = (w: number) => w.toString(16).padEnd(40, '0');
 const img = (w: number, h: number, opts: { id?: string; ext?: string } = {}) => {
   const { id = ID, ext = 'jpg' } = opts;
@@ -91,7 +89,7 @@ describe('onedioResolver — resolve', () => {
     const other = img(3000, 2000, { id: 'ffffffffffffffffffffffff' });
     const el = imgEl(img(300, 225), `${other} 3000w, ${img(600, 450)} 600w`);
     const [c] = run(img(300, 225), el);
-    expect(c.url).toBe(img(600, 450)); // not the 3000w other-id image
+    expect(c.url).toBe(img(600, 450));
     expect(c.width).toBe(600);
   });
 

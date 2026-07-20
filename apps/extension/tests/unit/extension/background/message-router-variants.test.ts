@@ -34,7 +34,6 @@ describe('messageRouter.LIST_VARIANTS', () => {
   it('rejects an internal-host manifestUrl without fetching (SSRF guard)', async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
-    // Link-local cloud-metadata address the SSRF guard blocks (see ssrf-guard.ts).
     const res = await invoke({ type: 'LIST_VARIANTS', manifestUrl: 'http://169.254.169.254/master.m3u8', engine: 'hls' });
     expect(res.ok).toBe(false);
     expect(fetchSpy).not.toHaveBeenCalled();

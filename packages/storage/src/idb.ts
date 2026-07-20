@@ -1,7 +1,5 @@
 import { get, set, del, createStore } from 'idb-keyval';
 
-// One database, one object store, version 1 — no schema evolution, so IndexedDB's
-// migration footguns don't apply. This is the durable mirror behind chrome.storage.local.
 const store = createStore('media-bulk-downloads', 'kv');
 
 export const idbGet = <T>(key: string): Promise<T | undefined> => get<T>(key, store);

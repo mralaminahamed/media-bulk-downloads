@@ -33,8 +33,6 @@ const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'jfif', 'png', 'gif', 'webp', 'svg', 
 export function imageExtFromUrl(url: string): string | null {
   const ext = extensionFromUrl(url);
   if (ext && IMAGE_EXTS.has(ext)) return ext;
-  // Bluesky / atproto CDN encodes the format as an `@<fmt>` path suffix
-  // (…/bafy…@jpeg) with no dotted extension — read it for the download name.
   const at = /@([a-z0-9]{1,5})$/i.exec(url.split(/[?#]/)[0]);
   return at && IMAGE_EXTS.has(at[1].toLowerCase()) ? at[1].toLowerCase() : null;
 }
@@ -45,9 +43,6 @@ function fromMime(mime: string): string | null {
   if (!m) return null;
   const top = m[1].toLowerCase();
   const sub = m[2].toLowerCase();
-  // audio/mp4 is the standard (IANA) Content-Type for an M4A container — distinct
-  // from video/mp4 — so it must resolve to the audio family, not the generic
-  // `mp4` (video) lookup below.
   if (top === 'audio' && sub === 'mp4') return 'm4a';
   const NORMALIZE: Record<string, string> = {
     mpeg: 'mp3', 'x-m4a': 'm4a', quicktime: 'mov',

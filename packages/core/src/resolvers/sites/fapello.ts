@@ -1,9 +1,6 @@
 import { MediaCandidate } from '@mbd/core/resolvers/types';
 import { imageExtFromUrl, extensionFromUrl } from '@mbd/core/collection/mediaType';
 
-// A Fapello post page: `fapello.com/<model>/<id>/` (also `.su`). One media item is
-// rendered inside a `uk-align-center` block; the visible `src` may carry a `.md`/`.th`
-// size suffix, and the un-suffixed URL is the original.
 function isFapelloHost(host: string): boolean {
   return (
     host === 'fapello.com' || host === 'fapello.su' ||
@@ -11,8 +8,6 @@ function isFapelloHost(host: string): boolean {
   );
 }
 
-// First path segments that are category/listing routes, not a `<model>` slug — a
-// `/<one>/<n>/` on these is pagination, not a post.
 const NON_MODEL = new Set(['trending', 'videos', 'top-likes', 'top-followers', 'popular_videos', 'search', 'ai']);
 
 const VIDEO_RE = /\.(?:mp4|webm|mov|m4v)(?:[?#]|$)/i;
@@ -36,8 +31,6 @@ export function fapelloPostRef(raw: string | URL): FapelloPostRef | null {
   return { model: m[1], id: m[2] };
 }
 
-// Drop a Fapello `.md`/`.th` size suffix (`name.md.jpg` → `name.jpg`), leaving the
-// original. A no-op when the URL carries no such suffix.
 function stripFapelloSize(url: string): string {
   return url.replace(/\.(?:md|th)(\.[a-z0-9]{1,5})(?=$|[?#])/i, '$1');
 }

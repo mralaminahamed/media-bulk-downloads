@@ -8,10 +8,9 @@
  * 403 from the config endpoint and are left unresolved (no circumvention).
  */
 
-// Vimeo ids are numeric, 6+ digits (older videos start ~6, newer are longer).
 const ID = '(\\d{6,})';
-const PLAYER_RE = new RegExp(`^/video/${ID}`); // player.vimeo.com/video/<id>
-const PAGE_RE = new RegExp(`/${ID}(?:[/?#]|$)`); // vimeo.com/<id>, /channels/x/<id>, /<id>/<hash>
+const PLAYER_RE = new RegExp(`^/video/${ID}`);
+const PAGE_RE = new RegExp(`/${ID}(?:[/?#]|$)`);
 
 /**
  * Extracts a Vimeo video id from a watch URL or an embed URL, or null when the

@@ -21,7 +21,7 @@ describe('clampMemory', () => {
     expect(clampMemory({ settleMs: 1, scrolls: -3 })).toBeNull();
     expect(clampMemory(null)).toBeNull();
     expect(clampMemory('nope')).toBeNull();
-    expect(clampMemory({ settleMs: 1 })).toBeNull(); // scrolls missing
+    expect(clampMemory({ settleMs: 1 })).toBeNull();
   });
   it('clamps over-max values to the bounds', () => {
     const m = clampMemory({ settleMs: 999999, scrolls: 99999, updatedAt: 1 });
@@ -36,7 +36,6 @@ describe('blendMemory', () => {
   });
   it('EMA-blends prior with sample at weight 0.5 and rounds', () => {
     const old = { settleMs: 400, scrolls: 10, updatedAt: 1 };
-    // 0.5*400 + 0.5*900 = 650 ; 0.5*10 + 0.5*25 = 17.5 -> 18 (round)
     expect(blendMemory(old, { settleMs: 900, scrolls: 25 }, 2000))
       .toEqual({ settleMs: 650, scrolls: 18, updatedAt: 2000 });
   });
@@ -60,7 +59,7 @@ describe('evictToCap', () => {
     };
     const out = evictToCap(store, 2);
     expect(Object.keys(out).sort()).toEqual(['mid', 'new']);
-    expect(Object.keys(store)).toHaveLength(3); // input untouched
+    expect(Object.keys(store)).toHaveLength(3);
   });
   it('caps at SCAN_MEMORY_MAX_HOSTS by default', () => {
     const store: Record<string, { settleMs: number; scrolls: number; updatedAt: number }> = {};
@@ -71,7 +70,6 @@ describe('evictToCap', () => {
 
 describe('scan-memory storage', () => {
   beforeEach(() => {
-    // The setup file's chrome.storage.local is a real in-memory store; clear the key.
     return clearScanMemoryForHost('example.com').then(() =>
       (chrome.storage.local.set as unknown as (o: Record<string, unknown>) => Promise<void>)(
         { [PER_HOST_SCAN_MEMORY_KEY]: {} },
@@ -88,7 +86,6 @@ describe('scan-memory storage', () => {
   it('cross-visit blends on the second save', async () => {
     await saveScanMemoryForHost('example.com', { settleMs: 400, scrolls: 10 }, 1);
     await saveScanMemoryForHost('example.com', { settleMs: 900, scrolls: 25 }, 2);
-    // 0.5*400+0.5*900 = 650 ; round(0.5*10+0.5*25)=18
     expect(await loadScanMemoryForHost('example.com'))
       .toEqual({ settleMs: 650, scrolls: 18, updatedAt: 2 });
   });

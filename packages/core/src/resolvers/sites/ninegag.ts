@@ -10,7 +10,6 @@
  * produces a would-404 `_460sv.mp4`.
  */
 
-// 9GAG post ids are short mixed-case alnum tokens (e.g. `aOMMxxA`, `a1b2c3d`).
 const GAG_RE = /^\/gag\/([A-Za-z0-9]{5,12})(?:[/?#]|$)/;
 
 /**

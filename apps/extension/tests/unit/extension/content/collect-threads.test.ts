@@ -44,6 +44,6 @@ describe('collectMedia — Threads profile grid', () => {
 
     expect(cdnItems).toHaveLength(1);
     expect(cdnItems[0].src).toBe(ORIGINAL);
-    expect(cdnItems[0].width).toBe(2610); // the resolver's w-descriptor size
+    expect(cdnItems[0].width).toBe(2610);
   });
 });

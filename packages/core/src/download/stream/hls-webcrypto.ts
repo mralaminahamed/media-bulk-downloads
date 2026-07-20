@@ -8,19 +8,6 @@ import { readBounded, readBoundedText } from '@mbd/core/download/stream/bounded-
  * node:crypto path used in tests/validation.
  */
 
-// Retry transient segment/manifest failures so one flaky fetch doesn't abort the
-// whole capture. Bound closure: the global fetch must not be invoked unbound.
-//
-// `redirect: 'error'` closes an SSRF-guard bypass: assertSafeCaptureUrl only
-// validates the pre-fetch URL, so a manifest/segment host that passes the guard
-// could 302 to an internal target (169.254.169.254, localhost, a LAN service)
-// that the default redirect:'follow' would then GET from this <all_urls> context.
-// Failing the redirect never issues that internal request; a rare legit
-// redirect just degrades to a fetch error.
-// A bounded per-attempt timeout: a slow/unresponsive PUBLIC host that accepts
-// the TCP connection but never responds would otherwise hang this fetch
-// forever (assertSafeCaptureUrl only screens internal/private hosts) — see
-// FETCH_TIMEOUT_MS's doc comment in net/retry.ts.
 const netFetch = retryingFetch((url: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) =>
   fetch(url, { ...init, redirect: 'error' }), { timeoutMs: FETCH_TIMEOUT_MS });
 /** A standalone ArrayBuffer copy — WebCrypto's BufferSource params reject the
@@ -52,10 +39,6 @@ export function browserHlsDeps(onProgress?: (done: number, total: number) => voi
       const res = await netFetch(url, init);
       if (!res.ok && res.status !== 206) throw new Error(`Segment fetch failed (${res.status}).`);
       const bytes = await readBounded(res);
-      // A server may ignore the Range header and answer 200 with the WHOLE file.
-      // Without this, every EXT-X-BYTERANGE "segment" would be the entire file →
-      // the concatenated output is N copies of it, corrupt and oversized. Slice
-      // out the requested window ourselves when we clearly got more than asked.
       if (range && res.status !== 206 && bytes.length > range.length) {
         return bytes.subarray(range.offset, range.offset + range.length);
       }

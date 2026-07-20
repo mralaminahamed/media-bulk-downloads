@@ -31,7 +31,6 @@ describe('mastodonResolver', () => {
   });
 
   it('returns [] when /small/ is not the size segment (basename only)', () => {
-    // "small" appears as part of the basename under /original/, not a size folder
     expect(run(m('files.mastodon.social', 'original', 'small_pic.jpg'))).toEqual([]);
   });
 

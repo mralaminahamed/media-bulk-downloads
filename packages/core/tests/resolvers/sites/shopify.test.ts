@@ -28,7 +28,6 @@ describe('extractShopifyMedia', () => {
   it('maps images (CDN + same-origin) to image candidates with dims + a stable mediaKey', () => {
     const c = extractShopifyMedia(product, PAGE_HOST);
     expect(c[0]).toMatchObject({ url: 'https://cdn.shopify.com/s/files/1/x/cool_2000x2000.jpg', kind: 'image', width: 2000, height: 2000, mediaKey: 'shopify:101' });
-    // A store's own /cdn/shop/ image (same-origin as the page) is accepted.
     expect(c[1]).toMatchObject({ url: 'https://shop.example.com/cdn/shop/products/side.jpg', kind: 'image', mediaKey: 'shopify:102' });
   });
 
@@ -38,7 +37,6 @@ describe('extractShopifyMedia', () => {
       url: 'https://cdn.shopify.com/videos/c/o/v/hi.mp4', kind: 'video', ext: 'mp4',
       poster: 'https://cdn.shopify.com/s/files/1/x/poster.jpg', width: 1920, height: 1080, mediaKey: 'shopify:103',
     });
-    // external_video (104) and model (105) have no downloadable file.
     expect(extractShopifyMedia(product, PAGE_HOST)).toHaveLength(3);
   });
 

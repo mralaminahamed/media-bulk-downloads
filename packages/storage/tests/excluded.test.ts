@@ -21,20 +21,15 @@ describe('mergeExcluded', () => {
     expect(mergeExcluded([], many)).toHaveLength(EXCLUDED_CAP);
   });
   it('collapses url entries that canonicalize to the same key (CDN query variants), newest wins', () => {
-    // Same host+path (has an extension, so the query is volatile/dropped by canonicalSrcKey);
-    // a re-add under a fresh signed query must collapse onto the existing entry, not duplicate it.
     const older = e('https://cdn.example.com/img/a.jpg?sig=1', 'url', 1);
     const newer = e('https://cdn.example.com/img/a.jpg?sig=2', 'url', 5);
     const out = mergeExcluded([older], [newer]);
     expect(out).toEqual([newer]);
   });
   it('keeps only the first entry when it alone exceeds the byte budget, drops later overflow', () => {
-    // Regression guard for withinByteBudget's `total > maxBytes && out.length` gate:
-    // out.length is 0 while budgeting the very first entry, so a single oversized
-    // entry must never be dropped outright (there'd be nothing left to restore).
     const big = 'x'.repeat(2_500_000);
     const first = e(big, 'url', 2);
-    const second = e(big + 'y', 'url', 1); // distinct key so it doesn't just dedup away
+    const second = e(big + 'y', 'url', 1);
     const out = mergeExcluded([], [first, second]);
     expect(out).toEqual([first]);
   });
@@ -77,8 +72,6 @@ describe('storage round-trips', () => {
     await addExcluded(e('cdn.ads.com', 'host', 2));
     const m = await excludedMatchers();
     expect(m.urls.has('https://x/a.png')).toBe(true);
-    // Host entries are scoped to the registrable domain so the exclusion covers
-    // sibling subdomains / rotating CDN edges (cdn.ads.com -> ads.com).
     expect(m.hosts.has('ads.com')).toBe(true);
     expect(m.urls.has('cdn.ads.com')).toBe(false);
   });
@@ -103,11 +96,7 @@ describe('storage round-trips', () => {
   });
   it('recovers the write chain after a rejected write, so a later write still applies', async () => {
     (chrome.storage.local.set as Mock).mockImplementationOnce(() => Promise.reject(new Error('quota exceeded')));
-    // durableSet swallows the quota rejection (logged, not thrown) so it never
-    // surfaces as an unhandled rejection; the write chain must not stay wedged.
     await addExcluded(e('will-fail', 'url', 1));
-    // The failed write must not leave writeChain permanently rejected — this
-    // write, chained after it, has to still go through.
     await addExcluded(e('after-failure', 'url', 2));
     expect((await loadExcluded()).map((x) => x.value)).toEqual(['after-failure']);
   });

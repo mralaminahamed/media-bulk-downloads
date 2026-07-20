@@ -79,10 +79,6 @@ export function useMediaEngine({
   const [deepScanning, setDeepScanning] = useState(false);
   const [deepProgress, setDeepProgress] = useState<DeepScanProgress | null>(null);
 
-  // A deep scan is driven over one-shot messaging (no long-lived port), so closing
-  // the popup mid-scan leaves the content script auto-scrolling the live page until
-  // an internal cap. Abort it on popup teardown. `pagehide` fires when the popup
-  // document unloads; the ref keeps the listener from re-registering each render.
   const deepScanningRef = useRef(false);
   useEffect(() => { deepScanningRef.current = deepScanning; }, [deepScanning]);
   useEffect(() => {
@@ -90,13 +86,9 @@ export function useMediaEngine({
     window.addEventListener('pagehide', onHide);
     return () => window.removeEventListener('pagehide', onHide);
   }, [abortDeepScan]);
-  // Page-type-derived filter seed, surfaced to FilterToolbar as `initialFilters`
-  // when `smartPageDefaults` is on; `{}` (today's defaults) otherwise.
   const [filterSeed, setFilterSeed] = useState<Partial<FilterOptions>>({});
 
   useEffect(() => {
-    // When the Downloaded filter is active, a completed download changes which
-    // items pass it — re-derive the shown grid from the current image set.
     if (filtersRef.current.downloadState !== 'all') {
       setState((prev) => ({ ...prev, filteredImages: applyToolbarFilters(prev.images, filtersRef.current, isDownloaded) }));
     }
@@ -104,46 +96,17 @@ export function useMediaEngine({
 
   const [resolveFailedSrcs, setResolveFailedSrcs] = useState<Set<string>>(new Set());
   const [fetchingSrcs, setFetchingSrcs] = useState<Set<string>>(new Set());
-  // Whether a batch "Get all videos" run is in flight (distinct from a single
-  // per-item "Get video", which only spins that tile — not the batch button).
   const [fetchingAllVideos, setFetchingAllVideos] = useState(false);
-  // Live progress for in-extension batch work (zip fetch, video resolve). null = idle.
-  // total 0 → indeterminate.
   const [progress, setProgress] = useState<{ label: string; done: number; total: number } | null>(null);
 
-  // All images collected from the page, before any settings/toolbar filtering.
   const rawImagesRef = useRef<ImageInfo[]>([]);
-  // Generation guard so a newer refresh cancels stale size-enrichment writes.
   const enrichGenRef = useRef(0);
-  // Generation guard for enrichOriginals' OWN stale-write cancellation. Kept
-  // separate from resolveGenRef: enrichOriginals is fired by any settings change
-  // (via applyResolution), but it maps over rawImagesRef in place (stable srcs) —
-  // it is NOT a rescan. Bumping resolveGenRef here would make a mid-scan settings
-  // change spuriously invalidate a concurrent deep scan / video resolve (their
-  // guards snapshot resolveGenRef to detect a rescan) and discard the result.
   const enrichOriginalsGenRef = useRef(0);
-  // Generation guard so a newer refresh/rescan cancels stale resolution writes.
-  // Bumped ONLY by fetchImages (a rescan) — the exact event the deep-scan/video
-  // guards below want to detect.
   const resolveGenRef = useRef(0);
-  // Generation guard for fetchImages' OWN self-supersession: two overlapping
-  // fetchImages calls (a double Rescan click, or a changeScope re-trigger) each
-  // await collect() — without this, a stale first call whose collect() resolves
-  // AFTER a second call's could clobber the fresh grid with old data. Distinct
-  // from resolveGenRef (which fetchImages also bumps, to supersede a concurrent
-  // deep-scan/video-resolve) — this one is scoped to fetchImages superseding
-  // itself, so it's bumped and checked only here.
   const scanGenRef = useRef(0);
-  // Latest toolbar filters. FilterToolbar owns its own state and only notifies on
-  // user interaction, so async paths (resolution, deep scan, rescan) must re-apply
-  // these when they repopulate the grid — otherwise the active filter is dropped.
   const filtersRef = useRef<FilterOptions>(DEFAULT_FILTERS);
 
   useEffect(() => {
-    // Load the effective settings BEFORE the first scan, so a persisted
-    // resolveOriginals / per-host min-size is known when the scan gates on it.
-    // The editor's GLOBAL state is seeded separately by useSettings, so the
-    // engine no longer calls setSettings here.
     void (loadSettings ?? loadStoredSettings)().then((loaded) => {
       settingsRef.current = loaded;
       void fetchImages();
@@ -157,10 +120,6 @@ export function useMediaEngine({
    */
   const enrichImageSizes = useCallback(async (images: ImageInfo[]): Promise<void> => {
     const generation = ++enrichGenRef.current;
-    // A pending image's `src` is the x.com tweet-page placeholder URL, not a real
-    // file — a HEAD/GET against it would fetch the page HTML (wasted request,
-    // and violates the opt-in/passive collection constraint). Pending videos are
-    // already excluded by `kind === 'image'`, since a pending video is `kind: 'video'`.
     const targets = images.filter((img) => !img.isBase64 && img.fileSize <= 0 && img.kind === 'image' && !img.unresolvedImage);
 
     await mapWithConcurrency(targets, SIZE_FETCH_CONCURRENCY, async (img) => {
@@ -170,15 +129,9 @@ export function useMediaEngine({
       const apply = (list: ImageInfo[]) =>
         list.map((i) => (i.src === img.src ? { ...i, fileSize: size } : i));
 
-      // Mirror the size into the raw set too (like enrichOriginals does), so a later
-      // settings-change re-filter re-derives from rawImagesRef WITHOUT wiping the
-      // enriched sizes and re-firing a fresh round of HEAD requests.
       rawImagesRef.current = apply(rawImagesRef.current);
       setState((prev) => {
         const nextImages = apply(prev.images);
-        // Re-derive the filtered view (not a plain map) so a newly-known size is
-        // re-sorted (sort-by-size) and re-gated (Min KB) — otherwise the grid
-        // order/visibility disagrees with the sizes it just showed.
         const eligible = filterExcluded(filterImagesBySettings(nextImages, settingsRef.current), excludedRef.current);
         return {
           ...prev,
@@ -205,7 +158,6 @@ export function useMediaEngine({
     const resolved = await requestResolveOriginals(targets);
     if (generation !== enrichOriginalsGenRef.current) return;
 
-    // oldSrc -> resolved item (hint cleared, src swapped to the real original)
     const byOldSrc = new Map<string, ImageInfo>();
     for (const i of eligible) {
       const r = i.resolveHint ? resolved[i.src] : undefined;
@@ -218,8 +170,6 @@ export function useMediaEngine({
     rawImagesRef.current = rawImagesRef.current.map((m) => byOldSrc.get(m.src) ?? m);
 
     setState((prev) => {
-      // Upgrade in place any item whose old src resolved, then append resolved
-      // items that weren't already present (pending videos becoming real mp4s).
       const nextImages = prev.images.map((m) => byOldSrc.get(m.src) ?? m);
       const present = new Set(nextImages.map((m) => m.src));
       for (const [oldSrc, item] of byOldSrc) {
@@ -228,10 +178,6 @@ export function useMediaEngine({
           present.add(item.src);
         }
       }
-      // Derive the filtered view from the new image set so the exclude blocklist,
-      // settings gates, AND the active toolbar filter all still apply to upgraded
-      // and newly-appended items — a resolved src (e.g. a pending video's mp4)
-      // that lands on the blocklist or fails a settings gate must not surface.
       const eligible = filterExcluded(filterImagesBySettings(nextImages, settingsRef.current), excludedRef.current);
       return {
         ...prev,
@@ -251,7 +197,6 @@ export function useMediaEngine({
    */
   const applyResolution = useCallback(
     (eligible: ImageInfo[], s: SettingsData): void => {
-      // Preserve the active toolbar filter when repopulating the grid.
       const filtered = applyToolbarFilters(eligible, filtersRef.current, isDownloaded);
       setState((prev) => ({ ...prev, images: eligible, filteredImages: filtered }));
       if (s.resolveOriginals) void enrichOriginals(eligible, s.captureHlsStreams);
@@ -261,39 +206,23 @@ export function useMediaEngine({
   );
 
   const fetchImages = useCallback(async (): Promise<void> => {
-    // Snapshot THIS call's own generation, so a second overlapping fetchImages
-    // (double Rescan click — the button isn't disabled while loading — or a
-    // changeScope re-trigger) can supersede it: if this call's collect() resolves
-    // after the newer one's, its writes below must be discarded rather than
-    // clobber the fresh grid with stale data.
     const scanGeneration = ++scanGenRef.current;
-    enrichGenRef.current++; // cancel any in-flight size enrichment
-    enrichOriginalsGenRef.current++; // cancel any in-flight originals resolution
-    resolveGenRef.current++; // supersede any concurrent deep-scan / video resolve
-    // A rescan unmounts FilterToolbar (isLoading) and it remounts at DEFAULT_FILTERS
-    // merged with the current seed below; reset the ref too so the repopulated
-    // grid isn't left silently filtered by the previous run's selection while the
-    // toolbar shows "All"/the seed.
+    enrichGenRef.current++;
+    enrichOriginalsGenRef.current++;
+    resolveGenRef.current++;
     filtersRef.current = DEFAULT_FILTERS;
     setState((prev) => ({ ...prev, isLoading: true, status: '' }));
 
     try {
       const imageList = await collect();
-      // A newer fetchImages call started while this one was awaiting collect() —
-      // discard this stale result rather than clobber the fresher grid.
       if (scanGeneration !== scanGenRef.current) return;
       const raw = Array.isArray(imageList) ? imageList : [];
       rawImagesRef.current = raw;
-      const s = settingsRef.current; // latest settings, not a stale closure
+      const s = settingsRef.current;
 
-      // Opt-in: prime the toolbar's defaults from a passive page-type read (no
-      // network — DOM signals only). Off by default so behavior is unchanged
-      // unless the user turns it on in Settings.
       let seed: Partial<FilterOptions> = {};
       if (s.smartPageDefaults) {
         const pt = await getPageType();
-        // Superseded while awaiting the page-type read — bail before seeding the
-        // toolbar/writing rawImagesRef's derived state for a call that's now stale.
         if (scanGeneration !== scanGenRef.current) return;
         seed = pageDefaults(pt);
       }
@@ -305,8 +234,6 @@ export function useMediaEngine({
       setState((prev) => ({ ...prev, status: '', isLoading: false }));
       applyResolution(eligible, s);
     } catch (error) {
-      // Don't surface a stale call's error over a newer call's (possibly still
-      // in-flight or already-succeeded) state.
       if (scanGeneration !== scanGenRef.current) return;
       const message = error instanceof Error ? error.message : 'unknown error';
       setState((prev) => ({
@@ -317,9 +244,6 @@ export function useMediaEngine({
     }
   }, [collect, applyResolution, excludedRef, settingsRef]);
 
-  // Re-derive the eligible base list when the settings that affect it change.
-  // Also applies opt-in resolution when it loads/changes (settings load async on
-  // mount, so the first scan runs before a persisted resolveOriginals is known).
   useEffect(() => {
     if (rawImagesRef.current.length === 0) return;
     const eligible = filterExcluded(filterImagesBySettings(rawImagesRef.current, settings), excludedRef.current);
@@ -336,43 +260,20 @@ export function useMediaEngine({
     }
     setDeepScanning(true);
     setDeepProgress(null);
-    // Snapshot the resolution generation. fetchImages (the Rescan button, which
-    // stays enabled during a scan) bumps resolveGenRef and replaces rawImagesRef
-    // with a fresh collect(); a deep scan runs for tens of seconds, so a rescan can
-    // land mid-scan. Without this guard the scan's late resolve would merge its
-    // stale `found` into the NEW raw set and overwrite the fresh grid (resurrecting
-    // items the rescan dropped) — the same staleness the enrich/fetch paths guard.
     const generation = resolveGenRef.current;
-    // The final progress event carries why the scan stopped; capture it as it streams.
     let stopReason: DeepScanStopReason | undefined;
     try {
       const found = await deepScan((p) => {
         if (p.reason) stopReason = p.reason;
         setDeepProgress(p);
       });
-      // A rescan superseded this scan while it ran — discard its now-stale results
-      // rather than clobber the freshly re-collected grid.
       if (generation !== resolveGenRef.current) return;
-      // This deep scan is now the freshest write. Bump scanGenRef so a fetchImages
-      // still awaiting its own (slower) collect() — e.g. a multi-tab "All tabs"
-      // collect the user kicked off before clicking Deep scan, whose button isn't
-      // disabled during load — self-discards at its own generation guard instead of
-      // clobbering these merged deep-scan results with the shallower set.
       scanGenRef.current++;
-      // Merge deep-scan results into the collected set: a resolver identity
-      // (mediaKey) upgrade-replaces its prior rendition (a Facebook grid tile ->
-      // the sniffed original), while a rotating-CDN canonical repeat keeps the
-      // first occurrence. Behaviorally identical to the old canonical-only merge
-      // until a resolver sets mediaKey (Task 8).
       const merged = mergeScannedMedia(rawImagesRef.current, found);
       rawImagesRef.current = merged;
-      // Use the LATEST settings, not the click-time closure: a deep scan runs for
-      // tens of seconds and the user can change minimumImageSize / excludeBase64Images
-      // in the still-reachable Settings panel meanwhile (matches fetchImages).
       const latest = settingsRef.current;
       const eligible = filterExcluded(filterImagesBySettings(merged, latest), excludedRef.current);
       applyResolution(eligible, latest);
-      // If a cap (not a natural finish) ended the scan, tell the user media may remain.
       const capMsg = deepScanCapMessage(stopReason, merged.length);
       if (capMsg) setState((prev) => ({ ...prev, status: capMsg }));
     } catch (e) {
@@ -396,31 +297,20 @@ export function useMediaEngine({
   const handleFetchVideo = async (image: ImageInfo): Promise<void> => {
     if (!image.resolveHint) return;
     const src = image.src;
-    const generation = resolveGenRef.current; // snapshot: a rescan/deep-scan bumps this
+    const generation = resolveGenRef.current;
     setFetchingSrcs((p) => new Set(p).add(src));
     setResolveFailedSrcs((p) => { const n = new Set(p); n.delete(src); return n; });
     const resolved = await requestResolveOriginals([{ src, hint: image.resolveHint }]);
     setFetchingSrcs((p) => { const n = new Set(p); n.delete(src); return n; });
-    // If a rescan replaced the grid while we were resolving, this result is stale —
-    // its src may now belong to a different item — so discard it (like enrichOriginals).
     if (generation !== resolveGenRef.current) return;
     const r = resolved[src];
     const swapped = r ? applyResolved(image, r, settingsRef.current.captureHlsStreams) : null;
     if (!swapped) {
-      // A null result is either no-resolution or an HLS-only video with capture
-      // off. Only mark a hard failure when nothing resolved; a gated HLS item
-      // stays quietly pending (turning on stream capture resolves it next time).
       if (!r) setResolveFailedSrcs((p) => new Set(p).add(src));
       return;
     }
     const swap = (list: ImageInfo[]) => list.map((i) => (i.src === src ? swapped : i));
-    // Mirror into the raw set too, so a later settings-change re-filter doesn't
-    // revert this item back to a pending tile.
     rawImagesRef.current = swap(rawImagesRef.current);
-    // Re-derive the filtered view (not an in-place swap) so the resolved item is
-    // re-sorted + re-gated by the active toolbar filter — matching the auto
-    // resolveOriginals path (enrichOriginals). An in-place swap left the item in
-    // its old poster-name sort slot, out of order with the active sort.
     setState((prev) => {
       const images = swap(prev.images);
       const eligible = filterExcluded(filterImagesBySettings(images, settingsRef.current), excludedRef.current);
@@ -437,31 +327,22 @@ export function useMediaEngine({
   const handleFetchAllVideos = async (): Promise<void> => {
     const targets = pendingVideos(state.filteredImages);
     if (!targets.length) return;
-    const generation = resolveGenRef.current; // snapshot: a rescan/deep-scan bumps this
+    const generation = resolveGenRef.current;
     const srcs = targets.map((t) => t.src);
     setFetchingAllVideos(true);
     setFetchingSrcs((p) => { const n = new Set(p); srcs.forEach((s) => n.add(s)); return n; });
     setResolveFailedSrcs((p) => { const n = new Set(p); srcs.forEach((s) => n.delete(s)); return n; });
-    // Indeterminate — the resolve happens in one background batch with no per-item signal.
     setProgress({ label: 'Fetching videos', done: 0, total: 0 });
 
     let resolved: Awaited<ReturnType<typeof requestResolveOriginals>>;
     try {
       resolved = await requestResolveOriginals(targets.map((t) => ({ src: t.src, hint: t.resolveHint! })));
     } finally {
-      // Always clear the in-flight UI — even if the resolve throws — so the batch
-      // button and the per-item spinners never stick.
       setProgress(null);
       setFetchingAllVideos(false);
       setFetchingSrcs((p) => { const n = new Set(p); srcs.forEach((s) => n.delete(s)); return n; });
     }
-    // If a rescan replaced the grid while we were resolving, these results are stale
-    // (their srcs may now belong to different items) — discard them (like enrichOriginals).
     if (generation !== resolveGenRef.current) return;
-    // Keyed on the raw resolver result: only truly-unresolved items are failures.
-    // A gated HLS-only item (resolved, but capture off → applyResolved returns
-    // null below) is NOT a failure — it stays quietly pending, same as the single
-    // handleFetchVideo path.
     const failed = srcs.filter((s) => !resolved[s]);
     if (failed.length) setResolveFailedSrcs((p) => { const n = new Set(p); failed.forEach((s) => n.add(s)); return n; });
 
@@ -474,8 +355,6 @@ export function useMediaEngine({
     if (!byOldSrc.size) return;
     const swap = (list: ImageInfo[]) => list.map((i) => byOldSrc.get(i.src) ?? i);
     rawImagesRef.current = swap(rawImagesRef.current);
-    // Re-derive the filtered view so every swapped video is re-sorted + re-gated
-    // by the active toolbar filter, matching the auto resolveOriginals path.
     setState((prev) => {
       const images = swap(prev.images);
       const eligible = filterExcluded(filterImagesBySettings(images, settingsRef.current), excludedRef.current);

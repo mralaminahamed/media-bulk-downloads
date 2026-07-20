@@ -23,8 +23,6 @@ export function isInjectableUrl(url: string | undefined): boolean {
  */
 export function updateTabActionMode(tabId: number, url: string | undefined): void {
   const useBubble = currentSettings.bubbleEnabled && isInjectableUrl(url);
-  // WXT emits the popup as popup.html; restoring the toolbar popup must point at
-  // that file (the old crxjs build used index.html).
   chrome.action.setPopup({ tabId, popup: useBubble ? '' : 'popup.html' });
 }
 
@@ -68,14 +66,8 @@ export function updateAllTabsBadges(): void {
  * Update the badge text for the given tab.
  */
 export function updateTabBadge(tabId: number): void {
-  // Await the settings + blocklist caches so a cold-started worker (woken by a
-  // tab switch/update) doesn't count against an empty excludedCache and briefly
-  // over-count blocklisted items — the same gate the download paths use.
   void Promise.all([settingsReady, excludedReady]).then(() => {
     chrome.tabs.sendMessage(tabId, 'GET_IMAGES', (images: ImageInfo[]) => {
-      // Tabs without a content script (chrome://, the web store, etc.) surface a
-      // lastError. Clear any stale badge — e.g. the '...' placeholder set while
-      // the tab was loading — instead of leaving it stuck on that tab.
       if (chrome.runtime.lastError) {
         chrome.action.setBadgeText({ text: '', tabId });
         return;

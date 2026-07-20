@@ -2,10 +2,6 @@ import { MediaCandidate, Resolver, ResolveContext } from '@mbd/core/resolvers/ty
 import { imageExtFromUrl } from '@mbd/core/collection/mediaType';
 import { parseSrcset } from '@mbd/core/collection/imageUrl';
 
-// Der Spiegel image CDN. Rendition filename shape:
-//   /images/<uuid>_w<width>_r<ratio>_fpx<x>_fpy<y>.<ext>
-// <uuid> is a unique image id shared by every width/crop/format rendition of one
-// photo; <width> is the pixel width; <ratio> is width/height.
 const SPIEGEL_HOST = 'cdn.prod.www.spiegel.de';
 const SPIEGEL_IMG = /^\/images\/([0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})_w(\d+)_r([\d.]+)_/i;
 
@@ -51,8 +47,6 @@ export const spiegelResolver: Resolver = {
     const input = parseSpiegel(u.href);
     if (!input) return [];
 
-    // Widen to the largest same-<uuid> rendition offered by this element's srcset
-    // (and, for a <picture>, its sibling <source>s). Only same-uuid, only wider.
     let best = input;
     const el = ctx.el;
     if (el && typeof el.getAttribute === 'function') {
@@ -62,8 +56,6 @@ export const spiegelResolver: Resolver = {
         for (const attr of ['srcset', 'data-srcset', 'data-lazy-srcset']) {
           const ss = e.getAttribute(attr);
           if (!ss) continue;
-          // Take the widest SAME-uuid candidate (an <img> srcset is one photo, but a
-          // <picture>'s <source>s can mix crops; never adopt a neighbour photo's URL).
           for (const cand of parseSrcset(ss)) {
             const p = parseSpiegel(cand);
             if (p && p.uuid === input.uuid && p.width > best.width) best = p;

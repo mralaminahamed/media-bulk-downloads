@@ -16,8 +16,6 @@
 import { stripUrlSecrets } from '@mbd/core/net/url-secrets';
 import { streamQualityToEngine, StreamQuality } from '@mbd/core/download/stream/quality';
 
-// Re-exported so existing importers (and tests) keep resolving it here; the
-// implementation now lives in net/url-secrets so #284's sidecar shares it.
 export { stripUrlSecrets };
 
 export type StreamCommandEngine = 'yt-dlp' | 'ffmpeg';
@@ -63,19 +61,14 @@ export function buildStreamCommand({ manifestUrl, engine, referer, userAgent, au
     if (userAgent) parts.push('-user_agent', shellQuote(userAgent));
     if (ref) parts.push('-headers', shellQuote(`Referer: ${ref}`));
     parts.push('-i', shellQuote(url));
-    // Audio-only: drop video and stream-copy the audio track to an .m4a; otherwise
-    // stream-copy the whole thing to .mp4. No re-encode either way (`-c copy`).
     if (audioOnly) parts.push('-vn', '-c:a', 'copy', shellQuote('out.m4a'));
     else parts.push('-c', 'copy', shellQuote('out.mp4'));
     return parts.join(' ');
   }
 
   const parts = ['yt-dlp'];
-  if (audioOnly) parts.push('-x'); // --extract-audio: keep only the audio track
+  if (audioOnly) parts.push('-x');
   else if (quality) {
-    // Honor the user's stream-quality preference via yt-dlp's format sorter.
-    // A numeric height sorts by closeness to it; 'lowest' sorts ascending so the
-    // worst rendition wins; 'highest' needs nothing (yt-dlp's default is best).
     const sel = streamQualityToEngine(quality);
     if (typeof sel === 'number') parts.push('-S', shellQuote(`res:${sel}`));
     else if (sel === 'lowest') parts.push('-S', shellQuote('+res'));

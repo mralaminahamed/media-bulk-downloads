@@ -65,7 +65,6 @@ describe('spiegelResolver — resolve', () => {
     const picture = document.createElement('picture');
     picture.appendChild(source);
     picture.appendChild(image);
-    // even a candidate from the narrower <source> crop resolves to the picture-wide max
     const [c] = run(img(1040, '1.33'), image);
     expect(c.url).toBe(img(1920, '1.5'));
     expect(c.width).toBe(1920);
@@ -82,12 +81,12 @@ describe('spiegelResolver — resolve', () => {
     const other = 'https://cdn.prod.www.spiegel.de/images/8891568e-f25f-4650-87b4-eab52a8f0c3e_w3000_r1.5_fpx50_fpy50.webp';
     const el = imgEl(img(488, '1.5'), `${other} 3000w, ${img(960, '1.5')} 960w`);
     const [c] = run(img(488, '1.5'), el);
-    expect(c.url).toBe(img(960, '1.5')); // not the 3000w other-uuid image
+    expect(c.url).toBe(img(960, '1.5'));
     expect(c.width).toBe(960);
   });
 
   it('derives ext from the path and rounds height from a non-integer ratio', () => {
     const [c] = run(img(520, '1.33', 'jpg'));
-    expect(c).toMatchObject({ kind: 'image', ext: 'jpg', width: 520, height: 391 }); // round(520/1.33)
+    expect(c).toMatchObject({ kind: 'image', ext: 'jpg', width: 520, height: 391 });
   });
 });

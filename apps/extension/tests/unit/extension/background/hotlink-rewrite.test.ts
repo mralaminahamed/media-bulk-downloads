@@ -8,7 +8,7 @@ let sessionRules: { id: number }[];
 let updateSessionRules: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
-  __resetRefererRuleIdsForTest();  // re-seed per test, as on a fresh SW launch
+  __resetRefererRuleIdsForTest();
   sessionRules = [];
   updateSessionRules = vi.fn(async (o: { addRules?: { id: number }[]; removeRuleIds?: number[] }) => {
     if (o.removeRuleIds) sessionRules = sessionRules.filter((r) => !o.removeRuleIds!.includes(r.id));

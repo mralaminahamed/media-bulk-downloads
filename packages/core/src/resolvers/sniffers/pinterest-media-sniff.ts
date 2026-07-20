@@ -132,9 +132,7 @@ export function extractPinterestMedia(root: unknown): PinterestMediaEntry[] {
     seen.add(node as object);
     const obj = node as Record<string, unknown>;
 
-    // Pinterest pin ids are long numeric strings; 6 is a loose floor rejecting short board/user/other ids.
     const id = typeof obj.id === 'string' && /^\d{6,}$/.test(obj.id) ? obj.id : inheritedId;
-    // Only pin-like objects emit: an explicit non-pin type (board/user/…) is skipped.
     const type = typeof obj.type === 'string' ? obj.type : null;
     const isPinLike = type === null || type === 'pin' || type === 'story';
     const hasCarousel = Array.isArray((obj.carousel_data as { carousel_slots?: unknown } | undefined)?.carousel_slots);

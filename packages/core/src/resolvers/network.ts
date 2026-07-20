@@ -173,8 +173,6 @@ async function twitter(id: string, deps: NetDeps): Promise<ResolvedMedia | null>
     const mp4 = pinnedUrl(best?.url, 'twimg.com');
     if (mp4) return { url: mp4 };
 
-    // No progressive mp4 — fall back to the x-mpegURL (HLS) master as a capturable
-    // stream. Live masters are refused later by captureHls (no EXT-X-ENDLIST).
     let hlsUrl: string | null = null;
     for (const d of details) {
       for (const v of d?.video_info?.variants ?? []) {
@@ -227,8 +225,6 @@ async function vimeo(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
     const prog = pinnedUrl(best?.url, 'vimeocdn.com');
     if (prog) return { url: prog };
 
-    // No progressive rendition — fall back to the HLS master (a .m3u8 to capture,
-    // never a direct download). Vimeo HLS is demuxed fMP4; #170 mux gives it sound.
     const hls = j?.request?.files?.hls;
     const cdns = hls?.cdns ?? {};
     const chosen = (hls?.default_cdn ? cdns[hls.default_cdn]?.url : undefined) ?? Object.values(cdns)[0]?.url;
@@ -283,10 +279,6 @@ async function rutube(id: string, deps: NetDeps): Promise<ResolvedMedia | null> 
   }
 }
 
-// Rumble media CDNs: the embedJS master lives on rumble.com, its variant
-// segments and progressive renditions on 1a-1791.com / *.rmbl.ws /
-// hugh.cdn.rumble.cloud (host varies by account/CDN), so the returned master is
-// pinned against this allowlist rather than a single suffix.
 const RUMBLE_HOSTS = ['rumble.com', '1a-1791.com', 'rmbl.ws', 'rumble.cloud'];
 
 /**
@@ -345,7 +337,6 @@ async function loom(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
       const mp4 = pinnedUrl(((await t.json()) as LoomTranscoded)?.url, 'loom.com');
       if (mp4) return { url: mp4 };
     }
-    // No transcoded mp4 (204 / empty) — fall back to the raw HLS master to capture.
     const r = await post('raw-url');
     if (!r.ok || r.status === 204) return null;
     const hls = pinnedUrl(((await r.json()) as LoomTranscoded)?.url, 'loom.com');
@@ -388,10 +379,6 @@ async function peertube(embedUrl: string, deps: NetDeps): Promise<ResolvedMedia 
     if (!r.ok) return null;
     const j = (await r.json()) as PeerTubeVideoDetail;
 
-    // Widest single downloadable file across the progressive web-video list and
-    // the per-rendition HLS list (both expose one complete file per resolution).
-    // `resolution.id` is the height; `fileUrl` is the direct asset (object-storage
-    // or instance), `fileDownloadUrl` the instance /download proxy as a fallback.
     let best: { h: number; url: string } | null = null;
     for (const f of [...(j.files ?? []), ...(j.streamingPlaylists?.[0]?.files ?? [])]) {
       const url = safeFederatedUrl(f?.fileUrl) ?? safeFederatedUrl(f?.fileDownloadUrl);
@@ -401,8 +388,6 @@ async function peertube(embedUrl: string, deps: NetDeps): Promise<ResolvedMedia 
     }
     if (best) return { url: best.url };
 
-    // No direct file exposed (HLS-only instance) — hand the master to the HLS
-    // engine, which muxes the demuxed audio rendition so the capture has sound.
     const master = safeFederatedUrl(j.streamingPlaylists?.[0]?.playlistUrl);
     return master ? { url: master, hls: true } : null;
   } catch {
@@ -432,16 +417,10 @@ async function resolvePdsHost(did: string, deps: NetDeps): Promise<string | null
     docUrl = `https://plc.directory/${encodeURIComponent(did)}`;
   } else if (did.startsWith('did:web:')) {
     const domain = did.slice('did:web:'.length);
-    // Bare hostname only — no ports/paths (a colon or slash would let the DID
-    // steer the fetch off a plain host). Out of scope by design.
     if (!/^[a-z0-9.-]+$/i.test(domain)) return null;
     docUrl = `https://${domain}/.well-known/did.json`;
   }
   if (!docUrl) return null;
-  // The did:web domain is page-controlled, so the doc fetch runs through the
-  // same SSRF guard the capture engines use — a bare-hostname check alone would
-  // still allow did:web:169.254.169.254 / localhost / 10.0.0.1 to steer this
-  // fetch (from the <all_urls>, CORS-free background realm) at an internal host.
   if (!isSafeCaptureUrl(docUrl)) return null;
   const r = await deps.fetch(docUrl);
   if (!r.ok) return null;
@@ -460,8 +439,6 @@ async function bsky(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
     if (parts.length !== 3) return null;
     const [kind, did, cid] = parts;
     if (kind === 'video') {
-      // The AppView serves video at video.bsky.app/watch/<did>/<cid>/playlist.m3u8
-      // with the DID percent-encoded — exactly what encodeURIComponent produces.
       const url = `https://video.bsky.app/watch/${encodeURIComponent(did)}/${encodeURIComponent(cid)}/playlist.m3u8`;
       return pinnedUrl(url, 'bsky.app') ? { url, hls: true } : null;
     }
@@ -469,9 +446,6 @@ async function bsky(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
     const pds = await resolvePdsHost(did, deps);
     if (!pds) return null;
     const url = `${pds}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`;
-    // The PDS origin comes from the (page-influenced) did document's
-    // serviceEndpoint, so guard the getBlob URL too before it becomes a download
-    // target — a malicious did:web doc could otherwise point it at an internal host.
     if (!isSafeCaptureUrl(url)) return null;
     return pinnedUrl(url, new URL(pds).hostname) ? { url } : null;
   } catch {
@@ -533,8 +507,6 @@ function reddit(id: string): ResolvedMedia | null {
  */
 async function pinterest(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
   try {
-    // The hint id is the numeric pin id from the resolver; reject anything else
-    // before it reaches the query string.
     if (!/^\d+$/.test(id)) return null;
     const r = await deps.fetch(`https://widgets.pinterest.com/v3/pidgets/pins/info/?pin_ids=${encodeURIComponent(id)}`);
     if (!r.ok) return null;
@@ -635,11 +607,6 @@ function largestImg(html: string): string | null {
   return best;
 }
 
-// The page HTML is attacker-controlled (a visited site's gallery/"view" page);
-// cap it before the regex passes so a crafted page with many `<meta`/`<img`
-// prefixes each trailing a long `[^>]` run can't drive polynomial backtracking
-// and stall the worker. Social-card meta + image_src live in `<head>`, well
-// within this; the `largestImg` fallback simply sees fewer candidates.
 const GALLERY_HTML_SCAN_CAP = 512 * 1024;
 
 /** Extract the main image from a host/"view" page's HTML (regex only — no
@@ -728,8 +695,6 @@ async function redgifs(id: string, deps: NetDeps): Promise<ResolvedMedia | null>
   }
 }
 
-// Sankaku post ids are short base64url tokens (e.g. `vkr3E7Yo8MZ`); constrain the
-// id before it reaches the request path.
 const SANKAKU_POST_ID = /^[A-Za-z0-9_-]{1,40}$/;
 interface SankakuDetailData { file_url?: string }
 interface SankakuDetailResponse { data?: SankakuDetailData; file_url?: string }
@@ -771,7 +736,6 @@ function ninegag(id: string): ResolvedMedia | null {
   return pinnedUrl(url, '9cache.com') ? { url } : null;
 }
 
-// Twitch serves clip mp4s from two CDN families (current + legacy); accept either.
 const TWITCH_CLIP_HOSTS = ['twitchcdn.net', 'twitch.tv'];
 
 /**
@@ -787,7 +751,6 @@ const TWITCH_CLIP_HOSTS = ['twitchcdn.net', 'twitch.tv'];
  * both the single-object and array (batched-op) GQL envelope shapes.
  */
 async function twitch(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
-  // The hint id is either a bare clip slug or `'vod <numericId>'` (twitchVodId).
   const vod = /^vod (\d+)$/.exec(id);
   if (vod) return twitchVod(vod[1], deps);
   try {
@@ -864,8 +827,6 @@ async function twitchVod(vodId: string, deps: NetDeps): Promise<ResolvedMedia | 
   }
 }
 
-// SoundCloud's web bundles (which carry the anonymous client_id) load from
-// a-v2.sndcdn.com; the id is embedded as `client_id:"…"` / `client_id="…"`.
 const SC_BUNDLE_RE = /https:\/\/a-v2\.sndcdn\.com\/assets\/[0-9a-zA-Z._-]+\.js/g;
 
 /** Scrape an anonymous client_id from the track page's app bundles (the id lives in
@@ -916,7 +877,6 @@ async function soundcloud(pageUrl: string, deps: NetDeps): Promise<ResolvedMedia
     const hls = transcodings.find((x) => x?.format?.protocol === 'hls' && typeof x.url === 'string');
     const progressive = transcodings.find((x) => x?.format?.protocol === 'progressive' && typeof x.url === 'string');
     const chosen = hls ?? progressive;
-    // The transcoding endpoint is on api-v2.soundcloud.com (…soundcloud.com family).
     const api = pinnedUrl(chosen?.url, 'soundcloud.com');
     if (!api) return null;
 

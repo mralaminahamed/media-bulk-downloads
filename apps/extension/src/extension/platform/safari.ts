@@ -20,9 +20,6 @@ export const safariDownloader: Downloader = {
     try {
       let href = req.url;
       let objectUrl: string | undefined;
-      // Cross-origin http(s) media must be fetched to a blob first — a bare
-      // <a download href="https://other-origin/…"> navigates instead of saving.
-      // The extension holds host permissions, so the fetch is CORS-free.
       if (/^https?:/i.test(req.url)) {
         const res = await fetch(req.url);
         if (!res.ok) return undefined;
@@ -31,15 +28,12 @@ export const safariDownloader: Downloader = {
       }
       const a = document.createElement('a');
       a.href = href;
-      a.download = req.filename.split('/').pop() ?? req.filename; // no subdirs on the anchor
+      a.download = req.filename.split('/').pop() ?? req.filename;
       a.rel = 'noopener';
       document.body.appendChild(a);
       a.click();
       a.remove();
       if (objectUrl) setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
-      // No real download id exists; return a synthetic monotonic-ish id so the
-      // caller treats it as "started". History/dedupe simply won't have on-disk
-      // state to reconcile against (search() returns []).
       return 1;
     } catch {
       return undefined;

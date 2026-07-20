@@ -16,7 +16,7 @@ describe('downloadedOnDiskKeys', () => {
     ]);
     const keys = await downloadedOnDiskKeys();
     expect(keys.has('https://x/a.png')).toBe(true);
-    expect(keys.has('https://x/b.png')).toBe(false); // deleted → not on disk
+    expect(keys.has('https://x/b.png')).toBe(false);
   });
 
   it('degrades to an empty set when the download search throws', async () => {

@@ -1,7 +1,6 @@
 import { MediaCandidate } from '@mbd/core/resolvers/types';
 import { imageExtFromUrl } from '@mbd/core/collection/mediaType';
 
-// A Patreon post page: `patreon.com/posts/<slug>-<id>` (or a bare `/posts/<id>`).
 function isPatreonHost(host: string): boolean {
   return host === 'patreon.com' || host.endsWith('.patreon.com');
 }
@@ -15,14 +14,9 @@ export function patreonPostId(raw: string | URL): string | null {
     return null;
   }
   if (!isPatreonHost(u.hostname.toLowerCase())) return null;
-  // /posts/<slug>-<id> or /posts/<id> — the id is the trailing digit run.
   return u.pathname.match(/\/posts\/(?:[^/]*?-)?(\d+)(?:[/?#]|$)/)?.[1] ?? null;
 }
 
-// A post's media lives on the Patreon CDN under the post's own id:
-// /patreon-media/p/post/<postId>/<mediaHash>/<transform>/<file>?<signed>. Scoping
-// the scan to <postId> keeps campaign avatars/covers (/p/campaign/…) and other
-// posts' feed media (the recommended rail, /p/post/<otherId>/…) from leaking in.
 function mediaRe(postId: string): RegExp {
   return new RegExp(
     `https://[a-z0-9]+\\.patreonusercontent\\.com/\\d+/patreon-media/p/post/${postId}/([0-9a-f]+)/([^/?"'\\s]+)/([^/?"'\\s]+)(\\?[^"'\\s<>]*)?`,
@@ -70,7 +64,7 @@ export function patreonImagesFromHtml(html: string, postId: string): MediaCandid
   while ((m = re.exec(html)) !== null) {
     const [url, mediaHash, transform, file] = m;
     const ext = imageExtFromUrl(file);
-    if (!ext) continue; // non-image attachment (mp4/pdf/zip/…) — image scope only
+    if (!ext) continue;
     const key = `${mediaHash}/${file}`;
     const rank = transformRank(transform);
     const prev = best.get(key);

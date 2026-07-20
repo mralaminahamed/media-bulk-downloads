@@ -4,7 +4,6 @@ import type { Page } from '@playwright/test';
 
 const fbItem = (page: Page) => page.locator('figure', { has: page.locator('img[src*="fbcdn"]') });
 
-// Open a second page in the SAME context (same profile/storage) and its bubble.
 async function secondPage(page: Page): Promise<Page> {
   const p2 = await page.context().newPage();
   await p2.goto('/media.html');
@@ -22,7 +21,6 @@ test.describe('cross-page persistence', () => {
     await page.getByRole('menuitem', { name: /exclude site/i }).click();
     await expect(fbItem(page)).toHaveCount(0);
 
-    // A brand-new page collects fresh, but the exclusion is already in effect.
     const p2 = await secondPage(page);
     await expect(fbItem(p2)).toHaveCount(0);
     await expect(p2.getByRole('button', { name: 'View Details' })).toHaveCount(4);

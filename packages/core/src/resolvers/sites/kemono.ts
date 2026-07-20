@@ -1,11 +1,6 @@
 import { MediaCandidate } from '@mbd/core/resolvers/types';
 import { imageExtFromUrl, extensionFromUrl } from '@mbd/core/collection/mediaType';
 
-// Kemono / Coomer are a Patreon/Fanbox/etc. mirror running the same software on a
-// rotating set of TLDs. A single post lives at `/<service>/user/<id>/post/<postId>`
-// and server-renders its files/attachments as `<a href>` / `<img src>` pointing at
-// `<host>/data/<hash>.<ext>?f=<name>` (public paths, no token) — so the originals
-// are already in the markup, no API call needed.
 const KEMONO_HOST_RE = /^(?:www\.)?(?:kemono|coomer)\.(?:cr|su|st|party)$/i;
 
 function isKemonoHost(host: string): boolean {
@@ -36,9 +31,6 @@ export function kemonoPostRef(raw: string | URL): KemonoPostRef | null {
   return { host, service: m[1], creatorId: m[2], postId: m[3] };
 }
 
-// A data URL's kind+ext, from the path extension or the `?f=<name>` filename hint
-// (some data paths carry the extension only on the download-name param). Only
-// image/gif/video are surfaced; archives/psd/audio attachments return null.
 function classifyDataUrl(url: string): { kind: 'image' | 'video' | 'gif'; ext: string } | null {
   const pathImg = imageExtFromUrl(url);
   if (pathImg) return { kind: pathImg === 'gif' ? 'gif' : 'image', ext: pathImg };
@@ -72,7 +64,7 @@ export function kemonoMediaFromHtml(html: string, ref: KemonoPostRef): MediaCand
   let m: RegExpExecArray | null;
   while ((m = re.exec(html)) !== null) {
     const url = m[1];
-    if (/\/thumbnail\//i.test(url)) continue; // preview server, not the original
+    if (/\/thumbnail\//i.test(url)) continue;
     let host: string;
     try {
       host = new URL(url).hostname.toLowerCase();

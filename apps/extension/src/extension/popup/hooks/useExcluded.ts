@@ -30,11 +30,6 @@ export function useExcluded(): UseExcludedResult {
     return () => chrome.storage.onChanged.removeListener(onChanged);
   }, []);
 
-  // Hide excluded media from the grid immediately, before the background's write
-  // round-trips back through storage.onChanged (which reconciles to the same
-  // state). Mirrors the optimistic favourite update in useFavourites. A 'url'
-  // exclusion is keyed by the src's canonical key; a 'host' exclusion by its
-  // registrable domain.
   const applyExcludedOptimistic = (updates: { kind: ExcludedKind; value: string; src: string }[]): void => {
     let urls = excludedRef.current.urls;
     const hosts = new Set(excludedRef.current.hosts);

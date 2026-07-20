@@ -83,32 +83,18 @@ type MessageRouter = {
 };
 
 export const messageRouter: MessageRouter = {
-  // Passive sniffer feed from the x.com content script (per tab). Fire-and-forget.
   X_MEDIA_SEEN: (message, sender) => {
     if (sender.tab?.id != null) storeSniffedMedia(sender.tab.id, message.pairs);
   },
 
   DOWNLOAD_IMAGES: (message, _sender, respond) => {
     const { images, sourcePage } = message;
-    // Wait for settings so the filter and the built filenames use the user's
-    // real settings, not defaults, when this message woke the worker. The popup
-    // bulk-download path hands items to the persistent queue (retry/resume/
-    // concurrency + real per-file success tracking, #196) rather than firing
-    // chrome.downloads directly; history is recorded on actual completion, not
-    // on dispatch. The response reports how many were queued.
     void Promise.all([settingsReady, excludedReady]).then(async () => {
       try {
-        // An explicit re-download (Favourites/History panel) bypasses the
-        // collection filters — the user picked these exact items, so a later
-        // size/blocklist change must not silently drop them (as the context-menu
-        // single download already does). Grid downloads re-filter as before.
         const eligible = message.explicit
           ? images
           : filterExcluded(filterImagesBySettings(images, currentSettings), excludedCache);
 
-        // Skip images already on disk (non-explicit downloads only, when enabled).
-        // Explicit re-downloads (Favourites/History) are exactly what the user
-        // asked for and must never be skipped.
         let skipped = 0;
         let toDownload = eligible;
         if (!message.explicit && currentSettings.skipDuplicateDownloads) {
@@ -118,17 +104,9 @@ export const messageRouter: MessageRouter = {
           skipped = part.skipped.length;
         }
 
-        // De-collide filenames within this batch so distinct images that derive
-        // the same name save as image.png / image-2.png instead of Chrome's
-        // " (2)". conflictAction:'uniquify' (in the queue) stays as the
-        // cross-batch safety net.
         const paths = uniquifyBatchNames(
           toDownload.map((image, index) => buildDownloadFilename(image, index, currentSettings, sourcePage?.url)),
         );
-        // #284: attach a serialized <name>.json provenance sidecar to each queue
-        // entry when enabled. The dispatcher writes it beside the file under its
-        // ACTUAL on-disk name on completion (see sidecar-writer), so it can't
-        // diverge from a media file Chrome uniquified (I6).
         const capturedAt = new Date().toISOString();
         const entries: EnqueueEntry[] = toDownload.map((image, i) => {
           const filename = paths[i];
@@ -138,26 +116,20 @@ export const messageRouter: MessageRouter = {
             kind: image.kind,
             type: image.type,
             thumbnailSrc: image.thumbnailSrc ?? image.poster ?? image.src,
-            // Per-item source for multi-tab batches (#283); batch default otherwise.
             sourcePageUrl: image.sourcePage?.url ?? sourcePage?.url ?? '',
             sourcePageTitle: image.sourcePage?.title ?? sourcePage?.title,
           };
           const entry: EnqueueEntry = { url: image.src, filename, history };
-          // Prefer the item's own source page (multi-tab batches, #283) so the
-          // sidecar's provenance matches the history row + download folder above —
-          // otherwise a tab-B image gets a sidecar naming the active tab A.
           if (currentSettings.metadataSidecar) entry.sidecar = serializeSidecar(buildMediaSidecar(image, image.sourcePage ?? sourcePage, capturedAt));
           return entry;
         });
         const queued = await enqueueDownloads(entries);
         respond({ status: 'success', message: queuedSkipMessage(queued, skipped) });
       } catch (e) {
-        // Without this the port stays open and the popup hangs on "Sending…"
-        // forever if the queue write (a storage.local set near quota) rejects.
         respond({ status: 'error', message: `Queue failed: ${e instanceof Error ? e.message : 'unknown error'}` });
       }
     });
-    return true; // response is sent asynchronously after the items are enqueued
+    return true;
   },
   QUEUE_PAUSE: (_message, _sender, respond) => {
     void pauseQueue().then(() => respond({ status: 'success', message: 'Paused' }));
@@ -191,11 +163,6 @@ export const messageRouter: MessageRouter = {
 
   DOWNLOAD_ZIP: (message, _sender, respond) => {
     const { b64, filename } = message;
-    // Wait for settings so `saveAs` reflects the user's real preference even
-    // when this message woke the worker. Service workers have no
-    // URL.createObjectURL, so a base64 data URL is the only in-SW way to give
-    // chrome.downloads the archive bytes; the popup base64-encodes them (a string
-    // survives message serialization; a Uint8Array would not).
     void settingsReady.then(() => {
       const url = `data:application/zip;base64,${b64}`;
       chrome.downloads.download(
@@ -210,13 +177,11 @@ export const messageRouter: MessageRouter = {
         },
       );
     });
-    return true; // response sent asynchronously after the download dispatches
+    return true;
   },
 
   DOWNLOAD_TEXT: (message) => {
     const { filename, text, mime } = message;
-    // Same rationale as DOWNLOAD_ZIP: the SW has no URL.createObjectURL, so a
-    // base64 data URL is how text (a URL list / JSON backup) reaches downloads.
     void settingsReady.then(() => {
       const url = `data:${mime};base64,${textToBase64(text)}`;
       chrome.downloads.download(
@@ -230,10 +195,6 @@ export const messageRouter: MessageRouter = {
     const { filename, b64, mime, source } = message;
     void settingsReady.then(() => {
       const url = `data:${mime};base64,${b64}`;
-      // #284: provenance sidecar for the converted file. The source carries the
-      // original alt/dimensions + output ext, so the .json's `format` matches the
-      // saved file. Built here; WRITTEN by sidecar-writer once the media download
-      // completes, named from its ACTUAL on-disk name so it can't diverge (I6).
       const sidecarJson = currentSettings.metadataSidecar && source
         ? serializeSidecar(buildMediaSidecar(
             { src: source.src, alt: source.alt ?? '', width: source.width ?? 0, height: source.height ?? 0, type: source.type, kind: source.kind, ext: source.ext, fileSize: source.fileSize },
@@ -246,9 +207,6 @@ export const messageRouter: MessageRouter = {
         (downloadId) => {
           if (chrome.runtime.lastError || downloadId === undefined) return;
           if (sidecarJson) scheduleSidecar(downloadId, filename, sidecarJson);
-          // Record the ORIGINAL src so a converted image gets the "already
-          // downloaded" mark + dedup like a plain download (history was silently
-          // skipped for the whole convert-on-download path).
           if (!source) return;
           void recordDownloads([{
             src: source.src,
@@ -266,51 +224,32 @@ export const messageRouter: MessageRouter = {
     });
   },
 
-  // Persist a settings patch through the single serialized writer (see
-  // writeSettingsPatch) so popup + bubble writes never clobber each other, then
-  // push the merged result to every tab's content script (SETTINGS_CHANGED) so
-  // the on-page bubble applies live. Safari content scripts don't fire
-  // storage.onChanged for sync writes, so this broadcast — not the storage event
-  // — is what drives them (Chrome/Firefox get it the same way, uniformly).
   SET_SETTINGS: (message) => {
     void writeSettingsPatch(message.patch).then((settings) => broadcastSettings(settings));
   },
 
-  // A content script's initial settings read. Content scripts can't reliably read
-  // chrome.storage.sync on Safari, so the bubble asks the background (the settings
-  // owner) instead. Await the gate so a cold worker never answers DEFAULT_SETTINGS.
   GET_SETTINGS: (_message, _sender, respond) => {
     void settingsReady.then(() => respond(currentSettings));
-    return true; // response sent asynchronously
+    return true;
   },
 
-  // Persist or clear a per-host settings override (#293). A separate key in a
-  // separate storage area from global 'settings', so this can never clobber a
-  // concurrent global write; the store's own serialized chain orders per-host writes.
   SET_PER_HOST_SETTINGS: (message) => {
     if (message.patch === null) {
       void clearPerHostSettings(message.host);
-      void clearScanMemoryForHost(message.host); // also drop learned scan memory (#293 phase-2)
+      void clearScanMemoryForHost(message.host);
     } else void savePerHostSettings(message.host, message.patch);
   },
 
-  // Persist a host's learned deep-scan memory. Routed here (not written directly in
-  // the content script) so save + clear share the background's single serialized
-  // writer and can't clobber each other across tabs/contexts (#293 phase-2).
   SAVE_SCAN_MEMORY: (message) => {
     void saveScanMemoryForHost(message.host, message.sample);
   },
 
-  // Replace favourites + history + excluded from an imported backup, in the single-writer realm.
   RESTORE_DATA: (message) => {
     void restoreFavourites(message.favourites);
     void restoreHistory(message.history);
     void restoreExcluded(message.excluded);
   },
 
-  // Content scripts (the bubble) can't call chrome.downloads; routing both popup
-  // and bubble through here keeps one code path. open() takes no callback, so a
-  // stale/removed id surfaces only as an async runtime.lastError, not a throw.
   OPEN_DOWNLOAD_FILE: (message) => {
     chrome.downloads.open(message.downloadId);
   },
@@ -319,40 +258,26 @@ export const messageRouter: MessageRouter = {
     chrome.downloads.show(message.downloadId);
   },
 
-  // On-disk truth for the "already downloaded" tile mark. Only the background
-  // realm can call chrome.downloads, so the popup and bubble both ask here. One
-  // search over the download records, indexed by id — cheaper than one lookup per
-  // history entry — then the pure filter decides what's still present.
   GET_DOWNLOADED_SRCS: (_message, _sender, respond) => {
     void (async () => {
       try {
         const history = await loadHistory();
-        // limit:0 = no row cap. The default (1000, most-recent browser-wide) would
-        // drop a heavy downloader's older extension entries out of the window, so
-        // srcsStillOnDisk would treat those still-on-disk files as deleted and
-        // re-offer them for download.
         const items = await chrome.downloads.search({ limit: 0 });
         const existsById = new Map(items.map((it) => [it.id, it.exists]));
         const stateById = (id: number): DiskState =>
           existsById.has(id) ? (existsById.get(id) ? 'exists' : 'deleted') : 'unknown';
         respond(srcsStillOnDisk(history, stateById));
       } catch {
-        // Degrade to "nothing known downloaded" rather than leave the port open.
         respond([]);
       }
     })();
-    return true; // response is sent asynchronously
+    return true;
   },
 
-  // The URL is page-derived (a media/source URL from history); only ever open
-  // real web pages, never javascript:/data:/file: schemes.
   OPEN_URL: (message) => {
     if (/^https?:\/\//i.test(message.url)) void chrome.tabs.create({ url: message.url });
   },
 
-  // History + favourite + excluded mutations are routed here so every write
-  // (downloads + user edits) happens in the background realm and serializes
-  // through one write chain.
   CLEAR_HISTORY: () => { void clearHistory(); },
   REMOVE_HISTORY_ENTRY: (message) => { void removeEntry(message.src); },
   ADD_FAVOURITE: (message) => { void addFavourite(message.entry); },
@@ -363,23 +288,14 @@ export const messageRouter: MessageRouter = {
   CLEAR_EXCLUDED: () => { void clearExcluded(); },
 
   RESOLVE_ORIGINALS: (message, sender, respond) => {
-    // Dedup hints by src before resolving.
     const seen = new Set<string>();
     const hints = message.hints.filter((h) => {
       if (seen.has(h.src)) return false;
       seen.add(h.src);
       return true;
     });
-    // Resolve against the source tab's sniffed mp4 map first. The tab is the
-    // message sender (bubble/content); for a popup request there is no sender
-    // tab, so fall back to the active tab.
     const run = (tabId?: number) => {
       const sniffed = tabId != null ? snifferByTab.get(tabId) : undefined;
-      // Defense-in-depth: the message's `authed` flag is caller-controlled, so the
-      // cookie-bearing Sankaku authed fetch also requires the worker's OWN stored
-      // opt-in (sankakuAuthedOriginals, default off). A forged authed=true alone
-      // can't trigger a credentialed cross-origin fetch. settingsReady ensures the
-      // cached setting is loaded before this decision.
       void settingsReady.then(() => {
         const authed = message.authed === true && currentSettings.sankakuAuthedOriginals === true;
         resolveOriginalsBatch(hints, undefined, sniffed, authed).then((resolved) => respond({ resolved }));
@@ -387,24 +303,17 @@ export const messageRouter: MessageRouter = {
     };
     if (sender.tab?.id != null) run(sender.tab.id);
     else chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => run(tabs[0]?.id));
-    return true; // async
+    return true;
   },
 
   CAPTURE_STREAM: (message, sender, respond) => {
     const { runId, item, sourcePage, audioOnly, audioFormat, quality } = message;
-    // Track the originating tab under this run's id (unset for popup captures,
-    // whose sender.tab is undefined) so a CAPTURE_PROGRESS broadcast is relayed
-    // to it — and only it — even while other captures run concurrently.
     if (sender.tab?.id != null) captureRunTabs.set(runId, sender.tab.id);
-    // Everything after this fire lives in the background + offscreen doc — no
-    // dependency on the popup, so the download completes even if it closes.
     void settingsReady.then(async () => {
       try {
         const cap = await captureStreamToFile(item, sourcePage, runId, audioOnly, audioFormat, quality);
         captureRunTabs.delete(runId);
         if (!cap.ok) {
-          // Refused/undownloadable — surface the code so the popup can offer the
-          // "Copy download command" handoff (#285) instead of a dead end.
           respond({ status: streamErrorMessage(cap.code), refusal: { code: cap.code } });
           return;
         }
@@ -419,26 +328,14 @@ export const messageRouter: MessageRouter = {
         respond({ status: 'Couldn’t capture the stream.' });
       }
     });
-    return true; // response sent asynchronously
+    return true;
   },
 
-  // Fetch + parse a stream's master manifest so the popup can offer a per-stream
-  // rendition picker (#314). The SW holds <all_urls>, so this fetch is cross-origin
-  // and CORS-free. Failure is non-fatal to capture — the popup falls back to Auto.
   LIST_VARIANTS: (message, _sender, respond) => {
     const { manifestUrl, engine } = message;
     void (async () => {
       try {
-        // Same SSRF guard the capture engines apply to the manifest fetch: a
-        // page-controlled manifestUrl must not aim this <all_urls> fetch at an
-        // internal/loopback/link-local host. Throws → the catch below reports a
-        // non-fatal failure and no fetch happens.
         assertSafeCaptureUrl(manifestUrl);
-        // `redirect: 'error'` because assertSafeCaptureUrl only screens the initial
-        // URL — a public manifest host that 3xx-redirects to an internal target would
-        // otherwise be followed by this <all_urls>, CORS-free fetch (the capture
-        // engines wrap fetch the same way). readBoundedText caps the body so an
-        // endless/huge manifest can't OOM the worker.
         const text = await readBoundedText(await fetch(manifestUrl, { redirect: 'error' }));
         const variants = engine === 'dash'
           ? variantsFromMpd(text, manifestUrl)
@@ -448,14 +345,9 @@ export const messageRouter: MessageRouter = {
         respond({ ok: false, code: 'variant_list_failed' });
       }
     })();
-    return true; // response sent asynchronously
+    return true;
   },
 
-  // The offscreen doc broadcasts progress via runtime.sendMessage, which does not
-  // reach content-script contexts. Relay it to the capture's originating tab
-  // (looked up by runId) so that tab's bubble progress listener receives it — the
-  // popup, an extension page, already gets the broadcast directly and filters by
-  // runId. A runId with no mapped tab (a popup capture) relays nowhere.
   CAPTURE_PROGRESS: (message) => {
     const tabId = captureRunTabs.get(message.runId);
     if (tabId != null) {

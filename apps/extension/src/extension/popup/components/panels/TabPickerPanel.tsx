@@ -35,7 +35,6 @@ const TabPickerPanel: React.FC<TabPickerPanelProps> = ({ onClose, onConfirm, ini
   useEffect(() => {
     void loadTabs().then((list) => {
       setTabs(list);
-      // Drop any preselected id that is no longer open, so the count never lies.
       setSelected((prev) => new Set([...prev].filter((id) => list.some((t) => t.id === id))));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
