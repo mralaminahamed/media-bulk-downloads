@@ -5,7 +5,7 @@ through the [Opera developer dashboard](https://addons.opera.com/developer/):
 copy-paste listing fields, per-permission justifications, the privacy
 disclosures, required visual assets, and the packaging steps.
 
-Version at time of writing: **1.2.0** · Manifest **V3** (Chromium — the **same
+Version at time of writing: **1.3.0** · Manifest **V3** (Chromium — the **same
 package as the Chrome build**). This is the Opera sibling of
 [CHROME_WEBSTORE.md](./CHROME_WEBSTORE.md) and [EDGE_ADDONS.md](./EDGE_ADDONS.md);
 the listing copy is intentionally identical so every store matches.
@@ -374,7 +374,7 @@ is bundled/minified by WXT, so Opera requires this. Pin it to the tag matching t
 uploaded version:
 
 ```
-https://github.com/mralaminahamed/media-bulk-downloads/tree/v1.2.0
+https://github.com/mralaminahamed/media-bulk-downloads/tree/v1.3.0
 ```
 
 > Bump the tag each release so it always corresponds to the current package
@@ -392,13 +392,13 @@ Build environment
 Steps
 1. git clone https://github.com/mralaminahamed/media-bulk-downloads.git
 2. cd media-bulk-downloads
-3. git checkout v1.2.0            # the tag matching the uploaded version
+3. git checkout v1.3.0            # the tag matching the uploaded version
 4. corepack enable
 5. corepack yarn install --immutable
 6. corepack yarn zip             # builds and packages the Chromium zip
 
 Output
-- Uploaded package: apps/extension/.output/media-bulk-downloads-1.2.0-chrome.zip
+- Uploaded package: apps/extension/.output/media-bulk-downloads-1.3.0-chrome.zip
 - Unpacked build:   apps/extension/.output/chrome-mv3/  (its manifest.json matches the submitted package)
 Built with WXT (https://wxt.dev); no other tooling required.
 ```

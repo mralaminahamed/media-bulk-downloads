@@ -372,7 +372,6 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (SSRF-guarded).
 - **Per-stream rendition picker** (#314): pick the exact HLS/DASH quality per stream
   from the grid or preview, with a live preview of the chosen rendition.
-- 
 - **Stream capture quality** (#288): a global default — auto / best / worst / 1080 /
   720 / 480 — for which variant capture selects.
 - **Audio-only capture** (#204): extract just the audio track (M4A / AAC

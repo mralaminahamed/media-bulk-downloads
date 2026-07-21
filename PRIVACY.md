@@ -1,6 +1,6 @@
 # Privacy Policy — Media Bulk Downloads
 
-_Last updated: 2026-07-21_
+_Last updated: 2026-07-22_
 
 Media Bulk Downloads ("the extension") is a browser extension that finds images,
 video, and audio on the web page you are viewing and lets you preview, filter,
@@ -27,11 +27,24 @@ personal information.** All of its work happens locally in your browser.
   profile). No content, only preferences.
 - **Your download history** — via `chrome.storage.local`. A list of files you
   downloaded through the extension (filename, source page, timestamp, thumbnail
-  URL). It never leaves your device and you can clear it at any time from the
-  History panel.
+  URL).
+- **Your favourites** — a list of media you have starred to re-download later
+  (URL, thumbnail, source page). Local only.
+- **Your blocked/excluded sources** — hosts or URL patterns you chose to hide from
+  results. Local only, a list of your own choices.
+- **Your download queue** — the pending/in-progress batch, so it survives closing
+  the popup and resumes interrupted items. Local only.
 
-This data stays on your device (and, for settings, within your own Chrome sync
-account). The extension has no server and no analytics.
+For durability, history, favourites, blocked sources, and the queue are also
+mirrored to an on-device IndexedDB store (requested via `navigator.storage.persist()`)
+so the browser does not evict them under storage pressure. Everything here stays on
+your device (and, for settings, within your own Chrome sync account); the extension
+has no server and no analytics.
+
+You control all of it: clear download history from the History panel, and use
+**Settings → Data** to **reset all settings to defaults** or **clear all local
+data** (history, favourites, and blocked sources) in one step. You can also export
+any of it to a JSON file and re-import it (Settings → Backup).
 
 ## Network requests
 

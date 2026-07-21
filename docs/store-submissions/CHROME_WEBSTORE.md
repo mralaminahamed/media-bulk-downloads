@@ -4,7 +4,7 @@ Everything needed to publish **Media Bulk Downloads** to the Chrome Web Store:
 copy-paste listing fields, per-permission justifications, the privacy
 disclosures, required visual assets, and the packaging steps.
 
-Version at time of writing: **1.2.0** · Manifest **V3**.
+Version at time of writing: **1.3.0** · Manifest **V3**.
 
 > **Live listing:** https://chromewebstore.google.com/detail/media-bulk-downloads/jmdhkdengijmmkelofaleinbipophckn
 
@@ -25,13 +25,15 @@ Version at time of writing: **1.2.0** · Manifest **V3**.
 - [ ] `apps/extension/.output/media-bulk-downloads-<version>-chrome.zip` produced by `yarn zip`.
 - [ ] Single-purpose description, permission justifications, and data disclosures filled in (below).
 
-> **Adding permissions on an update:** the live listing is **1.2.0**. That release
-> (1.1.0 → 1.2.0) added the optional `declarativeNetRequestWithHostAccess` permission
-> (the hotlink-403 Referer retry) on top of the 1.1.0 permission set (`contextMenus`,
-> `offscreen`, optional `notifications`). Any update that adds a permission triggers a
-> fuller re-review; the optional ones are requested at runtime, so they don't
-> re-prompt existing users on update — fill a justification for each new permission
-> (§4) before submitting.
+> **Adding permissions on an update:** this submission is **1.3.0**; the previous
+> live listing is **1.2.0**. **1.3.0 adds no new permissions** — the manifest set is
+> unchanged from 1.2.0, so it triggers no fuller re-review and no re-permission
+> prompt for existing users. (For reference, the last permission change was
+> 1.1.0 → 1.2.0, which added the optional `declarativeNetRequestWithHostAccess`
+> permission — the hotlink-403 Referer retry.) Any *future* update that adds a
+> permission triggers a fuller re-review; the optional ones are requested at
+> runtime, so they don't re-prompt existing users on update — fill a justification
+> for each new permission (§4) before submitting.
 
 ---
 
@@ -204,7 +206,7 @@ view — it is not an auth or paywall bypass.
 The extension must read the media elements on whatever page the user runs it on,
 which can be any site. It activates only when the user opens the popup or enables
 the on-page panel. Small content scripts read the page's media; on a few sites
-(e.g. Instagram, X/Twitter, Facebook, Pinterest) a passive script observes the page's own media
+(e.g. Instagram, X/Twitter, Facebook, Pinterest, MangaDex) a passive script observes the page's own media
 network responses so posted images/videos resolve to real downloadable files —
 it reads only the request URLs/JSON the page itself already loaded and never
 sends them off-device. When the optional "resolve originals" setting is on, or
@@ -214,10 +216,16 @@ transmit page content for any other purpose.
 ```
 
 > **Content scripts / `commands`:** the manifest also declares keyboard shortcuts
-> (`commands`) and five content scripts — a page collector plus MAIN-world media
-> sniffers scoped to `instagram.com`, `x.com`, `twitter.com`, `facebook.com`, and `pinterest.com`. These are
-> manifest keys, not separate permissions, and are covered by the `<all_urls>`
-> justification above; mention them if a reviewer asks about the MAIN world.
+> (`commands`) and seven content scripts — one ISOLATED-world page collector
+> (`<all_urls>`, runs on open) plus six MAIN-world media sniffers. One sniffer is
+> host-agnostic: the **HLS/DASH manifest sniffer** (`<all_urls>`), which only reads
+> the request URLs of `.m3u8`/`.mpd` manifests the page's own player fetches so a
+> stream can be captured. The other five are host-scoped to `instagram.com`,
+> `x.com` + `twitter.com`, `facebook.com`, `pinterest.com`, and `mangadex.org`. All
+> read only the request URLs/JSON the page itself already loaded and send nothing
+> off-device. These are manifest keys, not separate permissions, and are covered by
+> the `<all_urls>` justification above; disclose the MAIN-world injection (esp. the
+> `<all_urls>` HLS sniffer) if a reviewer asks.
 
 ---
 
@@ -355,7 +363,7 @@ Release flow:
 ```bash
 # 1. bump version + cut CHANGELOG on a branch, merge to main
 # 2. tag the merge commit and push
-git tag -a v1.2.0 -m "v1.2.0" && git push origin v1.2.0
+git tag -a v1.3.0 -m "v1.3.0" && git push origin v1.3.0
 # → release.yml validates, builds, creates the GitHub Release,
 #   and (if secrets set) publishes to the Chrome Web Store.
 ```
