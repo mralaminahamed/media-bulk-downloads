@@ -355,6 +355,18 @@ const RULES: CdnRule[] = [
     },
   },
   {
+    // VK photos on the signed userapi CDN (`/s/v<n>/ig<n>/…?cs=WxH&u=<sig>`): the
+    // `cs=` display cap sits OUTSIDE the `u=` signature (verified — changing/removing
+    // it still serves the image), so dropping it returns the native-resolution
+    // original while the signature stays valid. Only fires on the signed ig photo
+    // path, leaving old path-based renditions and non-photo assets untouched.
+    match: (u) =>
+      /(?:^|\.)userapi\.com$/i.test(u.hostname)
+      && /\/s\/v\d+\/ig\d+\//i.test(u.pathname)
+      && u.searchParams.has('cs'),
+    rewrite: (u) => dropParams(u, ['cs']),
+  },
+  {
     match: (u) => /(^|\.)wp\.com$/.test(u.hostname) || /\.files\.wordpress\.com$/.test(u.hostname),
     rewrite: (u) => {
       dropParams(u, RESIZE_PARAMS);
