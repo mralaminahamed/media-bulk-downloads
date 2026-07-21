@@ -7,11 +7,6 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
-- **Per-kind fetch settings.** New **Fetch images / Fetch videos / Fetch audio**
-  toggles in Settings › Media (all on by default). Turn one off and that kind is
-  skipped everywhere — the grid, Download all, ZIP, and copy — persistently across
-  every page. Applied at the same gate as the HLS opt-in, so a change re-filters
-  instantly without re-scanning.
 - **VK photo originals.** Photos on VK's signed `userapi.com` CDN now upgrade to
   their native resolution — the extension drops the `cs=` display-cap while keeping
   the URL's signature, so you get the full-size upload instead of the on-page

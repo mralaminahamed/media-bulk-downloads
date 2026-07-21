@@ -63,19 +63,6 @@ describe('sankakuAuthedOriginals setting', () => {
   });
 });
 
-describe('per-kind fetch settings', () => {
-  it('default all three kinds on (collect everything)', () => {
-    expect(DEFAULT_SETTINGS.fetchImages).toBe(true);
-    expect(DEFAULT_SETTINGS.fetchVideo).toBe(true);
-    expect(DEFAULT_SETTINGS.fetchAudio).toBe(true);
-  });
-  it('withDefaults backfills them on for old stored settings and overlays an off override', () => {
-    expect(withDefaults({}).fetchAudio).toBe(true);
-    expect(withDefaults({ fetchAudio: false }).fetchAudio).toBe(false);
-    expect(withDefaults({ fetchAudio: false }).fetchImages).toBe(true);
-  });
-});
-
 describe('deep-scan cap settings', () => {
   it('default to the documented caps', () => {
     expect(DEFAULT_SETTINGS.deepScanMaxItems).toBe(1000);

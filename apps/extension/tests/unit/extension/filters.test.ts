@@ -26,7 +26,6 @@ const base: SettingsData = {
   bubblePanelPoint: { x: 40, y: 40 },
   resolveOriginals: false,
   sankakuAuthedOriginals: false,
-  fetchImages: true, fetchVideo: true, fetchAudio: true,
   captureHlsStreams: false, streamQuality: 'auto', audioFormat: 'm4a', metadataSidecar: false, nearDuplicateThreshold: 8,
   downloadConcurrency: 5,
   excludeEmoji: false,
@@ -86,26 +85,6 @@ describe('passesSettingsFilters', () => {
   });
   it('keeps emoji images when the setting is off', () => {
     expect(passesSettingsFilters(img({ src: 'https://abs.twimg.com/emoji/v2/svg/1f9f8.svg' }), base)).toBe(true);
-  });
-
-  it('drops a kind whose fetch gate is off', () => {
-    expect(passesSettingsFilters(img({ kind: 'image' }), { ...base, fetchImages: false })).toBe(false);
-    expect(passesSettingsFilters(img({ kind: 'video', type: 'mp4' }), { ...base, fetchVideo: false })).toBe(false);
-    expect(passesSettingsFilters(img({ kind: 'audio', type: 'mp3' }), { ...base, fetchAudio: false })).toBe(false);
-  });
-
-  it('keeps other kinds when only one fetch gate is off', () => {
-    const noAudio = { ...base, fetchAudio: false };
-    expect(passesSettingsFilters(img({ kind: 'image' }), noAudio)).toBe(true);
-    expect(passesSettingsFilters(img({ kind: 'video', type: 'mp4' }), noAudio)).toBe(true);
-    expect(passesSettingsFilters(img({ kind: 'audio', type: 'mp3' }), noAudio)).toBe(false);
-  });
-
-  it('drops everything when all three fetch gates are off', () => {
-    const none = { ...base, fetchImages: false, fetchVideo: false, fetchAudio: false };
-    expect(passesSettingsFilters(img({ kind: 'image' }), none)).toBe(false);
-    expect(passesSettingsFilters(img({ kind: 'video', type: 'mp4' }), none)).toBe(false);
-    expect(passesSettingsFilters(img({ kind: 'audio', type: 'mp3' }), none)).toBe(false);
   });
 });
 

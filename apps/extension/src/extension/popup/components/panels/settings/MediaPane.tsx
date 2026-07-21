@@ -47,27 +47,6 @@ const MediaPane: React.FC<SettingsPaneProps> = ({
       checked={settings.resolveOriginals}
       onToggle={() => toggle('resolveOriginals')}
     />
-    <ToggleRow
-      id="set-fetchImages"
-      label="Fetch images"
-      description="Include images (and GIFs) in results. Turn off to skip them everywhere — grid, Download all, ZIP, and copy."
-      checked={settings.fetchImages}
-      onToggle={() => toggle('fetchImages')}
-    />
-    <ToggleRow
-      id="set-fetchVideo"
-      label="Fetch videos"
-      description="Include video in results. Turn off to skip it everywhere — grid, Download all, ZIP, and copy."
-      checked={settings.fetchVideo}
-      onToggle={() => toggle('fetchVideo')}
-    />
-    <ToggleRow
-      id="set-fetchAudio"
-      label="Fetch audio"
-      description="Include audio in results. Turn off to skip it everywhere — grid, Download all, ZIP, and copy."
-      checked={settings.fetchAudio}
-      onToggle={() => toggle('fetchAudio')}
-    />
     {/* Stream capture assembles segments in a chrome.offscreen blob document,
         which Firefox has no equivalent for, so the feature isn't offered there
         (enabling it would only surface capture items that fail on click). */}

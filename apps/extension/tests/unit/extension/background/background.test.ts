@@ -284,7 +284,6 @@ describe('Background Script', () => {
         bubblePanelPoint: { x: 40, y: 40 },
         resolveOriginals: false,
         sankakuAuthedOriginals: false,
-        fetchImages: true, fetchVideo: true, fetchAudio: true,
         captureHlsStreams: false, streamQuality: 'auto', audioFormat: 'm4a', metadataSidecar: false, nearDuplicateThreshold: 8,
         downloadConcurrency: 5,
         excludeEmoji: false,
