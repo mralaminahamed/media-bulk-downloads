@@ -7,6 +7,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Odnoklassniki (ok.ru) videos.** Open a video on `ok.ru` and the extension now
+  lists the full-quality MP4 — it reads the page's own player metadata
+  (`data-options`) and picks the highest available progressive rendition, pinned to
+  the OK video CDN. Network-free; live-only streams are skipped.
 - **Itaku originals.** Art images on `itaku.ee` now upgrade from the sized
   thumbnail to the full original.
 - **Inkbunny originals.** Art images on Inkbunny now upgrade from the on-page
