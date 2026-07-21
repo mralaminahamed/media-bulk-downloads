@@ -24,7 +24,7 @@ done
 - Per-size **signed filenames** (each width has its own hash) → you can't rewrite a
   size; must read the widest listed (`srcset`) — a resolver, not a CDN rule.
 - `bestSrcsetUrl` already returns the widest `srcset` entry and `upgradeToOriginal`
-  covers ~60 families — if the page's largest listed rendition is the max, **generic
+  covers 90+ families — if the page's largest listed rendition is the max, **generic
   already wins → close** (this is why Tumblr got no resolver).
 - Signed / already-original URLs (Guardian `s=…`, 500px, `preview.redd.it`) → leave.
 
