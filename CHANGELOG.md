@@ -7,6 +7,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Itaku originals.** Art images on `itaku.ee` now upgrade from the sized
+  thumbnail to the full original.
 - **Inkbunny originals.** Art images on Inkbunny now upgrade from the on-page
   screen rendition to the full original (`/files/screen/` → `/files/full/`).
 - **WikiArt originals.** Fine-art images on `wikiart.org` now upgrade from the

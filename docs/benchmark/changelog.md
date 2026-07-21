@@ -10,6 +10,13 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Itaku (2026-07-21)** — a **CDN rule** (`imageUrl.ts`) for `itaku.ee`. The public API
+  serves the original at `…/gallery_imgs/<name>.<ext>` and sized thumbnails **nested** under a
+  same-named folder as `…/<name>/<name>_<sm|md|lg|xl>.<ext>`. The rule collapses a nested
+  `<name>/<name>_<size>` back to the flat `<name>` original — a **backreference** ties the
+  folder name to the file base so only true nested thumbnails match, and an already-flat
+  original is a no-op. **Live byte-probe 2026-07-21** (guest API image): original **3.85 MB**
+  vs `_xl` 910 KB (**4.2×**), `_sm` 27 KB (140×); all 200 image/png, no auth. Core +3 tests.
 - ✅ **Inkbunny (2026-07-21)** — a **CDN rule** (`imageUrl.ts`) for `*.ib.metapix.net`. The
   metapix CDN (geo-balanced `sg`/`jp`/… nodes) serves the **same basename** under
   `/files/{preview,screen,full}/`; the submission page shows the `screen` rendition, so the
