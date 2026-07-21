@@ -282,6 +282,16 @@ describe('upgradeToOriginal', () => {
       'https://ic.pics.livejournal.com/livejournal/21331/110834/110834_original.png',
     ],
     [
+      'PornPics raises the leading size segment to the 1280 full rendition',
+      'https://cdni.pornpics.com/460/7/725/78584156/78584156_005_ac61.jpg',
+      'https://cdni.pornpics.com/1280/7/725/78584156/78584156_005_ac61.jpg',
+    ],
+    [
+      'PornPics raises a small size segment (100) to 1280 too',
+      'https://cdni.pornpics.com/100/3/30/68214670/68214670_011_9298.jpg',
+      'https://cdni.pornpics.com/1280/3/30/68214670/68214670_011_9298.jpg',
+    ],
+    [
       'LiveJournal swaps a WxH size token (100x100) for _original',
       'https://ic.pics.livejournal.com/someuser/12345/67890/67890_100x100.jpg',
       'https://ic.pics.livejournal.com/someuser/12345/67890/67890_original.jpg',
@@ -492,6 +502,13 @@ describe('upgradeToOriginal', () => {
 
   it('Flaticon never downgrades an icon already larger than the 512 ceiling', () => {
     const url = 'https://cdn-icons-png.flaticon.com/1024/25/25231.png';
+    const r = upgradeToOriginal(url);
+    expect(r.original).toBe(url);
+    expect(r.thumbnail).toBeUndefined();
+  });
+
+  it('PornPics leaves an already-1280 rendition unchanged', () => {
+    const url = 'https://cdni.pornpics.com/1280/7/725/78584156/78584156_005_ac61.jpg';
     const r = upgradeToOriginal(url);
     expect(r.original).toBe(url);
     expect(r.thumbnail).toBeUndefined();

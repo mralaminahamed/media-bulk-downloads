@@ -101,7 +101,7 @@ Rule of thumb: these render usable markup to an anonymous request, so a DOM / pa
   `titsintops.com`, `forums.socialmediagirls.com`.
 - **Art / audio**: ~~`inkbunny.net`~~ (✅ shipped 2026-07-21 — `/files/screen/`→`/full/` CDN rule), ~~`itaku.ee`~~ (✅ shipped 2026-07-21 — nested `_size` collapse CDN rule), `poipiku.com`,
   ~~`wikiart.org`~~ (✅ shipped 2026-07-21 — `!SizeCode` strip CDN rule), `soundgasm.net`, `whyp.it` (CF-gated).
-- **Video / galleries**: `eporner.com` (public API), `pornpics.com`,
+- **Video / galleries**: `eporner.com` (public API), ~~`pornpics.com`~~ (✅ shipped 2026-07-21 — `cdni.pornpics.com` `/460/`→`/1280/` size-segment CDN rule),
   `fitnakedgirls.com`, `fikfap.com`.
 
 ## NEEDS_BROWSER — reachable but Cloudflare / JS-gated (403 or JS shell)

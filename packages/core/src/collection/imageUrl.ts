@@ -459,6 +459,12 @@ const RULES: CdnRule[] = [
     },
   },
   {
+    match: (u) => u.hostname === 'cdni.pornpics.com',
+    rewrite: (u) => {
+      u.pathname = u.pathname.replace(/^\/(\d+)\//, (m, n) => (parseInt(n, 10) < 1280 ? '/1280/' : m));
+    },
+  },
+  {
     match: (u) => u.hostname === 'c.pxhere.com' && u.pathname.startsWith('/photos/'),
     rewrite: (u) => {
       u.pathname = u.pathname.replace(/(\.(?:jpe?g|png|gif))(?:![a-z0-9]+)?$/i, '$1!d');

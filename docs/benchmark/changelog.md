@@ -10,6 +10,14 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **PornPics (2026-07-21)** — a host-scoped **CDN rule** in `collection/imageUrl.ts`
+  (not a resolver). Gallery/category thumbnails are served from `cdni.pornpics.com` with a
+  leading `/<size>/` path segment (`/460/<shard>/<shard>/<id>/<file>.jpg`); the real URL sits
+  in each `<img data-src>` (the extract layer already reads lazy attrs). The rule rewrites the
+  size segment to `1280` when it's smaller, and leaves `1280` alone. **Byte-verified 2026-07-21**
+  via HEAD `Content-Length` across 5 distinct files: `460` ≈ 35 KB vs `1280` ≈ 78–332 KB (200);
+  sizes `720/910/1000/1600` all 404, so `1280` is the ceiling. Plain path rewrite curl-verifies
+  bigger, so a CDN rule beats a full resolver. Core +3 tests.
 - ✅ **Odnoklassniki / ok.ru (2026-07-21, #375)** — a network-free **collect** reader
   (`okruPageMedia`, `resolvers/sites/odnoklassniki.ts`). An ok.ru video page carries a player
   `[data-options]` attribute whose `flashvars.metadata` (stringified JSON) holds a `videos[]`
