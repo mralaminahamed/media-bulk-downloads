@@ -7,6 +7,10 @@ import FilterChip from '@/extension/popup/components/FilterChip';
 
 interface FilterToolbarProps {
   onFilterChange: (filters: FilterOptions) => void;
+  /** Persist a change to the global settings (the per-kind fetch switches write
+   *  through this). Optional so tests/older callers without a settings sink still
+   *  render the transient filters. */
+  onSettingsChange?: (patch: Partial<SettingsData>) => void;
   extensionSettings: SettingsData;
   available: AvailableOptions;
   initialFilters?: Partial<FilterOptions>;
@@ -51,7 +55,13 @@ const DUPLICATE_OPTIONS: { value: FilterOptions['duplicateState']; label: string
   { value: 'duplicates', label: 'Only near-duplicates' },
 ];
 
-const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extensionSettings, available, initialFilters, nearDuplicateCount = 0 }) => {
+const FETCH_KINDS: { key: 'fetchImages' | 'fetchVideo' | 'fetchAudio'; label: string }[] = [
+  { key: 'fetchImages', label: 'Images' },
+  { key: 'fetchVideo', label: 'Video' },
+  { key: 'fetchAudio', label: 'Audio' },
+];
+
+const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, onSettingsChange, extensionSettings, available, initialFilters, nearDuplicateCount = 0 }) => {
   const [filters, setFilters] = useState<FilterOptions>({ ...DEFAULT_FILTERS, ...initialFilters });
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -92,11 +102,15 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
   };
 
   const base64Disabled = extensionSettings.excludeBase64Images;
+  const fetchOffCount = FETCH_KINDS.filter((k) => !extensionSettings[k.key]).length;
   const advancedCount =
     (filters.imageType !== 'all' ? 1 : 0) +
     (filters.sizeBucket !== 'all' ? 1 : 0) +
     (filters.minSize > 0 ? 1 : 0) +
     (!filters.includeBase64 && !base64Disabled ? 1 : 0);
+  // Persistent per-kind gates aren't part of the transient "Clear all" set, but they
+  // do live behind "More", so they count toward the More badge (discoverability).
+  const moreBadge = advancedCount + fetchOffCount;
   const activeCount =
     (filters.mediaKind !== 'all' ? 1 : 0) +
     advancedCount +
@@ -232,7 +246,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
           style={{ height: 28 }}
         >
           More
-          {advancedCount > 0 && <span className="countpill">{advancedCount}</span>}
+          {moreBadge > 0 && <span className="countpill">{moreBadge}</span>}
           <ChevronDownIcon className={`mbd:h-3.5 mbd:w-3.5 mbd:transition-transform ${moreOpen ? 'mbd:rotate-180' : ''}`} />
         </button>
 
@@ -249,6 +263,28 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
       {/* Advanced filters — shown when "More" is open. */}
       {moreOpen && (
         <div id="filter-more" className="mbd:mt-3 mbd:flex mbd:flex-wrap mbd:items-center mbd:gap-x-4 mbd:gap-y-2 mbd:border-t hairline mbd:pt-3">
+          {/* Fetch — persistent per-kind gates (mirror of Settings › Media). A kind
+              switched off is skipped everywhere (grid, Download all, ZIP, copy) on
+              every page until re-enabled. Writes global settings, not the transient
+              filter set, so "Clear all" leaves them alone. */}
+          <div className="mbd:flex mbd:items-center mbd:gap-2.5" role="group" aria-label="Fetch media kinds">
+            <span className="eyebrow" title="Persistent — applies to every page">Fetch</span>
+            {FETCH_KINDS.map((k) => (
+              <label key={k.key} className="mbd:flex mbd:items-center mbd:gap-1.5 mbd:text-[12px] mbd:text-(--ink-2)">
+                <span>{k.label}</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={extensionSettings[k.key]}
+                  aria-label={`Fetch ${k.label.toLowerCase()}`}
+                  title={`Fetch ${k.label.toLowerCase()} — persistent, applies to every page`}
+                  onClick={() => onSettingsChange?.({ [k.key]: !extensionSettings[k.key] })}
+                  className="switch"
+                />
+              </label>
+            ))}
+          </div>
+
           <label className="mbd:flex mbd:items-center mbd:gap-2 mbd:text-[12px] mbd:text-(--ink-2)">
             <span className="eyebrow">Format</span>
             <select
