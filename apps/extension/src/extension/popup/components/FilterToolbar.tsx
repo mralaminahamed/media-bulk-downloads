@@ -13,6 +13,9 @@ interface FilterToolbarProps {
   /** How many items the near-duplicate pass has hidden (#198). The Duplicates
    *  review chip appears only when this is > 0. */
   nearDuplicateCount?: number;
+  /** How many collected items are still pending resolve (poster-only, awaiting the
+   *  opt-in network fetch). The Fetched chip appears only when this is > 0. */
+  pendingCount?: number;
 }
 
 export const DEFAULT_FILTERS: FilterOptions = {
@@ -22,6 +25,7 @@ export const DEFAULT_FILTERS: FilterOptions = {
   includeBase64: true,
   sizeBucket: 'all',
   downloadState: 'all',
+  resolveState: 'all',
   duplicateState: 'unique',
   search: '',
   sortBy: 'default',
@@ -51,7 +55,13 @@ const DUPLICATE_OPTIONS: { value: FilterOptions['duplicateState']; label: string
   { value: 'duplicates', label: 'Only near-duplicates' },
 ];
 
-const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extensionSettings, available, initialFilters, nearDuplicateCount = 0 }) => {
+const RESOLVE_OPTIONS: { value: FilterOptions['resolveState']; label: string }[] = [
+  { value: 'all', label: 'All items' },
+  { value: 'fetched', label: 'Fetched' },
+  { value: 'pending', label: 'Not fetched' },
+];
+
+const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extensionSettings, available, initialFilters, nearDuplicateCount = 0, pendingCount = 0 }) => {
   const [filters, setFilters] = useState<FilterOptions>({ ...DEFAULT_FILTERS, ...initialFilters });
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -70,15 +80,18 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
     const famKey: 'image' | 'video' | 'audio' = fam === 'all' ? 'image' : fam;
     if (filters.imageType !== 'all' && !available.formats[famKey].includes(filters.imageType)) patch.imageType = 'all';
     if (filters.sizeBucket !== 'all' && !available.sizeBuckets.includes(filters.sizeBucket)) patch.sizeBucket = 'all';
+    // Nothing left pending → drop a stale fetched/pending selection (its chip is
+    // gone, so an empty grid would otherwise have no visible control to clear).
+    if (pendingCount === 0 && filters.resolveState !== 'all') patch.resolveState = 'all';
     if (Object.keys(patch).length > 0) {
       const next = { ...filters, ...patch };
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setFilters(next);
       onFilterChange(next);
     }
-    // Fires only when the option set changes (App memoizes `available`).
+    // Fires when the option set changes (App memoizes `available`) or pending clears.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [available]);
+  }, [available, pendingCount]);
 
   const update = (patch: Partial<FilterOptions>) => {
     const next = { ...filters, ...patch };
@@ -101,6 +114,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
     (filters.mediaKind !== 'all' ? 1 : 0) +
     advancedCount +
     (filters.downloadState !== 'all' ? 1 : 0) +
+    (filters.resolveState !== 'all' ? 1 : 0) +
     (filters.duplicateState !== 'unique' ? 1 : 0) +
     (filters.search.trim() ? 1 : 0) +
     (filters.sortBy !== 'default' ? 1 : 0);
@@ -195,6 +209,22 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
           onChange={(v) => update({ downloadState: v })}
           clearLabel="Remove State filter"
         />
+
+        {/* Fetched — resolve status. Only surfaced when at least one item is still
+            pending (poster-only, awaiting the opt-in network resolve), so it never
+            clutters the row on pages where everything is already directly downloadable. */}
+        {pendingCount > 0 && (
+          <ChipFlyout
+            id="filter-fetched-flyout"
+            triggerLabel="Fetched"
+            valueLabel={(v) => RESOLVE_OPTIONS.find((o) => o.value === v)!.label}
+            options={RESOLVE_OPTIONS}
+            value={filters.resolveState}
+            defaultValue="all"
+            onChange={(v) => update({ resolveState: v })}
+            clearLabel="Remove Fetched filter"
+          />
+        )}
 
         {/* Duplicates — near-duplicate visibility (#198). Only surfaced once a pass
             has hidden something, so it never clutters the row otherwise. */}

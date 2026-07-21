@@ -212,6 +212,10 @@ const App: React.FC<AppProps> = ({
   const hasImages = total > 0;
   const filtered = shown !== total;
   const nearDuplicateCount = useMemo(() => state.images.reduce((n, i) => n + (i.nearDuplicate ? 1 : 0), 0), [state.images]);
+  const pendingResolveCount = useMemo(
+    () => state.images.reduce((n, i) => n + (i.unresolvedVideo || i.unresolvedImage ? 1 : 0), 0),
+    [state.images],
+  );
   const hiddenNearDuplicates = useMemo(() => {
     if (nearDuplicateCount === 0) return 0;
     const shownSrcs = new Set(state.filteredImages.map((i) => i.src));
@@ -338,7 +342,7 @@ const App: React.FC<AppProps> = ({
       </header>
 
       {hasImages && !state.isLoading && (
-        <FilterToolbar onFilterChange={handleFilterChange} extensionSettings={perHost.effective} available={availableFilterOptions} initialFilters={filterSeed} nearDuplicateCount={nearDuplicateCount} />
+        <FilterToolbar onFilterChange={handleFilterChange} extensionSettings={perHost.effective} available={availableFilterOptions} initialFilters={filterSeed} nearDuplicateCount={nearDuplicateCount} pendingCount={pendingResolveCount} />
       )}
 
       <main className="scroll-thin mbd:flex-1 mbd:overflow-y-auto mbd:px-4 mbd:py-3">

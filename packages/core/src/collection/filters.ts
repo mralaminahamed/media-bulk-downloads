@@ -152,6 +152,12 @@ export function applyToolbarFilters(
     if (!filters.includeBase64 && item.isBase64) return false;
     if (filters.downloadState === 'downloaded' && !isDownloaded(item)) return false;
     if (filters.downloadState === 'not-downloaded' && isDownloaded(item)) return false;
+    const resolveState = filters.resolveState ?? 'all';
+    if (resolveState !== 'all') {
+      const pending = !!item.unresolvedVideo || !!item.unresolvedImage;
+      if (resolveState === 'pending' && !pending) return false;
+      if (resolveState === 'fetched' && pending) return false;
+    }
     return matchesSearch(item, filters.search ?? '');
   });
 
