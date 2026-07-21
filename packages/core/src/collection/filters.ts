@@ -27,7 +27,13 @@ export function passesSettingsFilters(img: ImageInfo, settings: SettingsData): b
 
   const meetsHls = settings.captureHlsStreams || !img.hlsManifest;
 
-  return meetsSize && meetsBase64 && meetsHls && meetsEmoji;
+  const meetsKind =
+    img.kind === 'image' ? settings.fetchImages
+    : img.kind === 'video' ? settings.fetchVideo
+    : img.kind === 'audio' ? settings.fetchAudio
+    : true;
+
+  return meetsSize && meetsBase64 && meetsHls && meetsEmoji && meetsKind;
 }
 
 /**
