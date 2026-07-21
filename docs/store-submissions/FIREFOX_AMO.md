@@ -6,7 +6,7 @@ fields, permission notes, the privacy disclosures, required assets, and — the
 part unique to Firefox — the **source-code submission and reproducible build
 instructions** reviewers require.
 
-Version at time of writing: **1.2.0** · Manifest **V3** (Firefox 140+). This is
+Version at time of writing: **1.3.0** · Manifest **V3** (Firefox 140+). This is
 the Firefox sibling of [CHROME_WEBSTORE.md](./CHROME_WEBSTORE.md) and
 [EDGE_ADDONS.md](./EDGE_ADDONS.md); the listing copy is intentionally identical
 so all three stores match.

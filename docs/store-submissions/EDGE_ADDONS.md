@@ -5,7 +5,7 @@ Add-ons store through [Partner Center](https://partner.microsoft.com/dashboard/m
 copy-paste listing fields, per-permission justifications, the privacy
 disclosures, required visual assets, and the packaging steps.
 
-Version at time of writing: **1.2.0** · Manifest **V3** (Chromium — same package
+Version at time of writing: **1.3.0** · Manifest **V3** (Chromium — same package
 family as the Chrome build). This is the Edge sibling of
 [CHROME_WEBSTORE.md](./CHROME_WEBSTORE.md); the listing copy is intentionally
 identical so both stores match.

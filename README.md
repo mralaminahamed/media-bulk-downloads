@@ -97,6 +97,8 @@ It reads only what the page already loaded, so nothing leaves your device.
   re-downloadable anytime
 - **Backup & restore** — export your settings, favourites, and history to a JSON
   file and import it back (Settings → Backup)
+- **Reset & clear** — reset all settings to defaults, or clear all local data
+  (history, favourites, blocked sources) in one step (Settings → Data)
 
 **Private by design**
 - **Network-free by default** — collection reads only what the page already loaded
