@@ -50,6 +50,7 @@ import { motherlessPageMedia } from '@mbd/core/resolvers/sites/motherless';
 import { imagehostsPageMedia, isImageHost } from '@mbd/core/resolvers/sites/imagehosts';
 import { imgpilePageMedia } from '@mbd/core/resolvers/sites/imgpile';
 import { szurubooruPageMedia } from '@mbd/core/resolvers/sites/szurubooru';
+import { okruPageMedia } from '@mbd/core/resolvers/sites/odnoklassniki';
 import { soundcloudTrackUrl } from '@mbd/core/resolvers/sites/soundcloud';
 import { streamableVideoId } from '@mbd/core/resolvers/sites/streamable';
 import { redgifsVideoId } from '@mbd/core/resolvers/sites/redgifs';
@@ -930,6 +931,12 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
 
     if (/(?:^|\.)(?:snootbooru\.com|bcbnsfw\.space)$/i.test(location.hostname)) {
       for (const cand of szurubooruPageMedia(pageUrl)) {
+        pushCandidate(cand, cand.url, '', 0, 0);
+      }
+    }
+
+    if (/(?:^|\.)ok\.ru$/i.test(location.hostname)) {
+      for (const cand of okruPageMedia(pageUrl)) {
         pushCandidate(cand, cand.url, '', 0, 0);
       }
     }
