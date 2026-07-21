@@ -11,6 +11,33 @@ Reachability + markup-readiness validated by HTTP probe (status + byte size: a l
 needs an in-browser recon;
 `000` = down). Last validated: **2026-07-21**.
 
+## Session triage (2026-07-21) — what shipped, what's gated
+
+A build sweep this session harvested every candidate whose mechanism could be
+**curl/byte-verified from a headless environment** (CDN size rules + one open-API
+size folder) — all shipped, all live-verified:
+
+- ✅ **MangaDex** (MAIN-world sniffer of the open `at-home` API — new manga category)
+- ✅ **Steam UGC**, ✅ **WikiArt**, ✅ **Inkbunny**, ✅ **Itaku** (CDN rules; byte-verified 2–17×)
+
+**Blocked for headless recon (need a real user session / in-browser pass — Phase 2):**
+the remaining readers can't be validated from here because their *content* pages sit
+behind Cloudflare's interactive challenge (which also fires for the automation browser)
+or need a private/login sample:
+
+- **Cloudflare-gated content pages** (homepage 200 but chapter/album/file page challenges):
+  the manga family (`mangakakalot`/`manganato`/`weebcentral`/`rawkuma`/`fanfox`), `whyp.it`,
+  `webmshare`, `nsfwalbum`, hentai galleries (`imhentai`/`hentaifox`/`hentai2read`).
+- **Login / private sample needed:** VK (signed URLs), Bunkr + balbums.st (signed `scdn.st`
+  CDN behind CF), the XenForo forums (`simpcity`/`titsintops`/`socialmediagirls`), and the
+  whole **NEEDS_BROWSER** list below.
+- **Reachable but niche readers needing a content URL** (no public index to sample):
+  `soundgasm`, `poipiku`, `eporner` (API gives embed, not a direct mp4).
+
+These are not closed — they're **deferred to an in-browser session** (the extension's own
+content script passes Cloudflare as the real user, so they'll work at runtime; they just
+can't be *recon-verified* headless). Hand over one sample URL for any and it gets built.
+
 ## Confirmed BUILD — recon'd, mechanism verified
 
 | Site                    | Type               | Mechanism                                                                                                      | Evidence                                           |
