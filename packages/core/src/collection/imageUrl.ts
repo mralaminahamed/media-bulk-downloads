@@ -721,6 +721,16 @@ const RULES: CdnRule[] = [
     rewrite: (u) => { u.pathname = u.pathname.replace(/!\w+\.[a-z0-9]+$/i, ''); },
   },
   {
+    // Inkbunny (art). The CDN (`*.ib.metapix.net`, geo-balanced sg/jp/… nodes)
+    // serves the same filename under `/files/{preview,screen,full}/`; the on-page
+    // image is the `screen` rendition, so swap the size folder to `full` for the
+    // original. Same basename → 404-safe, no ext guessing. Live byte-probe
+    // 2026-07-21: full 884 KB vs screen 432 KB (2×); the guest 302 is transparent
+    // CDN node balancing the browser follows, not a login gate.
+    match: (u) => /(?:^|\.)ib\.metapix\.net$/i.test(u.hostname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/^\/files\/(?:screen|preview)\//i, '/files/full/'); },
+  },
+  {
     match: (u) => u.hostname === 'wallpapercave.com' && /^\/w\d+\//.test(u.pathname),
     rewrite: (u) => { u.pathname = u.pathname.replace(/^\/w\d+\//, '/wp/'); },
   },

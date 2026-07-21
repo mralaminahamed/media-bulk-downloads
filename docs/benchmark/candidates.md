@@ -38,7 +38,7 @@ Rule of thumb: these render usable markup to an anonymous request, so a DOM / pa
   `vipr.im`. (`acidimg.cc` returns a tiny interstitial — recon before trusting.)
 - **Media forums** (one XenForo-family reader ≈ all): `simpcity.cr`,
   `titsintops.com`, `forums.socialmediagirls.com`.
-- **Art / audio**: `inkbunny.net` (open API — easy), `itaku.ee`, `poipiku.com`,
+- **Art / audio**: ~~`inkbunny.net`~~ (✅ shipped 2026-07-21 — `/files/screen/`→`/full/` CDN rule), `itaku.ee`, `poipiku.com`,
   ~~`wikiart.org`~~ (✅ shipped 2026-07-21 — `!SizeCode` strip CDN rule), `soundgasm.net`, `whyp.it`.
 - **Video / galleries**: `eporner.com` (public API), `pornpics.com`,
   `fitnakedgirls.com`, `fikfap.com`.
