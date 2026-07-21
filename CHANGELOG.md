@@ -404,6 +404,17 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **The image-preview modal no longer pops in.** The centred preview dialog now
   appears without its rise-and-scale entrance transform. The side panels and the
   on-page bubble keep their existing entrance.
+- **Emoji / UI-glyph exclusion covers many more sources.** With "Exclude emoji" on,
+  collection now also skips Slack / Discord / Twitch chat and reaction emoji, the
+  Emojipedia, Google Noto and JoyPixels image CDNs, common jsdelivr/cdnjs emoji packs
+  (openmoji, noto-emoji, emojione…), and Facebook `rsrc.php` UI sprites — so reaction
+  icons and emoji sheets stop showing up as downloadable media. Host- and path-scoped,
+  so genuine uploads on shared hosts still collect.
+- **Shared links and backups no longer carry signing tokens.** Copying or exporting
+  media links, and exporting a settings/favourites/history backup, now strip live
+  signed-URL tokens (e.g. Twitch `sig`/`token`, CloudFront `Signature`/`Expires`) from
+  the output, so a shared file can't leak a working signed URL. Your on-device copies
+  keep the raw URL as the internal re-download key.
 
 ### Fixed
 - **Extension audit — 10 correctness fixes.** A deep scan / video resolve is no
@@ -435,6 +446,20 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   hardened the on-device stores against storage-quota and corrupt values, capped and
   host-pinned the MAIN-world media sniffers, and aligned the download queue with
   Chrome's three-state download model (recovering stuck items and capping retries).
+- **Firefox no longer offers features it can't run.** On Firefox the "Capture video
+  streams" setting is hidden (stream assembly needs `chrome.offscreen`, which Firefox
+  lacks) and the queue's "Retry w/ referer" falls back to a plain retry (Firefox has no
+  header-rewrite session rules) — so neither surfaces an action that fails on click.
+- **Pinterest board covers & avatars upgrade to full size.** Pinterest's responsive
+  `_RS` smart-crop folders (`75x75_RS`, `280x280_RS`, …) for board/section covers and
+  avatars now upgrade to the `/originals/` image instead of downloading a tiny square crop.
+- **Instagram carousel slides & reels no longer vanish.** A slide or reel whose video
+  can't be used yet (still transcoding, or every variant failing the CDN host-pin) but
+  that has a valid cover now surfaces that cover — a reel as a pending video, a slide as
+  its image — instead of dropping out of the results entirely.
+- **Reddit `v.redd.it` share links resolve to video.** A bare `v.redd.it/<id>` link
+  (the share form, no trailing slash) is now recognised as a Reddit video instead of
+  falling through to the generic image resolver and failing.
 
 ## [1.2.0] - 2026-07-11
 
