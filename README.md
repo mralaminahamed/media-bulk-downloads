@@ -231,6 +231,7 @@ JSON, signed CDNs, or embeds. A representative selection:
 | Video & audio       | YouTube · Vimeo · Dailymotion · Twitch · SoundCloud · PeerTube · Coub · Loom   |
 | Art & photography   | Pixiv · ArtStation · Behance · DeviantArt · Flickr · Unsplash · Pexels · Wallhaven · Civitai |
 | Reference & wiki    | Wikipedia · Wikimedia Commons · any MediaWiki wiki                             |
+| Manga & comics      | MangaDex (full-resolution chapter pages)                                       |
 | E-commerce          | Amazon · eBay · Etsy · Walmart · Shopify stores · AliExpress                   |
 | News & publishing   | BBC · NYT · Der Spiegel · Arc XP publishers · self-hosted WordPress            |
 | Image hosts         | imgur · Image Chest · Tenor · Postimages · and more                           |

@@ -13,6 +13,8 @@ import { ingestSniffedIgMedia } from '@mbd/core/resolvers/sites/instagram';
 import { ingestSniffedFbMedia } from '@mbd/core/resolvers/sites/facebook';
 import { ingestSniffedPinterestMedia } from '@mbd/core/resolvers/sites/pinterest';
 import { isPinterestHost } from '@mbd/core/resolvers/sniffers/pinterest-hosts';
+import { ingestSniffedMangadexMedia } from '@mbd/core/resolvers/sites/mangadex';
+import { isMangadexHost } from '@mbd/core/resolvers/sniffers/mangadex-media-sniff';
 import { ingestSniffedHls } from '@mbd/core/resolvers/sniffers/hls-sniff';
 import { withDefaults } from '@mbd/storage/settings';
 import { loadEffectiveSettingsForHost } from '@mbd/storage/per-host-settings';
@@ -26,6 +28,7 @@ const onXHost = host === 'x.com' || host === 'twitter.com';
 const onIgHost = host === 'instagram.com' || host.endsWith('.instagram.com');
 const onFbHost = host === 'facebook.com' || host.endsWith('.facebook.com');
 const onPinterestHost = isPinterestHost(host);
+const onMangadexHost = isMangadexHost(host);
 
 if (onXHost) {
   window.addEventListener('message', (event: MessageEvent) => {
@@ -67,6 +70,17 @@ if (onPinterestHost) {
   });
 
   window.postMessage({ source: 'mbd-pinterest-ready' }, location.origin);
+}
+
+if (onMangadexHost) {
+  window.addEventListener('message', (event: MessageEvent) => {
+    if (event.source !== window || event.origin !== location.origin) return;
+    const data = event.data as { source?: unknown; entries?: unknown } | null;
+    if (!data || data.source !== 'mbd-mangadex-media' || !Array.isArray(data.entries)) return;
+    ingestSniffedMangadexMedia(data.entries);
+  });
+
+  window.postMessage({ source: 'mbd-mangadex-ready' }, location.origin);
 }
 
 window.addEventListener('message', (event: MessageEvent) => {
