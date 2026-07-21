@@ -210,10 +210,6 @@ const App: React.FC<AppProps> = ({
   const pendingVideoCount = pendingVids.length;
   const fetchingVideos = fetchingAllVideos;
   const hasImages = total > 0;
-  // A per-kind fetch gate can filter the eligible set to empty; keep the toolbar
-  // mounted so its Fetch switches stay reachable to undo that (otherwise the bar
-  // vanishes with the last item and the only re-enable path is Settings).
-  const anyFetchKindOff = !perHost.effective.fetchImages || !perHost.effective.fetchVideo || !perHost.effective.fetchAudio;
   const filtered = shown !== total;
   const nearDuplicateCount = useMemo(() => state.images.reduce((n, i) => n + (i.nearDuplicate ? 1 : 0), 0), [state.images]);
   const hiddenNearDuplicates = useMemo(() => {
@@ -341,8 +337,8 @@ const App: React.FC<AppProps> = ({
         </div>
       </header>
 
-      {(hasImages || anyFetchKindOff) && !state.isLoading && (
-        <FilterToolbar onFilterChange={handleFilterChange} onSettingsChange={(patch) => handleSettingsChange({ ...settings, ...patch })} extensionSettings={perHost.effective} available={availableFilterOptions} initialFilters={filterSeed} nearDuplicateCount={nearDuplicateCount} />
+      {hasImages && !state.isLoading && (
+        <FilterToolbar onFilterChange={handleFilterChange} extensionSettings={perHost.effective} available={availableFilterOptions} initialFilters={filterSeed} nearDuplicateCount={nearDuplicateCount} />
       )}
 
       <main className="scroll-thin mbd:flex-1 mbd:overflow-y-auto mbd:px-4 mbd:py-3">
