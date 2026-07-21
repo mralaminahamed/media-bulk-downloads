@@ -229,11 +229,12 @@ JSON, signed CDNs, or embeds. A representative selection:
 |---------------------|--------------------------------------------------------------------------------|
 | Social              | Twitter/X · Instagram · Facebook · Threads · Bluesky · Mastodon · Reddit · Pinterest · Xiaohongshu/RED |
 | Video & audio       | YouTube · Vimeo · Dailymotion · Twitch · SoundCloud · PeerTube · Coub · Loom   |
-| Art & photography   | Pixiv · ArtStation · Behance · DeviantArt · Flickr · Unsplash · Pexels · Wallhaven · Civitai |
+| Art & photography   | Pixiv · ArtStation · Behance · DeviantArt · Flickr · Unsplash · Pexels · Wallhaven · Civitai · WikiArt · Inkbunny · Itaku |
 | Reference & wiki    | Wikipedia · Wikimedia Commons · any MediaWiki wiki                             |
 | Manga & comics      | MangaDex (full-resolution chapter pages)                                       |
 | E-commerce          | Amazon · eBay · Etsy · Walmart · Shopify stores · AliExpress                   |
 | News & publishing   | BBC · NYT · Der Spiegel · Arc XP publishers · self-hosted WordPress            |
+| Gaming              | Steam (community screenshots & artwork)                                       |
 | Image hosts         | imgur · Image Chest · Tenor · Postimages · and more                           |
 | Creator platforms   | Patreon · Pixiv Fanbox                                                         |
 
