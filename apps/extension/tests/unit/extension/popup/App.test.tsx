@@ -250,6 +250,24 @@ describe('App Component', () => {
     );
   });
 
+  it('shows the filtered-empty state (not a blank grid) when filters hide everything, and Clear filters restores it', async () => {
+    render(<App collect={async () => [image({ type: 'png' })]} />);
+    await screen.findByText('Filters');
+
+    // A format filter matching nothing hides the only item → grid would be blank.
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    fireEvent.change(screen.getByLabelText('Media format'), { target: { value: 'jpeg' } });
+
+    expect(await screen.findByText(/nothing matches your filters/i)).toBeInTheDocument();
+
+    // Clear filters from the empty state brings the grid back.
+    fireEvent.click(screen.getByRole('button', { name: /clear filters/i }));
+    await waitFor(() =>
+      expect(screen.queryByText(/nothing matches your filters/i)).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole('button', { name: /^download$/i })).toBeEnabled();
+  });
+
   it('lazily enriches remote image sizes after load', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       headers: { get: () => '2048' },

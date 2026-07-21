@@ -16,6 +16,9 @@ interface FilterToolbarProps {
   /** How many collected items are still pending resolve (poster-only, awaiting the
    *  opt-in network fetch). The Fetched chip appears only when this is > 0. */
   pendingCount?: number;
+  /** Monotonic counter: each increment clears the filters back to defaults. Lets the
+   *  filtered-empty state clear filters from outside the toolbar. 0 = no reset. */
+  resetSignal?: number;
 }
 
 export const DEFAULT_FILTERS: FilterOptions = {
@@ -61,7 +64,7 @@ const RESOLVE_OPTIONS: { value: FilterOptions['resolveState']; label: string }[]
   { value: 'pending', label: 'Not fetched' },
 ];
 
-const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extensionSettings, available, initialFilters, nearDuplicateCount = 0, pendingCount = 0 }) => {
+const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extensionSettings, available, initialFilters, nearDuplicateCount = 0, pendingCount = 0, resetSignal = 0 }) => {
   const [filters, setFilters] = useState<FilterOptions>({ ...DEFAULT_FILTERS, ...initialFilters });
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -103,6 +106,15 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
     setFilters(DEFAULT_FILTERS);
     onFilterChange(DEFAULT_FILTERS);
   };
+
+  // External clear: each resetSignal increment (0 = never on mount) restores defaults.
+  useEffect(() => {
+    if (resetSignal <= 0) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFilters(DEFAULT_FILTERS);
+    onFilterChange(DEFAULT_FILTERS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetSignal]);
 
   const base64Disabled = extensionSettings.excludeBase64Images;
   const advancedCount =
