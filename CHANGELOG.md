@@ -7,6 +7,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Steam screenshots & artwork.** Community images on
+  `images.steamusercontent.com` now upgrade to the full-quality original — the
+  extension drops Steam's on-the-fly resize/letterbox so you get the source upload,
+  not the downscaled preview.
 - **MangaDex chapters.** Open a chapter on `mangadex.org` and the extension now
   lists **every page** of that chapter at full resolution (the original PNG, ~9×
   larger than the reader's compressed preview) — no scrolling through the reader.

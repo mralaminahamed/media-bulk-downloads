@@ -10,6 +10,20 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Steam UGC (2026-07-21)** — a host-agnostic **CDN rule** (`imageUrl.ts`) for
+  community screenshots/artwork on `images.steamusercontent.com/ugc/`. The
+  `/ugc/<id>/<hash>/` URL is the unsigned source; its query is a pure server-side
+  resize/letterbox (`imw/imh/ima/impolicy/imcolor/letterbox/cache`) with **no
+  signature**, so `dropParams` on that set serves the full-quality original.
+  **Live-probed 2026-07-21** in a real screenshots feed: query confirmed unsigned and
+  the query-stripped base URL reachable (the feed already serves ≤2560 px, so the gain
+  on those items is quality/bytes at equal dimensions — earlier byte-probe **29 KB →
+  135 KB, 4.7×**). Conservative and zero-risk: unsigned means the strip never 403s and
+  never downgrades (worst case, an already-full image returns itself). **VK was cut from
+  this batch** — its `*.userapi.com` URLs are **signed**, and VK login-walls content
+  anonymously (every page returned an empty shell on 2026-07-21), so there was no live
+  signed sample to confirm the size param sits outside the signature; shipping blind
+  risked a 403. Deferred until a real sample is available. Core +1 test.
 - ✅ **MangaDex (2026-07-21)** — anchors a brand-new **manga** category (zero prior
   coverage). The reader is a pure SPA with no server-rendered page image, but to render
   it fetches its own public `GET /at-home/server/<chapterId>` (open, no auth, no
