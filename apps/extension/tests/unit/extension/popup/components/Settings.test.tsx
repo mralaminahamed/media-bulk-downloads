@@ -738,4 +738,29 @@ describe('Settings Component', () => {
     fireEvent.click(screen.getByText('Save'));
     expect(onSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ bubbleWidth: 700 }));
   });
+
+  describe('Data tab — reset settings / clear all data', () => {
+    const confirm = async (name: RegExp) => {
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name }));
+      await user.click(screen.getByRole('button', { name: new RegExp(`confirm ${name.source}`, 'i') }));
+    };
+
+    it('resets every setting to its default without touching stored data', async () => {
+      render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+      selectTab(/Data/i);
+      await confirm(/reset settings/i);
+      expect(mockOnSettingsChange).toHaveBeenCalledWith(DEFAULT_SETTINGS);
+      expect(chrome.runtime.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('clears favourites, history, and blocked sources without touching settings', async () => {
+      render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+      selectTab(/Data/i);
+      await confirm(/clear all data/i);
+      const types = (chrome.runtime.sendMessage as Mock).mock.calls.map((c) => c[0]?.type);
+      expect(types).toEqual(expect.arrayContaining(['CLEAR_FAVOURITES', 'CLEAR_HISTORY', 'CLEAR_EXCLUDED']));
+      expect(mockOnSettingsChange).not.toHaveBeenCalled();
+    });
+  });
 });

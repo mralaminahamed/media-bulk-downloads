@@ -11,6 +11,23 @@ describe('ClearAllButton', () => {
     expect(btn).toHaveTextContent('Clear all');
   });
 
+  it('renders a custom label and derives its confirm aria-label', async () => {
+    const onClear = vi.fn();
+    const user = userEvent.setup();
+    render(<ClearAllButton label="Reset settings" onClear={onClear} />);
+    const btn = screen.getByRole('button', { name: 'Reset settings' });
+    expect(btn).toHaveTextContent('Reset settings');
+
+    await user.click(btn);
+    expect(btn).toHaveTextContent('Confirm?');
+    expect(btn.getAttribute('aria-label')).toBe('Confirm reset settings');
+
+    await user.click(btn);
+    expect(onClear).toHaveBeenCalledTimes(1);
+    expect(btn).toHaveTextContent('Reset settings');
+    expect(btn.getAttribute('aria-label')).toBe('Reset settings');
+  });
+
   it('is disabled and never fires when disabled', () => {
     const onClear = vi.fn();
     render(<ClearAllButton onClear={onClear} disabled />);
