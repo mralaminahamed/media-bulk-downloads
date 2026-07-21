@@ -14,6 +14,7 @@ import { SelectCheckbox } from '@/extension/popup/components/fields/SelectCheckb
 import { BrandMark } from '@/extension/components/BrandMark';
 import { SkeletonGrid } from '@/extension/popup/components/states/SkeletonGrid';
 import { EmptyState } from '@/extension/popup/components/states/EmptyState';
+import { FilteredEmptyState } from '@/extension/popup/components/states/FilteredEmptyState';
 import { ErrorState } from '@/extension/popup/components/states/ErrorState';
 import { AppProps, CollectScope, ExcludedKind, ImageInfo } from '@mbd/core/types';
 import { collectFromActiveTab } from '@/extension/shared/active-tab/collect-active-tab';
@@ -51,6 +52,8 @@ const App: React.FC<AppProps> = ({
   const [showExcluded, setShowExcluded] = useState(false);
   const [scope, setScope] = useState<CollectScope>('active');
   const [selectedTabIds, setSelectedTabIds] = useState<number[]>([]);
+  const [filterResetSignal, setFilterResetSignal] = useState(0);
+  const [downloadStateFilter, setDownloadStateFilter] = useState<'all' | 'downloaded' | 'not-downloaded'>('all');
   const [showTabPicker, setShowTabPicker] = useState(false);
   const [multiTabInfo, setMultiTabInfo] = useState<{ scanned: number; skipped: number } | null>(null);
   const [tabScanProgress, setTabScanProgress] = useState<{ done: number; total: number } | null>(null);
@@ -203,6 +206,16 @@ const App: React.FC<AppProps> = ({
 
   const availableFilterOptions = useMemo(() => deriveFilterOptions(state.images), [state.images]);
 
+  // Mirror the toolbar's download-state filter into render-safe state (the engine only
+  // exposes it via a ref) so the filtered-empty copy can key off it.
+  const onFilterChange = useCallback(
+    (f: Parameters<typeof handleFilterChange>[0]) => {
+      setDownloadStateFilter(f.downloadState);
+      handleFilterChange(f);
+    },
+    [handleFilterChange],
+  );
+
   const total = state.images.length;
   const shown = state.filteredImages.length;
   const downloadableShown = downloadable(state.filteredImages).length;
@@ -211,6 +224,15 @@ const App: React.FC<AppProps> = ({
   const fetchingVideos = fetchingAllVideos;
   const hasImages = total > 0;
   const filtered = shown !== total;
+  // Grid empty only because filters hid everything (not because the page has no media).
+  const filteredEmpty = total > 0 && shown === 0;
+  // Tailored copy for the common case: a "not downloaded" filter after everything eligible
+  // has been downloaded. `downloadStateFilter` is tracked in state (not read off the
+  // engine's ref) so the derivation stays render-safe.
+  const allDownloaded =
+    filteredEmpty &&
+    downloadStateFilter === 'not-downloaded' &&
+    state.images.every(isDownloaded);
   const nearDuplicateCount = useMemo(() => state.images.reduce((n, i) => n + (i.nearDuplicate ? 1 : 0), 0), [state.images]);
   const pendingResolveCount = useMemo(
     () => state.images.reduce((n, i) => n + (i.unresolvedVideo || i.unresolvedImage ? 1 : 0), 0),
@@ -342,7 +364,7 @@ const App: React.FC<AppProps> = ({
       </header>
 
       {hasImages && !state.isLoading && (
-        <FilterToolbar onFilterChange={handleFilterChange} extensionSettings={perHost.effective} available={availableFilterOptions} initialFilters={filterSeed} nearDuplicateCount={nearDuplicateCount} pendingCount={pendingResolveCount} />
+        <FilterToolbar onFilterChange={onFilterChange} extensionSettings={perHost.effective} available={availableFilterOptions} initialFilters={filterSeed} nearDuplicateCount={nearDuplicateCount} pendingCount={pendingResolveCount} resetSignal={filterResetSignal} />
       )}
 
       <main className="scroll-thin mbd:flex-1 mbd:overflow-y-auto mbd:px-4 mbd:py-3">
@@ -354,6 +376,14 @@ const App: React.FC<AppProps> = ({
           ) : (
             <EmptyState onRefresh={fetchImages} />
           )
+        ) : filteredEmpty ? (
+          <FilteredEmptyState
+            hiddenCount={total}
+            allDownloaded={allDownloaded}
+            deepScanning={deepScanning}
+            onClearFilters={() => setFilterResetSignal((n) => n + 1)}
+            onDeepScan={handleDeepScan}
+          />
         ) : (
           <ImageList
             images={state.filteredImages}

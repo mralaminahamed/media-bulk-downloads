@@ -7,6 +7,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Helpful empty state when filters hide everything.** If the active filters leave
+  nothing to show — e.g. you filtered to *not-downloaded* and then downloaded all of
+  them — the grid no longer goes blank. It now explains how many items are hidden
+  (and, when it applies, that you've downloaded everything that matched) and offers
+  **Clear filters** and **Deep scan** right there.
 - **PornPics full-size images.** Gallery thumbnails on `cdni.pornpics.com` now
   upgrade from the on-page `460`-wide preview to the full `1280` rendition — a
   host-scoped CDN rule that rewrites the leading size segment. Byte-verified ~3–9×

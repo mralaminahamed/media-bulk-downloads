@@ -833,6 +833,20 @@ export interface ErrorStateProps {
   onRetry: () => void;
 }
 
+export interface FilteredEmptyStateProps {
+  /** How many eligible items are hidden by the active toolbar filters (all of them). */
+  hiddenCount: number;
+  /** True when the grid is empty specifically because a "not downloaded" filter is on
+   *  and every eligible item has already been downloaded — adds a tailored line. */
+  allDownloaded: boolean;
+  /** Deep scan currently running (toggles the scan button's label/state). */
+  deepScanning: boolean;
+  /** Reset the toolbar filters to their defaults. */
+  onClearFilters: () => void;
+  /** Start (or stop) a deep scan to load more items. */
+  onDeepScan: () => void;
+}
+
 export interface TextFieldProps {
   id: string;
   name: string;

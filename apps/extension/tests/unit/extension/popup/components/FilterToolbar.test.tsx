@@ -149,6 +149,27 @@ describe('FilterToolbar Component', () => {
     );
   });
 
+  it('resets to defaults when resetSignal increments (external clear)', () => {
+    const { rerender } = render(
+      <FilterToolbar onFilterChange={mockOnFilterChange} extensionSettings={settings} available={fullAvailable} resetSignal={0} />,
+    );
+    fireEvent.change(screen.getByRole('searchbox', { name: /search media/i }), { target: { value: 'zzz' } });
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'zzz' }));
+    mockOnFilterChange.mockClear();
+
+    rerender(
+      <FilterToolbar onFilterChange={mockOnFilterChange} extensionSettings={settings} available={fullAvailable} resetSignal={1} />,
+    );
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ search: '', mediaKind: 'all', downloadState: 'all', resolveState: 'all' }),
+    );
+  });
+
+  it('does not reset on mount when resetSignal starts at 0', () => {
+    render(<FilterToolbar onFilterChange={mockOnFilterChange} extensionSettings={settings} available={fullAvailable} resetSignal={0} />);
+    expect(mockOnFilterChange).not.toHaveBeenCalled();
+  });
+
   it('filters by a free-text search query as the user types', () => {
     renderToolbar();
     fireEvent.change(screen.getByRole('searchbox', { name: /search media/i }), { target: { value: 'sunset' } });
