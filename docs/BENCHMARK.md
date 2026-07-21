@@ -25,3 +25,32 @@ This benchmark is split across focused files under [`benchmark/`](./benchmark/):
 | [Performance](./benchmark/performance.md) | §J / K — popup grid render + deep-scan timings |
 
 The user-facing release history lives in the top-level [CHANGELOG.md](../CHANGELOG.md).
+
+## Coverage model — why the engine is broad *and* adaptive
+
+Support is delivered in **four escalating tiers**, each a fallback for the last, so
+the engine is "wildly supportive" without a per-site rule for every site:
+
+1. **Generic DOM collection (host-agnostic).** `collectMedia()` reads every `<img>` /
+   `<video>` / `<audio>` / `srcset` / `<picture>` / `og:*` / lazy `data-src` on the page.
+   Any site that mounts its media as a real element with a real URL is collected with
+   **zero per-site code** — this is the majority, including the whole plain-`<img>`
+   reader class (most manga readers, most image galleries; live-proved on **weebcentral**:
+   21 chapter-page originals collected with no dedicated resolver — see
+   [candidates.md](./benchmark/candidates.md)).
+2. **Adaptive deep-scan.** For lazy/virtualized/infinite feeds, the bounded scroll loop
+   (`collection/deepScan.ts`) surfaces what isn't yet in the DOM — with an **EMA-adaptive
+   quiet window**, yield-driven scroll step, warm-start from a host's learned settle time,
+   and "keep-going-when-rich" cap extension. It adapts to each page's cadence rather than
+   using fixed timings.
+3. **90+ host-agnostic CDN upgrade rules** (`collection/imageUrl.ts`) + **31 dedicated
+   resolvers** (`resolvers/`) rewrite a collected thumbnail to its original.
+4. **Opt-in network tier + MAIN-world sniffers** for the hard cases — SPAs that hide the
+   original behind canvas/blob/JS (MangaDex), signed CDNs, or player metadata (HLS/DASH,
+   Twitter/Vimeo/Twitch/…), each SSRF-host-pinned and read-only.
+
+**Consequence for "unsupported" sites:** a site absent from the coverage matrix is usually
+*already collected* by tier 1–2; a dedicated resolver (tier 3–4) is warranted **only** when
+the original is hidden from the DOM. This is the maturity check — breadth comes from the
+generic tiers, precision from the dedicated ones, and every tier is covered by the ~3,000-test
+suite across Chrome/Firefox/Edge/Safari.
