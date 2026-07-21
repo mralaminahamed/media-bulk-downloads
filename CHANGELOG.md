@@ -6,6 +6,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-22
+
 ### Added
 - **Helpful empty state when filters hide everything.** If the active filters leave
   nothing to show — e.g. you filtered to *not-downloaded* and then downloaded all of
@@ -785,7 +787,8 @@ Initial public release.
 - Twitter/X GIF thumbnails served without a path extension are collected as
   downloadable video instead of leaking as a still image.
 
-[Unreleased]: https://github.com/mralaminahamed/media-bulk-downloads/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/mralaminahamed/media-bulk-downloads/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/mralaminahamed/media-bulk-downloads/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/mralaminahamed/media-bulk-downloads/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/mralaminahamed/media-bulk-downloads/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/mralaminahamed/media-bulk-downloads/releases/tag/v1.0.0
