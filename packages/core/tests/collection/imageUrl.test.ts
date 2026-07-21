@@ -87,6 +87,11 @@ describe('upgradeToOriginal', () => {
       'https://images.unsplash.com/photo-123',
     ],
     [
+      'steam UGC drops the resize/letterbox query to the original',
+      'https://images.steamusercontent.com/ugc/12345/ABCDEF0123456789/?imw=512&imh=288&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=true',
+      'https://images.steamusercontent.com/ugc/12345/ABCDEF0123456789/',
+    ],
+    [
       'imgix drops resize params',
       'https://acme.imgix.net/a.jpg?w=200&h=200&fit=crop',
       'https://acme.imgix.net/a.jpg',

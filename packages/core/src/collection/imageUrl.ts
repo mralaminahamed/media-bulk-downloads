@@ -703,6 +703,14 @@ const RULES: CdnRule[] = [
     rewrite: (u) => { u.search = ''; },
   },
   {
+    // Steam UGC (community screenshots/artwork). The `/ugc/<id>/<hash>/` URL is
+    // the unsigned source; the query is a pure server-side resize/letterbox
+    // (`imw/imh/ima/impolicy/imcolor/letterbox/cache` — no signature), so dropping
+    // it serves the full-quality original. Live-probed 2026-07-21.
+    match: (u) => u.hostname === 'images.steamusercontent.com' && u.pathname.startsWith('/ugc/'),
+    rewrite: (u) => dropParams(u, ['imw', 'imh', 'ima', 'impolicy', 'imcolor', 'letterbox', 'cache']),
+  },
+  {
     match: (u) => u.hostname === 'wallpapercave.com' && /^\/w\d+\//.test(u.pathname),
     rewrite: (u) => { u.pathname = u.pathname.replace(/^\/w\d+\//, '/wp/'); },
   },

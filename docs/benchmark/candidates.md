@@ -15,8 +15,7 @@ needs an in-browser recon;
 
 | Site                    | Type               | Mechanism                                                                                                      | Evidence                                           |
 |-------------------------|--------------------|----------------------------------------------------------------------------------------------------------------|----------------------------------------------------|
-| **VK**                  | CDN rule           | `*.userapi.com` `/s/v1/ig2/…&cs=WxH` → drop `cs=` (keep `u=` token)                                            | cs=640 71 KB → stripped 681 KB (~10–190×)          |
-| **Steam**               | CDN rule           | `images.steamusercontent.com/ugc/…?imw=…` → strip query                                                        | 29 KB → 135 KB (4.7×)                              |
+| **VK** ⚠ blocked        | CDN rule           | `*.userapi.com` `/s/v1/ig2/…&cs=WxH` → drop `cs=` (keep `u=` token)                                            | cs=640 71 KB → stripped 681 KB (~10–190×) — but **URLs are signed**; needs a **live signed sample** to confirm `cs` sits outside the signature before shipping. VK login-walls content anonymously (2026-07-21 recon: every page an empty shell), so **deferred** until a real sample is available (user logged into VK / a pasted sample URL) |
 | **Bunkr**               | resolver (album)   | `/a/<id>`→`/f/<slug>`→`dl.bunkr/api/_001_v2`→sign→original (per-file media host)                               | thumb 147 KB → 19 MB; live (200)                   |
 | **Pixeldrain**          | resolver           | `/l/<id>` → `/api/list/<id>` → `/api/file/<id>` originals                                                      | API contract confirmed (SPA shell)                 |
 | **turbo.cr** (ex-Saint) | resolver           | video id → site's own `GET /api/sign?v=<id>` → signed `dl*.turbocdn.st` mp4                                    | live (200); signed short-TTL → resolve at download |
@@ -71,8 +70,10 @@ LOFTER (`imglf`), Naver (`pstatic`), Weibo images (`sinaimg`), Bilibili images (
 
 - ✅ **MangaDex — SHIPPED 2026-07-21.** Anchored the new *manga* category via a
   MAIN-world sniffer of its open `at-home/server` API (see [changelog](./changelog.md)).
+- ✅ **Steam UGC — SHIPPED 2026-07-21.** CDN rule stripping the unsigned resize query
+  on `images.steamusercontent.com/ugc/` (see [changelog](./changelog.md)).
 
-1. **VK + Steam** — CDN rules, byte-verified, ~10 lines each.
-2. **Bunkr** — live album reader (proven pattern).
+1. **Bunkr** — live album reader (proven pattern).
+2. **VK** — ⚠ blocked on a live signed sample (see table above).
 3. A **XenForo forum reader** (covers simpcity/titsintops/socialmediagirls at once)
    and a **hentai-gallery template** (imhentai/hentaifox family) — high fan-out.
