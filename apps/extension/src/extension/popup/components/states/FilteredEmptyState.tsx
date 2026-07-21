@@ -24,11 +24,14 @@ export const FilteredEmptyState: React.FC<FilteredEmptyStateProps> = ({
       (allDownloaded ? " You've downloaded everything that matched." : '')
     }
     action={
-      <div className="mbd:flex mbd:flex-wrap mbd:justify-center mbd:gap-2">
-        <button onClick={onClearFilters} className="btn btn-primary">
+      // Stacked, full-width: the deep-scan label toggles between "Deep scan" and the
+      // wider "Stop deep scan"; a side-by-side row re-wraps on that width change (the
+      // button jumps below). A column keeps the layout stable regardless of label.
+      <div className="mbd:flex mbd:w-full mbd:flex-col mbd:gap-2">
+        <button onClick={onClearFilters} className="btn btn-primary mbd:w-full">
           Clear filters
         </button>
-        <button onClick={onDeepScan} className="btn btn-ghost">
+        <button onClick={onDeepScan} className="btn btn-ghost mbd:w-full">
           <ChevronDoubleDownIcon className={`mbd:h-4 mbd:w-4 ${deepScanning ? 'mbd:animate-pulse' : ''}`} />
           <span>{deepScanning ? 'Stop deep scan' : 'Deep scan'}</span>
         </button>
