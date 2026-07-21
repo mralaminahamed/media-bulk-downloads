@@ -608,6 +608,13 @@ export interface SettingsData {
    *  (grid originals via the per-post detail API). Default off; consumed by the
    *  popup to show the action. Never triggers an authed call on its own. */
   sankakuAuthedOriginals: boolean;
+  /** Per-kind fetch gates. When a kind is off it is never surfaced — dropped in
+   *  `passesSettingsFilters` before it reaches the grid, Download-all, ZIP, or copy.
+   *  All on by default (collect everything). Persistent + global; a `gif` collected
+   *  as `kind:'image'` rides with images. */
+  fetchImages: boolean;
+  fetchVideo: boolean;
+  fetchAudio: boolean;
   /** Surface HLS (`.m3u8`) AND DASH (`.mpd`) streams as capture items (the gate
    *  covers both). Off by default — capturing a stream fetches and assembles every
    *  segment (slow, memory-heavy), so it's an explicit opt-in rather than something
