@@ -7,6 +7,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **PornPics full-size images.** Gallery thumbnails on `cdni.pornpics.com` now
+  upgrade from the on-page `460`-wide preview to the full `1280` rendition — a
+  host-scoped CDN rule that rewrites the leading size segment. Byte-verified ~3–9×
+  larger; leaves images already at `1280` untouched.
 - **Reset settings & clear all data.** The Settings → **Data** tab now has two
   destructive controls, each guarded by a two-step inline confirm: **Reset settings**
   restores every setting to its default (your favourites, history, and blocked
