@@ -102,6 +102,16 @@ describe('upgradeToOriginal', () => {
       'https://uploads.wikiart.org/images/vincent-van-gogh/portrait-of-doctor-gachet-1890.jpg',
     ],
     [
+      'inkbunny swaps /files/screen/ -> /files/full/ (same basename)',
+      'https://sg.ib.metapix.net/files/screen/5502/5502500_Artist_title.jpg',
+      'https://sg.ib.metapix.net/files/full/5502/5502500_Artist_title.jpg',
+    ],
+    [
+      'inkbunny swaps /files/preview/ -> /files/full/',
+      'https://jp.ib.metapix.net/files/preview/5502/5502500_Artist_title.jpg',
+      'https://jp.ib.metapix.net/files/full/5502/5502500_Artist_title.jpg',
+    ],
+    [
       'imgix drops resize params',
       'https://acme.imgix.net/a.jpg?w=200&h=200&fit=crop',
       'https://acme.imgix.net/a.jpg',

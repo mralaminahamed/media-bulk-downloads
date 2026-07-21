@@ -10,6 +10,15 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Inkbunny (2026-07-21)** — a **CDN rule** (`imageUrl.ts`) for `*.ib.metapix.net`. The
+  metapix CDN (geo-balanced `sg`/`jp`/… nodes) serves the **same basename** under
+  `/files/{preview,screen,full}/`; the submission page shows the `screen` rendition, so the
+  rule swaps the size folder to `full` (404-safe — identical basename, no ext guessing). No
+  API/sid needed (the guest `api_submissions.php` `file_url_full` confirmed the folder shape,
+  but the rewrite is pure). **Live byte-probe 2026-07-21**: full **884 KB** vs screen 432 KB
+  (**2×**); the anonymous 302 on `/full/` is transparent CDN node balancing (sg→jp) the
+  browser follows, **not** a login gate (`curl -L` → 200 image/jpeg). Furry-art site (mixed
+  SFW/adult) — the rule is a plain size swap, no login/paywall bypass. Core +2 tests.
 - ✅ **WikiArt (2026-07-21)** — a **CDN rule** (`imageUrl.ts`) for `uploads*.wikiart.org`.
   Artwork images carry a `!<SizeCode>.<ext>` rendition suffix (`!HD`, `!Large`,
   `!PinterestLarge`, `!Portrait`, …); the **un-suffixed base file** is the full original
