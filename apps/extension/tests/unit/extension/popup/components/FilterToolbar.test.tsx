@@ -60,12 +60,40 @@ describe('FilterToolbar Component', () => {
     skipDuplicateDownloads: true,
   };
 
+  const mockOnSettingsChange = vi.fn();
   const renderToolbar = (over: Partial<SettingsData> = {}) =>
-    render(<FilterToolbar onFilterChange={mockOnFilterChange} extensionSettings={{ ...settings, ...over }} available={fullAvailable} />);
+    render(<FilterToolbar onFilterChange={mockOnFilterChange} onSettingsChange={mockOnSettingsChange} extensionSettings={{ ...settings, ...over }} available={fullAvailable} />);
 
   const openMore = () => fireEvent.click(screen.getByRole('button', { name: /More/i }));
 
-  beforeEach(() => mockOnFilterChange.mockClear());
+  beforeEach(() => { mockOnFilterChange.mockClear(); mockOnSettingsChange.mockClear(); });
+
+  it('surfaces the three fetch toggles in More, reflecting the persistent settings', () => {
+    renderToolbar({ fetchAudio: false });
+    openMore();
+    expect(screen.getByRole('switch', { name: /fetch images/i })).toBeChecked();
+    expect(screen.getByRole('switch', { name: /fetch video/i })).toBeChecked();
+    expect(screen.getByRole('switch', { name: /fetch audio/i })).not.toBeChecked();
+  });
+
+  it('toggling a fetch switch writes the flipped persistent setting', () => {
+    renderToolbar();
+    openMore();
+    fireEvent.click(screen.getByRole('switch', { name: /fetch audio/i }));
+    expect(mockOnSettingsChange).toHaveBeenCalledWith({ fetchAudio: false });
+  });
+
+  it('re-enables a previously-off kind from the bar', () => {
+    renderToolbar({ fetchImages: false });
+    openMore();
+    fireEvent.click(screen.getByRole('switch', { name: /fetch images/i }));
+    expect(mockOnSettingsChange).toHaveBeenCalledWith({ fetchImages: true });
+  });
+
+  it('counts an off fetch kind in the More badge', () => {
+    renderToolbar({ fetchVideo: false });
+    expect(screen.getByText('1')).toBeInTheDocument();
+  });
 
   it('renders filters with a Type dropdown', () => {
     renderToolbar();
