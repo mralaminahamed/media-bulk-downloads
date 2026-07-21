@@ -11,6 +11,26 @@ Reachability + markup-readiness validated by HTTP probe (status + byte size: a l
 needs an in-browser recon;
 `000` = down). Last validated: **2026-07-21**.
 
+## GitHub issue sweep (2026-07-21) — the 5 open resolver issues (excl. AI #202 / cloud-sync #203)
+
+Read, validated live, and resolved every open resolver issue:
+
+- ✅ **#375 Odnoklassniki (ok.ru)** — shipped. Network-free `okruPageMedia` reads the player
+  `data-options` JSON → highest progressive MP4 on `*.okcdn.ru` (generic misses the JSON blob).
+- ✅ **#400 Kick** — shipped. Network-tier resolver mirroring Twitch (clip `.../play` mp4, VOD
+  `source` HLS), host-pinned to `*.kick.com`. Runtime-gated by Kick's CF (fetch runs in the
+  user's browser); unit-tested + fail-closed.
+- ✅ **#372 VK** — shipped as a CDN `cs=` drop (see table below; the signature blocker is now cleared).
+- ✔ **#401 Snapchat Spotlight** — **closed as already generic-covered.** The runtime `<video>`
+  exposes the real `.27.` mp4 in `src`/`<source type=video/mp4>` on `sc-cdn.net` with the `.256.`
+  poster — the generic collector captures it (verified live: passes every `collectAv` gate). A
+  resolver would return the identical URL (deduped). The `__NEXT_DATA__` feed is intentionally not
+  pulled (over-collection).
+- ✔ **#387 ShareChat** — **closed as generic-covered / no upgrade path.** Post images are `_sc.webp`
+  surfaced via `og:image` + `<img>` on the sharechat CDNs (generic collects them). The proposed
+  `_thumbnail_v2` strip is a dead end (byte-verified: `_sc_thumbnail_v2.jpeg` 200 → stripped 404),
+  and the full image has a different hash than the grid thumbnail, so no deterministic rewrite.
+
 ## Session triage (2026-07-21) — what shipped, what's gated
 
 A build sweep this session harvested every candidate whose mechanism could be
@@ -56,7 +76,7 @@ them**. For the signed/hidden-original class, hand over one sample content URL a
 
 | Site                    | Type               | Mechanism                                                                                                      | Evidence                                           |
 |-------------------------|--------------------|----------------------------------------------------------------------------------------------------------------|----------------------------------------------------|
-| **VK** ⚠ blocked        | CDN rule           | `*.userapi.com` `/s/v1/ig2/…&cs=WxH` → drop `cs=` (keep `u=` token)                                            | cs=640 71 KB → stripped 681 KB (~10–190×) — but **URLs are signed**; needs a **live signed sample** to confirm `cs` sits outside the signature before shipping. VK login-walls content anonymously (2026-07-21 recon: every page an empty shell), so **deferred** until a real sample is available (user logged into VK / a pasted sample URL) |
+| **VK** ✅ shipped        | CDN rule           | `*.userapi.com` `/s/v<n>/ig<n>/…&cs=WxH` → drop `cs=` (keep `u=` token)                                        | **SHIPPED 2026-07-21 (#372).** The signature blocker is cleared: verified live via in-page `Image()` loads that removing/raising `cs` on a signed `ig` URL still serves the image (no 403/404) → `cs` sits **outside** the `u=` signature. Rule drops `cs`, scoped to the signed `ig` photo path. The full-size viewer is login-walled for anon, so the win magnitude on a large original isn't byte-proven headless (follows VK's documented `cs`-cap semantics; never downgrades) |
 | **Bunkr**               | resolver (album)   | `/a/<id>`→`/f/<slug>`→`dl.bunkr/api/_001_v2`→sign→original (per-file media host)                               | thumb 147 KB → 19 MB; live (200)                   |
 | **Pixeldrain**          | resolver           | `/l/<id>` → `/api/list/<id>` → `/api/file/<id>` originals                                                      | API contract confirmed (SPA shell)                 |
 | **turbo.cr** (ex-Saint) | resolver           | video id → site's own `GET /api/sign?v=<id>` → signed `dl*.turbocdn.st` mp4                                    | live (200); signed short-TTL → resolve at download |
@@ -89,8 +109,8 @@ Rule of thumb: these render usable markup to an anonymous request, so a DOM / pa
 Confirm markup + mechanism in a live tab (Claude-in-Chrome) before building:
 `furaffinity.net`, `nhentai.net`, `luscious.net`, `nudostar.tv`, `newgrounds.com`,
 `toyhou.se`, `weasyl.com`, `mangafire.to`, `comick.io`, `piczel.tv`, `nijie.info`,
-`webtoons.com`, `vipergirls.to`, `pictoa.com`. **Bandcamp** (audio) and **Kick**
-(cookie-bound) also sit here.
+`webtoons.com`, `vipergirls.to`, `pictoa.com`. **Bandcamp** (audio) also sits here.
+(**Kick** — ✅ shipped 2026-07-21 (#400); the CF-gated fetch runs in the user's browser at runtime.)
 
 ## CLOSED / SKIP
 
@@ -98,7 +118,9 @@ Confirm markup + mechanism in a live tab (Claude-in-Chrome) before building:
   reference (MIT) targets this defunct domain; its album-scrape shape informs a future rebuild if the origin returns.
 - **mangapark.net** — unreachable (000) at validation; recheck later.
 - **Tumblr** — generic `bestSrcsetUrl` already takes the CDN-cap original.
-- **Kick** — Cloudflare JA3-gated; only a cookie-bound Tier-2 fetch possible (unverifiable anonymously).
+- **Kick** — ✅ shipped 2026-07-21 (#400) as a network-tier resolver mirroring Twitch (clip
+  `.../play` mp4, VOD `source` HLS, host-pinned `*.kick.com`). Cloudflare JA3-gates anonymous
+  headless API requests, so the fetch runs in the user's browser at capture time; unit-tested + fail-closed.
 
 ## Already covered — do NOT rebuild
 
@@ -115,6 +137,6 @@ LOFTER (`imglf`), Naver (`pstatic`), Weibo images (`sinaimg`), Bilibili images (
   on `images.steamusercontent.com/ugc/` (see [changelog](./changelog.md)).
 
 1. **Bunkr** — live album reader (proven pattern).
-2. **VK** — ⚠ blocked on a live signed sample (see table above).
+2. ~~**VK**~~ — ✅ shipped 2026-07-21 (#372): `cs=` drop CDN rule (signature blocker cleared).
 3. A **XenForo forum reader** (covers simpcity/titsintops/socialmediagirls at once)
    and a **hentai-gallery template** (imhentai/hentaifox family) — high fan-out.
