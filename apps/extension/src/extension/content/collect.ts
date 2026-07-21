@@ -53,6 +53,7 @@ import { szurubooruPageMedia } from '@mbd/core/resolvers/sites/szurubooru';
 import { okruPageMedia } from '@mbd/core/resolvers/sites/odnoklassniki';
 import { soundcloudTrackUrl } from '@mbd/core/resolvers/sites/soundcloud';
 import { streamableVideoId } from '@mbd/core/resolvers/sites/streamable';
+import { kickClipId, kickVideoId } from '@mbd/core/resolvers/sites/kick';
 import { redgifsVideoId } from '@mbd/core/resolvers/sites/redgifs';
 import { twitchClipId, twitchVodId } from '@mbd/core/resolvers/sites/twitch';
 import { nineGagId } from '@mbd/core/resolvers/sites/ninegag';
@@ -409,6 +410,26 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     });
   };
 
+  const pushKick = (id: string): void => {
+    const watch = `https://kick.com/clips/${id}`;
+    if (!seenSources.addIfNew(watch)) return;
+    media.push({
+      src: watch, alt: '', width: 0, height: 0, type: 'mp4',
+      fileSize: 0, isBase64: false, kind: 'video',
+      unresolvedVideo: true, resolveHint: { platform: 'kick', id },
+    });
+  };
+
+  const pushKickVod = (id: string): void => {
+    const watch = `https://kick.com/video/${id}`;
+    if (!seenSources.addIfNew(watch)) return;
+    media.push({
+      src: watch, alt: '', width: 0, height: 0, type: 'm3u8',
+      fileSize: 0, isBase64: false, kind: 'video',
+      unresolvedVideo: true, resolveHint: { platform: 'kick', id: `video ${id}` },
+    });
+  };
+
   const pushSoundcloud = (trackUrl: string): void => {
     if (!seenSources.addIfNew(trackUrl)) return;
     media.push({
@@ -673,6 +694,10 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
       else if (resolvedHref && twitchClipId(resolvedHref)) pushTwitch(twitchClipId(resolvedHref)!);
       // A link to a Twitch VOD (`/videos/<id>`) — surface as a pending video (HLS).
       else if (resolvedHref && twitchVodId(resolvedHref)) pushTwitchVod(twitchVodId(resolvedHref)!);
+      // A link to a Kick clip — surface as a pending video resolved on demand.
+      else if (resolvedHref && kickClipId(resolvedHref)) pushKick(kickClipId(resolvedHref)!);
+      // A link to a Kick VOD (`/videos/<uuid>`) — surface as a pending video (HLS).
+      else if (resolvedHref && kickVideoId(resolvedHref)) pushKickVod(kickVideoId(resolvedHref)!);
       // A link to a SoundCloud track — surface as a pending audio item resolved on demand.
       else if (resolvedHref && soundcloudTrackUrl(resolvedHref)) pushSoundcloud(soundcloudTrackUrl(resolvedHref)!);
       // A link to a 9GAG post that carries a <video> (a video/GIF post) — surface
@@ -811,6 +836,10 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     if (loomPageId) pushLoom(loomPageId);
     const twitchVodPageId = twitchVodId(pageUrl);
     if (twitchVodPageId) pushTwitchVod(twitchVodPageId);
+    const kickClipPageId = kickClipId(pageUrl);
+    if (kickClipPageId) pushKick(kickClipPageId);
+    const kickVodPageId = kickVideoId(pageUrl);
+    if (kickVodPageId) pushKickVod(kickVodPageId);
     const soundcloudPageUrl = soundcloudTrackUrl(pageUrl);
     if (soundcloudPageUrl) pushSoundcloud(soundcloudPageUrl);
 

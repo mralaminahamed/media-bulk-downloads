@@ -1198,3 +1198,54 @@ describe('resolveOriginal — soundcloud', () => {
     expect(await resolveOriginal({ platform: 'soundcloud', id: TRACK }, { fetch: throwing })).toBeNull();
   });
 });
+
+describe('resolveOriginal — kick clip', () => {
+  const CLIP = 'clip_01HXYZ';
+  const throwing = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
+
+  it('returns the clip_url mp4, pinned to kick.com', async () => {
+    const payload = { clip: { clip_url: 'https://clips.kick.com/clips/abc/clip.mp4', video_url: null } };
+    const res = await resolveOriginal({ platform: 'kick', id: CLIP }, { fetch: mockFetch(payload) });
+    expect(res).toEqual({ url: 'https://clips.kick.com/clips/abc/clip.mp4' });
+  });
+
+  it('falls back to video_url when clip_url is absent', async () => {
+    const payload = { clip: { video_url: 'https://clips.kick.com/x/v.mp4' } };
+    const res = await resolveOriginal({ platform: 'kick', id: CLIP }, { fetch: mockFetch(payload) });
+    expect(res!.url).toBe('https://clips.kick.com/x/v.mp4');
+  });
+
+  it('drops an off-CDN clip url (untrusted JSON)', async () => {
+    const payload = { clip: { clip_url: 'https://evil.com/x.mp4' } };
+    expect(await resolveOriginal({ platform: 'kick', id: CLIP }, { fetch: mockFetch(payload) })).toBeNull();
+  });
+
+  it('fails closed on a bad id, non-ok response, missing clip, or network error', async () => {
+    expect(await resolveOriginal({ platform: 'kick', id: 'clip_bad!' }, { fetch: mockFetch({ clip: { clip_url: 'https://clips.kick.com/x.mp4' } }) })).toBeNull();
+    expect(await resolveOriginal({ platform: 'kick', id: CLIP }, { fetch: mockFetch({ clip: { clip_url: 'https://clips.kick.com/x.mp4' } }, false) })).toBeNull();
+    expect(await resolveOriginal({ platform: 'kick', id: CLIP }, { fetch: mockFetch({}) })).toBeNull();
+    expect(await resolveOriginal({ platform: 'kick', id: CLIP }, { fetch: throwing })).toBeNull();
+  });
+});
+
+describe('resolveOriginal — kick VOD', () => {
+  const VID = '3f2504e0-4f89-41d3-9a0c-0305e82c3301';
+  const throwing = (async () => { throw new Error('net'); }) as unknown as typeof fetch;
+
+  it('returns the source HLS master (hls:true), pinned to kick.com', async () => {
+    const payload = { source: `https://stream.kick.com/ivs/v1/196233775518/${VID}/master.m3u8` };
+    const res = await resolveOriginal({ platform: 'kick', id: `video ${VID}` }, { fetch: mockFetch(payload) });
+    expect(res).toEqual({ url: payload.source, hls: true });
+  });
+
+  it('drops an off-CDN source', async () => {
+    expect(await resolveOriginal({ platform: 'kick', id: `video ${VID}` }, { fetch: mockFetch({ source: 'https://evil.com/master.m3u8' }) })).toBeNull();
+  });
+
+  it('fails closed on a bad uuid, non-ok, missing source, or network error', async () => {
+    expect(await resolveOriginal({ platform: 'kick', id: 'video 12345' }, { fetch: mockFetch({ source: 'https://stream.kick.com/x.m3u8' }) })).toBeNull();
+    expect(await resolveOriginal({ platform: 'kick', id: `video ${VID}` }, { fetch: mockFetch({ source: 'https://stream.kick.com/x.m3u8' }, false) })).toBeNull();
+    expect(await resolveOriginal({ platform: 'kick', id: `video ${VID}` }, { fetch: mockFetch({}) })).toBeNull();
+    expect(await resolveOriginal({ platform: 'kick', id: `video ${VID}` }, { fetch: throwing })).toBeNull();
+  });
+});

@@ -827,6 +827,52 @@ async function twitchVod(vodId: string, deps: NetDeps): Promise<ResolvedMedia | 
   }
 }
 
+interface KickClip { clip_url?: unknown; video_url?: unknown }
+interface KickClipResponse { clip?: KickClip }
+interface KickVideoResponse { source?: unknown }
+
+/**
+ * Kick clips + VODs (opt-in). A clip's mp4 comes from `api/v2/clips/<id>/play`
+ * (`clip.clip_url`, else `clip.video_url`); a VOD's HLS master from
+ * `api/v1/video/<uuid>` (`source`). Near-1:1 with the Twitch resolver. Both media
+ * URLs are host-pinned to `*.kick.com` (clips serve from `clips.kick.com`, VOD
+ * masters from `stream.kick.com` — the API JSON is untrusted). Any missing field,
+ * non-ok response, or off-CDN URL → null (fail-closed: never a URL that 404/403s).
+ * Private/expired media and live channels resolve to null (no circumvention).
+ */
+async function kick(id: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  const vod = /^video (.+)$/.exec(id);
+  if (vod) return kickVod(vod[1], deps);
+  if (!/^clip_[A-Za-z0-9]+$/.test(id)) return null;
+  try {
+    const r = await deps.fetch(`https://kick.com/api/v2/clips/${encodeURIComponent(id)}/play`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (!r.ok) return null;
+    const clip = ((await r.json()) as KickClipResponse)?.clip;
+    const url = pinnedUrl(typeof clip?.clip_url === 'string' ? clip.clip_url : null, 'kick.com')
+      ?? pinnedUrl(typeof clip?.video_url === 'string' ? clip.video_url : null, 'kick.com');
+    return url ? { url } : null;
+  } catch {
+    return null;
+  }
+}
+
+async function kickVod(uuid: string, deps: NetDeps): Promise<ResolvedMedia | null> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) return null;
+  try {
+    const r = await deps.fetch(`https://kick.com/api/v1/video/${encodeURIComponent(uuid)}`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (!r.ok) return null;
+    const source = ((await r.json()) as KickVideoResponse)?.source;
+    const pinned = pinnedUrl(typeof source === 'string' ? source : null, 'kick.com');
+    return pinned ? { url: pinned, hls: true } : null;
+  } catch {
+    return null;
+  }
+}
+
 const SC_BUNDLE_RE = /https:\/\/a-v2\.sndcdn\.com\/assets\/[0-9a-zA-Z._-]+\.js/g;
 
 /** Scrape an anonymous client_id from the track page's app bundles (the id lives in
@@ -914,6 +960,7 @@ export async function resolveOriginal(hint: ResolveHint, deps: NetDeps): Promise
     case 'redgifs': return redgifs(hint.id, deps);
     case 'sankaku': return sankaku(hint.id, deps);
     case 'twitch': return twitch(hint.id, deps);
+    case 'kick': return kick(hint.id, deps);
     case '9gag': return ninegag(hint.id);
     default: return null;
   }

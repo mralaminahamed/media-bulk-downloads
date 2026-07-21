@@ -7,6 +7,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Kick clips & VODs.** Kick clip and VOD links now resolve to their real media
+  via the opt-in network tier — a clip to its MP4 (`api/v2/clips/<id>/play`), a VOD
+  to its HLS master (`api/v1/video/<uuid>`), both host-pinned to `*.kick.com`.
+  Mirrors the existing Twitch resolver. Fails closed on private/expired media.
 - **Odnoklassniki (ok.ru) videos.** Open a video on `ok.ru` and the extension now
   lists the full-quality MP4 — it reads the page's own player metadata
   (`data-options`) and picks the highest available progressive rendition, pinned to
