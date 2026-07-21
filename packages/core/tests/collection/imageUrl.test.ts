@@ -112,6 +112,16 @@ describe('upgradeToOriginal', () => {
       'https://jp.ib.metapix.net/files/full/5502/5502500_Artist_title.jpg',
     ],
     [
+      'itaku collapses a nested _xl thumbnail to the flat original',
+      'https://itaku.ee/api/media_3/gallery_imgs/ArtName_09f32rI/ArtName_09f32rI_xl.png',
+      'https://itaku.ee/api/media_3/gallery_imgs/ArtName_09f32rI.png',
+    ],
+    [
+      'itaku collapses a nested _sm thumbnail to the flat original',
+      'https://itaku.ee/api/media_3/gallery_imgs/ArtName_09f32rI/ArtName_09f32rI_sm.png',
+      'https://itaku.ee/api/media_3/gallery_imgs/ArtName_09f32rI.png',
+    ],
+    [
       'imgix drops resize params',
       'https://acme.imgix.net/a.jpg?w=200&h=200&fit=crop',
       'https://acme.imgix.net/a.jpg',
@@ -279,6 +289,11 @@ describe('upgradeToOriginal', () => {
     expect(upgradeToOriginal(original)).toEqual({ original });
     const ui = 'https://uploads.wikiart.org/Content/wiki/img/logo_small.png';
     expect(upgradeToOriginal(ui)).toEqual({ original: ui });
+  });
+
+  it('itaku leaves an already-flat original (no nested _size) untouched', () => {
+    const original = 'https://itaku.ee/api/media_3/gallery_imgs/ArtName_09f32rI.png';
+    expect(upgradeToOriginal(original)).toEqual({ original });
   });
 
   it('cloudinary removes the transform segment', () => {

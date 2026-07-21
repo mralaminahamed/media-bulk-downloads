@@ -731,6 +731,16 @@ const RULES: CdnRule[] = [
     rewrite: (u) => { u.pathname = u.pathname.replace(/^\/files\/(?:screen|preview)\//i, '/files/full/'); },
   },
   {
+    // Itaku (art). The API serves the original at `…/gallery_imgs/<name>.<ext>`
+    // and sized thumbnails nested under a same-named folder as
+    // `…/gallery_imgs/<name>/<name>_<sm|md|lg|xl>.<ext>`. Collapse a nested
+    // `<name>/<name>_<size>` back to the flat `<name>` original (backreference
+    // ties folder == file base, so nothing else matches). Live byte-probe
+    // 2026-07-21: original 3.85 MB vs _xl 910 KB (4.2×).
+    match: (u) => /(?:^|\.)itaku\.ee$/i.test(u.hostname) && /\/([^/]+)\/\1_(?:sm|md|lg|xl)\.[a-z0-9]+$/i.test(u.pathname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/\/([^/]+)\/\1_(?:sm|md|lg|xl)(\.[a-z0-9]+)$/i, '/$1$2'); },
+  },
+  {
     match: (u) => u.hostname === 'wallpapercave.com' && /^\/w\d+\//.test(u.pathname),
     rewrite: (u) => { u.pathname = u.pathname.replace(/^\/w\d+\//, '/wp/'); },
   },
