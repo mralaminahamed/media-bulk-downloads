@@ -10,6 +10,34 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **Odnoklassniki / ok.ru (2026-07-21, #375)** — a network-free **collect** reader
+  (`okruPageMedia`, `resolvers/sites/odnoklassniki.ts`). An ok.ru video page carries a player
+  `[data-options]` attribute whose `flashvars.metadata` (stringified JSON) holds a `videos[]`
+  array of per-quality **signed progressive MP4s** on `*.okcdn.ru` plus an `hlsManifestUrl`.
+  The reader parses it, ranks the rendition names (mobile<lowest<low<sd<hd<full<quad<ultra),
+  and surfaces the highest progressive MP4, host-pinned to `*.okcdn.ru`/`*.mycdn.me`; the
+  generic collector misses these (they live in a JSON blob, not a `<video>`). **Live-probed
+  2026-07-21**: `https://ok.ru/video/<id>` HTTP 200 (~954 KB SSR), `data-options` present with
+  `videos[]`+`hlsManifestUrl`. Live-only/HLS-only pages, off-CDN URLs, malformed JSON → []
+  (fails closed; no live-gating circumvention). Wired into collect.ts gated to `ok.ru`. Core +14 tests.
+- ✅ **Kick (2026-07-21, #400)** — a network-tier resolver (`resolvers/sites/kick.ts` +
+  `network.ts`), near-1:1 with Twitch. Clip → `GET api/v2/clips/<id>/play` (`clip.clip_url`
+  mp4, falls back to `video_url`); VOD → `GET api/v1/video/<uuid>` (`source` HLS master). Both
+  host-pinned to `*.kick.com` (clips `clips.kick.com`, VOD masters `stream.kick.com`, per
+  public API references). Added `'kick'` to `ResolvePlatform` + dispatch + collect.ts push
+  (anchors + page URL). Kick **CF-gates anonymous headless API requests (403)**, so the fetch
+  runs in the user's browser at capture time (as Twitch's does) — **not headless-verifiable**;
+  parsing/signing is unit-tested and fail-closed on any missing/off-CDN/private field. Core +18 tests.
+- ✅ **VK photos (2026-07-21, #372)** — a host-agnostic **CDN rule** (`imageUrl.ts`) for VK's
+  signed photo CDN `*.userapi.com` (`/s/v<n>/ig<n>/<blob>.jpg?cs=WxH&u=<sig>`). The `cs=` param
+  is a display-size cap that sits **outside** the `u=` signature — **verified live 2026-07-21**
+  via in-page `Image()` loads: removing `cs` and setting `cs=2560`/`5000` on a signed `ig` URL
+  all still served the image (no 403/404), clearing the precondition `candidates.md` flagged as
+  blocking. The rule drops `cs=` to serve the native original, keeping the signature; scoped to
+  the signed `ig` photo path (old path-based renditions and UI assets untouched). Chosen over
+  the issue's viewer-JSON resolver: simpler, host-agnostic, and independent of the login-walled
+  photo viewer (which also means the size **magnitude** on a large original isn't byte-proven
+  anon — it follows VK's documented `cs`-cap semantics and never downgrades). Core +4 tests.
 - ✅ **Itaku (2026-07-21)** — a **CDN rule** (`imageUrl.ts`) for `itaku.ee`. The public API
   serves the original at `…/gallery_imgs/<name>.<ext>` and sized thumbnails **nested** under a
   same-named folder as `…/<name>/<name>_<sm|md|lg|xl>.<ext>`. The rule collapses a nested
