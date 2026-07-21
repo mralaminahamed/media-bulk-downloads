@@ -20,23 +20,37 @@ size folder) — all shipped, all live-verified:
 - ✅ **MangaDex** (MAIN-world sniffer of the open `at-home` API — new manga category)
 - ✅ **Steam UGC**, ✅ **WikiArt**, ✅ **Inkbunny**, ✅ **Itaku** (CDN rules; byte-verified 2–17×)
 
-**Blocked for headless recon (need a real user session / in-browser pass — Phase 2):**
-the remaining readers can't be validated from here because their *content* pages sit
-behind Cloudflare's interactive challenge (which also fires for the automation browser)
-or need a private/login sample:
+**Already covered by the generic pipeline — no per-site code needed (validated live).**
+The most important validation finding of the sweep: the **plain-`<img>` reader class**
+(most manga readers, most image galleries) is **already fully collected by the generic
+`collectMedia()` + deep-scan** — these sites mount every page/scan as a real `<img src="…">`
+on a plain CDN (the src is the original), which the generic collector reads directly and
+deep-scan surfaces for paginated ones. A **dedicated resolver is only warranted for
+SPAs that hide the original behind canvas/blob/JS** (MangaDex-style), which is exactly why
+MangaDex needed a sniffer and weebcentral does not.
 
-- **Cloudflare-gated content pages** (homepage 200 but chapter/album/file page challenges):
-  the manga family (`mangakakalot`/`manganato`/`weebcentral`/`rawkuma`/`fanfox`), `whyp.it`,
-  `webmshare`, `nsfwalbum`, hentai galleries (`imhentai`/`hentaifox`/`hentai2read`).
-- **Login / private sample needed:** VK (signed URLs), Bunkr + balbums.st (signed `scdn.st`
-  CDN behind CF), the XenForo forums (`simpcity`/`titsintops`/`socialmediagirls`), and the
-  whole **NEEDS_BROWSER** list below.
-- **Reachable but niche readers needing a content URL** (no public index to sample):
-  `soundgasm`, `poipiku`, `eporner` (API gives embed, not a direct mp4).
+- **weebcentral** — live-proved 2026-07-21 in the automation browser (no CF wall): a chapter
+  mounts all **21 page originals** as `<img src="scans.lastation.us/manga/<slug>/<n>.png">`
+  (plain, no query, `src` present pre-scroll). `collectMedia()` collects every one with **zero
+  per-site code** → **covered, no build**. The rest of the manga family
+  (`mangakakalot`/`manganato`·`natomanga`/`rawkuma`/`fanfox`) is the same plain-`<img>` reader
+  class → covered at runtime (natomanga CF-walls the *automation* browser on deep hops, but the
+  real user's browser passes and the generic collector still reads the mounted `<img>` srcs).
 
-These are not closed — they're **deferred to an in-browser session** (the extension's own
-content script passes Cloudflare as the real user, so they'll work at runtime; they just
-can't be *recon-verified* headless). Hand over one sample URL for any and it gets built.
+**Genuinely need a resolver AND a live user session to build (Phase 2 — not headless-verifiable):**
+only the *originals-hidden / signed / login* sites remain:
+
+- **Signed / login sample needed:** VK (signed URLs), Bunkr + balbums.st (signed `scdn.st` CDN),
+  the XenForo forums (`simpcity`/`titsintops`/`socialmediagirls`), and the **NEEDS_BROWSER** list.
+- **CF-gated content pages that hide originals** (a resolver *might* help if the on-page image is
+  a downscaled preview, not the original): `whyp.it`, `webmshare`, `nsfwalbum`, hentai galleries.
+  Confirm-in-browser whether the mounted media is already the original (→ generic covers it) before
+  building.
+- **Niche readers needing a content URL** (no public index to sample): `soundgasm`, `poipiku`,
+  `eporner` (API returns an embed, not a direct mp4).
+
+None are closed. For the plain-`<img>` class, **nothing to build — the extension already handles
+them**. For the signed/hidden-original class, hand over one sample content URL and it gets built.
 
 ## Confirmed BUILD — recon'd, mechanism verified
 
