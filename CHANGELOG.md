@@ -7,6 +7,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Filter by fetched / not-fetched.** A new **Fetched** chip in the filter bar lets
+  you show only items whose real media is resolved and directly downloadable
+  (*Fetched*) or only poster-only items still awaiting the opt-in network resolve
+  (*Not fetched*). The chip appears only when the page has pending items, and clears
+  itself once everything has resolved.
 - **VK photo originals.** Photos on VK's signed `userapi.com` CDN now upgrade to
   their native resolution — the extension drops the `cs=` display-cap while keeping
   the URL's signature, so you get the full-size upload instead of the on-page

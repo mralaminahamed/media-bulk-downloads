@@ -122,7 +122,24 @@ const item = (over: Partial<ImageInfo>): ImageInfo =>
   ({ ...toolbarBase, src: 'x', type: 'png', kind: 'image', ...over }) as ImageInfo;
 
 const F = (over: Partial<FilterOptions>): FilterOptions =>
-  ({ mediaKind: 'all', imageType: 'all', minSize: 0, includeBase64: true, sizeBucket: 'all', downloadState: 'all', duplicateState: 'unique', search: '', sortBy: 'default', sortDir: 'desc', ...over });
+  ({ mediaKind: 'all', imageType: 'all', minSize: 0, includeBase64: true, sizeBucket: 'all', downloadState: 'all', resolveState: 'all', duplicateState: 'unique', search: '', sortBy: 'default', sortDir: 'desc', ...over });
+
+describe('applyToolbarFilters — resolveState (fetched / pending)', () => {
+  const items = [
+    item({ src: 'ready', kind: 'image' }),
+    item({ src: 'pendVid', kind: 'video', type: 'mp4', unresolvedVideo: true }),
+    item({ src: 'pendImg', kind: 'image', unresolvedImage: true }),
+  ];
+  it('keeps everything when resolveState is all', () => {
+    expect(applyToolbarFilters(items, F({})).length).toBe(3);
+  });
+  it('pending keeps only items awaiting resolve', () => {
+    expect(applyToolbarFilters(items, F({ resolveState: 'pending' })).map((i) => i.src)).toEqual(['pendVid', 'pendImg']);
+  });
+  it('fetched keeps only resolved, directly-downloadable items', () => {
+    expect(applyToolbarFilters(items, F({ resolveState: 'fetched' })).map((i) => i.src)).toEqual(['ready']);
+  });
+});
 
 describe('applyToolbarFilters — mediaKind', () => {
   const items = [

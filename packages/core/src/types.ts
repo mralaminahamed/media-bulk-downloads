@@ -664,6 +664,11 @@ export interface FilterOptions {
   /** Filter by whether the item has already been downloaded (per the badge's
    *  history-derived set). 'all' = off. */
   downloadState: 'all' | 'downloaded' | 'not-downloaded';
+  /** Filter by resolve status: 'fetched' = the real media URL is resolved and the
+   *  item is directly downloadable; 'pending' = a poster-only placeholder still
+   *  awaiting the opt-in network resolve (unresolvedVideo / unresolvedImage).
+   *  'all' = off. */
+  resolveState: 'all' | 'fetched' | 'pending';
   /** Near-duplicate visibility (#198). 'unique' (default) hides items the pHash
    *  pass marked `nearDuplicate`; 'duplicates' shows only them (review); 'all'
    *  shows everything. Off (='unique') has no effect until the pass runs. */

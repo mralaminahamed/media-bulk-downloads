@@ -228,6 +228,25 @@ describe('FilterToolbar Component', () => {
     expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ downloadState: 'downloaded' }));
   });
 
+  it('hides the Fetched chip when nothing is pending', () => {
+    render(<FilterToolbar onFilterChange={mockOnFilterChange} extensionSettings={settings} available={fullAvailable} pendingCount={0} />);
+    expect(screen.queryByRole('button', { name: 'Fetched' })).not.toBeInTheDocument();
+  });
+
+  it('shows the Fetched chip when items are pending and filters by not-fetched', () => {
+    render(<FilterToolbar onFilterChange={mockOnFilterChange} extensionSettings={settings} available={fullAvailable} pendingCount={3} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Fetched' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Not fetched' }));
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ resolveState: 'pending' }));
+  });
+
+  it('filters by fetched (resolved) from the Fetched chip', () => {
+    render(<FilterToolbar onFilterChange={mockOnFilterChange} extensionSettings={settings} available={fullAvailable} pendingCount={3} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Fetched' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Fetched' }));
+    expect(mockOnFilterChange).toHaveBeenLastCalledWith(expect.objectContaining({ resolveState: 'fetched' }));
+  });
+
   it('clears the State filter via its × (back to all)', () => {
     renderToolbar();
     fireEvent.click(screen.getByRole('button', { name: 'State' }));
