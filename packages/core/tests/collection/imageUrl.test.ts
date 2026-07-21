@@ -92,6 +92,16 @@ describe('upgradeToOriginal', () => {
       'https://images.steamusercontent.com/ugc/12345/ABCDEF0123456789/',
     ],
     [
+      'wikiart strips the !HD size suffix to the un-suffixed original',
+      'https://uploads0.wikiart.org/00475/images/vincent-van-gogh/the-starry-night-1889.jpg!HD.jpg',
+      'https://uploads0.wikiart.org/00475/images/vincent-van-gogh/the-starry-night-1889.jpg',
+    ],
+    [
+      'wikiart strips !PinterestLarge (uploads host with no numeric id segment)',
+      'https://uploads.wikiart.org/images/vincent-van-gogh/portrait-of-doctor-gachet-1890.jpg!PinterestLarge.jpg',
+      'https://uploads.wikiart.org/images/vincent-van-gogh/portrait-of-doctor-gachet-1890.jpg',
+    ],
+    [
       'imgix drops resize params',
       'https://acme.imgix.net/a.jpg?w=200&h=200&fit=crop',
       'https://acme.imgix.net/a.jpg',
@@ -252,6 +262,13 @@ describe('upgradeToOriginal', () => {
     const { original, thumbnail } = upgradeToOriginal(input);
     expect(original).toBe(expected);
     expect(thumbnail).toBe(input);
+  });
+
+  it('wikiart leaves an already-original (no size suffix) and UI assets untouched', () => {
+    const original = 'https://uploads0.wikiart.org/00475/images/vincent-van-gogh/the-starry-night-1889.jpg';
+    expect(upgradeToOriginal(original)).toEqual({ original });
+    const ui = 'https://uploads.wikiart.org/Content/wiki/img/logo_small.png';
+    expect(upgradeToOriginal(ui)).toEqual({ original: ui });
   });
 
   it('cloudinary removes the transform segment', () => {

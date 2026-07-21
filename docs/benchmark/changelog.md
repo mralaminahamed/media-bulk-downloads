@@ -10,6 +10,16 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **WikiArt (2026-07-21)** — a **CDN rule** (`imageUrl.ts`) for `uploads*.wikiart.org`.
+  Artwork images carry a `!<SizeCode>.<ext>` rendition suffix (`!HD`, `!Large`,
+  `!PinterestLarge`, `!Portrait`, …); the **un-suffixed base file** is the full original
+  and is **not** present in the page markup, so the generic `bestSrcsetUrl` caps at `!HD`.
+  The rule strips the `!…` suffix off the pathname (gated on the suffix's presence, so the
+  UI assets under `/Content/wiki/img/*.png` — which have no suffix — are left untouched).
+  **Live byte-probe 2026-07-21** (Van Gogh, *The Starry Night*): base **1,903,174 B** vs
+  `!HD` 442,235 B (**4.3×**), `!Large` 113,027 B (17×), `!PinterestLarge` 16,987 B — base
+  returns 200 `image/jpg`. Fully SFW, server-rendered, no auth/CF. Core +3 tests. (Sibling
+  art/audio candidates still open: inkbunny — open API; soundgasm/whyp.it — audio.)
 - ✅ **Steam UGC (2026-07-21)** — a host-agnostic **CDN rule** (`imageUrl.ts`) for
   community screenshots/artwork on `images.steamusercontent.com/ugc/`. The
   `/ugc/<id>/<hash>/` URL is the unsigned source; its query is a pure server-side

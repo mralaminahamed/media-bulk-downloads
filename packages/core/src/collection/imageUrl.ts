@@ -711,6 +711,16 @@ const RULES: CdnRule[] = [
     rewrite: (u) => dropParams(u, ['imw', 'imh', 'ima', 'impolicy', 'imcolor', 'letterbox', 'cache']),
   },
   {
+    // WikiArt. Artwork images carry a `!<SizeCode>.<ext>` rendition suffix
+    // (`!HD`, `!Large`, `!PinterestLarge`, …); the un-suffixed base file is the
+    // full original and is not listed in the markup (so the generic srcset cap is
+    // `!HD`). Live byte-probe 2026-07-21: base 1.9 MB vs !HD 442 KB (4.3×). UI
+    // assets under `/Content/wiki/img/` carry no suffix, so the gated rewrite
+    // leaves them untouched.
+    match: (u) => /^uploads\d*\.wikiart\.org$/i.test(u.hostname),
+    rewrite: (u) => { u.pathname = u.pathname.replace(/!\w+\.[a-z0-9]+$/i, ''); },
+  },
+  {
     match: (u) => u.hostname === 'wallpapercave.com' && /^\/w\d+\//.test(u.pathname),
     rewrite: (u) => { u.pathname = u.pathname.replace(/^\/w\d+\//, '/wp/'); },
   },

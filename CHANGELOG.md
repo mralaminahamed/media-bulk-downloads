@@ -7,6 +7,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **WikiArt originals.** Fine-art images on `wikiart.org` now upgrade from the
+  page's largest displayed size (`!HD`) to the un-suffixed full original — several
+  times larger — by stripping WikiArt's `!SizeCode` rendition suffix.
 - **Steam screenshots & artwork.** Community images on
   `images.steamusercontent.com` now upgrade to the full-quality original — the
   extension drops Steam's on-the-fly resize/letterbox so you get the source upload,
