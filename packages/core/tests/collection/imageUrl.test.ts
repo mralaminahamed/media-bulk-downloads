@@ -122,6 +122,16 @@ describe('upgradeToOriginal', () => {
       'https://itaku.ee/api/media_3/gallery_imgs/ArtName_09f32rI.png',
     ],
     [
+      'vk drops the cs display-cap on a signed userapi photo, keeping the u signature',
+      'https://sun9-20.userapi.com/s/v1/ig2/BLOB123.jpg?quality=96&as=32x32&cs=240x240&u=TOKEN',
+      'https://sun9-20.userapi.com/s/v1/ig2/BLOB123.jpg?quality=96&as=32x32&u=TOKEN',
+    ],
+    [
+      'vk handles the ig1 path variant too',
+      'https://sun9-7.userapi.com/s/v1/ig1/BLOB456.jpg?cs=604x604&u=TOKEN',
+      'https://sun9-7.userapi.com/s/v1/ig1/BLOB456.jpg?u=TOKEN',
+    ],
+    [
       'imgix drops resize params',
       'https://acme.imgix.net/a.jpg?w=200&h=200&fit=crop',
       'https://acme.imgix.net/a.jpg',
@@ -289,6 +299,20 @@ describe('upgradeToOriginal', () => {
     expect(upgradeToOriginal(original)).toEqual({ original });
     const ui = 'https://uploads.wikiart.org/Content/wiki/img/logo_small.png';
     expect(upgradeToOriginal(ui)).toEqual({ original: ui });
+  });
+
+  it('vk leaves an old path-based userapi url (no cs param) untouched', () => {
+    const url = 'https://sun9-70.userapi.com/c840722/v840722964/803a2/T2SKhzbHheQ.jpg';
+    const r = upgradeToOriginal(url);
+    expect(r.original).toBe(url);
+    expect(r.thumbnail).toBeUndefined();
+  });
+
+  it('vk leaves a non-photo userapi url (icon, no ig path) untouched even with cs', () => {
+    const url = 'https://sun9-52.userapi.com/impg/icon/T78EF5C7R3I.png?cs=30x30';
+    const r = upgradeToOriginal(url);
+    expect(r.original).toBe(url);
+    expect(r.thumbnail).toBeUndefined();
   });
 
   it('itaku leaves an already-flat original (no nested _size) untouched', () => {

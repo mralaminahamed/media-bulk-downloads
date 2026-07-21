@@ -7,6 +7,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **VK photo originals.** Photos on VK's signed `userapi.com` CDN now upgrade to
+  their native resolution — the extension drops the `cs=` display-cap while keeping
+  the URL's signature, so you get the full-size upload instead of the on-page
+  preview. Host-agnostic CDN rule; leaves old path-based renditions untouched.
 - **Kick clips & VODs.** Kick clip and VOD links now resolve to their real media
   via the opt-in network tier — a clip to its MP4 (`api/v2/clips/<id>/play`), a VOD
   to its HLS master (`api/v1/video/<uuid>`), both host-pinned to `*.kick.com`.
