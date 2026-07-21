@@ -793,6 +793,10 @@ export interface DataPaneProps {
   onImportFile: (e: React.ChangeEvent<HTMLInputElement>) => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   backupNote: string;
+  /** Restore every setting to its default (leaves favourites/history/blocked intact). */
+  onResetSettings: () => void;
+  /** Wipe favourites, download history, and blocked sources (leaves settings intact). */
+  onClearData: () => void;
 }
 
 /** Shared props for the small SVG tile icons (play/film/audio). */

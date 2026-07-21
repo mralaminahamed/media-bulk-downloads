@@ -7,6 +7,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **Reset settings & clear all data.** The Settings → **Data** tab now has two
+  destructive controls, each guarded by a two-step inline confirm: **Reset settings**
+  restores every setting to its default (your favourites, history, and blocked
+  sources are kept), and **Clear all data** permanently deletes your favourites,
+  download history, and blocked sources (your settings are kept). Everything stays
+  on your device.
 - **Filter by fetched / not-fetched.** A new **Fetched** chip in the filter bar lets
   you show only items whose real media is resolved and directly downloadable
   (*Fetched*) or only poster-only items still awaiting the opt-in network resolve

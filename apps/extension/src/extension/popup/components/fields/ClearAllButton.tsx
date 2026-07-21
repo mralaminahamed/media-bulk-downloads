@@ -5,16 +5,18 @@ export interface ClearAllButtonProps {
   onClear: () => void;
   /** Disabled when there's nothing to clear. */
   disabled?: boolean;
+  /** Resting label; the confirm aria-label is derived from it. Defaults to "Clear all". */
+  label?: string;
 }
 
 /**
- * "Clear all" with a two-step inline confirm: the first click arms the button
- * ("Confirm?"), a second click within a few seconds fires `onClear`. The
- * confirmation is inline rather than a native `confirm()` because that dialog
- * blurs — and so can dismiss — the extension popup. Auto-disarms after a
- * timeout and on blur, so it never stays armed once the user looks away.
+ * A two-step inline confirm button: the first click arms it ("Confirm?"), a
+ * second click within a few seconds fires `onClear`. The confirmation is inline
+ * rather than a native `confirm()` because that dialog blurs — and so can
+ * dismiss — the extension popup. Auto-disarms after a timeout and on blur, so it
+ * never stays armed once the user looks away.
  */
-export const ClearAllButton: React.FC<ClearAllButtonProps> = ({ onClear, disabled }) => {
+export const ClearAllButton: React.FC<ClearAllButtonProps> = ({ onClear, disabled, label = 'Clear all' }) => {
   const [armed, setArmed] = useState(false);
 
   useEffect(() => {
@@ -40,9 +42,9 @@ export const ClearAllButton: React.FC<ClearAllButtonProps> = ({ onClear, disable
       disabled={disabled}
       className="btn btn-sm btn-ghost"
       style={armed ? { color: 'var(--warn)' } : undefined}
-      aria-label={armed ? 'Confirm clear all' : 'Clear all'}
+      aria-label={armed ? `Confirm ${label.toLowerCase()}` : label}
     >
-      {armed ? 'Confirm?' : 'Clear all'}
+      {armed ? 'Confirm?' : label}
     </button>
   );
 };

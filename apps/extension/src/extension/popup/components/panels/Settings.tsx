@@ -152,6 +152,19 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
     setBackupNote(`Imported settings, ${backup.favourites.length} favourites, ${backup.history.length} history entries, and ${backup.excluded.length} blocked sources.`);
   };
 
+  const handleResetSettings = () => {
+    setSettings(DEFAULT_SETTINGS);
+    onSettingsChange(DEFAULT_SETTINGS);
+    setBackupNote('Settings reset to defaults.');
+  };
+
+  const handleClearData = () => {
+    sendRuntimeMessage({ type: 'CLEAR_FAVOURITES' });
+    sendRuntimeMessage({ type: 'CLEAR_HISTORY' });
+    sendRuntimeMessage({ type: 'CLEAR_EXCLUDED' });
+    setBackupNote('Cleared favourites, history, and blocked sources.');
+  };
+
   return (
     <div
       className="overlay-in mbd:fixed mbd:inset-0 mbd:z-50 mbd:flex mbd:items-stretch mbd:justify-end mbd:bg-(--overlay) mbd:backdrop-blur-[2px]"
@@ -219,6 +232,8 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
               onImportFile={(e) => void handleImportBackup(e)}
               fileInputRef={fileInputRef}
               backupNote={backupNote}
+              onResetSettings={handleResetSettings}
+              onClearData={handleClearData}
             />
           )}
         </div>
