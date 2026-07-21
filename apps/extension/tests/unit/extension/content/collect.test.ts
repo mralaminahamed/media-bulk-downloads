@@ -6,6 +6,7 @@ vi.mock('@mbd/core/resolvers/sniffers/hls-sniff', async () => {
 
 import { collectMedia, backgroundImageUrls } from '@/extension/content/collect';
 import { ingestSniffedHls, resetSniffedHls, sniffedHlsManifests } from '@mbd/core/resolvers/sniffers/hls-sniff';
+import { ingestSniffedMangadexMedia, __resetMangadexSniffed } from '@mbd/core/resolvers/sites/mangadex';
 import { HOST_ID } from '@/extension/bubble/mount';
 
 const setBody = (html: string) => {
@@ -921,5 +922,32 @@ describe('twitter pending video collection', () => {
     expect(videos[0]).toMatchObject({ unresolvedVideo: true, resolveHint: { platform: 'twitter', id: '2006397496638206090' } });
     expect(media.some((m) => m.kind === 'image')).toBe(false);
     expect(media.some((m) => m.src.startsWith('blob:'))).toBe(false);
+  });
+});
+
+describe('collectMedia — MangaDex chapter pages (sniffed)', () => {
+  const CID = '0aaf8b27-0013-4ae0-8935-91a089466874';
+  const BASE = 'https://cmdxd98sb0x3yprd.mangadex.network';
+  const HASH = '7c07a7fecb2fe3868aa22aae2edf0e5a';
+  const pageUrl = (p: number) => `${BASE}/data/${HASH}/${p}-${'a'.repeat(64)}.png`;
+
+  afterEach(() => { __resetMangadexSniffed(); document.body.innerHTML = ''; window.history.replaceState({}, '', '/'); });
+
+  it('surfaces every sniffed chapter page as an image on a /chapter/ URL', () => {
+    ingestSniffedMangadexMedia([
+      { chapterId: CID, page: 2, ext: 'png', url: pageUrl(2) },
+      { chapterId: CID, page: 1, ext: 'png', url: pageUrl(1) },
+    ]);
+    window.history.replaceState({}, '', `/chapter/${CID}`);
+    const media = collectMedia();
+    const md = media.filter((m) => m.src.includes('.mangadex.network'));
+    expect(md.map((m) => m.src)).toEqual([pageUrl(1), pageUrl(2)]);
+    expect(md.every((m) => m.kind === 'image' && m.ext === 'png')).toBe(true);
+  });
+
+  it('surfaces nothing off a chapter page', () => {
+    ingestSniffedMangadexMedia([{ chapterId: CID, page: 1, ext: 'png', url: pageUrl(1) }]);
+    window.history.replaceState({}, '', '/title/abc');
+    expect(collectMedia().some((m) => m.src.includes('.mangadex.network'))).toBe(false);
   });
 });

@@ -7,6 +7,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **MangaDex chapters.** Open a chapter on `mangadex.org` and the extension now
+  lists **every page** of that chapter at full resolution (the original PNG, ~9×
+  larger than the reader's compressed preview) — no scrolling through the reader.
+  It reads the page list from the reader's own chapter request (nothing extra is
+  fetched or sent), and only on a `/chapter/<id>` page.
 - **Support / donate button.** A highlighted rose heart now sits beside the
   Favourites star in the popup and on-page-bubble header, linking to
   `https://alaminahamed.com/donate`. It opens in a new tab from either surface

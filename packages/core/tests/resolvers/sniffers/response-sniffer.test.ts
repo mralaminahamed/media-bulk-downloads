@@ -99,6 +99,28 @@ describe('installResponseSniffer (fetch path)', () => {
     expect(seen).toEqual(['BODY']);
   });
 
+  it('passes the matched request URL to emit as the second argument (fetch + XHR)', async () => {
+    const seen: Array<[string, string]> = [];
+    window.fetch = vi.fn().mockResolvedValue(jsonResponse('BODY')) as unknown as typeof fetch;
+    XMLHttpRequest.prototype.send = vi.fn();
+    installResponseSniffer({ isApi: (u) => u.includes('/api/'), emit: (t, u) => seen.push([t, u]), urlKey: '__k' });
+
+    await window.fetch('https://site/api/thing?x=1');
+    await new Promise((r) => setTimeout(r, 0));
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', 'https://site/api/xhr');
+    Object.defineProperty(xhr, 'responseText', { value: '{"MEDIA":1}', configurable: true });
+    xhr.getResponseHeader = vi.fn().mockReturnValue('application/json');
+    xhr.send();
+    xhr.dispatchEvent(new Event('load'));
+
+    expect(seen).toEqual([
+      ['BODY', 'https://site/api/thing?x=1'],
+      ['{"MEDIA":1}', 'https://site/api/xhr'],
+    ]);
+  });
+
   it('ignores responses from non-API URLs', async () => {
     const seen: string[] = [];
     window.fetch = vi.fn().mockResolvedValue(jsonResponse('BODY')) as unknown as typeof fetch;

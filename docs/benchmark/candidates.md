@@ -17,7 +17,6 @@ needs an in-browser recon;
 |-------------------------|--------------------|----------------------------------------------------------------------------------------------------------------|----------------------------------------------------|
 | **VK**                  | CDN rule           | `*.userapi.com` `/s/v1/ig2/…&cs=WxH` → drop `cs=` (keep `u=` token)                                            | cs=640 71 KB → stripped 681 KB (~10–190×)          |
 | **Steam**               | CDN rule           | `images.steamusercontent.com/ugc/…?imw=…` → strip query                                                        | 29 KB → 135 KB (4.7×)                              |
-| **MangaDex**            | resolver (Phase-2) | `mangadex.org/chapter/<id>` → `api.mangadex.org/at-home/server/<id>` → `<baseUrl>/data/<hash>/<file>` per page | data/ 9× data-saver/; open API                     |
 | **Bunkr**               | resolver (album)   | `/a/<id>`→`/f/<slug>`→`dl.bunkr/api/_001_v2`→sign→original (per-file media host)                               | thumb 147 KB → 19 MB; live (200)                   |
 | **Pixeldrain**          | resolver           | `/l/<id>` → `/api/list/<id>` → `/api/file/<id>` originals                                                      | API contract confirmed (SPA shell)                 |
 | **turbo.cr** (ex-Saint) | resolver           | video id → site's own `GET /api/sign?v=<id>` → signed `dl*.turbocdn.st` mp4                                    | live (200); signed short-TTL → resolve at download |
@@ -70,8 +69,10 @@ LOFTER (`imglf`), Naver (`pstatic`), Weibo images (`sinaimg`), Bilibili images (
 
 ## Highest-leverage next builds
 
+- ✅ **MangaDex — SHIPPED 2026-07-21.** Anchored the new *manga* category via a
+  MAIN-world sniffer of its open `at-home/server` API (see [changelog](./changelog.md)).
+
 1. **VK + Steam** — CDN rules, byte-verified, ~10 lines each.
-2. **MangaDex** — anchors a whole new *manga* category (open API, clean, bulk win).
-3. **Bunkr** — live album reader (proven pattern).
-4. A **XenForo forum reader** (covers simpcity/titsintops/socialmediagirls at once)
+2. **Bunkr** — live album reader (proven pattern).
+3. A **XenForo forum reader** (covers simpcity/titsintops/socialmediagirls at once)
    and a **hentai-gallery template** (imhentai/hentaifox family) — high fan-out.

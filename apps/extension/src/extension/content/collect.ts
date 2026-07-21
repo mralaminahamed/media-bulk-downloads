@@ -21,6 +21,7 @@ import { twitterGifCandidate, twitterVideoPending } from '@mbd/core/resolvers/si
 import { instagramPageMedia } from '@mbd/core/resolvers/sites/instagram';
 import { facebookPageMedia } from '@mbd/core/resolvers/sites/facebook';
 import { pinterestPageMedia } from '@mbd/core/resolvers/sites/pinterest';
+import { mangadexPageMedia } from '@mbd/core/resolvers/sites/mangadex';
 import { shopifyPageMedia } from '@mbd/core/resolvers/sites/shopify';
 import { youtubeVideoId } from '@mbd/core/resolvers/sites/youtube';
 import { vimeoVideoId } from '@mbd/core/resolvers/sites/vimeo';
@@ -788,6 +789,10 @@ export function collectMedia(scanRoots?: ScanRoot[], opts?: { smartPageDefaults?
     }
 
     for (const cand of pinterestPageMedia(pageUrl)) {
+      pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
+    }
+
+    for (const cand of mangadexPageMedia(pageUrl)) {
       pushCandidate(cand, cand.url, '', cand.width ?? 0, cand.height ?? 0);
     }
 

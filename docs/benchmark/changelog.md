@@ -10,6 +10,25 @@ Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) a
 when the fix shipped. This is an engineering record, not a release changelog.
 
 Resolved (this benchmark drove the fixes):
+- ✅ **MangaDex (2026-07-21)** — anchors a brand-new **manga** category (zero prior
+  coverage). The reader is a pure SPA with no server-rendered page image, but to render
+  it fetches its own public `GET /at-home/server/<chapterId>` (open, no auth, no
+  Cloudflare gate — live-probed) which returns `{ baseUrl, chapter: { hash, data[],
+  dataSaver[] } }`. A passive MAIN-world sniffer (`mangadex-media-sniffer`, the
+  Pinterest/FB pattern) reads **the response the reader already fetched** — forging
+  nothing — builds `<baseUrl>/data/<hash>/<file>` for **every page** (full PNG; the
+  `dataSaver` JPG is ~9× smaller — byte-verified **1.5 MB png vs 170 KB jpg** on a real
+  chapter), keys each page to the chapter id parsed from the **request URL**, and posts
+  them to collect.ts (`mangadexPageMedia`, gated to a `/chapter/<id>` page). So one
+  chapter yields one candidate per page, page-ordered, with **no scrolling** through the
+  reader. This is a **1→N** shape the per-item Phase-2 network tier (`ResolvedMedia =
+  {url}`, strictly 1:1) can't express — hence the sniffer/page-media path, not a
+  `resolveHint`. Security: base + every URL host-pinned to `*.mangadex.network` /
+  `uploads.mangadex.org`, UUID/hash/filename shape-validated across the untrusted
+  postMessage boundary, fails closed on any junk. Shared `response-sniffer` harness
+  extended to pass the matched request URL to `emit` (the chapter id lives only in the
+  URL). gallery-dl referenced only for the at-home endpoint shape. Core +21 tests, app
+  +2 wiring; **needs-live-confirmation** in a reader tab.
 - ✅ **Pornhub (2026-07-19)** — the **#1-by-traffic** adult video-tube, previously
   deferred as "obfuscated `flashvars` + secondary `get_media` + token-signed". A **live
   structural probe** overturned that: the watch page's inline `flashvars_<id>` object

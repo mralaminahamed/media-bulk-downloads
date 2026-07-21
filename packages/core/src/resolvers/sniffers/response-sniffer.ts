@@ -11,8 +11,10 @@
 export interface ResponseSnifferOptions {
   /** Which request URLs carry the media JSON. */
   isApi: (url: string) => boolean;
-  /** Handle a JSON API response body (guard, parse, post). */
-  emit: (text: string) => void;
+  /** Handle a JSON API response body (guard, parse, post). The matched request
+   *  URL is passed as the second argument for sniffers that key media by
+   *  something only the URL carries (e.g. MangaDex's chapter id); most ignore it. */
+  emit: (text: string, url: string) => void;
   /** Property name used to stash the request URL on each XHR instance. */
   urlKey: string;
   /** Which response content-types carry the media graph. Default: any that
@@ -33,7 +35,7 @@ export function installResponseSniffer({ isApi, emit, urlKey, contentTypeOk }: R
       if (isApi(url)) {
         res
           .then((r) => {
-            if (ctOk(r.headers.get('content-type') || '')) r.clone().text().then(emit).catch(() => {});
+            if (ctOk(r.headers.get('content-type') || '')) r.clone().text().then((t) => emit(t, url)).catch(() => {});
           })
           .catch(() => {});
       }
@@ -63,7 +65,7 @@ export function installResponseSniffer({ isApi, emit, urlKey, contentTypeOk }: R
         try {
           const url = String((this as unknown as Record<string, unknown>)[urlKey] || '');
           const ct = this.getResponseHeader('content-type') || '';
-          if (isApi(url) && ctOk(ct) && typeof this.responseText === 'string') emit(this.responseText);
+          if (isApi(url) && ctOk(ct) && typeof this.responseText === 'string') emit(this.responseText, url);
         } catch {
           /* ignore */
         }
