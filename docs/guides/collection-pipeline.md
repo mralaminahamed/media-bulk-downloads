@@ -278,7 +278,7 @@ regression test.
 
 ### Safe path-based CDN upgrades (`RULES`)
 
-`RULES` is an ordered list of over 50 host rules; `upgradeToOriginal()` applies
+`RULES` is an ordered list of over 90 host rules; `upgradeToOriginal()` applies
 the first whose `match` fits. Each rewrites the URL toward the largest openly
 served rendition. A rewrite that would empty the path or drop the last segment
 is discarded, and the rule never throws. The families:

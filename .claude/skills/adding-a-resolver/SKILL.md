@@ -26,7 +26,7 @@ that is the point (the CDN sweep killed 5 of 8 probed).
   compare bytes (small variant vs candidate original). No bigger reachable file →
   **close it**, don't build.
 - **The generic pipeline is strong.** `bestSrcsetUrl` already returns the widest
-  `srcset`/`<picture>` candidate and `upgradeToOriginal()` covers ~60 CDN families.
+  `srcset`/`<picture>` candidate and `upgradeToOriginal()` covers 90+ CDN families.
   If the page's largest *listed* rendition is the biggest that exists, a resolver
   adds nothing. (Tumblr: each size has its own filename, so an unlisted larger size
   is unreachable, and the widest `srcset` entry is the CDN cap — generic already

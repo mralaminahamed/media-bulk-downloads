@@ -221,7 +221,7 @@ Optional (requested only when you turn the feature on, never at install):
 ## Supported sites
 
 The engine works on **any website** through its generic pipeline — `srcset` /
-`<picture>`, de-proxying, and 50+ CDN-family upgrade rules. On top of that it ships
+`<picture>`, de-proxying, and 90+ CDN-family upgrade rules. On top of that it ships
 **dedicated per-site resolvers** for platforms where the original hides behind page
 JSON, signed CDNs, or embeds. A representative selection:
 
