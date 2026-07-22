@@ -1,5 +1,6 @@
 ---
 title: "Deep Scan"
+description: "Opt-in, bounded auto-scroll that surfaces lazy and virtualized media — its caps, stop reasons, and per-host scan memory."
 ---
 
 Deep scan surfaces media that isn't in the DOM until the page scrolls:
@@ -196,4 +197,3 @@ Pipeline that each scan round feeds into: [Collection Pipeline](../how-it-works/
 
 ---
 
-**[← All guides](../getting-started/introduction.md)**

@@ -1,5 +1,6 @@
 ---
 title: "In-page Bubble"
+description: "The optional floating in-page launcher — how it mounts in a Shadow DOM, its toggle lifecycle, and placement settings."
 ---
 
 The bubble is an optional floating launcher injected into the page. It renders the same popup UI (`popup/App.tsx`) inside an isolated **Shadow DOM**, so the page's styles and the extension's styles
@@ -93,4 +94,3 @@ The panel renders the same `App` component as the popup. The bubble passes in-pa
 
 ---
 
-**[← All guides](../getting-started/introduction.md)**

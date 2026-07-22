@@ -1,9 +1,10 @@
 ---
 title: "Benchmark changelog"
+description: "Engineering log of the CDN-upgrade rules and resolvers this benchmark drove to a fix."
 ---
 
 The running log of coverage gaps this benchmark **drove to a fix** — new/changed CDN-upgrade rules and resolvers, corrections, and reverts. Split out of
-[BENCHMARK.md](./overview.md) so that doc stays focused on the live measurement tables and the gaps still open; the user-facing release history lives in the
+[the benchmark overview](./overview.md) so that doc stays focused on the live measurement tables and the gaps still open; the user-facing release history lives in the
 top-level [CHANGELOG.md](https://github.com/mralaminahamed/media-bulk-downloads/blob/main/CHANGELOG.md).
 
 Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) are when the fix shipped. This is an engineering record, not a release changelog.
@@ -307,7 +308,7 @@ Resolved (this benchmark drove the fixes):
   - **ImgBB** (`imageUrl.ts` CDN rule, `i.ibb.co`) — the displayed image is already the no-suffix original; grid/album thumbnails append `.md`/`.th` before the extension, so drop it. Reclassified from
     the filed Tier-2 label to a Tier-1 rule after the probe showed `og:image` == the original (#413).
 - ✅ **Tier-1 site-coverage sweep CdnRules (2026-07-16)** — nine passive host rules in `imageUrl.ts`, surfaced by a multi-agent popularity sweep (issues #367-#412)
-  and each live-probed this session for a real thumbnail→original byte delta before shipping:
+  and each live-probed for a real thumbnail→original byte delta before shipping:
   - **Wikimedia Commons** `upload.wikimedia.org` — drop the `/thumb/` segment + the trailing `<NNN>px-…` filename to the untouched upload; host-agnostic across every wiki/project and thumb-filename
     variant (330px 24 KB → original 11.4 MB).
   - **Weibo** `(ww|wx)[1-4].sinaimg.cn` — swap the first-segment size alias (`mw690`,

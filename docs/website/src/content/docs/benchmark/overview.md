@@ -1,5 +1,6 @@
 ---
 title: "Collection Benchmark"
+description: "Functional benchmark of the media-collection engine — coverage model, live results, and how the numbers are measured."
 ---
 
 Functional benchmark of the media-collection engine against popular, high-traffic websites. It measures what the extension's **actual** `collectMedia()` pipeline (deep DOM extraction → native
@@ -11,7 +12,7 @@ discovers on real pages.
 
 ## Contents
 
-This benchmark is split across focused files under [`benchmark/`](./):
+This benchmark is split across focused files under `benchmark/`:
 
 | File                                                | Contents                                                                    |
 |-----------------------------------------------------|-----------------------------------------------------------------------------|

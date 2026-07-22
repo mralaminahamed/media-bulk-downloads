@@ -72,7 +72,7 @@ We are genuinely behind on two fronts, and won't pretend otherwise:
 - **DRM and YouTube video are ❌ for every consumer tool here** — a Web Store
   policy + MV3 ceiling, not a bug we can fix.
 - **The CLIs (yt-dlp ~1,800, gallery-dl 300+) beat everyone on breadth of
-  site-aware extractors and metadata** — versus our ~60 resolvers. That's a scope
+  site-aware extractors and metadata** — versus our ~30 dedicated resolvers (plus 90+ CDN-family rules). That's a scope
   gap we close over time; see the [coverage matrix](../benchmark/coverage-matrix.md)
   and [gaps](../benchmark/gaps.md).
 

@@ -1,5 +1,6 @@
 ---
 title: "Architecture"
+description: "The monorepo layout, the MV3 surfaces (service worker, content script, popup, bubble, sniffers, offscreen), the message catalog, and the data model."
 ---
 
 The extension is a cross-browser (Chrome, Firefox 140+, Edge, Safari) Manifest V3 app. Its surfaces talk over `chrome.runtime` / `chrome.tabs` messages: a background service worker, an isolated
@@ -16,7 +17,7 @@ The repository is a yarn-workspaces monorepo. Browser-agnostic logic lives in
 | `packages/core`     | `@mbd/core`      | Browser-agnostic domain logic: `collection/`, `resolvers/`, `download/` byte-logic, `net/`, and the shared `types`. Zero `chrome.*`.                                |
 | `packages/storage`  | `@mbd/storage`   | Persistence over `chrome.storage` + IndexedDB (settings, history, favourites, excluded, queue, per-host memory).                                                    |
 | `packages/platform` | `@mbd/platform`  | Browser-capability contracts (`Downloader`, `Notifier`, `HeaderRules`, `StreamCaptureHost`) + `detectCapabilities()`. Implementations live in the app.              |
-| `apps/extension`    | `@mbd/extension` | The WXT app: `entrypoints/`, `background/`, `content/`, `popup/`, `bubble/`, `offscreen/`, `components/`, `shared/`, and the (future) `platform/*` implementations. |
+| `apps/extension`    | `@mbd/extension` | The WXT app: `entrypoints/`, `background/`, `content/`, `popup/`, `bubble/`, `offscreen/`, `components/`, `shared/`, and the app-side `platform/*` implementations. |
 
 The dependency graph is acyclic: `@mbd/core` (leaf) ← `@mbd/storage`,
 `@mbd/platform` ← `@mbd/extension`. Module paths below use each file's workspace-relative form (`@mbd/core/…`, `@mbd/storage/…`); app-internal modules (`background/…`, `popup/…`) live under
@@ -132,7 +133,7 @@ The bubble mounts the same shared `App.tsx` as the popup (see
 | `CAPTURE_STREAM`                | popup / bubble → background                     | `{ type, runId, item: ImageInfo, sourcePage }`                           | `{ status }` (async; one composed status line; background owns the offscreen doc + download)                                                                                   |
 | `CAPTURE_RUN`                   | background → offscreen document                 | `{ type, runId, manifestUrl, engine: 'hls'\|'dash', quality, maxBytes }` | — (not part of the `ChromeMessage` union; internal to the capture pipeline)                                                                                                    |
 | `CAPTURE_PROGRESS`              | offscreen → all contexts (popup listens)        | `{ type, runId, done, total }`                                           | —                                                                                                                                                                              |
-| `LIST_VARIANTS`                 | popup → background                              | `{ type, manifestUrl, engine: 'hls'\|'dash' }`                           | `{ ok: true, variants: StreamVariant[] } \| { ok: false, code }` — parses the master manifest for the per-stream quality picker (#314)                                         |
+| `LIST_VARIANTS`                 | popup → background                              | `{ type, manifestUrl, engine: 'hls'\|'dash' }`                           | `{ ok: true, variants: StreamVariant[] } \| { ok: false, code }` — parses the master manifest for the per-stream quality picker                                         |
 | **Downloads**                   |                                                 |                                                                          |                                                                                                                                                                                |
 | `DOWNLOAD_IMAGES`               | popup / bubble → background                     | `{ type, images, sourcePage?, explicit? }`                               | `{ status, message }`                                                                                                                                                          |
 | `DOWNLOAD_ZIP`                  | popup / bubble → background                     | `{ type, b64, filename }`                                                | `{ status, message }`                                                                                                                                                          |
@@ -263,4 +264,3 @@ Workflow detail: [Getting Started](../getting-started/quick-start.md) ·
 
 ---
 
-**[← All guides](../getting-started/introduction.md)**

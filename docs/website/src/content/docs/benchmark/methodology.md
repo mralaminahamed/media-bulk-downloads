@@ -1,5 +1,6 @@
 ---
 title: "Benchmark method & reproduction"
+description: "How the collection benchmark is measured and reproduced — the real collector bundled and injected into live pages."
 ---
 
 > Part of the [Collection Benchmark](./overview.md).

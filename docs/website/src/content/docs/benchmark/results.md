@@ -1,5 +1,6 @@
 ---
 title: "Live-verified results"
+description: "Live-verified per-site collection and upgrade counts, plus verified new CDN rules."
 ---
 
 > Part of the [Collection Benchmark](./overview.md).

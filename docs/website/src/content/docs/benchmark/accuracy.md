@@ -1,5 +1,6 @@
 ---
 title: "Original-image & video accuracy studies"
+description: "Live original-image and video accuracy measurements for Facebook, Instagram, and Threads."
 ---
 
 > Part of the [Collection Benchmark](./overview.md).
@@ -8,7 +9,7 @@ title: "Original-image & video accuracy studies"
 
 Facebook serves `/api/graphql` over **XHR** as **`content-type: text/html`**
 multi-chunk **NDJSON**. The shared response-sniffer previously dropped 100% of it at two gates (json-only content-type + single `JSON.parse`), so the FB resolver upgraded only the ~dozen photos in
-on-page hydration — original-image accuracy ~5%. This branch makes the content-type predicate + NDJSON parsing configurable (FB opts in; Instagram/X unchanged), adds the reel `progressive_url`
+on-page hydration — original-image accuracy ~5%. The Facebook resolver makes the content-type predicate + NDJSON parsing configurable (FB opts in; Instagram/X unchanged), adds the reel `progressive_url`
 key + `/photo(s)/<id>` fbid path + `/photos/` anchor selector, and de-duplicates async upgrades via a `mediaKey` identity. Photo media lives under `viewer_image`; reel/video under `progressive_url`
 (NOT `playable_url` — measured live).
 
@@ -38,7 +39,7 @@ downloadable `progressive_url` mp4 — clearing the ≥80% target. Sub-80% is th
 † **replica** = the shipped sniffer's logic (on-page hydration parse + XHR NDJSON sniff of `viewer_image`/`progressive_url`, keyed by fbid) injected into a live page after load, then scrolled. It
 reproduces the extension's dual capture path, but a post-load wrap can miss the *initial* graphql burst (the real extension wraps XHR at `document_start`), so replica numbers are a **lower bound**.
 
-**Gate status — PARTIAL / definitive run pending.** For the authoritative per-surface >=80% figure across Photos/Reels/Page, load the built extension (`apps/extension/.output/chrome-mv3`, unpacked) in
+**A definitive per-surface run is pending.** For the authoritative per-surface >=80% figure across Photos/Reels/Page, load the built extension (`apps/extension/.output/chrome-mv3`, unpacked) in
 Chrome, open a real surface, run a full Deep scan (its `document_start` sniffer + scroll accumulation), and read the panel's per-item resolution. The e2e (`facebook-sniffer.spec.ts`) already proves
 the mechanism deterministically on data faithful to the real `text/html` NDJSON.
 
