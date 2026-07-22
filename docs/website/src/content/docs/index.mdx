@@ -1,0 +1,57 @@
+---
+title: Media Bulk Downloads
+description: Bulk-download images, video, and audio from any web page — smart type filters, instant preview, original quality. Fast, private, no accounts.
+template: splash
+hero:
+  tagline: Find every image, video, and audio file on a page, then preview, filter, and download them in bulk — quickly, and without sending your browsing anywhere.
+  image:
+    file: ../../assets/logo.svg
+  actions:
+    - text: Get started
+      link: /media-bulk-downloads/getting-started/introduction/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/mralaminahamed/media-bulk-downloads
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components'
+
+## What it does
+
+<CardGrid>
+  <Card title="Finds more than 'save image as'" icon="magnifier">
+    Lazy-loaded images (`data-*`), `srcset`, `picture`, CSS backgrounds, gallery links, `noscript` fallbacks, and `video` / `audio` sources.
+  </Card>
+  <Card title="Original quality" icon="rocket">
+    De-proxies wrapped URLs and rewrites CDN thumbnails to full size. Opt-in "resolve originals" fetches the exact highest-resolution file for supported hosts.
+  </Card>
+  <Card title="Filter, search & select" icon="setting">
+    Filter by kind / format / size, search by name·alt·URL, sort, shift-select ranges, then download one item, a selection, or a single ZIP.
+  </Card>
+  <Card title="Reliable downloads" icon="approve-check">
+    A resilient queue tracks each file, retries transient failures, resumes after the popup closes, and recovers hotlink-protected files with a referer retry.
+  </Card>
+  <Card title="Works on the sites you use" icon="puzzle">
+    Original-quality resolvers for dozens of platforms plus 60+ CDN families — see the [coverage matrix](/media-bulk-downloads/benchmark/coverage-matrix/).
+  </Card>
+  <Card title="Private by design" icon="approve-check">
+    Network-free by default — it reads only what the page already loaded. No accounts, no analytics, no servers; settings and history never leave your device.
+  </Card>
+</CardGrid>
+
+## Learn more
+
+<CardGrid>
+  <Card title="Getting started" icon="open-book">
+    Install the extension and download your first set of media. [Start here](/media-bulk-downloads/getting-started/introduction/)
+  </Card>
+  <Card title="How it works" icon="information">
+    The collection pipeline, original-resolution resolvers, and monorepo architecture. [Read the internals](/media-bulk-downloads/how-it-works/collection-pipeline/)
+  </Card>
+  <Card title="Benchmark" icon="bars">
+    How coverage and accuracy are measured, the current results, and open gaps. [See the benchmark](/media-bulk-downloads/benchmark/overview/)
+  </Card>
+</CardGrid>

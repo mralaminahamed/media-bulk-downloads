@@ -111,8 +111,8 @@ quotas, chrome.storage/idb-keyval API forms, the settings write path, and the
   `SETTINGS_CHANGED` push), `.../background/message-router.ts` (`SET_SETTINGS` /
   `SET_PER_HOST_SETTINGS` / `RESTORE_DATA` handlers)
 - Package overview (this repo) — `packages/storage/README.md`
-- Store guides (this repo) — `docs/guides/history.md`, `docs/guides/favourites.md`;
-  message catalog + data model `docs/guides/architecture.md`
+- Store guides (this repo) — `docs/website/src/content/docs/guides/history.md`, `docs/website/src/content/docs/guides/favourites.md`;
+  message catalog + data model `docs/website/src/content/docs/how-it-works/architecture.md`
 
 **Further reading (external, optional — not required; captured in the ref above):**
 - idb-keyval — https://github.com/jakearchibald/idb-keyval

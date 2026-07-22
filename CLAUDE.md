@@ -32,7 +32,7 @@ Four workspaces; import direction is **one-way: app → storage/platform → cor
 - `apps/extension` (`@mbd/extension`) — the WXT app; the only layer that touches
   `chrome.*` freely.
 
-Each package/app has a README; deep design in `docs/guides/` +
+Each package/app has a README; deep design in `docs/website/src/content/docs/` +
 `docs/architecture/monorepo-restructure.md`.
 
 ## Conventions
@@ -48,8 +48,35 @@ Each package/app has a README; deep design in `docs/guides/` +
   never squash or rebase.** Sync `main` after. (`/ship` automates this.)
 - **No `Claude-Session` trailers or links** in commits, PRs, or issues.
 - On a shipped **product** change, add a `CHANGELOG.md` `[Unreleased]` entry
-  (docs/tooling changes don't get one).
+  (docs/tooling changes don't get one). `CHANGELOG.md` stays at the repo root —
+  `release.yml` reads `## [X.Y.Z]` from it.
+- **Keep the docs website current.** User + developer docs are an Astro Starlight
+  site in **`docs/website/`** (published to GitHub Pages, see `## Documentation`).
+  When you add / improve a feature, resolver, or benchmark result, update the
+  matching page under `docs/website/src/content/docs/` in the SAME PR — a new
+  feature → its guide (`guides/` or `how-it-works/`); new/changed site coverage →
+  `benchmark/coverage-matrix.md` + `benchmark/changelog.md` (the coverage log) and
+  `benchmark/gaps.md`; a comparison-relevant change → `getting-started/comparison.md`.
 - Confirm before outward/irreversible actions (pushes, merges, store uploads).
+
+## Documentation (`docs/website/`)
+
+The canonical guides + benchmark are an **Astro Starlight** site in `docs/website/`,
+deployed to GitHub Pages by `.github/workflows/docs.yml` on push to `main` touching
+`docs/website/**`. Live at `https://mralaminahamed.github.io/media-bulk-downloads/`.
+
+- **Content:** `docs/website/src/content/docs/` — sections `getting-started/`
+  (incl. `comparison.md`), `guides/` (user features), `how-it-works/` (internals:
+  collection pipeline, resolvers, architecture), `benchmark/` (methodology, results,
+  coverage, gaps, and `changelog.md` = the resolver-coverage log). Sidebar +
+  branding in `astro.config.mjs`.
+- **Isolated yarn project** (not a workspace member): it has its own `yarn.lock`
+  (kept committed) + `.yarnrc.yml`. Work in it from `docs/website/`:
+  `corepack yarn install` then `corepack yarn dev` / `corepack yarn build`.
+- Files are Markdown/MDX with Starlight frontmatter (`title:`). `.mdx` parses `<...>`
+  as JSX — never put raw `<tag>` in an `.mdx` (use plain words or a `.md` file).
+- Cross-links between docs use relative `.md` paths (base-safe); out-of-site targets
+  (root `CHANGELOG.md`, `docs/marketing/`, `docs/architecture/`) link to GitHub URLs.
 
 ## Skills (reach for these first)
 

@@ -32,6 +32,6 @@ runs through the native wrapper — see `safari-native/README.md`.
 ## More
 
 - Monorepo layout & rationale — `../docs/architecture/monorepo-restructure.md`
-- Guides — `../docs/guides/` (architecture, collection-pipeline, download, badge, bubble)
+- Guides — `../docs/website/src/content/docs/` (architecture, collection-pipeline, download, badge, bubble)
 - Full dev/build/debug workflow — the `extension-dev` skill (`.claude/skills/extension-dev/`)
 - Safari (submitted, under review) — `safari-native/README.md`, `../docs/store-submissions/SAFARI_APPSTORE.md`

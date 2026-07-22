@@ -368,7 +368,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   opt-in **authenticated** resolve (#319) — off by default, it uses your existing
   logged-in session to fetch the signed `file_url`, throttled and host-pinned, and
   stores no credentials; passive browsing never triggers it. No new permissions —
-  see [BENCHMARK.md](./docs/BENCHMARK.md).
+  see [BENCHMARK.md](./docs/website/src/content/docs/benchmark/overview.md).
 - **Follow gallery thumbnail links to originals** (#287): an opt-in resolve step
   follows a same-origin thumbnail's link on host / "view" pages to the full image
   (SSRF-guarded).
@@ -482,7 +482,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     (Flaticon, pxhere, AlphaCoders, WallpaperFlare).
   - **Site-builder / misc CDN upgrade rules:** Squarespace, Wix, and Bandcamp.
 
-  See [BENCHMARK.md](./docs/BENCHMARK.md) for per-site coverage. All resolvers are
+  See [BENCHMARK.md](./docs/website/src/content/docs/benchmark/overview.md) for per-site coverage. All resolvers are
   passive and network-free by default; no new permissions.
 - **X / Twitter — recover unpainted media** (#270): photos and videos in status
   cells that the timeline hasn't painted yet are now collected via opt-in
@@ -522,7 +522,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the `/photo(s)/<id>` fbid path, and every candidate is tagged with a
   `mediaKey` so an already-rendered tile upgrades in place once the real
   original streams in, instead of adding a duplicate row. See
-  [BENCHMARK.md §G](./docs/benchmark/accuracy.md#g-facebook-original-image-accuracy-passive-sniff--2026-07-10)
+  [BENCHMARK.md §G](./docs/website/src/content/docs/benchmark/accuracy.md#g-facebook-original-image-accuracy-passive-sniff--2026-07-10)
   for the full measurement. Passive, read-only; no new permissions.
 - **Fixed: "Notify when downloads finish" setting not persisting** (#255):
   toggling the notification setting on requests the optional `notifications`
@@ -709,13 +709,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   organized into per-site (and per-day / per-kind) folders automatically — e.g.
   `Media/{domain}` saves each site to its own folder. A template with no tokens
   behaves exactly as the old static subfolder did. See
-  [docs/guides/download-paths.md](docs/guides/download-paths.md).
+  [docs/website/src/content/docs/guides/download-paths.md](docs/website/src/content/docs/guides/download-paths.md).
 - Favourites: star any image, video, or audio item to a personal **Favourites**
   list that persists across pages and sessions. Star from the grid tile or the
   preview; a filled-star badge marks saved items. A new Favourites panel lists
   them with **Download**, **Open source**, and **Remove** (plus **Clear all**),
   and re-downloads through the normal flow (so download-path tokens still apply).
-  Stored locally, capped at 500. See [docs/guides/favourites.md](docs/guides/favourites.md).
+  Stored locally, capped at 500. See [docs/website/src/content/docs/guides/favourites.md](docs/website/src/content/docs/guides/favourites.md).
 
 ### Changed
 - Media collection now walks each DOM root **once** instead of eight times — the

@@ -63,7 +63,7 @@ and browser-agnostic lives in `../../packages/` (`@mbd/core`, `@mbd/storage`,
 
 ## More
 
-- [Architecture guide](../../docs/guides/architecture.md) — surfaces, module &
+- [Architecture guide](../../docs/website/src/content/docs/how-it-works/architecture.md) — surfaces, module &
   message catalog, data model (the source of truth)
 - [`../safari-native/README.md`](../safari-native/README.md) — the Safari native
   wrapper and its platform caveats

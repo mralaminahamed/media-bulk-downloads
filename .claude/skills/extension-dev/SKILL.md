@@ -163,16 +163,16 @@ and the scheme allowlist, captured in-repo (no external docs needed).
 - Monorepo design — `docs/architecture/monorepo-restructure.md`; package manifests
   `packages/{core,storage,platform}/package.json`, `apps/extension/package.json`;
   per-package overviews `packages/*/README.md`, `apps/*/README.md`
-- Message catalog + surfaces — `docs/guides/architecture.md` (the `ChromeMessage`
+- Message catalog + surfaces — `docs/website/src/content/docs/how-it-works/architecture.md` (the `ChromeMessage`
   table + the stream-capture sequence diagram); the union itself is
   `packages/core/src/types.ts`
 - Platform seam (per-browser impls) — `apps/extension/src/extension/platform/`
   (`chrome.ts` / `firefox.ts` / `safari.ts` / `index.ts` / `run-capture.ts`); the
   contracts are `packages/platform/src/`. Safari packaging: `apps/safari-native/`
-- In-repo guides — `docs/guides/`: `getting-started.md`, `architecture.md`,
+- In-repo guides — `docs/website/src/content/docs/`: `getting-started.md`, `architecture.md`,
   `collection-pipeline.md`, `deep-scan.md`, `download.md`, `download-paths.md`,
   `badge.md`, `bubble.md`, `history.md`, `favourites.md`, `resolve-originals.md`;
-  `docs/BENCHMARK.md` for collection cost numbers 
+  `docs/website/src/content/docs/benchmark/overview.md` for collection cost numbers 
 
 **Further reading (external, optional — not required; captured in the ref above):**
 - WXT — installation https://wxt.dev/guide/installation · project structure

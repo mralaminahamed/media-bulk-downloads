@@ -60,7 +60,7 @@ no identifying information beyond a normal browser request to that host:
   Pinterest, Reddit, Flickr, ArtStation, Behance, Bluesky, Unsplash, Wallhaven,
   Vimeo, Dailymotion, Mastodon, YouTube, Booru sites, and similar; for most items
   the original is derived with no network call at all. The current list lives in
-  [docs/guides/resolve-originals.md](./docs/guides/resolve-originals.md).
+  [docs/website/src/content/docs/how-it-works/resolve-originals.md](./docs/website/src/content/docs/how-it-works/resolve-originals.md).
 - **HLS / DASH stream capture** (triggered per item, only when you capture a
   stream) fetches the stream's manifest and its media segments from the stream's
   own host to assemble the file locally. Nothing about you is sent; it only

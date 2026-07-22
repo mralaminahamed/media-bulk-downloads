@@ -95,7 +95,7 @@ no other single tool occupies for *all* media types.
 Drawn from what competitors ship and we don't:
 
 - **More site resolvers** toward gallery-dl parity where our passive model allows — DeviantArt and
-  other targets still on the [BENCHMARK](../BENCHMARK.md) radar (Pixiv, ArtStation, Flickr, and
+  other targets still on the [BENCHMARK](../website/src/content/docs/benchmark/overview.md) radar (Pixiv, ArtStation, Flickr, and
   Sankaku have since shipped).
 - **E-commerce product-image grouping** (a Fatkun niche).
 - **Optional metadata JSON sidecar** on download — gallery-dl parity for archivists.
