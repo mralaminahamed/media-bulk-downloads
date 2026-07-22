@@ -1,6 +1,6 @@
 {
   "name": "@mbd/core",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "type": "module",
   "description": "Browser-agnostic domain library: media collection, per-site resolvers, HLS/DASH byte-logic, and shared types. Zero chrome.* APIs.",

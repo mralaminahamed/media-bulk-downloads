@@ -53,14 +53,18 @@
   --sl-color-accent:      #818cf8;
   --sl-color-accent-high: #c7d2fe;
 
-  --sl-color-white:  #e9eaef;
-  --sl-color-gray-1: #23252e;
-  --sl-color-gray-2: #33353f;
-  --sl-color-gray-3: #6d6f7c;
-  --sl-color-gray-4: #a4a6b2;
-  --sl-color-gray-5: #c4c5cd;
-  --sl-color-gray-6: #e9eaef;
-  --sl-color-gray-7: #f4f5f7;
+  /* Dark ramp follows Starlight's semantic: gray-1 = LIGHTEST (text end) →
+     gray-7 = DARKEST (bg end). Getting this backwards makes any component that
+     reads a gray token directly (theme-select, nav, breadcrumbs) render
+     dark-on-dark. --sl-color-text defaults to gray-2, so gray-2 must be light. */
+  --sl-color-white:  #f5f6f8;
+  --sl-color-gray-1: #e9eaef;
+  --sl-color-gray-2: #c8cad2;
+  --sl-color-gray-3: #a4a6b2;
+  --sl-color-gray-4: #6d6f7c;
+  --sl-color-gray-5: #33353f;
+  --sl-color-gray-6: #23252e;
+  --sl-color-gray-7: #17191f;
   --sl-color-black:  #0e0f13;
 
   --sl-color-hairline:       #23252e;

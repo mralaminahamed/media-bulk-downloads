@@ -62,7 +62,7 @@ no other single tool occupies for *all* media types.
 
 - **Only tool that is all-media generalist + site-aware in one in-page UI.** Image grabbers skip
   video; video rippers skip images; the CLIs skip the GUI. We scan any page for image **+** video **+**
-  audio, upgrade to originals (srcset / 50+ CDN families / de-proxy / ~60 per-site resolvers), **and**
+  audio, upgrade to originals (srcset / 90+ CDN families / de-proxy / ~30 per-site resolvers), **and**
   capture HLS (m3u8, AES-128 decrypt + assemble) and route DASH — no companion app.
 - **EXIF/XMP-preserving format conversion** (WebP/AVIF→PNG/JPEG, metadata kept by default, opt-in
   strip). Effectively unique — only Imageye converts at all, and only WebP→JPG with no metadata story.

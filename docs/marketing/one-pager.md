@@ -9,7 +9,7 @@ A cross-browser (Chrome · Edge · Firefox · Safari) Manifest V3 extension that
 ## What it does
 
 - **One-click collection.** Opens a live preview of every image, video, and audio file on the current page — including lazy-loaded, `srcset`, `<picture>`, CSS-background, and shadow-DOM media a right-click would miss.
-- **Original quality, automatically.** Recognizes the size/resize patterns of **50+ major image hosts and CDN families** and rewrites a thumbnail to its full-resolution original before you download.
+- **Original quality, automatically.** Recognizes the size/resize patterns of **90+ major image hosts and CDN families** and rewrites a thumbnail to its full-resolution original before you download.
 - **Bulk or precise.** Download a single item, a filtered set (by type, format, dimensions, or size), or the whole page. A resilient queue handles large batches and resumes cleanly.
 - **Stream capture.** Assembles HLS/DASH video and audio streams into a single downloadable file.
 - **Stays organized.** Custom folder templates, filename modes, download history, and a favourites list.

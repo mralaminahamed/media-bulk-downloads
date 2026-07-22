@@ -40,7 +40,7 @@ Support is delivered in **four escalating tiers**, each a fallback for the last,
    [candidates.md](/media-bulk-downloads/benchmark/candidates/)).
 2. **Adaptive deep-scan.** For lazy/virtualized/infinite feeds, the bounded scroll loop (`collection/deepScan.ts`) surfaces what isn't yet in the DOM — with an **EMA-adaptive quiet window**,
    yield-driven scroll step, warm-start from a host's learned settle time, and "keep-going-when-rich" cap extension. It adapts to each page's cadence rather than using fixed timings.
-3. **90+ host-agnostic CDN upgrade rules** (`collection/imageUrl.ts`) + **31 dedicated resolvers** (`resolvers/`) rewrite a collected thumbnail to its original.
+3. **90+ host-agnostic CDN upgrade rules** (`collection/imageUrl.ts`) + **30 dedicated resolvers** (`resolvers/`, plus a generic fallback = 31 registry entries) rewrite a collected thumbnail to its original.
 4. **Opt-in network tier + MAIN-world sniffers** for the hard cases — SPAs that hide the original behind canvas/blob/JS (MangaDex), signed CDNs, or player metadata (HLS/DASH, Twitter/Vimeo/Twitch/…),
    each SSRF-host-pinned and read-only.
 
