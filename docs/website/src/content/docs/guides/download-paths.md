@@ -6,6 +6,8 @@ description: "Per-site folder templates using the {host}, {domain}, {date}, and 
 The **Save to subfolder** setting is a path template. Type a plain folder name, token placeholders, or both. The extension expands the tokens for each download and saves the file there. This gives you
 one folder per site, per-day folders, or per-kind folders with no per-site setup.
 
+![Settings → Downloads: the Save-to-subfolder path template, naming scheme, and format-conversion options.](../../../assets/screenshots/settings.png)
+
 ## The one constraint
 
 Everything you configure sits inside the browser's Downloads folder.

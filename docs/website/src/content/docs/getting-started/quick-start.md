@@ -64,6 +64,10 @@ Once the panel is open:
 5. **Download History** and **Favourites** open from the popup header. See
    [Download History](/media-bulk-downloads/guides/history/) and [Favourites](/media-bulk-downloads/guides/favourites/).
 
+Click any tile to preview it full-size with its dimensions, type, and source:
+
+![The preview modal — an item shown full size with its dimensions, type, and source, with previous/next controls.](../../../assets/screenshots/preview.png)
+
 ## Settings
 
 Stored in `chrome.storage.sync`. The Settings sheet has four tabs.
