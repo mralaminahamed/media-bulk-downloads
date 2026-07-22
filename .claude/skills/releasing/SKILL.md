@@ -134,6 +134,28 @@ Privacy policy: `PRIVACY.md` (hosted at the repo's public URL). Screenshots: sev
 `-7-…`; Opera also wants `assets/v2/opera-promo-300x188.png`. Other Chromium
 browsers (Brave/Opera/Vivaldi) use the Chrome zip.
 
+## Official store install badges
+
+Use each store's **official** "install" badge (not third-party/shields), resized
+only — no recolor/border/radius — and always linking to our real listing. The
+assets are **vendored** so they never hotlink-break: `assets/badges/` (root
+README) and `docs/website/public/badges/` (docs site landing).
+
+| Store | Badge | Official source |
+|---|---|---|
+| Chrome Web Store | "Available in the Chrome Web Store" (`chrome-web-store.png`, with-border) | <https://developer.chrome.com/docs/webstore/branding> |
+| Firefox (AMO) | "Get the Add-on" (`firefox-get-the-addon.png`) | <https://blog.mozilla.org/addons/2015/11/10/promote-your-add-ons-with-the-get-the-add-on-button/> |
+| Microsoft | "Get it from Microsoft" (`get-it-from-microsoft.svg`) | `https://get.microsoft.com/images/en-us%20{dark,light}.svg` |
+
+**Edge caveat:** the extension ships on **Edge Add-ons**
+(`microsoftedge.microsoft.com`), which has **no** `apps.microsoft.com` listing and
+no dedicated badge program. The "Get it from Microsoft" badge is Microsoft-official
+but nominally a Microsoft-**Store** badge — we point it at the Edge Add-ons listing.
+Don't reuse a random `apps.microsoft.com/badge/<id>` id (the one first referenced,
+`9nksqgp7f2nh`, is **WhatsApp's**). If a real Microsoft-Store listing ever exists,
+repoint it and swap in the id-specific badge. To refresh an asset, re-download from
+the source above into both badge dirs (keep the same filename).
+
 ## References
 
 - Submission packages (this repo) — `docs/store-submissions/{CHROME_WEBSTORE,EDGE_ADDONS,FIREFOX_AMO,OPERA_ADDONS,SAFARI_APPSTORE}.md`, `PRIVACY.md`, `SECURITY.md`, `CHANGELOG.md`
