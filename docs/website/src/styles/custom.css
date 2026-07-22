@@ -317,6 +317,29 @@ starlight-toc a[aria-current='true'] {
   filter: drop-shadow(0 12px 40px color-mix(in srgb, var(--sl-color-accent) 30%, transparent));
 }
 
+/* ── Install badges (landing) ────────────────────────────────────────────── */
+.install-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+.install-badges a { line-height: 0; }
+.install-badges img { height: 34px; border-radius: 6px; }
+
+/* ── Mermaid diagrams ────────────────────────────────────────────────────── */
+.mermaid {
+  display: flex;
+  justify-content: center;
+  margin-block: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: 0.75rem;
+  background: var(--sl-color-bg-nav);
+  overflow-x: auto;
+}
+.mermaid svg { max-width: 100%; height: auto; }
+
 /* ── Mobile ──────────────────────────────────────────────────────────────── */
 @media (max-width: 50rem) {
   .hero-title { font-size: 2.125rem !important; }

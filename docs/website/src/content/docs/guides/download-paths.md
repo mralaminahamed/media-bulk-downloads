@@ -1,5 +1,6 @@
 ---
 title: "Download paths (folder templates)"
+description: "Per-site folder templates using the {host}, {domain}, {date}, and {kind} tokens, plus the path-safety rules."
 ---
 
 The **Save to subfolder** setting is a path template. Type a plain folder name, token placeholders, or both. The extension expands the tokens for each download and saves the file there. This gives you
@@ -110,4 +111,3 @@ A template with no tokens behaves like the old static subfolder. An existing
 
 ---
 
-**[← All guides](../getting-started/introduction.md)** · [Download](./download.md) · [Download History](./history.md)

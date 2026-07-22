@@ -8,8 +8,6 @@ viewing and lets you preview, filter, and download them in bulk — quickly, and
 without sending your browsing anywhere. It's a cross-browser (Chrome · Edge ·
 Firefox · Opera · Safari) Manifest-V3 extension.
 
-Diagrams here use [Mermaid](https://mermaid.js.org/).
-
 ## Where to go next
 
 | Guide | What it covers |

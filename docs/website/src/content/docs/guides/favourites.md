@@ -1,5 +1,6 @@
 ---
 title: "Favourites"
+description: "Star collected media into a persistent Favourites list — how it stores, dedupes, and syncs across popup and bubble."
 ---
 
 Star any collected item to save it to a **Favourites** list. The list persists across pages and browser sessions.
@@ -67,4 +68,3 @@ See also: [Download](./download.md) · [Download History](./history.md) ·
 
 ---
 
-**[← All guides](../getting-started/introduction.md)**

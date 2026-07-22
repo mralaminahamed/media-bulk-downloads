@@ -1,5 +1,6 @@
 ---
 title: "Coverage matrix (CDN family → sites)"
+description: "CDN-family to site coverage matrix — every supported site mapped to the rule it exercises."
 ---
 
 > Part of the [Collection Benchmark](./overview.md).

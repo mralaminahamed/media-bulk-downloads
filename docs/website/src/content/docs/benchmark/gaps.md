@@ -1,5 +1,6 @@
 ---
 title: "Gaps found"
+description: "Sites the engine cannot upgrade further — signed or already-original CDNs still open."
 ---
 
 > Part of the [Collection Benchmark](./overview.md).

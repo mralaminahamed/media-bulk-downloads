@@ -1,5 +1,6 @@
 ---
 title: "Download"
+description: "How selected media is named, de-duplicated, and saved through the service worker — the queue, context-menu path, and ZIP/text/converted downloads."
 ---
 
 Everything you save goes through the service worker, which owns
@@ -143,4 +144,3 @@ filters, names, or reads
 
 ---
 
-**[← All guides](../getting-started/introduction.md)** · [Download paths](./download-paths.md) · [Download History](./history.md)

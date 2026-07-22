@@ -1,11 +1,16 @@
 // @ts-check
 import { defineConfig } from 'astro/config'
 import starlight from '@astrojs/starlight'
+import mermaid from 'astro-mermaid'
 
 export default defineConfig({
   site: 'https://mralaminahamed.github.io',
   base: '/media-bulk-downloads',
   integrations: [
+    mermaid({
+      theme: 'neutral',
+      autoTheme: true,
+    }),
     starlight({
       title: 'Media Bulk Downloads',
       tagline: 'Bulk-download images, video & audio from any web page — fast and private.',

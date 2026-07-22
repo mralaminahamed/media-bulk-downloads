@@ -1,10 +1,11 @@
 ---
 title: "Resolver candidates"
+description: "Unsupported sites worth a resolver — validated live status and build-or-close verdicts."
 ---
 
 > Part of the [Collection Benchmark](./overview.md). Tracks sites **not yet
 > supported** that are worth a resolver, with a validated live status and the
-> recon verdict. Feeds `/resolver:recon` and `/resolver:add`. Complements
+> recon verdict. Feeds the recon and resolver-authoring workflow. Complements
 > [gaps.md](./gaps.md) (open, *unupgradeable*) and [changelog.md](./changelog.md)
 > (shipped/closed).
 
@@ -30,9 +31,9 @@ Read, validated live, and resolved every open resolver issue:
   surfaced via `og:image` + `<img>` on the sharechat CDNs (generic collects them). The proposed
   `_thumbnail_v2` strip is a dead end (byte-verified: `_sc_thumbnail_v2.jpeg` 200 → stripped 404), and the full image has a different hash than the grid thumbnail, so no deterministic rewrite.
 
-## Session triage (2026-07-21) — what shipped, what's gated
+## Triage (2026-07-21) — what shipped, what's gated
 
-A build sweep this session harvested every candidate whose mechanism could be **curl/byte-verified from a headless environment** (CDN size rules + one open-API size folder) — all shipped, all
+A build sweep harvested every candidate whose mechanism could be **curl/byte-verified from a headless environment** (CDN size rules + one open-API size folder) — all shipped, all
 live-verified:
 
 - ✅ **MangaDex** (MAIN-world sniffer of the open `at-home` API — new manga category)
@@ -78,7 +79,7 @@ None are closed. For the plain-`<img>` class, **nothing to build — the extensi
 
 ## Live + server-rendered — recon-ready (validated 200)
 
-Rule of thumb: these render usable markup to an anonymous request, so a DOM / page-JSON reader is viable; confirm exact selectors with `/resolver:recon`.
+Rule of thumb: these render usable markup to an anonymous request, so a DOM / page-JSON reader is viable; confirm exact selectors during recon.
 
 - **Manga** (whole category, zero coverage): `fanfox.net`, `mangatown.com`,
   `manganato.gg`, `rawkuma.net`, `weebcentral.com`; hentai galleries share a template: `imhentai.xxx`, `hentaifox.com`, `hentai2read.com`.

@@ -1,5 +1,6 @@
 ---
 title: "Download History"
+description: "The log of completed downloads — open, reveal, re-download, and how entries are recorded, deduped, and capped."
 ---
 
 Every completed download is recorded to a **Download History** list. The list survives across pages, tabs, and browser restarts, so you can find, re-open, or re-download something you saved earlier
@@ -110,4 +111,3 @@ See also: [Download](./download.md) · [Favourites](./favourites.md) ·
 
 ---
 
-**[← All guides](../getting-started/introduction.md)**

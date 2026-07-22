@@ -1,5 +1,6 @@
 ---
-title: "Getting Started"
+title: "Quick Start"
+description: "Install, build, and load Media Bulk Downloads unpacked, then scan and download your first media — plus the full settings reference."
 ---
 
 ## Prerequisites
@@ -13,7 +14,7 @@ corepack enable
 yarn install
 ```
 
-Every script runs through Corepack Yarn. Do not use npm. WXT builds all four browser targets (Chrome, Firefox, Edge, Safari) from one codebase.
+Every script runs through Corepack Yarn. Do not use npm. WXT builds all four build targets (Chrome, Firefox, Edge, Safari) from one codebase; Opera and other Chromium browsers run the Chrome build.
 
 ## Develop
 
@@ -149,7 +150,7 @@ apps/
     tests/unit/                 # Vitest specs
     tests/e2e/                  # Playwright e2e (real extension in Chromium)
 
-docs/guides/                    # you are here
+docs/website/                    # documentation site (Astro Starlight)
 docs/architecture/              # monorepo-restructure design record
 ```
 
@@ -157,4 +158,3 @@ Next: [Architecture](../how-it-works/architecture.md).
 
 ---
 
-**[← All guides](./introduction.md)** · [Architecture](../how-it-works/architecture.md) · [Download](../guides/download.md)

@@ -1,8 +1,9 @@
 ---
 title: "Badge"
+description: "The per-tab media count on the toolbar icon — its eligibility filters, loading behavior, and popup-vs-bubble click modes."
 ---
 
-The toolbar icon shows the count of **eligible** media on the active tab. The service worker keeps it in sync. It only draws the count when the **Show count on icon** setting is on (`showImageCount`,
+The toolbar icon shows the count of **eligible** media on the active tab. The service worker keeps it in sync. It only draws the count when the **Show image count on toolbar icon** setting is on (`showImageCount`,
 default on).
 
 ## Flow
@@ -15,7 +16,7 @@ sequenceDiagram
   participant CS as Content script
   participant F as eligibility filters
 
-  Note over CH,SW: tab activated or finished loading (Show count on icon must be on)
+  Note over CH,SW: tab activated or finished loading (Show image count on toolbar icon must be on)
   CH->>SW: tabs.onActivated / tabs.onUpdated(status:"complete")
   SW->>CS: sendMessage("GET_IMAGES")
   CS-->>SW: ImageInfo[]
@@ -45,7 +46,7 @@ settings and blocklist caches to load, so a cold-started worker doesn't over-cou
 - **Loading** tabs show `...` until the tab finishes loading, then the real count.
 - If the content script can't run — `chrome://`, `about:`, the Chrome Web Store, AMO — the `GET_IMAGES` call returns a `lastError`. The worker clears that tab's badge, so a stale `...` placeholder
   doesn't stay stuck on it.
-- When **Show count on icon** is off, existing badges are cleared and no counts are drawn. The activation and load listeners skip the badge entirely.
+- When **Show image count on toolbar icon** is off, existing badges are cleared and no counts are drawn. The activation and load listeners skip the badge entirely.
 
 ## Popup vs. bubble mode
 
@@ -66,10 +67,9 @@ flowchart LR
 `chrome.google.com/webstore`, and `addons.mozilla.org`. So even with the bubble enabled, those pages (and any `chrome://`, `about:`, etc. page) fall back to the popup. The popup is the only surface
 that works everywhere.
 
-This mode switch is independent of the badge count — it runs whether or not **Show count on icon** is on.
+This mode switch is independent of the badge count — it runs whether or not **Show image count on toolbar icon** is on.
 
 See [In-page Bubble](../guides/bubble.md) for what `TOGGLE_BUBBLE` does.
 
 ---
 
-**[← All guides](../getting-started/introduction.md)** · [In-page Bubble](../guides/bubble.md) · [Deep Scan](../guides/deep-scan.md)
