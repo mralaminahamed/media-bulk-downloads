@@ -1,0 +1,6 @@
+# Per-version, paste-ready store submission text (release notes + reviewer notes),
+# generated locally per release. Kept out of version control — the reusable
+# templates live in the parent ../*.md files. This folder is tracked only via
+# this .gitignore so the drop location exists; everything else here is ignored.
+*
+!.gitignore
