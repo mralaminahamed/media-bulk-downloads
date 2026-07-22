@@ -65,7 +65,7 @@ It reads only what the page already loaded, so nothing leaves your device.
 - **De-proxies** wrapped URLs (Next.js `_next/image` — absolute and relative —
   weserv, Cloudinary fetch)
 - **CDN upgrades** thumbnails to full size (Twitter/X `name=orig`, YouTube
-  `hqdefault`, Pinterest `/originals/`, Google `=s0`, and 50+ more families)
+  `hqdefault`, Pinterest `/originals/`, Google `=s0`, and dozens more families)
 - **Deep scan** — an opt-in, bounded auto-scroll that surfaces virtualized and
   infinite-scroll media (it scrolls the page and any nested scroll panes; the page
   loads its own media). Its limits — max items, time, and scroll steps — are
@@ -363,8 +363,7 @@ Starlight). Browse the source pages directly here too:
 
 **Reference:** [Changelog](./CHANGELOG.md) — release history ·
 [Feature one-pager](./docs/marketing/one-pager.md) — at-a-glance overview ·
-[Collection Benchmark](https://mralaminahamed.github.io/media-bulk-downloads/benchmark/overview/) — live, reproducible upgrade measurements
-([`https://mralaminahamed.github.io/media-bulk-downloads/benchmark/overview/`](https://mralaminahamed.github.io/media-bulk-downloads/benchmark/overview/) for the per-topic breakdown) ·
+[Collection Benchmark](https://mralaminahamed.github.io/media-bulk-downloads/benchmark/overview/) — live, reproducible upgrade measurements ·
 [Coverage matrix](https://mralaminahamed.github.io/media-bulk-downloads/benchmark/coverage-matrix/) — every supported site + its upgrade rule ·
 [Monorepo restructure](./docs/architecture/monorepo-restructure.md) — packages/app design record
 

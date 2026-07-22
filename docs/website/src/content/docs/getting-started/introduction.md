@@ -5,8 +5,7 @@ description: What Media Bulk Downloads is, the four extension surfaces, and the 
 
 Media Bulk Downloads finds every image, video, and audio file on the page you're
 viewing and lets you preview, filter, and download them in bulk — quickly, and
-without sending your browsing anywhere. It's a cross-browser (Chrome · Edge ·
-Firefox · Opera · Safari) Manifest-V3 extension.
+without sending your browsing anywhere. It's a cross-browser Manifest-V3 extension — built for Chrome, Firefox, Edge, and Safari from one codebase; Opera and other Chromium browsers run the Chrome build (Opera and Safari store listings are under review).
 
 ## Where to go next
 
