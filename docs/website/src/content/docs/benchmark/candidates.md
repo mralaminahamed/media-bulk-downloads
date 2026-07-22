@@ -3,10 +3,10 @@ title: "Resolver candidates"
 description: "Unsupported sites worth a resolver — validated live status and build-or-close verdicts."
 ---
 
-> Part of the [Collection Benchmark](./overview.md). Tracks sites **not yet
+> Part of the [Collection Benchmark](/media-bulk-downloads/benchmark/overview/). Tracks sites **not yet
 > supported** that are worth a resolver, with a validated live status and the
 > recon verdict. Feeds the recon and resolver-authoring workflow. Complements
-> [gaps.md](./gaps.md) (open, *unupgradeable*) and [changelog.md](./changelog.md)
+> [gaps.md](/media-bulk-downloads/benchmark/gaps/) (open, *unupgradeable*) and [changelog.md](/media-bulk-downloads/benchmark/changelog/)
 > (shipped/closed).
 
 Discovery cross-referenced against [gallery-dl](https://github.com/mikf/gallery-dl)'s supported-sites list (used as a **factual reference only** — endpoints / URL shapes; GPL, no source copied).
@@ -119,8 +119,8 @@ LOFTER (`imglf`), Naver (`pstatic`), Weibo images (`sinaimg`), Bilibili images (
 
 ## Highest-leverage next builds
 
-- ✅ **MangaDex — SHIPPED 2026-07-21.** Anchored the new *manga* category via a MAIN-world sniffer of its open `at-home/server` API (see [changelog](./changelog.md)).
-- ✅ **Steam UGC — SHIPPED 2026-07-21.** CDN rule stripping the unsigned resize query on `images.steamusercontent.com/ugc/` (see [changelog](./changelog.md)).
+- ✅ **MangaDex — SHIPPED 2026-07-21.** Anchored the new *manga* category via a MAIN-world sniffer of its open `at-home/server` API (see [changelog](/media-bulk-downloads/benchmark/changelog/)).
+- ✅ **Steam UGC — SHIPPED 2026-07-21.** CDN rule stripping the unsigned resize query on `images.steamusercontent.com/ugc/` (see [changelog](/media-bulk-downloads/benchmark/changelog/)).
 
 1. **Bunkr** — live album reader (proven pattern).
 2. ~~**VK**~~ — ✅ shipped 2026-07-21 (#372): `cs=` drop CDN rule (signature blocker cleared).

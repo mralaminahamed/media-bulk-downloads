@@ -190,10 +190,10 @@ loads that host's memory and seeds the loop:
 - **Resolution still applies**: each scan round calls the same `collectMedia()`
   as the initial scan, so newly-found items can carry `resolveHint` /
   `unresolvedVideo` like any other item. After the merge, `applyResolution` runs again and resolves them when `resolveOriginals` is on — see
-  [Resolve Originals](../how-it-works/resolve-originals.md).
+  [Resolve Originals](/media-bulk-downloads/how-it-works/resolve-originals/).
 
-Pipeline that each scan round feeds into: [Collection Pipeline](../how-it-works/collection-pipeline.md) ·
-[Resolve Originals](../how-it-works/resolve-originals.md).
+Pipeline that each scan round feeds into: [Collection Pipeline](/media-bulk-downloads/how-it-works/collection-pipeline/) ·
+[Resolve Originals](/media-bulk-downloads/how-it-works/resolve-originals/).
 
 ---
 

@@ -3,7 +3,7 @@ title: "Caveats"
 description: "How to read the benchmark numbers — run-to-run variance, coverage labels, and what is and is not fetched."
 ---
 
-> Part of the [Collection Benchmark](./overview.md).
+> Part of the [Collection Benchmark](/media-bulk-downloads/benchmark/overview/).
 
 ## E. Caveats
 

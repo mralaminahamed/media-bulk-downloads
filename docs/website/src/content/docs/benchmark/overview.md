@@ -16,15 +16,15 @@ This benchmark is split across focused files under `benchmark/`:
 
 | File                                                | Contents                                                                    |
 |-----------------------------------------------------|-----------------------------------------------------------------------------|
-| [Method & reproduction](./methodology.md) | How coverage is measured, run dates, and how to reproduce it                |
-| [Live-verified results](./results.md)     | §A / A-2 / B — per-site collection vs upgrade, verified new-CDN rules       |
-| [Coverage matrix](./coverage-matrix.md)   | §C — the CDN-family → sites table                                           |
-| [Gaps found](./gaps.md)                   | §D — what is still open (signed / already-original)                         |
-| [Resolver candidates](./candidates.md)    | Un-supported sites worth a resolver — validated live status + recon verdict |
-| [Benchmark changelog](./changelog.md)     | Shipped upgrade rules & resolver fixes this benchmark drove                 |
-| [Caveats](./caveats.md)                   | §E — how to read the numbers                                                |
-| [Accuracy studies](./accuracy.md)         | §G / H / I — Facebook / Instagram / Threads original-media accuracy         |
-| [Performance](./performance.md)           | §J / K — popup grid render + deep-scan timings                              |
+| [Method & reproduction](/media-bulk-downloads/benchmark/methodology/) | How coverage is measured, run dates, and how to reproduce it                |
+| [Live-verified results](/media-bulk-downloads/benchmark/results/)     | §A / A-2 / B — per-site collection vs upgrade, verified new-CDN rules       |
+| [Coverage matrix](/media-bulk-downloads/benchmark/coverage-matrix/)   | §C — the CDN-family → sites table                                           |
+| [Gaps found](/media-bulk-downloads/benchmark/gaps/)                   | §D — what is still open (signed / already-original)                         |
+| [Resolver candidates](/media-bulk-downloads/benchmark/candidates/)    | Un-supported sites worth a resolver — validated live status + recon verdict |
+| [Benchmark changelog](/media-bulk-downloads/benchmark/changelog/)     | Shipped upgrade rules & resolver fixes this benchmark drove                 |
+| [Caveats](/media-bulk-downloads/benchmark/caveats/)                   | §E — how to read the numbers                                                |
+| [Accuracy studies](/media-bulk-downloads/benchmark/accuracy/)         | §G / H / I — Facebook / Instagram / Threads original-media accuracy         |
+| [Performance](/media-bulk-downloads/benchmark/performance/)           | §J / K — popup grid render + deep-scan timings                              |
 
 The user-facing release history lives in the top-level [CHANGELOG.md](https://github.com/mralaminahamed/media-bulk-downloads/blob/main/CHANGELOG.md).
 
@@ -37,7 +37,7 @@ Support is delivered in **four escalating tiers**, each a fallback for the last,
    this is the majority, including the whole plain-`<img>`
    reader class (most manga readers, most image galleries; live-proved on **weebcentral**:
    21 chapter-page originals collected with no dedicated resolver — see
-   [candidates.md](./candidates.md)).
+   [candidates.md](/media-bulk-downloads/benchmark/candidates/)).
 2. **Adaptive deep-scan.** For lazy/virtualized/infinite feeds, the bounded scroll loop (`collection/deepScan.ts`) surfaces what isn't yet in the DOM — with an **EMA-adaptive quiet window**,
    yield-driven scroll step, warm-start from a host's learned settle time, and "keep-going-when-rich" cap extension. It adapts to each page's cadence rather than using fixed timings.
 3. **90+ host-agnostic CDN upgrade rules** (`collection/imageUrl.ts`) + **31 dedicated resolvers** (`resolvers/`) rewrite a collected thumbnail to its original.

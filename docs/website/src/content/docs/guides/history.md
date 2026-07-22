@@ -16,7 +16,7 @@ without digging through the OS downloads folder.
 | **Open source**    | no                  | Opens the entry's media URL (`entry.src`) in a new tab (`OPEN_URL`; `http(s)` URLs only)         |
 | **Open file**      | yes                 | Opens the downloaded file in the OS default app (`OPEN_DOWNLOAD_FILE` → `chrome.downloads.open`) |
 | **Show in folder** | yes                 | Reveals the file in the OS file manager (`SHOW_DOWNLOAD` → `chrome.downloads.show`)              |
-| **Re-download**    | no                  | Re-runs the [Download](./download.md) flow for this one item (`DOWNLOAD_IMAGES`)                 |
+| **Re-download**    | no                  | Re-runs the [Download](/media-bulk-downloads/guides/download/) flow for this one item (`DOWNLOAD_IMAGES`)                 |
 | **Remove**         | no                  | Deletes this one entry (`REMOVE_HISTORY_ENTRY`)                                                  |
 | **Clear all**      | no                  | Empties the whole history (`CLEAR_HISTORY`); header button, disabled when empty                  |
 
@@ -27,7 +27,7 @@ Re-download sends the item with `explicit: true`. That bypasses the collection s
 silently dropped. It mirrors the context-menu single download.
 
 A collected tile that is still on disk shows a ✓ badge in the grid. That badge comes from `downloadedSrcs`, which the grid fetches with `GET_DOWNLOADED_SRCS`
-(see below), not from raw history membership. It is distinct from the toolbar count in [Badge](../how-it-works/badge.md).
+(see below), not from raw history membership. It is distinct from the toolbar count in [Badge](/media-bulk-downloads/how-it-works/badge/).
 
 ## How it works
 
@@ -41,7 +41,7 @@ A collected tile that is still on disk shows a ✓ badge in the grid. That badge
   that single writer, so two concurrent read-modify-write operations cannot clobber each other.
 - The popup and the on-page bubble run the same app. Each listens on
   `chrome.storage.onChanged` and reloads when `downloadHistory` changes. Nothing polls.
-- History is independent of [Favourites](./favourites.md). An item can be in both, either, or neither.
+- History is independent of [Favourites](/media-bulk-downloads/guides/favourites/). An item can be in both, either, or neither.
 
 ## When history is recorded
 
@@ -106,8 +106,8 @@ storage path for user edits versus automatic recording.
 - `apps/extension/src/extension/popup/components/panels/HistoryPanel.tsx` — the panel UI.
 - `apps/extension/src/extension/popup/hooks/useDownloadHistory.ts` — the grid's downloaded-on-disk set.
 
-See also: [Download](./download.md) · [Favourites](./favourites.md) ·
-[Architecture](../how-it-works/architecture.md).
+See also: [Download](/media-bulk-downloads/guides/download/) · [Favourites](/media-bulk-downloads/guides/favourites/) ·
+[Architecture](/media-bulk-downloads/how-it-works/architecture/).
 
 ---
 

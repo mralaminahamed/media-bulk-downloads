@@ -73,8 +73,8 @@ We are genuinely behind on two fronts, and won't pretend otherwise:
   policy + MV3 ceiling, not a bug we can fix.
 - **The CLIs (yt-dlp ~1,800, gallery-dl 300+) beat everyone on breadth of
   site-aware extractors and metadata** — versus our ~30 dedicated resolvers (plus 90+ CDN-family rules). That's a scope
-  gap we close over time; see the [coverage matrix](../benchmark/coverage-matrix.md)
-  and [gaps](../benchmark/gaps.md).
+  gap we close over time; see the [coverage matrix](/media-bulk-downloads/benchmark/coverage-matrix/)
+  and [gaps](/media-bulk-downloads/benchmark/gaps/).
 
 Where we lead is the combination: the only row that is ✅ across image **and** video
 capture **and** in-page UX **and** local / open-source / free.

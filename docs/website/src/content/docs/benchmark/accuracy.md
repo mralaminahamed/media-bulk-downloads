@@ -3,7 +3,7 @@ title: "Original-image & video accuracy studies"
 description: "Live original-image and video accuracy measurements for Facebook, Instagram, and Threads."
 ---
 
-> Part of the [Collection Benchmark](./overview.md).
+> Part of the [Collection Benchmark](/media-bulk-downloads/benchmark/overview/).
 
 ## G. Facebook original-image accuracy (passive sniff) — 2026-07-10
 

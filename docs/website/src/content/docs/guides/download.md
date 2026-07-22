@@ -39,7 +39,7 @@ Both paths share the same filename builder and the same duplicate handling, desc
 
 `buildDownloadFilename` prepends the expanded `downloadPath` template. This is how you get one folder per site, per day, or per media kind. The tokens (`{host}` `{domain}` `{date}` `{kind}`) and the
 safety rules that keep a path inside `Downloads/` are documented in
-[Download paths](./download-paths.md) — not repeated here.
+[Download paths](/media-bulk-downloads/guides/download-paths/) — not repeated here.
 
 ### Settings that shape a download
 
@@ -47,7 +47,7 @@ safety rules that keep a path inside `Downloads/` are documented in
 |--------------------------|------------|----------------------------------------------------------------------|
 | `namingMode`             | `prefixed` | Keep the source name (`original`) or use `fileNamePrefix` + index    |
 | `fileNamePrefix`         | `image_`   | Prefix for the `prefixed` form                                       |
-| `downloadPath`           | *(empty)*  | Relative folder template — see [Download paths](./download-paths.md) |
+| `downloadPath`           | *(empty)*  | Relative folder template — see [Download paths](/media-bulk-downloads/guides/download-paths/) |
 | `saveAs`                 | `false`    | Show Chrome's native "Save As" dialog for each file                  |
 | `skipDuplicateDownloads` | `true`     | Skip items already saved and still on disk (see below)               |
 | `notifyOnComplete`       | `false`    | Desktop toast when a command / right-click batch finishes            |
@@ -135,11 +135,11 @@ filters, names, or reads
 - Eligibility is re-checked in the worker via `filterImagesBySettings` +
   `filterExcluded`, so the same rule that drives the badge and the visible grid also gates every non-explicit download.
 - Streaming (`.m3u8` / `.mpd`) and `blob:` media never reach `chrome.downloads`. HLS/DASH are captured (fetch + mux segments) and blobs are dropped at collection —
-  see [Collection Pipeline](../how-it-works/collection-pipeline.md).
+  see [Collection Pipeline](/media-bulk-downloads/how-it-works/collection-pipeline/).
 - Re-download from History or Favourites sends `DOWNLOAD_IMAGES` with
   `explicit: true`. The user picked those exact items, so the size/base64/exclude filters and the on-disk dedup skip are all bypassed; naming and folder tokens still apply.
-  See [Download History](./history.md) and
-  [Favourites](./favourites.md).
+  See [Download History](/media-bulk-downloads/guides/history/) and
+  [Favourites](/media-bulk-downloads/guides/favourites/).
 - One filename source of truth: `buildDownloadFilename` lives in `packages/core`, so the queue, the direct path, and the ZIP builder can never disagree on a name or folder.
 
 ---

@@ -15,10 +15,10 @@ Resolution runs in two phases. Phase one never touches the network and always ru
 | **Passive URL resolution** | Every collection / deep scan     | None — `allowNetwork:false` | `resolve()` registry, in-page (`content/collect.ts`) |
 | **Opt-in network resolve** | Only if `resolveOriginals` is on | Yes — a few `fetch()` calls | Background service worker (`resolvers/network.ts`)   |
 
-Phase one is [Collection Pipeline](./collection-pipeline.md)'s `resolve()`
+Phase one is [Collection Pipeline](/media-bulk-downloads/how-it-works/collection-pipeline/)'s `resolve()`
 registry: 30 dedicated resolvers (Twitter, Instagram, Facebook, Threads, Unsplash, Wallhaven, Behance, Bluesky, Pinterest, Reddit, Flickr, ArtStation, Pixiv, Magnific, Arc XP, YouTube, Mastodon,
 Booru, Sankaku, Xiaohongshu, Der Spiegel, Onedio, and more — the full ordered list is in
-[Collection Pipeline](./collection-pipeline.md)) plus a generic fallback, run in-page. For most URLs it resolves the original with no network call: Twitter `name=orig`, Unsplash query-param stripping,
+[Collection Pipeline](/media-bulk-downloads/how-it-works/collection-pipeline/)) plus a generic fallback, run in-page. For most URLs it resolves the original with no network call: Twitter `name=orig`, Unsplash query-param stripping,
 Wallhaven full-file paths built from the DOM's own extension evidence. When it can't finish locally it attaches a `resolveHint` (or marks a video `unresolvedVideo`) instead of guessing or fetching,
 and leaves the rest to phase two. Iframe-embedded players are handled separately: the collector's embed scan (`content/collect.ts`) attaches the `vimeo` and `dailymotion` hints, since neither has a
 registry resolver.
@@ -153,7 +153,7 @@ and the tile stays quietly pending rather than marked failed — turning on stre
 - What's sent is minimal: the id already visible in the page's own URL (a tweet status id, a Wallhaven wallpaper id, a Flickr photo id, and so on), or nothing at all — Unsplash, Reddit, and Bluesky
   video just build a URL. No cookies or auth are attached; the fetch runs from the background service worker, not the page.
 - Toggling **Resolve exact originals (network requests)** in Settings is the single switch for *automatic* resolution; see
-  [Getting Started](../getting-started/quick-start.md#settings).
+  [Getting Started](/media-bulk-downloads/getting-started/quick-start/#settings).
 - The per-item **"Get video"** button contacts the same host even with that setting off — it's an explicit, one-item request the user just triggered, not passive background collection.
 
 ## Adding a new resolver
@@ -171,8 +171,8 @@ and the tile stays quietly pending rather than marked failed — turning on stre
 
 ---
 
-Related: [Collection Pipeline](./collection-pipeline.md) (the `resolve()` registry and passive resolution) · [Deep Scan](../guides/deep-scan.md) (merged results carry the same
-hints) · [Architecture](./architecture.md) · [Download](../guides/download.md).
+Related: [Collection Pipeline](/media-bulk-downloads/how-it-works/collection-pipeline/) (the `resolve()` registry and passive resolution) · [Deep Scan](/media-bulk-downloads/guides/deep-scan/) (merged results carry the same
+hints) · [Architecture](/media-bulk-downloads/how-it-works/architecture/) · [Download](/media-bulk-downloads/guides/download/).
 
 ---
 

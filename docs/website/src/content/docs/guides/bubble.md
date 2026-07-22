@@ -89,8 +89,8 @@ Neither surface writes `chrome.storage.sync` directly. Both send
 - Design tokens are declared on `:host` as well as `:root`, so the theme applies inside the shadow root, dark mode (`prefers-color-scheme`) included.
 
 The panel renders the same `App` component as the popup. The bubble passes in-page implementations of `collect`, `deepScan`, and `abortDeepScan`, plus
-`surface="bubble"`, so collection, filtering, deep scan, and download behave as they do in the popup. See [Architecture](../how-it-works/architecture.md) and
-[Deep Scan](./deep-scan.md).
+`surface="bubble"`, so collection, filtering, deep scan, and download behave as they do in the popup. See [Architecture](/media-bulk-downloads/how-it-works/architecture/) and
+[Deep Scan](/media-bulk-downloads/guides/deep-scan/).
 
 ---
 

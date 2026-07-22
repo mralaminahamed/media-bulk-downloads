@@ -53,16 +53,16 @@ yarn build        # production build
 The toolbar icon does one of two things, depending on your settings:
 
 - **Popup (default):** clicking the icon opens the popup panel.
-- **Bubble:** with **Show floating bubble on pages** turned on, clicking the icon toggles an in-page floating panel instead. See [In-page Bubble](../guides/bubble.md).
+- **Bubble:** with **Show floating bubble on pages** turned on, clicking the icon toggles an in-page floating panel instead. See [In-page Bubble](/media-bulk-downloads/guides/bubble/).
 
 Once the panel is open:
 
 1. It **scans the active tab** and lists every image, video, and audio file it found. The toolbar badge shows the count per tab.
 2. **Filter** by type (All / Images / Video / Audio), by format, or by size.
-3. **Deep scan** scrolls the page to surface lazy-loaded and virtualized media on infinite feeds and galleries. See [Deep Scan](../guides/deep-scan.md).
+3. **Deep scan** scrolls the page to surface lazy-loaded and virtualized media on infinite feeds and galleries. See [Deep Scan](/media-bulk-downloads/guides/deep-scan/).
 4. **Download** one item (hover its tile) or everything shown (footer button).
 5. **Download History** and **Favourites** open from the popup header. See
-   [Download History](../guides/history.md) and [Favourites](../guides/favourites.md).
+   [Download History](/media-bulk-downloads/guides/history/) and [Favourites](/media-bulk-downloads/guides/favourites/).
 
 ## Settings
 
@@ -83,12 +83,12 @@ Stored in `chrome.storage.sync`. The Settings sheet has four tabs.
 - **Exclude Base64 images** (off) and **Exclude emoji** (off).
 - **Resolve exact originals (network requests)** (off). When on, the background fetches a hinted item's exact original from one of ~20 supported hosts (Twitter/X, Wallhaven, Unsplash, Vimeo,
   Dailymotion, Bluesky, Pinterest, Reddit, Flickr, ArtStation, SoundCloud, Twitch, Loom, PeerTube, and more). See
-  [Resolve Originals](../how-it-works/resolve-originals.md) for the full list.
+  [Resolve Originals](/media-bulk-downloads/how-it-works/resolve-originals/) for the full list.
 - **Capture video streams (HLS & DASH)** (off). Surfaces `.m3u8` and `.mpd`
   streams as capture items.
 - **Smart page defaults** (on), **Remember scan behaviour per site** (on), **Skip images already downloaded** (on).
 - Advanced deep-scan caps: max items (50–5000, default 1000), max time in seconds (5–120, default 20), max scroll steps (5–200, default 40), and **Click "Load more" buttons** (off).
-  See [Deep Scan](../guides/deep-scan.md).
+  See [Deep Scan](/media-bulk-downloads/guides/deep-scan/).
 
 **Display**
 
@@ -103,7 +103,7 @@ Stored in `chrome.storage.sync`. The Settings sheet has four tabs.
 
 ## Where things live
 
-The repo is a yarn-workspaces monorepo: browser-agnostic logic in `packages/*`, the WXT app in `apps/extension`. See [Architecture → Workspace layout](../how-it-works/architecture.md#workspace-layout).
+The repo is a yarn-workspaces monorepo: browser-agnostic logic in `packages/*`, the WXT app in `apps/extension`. See [Architecture → Workspace layout](/media-bulk-downloads/how-it-works/architecture/#workspace-layout).
 
 ```
 package.json                    # workspaces root: [packages/*, apps/*] + orchestration scripts
@@ -154,7 +154,7 @@ docs/website/                    # documentation site (Astro Starlight)
 docs/architecture/              # monorepo-restructure design record
 ```
 
-Next: [Architecture](../how-it-works/architecture.md).
+Next: [Architecture](/media-bulk-downloads/how-it-works/architecture/).
 
 ---
 

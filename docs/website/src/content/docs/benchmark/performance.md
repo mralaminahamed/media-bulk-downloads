@@ -3,7 +3,7 @@ title: "Popup & deep-scan performance"
 description: "Popup grid render and deep-scan collection performance notes."
 ---
 
-> Part of the [Collection Benchmark](./overview.md).
+> Part of the [Collection Benchmark](/media-bulk-downloads/benchmark/overview/).
 
 ## J. Popup grid render performance
 
