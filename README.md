@@ -13,7 +13,7 @@ Fast, network-free by default, and built for Chrome, Firefox, Edge, and Safari f
   &nbsp;<a href="https://addons.mozilla.org/firefox/addon/media-bulk-downloads/"><img alt="Get the Add-on for Firefox" src="./assets/badges/firefox-get-the-addon.png" height="52"></a>
 </p>
 
-[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/jmdhkdengijmmkelofaleinbipophckn?label=Chrome%20Web%20Store&color=4f46e5)](https://chromewebstore.google.com/detail/media-bulk-downloads/jmdhkdengijmmkelofaleinbipophckn)
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/jmdhkdengijmmkelofaleinbipophckn?label=Chrome%20Web%20Store&color=4285F4&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/media-bulk-downloads/jmdhkdengijmmkelofaleinbipophckn)
 [![Edge Add-ons](https://img.shields.io/badge/dynamic/json?label=Edge%20Add-ons&prefix=v&query=%24.version&url=https%3A%2F%2Fmicrosoftedge.microsoft.com%2Faddons%2Fgetproductdetailsbycrxid%2Fihhhecmabfocelgmjafijchhhlpdlnll&color=0078D7&logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/media-bulk-downloads/ihhhecmabfocelgmjafijchhhlpdlnll)
 [![Firefox Add-ons](https://img.shields.io/amo/v/media-bulk-downloads?label=Firefox%20Add-ons&color=FF7139&logo=firefoxbrowser&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/media-bulk-downloads/)
 [![ExtensionLaunch](https://img.shields.io/badge/ExtensionLaunch-Featured-6366f1)](https://extensionlaunch.com/product/media-bulk-downloads-jmdhkd)
