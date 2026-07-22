@@ -78,11 +78,15 @@ ORIGINAL QUALITY
 • Optional "resolve originals" fetches the exact highest-resolution file for
   supported hosts (off by default)
 
-FILTER AND DOWNLOAD
-• Filter by kind (image / video / audio), format, and size
-• Download one item or the whole filtered set, with correct file extensions
-• Choose a subfolder, a naming scheme, and whether to be asked where to save
+FILTER, SEARCH, AND DOWNLOAD
+• Filter by kind (image / video / audio), format, and size; search by name/alt/URL
+• Sort by name, size, dimensions, or type
+• Tick individual items (with shift-click ranges and select-all) for a partial set
+• Download one item or the whole set, with correct file extensions
+• Bundle the selection into a single ZIP, or copy/export the media URLs as .txt
+• Organize into per-site / per-day / per-kind folders with {host}/{domain}/{date}/{kind} path tokens
 • A download history with one-click re-download, open file, or reveal in folder
+• Favourites: star images, video, or audio to a list that persists across pages
 
 WORKS ON THE SITES YOU USE
 • Original-quality resolvers for X/Twitter, Instagram, Facebook, Threads,
@@ -97,10 +101,17 @@ WORKS ON THE SITES YOU USE
 • Optional WebP/AVIF → PNG/JPEG conversion that preserves EXIF/XMP metadata
 
 RELIABLE DOWNLOADS
-• A resilient download queue tracks each file and resumes after the popup closes —
+• A resilient download queue tracks each file (queued / downloading / done /
+  failed), retries transient failures, and resumes after the popup closes — with
   pause, resume, cancel, retry, and a "simultaneous downloads" cap
 • "Retry with page referer" recovers hotlink-protected files that return 403
 • Filter by Downloaded / Not-downloaded, and exclude sources you never want to see
+
+FASTER TO REACH
+• Keyboard shortcuts: open the popup, or download all media on the page
+• Right-click menu: download all page media, or a single image at original quality
+• Optional desktop notification when a download batch finishes
+• Back up and restore your settings, favourites, and history as a JSON file
 
 PRIVATE BY DESIGN
 • Network-free by default: it only reads what the page already loaded
@@ -179,10 +190,27 @@ on the user's device. No page content is transmitted.
 ```
 The extension must read the media elements on whatever page the user runs it on,
 which can be any site. It activates only when the user opens the popup or enables
-the on-page panel. When the optional "resolve originals" setting is on, it also
-fetches a higher-resolution version of a downloaded item directly from that
-media's own CDN. It does not read or transmit page content for any other purpose.
+the on-page panel. Small content scripts read the page's media; on a few sites
+(e.g. Instagram, X/Twitter, Facebook, Pinterest, MangaDex) a passive script observes the page's own media
+network responses so posted images/videos resolve to real downloadable files —
+it reads only the request URLs/JSON the page itself already loaded and never
+sends them off-device. When the optional "resolve originals" setting is on, or
+when capturing an HLS stream, it fetches the higher-resolution file or the
+stream's segments directly from that media's own CDN. It does not read or
+transmit page content for any other purpose.
 ```
+
+> **Content scripts / `commands`:** the manifest also declares keyboard shortcuts
+> (`commands`) and seven content scripts — one ISOLATED-world page collector
+> (`<all_urls>`, runs on open) plus six MAIN-world media sniffers. One sniffer is
+> host-agnostic: the **HLS/DASH manifest sniffer** (`<all_urls>`), which only reads
+> the request URLs of `.m3u8`/`.mpd` manifests the page's own player fetches so a
+> stream can be captured. The other five are host-scoped to `instagram.com`,
+> `x.com` + `twitter.com`, `facebook.com`, `pinterest.com`, and `mangadex.org`. All
+> read only the request URLs/JSON the page itself already loaded and send nothing
+> off-device. These are manifest keys, not separate permissions, and are covered by
+> the `<all_urls>` justification above; disclose the MAIN-world injection (esp. the
+> `<all_urls>` HLS sniffer) if a reviewer asks.
 
 **notifications (optional)**
 
@@ -333,7 +361,7 @@ CONDITIONAL / NON-OBVIOUS FEATURES
 - Download history: re-download, open file, or reveal in folder.
 
 PERMISSIONS
-downloads / downloads.open: save and reopen files. storage: local settings + history on the device. tabs: label a download with its source page and open that page on request. contextMenus: right-click download / favourite actions. offscreen: assemble HLS/DASH streams (fetch + join segments) on-device. Host <all_urls>: read media on whatever page the user runs it on; activates only when the user opens the popup or the on-page panel. notifications (optional, runtime): desktop toast when a batch finishes. declarativeNetRequestWithHostAccess (optional, runtime): retry a hotlink-blocked download (HTTP 403) with a temporary single-URL rule setting Referer/Origin to the item's source page — user-initiated downloads only, removed right after.
+downloads / downloads.open: save and reopen files. storage: local settings + history on the device. tabs: label a download with its source page and open that page on request. contextMenus: right-click download / favourite actions. offscreen: assemble HLS/DASH streams (fetch + join segments) on-device. Host <all_urls>: read media on whatever page the user runs it on; activates only when the user opens the popup or the on-page panel. Content scripts (manifest keys, not permissions): a page collector + six MAIN-world sniffers — one HLS/DASH manifest sniffer on <all_urls>, five scoped to Instagram/X/Facebook/Pinterest/MangaDex — read only URLs/JSON the page already loaded, send nothing off-device. notifications (optional, runtime): desktop toast when a batch finishes. declarativeNetRequestWithHostAccess (optional, runtime): retry a hotlink-blocked download (HTTP 403) with a temporary single-URL rule setting Referer/Origin to the item's source page — user-initiated downloads only, removed right after.
 
 PRIVACY
 No data is collected or transmitted; no remote code is executed. Settings and history never leave the device.
