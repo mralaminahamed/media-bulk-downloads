@@ -26,7 +26,7 @@ import { imageExtFromUrl } from '@mbd/core/collection/mediaType';
  * feed/grid is virtualized, though: only the active tile mounts a <video>; an
  * unmounted video tile exposes only its cover image, and that post's mp4 is in
  * neither the page hydration nor the feed GraphQL (verified live 2026-07-10), so
- * it is not passively reachable. See docs/website/src/content/docs/benchmark/overview.md §I.
+ * it is not passively reachable. See https://mralaminahamed.github.io/media-bulk-downloads/benchmark/overview/ §I.
  */
 
 const META_CDN = /(?:^|\.)(?:cdninstagram\.com|fbcdn\.net)$/i;

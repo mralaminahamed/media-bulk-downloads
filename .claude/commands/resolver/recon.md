@@ -19,7 +19,7 @@ Recon the candidate for a new media resolver: **$ARGUMENTS**. Invoke the
    generic pipeline already winning (`bestSrcsetUrl` takes the widest `srcset`;
    `upgradeToOriginal` covers ~60 CDN families), signed/already-original URLs.
 4. **Verdict:**
-   - **Close** — no reachable upgrade over generic → say why; record in `docs/website/src/content/docs/benchmark/`.
+   - **Close** — no reachable upgrade over generic → say why; record in `https://mralaminahamed.github.io/media-bulk-downloads/benchmark/overview/`.
    - **CDN rule** — a plain path/param rewrite curl-verifies bigger → smallest fix in `imageUrl.ts`.
    - **Resolver** — must read DOM/JSON (page-JSON reader, DOM-`srcset`-widest, Phase-2 fetch, or sniffer) → outline the mechanism.
 

@@ -88,7 +88,7 @@ overriding its `h-`/`w-` utilities, fixable only with an inline `style`).
 For `collectMedia()` against real sites, bundle the real collector into an IIFE
 exposing `window.__bench`, inject with the javascript tool, run once. Strip query
 strings from any sample output (the safety filter blocks raw tokens). Record in
-`docs/website/src/content/docs/benchmark/overview.md`.
+`https://mralaminahamed.github.io/media-bulk-downloads/benchmark/overview/`.
 
 ## References
 

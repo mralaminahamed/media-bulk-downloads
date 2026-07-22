@@ -114,7 +114,7 @@ list, captured in-repo.
 - Design tokens + component classes (this repo) — `apps/extension/src/styles/index.css`
 - Surfaces that consume them (this repo) — `apps/extension/src/extension/popup/`,
   `.../bubble/` (Shadow DOM), `.../components/BrandMark.tsx`
-- Bubble surface guide (this repo) — `docs/website/src/content/docs/guides/bubble.md` (Shadow-DOM host, backdrop)
+- Bubble surface guide (this repo) — `https://mralaminahamed.github.io/media-bulk-downloads/guides/bubble/` (Shadow-DOM host, backdrop)
 
 **Further reading (external, optional — not required; captured in the ref above):**
 - Tailwind CSS v4 — https://tailwindcss.com/docs

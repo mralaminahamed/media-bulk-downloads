@@ -1,69 +1,69 @@
-/* ── Media Bulk Downloads brand tokens ───────────────────────────────────── */
+/* ── Media Bulk Downloads brand tokens ───────────────────────────────────────
+   Mirrors the extension's design system (apps/extension/src/styles/index.css):
+   cool paper canvas, ink text, a single indigo accent, hairline borders, and
+   monospace numerics. Starlight semantics: --sl-color-white = highest-contrast
+   text, --sl-color-black = highest-contrast background (so in light mode white is
+   dark ink and black is the light paper). */
 :root {
-  /* Accent — rose */
-  --sl-color-accent-low:  #ffe4e6;
-  --sl-color-accent:      #e11d48;
-  --sl-color-accent-high: #9f1239;
+  /* Accent — indigo (brand #6366f1 / brand-ink #4f46e5) */
+  --sl-color-accent-low:  #eef0fe;
+  --sl-color-accent:      #4f46e5;
+  --sl-color-accent-high: #3730a3;
 
-  /* Starlight semantic: white = highest-contrast text, black = highest-contrast bg.
-     Light mode → white is dark, black is light. */
-  --sl-color-white:  #1a1416;
-  --sl-color-gray-1: #2e2a2b;
-  --sl-color-gray-2: #4c4749;
-  --sl-color-gray-3: #726c6e;
-  --sl-color-gray-4: #a5a0a1;
-  --sl-color-gray-5: #d2cdce;
-  --sl-color-gray-6: #e9e4e5;
-  --sl-color-gray-7: #f3eff0;
-  --sl-color-black:  #fdfbfb;
+  --sl-color-white:  #17181c;
+  --sl-color-gray-1: #2f3037;
+  --sl-color-gray-2: #5f616c;
+  --sl-color-gray-3: #9a9ca6;
+  --sl-color-gray-4: #b8bac2;
+  --sl-color-gray-5: #dedde5;
+  --sl-color-gray-6: #ececf1;
+  --sl-color-gray-7: #f5f5f8;
+  --sl-color-black:  #fafafb;
 
-  /* Borders — explicit hairline values for light mode */
-  --sl-color-hairline:       #e5dfe0;
-  --sl-color-hairline-light: #efe9ea;
-  --sl-color-hairline-shade: #d5cfd0;
+  --sl-color-hairline:       #ececf1;
+  --sl-color-hairline-light: #f0f0f4;
+  --sl-color-hairline-shade: #dedde5;
 
-  /* Backgrounds — light mode */
-  --sl-color-bg:         #fdfbfb;
-  --sl-color-bg-nav:     #faf6f7;
-  --sl-color-bg-sidebar: #faf6f7;
+  --sl-color-bg:         #fafafb;
+  --sl-color-bg-nav:     #f5f5f8;
+  --sl-color-bg-sidebar: #f5f5f8;
 
-  /* Text — light mode */
-  --sl-color-text:        #2e2a2b;
-  --sl-color-text-accent: #9f1239;
+  --sl-color-text:        #2f3037;
+  --sl-color-text-accent: #4f46e5;
 
-  --sl-font:      'Inter', system-ui, -apple-system, sans-serif;
-  --sl-font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  /* Extension font stacks (system sans; monospace numerics). */
+  --sl-font:      "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+  --sl-font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+
+  /* Brand gradient (the extension icon: indigo-400 → indigo-600). */
+  --mbd-grad: linear-gradient(135deg, #818cf8 0%, #4f46e5 100%);
 }
 
 :root[data-theme='dark'] {
-  /* Accent — rose */
-  --sl-color-accent-low:  #2b0f16;
-  --sl-color-accent:      #e11d48;
-  --sl-color-accent-high: #fda4af;
+  /* Accent — brighter indigo so the single accent reads on near-black */
+  --sl-color-accent-low:  #1c1b39;
+  --sl-color-accent:      #818cf8;
+  --sl-color-accent-high: #c7d2fe;
 
-  /* Gray scale — dark mode: 1=darkest bg, 6=lightest text */
-  --sl-color-white:  #ece7e8;
-  --sl-color-gray-1: #2a2427;
-  --sl-color-gray-2: #383133;
-  --sl-color-gray-3: #5c5457;
-  --sl-color-gray-4: #8b8285;
-  --sl-color-gray-5: #b0a7aa;
-  --sl-color-gray-6: #ccc4c6;
-  --sl-color-black:  #0d0b0c;
+  --sl-color-white:  #e9eaef;
+  --sl-color-gray-1: #23252e;
+  --sl-color-gray-2: #33353f;
+  --sl-color-gray-3: #6d6f7c;
+  --sl-color-gray-4: #a4a6b2;
+  --sl-color-gray-5: #c4c5cd;
+  --sl-color-gray-6: #e9eaef;
+  --sl-color-black:  #0e0f13;
 
-  /* Borders — explicit hairline values for dark mode */
-  --sl-color-hairline:       #241e21;
-  --sl-color-hairline-light: #2a2427;
-  --sl-color-hairline-shade: #1a1518;
+  --sl-color-hairline:       #23252e;
+  --sl-color-hairline-light: #2a2c35;
+  --sl-color-hairline-shade: #33353f;
 
-  /* Backgrounds */
-  --sl-color-bg:         #131013;
-  --sl-color-bg-nav:     #181518;
-  --sl-color-bg-sidebar: #181518;
+  --sl-color-bg:         #0e0f13;
+  --sl-color-bg-nav:     #16181e;
+  --sl-color-bg-sidebar: #16181e;
 
-  /* Text */
-  --sl-color-text:        #ccc4c6;
-  --sl-color-text-accent: #fda4af;
+  --sl-color-text:        #c8cad2;
+  --sl-color-text-accent: #a5b4fc;
 }
 
 /* ── Typography ──────────────────────────────────────────────────────────── */
@@ -73,24 +73,14 @@ body {
 }
 
 /* ── Header ──────────────────────────────────────────────────────────────── */
-.site-title img {
-  height: 24px;
-  width: auto;
-}
+.site-title img { height: 26px; width: auto; }
+.site-title { font-weight: 700; letter-spacing: -0.01em; }
 
-header.header {
-  border-bottom: 1px solid var(--sl-color-hairline) !important;
-}
-
-:root[data-theme='dark'] header.header {
-  background: #181518;
-}
+header.header { border-bottom: 1px solid var(--sl-color-hairline) !important; }
+:root[data-theme='dark'] header.header { background: #16181e; }
 
 /* ── Sidebar ─────────────────────────────────────────────────────────────── */
-.sidebar-content {
-  font-size: 0.8125rem;
-  line-height: 1.5;
-}
+.sidebar-content { font-size: 0.8125rem; line-height: 1.5; }
 
 .group-label span,
 details > summary > span {
@@ -101,11 +91,7 @@ details > summary > span {
   color: var(--sl-color-gray-4) !important;
 }
 
-.sidebar-content a {
-  border-radius: 5px;
-  transition: background 0.1s, color 0.1s;
-}
-
+.sidebar-content a { border-radius: 5px; transition: background 0.1s, color 0.1s; }
 .sidebar-content a:hover {
   background: color-mix(in srgb, var(--sl-color-accent) 8%, transparent);
   color: var(--sl-color-white);
@@ -117,24 +103,18 @@ details > summary > span {
   color: var(--sl-color-accent-high) !important;
   font-weight: 600 !important;
 }
-
 :root[data-theme='dark'] [aria-current='page'],
 :root[data-theme='dark'] [aria-current='page']:hover {
   background: color-mix(in srgb, var(--sl-color-accent) 16%, transparent) !important;
-  color: #fda4af !important;
+  color: #c7d2fe !important;
 }
 
 /* ── Content ─────────────────────────────────────────────────────────────── */
-:root[data-theme='dark'] .sl-content {
-  color: #ccc4c6;
-}
-
+:root[data-theme='dark'] .sl-content { color: #c8cad2; }
 :root[data-theme='dark'] .sl-content h1,
 :root[data-theme='dark'] .sl-content h2,
 :root[data-theme='dark'] .sl-content h3,
-:root[data-theme='dark'] .sl-content h4 {
-  color: #e4dfe0;
-}
+:root[data-theme='dark'] .sl-content h4 { color: #eceef3; }
 
 .sl-content h2 {
   font-size: 1.4rem;
@@ -142,36 +122,23 @@ details > summary > span {
   letter-spacing: -0.025em;
   margin-top: 2.75rem;
 }
-
-.sl-content h3 {
-  font-size: 1.0625rem;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-}
+.sl-content h3 { font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.015em; }
 
 :root[data-theme='dark'] .sl-content p,
-:root[data-theme='dark'] .sl-content li {
-  color: #bdb5b8;
-}
+:root[data-theme='dark'] .sl-content li { color: #b4b6c0; }
 
 :root[data-theme='dark'] .sl-content a:not([class]) {
-  color: #fb7185;
-  text-decoration-color: color-mix(in srgb, #fb7185 40%, transparent);
+  color: #a5b4fc;
+  text-decoration-color: color-mix(in srgb, #a5b4fc 40%, transparent);
 }
-
 :root[data-theme='dark'] .sl-content a:not([class]):hover {
-  color: #fda4af;
-  text-decoration-color: #fda4af;
+  color: #c7d2fe;
+  text-decoration-color: #c7d2fe;
 }
 
 /* ── Inline code ─────────────────────────────────────────────────────────── */
-:root {
-  --sl-color-bg-inline-code: color-mix(in srgb, var(--sl-color-accent) 10%, transparent);
-}
-
-:root[data-theme='dark'] {
-  --sl-color-bg-inline-code: color-mix(in srgb, var(--sl-color-accent) 18%, transparent);
-}
+:root { --sl-color-bg-inline-code: color-mix(in srgb, var(--sl-color-accent) 9%, transparent); }
+:root[data-theme='dark'] { --sl-color-bg-inline-code: color-mix(in srgb, var(--sl-color-accent) 18%, transparent); }
 
 .sl-markdown-content code:not(:where(.not-content *)),
 .sl-content code:not(pre code) {
@@ -179,14 +146,13 @@ details > summary > span {
   font-family: var(--sl-font-mono);
   background: var(--sl-color-bg-inline-code) !important;
   color: var(--sl-color-accent-high) !important;
-  border: 1px solid color-mix(in srgb, var(--sl-color-accent) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sl-color-accent) 20%, transparent);
   border-radius: 4px;
   padding: 0.1em 0.35em !important;
 }
-
 :root[data-theme='dark'] .sl-markdown-content code:not(:where(.not-content *)),
 :root[data-theme='dark'] .sl-content code:not(pre code) {
-  color: #fda4af !important;
+  color: #c7d2fe !important;
   border-color: color-mix(in srgb, var(--sl-color-accent) 30%, transparent);
 }
 
@@ -196,25 +162,19 @@ details > summary > span {
   border-radius: 0.5rem !important;
   overflow: hidden;
 }
-
-.expressive-code .frame.has-title .header {
-  border-bottom: 1px solid var(--sl-color-hairline) !important;
-}
-
+.expressive-code .frame.has-title .header { border-bottom: 1px solid var(--sl-color-hairline) !important; }
 :root[data-theme='dark'] .expressive-code .frame,
 :root[data-theme='dark'] .expressive-code pre {
-  background: #0f0c0e !important;
+  background: #0b0c10 !important;
   border-color: var(--sl-color-hairline) !important;
 }
-
 :root[data-theme='dark'] .expressive-code .frame.has-title .header {
-  background: #161215 !important;
+  background: #16181e !important;
   border-bottom-color: var(--sl-color-hairline) !important;
 }
 
 /* ── Tables ──────────────────────────────────────────────────────────────── */
 .sl-content table { font-size: 0.875rem; width: 100%; border-collapse: collapse; }
-
 .sl-content th {
   font-size: 0.6875rem;
   font-weight: 700;
@@ -225,94 +185,35 @@ details > summary > span {
   padding-block: 0.6rem;
   text-align: left;
 }
+.sl-content td { border-bottom: 1px solid var(--sl-color-hairline-light); padding-block: 0.6rem; }
+:root[data-theme='dark'] .sl-content th { color: #8a8c98; border-color: var(--sl-color-hairline-shade); }
+:root[data-theme='dark'] .sl-content td { border-color: var(--sl-color-hairline); color: #b4b6c0; }
 
-.sl-content td {
-  border-bottom: 1px solid var(--sl-color-hairline-light);
-  padding-block: 0.6rem;
-}
-
-:root[data-theme='dark'] .sl-content th {
-  color: #8b8285;
-  border-color: var(--sl-color-hairline-shade);
-}
-
-:root[data-theme='dark'] .sl-content td {
-  border-color: var(--sl-color-hairline);
-  color: #bdb5b8;
-}
-
-/* ── Comparison table — center the check/dash columns ───────────────── */
+/* Comparison table — center the mark columns */
 .sl-content table th:not(:first-child),
-.sl-content table td:not(:first-child) {
-  text-align: center;
-}
-
-/* ── Comparison marks ────────────────────────────────────────────────── */
-.cmp {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  font-size: 0.875rem;
-  line-height: 1;
-}
-.cmp.yes {
-  color: var(--sl-color-accent-high);
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--sl-color-accent) 14%, transparent);
-}
-.cmp.no {
-  color: var(--sl-color-gray-3);
-  font-weight: 400;
-}
-.cmp.addon {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--sl-color-gray-2);
-  background: var(--sl-color-gray-6);
-  padding: 0.15rem 0.5rem;
-  border-radius: 4px;
-}
-
-:root[data-theme='dark'] .cmp.yes {
-  color: #fda4af;
-  background: color-mix(in srgb, var(--sl-color-accent) 18%, transparent);
-}
-:root[data-theme='dark'] .cmp.addon {
-  color: #ccc4c6;
-  background: #2a2327;
-}
+.sl-content table td:not(:first-child) { text-align: center; }
 
 /* ── Cards ───────────────────────────────────────────────────────────────── */
-/* Starlight cycles --sl-card-border/-bg through purple/orange/green/red/blue
-   via :nth-child rules. Lock all cards to brand rose for a unified look. */
 article.card,
 .sl-card {
   --sl-card-border: var(--sl-color-accent) !important;
-  --sl-card-bg: color-mix(in srgb, var(--sl-color-accent) 14%, transparent) !important;
+  --sl-card-bg: color-mix(in srgb, var(--sl-color-accent) 12%, transparent) !important;
   border-radius: 0.75rem !important;
   border-color: var(--sl-color-hairline) !important;
   transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s, background 0.15s;
 }
-
 article.card:hover,
 .sl-card:hover {
   border-color: var(--sl-color-accent) !important;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--sl-color-accent) 12%, transparent);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--sl-color-accent) 35%, transparent);
 }
 
-/* Icon tile — uniform rose, larger, rounded. content-box keeps the glyph at
-   full 1em while padding extends the tile. */
 article.card .icon,
 .sl-card .icon {
   color: var(--sl-color-accent-high) !important;
-  background-color: color-mix(in srgb, var(--sl-color-accent) 14%, transparent) !important;
-  border-color: color-mix(in srgb, var(--sl-color-accent) 35%, transparent) !important;
+  background-color: color-mix(in srgb, var(--sl-color-accent) 12%, transparent) !important;
+  border-color: color-mix(in srgb, var(--sl-color-accent) 32%, transparent) !important;
   border-radius: 0.5rem !important;
   box-sizing: content-box !important;
   padding: 0.4em !important;
@@ -320,124 +221,64 @@ article.card .icon,
   height: 1.25em !important;
   font-size: 1.5rem !important;
 }
-
 :root[data-theme='dark'] article.card .icon,
 :root[data-theme='dark'] .sl-card .icon {
-  color: #fecdd3 !important;
+  color: #c7d2fe !important;
   background-color: color-mix(in srgb, var(--sl-color-accent) 22%, transparent) !important;
   border-color: color-mix(in srgb, var(--sl-color-accent) 45%, transparent) !important;
 }
-
 :root[data-theme='dark'] article.card,
-:root[data-theme='dark'] .sl-card {
-  background: #17121510 !important;
-  border-color: var(--sl-color-hairline) !important;
-}
-
+:root[data-theme='dark'] .sl-card { background: #16181e !important; border-color: var(--sl-color-hairline) !important; }
 :root[data-theme='dark'] article.card:hover,
 :root[data-theme='dark'] .sl-card:hover {
-  background: color-mix(in srgb, var(--sl-color-accent) 4%, transparent) !important;
+  background: color-mix(in srgb, var(--sl-color-accent) 5%, #16181e) !important;
   border-color: var(--sl-color-accent) !important;
 }
 
 /* ── Aside ───────────────────────────────────────────────────────────────── */
-.starlight-aside {
-  border-radius: 0.5rem;
-  border-width: 1px;
-  border-color: var(--sl-color-hairline);
-}
-
+.starlight-aside { border-radius: 0.5rem; border-width: 1px; border-color: var(--sl-color-hairline); }
 .starlight-aside,
 .starlight-aside p,
 .starlight-aside li,
-.starlight-aside .starlight-aside__content {
-  color: var(--sl-color-text) !important;
-}
-
+.starlight-aside .starlight-aside__content { color: var(--sl-color-text) !important; }
 .starlight-aside--tip,
 .starlight-aside--note,
 .starlight-aside--caution,
-.starlight-aside--danger {
-  border-left-width: 3px !important;
-}
+.starlight-aside--danger { border-left-width: 3px !important; }
 
-/* Light mode */
-.starlight-aside--tip {
-  border-left-color: var(--sl-color-accent) !important;
-  background: color-mix(in srgb, var(--sl-color-accent) 7%, #fff) !important;
-}
-.starlight-aside--note {
-  border-left-color: #5a8fd4 !important;
-  background: color-mix(in srgb, #5a8fd4 7%, #fff) !important;
-}
-.starlight-aside--caution {
-  border-left-color: #c9923a !important;
-  background: color-mix(in srgb, #c9923a 7%, #fff) !important;
-}
-.starlight-aside--danger {
-  border-left-color: #c94a4a !important;
-  background: color-mix(in srgb, #c94a4a 7%, #fff) !important;
-}
+.starlight-aside--tip    { border-left-color: var(--sl-color-accent) !important; background: color-mix(in srgb, var(--sl-color-accent) 7%, #fff) !important; }
+.starlight-aside--note   { border-left-color: #6366f1 !important; background: color-mix(in srgb, #6366f1 7%, #fff) !important; }
+.starlight-aside--caution{ border-left-color: #b45309 !important; background: color-mix(in srgb, #b45309 7%, #fff) !important; }
+.starlight-aside--danger { border-left-color: #dc2626 !important; background: color-mix(in srgb, #dc2626 7%, #fff) !important; }
 
-/* Dark mode */
-:root[data-theme='dark'] .starlight-aside {
-  border-color: var(--sl-color-hairline) !important;
-}
-:root[data-theme='dark'] .starlight-aside--tip {
-  background: color-mix(in srgb, var(--sl-color-accent) 8%, #131013) !important;
-}
-:root[data-theme='dark'] .starlight-aside--note {
-  background: color-mix(in srgb, #5a8fd4 6%, #131013) !important;
-}
-:root[data-theme='dark'] .starlight-aside--caution {
-  background: color-mix(in srgb, #c9923a 6%, #131013) !important;
-}
-:root[data-theme='dark'] .starlight-aside--danger {
-  background: color-mix(in srgb, #c94a4a 6%, #131013) !important;
-}
+:root[data-theme='dark'] .starlight-aside { border-color: var(--sl-color-hairline) !important; }
+:root[data-theme='dark'] .starlight-aside--tip    { background: color-mix(in srgb, var(--sl-color-accent) 9%, #0e0f13) !important; }
+:root[data-theme='dark'] .starlight-aside--note   { background: color-mix(in srgb, #818cf8 7%, #0e0f13) !important; }
+:root[data-theme='dark'] .starlight-aside--caution{ background: color-mix(in srgb, #fbbf24 6%, #0e0f13) !important; }
+:root[data-theme='dark'] .starlight-aside--danger { background: color-mix(in srgb, #f87171 6%, #0e0f13) !important; }
 
 /* ── Steps ───────────────────────────────────────────────────────────────── */
-.sl-steps > li::before {
-  background: var(--sl-color-accent) !important;
-  color: #fff !important;
-}
+.sl-steps > li::before { background: var(--sl-color-accent) !important; color: #fff !important; }
+.sl-steps > li { border-left: 1px solid var(--sl-color-hairline) !important; }
+:root[data-theme='dark'] .sl-steps > li { border-color: var(--sl-color-hairline) !important; }
 
-.sl-steps > li {
-  border-left: 1px solid var(--sl-color-hairline) !important;
-}
-
-:root[data-theme='dark'] .sl-steps > li {
-  border-color: var(--sl-color-hairline) !important;
-}
-
-/* ── Sidebar border ──────────────────────────────────────────────────────── */
+/* ── Sidebar / TOC borders ──────────────────────────────────────────────── */
 .sidebar-pane,
-nav.sidebar {
-  border-right: 1px solid var(--sl-color-hairline) !important;
-}
-
-/* ── TOC border ──────────────────────────────────────────────────────────── */
-.right-sidebar {
-  border-left: 1px solid var(--sl-color-hairline) !important;
-}
+nav.sidebar { border-right: 1px solid var(--sl-color-hairline) !important; }
+.right-sidebar { border-left: 1px solid var(--sl-color-hairline) !important; }
 
 starlight-toc a { color: var(--sl-color-gray-3); transition: color 0.12s; }
-starlight-toc a:hover { color: var(--sl-color-gray-5); }
+starlight-toc a:hover { color: var(--sl-color-gray-2); }
 starlight-toc a[aria-current='true'] {
   color: var(--sl-color-accent) !important;
   border-left-color: var(--sl-color-accent) !important;
 }
-
-:root[data-theme='dark'] starlight-toc a { color: #5c5457; }
-:root[data-theme='dark'] starlight-toc a:hover { color: #8b8285; }
-:root[data-theme='dark'] starlight-toc a[aria-current='true'] { color: #fda4af !important; }
+:root[data-theme='dark'] starlight-toc a { color: #6d6f7c; }
+:root[data-theme='dark'] starlight-toc a:hover { color: #a4a6b2; }
+:root[data-theme='dark'] starlight-toc a[aria-current='true'] { color: #a5b4fc !important; }
 
 /* ── Dividers ────────────────────────────────────────────────────────────── */
-.sl-content hr {
-  border: none;
-  border-top: 1px solid var(--sl-color-hairline);
-  margin-block: 2.5rem;
-}
+.sl-content hr { border: none; border-top: 1px solid var(--sl-color-hairline); margin-block: 2.5rem; }
 
 /* ── Pagination ──────────────────────────────────────────────────────────── */
 .pagination-links a {
@@ -445,23 +286,36 @@ starlight-toc a[aria-current='true'] {
   border-radius: 0.5rem !important;
   transition: border-color 0.15s !important;
 }
+.pagination-links a:hover { border-color: var(--sl-color-accent) !important; }
+:root[data-theme='dark'] .pagination-links a { background: #16181e !important; border-color: var(--sl-color-hairline) !important; color: #b4b6c0 !important; }
+:root[data-theme='dark'] .pagination-links a:hover { border-color: var(--sl-color-accent) !important; }
 
-.pagination-links a:hover {
-  border-color: var(--sl-color-accent) !important;
-}
-
-:root[data-theme='dark'] .pagination-links a {
-  background: #181518 !important;
-  border-color: var(--sl-color-hairline) !important;
-  color: #bdb5b8 !important;
-}
-
-:root[data-theme='dark'] .pagination-links a:hover {
-  border-color: var(--sl-color-accent) !important;
-}
-
-/* ── Splash page wrapper ─────────────────────────────────────────────────── */
+/* ── Splash hero — brand gradient title + soft indigo glow ───────────────── */
 .hero-wrapper + .sl-markdown-content { padding-top: 0 !important; }
+
+.hero h1 {
+  background: var(--mbd-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: -0.03em;
+}
+.hero .tagline { color: var(--sl-color-gray-2); }
+:root[data-theme='dark'] .hero .tagline { color: #a4a6b2; }
+
+/* Primary hero action = filled indigo, matching the extension's .btn-primary. */
+.hero .action.primary {
+  background: var(--sl-color-accent) !important;
+  border-color: var(--sl-color-accent) !important;
+  color: #fff !important;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--sl-color-accent) 30%, transparent);
+}
+.hero .action.primary:hover { background: #4338ca !important; }
+
+/* A soft brand halo behind the hero image (the app icon). */
+.hero img {
+  filter: drop-shadow(0 12px 40px color-mix(in srgb, var(--sl-color-accent) 30%, transparent));
+}
 
 /* ── Mobile ──────────────────────────────────────────────────────────────── */
 @media (max-width: 50rem) {

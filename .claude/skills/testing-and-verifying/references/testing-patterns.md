@@ -88,4 +88,4 @@ URLs), never by frames/pixels.
 
 Bundle the real `collectMedia()` into an IIFE exposing `window.__bench`, inject with
 the javascript tool, run once. **Strip query strings** from sample output (the
-safety filter blocks raw tokens). Record in `docs/website/src/content/docs/benchmark/overview.md`.
+safety filter blocks raw tokens). Record in `https://mralaminahamed.github.io/media-bulk-downloads/benchmark/overview/`.

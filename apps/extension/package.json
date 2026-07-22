@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "The WXT browser-extension app — builds Chrome/Edge/Opera/Firefox (and, in future, Safari) from one codebase. Consumes @mbd/core, @mbd/storage, @mbd/platform.",
+  "homepage": "https://mralaminahamed.github.io/media-bulk-downloads/",
   "scripts": {
     "dev": "wxt",
     "dev:firefox": "wxt -b firefox",

@@ -163,7 +163,7 @@ and the scheme allowlist, captured in-repo (no external docs needed).
 - Monorepo design — `docs/architecture/monorepo-restructure.md`; package manifests
   `packages/{core,storage,platform}/package.json`, `apps/extension/package.json`;
   per-package overviews `packages/*/README.md`, `apps/*/README.md`
-- Message catalog + surfaces — `docs/website/src/content/docs/how-it-works/architecture.md` (the `ChromeMessage`
+- Message catalog + surfaces — `https://mralaminahamed.github.io/media-bulk-downloads/how-it-works/architecture/` (the `ChromeMessage`
   table + the stream-capture sequence diagram); the union itself is
   `packages/core/src/types.ts`
 - Platform seam (per-browser impls) — `apps/extension/src/extension/platform/`
@@ -172,7 +172,7 @@ and the scheme allowlist, captured in-repo (no external docs needed).
 - In-repo guides — `docs/website/src/content/docs/`: `getting-started.md`, `architecture.md`,
   `collection-pipeline.md`, `deep-scan.md`, `download.md`, `download-paths.md`,
   `badge.md`, `bubble.md`, `history.md`, `favourites.md`, `resolve-originals.md`;
-  `docs/website/src/content/docs/benchmark/overview.md` for collection cost numbers 
+  `https://mralaminahamed.github.io/media-bulk-downloads/benchmark/overview/` for collection cost numbers 
 
 **Further reading (external, optional — not required; captured in the ref above):**
 - WXT — installation https://wxt.dev/guide/installation · project structure
