@@ -1,10 +1,25 @@
 /* ── Media Bulk Downloads brand tokens ───────────────────────────────────────
    Mirrors the extension's design system (apps/extension/src/styles/index.css):
    cool paper canvas, ink text, a single indigo accent, hairline borders, and
-   monospace numerics. Starlight semantics: --sl-color-white = highest-contrast
-   text, --sl-color-black = highest-contrast background (so in light mode white is
-   dark ink and black is the light paper). */
+   monospace numerics.
+
+   IMPORTANT — Starlight scopes its DARK palette on bare `:root` and its LIGHT
+   palette on `:root[data-theme='light']`, and its theme script always stamps
+   `data-theme` = 'light' | 'dark' on <html>. So both our palettes MUST be scoped
+   under an explicit `[data-theme=...]` selector (same specificity as Starlight's,
+   loaded after → we win). Never put a palette on bare `:root`, or it would
+   override Starlight's dark base and leak into the wrong theme. Only
+   theme-independent values (fonts, the brand gradient) live on `:root`. */
 :root {
+  /* Extension font stacks (system sans; monospace numerics). */
+  --sl-font:      "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+  --sl-font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+
+  /* Brand gradient (the extension icon: indigo-400 → indigo-600). */
+  --mbd-grad: linear-gradient(135deg, #818cf8 0%, #4f46e5 100%);
+}
+
+:root[data-theme='light'] {
   /* Accent — indigo (brand #6366f1 / brand-ink #4f46e5) */
   --sl-color-accent-low:  #eef0fe;
   --sl-color-accent:      #4f46e5;
@@ -30,13 +45,6 @@
 
   --sl-color-text:        #2f3037;
   --sl-color-text-accent: #4f46e5;
-
-  /* Extension font stacks (system sans; monospace numerics). */
-  --sl-font:      "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
-  --sl-font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
-
-  /* Brand gradient (the extension icon: indigo-400 → indigo-600). */
-  --mbd-grad: linear-gradient(135deg, #818cf8 0%, #4f46e5 100%);
 }
 
 :root[data-theme='dark'] {
@@ -52,6 +60,7 @@
   --sl-color-gray-4: #a4a6b2;
   --sl-color-gray-5: #c4c5cd;
   --sl-color-gray-6: #e9eaef;
+  --sl-color-gray-7: #f4f5f7;
   --sl-color-black:  #0e0f13;
 
   --sl-color-hairline:       #23252e;
