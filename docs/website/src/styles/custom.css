@@ -11,6 +11,10 @@
    override Starlight's dark base and leak into the wrong theme. Only
    theme-independent values (fonts, the brand gradient) live on `:root`. */
 :root {
+  /* Wider main article column (Starlight default 45rem) — the benchmark matrices
+     and wide tables need the room; still comfortable for prose. */
+  --sl-content-width: 54rem;
+
   /* Extension font stacks (system sans; monospace numerics). */
   --sl-font:      "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
   --sl-font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
