@@ -4,7 +4,7 @@ description: "Engineering log of the CDN-upgrade rules and resolvers this benchm
 ---
 
 The running log of coverage gaps this benchmark **drove to a fix** — new/changed CDN-upgrade rules and resolvers, corrections, and reverts. Split out of
-[the benchmark overview](./overview.md) so that doc stays focused on the live measurement tables and the gaps still open; the user-facing release history lives in the
+[the benchmark overview](/media-bulk-downloads/benchmark/overview/) so that doc stays focused on the live measurement tables and the gaps still open; the user-facing release history lives in the
 top-level [CHANGELOG.md](https://github.com/mralaminahamed/media-bulk-downloads/blob/main/CHANGELOG.md).
 
 Entries are grouped **Resolved / Corrected / Reverted**; dates (where present) are when the fix shipped. This is an engineering record, not a release changelog.

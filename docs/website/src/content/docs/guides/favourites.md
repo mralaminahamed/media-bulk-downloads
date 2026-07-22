@@ -12,7 +12,7 @@ Star any collected item to save it to a **Favourites** list. The list persists a
 - Items that haven't resolved to a real file yet (a pending Twitter photo or video) don't show the star — there's no stable URL to save.
 - Open the **Favourites** panel from the ★ button in the popup header.
 - Each row has **Download**, **Open source**, and **Remove**; the header has **Clear all**. All four route through the background service worker.
-- **Download** re-runs the normal [Download](./download.md) flow. It sends
+- **Download** re-runs the normal [Download](/media-bulk-downloads/guides/download/) flow. It sends
   `DOWNLOAD_IMAGES` with an `ImageInfo` rebuilt from the stored `FavouriteEntry`
   (`src`, `kind`, `type`, and `thumbnailSrc` if present) plus the saved
   `sourcePageUrl`/`sourcePageTitle` as `sourcePage`. It sets `explicit: true`, so the blocklist never drops the item you picked. Your download-path tokens (`{host}`, `{domain}`, `{date}`, `{kind}`)
@@ -30,7 +30,7 @@ Star any collected item to save it to a **Favourites** list. The list persists a
 - Every mutation runs in the background service worker and serializes through one write chain, so a concurrent add and remove can't clobber each other. The UI sends three messages — `ADD_FAVOURITE`,
   `REMOVE_FAVOURITE`, `CLEAR_FAVOURITES`.
 - Every open surface (popup and on-page bubble) reloads on `storage.onChanged`.
-- Favourites are independent of [Download History](./history.md). An item can be in both.
+- Favourites are independent of [Download History](/media-bulk-downloads/guides/history/). An item can be in both.
 
 ## Star click → single writer → multi-surface sync
 
@@ -63,8 +63,8 @@ Implementation: `packages/storage/src/favourites.ts`,
 `apps/extension/src/extension/popup/components/panels/FavouritesPanel.tsx`, and the star controls in
 `apps/extension/src/extension/popup/components/ImageList.tsx`.
 
-See also: [Download](./download.md) · [Download History](./history.md) ·
-[Architecture](../how-it-works/architecture.md).
+See also: [Download](/media-bulk-downloads/guides/download/) · [Download History](/media-bulk-downloads/guides/history/) ·
+[Architecture](/media-bulk-downloads/how-it-works/architecture/).
 
 ---
 

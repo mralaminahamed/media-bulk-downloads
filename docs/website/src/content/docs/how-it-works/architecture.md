@@ -83,7 +83,7 @@ flowchart TB
 ```
 
 The bubble mounts the same shared `App.tsx` as the popup (see
-[In-page Bubble](../guides/bubble.md)), so every popup edge above applies to the bubble too. The diagram omits those duplicates.
+[In-page Bubble](/media-bulk-downloads/guides/bubble/)), so every popup edge above applies to the bubble too. The diagram omits those duplicates.
 
 ## Module responsibilities
 
@@ -174,7 +174,7 @@ Every history, favourite, and blocklist mutation, plus the file- and URL-opening
 keeps every
 `chrome.storage.local` write and every `chrome.downloads` / `chrome.tabs` call in one realm — a single writer, no cross-context races. `RESOLVE_ORIGINALS` is the only message that reaches an external
 host (see
-[Resolve Originals](./resolve-originals.md)).
+[Resolve Originals](/media-bulk-downloads/how-it-works/resolve-originals/)).
 
 The message string and type unions live in `packages/core/src/types.ts`
 (`ChromeMessage`).
@@ -239,8 +239,8 @@ interface ImageInfo {
 
 Two sibling types are persisted to `chrome.storage.local` rather than collected from the page: `HistoryEntry` (one per completed download) and `FavouriteEntry`
 (one per starred item). Both are defined alongside `ImageInfo` in
-`packages/core/src/types.ts`; see [Download History](../guides/history.md) and
-[Favourites](../guides/favourites.md) for their shape and lifecycle.
+`packages/core/src/types.ts`; see [Download History](/media-bulk-downloads/guides/history/) and
+[Favourites](/media-bulk-downloads/guides/favourites/) for their shape and lifecycle.
 
 ## Privacy stance
 
@@ -252,15 +252,15 @@ Two sibling types are persisted to `chrome.storage.local` rather than collected 
   platforms: it fetches a small, pinned set of host APIs — Twitter's syndication endpoint, the Wallhaven API, Unsplash's download endpoint, Vimeo's and Dailymotion's player config, the Bluesky/atproto
   PDS, the Pinterest pin-widget endpoint, Flickr's / ArtStation's public pages, and the SoundCloud / Twitch / Loom / PeerTube / Rutube / Rumble / Streamable / RedGifs / Sankaku / 9GAG endpoints — and
   builds the Reddit and Bluesky-video HLS masters deterministically, with no fetch. See
-  [Resolve Originals](./resolve-originals.md) for exactly what is sent and to whom.
+  [Resolve Originals](/media-bulk-downloads/how-it-works/resolve-originals/) for exactly what is sent and to whom.
 
-Workflow detail: [Getting Started](../getting-started/quick-start.md) ·
-[Collection Pipeline](./collection-pipeline.md) ·
-[Resolve Originals](./resolve-originals.md) ·
-[Deep Scan](../guides/deep-scan.md) · [Download](../guides/download.md) ·
-[Download paths](../guides/download-paths.md) ·
-[Download History](../guides/history.md) · [Favourites](../guides/favourites.md) ·
-[Badge](./badge.md) · [Bubble](../guides/bubble.md).
+Workflow detail: [Getting Started](/media-bulk-downloads/getting-started/quick-start/) ·
+[Collection Pipeline](/media-bulk-downloads/how-it-works/collection-pipeline/) ·
+[Resolve Originals](/media-bulk-downloads/how-it-works/resolve-originals/) ·
+[Deep Scan](/media-bulk-downloads/guides/deep-scan/) · [Download](/media-bulk-downloads/guides/download/) ·
+[Download paths](/media-bulk-downloads/guides/download-paths/) ·
+[Download History](/media-bulk-downloads/guides/history/) · [Favourites](/media-bulk-downloads/guides/favourites/) ·
+[Badge](/media-bulk-downloads/how-it-works/badge/) · [Bubble](/media-bulk-downloads/guides/bubble/).
 
 ---
 

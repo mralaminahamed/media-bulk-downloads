@@ -12,22 +12,22 @@ Firefox · Opera · Safari) Manifest-V3 extension.
 
 | Guide | What it covers |
 |-------|----------------|
-| [Quick Start](./quick-start.md) | Install, build, load unpacked, first use |
-| [Architecture](../how-it-works/architecture.md) | Monorepo layout, the four MV3 surfaces, and the message catalog |
+| [Quick Start](/media-bulk-downloads/getting-started/quick-start/) | Install, build, load unpacked, first use |
+| [Architecture](/media-bulk-downloads/how-it-works/architecture/) | Monorepo layout, the four MV3 surfaces, and the message catalog |
 
 ## Workflows
 
 | Guide | Flow |
 |-------|------|
-| [Collection Pipeline](../how-it-works/collection-pipeline.md) | How page media is discovered, resolved, de-duplicated, and shown |
-| [Resolve Originals](../how-it-works/resolve-originals.md) | Opt-in, per-host fetch for the exact original file |
-| [Deep Scan](../guides/deep-scan.md) | Opt-in auto-scroll that surfaces virtualized and lazy media |
-| [Download & queue](../guides/download.md) | How selected media is named and saved through the service worker |
-| [Download paths](../guides/download-paths.md) | Per-site folder templates (`{host}`, `{domain}`, `{date}`, `{kind}`) |
-| [Download History](../guides/history.md) | The log of successful downloads: open, reveal, re-download |
-| [Favourites](../guides/favourites.md) | The starred-media list and how it persists |
-| [Version badge](../how-it-works/badge.md) | The per-tab media count on the toolbar icon |
-| [In-page Bubble](../guides/bubble.md) | The injected floating launcher and its lifecycle |
+| [Collection Pipeline](/media-bulk-downloads/how-it-works/collection-pipeline/) | How page media is discovered, resolved, de-duplicated, and shown |
+| [Resolve Originals](/media-bulk-downloads/how-it-works/resolve-originals/) | Opt-in, per-host fetch for the exact original file |
+| [Deep Scan](/media-bulk-downloads/guides/deep-scan/) | Opt-in auto-scroll that surfaces virtualized and lazy media |
+| [Download & queue](/media-bulk-downloads/guides/download/) | How selected media is named and saved through the service worker |
+| [Download paths](/media-bulk-downloads/guides/download-paths/) | Per-site folder templates (`{host}`, `{domain}`, `{date}`, `{kind}`) |
+| [Download History](/media-bulk-downloads/guides/history/) | The log of successful downloads: open, reveal, re-download |
+| [Favourites](/media-bulk-downloads/guides/favourites/) | The starred-media list and how it persists |
+| [Version badge](/media-bulk-downloads/how-it-works/badge/) | The per-tab media count on the toolbar icon |
+| [In-page Bubble](/media-bulk-downloads/guides/bubble/) | The injected floating launcher and its lifecycle |
 
 ## The four surfaces at a glance
 
@@ -66,7 +66,7 @@ flowchart LR
   background resolves the exact original from one of ~20 supported hosts (Twitter/X,
   Wallhaven, Unsplash, Vimeo, Dailymotion, Bluesky, Pinterest, Reddit, Flickr,
   ArtStation, SoundCloud, Twitch, Loom, PeerTube, and more).
-  See [Resolve Originals](../how-it-works/resolve-originals.md) for the full list.
+  See [Resolve Originals](/media-bulk-downloads/how-it-works/resolve-originals/) for the full list.
 - **Deep scan issues no requests of its own.** It scrolls and re-reads the DOM;
   the page loads its own media.
 - **URL upgrades are conservative.** Only safe, path-based CDN rewrites. Signed
@@ -75,6 +75,6 @@ flowchart LR
 
 ## See also
 
-- [Collection Benchmark](../benchmark/overview.md) — live, reproducible upgrade measurements
+- [Collection Benchmark](/media-bulk-downloads/benchmark/overview/) — live, reproducible upgrade measurements
 - [Feature one-pager](https://github.com/mralaminahamed/media-bulk-downloads/blob/main/docs/marketing/one-pager.md) — plain-language overview
 - [Monorepo restructure](https://github.com/mralaminahamed/media-bulk-downloads/blob/main/docs/architecture/monorepo-restructure.md) — packages/app design record

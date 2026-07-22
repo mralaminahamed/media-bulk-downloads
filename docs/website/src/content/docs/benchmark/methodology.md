@@ -3,7 +3,7 @@ title: "Benchmark method & reproduction"
 description: "How the collection benchmark is measured and reproduced — the real collector bundled and injected into live pages."
 ---
 
-> Part of the [Collection Benchmark](./overview.md).
+> Part of the [Collection Benchmark](/media-bulk-downloads/benchmark/overview/).
 
 ## Method
 
@@ -20,7 +20,7 @@ description: "How the collection benchmark is measured and reproduced — the re
 - Sample URLs are shown as `origin + path` (query stripped) for privacy.
 
 Run dates: 2026-07-03 / 2026-07-04 / **2026-07-05** / **2026-07-06** (§A re-run 2026-07-05 against the rule set as of that run — 32 CDN rules + 6 resolvers, historical as of the 2026-07-05/06 run;
-Instagram resolver added 2026-07-06). The resolver registry has since grown to 31 entries (30 dedicated + a generic fallback — see [Collection Pipeline](../how-it-works/collection-pipeline.md)); the
+Instagram resolver added 2026-07-06). The resolver registry has since grown to 31 entries (30 dedicated + a generic fallback — see [Collection Pipeline](/media-bulk-downloads/how-it-works/collection-pipeline/)); the
 Threads, Bluesky, Arc XP and magnific resolvers were added just after this run and are mapped in §C rows 59–62, and the Mastodon and Booru resolvers were added 2026-07-11 (rows 65 and 67; Dailymotion,
 row 66, is an embed-hook + Phase-2 path like Vimeo, so it is not a REGISTRY array entry). Many more shipped in the 2026-07-16→19 waves (TikTok, SoundCloud, Twitch, Patreon, Imgur, Pexels, Pornhub,
 and ~20 others) and postdate the §A/§C snapshots below. §G/§H reflect the current Facebook/Instagram resolvers. Chrome (Manifest V3).
@@ -39,4 +39,4 @@ esbuild bench-entry.ts --bundle --format=iife --alias:@=./apps/extension/src --o
 # Virtualized grids (X /media) mount ~20–24 tiles at once — wait before injecting.
 ```
 
-Pipeline under test: [Collection Pipeline](../how-it-works/collection-pipeline.md).
+Pipeline under test: [Collection Pipeline](/media-bulk-downloads/how-it-works/collection-pipeline/).

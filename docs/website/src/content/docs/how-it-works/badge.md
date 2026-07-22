@@ -69,7 +69,7 @@ that works everywhere.
 
 This mode switch is independent of the badge count — it runs whether or not **Show image count on toolbar icon** is on.
 
-See [In-page Bubble](../guides/bubble.md) for what `TOGGLE_BUBBLE` does.
+See [In-page Bubble](/media-bulk-downloads/guides/bubble/) for what `TOGGLE_BUBBLE` does.
 
 ---
 
