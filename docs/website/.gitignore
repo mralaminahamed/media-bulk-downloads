@@ -1,0 +1,14 @@
+# build output
+dist/
+# generated types
+.astro/
+# deps
+node_modules/
+# yarn (corepack-managed; only yarn.lock + .yarnrc.yml are tracked)
+.yarn/
+.pnp.*
+# env
+.env
+.env.production
+# macOS
+.DS_Store

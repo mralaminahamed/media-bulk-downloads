@@ -30,7 +30,7 @@ Validated across e-commerce, news publishing, stock-photo, wiki/reference, and i
 
 ## Proven, not promised
 
-An open, reproducible [collection benchmark](../BENCHMARK.md) injects the extension's **actual** collection engine into live pages and measures what it finds — logged-out, first-viewport, network-free. In those runs it upgraded the **majority of collected images to their original resolution** across e-commerce, publishing, stock-photo, and wiki sites, while correctly leaving signed originals byte-identical. The method is documented end-to-end so anyone can re-run it.
+An open, reproducible [collection benchmark](../website/src/content/docs/benchmark/overview.md) injects the extension's **actual** collection engine into live pages and measures what it finds — logged-out, first-viewport, network-free. In those runs it upgraded the **majority of collected images to their original resolution** across e-commerce, publishing, stock-photo, and wiki sites, while correctly leaving signed originals byte-identical. The method is documented end-to-end so anyone can re-run it.
 
 ## At a glance
 

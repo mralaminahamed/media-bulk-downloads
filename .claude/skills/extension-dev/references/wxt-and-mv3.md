@@ -31,7 +31,7 @@ are optional further reading.
   the port open); `return false`/nothing for unmatched so the port closes. Don't
   leak the port on broadcasts (`DEEP_SCAN_PROGRESS`, `CAPTURE_PROGRESS`). Full
   message union: `packages/core/src/types.ts` (`ChromeMessage`); catalog:
-  `docs/guides/architecture.md`.
+  `docs/website/src/content/docs/how-it-works/architecture.md`.
 - **`chrome.storage`** — `sync` (settings, ~100 KB, follows profile) vs `local`
   (bulk stores, ~5 MB, evictable). Callback or promise form. See
   `storage-and-settings` (the durable IDB mirror + single-writer rule). Safari

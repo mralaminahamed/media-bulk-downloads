@@ -1,0 +1,66 @@
+name: Docs
+
+# Builds the Astro Starlight docs site (docs/website/) and deploys it to GitHub
+# Pages. docs/website/ is an isolated yarn project (its own yarn.lock), so it is
+# installed and built independently of the extension workspace.
+#
+# One-time setup: repo Settings → Pages → Source = "GitHub Actions".
+# Site: https://mralaminahamed.github.io/media-bulk-downloads/
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/website/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: yarn
+          cache-dependency-path: docs/website/yarn.lock
+
+      - name: Install deps
+        working-directory: docs/website
+        run: corepack yarn install --immutable
+
+      - name: Build
+        working-directory: docs/website
+        run: corepack yarn build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/website/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deploy
+        uses: actions/deploy-pages@v4

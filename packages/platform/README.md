@@ -37,5 +37,5 @@ yarn test
 
 ## More
 
-See the [Architecture guide](../../docs/guides/architecture.md) for where the
+See the [Architecture guide](../../docs/website/src/content/docs/how-it-works/architecture.md) for where the
 seam sits in the surface/module map.
