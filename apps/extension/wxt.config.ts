@@ -13,6 +13,7 @@ export default defineConfig({
     name: 'Media Bulk Downloads',
     description:
       'Bulk-download images, video & audio from any web page. Smart type filters, instant preview, original quality — fast and private.',
+    homepage_url: 'https://mralaminahamed.github.io/media-bulk-downloads/',
     permissions: [
       ...(browser === 'safari' ? [] : ['downloads', 'downloads.open']),
       'storage',

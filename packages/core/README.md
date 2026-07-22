@@ -47,7 +47,7 @@ yarn test          # all packages + the app
 
 ## More
 
-See the [Architecture guide](../../docs/website/src/content/docs/how-it-works/architecture.md),
-[Collection Pipeline](../../docs/website/src/content/docs/how-it-works/collection-pipeline.md), and
-[Resolve Originals](../../docs/website/src/content/docs/how-it-works/resolve-originals.md) for the full design —
+See the [Architecture guide](https://mralaminahamed.github.io/media-bulk-downloads/how-it-works/architecture/),
+[Collection Pipeline](https://mralaminahamed.github.io/media-bulk-downloads/how-it-works/collection-pipeline/), and
+[Resolve Originals](https://mralaminahamed.github.io/media-bulk-downloads/how-it-works/resolve-originals/) for the full design —
 this README is a map, those are the source of truth.

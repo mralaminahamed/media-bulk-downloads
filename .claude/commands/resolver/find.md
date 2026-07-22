@@ -15,7 +15,7 @@ discipline). Then:
    - `REGISTRY` in `resolvers/index.ts`,
    - `ResolvePlatform` in `packages/core/src/types.ts` (Phase-2 network),
    - CDN families in `collection/imageUrl.ts`,
-   - `docs/website/src/content/docs/benchmark/gaps.md` (already probed + closed as unupgradeable).
+   - `https://mralaminahamed.github.io/media-bulk-downloads/benchmark/gaps/` (already probed + closed as unupgradeable).
 2. **Propose uncovered candidates**, grouped by category (social / video / image
    boards / art+stock / album hosts / audio / wallpaper / NSFW). For each: the media
    gap the **generic pipeline** misses, the likely mechanism (CDN rule /

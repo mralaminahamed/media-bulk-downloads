@@ -32,10 +32,10 @@ that is the point (the CDN sweep killed 5 of 8 probed).
   is unreachable, and the widest `srcset` entry is the CDN cap — generic already
   wins, so **no resolver**.)
 - **Signed / already-original** URLs can't be upgraded — leave them (running "open,
-  not upgradeable" list: `docs/website/src/content/docs/benchmark/gaps.md`).
+  not upgradeable" list: `https://mralaminahamed.github.io/media-bulk-downloads/benchmark/gaps/`).
 - Prefer a **host-agnostic CDN rule** in `imageUrl.ts` when a plain path/param
   rewrite curl-verifies bigger; a full resolver only when you must read DOM/JSON.
-  Record the outcome (shipped, or closed + why) in `docs/website/src/content/docs/benchmark/changelog.md`.
+  Record the outcome (shipped, or closed + why) in `https://mralaminahamed.github.io/media-bulk-downloads/benchmark/changelog/`.
 
 ## The Resolver contract (`resolvers/types.ts`)
 
@@ -111,7 +111,7 @@ interface MediaCandidate {
   `window.__bench` via a Vite/esbuild lib build, inject it into the target page
   with the browser javascript tool, and run it once. Strip query strings from any
   sample output (the safety filter blocks raw tokens). Record coverage in
-  `docs/website/src/content/docs/benchmark/overview.md`.
+  `https://mralaminahamed.github.io/media-bulk-downloads/benchmark/overview/`.
 
 ## References
 
@@ -123,10 +123,10 @@ interface MediaCandidate {
   Phase-2 fetch.
 
 **In-repo source:**
-- Collection pipeline (this repo) — `docs/website/src/content/docs/how-it-works/collection-pipeline.md`,
-  `docs/website/src/content/docs/how-it-works/resolve-originals.md` (the opt-in network tier), `docs/website/src/content/docs/benchmark/overview.md`
-- Benchmark detail (this repo) — `docs/website/src/content/docs/benchmark/gaps.md` (open/unupgradeable),
-  `docs/website/src/content/docs/benchmark/changelog.md` (shipped/closed log), `docs/website/src/content/docs/benchmark/coverage-matrix.md`
+- Collection pipeline (this repo) — `https://mralaminahamed.github.io/media-bulk-downloads/how-it-works/collection-pipeline/`,
+  `https://mralaminahamed.github.io/media-bulk-downloads/how-it-works/resolve-originals/` (the opt-in network tier), `https://mralaminahamed.github.io/media-bulk-downloads/benchmark/overview/`
+- Benchmark detail (this repo) — `https://mralaminahamed.github.io/media-bulk-downloads/benchmark/gaps/` (open/unupgradeable),
+  `https://mralaminahamed.github.io/media-bulk-downloads/benchmark/changelog/` (shipped/closed log), `https://mralaminahamed.github.io/media-bulk-downloads/benchmark/coverage-matrix/`
 - Resolver source — `packages/core/src/resolvers/index.ts` (the `REGISTRY`),
   `resolvers/sites/*.ts`, `resolvers/network.ts` (Phase-2), `resolvers/sniffers/*`
   (MAIN-world fetch/XHR extractors), and `collection/imageUrl.ts` (CDN rules)

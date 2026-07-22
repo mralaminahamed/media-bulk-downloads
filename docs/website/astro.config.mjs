@@ -10,6 +10,7 @@ export default defineConfig({
       title: 'Media Bulk Downloads',
       tagline: 'Bulk-download images, video & audio from any web page — fast and private.',
       favicon: '/favicon.svg',
+      logo: { src: './src/assets/logo.svg', alt: 'Media Bulk Downloads' },
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/mralaminahamed/media-bulk-downloads' },
       ],
@@ -26,23 +27,6 @@ export default defineConfig({
         },
       },
       customCss: ['./src/styles/custom.css'],
-      head: [
-        {
-          tag: 'link',
-          attrs: { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
-        },
-        {
-          tag: 'link',
-          attrs: { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
-        },
-        {
-          tag: 'link',
-          attrs: {
-            rel: 'stylesheet',
-            href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap',
-          },
-        },
-      ],
       sidebar: [
         {
           label: 'Getting Started',

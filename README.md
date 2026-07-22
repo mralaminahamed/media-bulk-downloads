@@ -13,6 +13,7 @@ Fast, network-free by default, and built for Chrome, Firefox, Edge, and Safari f
 [![ExtensionLaunch](https://img.shields.io/badge/ExtensionLaunch-Featured-6366f1)](https://extensionlaunch.com/product/media-bulk-downloads-jmdhkd)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-yellow.svg)](https://developer.chrome.com/docs/extensions/develop/migrate)
+[![Docs](https://img.shields.io/badge/docs-website-4f46e5.svg)](https://mralaminahamed.github.io/media-bulk-downloads/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
 [![Test](https://github.com/mralaminahamed/media-bulk-downloads/actions/workflows/test.yml/badge.svg)](https://github.com/mralaminahamed/media-bulk-downloads/actions/workflows/test.yml)
 [![Extension CI](https://github.com/mralaminahamed/media-bulk-downloads/actions/workflows/extension-ci.yml/badge.svg)](https://github.com/mralaminahamed/media-bulk-downloads/actions/workflows/extension-ci.yml)
@@ -242,7 +243,7 @@ JSON, signed CDNs, or embeds. A representative selection:
 
 …plus **100+ more sites and CDN families**. The full, live-verified list — every
 site, its upgrade mechanism, and how coverage was established — is the
-[**coverage matrix**](./docs/website/src/content/docs/benchmark/coverage-matrix.md).
+[**coverage matrix**](https://mralaminahamed.github.io/media-bulk-downloads/benchmark/coverage-matrix/).
 
 > **A note on how coverage is verified.** Most sites here were recon'd and
 > validated by **AI agents** — probing the live site, comparing byte sizes, and
@@ -342,23 +343,23 @@ Starlight). Browse the source pages directly here too:
 
 | Guide                                                       |                                                |
 |-------------------------------------------------------------|------------------------------------------------|
-| [Getting Started](./docs/website/src/content/docs/getting-started/quick-start.md)         | Install, build, load unpacked, first use       |
-| [Architecture](./docs/website/src/content/docs/how-it-works/architecture.md)               | Surfaces, modules, message catalog, data model |
-| [Collection Pipeline](./docs/website/src/content/docs/how-it-works/collection-pipeline.md) | Discovery → de-proxy → CDN-upgrade → dedup     |
-| [Resolve Originals](./docs/website/src/content/docs/how-it-works/resolve-originals.md)     | Opt-in per-host fetch for the exact original   |
-| [Deep Scan](./docs/website/src/content/docs/guides/deep-scan.md)                     | The opt-in auto-scroll workflow and its bounds |
-| [Download](./docs/website/src/content/docs/guides/download.md)                       | Filename construction and the save flow        |
-| [Download paths](./docs/website/src/content/docs/guides/download-paths.md)           | Per-site folder templates ({host}/{domain}/…)  |
-| [Download History](./docs/website/src/content/docs/guides/history.md)                | The download log and its open/reveal actions   |
-| [Favourites](./docs/website/src/content/docs/guides/favourites.md)                   | Star media to a saved, persistent list         |
-| [Badge](./docs/website/src/content/docs/how-it-works/badge.md)                             | The per-tab media count on the toolbar icon    |
-| [In-page Bubble](./docs/website/src/content/docs/guides/bubble.md)                   | The Shadow-DOM launcher lifecycle              |
+| [Getting Started](https://mralaminahamed.github.io/media-bulk-downloads/getting-started/quick-start/)         | Install, build, load unpacked, first use       |
+| [Architecture](https://mralaminahamed.github.io/media-bulk-downloads/how-it-works/architecture/)               | Surfaces, modules, message catalog, data model |
+| [Collection Pipeline](https://mralaminahamed.github.io/media-bulk-downloads/how-it-works/collection-pipeline/) | Discovery → de-proxy → CDN-upgrade → dedup     |
+| [Resolve Originals](https://mralaminahamed.github.io/media-bulk-downloads/how-it-works/resolve-originals/)     | Opt-in per-host fetch for the exact original   |
+| [Deep Scan](https://mralaminahamed.github.io/media-bulk-downloads/guides/deep-scan/)                     | The opt-in auto-scroll workflow and its bounds |
+| [Download](https://mralaminahamed.github.io/media-bulk-downloads/guides/download/)                       | Filename construction and the save flow        |
+| [Download paths](https://mralaminahamed.github.io/media-bulk-downloads/guides/download-paths/)           | Per-site folder templates ({host}/{domain}/…)  |
+| [Download History](https://mralaminahamed.github.io/media-bulk-downloads/guides/history/)                | The download log and its open/reveal actions   |
+| [Favourites](https://mralaminahamed.github.io/media-bulk-downloads/guides/favourites/)                   | Star media to a saved, persistent list         |
+| [Badge](https://mralaminahamed.github.io/media-bulk-downloads/how-it-works/badge/)                             | The per-tab media count on the toolbar icon    |
+| [In-page Bubble](https://mralaminahamed.github.io/media-bulk-downloads/guides/bubble/)                   | The Shadow-DOM launcher lifecycle              |
 
 **Reference:** [Changelog](./CHANGELOG.md) — release history ·
 [Feature one-pager](./docs/marketing/one-pager.md) — at-a-glance overview ·
-[Collection Benchmark](./docs/website/src/content/docs/benchmark/overview.md) — live, reproducible upgrade measurements
-([`docs/website/src/content/docs/benchmark/`](./docs/website/src/content/docs/benchmark/) for the per-topic breakdown) ·
-[Coverage matrix](./docs/website/src/content/docs/benchmark/coverage-matrix.md) — every supported site + its upgrade rule ·
+[Collection Benchmark](https://mralaminahamed.github.io/media-bulk-downloads/benchmark/overview/) — live, reproducible upgrade measurements
+([`https://mralaminahamed.github.io/media-bulk-downloads/benchmark/overview/`](https://mralaminahamed.github.io/media-bulk-downloads/benchmark/overview/) for the per-topic breakdown) ·
+[Coverage matrix](https://mralaminahamed.github.io/media-bulk-downloads/benchmark/coverage-matrix/) — every supported site + its upgrade rule ·
 [Monorepo restructure](./docs/architecture/monorepo-restructure.md) — packages/app design record
 
 ## Contributing

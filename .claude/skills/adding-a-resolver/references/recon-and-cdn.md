@@ -20,7 +20,7 @@ done
 
 **Verdict rules:**
 - No *reachable* file bigger than what the page shows → **close** (record in
-  `docs/website/src/content/docs/benchmark/gaps.md` / `changelog.md`).
+  `https://mralaminahamed.github.io/media-bulk-downloads/benchmark/gaps/` / `changelog.md`).
 - Per-size **signed filenames** (each width has its own hash) → you can't rewrite a
   size; must read the widest listed (`srcset`) — a resolver, not a CDN rule.
 - `bestSrcsetUrl` already returns the widest `srcset` entry and `upgradeToOriginal`

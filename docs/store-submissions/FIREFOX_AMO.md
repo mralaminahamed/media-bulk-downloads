@@ -63,7 +63,8 @@ Bulk-download images, video & audio from any web page. Smart type filters, insta
 
 **Tags:** `download`, `images`, `video`, `audio`, `bulk`, `gallery`
 
-**Homepage / Support site:** `https://github.com/mralaminahamed/media-bulk-downloads`
+**Homepage:** `https://mralaminahamed.github.io/media-bulk-downloads/`
+**Support site:** `https://github.com/mralaminahamed/media-bulk-downloads/issues`
 **Support email:** `alamin.ahamed.dev@gmail.com`
 
 **Description** (paste into the listing):

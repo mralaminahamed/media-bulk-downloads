@@ -40,7 +40,7 @@ yarn test
 
 ## More
 
-See the [Architecture guide](../../docs/website/src/content/docs/how-it-works/architecture.md) (data model +
+See the [Architecture guide](https://mralaminahamed.github.io/media-bulk-downloads/how-it-works/architecture/) (data model +
 message catalog) and the
 [Monorepo restructure](../../docs/architecture/monorepo-restructure.md) design
 record for how this package fits the whole.
