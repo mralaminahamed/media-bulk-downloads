@@ -84,11 +84,15 @@ ORIGINAL QUALITY
 • Optional "resolve originals" fetches the exact highest-resolution file for
   supported hosts (off by default)
 
-FILTER AND DOWNLOAD
-• Filter by kind (image / video / audio), format, and size
-• Download one item or the whole filtered set, with correct file extensions
-• Choose a subfolder, a naming scheme, and whether to be asked where to save
+FILTER, SEARCH, AND DOWNLOAD
+• Filter by kind (image / video / audio), format, and size; search by name/alt/URL
+• Sort by name, size, dimensions, or type
+• Tick individual items (with shift-click ranges and select-all) for a partial set
+• Download one item or the whole set, with correct file extensions
+• Bundle the selection into a single ZIP, or copy/export the media URLs as .txt
+• Organize into per-site / per-day / per-kind folders with {host}/{domain}/{date}/{kind} path tokens
 • A download history with one-click re-download, open file, or reveal in folder
+• Favourites: star images, video, or audio to a list that persists across pages
 
 WORKS ON THE SITES YOU USE
 • Original-quality resolvers for X/Twitter, Instagram, Facebook, Threads,
@@ -101,10 +105,17 @@ WORKS ON THE SITES YOU USE
 • Optional WebP/AVIF → PNG/JPEG conversion that preserves EXIF/XMP metadata
 
 RELIABLE DOWNLOADS
-• A resilient download queue tracks each file and resumes after the popup closes —
+• A resilient download queue tracks each file (queued / downloading / done /
+  failed), retries transient failures, and resumes after the popup closes — with
   pause, resume, cancel, retry, and a "simultaneous downloads" cap
 • "Retry with page referer" recovers hotlink-protected files that return 403
 • Filter by Downloaded / Not-downloaded, and exclude sources you never want to see
+
+FASTER TO REACH
+• Keyboard shortcuts: open the popup, or download all media on the page
+• Right-click menu: download all page media, or a single image at original quality
+• Optional desktop notification when a download batch finishes
+• Back up and restore your settings, favourites, and history as a JSON file
 
 PRIVATE BY DESIGN
 • Network-free by default: it only reads what the page already loaded
@@ -160,10 +171,24 @@ opening the popup. Each triggers the same local download the popup performs.
 
 **Host permissions — `<all_urls>`** — the extension must read the media elements
 on whatever page the user runs it on, which can be any site. It activates only
-when the user opens the popup or enables the on-page panel. When the optional
-"resolve originals" setting is on, it also fetches a higher-resolution version of
-a downloaded item directly from that media's own CDN. It does not read or
-transmit page content for any other purpose.
+when the user opens the popup or enables the on-page panel. Small content scripts
+read the page's media; on a few sites (e.g. Instagram, X/Twitter, Facebook,
+Pinterest, MangaDex) a passive script observes the page's own media network
+responses so posted images/videos resolve to real downloadable files — it reads
+only the request URLs/JSON the page itself already loaded and never sends them
+off-device. When the optional "resolve originals" setting is on, it also fetches a
+higher-resolution version of a downloaded item directly from that media's own CDN.
+It does not read or transmit page content for any other purpose.
+
+> **Content scripts.** Beyond the `<all_urls>` page collector (ISOLATED world),
+> the Firefox build injects six MAIN-world media sniffers: one host-agnostic
+> `.m3u8`/`.mpd` manifest sniffer (`<all_urls>`) and five host-scoped to
+> `instagram.com`, `x.com` + `twitter.com`, `facebook.com`, `pinterest.com`, and
+> `mangadex.org`. Each reads only the request URLs/JSON the page itself already
+> loaded and sends nothing off-device. Firefox 128+ supports MAIN-world content
+> scripts; these are manifest keys, not extra permissions, and are covered by the
+> `<all_urls>` justification above. (Stream *capture* itself is unavailable on
+> Firefox — see the `offscreen` note above — but the manifest sniffer still runs.)
 
 **notifications (optional)** — off until the user enables it. Shows a desktop
 notification with the result of a download batch — the only feedback when the
