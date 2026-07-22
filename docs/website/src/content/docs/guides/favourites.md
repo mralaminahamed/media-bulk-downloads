@@ -5,6 +5,8 @@ description: "Star collected media into a persistent Favourites list — how it 
 
 Star any collected item to save it to a **Favourites** list. The list persists across pages and browser sessions.
 
+![The Favourites list in the popup — starred images, video, and audio saved across pages, each re-downloadable.](../../../assets/screenshots/favourites.png)
+
 ## Using it
 
 - **Star** an item from its grid tile (hover or focus the tile, then click ★) or from the preview modal's header. A filled-star badge marks saved items on the grid, and it stays after a rescan or

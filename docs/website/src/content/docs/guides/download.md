@@ -6,6 +6,8 @@ description: "How selected media is named, de-duplicated, and saved through the 
 Everything you save goes through the service worker, which owns
 `chrome.downloads`. The popup and the in-page bubble never call it directly.
 
+![The popup grid with the filter toolbar — filter by kind/format/size, search, and sort, then download one item or the whole filtered set.](../../../assets/screenshots/filters.png)
+
 There are two save paths, and they behave differently:
 
 - **Bulk download** from the popup or bubble grid sends a `DOWNLOAD_IMAGES`

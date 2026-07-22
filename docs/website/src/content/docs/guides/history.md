@@ -6,6 +6,8 @@ description: "The log of completed downloads — open, reveal, re-download, and 
 Every completed download is recorded to a **Download History** list. The list survives across pages, tabs, and browser restarts, so you can find, re-open, or re-download something you saved earlier
 without digging through the OS downloads folder.
 
+![The Download History panel — each completed download with re-download, open-file, and reveal-in-folder actions.](../../../assets/screenshots/history.png)
+
 ## Using it
 
 - Open the **Download History** panel from the clock button in the popup header (labelled "Download history").
