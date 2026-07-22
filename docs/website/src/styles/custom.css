@@ -88,8 +88,10 @@ details > summary > span {
   font-weight: 700 !important;
   letter-spacing: 0.08em !important;
   text-transform: uppercase !important;
-  color: var(--sl-color-gray-4) !important;
+  color: #6b6d78 !important; /* WCAG-safe on the near-white sidebar */
 }
+:root[data-theme='dark'] .group-label span,
+:root[data-theme='dark'] details > summary > span { color: #8a8c98 !important; }
 
 .sidebar-content a { border-radius: 5px; transition: background 0.1s, color 0.1s; }
 .sidebar-content a:hover {
@@ -180,7 +182,7 @@ details > summary > span {
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--sl-color-gray-4);
+  color: #6b6d78;
   border-bottom: 2px solid var(--sl-color-hairline-shade);
   padding-block: 0.6rem;
   text-align: left;
