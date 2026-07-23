@@ -326,13 +326,19 @@ async function runDeepScanFlow(): Promise<void> {
 
     if (!result) {
       console.log('[mbd] deep-scan: timed out waiting for result');
+      sse.broadcast('scan-progress', {
+        found: lastProgress?.found ?? 0,
+        scrolls: lastProgress?.scrolls ?? 0,
+        elapsedMs: lastProgress?.elapsedMs ?? 0,
+        reason: 'timeout',
+      });
       return;
     }
 
     const added = media.merge(result.items);
     if (added.length) sse.broadcast('media-added', { added });
     sse.broadcast('scan-progress', {
-      found: media.list().length,
+      found: result.items.length,
       scrolls: lastProgress?.scrolls ?? 0,
       elapsedMs: lastProgress?.elapsedMs ?? 0,
       reason: result.reason,
