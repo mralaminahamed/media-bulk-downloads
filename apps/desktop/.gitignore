@@ -7,7 +7,7 @@ dist/
 *.deb
 *.rpm
 *.msi
-src/collector/collector.generated.ts
+src/generated/collector-iife.ts
 src/core-bundle/download-name.gen.js
 dist-dashboard/
-src/dashboard/assets.generated.ts
+src/generated/dashboard-assets.ts

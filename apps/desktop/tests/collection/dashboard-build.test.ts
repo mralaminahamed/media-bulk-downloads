@@ -1,6 +1,6 @@
 import { assertEquals, assertStringIncludes } from 'jsr:@std/assert';
-import { buildDashboard } from '../src/dashboard/build-dashboard.ts';
-import { DASHBOARD_ASSETS } from '../src/dashboard/assets.generated.ts';
+import { buildDashboard } from '../../src/build/dashboard.ts';
+import { DASHBOARD_ASSETS } from '../../src/generated/dashboard-assets.ts';
 
 Deno.test('dashboard build emits an index and JS bundle', async () => {
   await buildDashboard();

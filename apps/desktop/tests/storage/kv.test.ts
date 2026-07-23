@@ -1,5 +1,5 @@
 import { assertEquals } from 'jsr:@std/assert';
-import { openStore } from '../src/storage/kv.ts';
+import { openStore } from '../../src/storage/kv.ts';
 
 Deno.test('durableSet then durableGet round-trips settings', async () => {
   const path = await Deno.makeTempFile({ suffix: '.kv' });

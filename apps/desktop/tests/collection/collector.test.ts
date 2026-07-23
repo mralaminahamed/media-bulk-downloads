@@ -1,10 +1,10 @@
 import { assert, assertEquals } from 'jsr:@std/assert';
 import { DOMParser } from 'jsr:@b-fuze/deno-dom';
-import { buildCollector } from '../src/collector/build-collector.ts';
+import { buildCollector } from '../../src/build/collector.ts';
 
 Deno.test('collector IIFE exposes __mbdCollect and finds an image', async () => {
   await buildCollector();
-  const code = await Deno.readTextFile(new URL('../dist/collector.iife.js', import.meta.url));
+  const code = await Deno.readTextFile(new URL('../../dist/collector.iife.js', import.meta.url));
   const doc = new DOMParser().parseFromString(
     `<img src="https://example.com/a.jpg" width="800" height="600">`,
     'text/html',

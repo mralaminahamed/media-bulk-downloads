@@ -1,6 +1,6 @@
 import { assert, assertEquals } from 'jsr:@std/assert';
 import { basename } from 'jsr:@std/path';
-import { downloadOne } from '../src/platform/downloader.ts';
+import { downloadOne } from '../../src/platform/downloader.ts';
 
 Deno.test('downloadOne writes fetched bytes under the expanded template path', async () => {
   const root = await Deno.makeTempDir();

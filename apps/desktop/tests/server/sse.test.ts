@@ -1,5 +1,5 @@
 import { assertEquals } from 'jsr:@std/assert';
-import { createSseHub } from '../src/server/sse.ts';
+import { createSseHub } from '../../src/server/sse.ts';
 
 Deno.test('broadcast reaches a connected client', async () => {
   const hub = createSseHub();

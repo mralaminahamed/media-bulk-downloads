@@ -1,7 +1,7 @@
 /// <reference path="./deno-desktop.d.ts" />
 import { downloadOne } from './platform/downloader.ts';
 import { openStore } from './storage/kv.ts';
-import { COLLECTOR_IIFE } from './collector/collector.generated.ts';
+import { COLLECTOR_IIFE } from './generated/collector-iife.ts';
 import { OVERLAY_JS } from './overlay/overlay.ts';
 import { createQueue } from './platform/queue.ts';
 import { loadSettings, saveSettings } from './storage/settings.ts';
@@ -12,7 +12,7 @@ import { startServer } from './server/server.ts';
 import { buildRoutes } from './server/routes.ts';
 import { createMediaStore, type CollectedItem } from './server/media-store.ts';
 import { createSseHub } from './server/sse.ts';
-import { DASHBOARD_ASSETS } from './dashboard/assets.generated.ts';
+import { DASHBOARD_ASSETS } from './generated/dashboard-assets.ts';
 
 const HOME = Deno.env.get('HOME') ?? '.';
 const store = await openStore(`${HOME}/.mbd-desktop.kv`);

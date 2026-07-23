@@ -1,6 +1,6 @@
 import { assertEquals } from 'jsr:@std/assert';
-import { openStore } from '../src/storage/kv.ts';
-import { DEFAULT_DESKTOP_SETTINGS, loadSettings, saveSettings } from '../src/storage/settings.ts';
+import { openStore } from '../../src/storage/kv.ts';
+import { DEFAULT_DESKTOP_SETTINGS, loadSettings, saveSettings } from '../../src/storage/settings.ts';
 
 Deno.test('settings default then round-trip', async () => {
   const store = await openStore(await Deno.makeTempFile({ suffix: '.kv' }));

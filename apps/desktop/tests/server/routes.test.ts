@@ -1,9 +1,9 @@
 import { assertEquals } from 'jsr:@std/assert';
-import { openStore } from '../src/storage/kv.ts';
-import { loadSettings, saveSettings } from '../src/storage/settings.ts';
-import { createMediaStore } from '../src/server/media-store.ts';
-import { createSseHub } from '../src/server/sse.ts';
-import { buildRoutes } from '../src/server/routes.ts';
+import { openStore } from '../../src/storage/kv.ts';
+import { loadSettings, saveSettings } from '../../src/storage/settings.ts';
+import { createMediaStore } from '../../src/server/media-store.ts';
+import { createSseHub } from '../../src/server/sse.ts';
+import { buildRoutes } from '../../src/server/routes.ts';
 
 function json(body: unknown, method = 'POST') {
   return new Request('http://x/', { method, body: JSON.stringify(body), headers: { 'content-type': 'application/json' } });

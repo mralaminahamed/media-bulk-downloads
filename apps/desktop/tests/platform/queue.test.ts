@@ -1,7 +1,7 @@
 import { assertEquals } from 'jsr:@std/assert';
-import { openStore } from '../src/storage/kv.ts';
-import { loadHistory } from '../src/storage/history.ts';
-import { createQueue } from '../src/platform/queue.ts';
+import { openStore } from '../../src/storage/kv.ts';
+import { loadHistory } from '../../src/storage/history.ts';
+import { createQueue } from '../../src/platform/queue.ts';
 
 Deno.test('queue downloads all with concurrency, retries once, records history', async () => {
   const store = await openStore(await Deno.makeTempFile({ suffix: '.kv' }));
