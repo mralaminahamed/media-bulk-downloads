@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api, type CollectedItem, subscribe } from './lib/rpc.ts';
 import { Grid } from './components/Grid.tsx';
 import { Preview } from './components/Preview.tsx';
@@ -16,7 +16,7 @@ export function App() {
 
   useEffect(() => {
     api.get('/api/media').then((r) => {
-      setItems(dedupeBySrc((r as { items: CollectedItem[] }).items));
+      setItems((prev) => dedupeBySrc([...prev, ...(r as { items: CollectedItem[] }).items]));
     });
     return subscribe({
       'media-added': (data) => {
@@ -34,6 +34,8 @@ export function App() {
       return next;
     });
   }
+
+  const closePreview = useCallback(() => setPreviewItem(null), []);
 
   const selectAll = () => setSelected(new Set(items.map((it) => it.src)));
   const selectNone = () => setSelected(new Set());
@@ -92,7 +94,7 @@ export function App() {
         )
         : <Grid items={items} selected={selected} onToggle={toggle} onPreview={setPreviewItem} />}
 
-      <Preview item={previewItem} onClose={() => setPreviewItem(null)} />
+      <Preview item={previewItem} onClose={closePreview} />
     </div>
   );
 }
