@@ -16,9 +16,9 @@
     "@breezystack/lamejs": "npm:@breezystack/lamejs@1.2.7",
     "react": "npm:react@^19.2.7"
   },
-  "unstable": ["sloppy-imports"],
+  "unstable": ["sloppy-imports", "kv"],
   "nodeModulesDir": "auto",
   "compilerOptions": {
-    "lib": ["deno.window", "dom", "dom.iterable"]
+    "lib": ["deno.window", "deno.unstable", "dom", "dom.iterable"]
   }
 }
