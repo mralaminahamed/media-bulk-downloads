@@ -50,6 +50,10 @@ export function App() {
 
   const closePreview = useCallback(() => setPreviewItem(null), []);
 
+  function showBrowser() {
+    api.post('/api/show-browser').catch(() => setNotice('Could not show the browser window'));
+  }
+
   const selectAll = () => setSelected(new Set(items.map((it) => it.src)));
   const selectNone = () => setSelected(new Set());
   const invertSelection = () =>
@@ -110,20 +114,23 @@ export function App() {
           <h1 style={{ fontSize: 16, margin: 0, fontWeight: 600 }}>Media Bulk Downloads</h1>
         </div>
 
-        <nav role="tablist" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.id}
-              className={tab === t.id ? 'primary' : undefined}
-              onClick={() => setTab(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </nav>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <nav role="tablist" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={tab === t.id}
+                className={tab === t.id ? 'primary' : undefined}
+                onClick={() => setTab(t.id)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
+          <button type="button" onClick={showBrowser}>Show browser</button>
+        </div>
       </header>
 
       {tab === 'library' && (

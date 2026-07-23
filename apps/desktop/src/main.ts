@@ -21,6 +21,7 @@ const root = Deno.env.get('MBD_DOWNLOAD_ROOT') ??
   `${HOME}/Downloads`;
 
 const settings = await loadSettings(store);
+// TODO(phase-b): reconcile with settings2 / rebuild queue on settings change
 const queue = createQueue({
   store,
   root,
@@ -60,6 +61,10 @@ const routes = buildRoutes({
   },
   navigate: (url) => {
     void openAndInject(url);
+  },
+  showBrowser: () => {
+    win.show();
+    win.focus();
   },
 });
 const srv = await startServer({ assets: DASHBOARD_ASSETS, api: routes, sse: (req) => sse.handler(req) });

@@ -17,6 +17,7 @@ export interface RouteDeps {
   settings: () => DesktopSettings;
   setSettings: (s: DesktopSettings) => Promise<void>;
   navigate: (url: string) => void;
+  showBrowser?: () => void;
 }
 
 function lastSegment(url: URL): string {
@@ -83,6 +84,11 @@ export function buildRoutes(deps: RouteDeps): Record<string, ApiHandler> {
     'POST /api/navigate': async (req) => {
       const { url: target } = (await req.json()) as { url: string };
       deps.navigate(target);
+      return Response.json({ ok: true });
+    },
+
+    'POST /api/show-browser': () => {
+      deps.showBrowser?.();
       return Response.json({ ok: true });
     },
   };
