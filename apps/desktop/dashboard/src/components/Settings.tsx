@@ -4,6 +4,7 @@ import type { DesktopSettings } from '../lib/settings.ts';
 import { DownloadsPane } from './settings/DownloadsPane.tsx';
 import { MediaPane } from './settings/MediaPane.tsx';
 import { DisplayPane } from './settings/DisplayPane.tsx';
+import { DataPane } from './settings/DataPane.tsx';
 import { AdvancedPane } from './settings/AdvancedPane.tsx';
 
 export interface SettingsProps {
@@ -118,18 +119,9 @@ export function Settings({ onSettingsChange }: SettingsProps = {}) {
         {pane === 'downloads' && <DownloadsPane settings={settings} patch={patch} />}
         {pane === 'media' && <MediaPane settings={settings} patch={patch} />}
         {pane === 'display' && <DisplayPane settings={settings} patch={patch} />}
-        {pane === 'data' && <ComingSoonPane name="Data" />}
+        {pane === 'data' && <DataPane />}
         {pane === 'advanced' && <AdvancedPane settings={settings} patch={patch} />}
       </div>
-    </div>
-  );
-}
-
-function ComingSoonPane({ name }: { name: string }) {
-  return (
-    <div>
-      <h2 style={{ fontSize: 14, margin: '0 0 8px' }}>{name}</h2>
-      <p style={{ color: 'var(--muted)' }}>{name} settings are coming soon.</p>
     </div>
   );
 }
