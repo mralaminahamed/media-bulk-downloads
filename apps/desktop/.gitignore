@@ -1,3 +1,11 @@
 dist/
 .deno/
 *.mbd-build/
+*.app/
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+*.msi
+src/collector/collector.generated.ts
+src/core-bundle/download-name.gen.js
