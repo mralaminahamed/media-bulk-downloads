@@ -1,0 +1,24 @@
+{
+  "name": "@mbd/desktop",
+  "exports": "./src/main.ts",
+  "tasks": {
+    "check": "deno check src/main.ts",
+    "test": "deno test -A",
+    "build:collector": "deno run -A src/collector/build-collector.ts",
+    "dev": "deno desktop --hmr src/main.ts",
+    "build": "deno desktop --output 'Media Bulk Downloads.app' src/main.ts"
+  },
+  "imports": {
+    "@mbd/core/": "../../packages/core/src/",
+    "@mbd/platform/": "../../packages/platform/src/",
+    "fflate": "npm:fflate@^0.8.3",
+    "mp4box": "npm:mp4box@^2.4.1",
+    "@breezystack/lamejs": "npm:@breezystack/lamejs@1.2.7",
+    "react": "npm:react@^19.2.7"
+  },
+  "unstable": ["sloppy-imports", "kv"],
+  "nodeModulesDir": "auto",
+  "compilerOptions": {
+    "lib": ["deno.window", "deno.unstable", "dom", "dom.iterable"]
+  }
+}
