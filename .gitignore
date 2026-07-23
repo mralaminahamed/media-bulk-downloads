@@ -60,3 +60,6 @@ blob-report/
 # Test samples
 /test-samples
 /assets/v2/src/
+
+# Stray root Deno lockfile (only apps/desktop is a Deno project)
+/deno.lock
