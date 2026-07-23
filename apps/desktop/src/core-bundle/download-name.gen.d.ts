@@ -2,7 +2,7 @@
 // Vite-bundled from core-entry.ts by build-collector.ts's buildCoreBundle()).
 // Associated to the generated JS via a `@ts-self-types` directive that
 // buildCoreBundle() prepends to the emitted file — see build-collector.ts.
-import type { ImageInfo, SettingsData, HistoryEntry, FavouriteEntry } from '@mbd/core/types';
+import type { ImageInfo, SettingsData, HistoryEntry, FavouriteEntry, ScanMemory } from '@mbd/core/types';
 
 export function buildDownloadFilename(image: ImageInfo, index: number, settings: SettingsData, sourcePageUrl?: string): string;
 export function mergeHistory(existing: HistoryEntry[], added: HistoryEntry[]): HistoryEntry[];
@@ -21,3 +21,8 @@ export const HISTORY_CAP: number;
 export const HISTORY_MAX_BYTES: number;
 export const FAVOURITES_CAP: number;
 export const FAVOURITES_MAX_BYTES: number;
+export function blendMemory(old: ScanMemory | null, sample: { settleMs: number; scrolls: number }, now: number, weight?: number): ScanMemory;
+export function clampMemory(raw: unknown): ScanMemory | null;
+export function evictToCap(store: Record<string, ScanMemory>, cap?: number): Record<string, ScanMemory>;
+export function registrableDomain(host: string): string;
+export function hostFromUrl(url?: string): string;
