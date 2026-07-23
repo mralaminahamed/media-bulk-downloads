@@ -2,11 +2,11 @@
   "name": "@mbd/desktop",
   "exports": "./src/main.ts",
   "tasks": {
-    "check": "deno check src/main.ts",
-    "test": "deno test -A",
+    "check": "deno task build:collector && deno check src/main.ts",
+    "test": "deno task build:collector && deno test -A",
     "build:collector": "deno run -A src/collector/build-collector.ts",
-    "dev": "deno desktop --hmr src/main.ts",
-    "build": "deno desktop --output 'Media Bulk Downloads.app' src/main.ts"
+    "dev": "deno task build:collector && deno desktop --hmr --no-check src/main.ts",
+    "build": "deno task build:collector && deno desktop --no-check --output 'Media Bulk Downloads.app' src/main.ts"
   },
   "imports": {
     "@mbd/core/": "../../packages/core/src/",

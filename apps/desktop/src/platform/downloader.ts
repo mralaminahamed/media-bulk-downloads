@@ -1,4 +1,7 @@
-import { buildDownloadFilename } from '@mbd/core/collection/download-name';
+// Value-import from the pre-bundled ESM (deno desktop can't resolve bare
+// @mbd/core source imports — see docs/runtime-recipe.md). Type-only imports stay
+// on @mbd/core/types (erased at runtime, no resolution needed).
+import { buildDownloadFilename } from '../core-bundle/download-name.gen.js';
 import type { ImageInfo, SettingsData } from '@mbd/core/types';
 import { dirname, join, normalize, SEPARATOR } from 'jsr:@std/path';
 

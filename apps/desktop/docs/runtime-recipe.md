@@ -64,19 +64,31 @@ Construct: `new Deno.BrowserWindow({ title, width, height })`.
   Download button → Deno `download` handler (fire-and-forget from the page; the
   handler does the work — no need to read the async result back via executeJs).
 
-## No navigation/load event — poll `document.readyState`
+## No navigation/load event — use a SENTINEL, not a bare readyState poll
 
 The `on*` handlers are ONLY input/resize/move/close/menu. **There is NO
 `onload` / `did-navigate` / `dom-ready` / navigation-complete event**, and no
-`addEventListener('load', …)`. To know when a navigated page is ready to inject
-into, **poll**:
+`addEventListener('load', …)`.
+
+**VERIFIED GOTCHA:** right after `navigate(url)`, `document.readyState` is already
+`'complete'` **for the OUTGOING document**, so a bare readyState poll returns
+instantly against the stale page and `executeJs` runs against the old DOM.
+(Observed: navigating to 3 URLs in sequence, each followed by a readyState poll,
+left `executeJs` seeing the first page's DOM all three times.) A single navigate
+with a fixed multi-second delay happens to work, but the robust fix is a
+**sentinel**: mark the current document, navigate, then poll until the marker is
+GONE (⇒ a new document committed) AND it has finished loading:
 
 ```ts
-async function waitReady(win, timeoutMs = 15000) {
+async function navigateAndWait(win, url, timeoutMs = 20000) {
+  await win.executeJs("window.__mbdNavMark = true");   // mark outgoing doc
+  win.navigate(url);
   const start = performance.now();
   while (performance.now() - start < timeoutMs) {
-    const r = await win.executeJs("document.readyState");
-    if (r?.ok && r.value === "complete") return true;
+    const r = await win.executeJs(
+      "typeof window.__mbdNavMark === 'undefined' && document.readyState === 'complete'",
+    );
+    if (r?.ok && r.value === true) return true;         // marker gone + loaded ⇒ new doc ready
     await new Promise((res) => setTimeout(res, 150));
   }
   return false;
@@ -85,6 +97,27 @@ async function waitReady(win, timeoutMs = 15000) {
 
 (For SPA client-side route changes there is likewise no event — re-poll or expose
 a `bindings.mediaChanged()` the injected script calls, and re-inject on demand.)
+
+## Backend CANNOT import `@mbd/core` source — pre-bundle it
+
+**VERIFIED BLOCKER:** `deno check`/`deno test` resolve bare `@mbd/core/*` source
+imports (via the deno.json import map + `sloppy-imports`), but the **`deno desktop`
+compile step does NOT** — it resolves relative import-map entries *relative to the
+importing file* (`../../packages/core/src/` from `src/platform/downloader.ts`
+became `apps/desktop/packages/core/src/…`, wrong base) and does not apply
+sloppy-imports (no `.ts` extension), so the first `@mbd/core` value-import into a
+desktop-compiled module fails with `Module not found`.
+
+Fix (same "embed, don't resolve at runtime" principle as the collector): **pre-bundle
+the backend's `@mbd/core` value-imports** into a self-contained ESM the backend
+imports by RELATIVE path. `apps/desktop/src/core-bundle/build` Vite-bundles
+`export { buildDownloadFilename } from '@mbd/core/collection/download-name'` (Vite
+resolves `@mbd/core` via node_modules + package `exports`) into
+`src/core-bundle/download-name.gen.js` (gitignored, built by `build:collector`);
+`downloader.ts` imports `buildDownloadFilename` from that file.
+**`import type` from `@mbd/core/types` is fine** — type-only imports erase at
+runtime, so they need no runtime resolution. `jsr:` imports (e.g. `@std/path`) are
+fine too — `deno desktop` fetches/embeds remote modules.
 
 ## Locating the collector IIFE — embed, don't relative-read
 
@@ -103,15 +136,23 @@ built IIFE is not beside the running module. Options for Task 7:
 
 Do NOT rely on reading `dist/collector.iife.js` at runtime via a relative path.
 
-## Task-7 wiring implications (summary)
+## Task-7 wiring — VERIFIED working end-to-end
 
-1. Add an ambient `.d.ts` for `Deno.BrowserWindow` (or accept `--no-check` for the
-   run task).
-2. Embed the collector IIFE as a string (text-import or generated module), not a
-   relative file read.
-3. `navigate` → `waitReady()` (poll `document.readyState`) → `executeJs(COLLECTOR_IIFE)`
-   → `executeJs(OVERLAY_JS)`; read results via `.value`.
-4. `win.bind('download', handler)`; the overlay calls `bindings.download(itemJson)`
-   fire-and-forget; the Deno handler runs `downloadOne`.
-5. No load event: also expose a manual "Scan" affordance and/or poll for SPA route
-   changes; do not assume an event will tell you when to re-inject.
+Slice confirmed: navigate to a Commons category → `navigateAndWait` (sentinel) →
+inject collector → **256 media collected** → `downloadOne` wrote a real 1679-byte
+file to `<root>/wikimedia.org/image_1.svg`. The recipe below is what actually works:
+
+1. Add an ambient `src/deno-desktop.d.ts` for `Deno.BrowserWindow` so `deno check`
+   passes; the run/build tasks also pass `--no-check` (the desktop compiler's type
+   env differs).
+2. Embed the collector IIFE as a **generated string module** (`build:collector`
+   emits `collector.generated.ts` exporting `COLLECTOR_IIFE`), not a relative file
+   read — `import.meta.url` points into a temp compile dir at runtime.
+3. Pre-bundle backend `@mbd/core` value-imports into `core-bundle/download-name.gen.js`
+   (imported by relative path); keep `@mbd/core/types` as `import type`.
+4. `navigateAndWait(url)` (sentinel, above) → `executeJs(COLLECTOR_IIFE)` →
+   `executeJs(OVERLAY_JS)`; read every result via `.value`.
+5. `win.bind('download', handler)`; the overlay calls `bindings.download(itemJson)`
+   fire-and-forget; the Deno handler runs `downloadOne` (fetch + `Deno.writeFile`).
+6. No load event: expose a manual affordance and/or re-poll for SPA route changes;
+   never assume an event signals when to re-inject.
