@@ -140,7 +140,7 @@ const handlers: Record<string, (args: string[]) => unknown | Promise<unknown>> =
     } else {
       await addFavourite(store, {
         src: item.src,
-        kind: item.kind ?? 'image',
+        kind: item.kind,
         type: item.type ?? '',
         sourcePageUrl: item.sourcePage?.url ?? currentUrl,
         time: Date.now(),
@@ -204,6 +204,8 @@ async function awaitPageValue<T>(dispatchCode: string, timeoutMs: number): Promi
 }
 
 async function openAndInject(url: string): Promise<void> {
+  win.show();
+  win.focus();
   currentUrl = url;
   const ready = await navigateAndWait(url);
   console.log('[mbd] page ready:', ready, url);
