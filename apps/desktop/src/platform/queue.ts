@@ -14,10 +14,12 @@ interface QueueItem {
 interface Deps {
   store: Store;
   root: string;
-  template: string;
-  namingMode: 'prefixed' | 'original';
-  fileNamePrefix: string;
-  concurrency: number;
+  settings: () => {
+    downloadPath: string;
+    namingMode: 'original' | 'prefixed';
+    fileNamePrefix: string;
+    downloadConcurrency: number;
+  };
   sourcePageUrl?: string;
   downloadImpl?: typeof downloadOne;
   backoffMs?: (attempt: number) => number;
@@ -39,7 +41,7 @@ export function createQueue(deps: Deps): Queue {
   let active = 0, done = 0, failed = 0;
   let idleResolvers: Array<() => void> = [];
 
-  const persist = () => deps.store.durableSet(KEY, pending);
+  const persist = () => deps.store.durableSet(KEY, pending).catch(() => {});
   const settleIdle = () => {
     if (active === 0 && pending.length === 0) {
       idleResolvers.forEach((r) => r());
@@ -50,12 +52,13 @@ export function createQueue(deps: Deps): Queue {
   async function runOne(item: QueueItem): Promise<void> {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
+        const s = deps.settings();
         const { path } = await dl(item, {
           root: deps.root,
-          template: deps.template,
+          template: s.downloadPath,
           index: 0,
-          namingMode: deps.namingMode,
-          fileNamePrefix: deps.fileNamePrefix,
+          namingMode: s.namingMode,
+          fileNamePrefix: s.fileNamePrefix,
           sourcePageUrl: item.sourcePage?.url ?? deps.sourcePageUrl,
         });
         await recordDownloads(deps.store, [{
@@ -80,7 +83,7 @@ export function createQueue(deps: Deps): Queue {
   }
 
   function pump(): void {
-    while (active < deps.concurrency && pending.length) {
+    while (active < deps.settings().downloadConcurrency && pending.length) {
       const item = pending.shift()!;
       void persist();
       active++;

@@ -20,15 +20,11 @@ const root = Deno.env.get('MBD_DOWNLOAD_ROOT') ??
   (await store.durableGet<string>('downloadRoot')) ??
   `${HOME}/Downloads`;
 
-const settings = await loadSettings(store);
-// TODO(phase-b): reconcile with settings2 / rebuild queue on settings change
+let settings2 = await loadSettings(store);
 const queue = createQueue({
   store,
   root,
-  template: settings.downloadPath,
-  namingMode: settings.namingMode,
-  fileNamePrefix: settings.fileNamePrefix,
-  concurrency: settings.downloadConcurrency,
+  settings: () => settings2,
 });
 
 const win = new Deno.BrowserWindow({ title: 'Media Bulk Downloads — Browser', width: 1100, height: 780 });
@@ -48,7 +44,6 @@ let currentUrl = 'https://commons.wikimedia.org/wiki/Category:Vincent_van_Gogh';
 // the primary UI; it owns process lifecycle (see `dash.onclose` below).
 const media = createMediaStore();
 const sse = createSseHub();
-let settings2 = settings;
 const routes = buildRoutes({
   store,
   queue,
@@ -110,7 +105,7 @@ const handlers: Record<string, (args: string[]) => unknown | Promise<unknown>> =
       const items = JSON.parse(args[0]) as CollectedItem[];
       let keep = items;
       let skipped: CollectedItem[] = [];
-      if (settings.skipDuplicateDownloads) {
+      if (settings2.skipDuplicateDownloads) {
         const keys = await downloadedKeysOnDisk(store);
         ({ keep, skipped } = splitByDownloaded(items, keys));
       }
