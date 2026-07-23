@@ -13,10 +13,15 @@ const root = Deno.env.get('MBD_DOWNLOAD_ROOT') ??
 const win = new Deno.BrowserWindow({ title: 'Media Bulk Downloads', width: 1100, height: 780 });
 
 win.bind('download', async (...args: never[]) => {
-  const item = JSON.parse(args[0] as string);
-  const { path } = await downloadOne(item, { root, template: '{domain}', index: 0, sourcePageUrl: currentUrl });
-  console.log('[mbd] downloaded ->', path);
-  return path;
+  try {
+    const item = JSON.parse(args[0] as string);
+    const { path } = await downloadOne(item, { root, template: '{domain}', index: 0, sourcePageUrl: currentUrl });
+    console.log('[mbd] downloaded ->', path);
+    return path;
+  } catch (e) {
+    console.log('[mbd] download err:', (e as Error).message);
+    throw e;
+  }
 });
 
 win.bind('navigateTo', (...args: never[]) => {
@@ -51,25 +56,23 @@ async function openAndInject(url: string): Promise<void> {
   await win.executeJs(COLLECTOR_IIFE);
   await win.executeJs(OVERLAY_JS);
 
-  // Self-verification of the vertical slice: read the collected set and download
-  // the first item straight through, proving browse -> collect -> disk without a
-  // manual click. (The overlay's button exercises the same `download` binding.)
-  const res = await win.executeJs<string>(
-    "JSON.stringify((globalThis.__mbdCollect ? globalThis.__mbdCollect({ excludeHostId: 'mbd-overlay' }) : []))",
+  const count = await win.executeJs<number>(
+    "(globalThis.__mbdCollect ? globalThis.__mbdCollect({ excludeHostId: 'mbd-overlay' }).length : 0)",
   );
-  if (!res?.ok) {
-    console.log('[mbd] collect failed:', res?.value);
-    return;
-  }
-  const items = JSON.parse(res.value) as Array<{ src: string }>;
-  console.log('[mbd] collected count:', items.length);
-  if (items[0]) {
-    try {
-      const { path } = await downloadOne(items[0], { root, template: '{domain}', index: 0, sourcePageUrl: url });
-      console.log('[mbd] auto-download ->', path);
-    } catch (e) {
-      console.log('[mbd] auto-download err:', (e as Error).message);
-    }
+  console.log('[mbd] collected count:', count?.value);
+
+  // Optional smoke test (off by default): exercise the SHIPPED download path the
+  // overlay button uses — the page calls the `download` binding, which the async
+  // Deno handler fulfils. Gated behind MBD_AUTO_VERIFY so a normal browse never
+  // writes a file unprompted.
+  if (Deno.env.get('MBD_AUTO_VERIFY')) {
+    // Await the binding inside the page (executeJs can't return the Promise, but
+    // awaiting it dispatches the call and runs the async Deno handler). This is
+    // the same `bindings.download` path the overlay button triggers.
+    await win.executeJs(
+      "(async () => { const xs = globalThis.__mbdCollect({ excludeHostId: 'mbd-overlay' }); if (xs[0]) await globalThis.bindings.download(JSON.stringify(xs[0])); })()",
+    );
+    await new Promise((res) => setTimeout(res, 2500));
   }
 }
 
