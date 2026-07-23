@@ -22,6 +22,8 @@ export interface DownloadOpts {
   sourcePageUrl?: string;
   headers?: Record<string, string>;
   fetchImpl?: typeof fetch;
+  namingMode?: 'prefixed' | 'original';
+  fileNamePrefix?: string;
 }
 
 export async function downloadOne(
@@ -30,8 +32,8 @@ export async function downloadOne(
 ): Promise<{ path: string }> {
   const settings = {
     downloadPath: opts.template,
-    fileNamePrefix: 'image_',
-    namingMode: 'prefixed',
+    fileNamePrefix: opts.fileNamePrefix ?? 'image_',
+    namingMode: opts.namingMode ?? 'prefixed',
   } as unknown as SettingsData;
 
   const rel = buildDownloadFilename(item as unknown as ImageInfo, opts.index, settings, opts.sourcePageUrl);
