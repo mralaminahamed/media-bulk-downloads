@@ -54,15 +54,39 @@ Construct: `new Deno.BrowserWindow({ title, width, height })`.
     `{ ok: false, value: "JavaScript execution returned a result of an unsupported type" }`.
     Use **synchronous** expressions, or fire-and-forget side effects.
 
-## RPC bindings (page → Deno) — WORKS
+## RPC bindings (page → Deno) — PARTIAL, do NOT rely on
 
-- Deno side: `win.bind('name', (arg) => { … })` (handler may be sync; JSON-encoded
-  args/return; `Uint8Array` supported). `win.unbind('name')` to remove.
-- Page side: `bindings.name(...args)` → Promise.
-- **Verified:** injected page JS `bindings.ping('from-page')` invoked the Deno
-  handler, which received `'from-page'`. This is the mechanism for the overlay's
-  Download button → Deno `download` handler (fire-and-forget from the page; the
-  handler does the work — no need to read the async result back via executeJs).
+- Deno side: `win.bind('name', (arg) => { … })`; page side `bindings.name(...args)`
+  → Promise. `win.unbind('name')` to remove.
+- **Only a SYNC, fire-and-forget bind works.** Verified: `bindings.ping('from-page')`
+  (sync handler) invoked the Deno handler.
+- **An ASYNC handler's page-side promise never resolves** — `await bindings.getHistory()`
+  (and every other awaited call) hangs forever. Confirmed on the P1 Download button
+  and the P2 overlay (downloadAll/queueStatus/toggleFavourite/getHistory all failed).
+- **Therefore the app does NOT use `win.bind`.** The page → Deno channel is a command
+  queue over `executeJs` (the one reliable primitive): the page pushes
+  `{ id, cmd, args }` onto `window.__mbdCmd`; a Deno pump loop drains it every ~150ms
+  via `executeJs`, runs the handler, writes the result to `window.__mbdRes[id]`, and
+  publishes queue status to `window.__mbdStatus`. `send()` is fire-and-forget; `call()`
+  polls `__mbdRes[id]` for the response. See `main.ts` (`drainOnce`/`pumpLoop`) and
+  `overlay.ts`. Run once with `MBD_SELFTEST=1` to self-verify the round-trip.
+
+## `executeJs` runs on the UI thread — do NOT poll it hard
+
+`executeJs` executes on the webview's UI/main thread. A tight poll loop (the
+first cut did 2 calls every 150ms, forever) **starves the native window
+controls** — minimize/maximize/close stop responding. Keep the pump to ONE
+combined `executeJs` per tick (drain commands + publish `window.__mbdStatus`
+in a single eval) and back off when idle (200ms while interacting / a download
+is in flight, 700ms idle). Verify against a bare window with no pump: its
+traffic-light buttons work, so any control lag is your loop.
+
+## Closing the window must exit the process
+
+An infinite pump loop keeps Deno's event loop alive, so the process never exits
+on its own: the native **close** button tears down the window but the app
+lingers and the window appears not to close (minimize/maximize are pure
+window-server ops and are unaffected). Wire `win.onclose = () => Deno.exit(0)`.
 
 ## No navigation/load event — use a SENTINEL, not a bare readyState poll
 
@@ -152,7 +176,9 @@ file to `<root>/wikimedia.org/image_1.svg`. The recipe below is what actually wo
    (imported by relative path); keep `@mbd/core/types` as `import type`.
 4. `navigateAndWait(url)` (sentinel, above) → `executeJs(COLLECTOR_IIFE)` →
    `executeJs(OVERLAY_JS)`; read every result via `.value`.
-5. `win.bind('download', handler)`; the overlay calls `bindings.download(itemJson)`
-   fire-and-forget; the Deno handler runs `downloadOne` (fetch + `Deno.writeFile`).
+5. Command queue over `executeJs` (NOT `win.bind`, which hangs on async handlers):
+   the overlay pushes `{id,cmd,args}` to `window.__mbdCmd`; the Deno `pumpLoop`
+   drains it, runs the handler (e.g. `download` → `downloadOne`), and writes the
+   result to `window.__mbdRes[id]`.
 6. No load event: expose a manual affordance and/or re-poll for SPA route changes;
    never assume an event signals when to re-inject.

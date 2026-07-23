@@ -1,12 +1,14 @@
 {
   "name": "@mbd/desktop",
+  "version": "0.1.0",
   "exports": "./src/main.ts",
   "tasks": {
     "check": "deno task build:collector && deno check src/main.ts",
     "test": "deno task build:collector && deno test -A",
     "build:collector": "deno run -A src/collector/build-collector.ts",
+    "build:icons": "bash scripts/gen-icons.sh",
     "dev": "deno task build:collector && deno desktop --hmr --no-check src/main.ts",
-    "build": "deno task build:collector && deno desktop --no-check --output 'Media Bulk Downloads.app' src/main.ts"
+    "build": "deno task build:collector && deno desktop --no-check --allow-env=HOME,MBD_DOWNLOAD_ROOT,MBD_SELFTEST --allow-read --allow-write --allow-net --unstable-kv --icon assets/icon.icns --output 'Media Bulk Downloads.app' src/main.ts && bash scripts/set-app-metadata.sh 'Media Bulk Downloads.app'"
   },
   "imports": {
     "@mbd/core/": "../../packages/core/src/",
