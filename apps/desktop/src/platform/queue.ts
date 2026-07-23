@@ -1,3 +1,4 @@
+import { basename } from 'jsr:@std/path';
 import type { Store } from '../storage/kv.ts';
 import { recordDownloads } from '../storage/history.ts';
 import { downloadOne } from './downloader.ts';
@@ -49,7 +50,7 @@ export function createQueue(deps: Deps): Queue {
   async function runOne(item: QueueItem): Promise<void> {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const { path } = await dl(item as never, {
+        const { path } = await dl(item, {
           root: deps.root,
           template: deps.template,
           index: 0,
@@ -59,7 +60,7 @@ export function createQueue(deps: Deps): Queue {
         });
         await recordDownloads(deps.store, [{
           src: item.src,
-          filename: path.split('/').pop() ?? item.src,
+          filename: basename(path) || item.src,
           kind: item.kind ?? 'image',
           type: item.type ?? '',
           sourcePageUrl: item.sourcePage?.url ?? deps.sourcePageUrl ?? '',
