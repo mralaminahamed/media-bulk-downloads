@@ -14,7 +14,7 @@ export function MediaPane({ settings, patch }: MediaPaneProps) {
       <NumberField
         label="Minimum image size"
         value={settings.minimumImageSize}
-        onChange={(v) => patch({ minimumImageSize: v })}
+        onChange={(v) => patch({ minimumImageSize: v }, true)}
         min={0}
         hint="Hide images smaller than this, in pixels (0 = no minimum)"
       />

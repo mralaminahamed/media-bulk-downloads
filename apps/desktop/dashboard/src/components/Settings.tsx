@@ -20,19 +20,29 @@ export function Settings() {
   const [settings, setSettings] = useState<DesktopSettings | null>(null);
   const [pane, setPane] = useState<Pane>('downloads');
   const [error, setError] = useState<string | null>(null);
+  const settingsRef = useRef<DesktopSettings | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
+  const loadSettings = useCallback(() => {
+    setError(null);
     api.get('/api/settings').then((r) => setSettings(r as DesktopSettings)).catch(() =>
       setError('Failed to load settings')
     );
   }, []);
 
   useEffect(() => {
-    if (!error) return;
+    loadSettings();
+  }, [loadSettings]);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  useEffect(() => {
+    if (!error || !settings) return;
     const t = setTimeout(() => setError(null), 4000);
     return () => clearTimeout(t);
-  }, [error]);
+  }, [error, settings]);
 
   useEffect(() => {
     return () => {
@@ -47,23 +57,32 @@ export function Settings() {
   }
 
   const patch = useCallback((partial: Partial<DesktopSettings>, debounce = false) => {
-    setSettings((prev) => {
-      if (!prev) return prev;
-      const next = { ...prev, ...partial };
-      if (debounceRef.current != null) {
-        clearTimeout(debounceRef.current);
-        debounceRef.current = null;
-      }
-      if (debounce) {
-        debounceRef.current = setTimeout(() => putNow(next), DEBOUNCE_MS);
-      } else {
-        putNow(next);
-      }
-      return next;
-    });
+    const current = settingsRef.current;
+    if (!current) return;
+    const next = { ...current, ...partial };
+    settingsRef.current = next;
+    setSettings(next);
+
+    if (debounceRef.current != null) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    if (debounce) {
+      debounceRef.current = setTimeout(() => putNow(next), DEBOUNCE_MS);
+    } else {
+      putNow(next);
+    }
   }, []);
 
   if (!settings) {
+    if (error) {
+      return (
+        <div style={{ padding: 16 }}>
+          <p style={{ color: '#dc2626', fontSize: 12, marginTop: 0 }}>{error}</p>
+          <button type="button" className="primary" onClick={loadSettings}>Retry</button>
+        </div>
+      );
+    }
     return <p style={{ padding: 16, color: 'var(--muted)' }}>Loading settings…</p>;
   }
 

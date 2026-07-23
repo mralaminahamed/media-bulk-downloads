@@ -43,7 +43,7 @@ export function DownloadsPane({ settings, patch }: DownloadsPaneProps) {
       <NumberField
         label="Download concurrency"
         value={settings.downloadConcurrency}
-        onChange={(v) => patch({ downloadConcurrency: v })}
+        onChange={(v) => patch({ downloadConcurrency: v }, true)}
         min={1}
         max={10}
         hint="How many downloads run at once (1–10)"
