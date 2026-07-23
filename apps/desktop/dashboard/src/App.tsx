@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ImageInfo } from '@mbd/core/types';
 import { api, type CollectedItem, subscribe } from './lib/rpc.ts';
+import { applyToolbarFilters, DEFAULT_FILTERS, deriveFilterOptions } from './lib/filters.ts';
 import { Grid } from './components/Grid.tsx';
 import { Preview } from './components/Preview.tsx';
 import { QueuePanel } from './components/QueuePanel.tsx';
 import { HistoryPanel } from './components/HistoryPanel.tsx';
 import { FavouritesPanel } from './components/FavouritesPanel.tsx';
+import { FilterToolbar } from './components/FilterToolbar.tsx';
 
 type Tab = 'library' | 'history' | 'favourites';
 const TABS: { id: Tab; label: string }[] = [
@@ -26,6 +29,13 @@ export function App() {
   const [previewItem, setPreviewItem] = useState<CollectedItem | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+
+  const available = useMemo(() => deriveFilterOptions(items as unknown as ImageInfo[]), [items]);
+  const visible = useMemo(
+    () => applyToolbarFilters(items as unknown as ImageInfo[], filters) as unknown as CollectedItem[],
+    [items, filters],
+  );
 
   useEffect(() => {
     api.get('/api/media').then((r) => {
@@ -148,7 +158,9 @@ export function App() {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ color: 'var(--muted)', fontSize: 12 }}>
-                {items.length} item{items.length === 1 ? '' : 's'} · {selected.size} selected
+                {visible.length === items.length
+                  ? `${items.length} item${items.length === 1 ? '' : 's'}`
+                  : `${visible.length} of ${items.length} items`} · {selected.size} selected
               </span>
               <QueuePanel />
             </div>
@@ -168,13 +180,28 @@ export function App() {
             </div>
           </div>
 
+          {items.length > 0 && (
+            <FilterToolbar
+              filters={filters}
+              available={available}
+              onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
+            />
+          )}
+
           {items.length === 0
             ? (
               <p style={{ padding: 16, color: 'var(--muted)' }}>
                 Browse a page in the browser window to start collecting media — items will appear here live.
               </p>
             )
-            : <Grid items={items} selected={selected} onToggle={toggle} onPreview={setPreviewItem} />}
+            : visible.length === 0
+            ? (
+              <div style={{ padding: 16, color: 'var(--muted)' }}>
+                <p>No items match the current filters.</p>
+                <button type="button" onClick={() => setFilters(DEFAULT_FILTERS)}>Clear filters</button>
+              </div>
+            )
+            : <Grid items={visible} selected={selected} onToggle={toggle} onPreview={setPreviewItem} />}
 
           <Preview item={previewItem} onClose={closePreview} />
         </>
