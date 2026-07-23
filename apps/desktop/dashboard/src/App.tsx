@@ -64,12 +64,15 @@ export function App() {
     api.post('/api/show-browser').catch(() => setNotice('Could not show the browser window'));
   }
 
-  const selectAll = () => setSelected(new Set(items.map((it) => it.src)));
+  const selectAll = () => setSelected(new Set(visible.map((it) => it.src)));
   const selectNone = () => setSelected(new Set());
   const invertSelection = () =>
     setSelected((prev) => {
-      const next = new Set<string>();
-      for (const it of items) if (!prev.has(it.src)) next.add(it.src);
+      const next = new Set(prev);
+      for (const it of visible) {
+        if (next.has(it.src)) next.delete(it.src);
+        else next.add(it.src);
+      }
       return next;
     });
 

@@ -45,6 +45,7 @@ export function FilterToolbar({ filters, available, onChange }: FilterToolbarPro
   const formatFamily: 'image' | 'video' | 'audio' = filters.mediaKind === 'all' ? 'image' : filters.mediaKind;
   const formatOptions = available.formats[formatFamily];
   const showFormat = formatOptions.length > 1;
+  const showSize = filters.mediaKind === 'all' || filters.mediaKind === 'image';
 
   const isDefault = JSON.stringify(filters) === JSON.stringify(DEFAULT_FILTERS);
 
@@ -97,17 +98,19 @@ export function FilterToolbar({ filters, available, onChange }: FilterToolbarPro
         </select>
       )}
 
-      <select
-        aria-label="Size"
-        title="Size"
-        value={filters.sizeBucket}
-        onChange={(e) => onChange({ sizeBucket: e.target.value as FilterOptions['sizeBucket'] })}
-        style={fieldStyle}
-      >
-        {available.sizeBuckets.map((b) => (
-          <option key={b} value={b}>{SIZE_LABELS[b]}</option>
-        ))}
-      </select>
+      {showSize && (
+        <select
+          aria-label="Size"
+          title="Size"
+          value={filters.sizeBucket}
+          onChange={(e) => onChange({ sizeBucket: e.target.value as FilterOptions['sizeBucket'] })}
+          style={fieldStyle}
+        >
+          {available.sizeBuckets.map((b) => (
+            <option key={b} value={b}>{SIZE_LABELS[b]}</option>
+          ))}
+        </select>
+      )}
 
       <label
         htmlFor="filter-min-size"
