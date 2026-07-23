@@ -13,6 +13,8 @@ export interface DownloadItem {
 export interface DownloadOpts {
   root: string;
   template: string;
+  /** 0-based (0 = first item); core appends `index + 1` to the filename, so
+   *  index 0 names the file `image_1.<ext>`. */
   index: number;
   sourcePageUrl?: string;
   headers?: Record<string, string>;
