@@ -9,6 +9,13 @@ export interface CollectedItem {
   poster?: string;
   width?: number;
   height?: number;
+  fileSize?: number;
+  alt?: string;
+  isBase64?: boolean;
+  nearDuplicate?: boolean;
+  unresolvedVideo?: boolean;
+  unresolvedImage?: boolean;
+  mediaKey?: string;
   sourcePage?: { url?: string; title?: string };
 }
 

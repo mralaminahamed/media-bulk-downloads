@@ -1,19 +1,23 @@
 import { useState } from 'react';
 import type { CollectedItem } from '../lib/rpc.ts';
 
+const DEFAULT_TILE_SIZE = 150;
+
 export interface GridProps {
   items: CollectedItem[];
   selected: Set<string>;
   onToggle: (src: string) => void;
   onPreview?: (item: CollectedItem) => void;
+  tileSize?: number;
 }
 
-export function Grid({ items, selected, onToggle, onPreview }: GridProps) {
+export function Grid({ items, selected, onToggle, onPreview, tileSize }: GridProps) {
+  const size = tileSize ?? DEFAULT_TILE_SIZE;
   return (
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+        gridTemplateColumns: `repeat(auto-fill, minmax(${size}px, 1fr))`,
         gap: 10,
         padding: 16,
       }}

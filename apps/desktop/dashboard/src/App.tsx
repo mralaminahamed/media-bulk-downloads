@@ -1,16 +1,22 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ImageInfo } from '@mbd/core/types';
 import { api, type CollectedItem, subscribe } from './lib/rpc.ts';
+import { applyToolbarFilters, DEFAULT_FILTERS, deriveFilterOptions } from './lib/filters.ts';
+import type { DesktopSettings } from './lib/settings.ts';
 import { Grid } from './components/Grid.tsx';
 import { Preview } from './components/Preview.tsx';
 import { QueuePanel } from './components/QueuePanel.tsx';
 import { HistoryPanel } from './components/HistoryPanel.tsx';
 import { FavouritesPanel } from './components/FavouritesPanel.tsx';
+import { FilterToolbar } from './components/FilterToolbar.tsx';
+import { Settings } from './components/Settings.tsx';
 
-type Tab = 'library' | 'history' | 'favourites';
+type Tab = 'library' | 'history' | 'favourites' | 'settings';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'library', label: 'Library' },
   { id: 'history', label: 'History' },
   { id: 'favourites', label: 'Favourites' },
+  { id: 'settings', label: 'Settings' },
 ];
 
 function dedupeBySrc(items: CollectedItem[]): CollectedItem[] {
@@ -26,6 +32,14 @@ export function App() {
   const [previewItem, setPreviewItem] = useState<CollectedItem | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [appSettings, setAppSettings] = useState<DesktopSettings | null>(null);
+
+  const available = useMemo(() => deriveFilterOptions(items as unknown as ImageInfo[]), [items]);
+  const visible = useMemo(
+    () => applyToolbarFilters(items as unknown as ImageInfo[], filters) as unknown as CollectedItem[],
+    [items, filters],
+  );
 
   useEffect(() => {
     api.get('/api/media').then((r) => {
@@ -37,6 +51,10 @@ export function App() {
         setItems((prev) => dedupeBySrc([...prev, ...added]));
       },
     });
+  }, []);
+
+  useEffect(() => {
+    api.get('/api/settings').then((r) => setAppSettings(r as DesktopSettings)).catch(() => {});
   }, []);
 
   function toggle(src: string) {
@@ -54,12 +72,15 @@ export function App() {
     api.post('/api/show-browser').catch(() => setNotice('Could not show the browser window'));
   }
 
-  const selectAll = () => setSelected(new Set(items.map((it) => it.src)));
+  const selectAll = () => setSelected(new Set(visible.map((it) => it.src)));
   const selectNone = () => setSelected(new Set());
   const invertSelection = () =>
     setSelected((prev) => {
-      const next = new Set<string>();
-      for (const it of items) if (!prev.has(it.src)) next.add(it.src);
+      const next = new Set(prev);
+      for (const it of visible) {
+        if (next.has(it.src)) next.delete(it.src);
+        else next.add(it.src);
+      }
       return next;
     });
 
@@ -148,7 +169,9 @@ export function App() {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ color: 'var(--muted)', fontSize: 12 }}>
-                {items.length} item{items.length === 1 ? '' : 's'} · {selected.size} selected
+                {visible.length === items.length
+                  ? `${items.length} item${items.length === 1 ? '' : 's'}`
+                  : `${visible.length} of ${items.length} items`} · {selected.size} selected
               </span>
               <QueuePanel />
             </div>
@@ -168,20 +191,44 @@ export function App() {
             </div>
           </div>
 
+          {items.length > 0 && (
+            <FilterToolbar
+              filters={filters}
+              available={available}
+              onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
+            />
+          )}
+
           {items.length === 0
             ? (
               <p style={{ padding: 16, color: 'var(--muted)' }}>
                 Browse a page in the browser window to start collecting media — items will appear here live.
               </p>
             )
-            : <Grid items={items} selected={selected} onToggle={toggle} onPreview={setPreviewItem} />}
+            : visible.length === 0
+            ? (
+              <div style={{ padding: 16, color: 'var(--muted)' }}>
+                <p>No items match the current filters.</p>
+                <button type="button" onClick={() => setFilters(DEFAULT_FILTERS)}>Clear filters</button>
+              </div>
+            )
+            : (
+              <Grid
+                items={visible}
+                selected={selected}
+                onToggle={toggle}
+                onPreview={setPreviewItem}
+                tileSize={appSettings?.thumbnailSize}
+              />
+            )}
 
-          <Preview item={previewItem} onClose={closePreview} />
+          <Preview item={previewItem} onClose={closePreview} maxSize={appSettings?.previewSize} />
         </>
       )}
 
       {tab === 'history' && <HistoryPanel />}
       {tab === 'favourites' && <FavouritesPanel />}
+      {tab === 'settings' && <Settings onSettingsChange={setAppSettings} />}
     </div>
   );
 }

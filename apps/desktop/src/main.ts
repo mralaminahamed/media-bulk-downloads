@@ -4,12 +4,13 @@ import { openStore } from './storage/kv.ts';
 import { COLLECTOR_IIFE } from './generated/collector-iife.ts';
 import { OVERLAY_JS } from './overlay/overlay.ts';
 import { createQueue } from './platform/queue.ts';
-import { loadSettings, saveSettings } from './storage/settings.ts';
-import { clearHistory, loadHistory, removeHistoryEntry } from './storage/history.ts';
+import { loadSettings, pickKnownSettings, saveSettings } from './storage/settings.ts';
+import { clearHistory, loadHistory, recordDownloads, removeHistoryEntry, type StoredHistoryEntry } from './storage/history.ts';
 import { addFavourite, favouriteKeys, loadFavourites, removeFavourite } from './storage/favourites.ts';
+import type { FavouriteEntry } from '@mbd/core/types';
 import { downloadedKeysOnDisk, splitByDownloaded } from './platform/dedup.ts';
 import { startServer } from './server/server.ts';
-import { buildRoutes } from './server/routes.ts';
+import { buildRoutes, type ImportPayload } from './server/routes.ts';
 import { createMediaStore, type CollectedItem } from './server/media-store.ts';
 import { createSseHub } from './server/sse.ts';
 import { DASHBOARD_ASSETS } from './generated/dashboard-assets.ts';
@@ -20,15 +21,11 @@ const root = Deno.env.get('MBD_DOWNLOAD_ROOT') ??
   (await store.durableGet<string>('downloadRoot')) ??
   `${HOME}/Downloads`;
 
-const settings = await loadSettings(store);
-// TODO(phase-b): reconcile with settings2 / rebuild queue on settings change
+let settings2 = await loadSettings(store);
 const queue = createQueue({
   store,
   root,
-  template: settings.downloadPath,
-  namingMode: settings.namingMode,
-  fileNamePrefix: settings.fileNamePrefix,
-  concurrency: settings.downloadConcurrency,
+  settings: () => settings2,
 });
 
 const win = new Deno.BrowserWindow({ title: 'Media Bulk Downloads — Browser', width: 1100, height: 780 });
@@ -46,9 +43,36 @@ let currentUrl = 'https://commons.wikimedia.org/wiki/Category:Vincent_van_Gogh';
 // Dashboard backend: media store (collected items across pages) + SSE hub +
 // REST routes, served by the local-only HTTP server. The dashboard window is
 // the primary UI; it owns process lifecycle (see `dash.onclose` below).
+async function exportData() {
+  return {
+    version: 1,
+    settings: settings2,
+    history: await loadHistory(store),
+    favourites: await loadFavourites(store),
+  };
+}
+
+async function importData(backup: ImportPayload): Promise<{ history: number; favourites: number }> {
+  if (backup.history?.length) {
+    await recordDownloads(store, backup.history as StoredHistoryEntry[]);
+  }
+  if (backup.favourites?.length) {
+    for (const entry of backup.favourites as FavouriteEntry[]) {
+      await addFavourite(store, entry);
+    }
+  }
+  if (backup.settings) {
+    settings2 = pickKnownSettings(settings2, backup.settings);
+    await saveSettings(store, settings2);
+  }
+  return {
+    history: (await loadHistory(store)).length,
+    favourites: (await loadFavourites(store)).length,
+  };
+}
+
 const media = createMediaStore();
 const sse = createSseHub();
-let settings2 = settings;
 const routes = buildRoutes({
   store,
   queue,
@@ -66,6 +90,8 @@ const routes = buildRoutes({
     win.show();
     win.focus();
   },
+  exportData,
+  importData,
 });
 const srv = await startServer({ assets: DASHBOARD_ASSETS, api: routes, sse: (req) => sse.handler(req) });
 
@@ -88,7 +114,9 @@ const handlers: Record<string, (args: string[]) => unknown | Promise<unknown>> =
       const item = JSON.parse(args[0]) as CollectedItem;
       const { path } = await downloadOne(item, {
         root,
-        template: '{domain}',
+        template: settings2.downloadPath,
+        namingMode: settings2.namingMode,
+        fileNamePrefix: settings2.fileNamePrefix,
         index: 0,
         sourcePageUrl: currentUrl,
       });
@@ -110,7 +138,7 @@ const handlers: Record<string, (args: string[]) => unknown | Promise<unknown>> =
       const items = JSON.parse(args[0]) as CollectedItem[];
       let keep = items;
       let skipped: CollectedItem[] = [];
-      if (settings.skipDuplicateDownloads) {
+      if (settings2.skipDuplicateDownloads) {
         const keys = await downloadedKeysOnDisk(store);
         ({ keep, skipped } = splitByDownloaded(items, keys));
       }

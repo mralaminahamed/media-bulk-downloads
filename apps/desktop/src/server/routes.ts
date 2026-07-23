@@ -9,6 +9,19 @@ import { downloadedKeysOnDisk, splitByDownloaded } from '../platform/dedup.ts';
 import type { Queue } from '../platform/queue.ts';
 import type { FavouriteEntry } from '@mbd/core/types';
 
+export interface Backup {
+  version: number;
+  settings: DesktopSettings;
+  history: unknown[];
+  favourites: unknown[];
+}
+
+export interface ImportPayload {
+  settings?: Partial<DesktopSettings>;
+  history?: unknown[];
+  favourites?: unknown[];
+}
+
 export interface RouteDeps {
   store: Store;
   queue: Queue;
@@ -18,6 +31,8 @@ export interface RouteDeps {
   setSettings: (s: DesktopSettings) => Promise<void>;
   navigate: (url: string) => void;
   showBrowser?: () => void;
+  exportData: () => Promise<Backup>;
+  importData: (backup: ImportPayload) => Promise<{ history: number; favourites: number }>;
 }
 
 function lastSegment(url: URL): string {
@@ -79,6 +94,14 @@ export function buildRoutes(deps: RouteDeps): Record<string, ApiHandler> {
     'DELETE /api/favourites/:key': async (_req, url) => {
       await removeFavourite(deps.store, lastSegment(url));
       return Response.json({ ok: true });
+    },
+
+    'GET /api/export': async () => Response.json(await deps.exportData()),
+
+    'POST /api/import': async (req) => {
+      const body = (await req.json()) as ImportPayload;
+      const { history, favourites } = await deps.importData(body);
+      return Response.json({ ok: true, history, favourites });
     },
 
     'POST /api/navigate': async (req) => {
