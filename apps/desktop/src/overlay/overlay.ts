@@ -1,9 +1,8 @@
 // Injected into the browsed page via executeJs (runs synchronously — no async
 // return, per docs/runtime-recipe.md). Reads __mbdCollect(), renders a Shadow-DOM
-// overlay, and wires the download/downloadAll/toggleFavourite/history bindings
-// (all fire-and-forget from real DOM click handlers — the page keeps pumping,
-// so calling `bindings.x(...)` without awaiting it still dispatches; only a
-// binding call made *from inside an executeJs snippet* needs to be awaited).
+// overlay, and wires download/downloadAll/toggleFavourite/history to the Deno
+// side through the window.__mbdCmd command queue (drained by the pump loop in
+// main.ts): send() is fire-and-forget, call() awaits window.__mbdRes[id].
 export const OVERLAY_JS = String.raw`
 (() => {
   const HOST_ID = 'mbd-overlay';
@@ -14,6 +13,27 @@ export const OVERLAY_JS = String.raw`
   host.style.cssText = 'position:fixed;top:10px;right:10px;z-index:2147483647';
   const root = host.attachShadow({ mode: 'open' });
   document.documentElement.appendChild(host);
+
+  // Page -> Deno transport. The Deno pump loop (main.ts) drains window.__mbdCmd,
+  // runs the handler, and writes the result to window.__mbdRes[id]. send() is
+  // fire-and-forget; call() awaits the response. Everything rides on this rather
+  // than win.bind, whose bridge never resolves async-handler promises.
+  window.__mbdCmd = window.__mbdCmd || [];
+  window.__mbdRes = window.__mbdRes || {};
+  let __mbdId = 0;
+  const send = (cmd, args) => { window.__mbdCmd.push({ cmd: cmd, args: args }); };
+  const call = (cmd, args) => new Promise((resolve) => {
+    const id = 'c' + Date.now() + '-' + (++__mbdId);
+    window.__mbdCmd.push({ id: id, cmd: cmd, args: args });
+    const t = setInterval(() => {
+      if (window.__mbdRes && Object.prototype.hasOwnProperty.call(window.__mbdRes, id)) {
+        clearInterval(t);
+        const v = window.__mbdRes[id];
+        delete window.__mbdRes[id];
+        resolve(v);
+      }
+    }, 100);
+  });
 
   const items = (globalThis.__mbdCollect ? globalThis.__mbdCollect({ excludeHostId: HOST_ID }) : []);
   const first = items[0];
@@ -57,7 +77,7 @@ export const OVERLAY_JS = String.raw`
   const go = root.getElementById('go');
   const navigate = () => {
     const url = addr && addr.value && addr.value.trim();
-    if (url) globalThis.bindings.navigateTo(url);
+    if (url) send('navigateTo', [url]);
   };
   if (go) go.addEventListener('click', navigate);
   if (addr) addr.addEventListener('keydown', (e) => { if (e.key === 'Enter') navigate(); });
@@ -66,7 +86,7 @@ export const OVERLAY_JS = String.raw`
   if (btn && first) {
     btn.addEventListener('click', () => {
       // fire-and-forget: the Deno-side download handler does the work.
-      globalThis.bindings.download(JSON.stringify(first));
+      send('download', [JSON.stringify(first)]);
       btn.textContent = 'Downloading…';
     });
   }
@@ -74,7 +94,7 @@ export const OVERLAY_JS = String.raw`
   const star = root.getElementById('star');
   if (star && first) {
     star.addEventListener('click', async () => {
-      const favourited = await globalThis.bindings.toggleFavourite(JSON.stringify(first));
+      const favourited = await call('toggleFavourite', [JSON.stringify(first)]);
       star.textContent = favourited ? '★' : '☆';
     });
   }
@@ -83,15 +103,15 @@ export const OVERLAY_JS = String.raw`
   if (dlAll && items.length) {
     dlAll.addEventListener('click', () => {
       // fire-and-forget: the Deno-side downloadAll handler enqueues + dedups.
-      globalThis.bindings.downloadAll(JSON.stringify(items));
+      send('downloadAll', [JSON.stringify(items)]);
       dlAll.textContent = 'Queued…';
     });
   }
 
   const qstatus = root.getElementById('qstatus');
   if (qstatus) {
-    setInterval(async () => {
-      const s = await globalThis.bindings.queueStatus();
+    setInterval(() => {
+      const s = window.__mbdStatus;
       if (s) {
         qstatus.textContent =
           'pending ' + s.pending + ' · active ' + s.active + ' · done ' + s.done + ' · failed ' + s.failed;
@@ -115,7 +135,7 @@ export const OVERLAY_JS = String.raw`
       rm.title = 'Remove from history';
       rm.style.cssText = 'cursor:pointer;border:none;background:none;color:#b91c1c;font-size:13px;padding:0 0 0 6px';
       rm.addEventListener('click', () => {
-        globalThis.bindings.removeHistory(e.src);
+        send('removeHistory', [e.src]);
         row.remove();
       });
       row.appendChild(label);
@@ -130,7 +150,7 @@ export const OVERLAY_JS = String.raw`
         histPanel.style.display = 'none';
         return;
       }
-      const h = await globalThis.bindings.getHistory();
+      const h = await call('getHistory', []);
       renderHistory(h || []);
       histPanel.style.display = 'block';
     });
