@@ -61,8 +61,10 @@ export function DataPane() {
       const a = document.createElement('a');
       a.href = url;
       a.download = 'mbd-backup.json';
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
       setNotice('Exported backup');
     } catch {
       setError('Failed to export backup — try again');
@@ -77,7 +79,7 @@ export function DataPane() {
       const text = await file.text();
       const parsed = JSON.parse(text);
       const r = (await api.post('/api/import', parsed)) as ImportResult;
-      setNotice(`Imported: ${r.history} history, ${r.favourites} favourites`);
+      setNotice(`Imported: ${r.history} history, ${r.favourites} favourites, settings restored`);
     } catch {
       setError('Failed to import backup — check the file and try again');
     } finally {
@@ -131,7 +133,7 @@ export function DataPane() {
             style={{ fontSize: 12, maxWidth: 200 }}
           />
         </div>
-        <span style={hintStyle}>Merge a previously exported backup file into history and favourites</span>
+        <span style={hintStyle}>Merges history & favourites and restores settings from the backup file</span>
       </div>
 
       <div style={rowStyle}>
