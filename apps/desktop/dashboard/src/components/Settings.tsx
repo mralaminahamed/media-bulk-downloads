@@ -3,6 +3,12 @@ import { api } from '../lib/rpc.ts';
 import type { DesktopSettings } from '../lib/settings.ts';
 import { DownloadsPane } from './settings/DownloadsPane.tsx';
 import { MediaPane } from './settings/MediaPane.tsx';
+import { DisplayPane } from './settings/DisplayPane.tsx';
+import { AdvancedPane } from './settings/AdvancedPane.tsx';
+
+export interface SettingsProps {
+  onSettingsChange?: (settings: DesktopSettings) => void;
+}
 
 type Pane = 'downloads' | 'media' | 'display' | 'data' | 'advanced';
 
@@ -16,7 +22,7 @@ const PANES: { id: Pane; label: string }[] = [
 
 const DEBOUNCE_MS = 400;
 
-export function Settings() {
+export function Settings({ onSettingsChange }: SettingsProps = {}) {
   const [settings, setSettings] = useState<DesktopSettings | null>(null);
   const [pane, setPane] = useState<Pane>('downloads');
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +58,11 @@ export function Settings() {
 
   function putNow(next: DesktopSettings) {
     api.put('/api/settings', next)
-      .then((r) => setSettings(r as DesktopSettings))
+      .then((r) => {
+        const saved = r as DesktopSettings;
+        setSettings(saved);
+        onSettingsChange?.(saved);
+      })
       .catch(() => setError('Failed to save settings — try again'));
   }
 
@@ -107,9 +117,9 @@ export function Settings() {
 
         {pane === 'downloads' && <DownloadsPane settings={settings} patch={patch} />}
         {pane === 'media' && <MediaPane settings={settings} patch={patch} />}
-        {pane === 'display' && <ComingSoonPane name="Display" />}
+        {pane === 'display' && <DisplayPane settings={settings} patch={patch} />}
         {pane === 'data' && <ComingSoonPane name="Data" />}
-        {pane === 'advanced' && <ComingSoonPane name="Advanced" />}
+        {pane === 'advanced' && <AdvancedPane settings={settings} patch={patch} />}
       </div>
     </div>
   );

@@ -4,9 +4,12 @@ import type { CollectedItem } from '../lib/rpc.ts';
 export interface PreviewProps {
   item: CollectedItem | null;
   onClose: () => void;
+  maxSize?: number;
 }
 
-export function Preview({ item, onClose }: PreviewProps) {
+export function Preview({ item, onClose, maxSize }: PreviewProps) {
+  const maxDim = maxSize != null ? `min(90vw, ${maxSize}px)` : '90vw';
+  const maxDimH = maxSize != null ? `min(90vh, ${maxSize}px)` : '90vh';
   useEffect(() => {
     if (!item) return;
     const onKey = (e: KeyboardEvent) => {
@@ -34,7 +37,7 @@ export function Preview({ item, onClose }: PreviewProps) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}
+        style={{ position: 'relative', maxWidth: maxDim, maxHeight: maxDimH }}
       >
         <button
           type="button"
@@ -62,7 +65,7 @@ export function Preview({ item, onClose }: PreviewProps) {
               poster={item.poster}
               controls
               autoPlay
-              style={{ maxWidth: '90vw', maxHeight: '90vh', display: 'block', borderRadius: 8 }}
+              style={{ maxWidth: maxDim, maxHeight: maxDimH, display: 'block', borderRadius: 8 }}
             />
           )
           : item.kind === 'audio'
@@ -86,7 +89,7 @@ export function Preview({ item, onClose }: PreviewProps) {
             <img
               src={item.src}
               alt=""
-              style={{ maxWidth: '90vw', maxHeight: '90vh', display: 'block', borderRadius: 8 }}
+              style={{ maxWidth: maxDim, maxHeight: maxDimH, display: 'block', borderRadius: 8 }}
             />
           )}
       </div>

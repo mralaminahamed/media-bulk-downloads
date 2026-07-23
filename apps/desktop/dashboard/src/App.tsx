@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ImageInfo } from '@mbd/core/types';
 import { api, type CollectedItem, subscribe } from './lib/rpc.ts';
 import { applyToolbarFilters, DEFAULT_FILTERS, deriveFilterOptions } from './lib/filters.ts';
+import type { DesktopSettings } from './lib/settings.ts';
 import { Grid } from './components/Grid.tsx';
 import { Preview } from './components/Preview.tsx';
 import { QueuePanel } from './components/QueuePanel.tsx';
@@ -32,6 +33,7 @@ export function App() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [appSettings, setAppSettings] = useState<DesktopSettings | null>(null);
 
   const available = useMemo(() => deriveFilterOptions(items as unknown as ImageInfo[]), [items]);
   const visible = useMemo(
@@ -49,6 +51,10 @@ export function App() {
         setItems((prev) => dedupeBySrc([...prev, ...added]));
       },
     });
+  }, []);
+
+  useEffect(() => {
+    api.get('/api/settings').then((r) => setAppSettings(r as DesktopSettings)).catch(() => {});
   }, []);
 
   function toggle(src: string) {
@@ -206,15 +212,23 @@ export function App() {
                 <button type="button" onClick={() => setFilters(DEFAULT_FILTERS)}>Clear filters</button>
               </div>
             )
-            : <Grid items={visible} selected={selected} onToggle={toggle} onPreview={setPreviewItem} />}
+            : (
+              <Grid
+                items={visible}
+                selected={selected}
+                onToggle={toggle}
+                onPreview={setPreviewItem}
+                tileSize={appSettings?.thumbnailSize}
+              />
+            )}
 
-          <Preview item={previewItem} onClose={closePreview} />
+          <Preview item={previewItem} onClose={closePreview} maxSize={appSettings?.previewSize} />
         </>
       )}
 
       {tab === 'history' && <HistoryPanel />}
       {tab === 'favourites' && <FavouritesPanel />}
-      {tab === 'settings' && <Settings />}
+      {tab === 'settings' && <Settings onSettingsChange={setAppSettings} />}
     </div>
   );
 }
