@@ -53,6 +53,13 @@ export function AdvancedPane({ settings, patch }: AdvancedPaneProps) {
         hint="Stop a deep scan after this many auto-scrolls"
       />
 
+      <ToggleRow
+        label="Click 'load more' buttons during deep scan"
+        checked={settings.deepScanClickLoadMore}
+        onChange={(v) => patch({ deepScanClickLoadMore: v })}
+        hint="Also click load-more/show-more buttons while scrolling"
+      />
+
       <NumberField
         label="Near-duplicate threshold"
         value={settings.nearDuplicateThreshold}

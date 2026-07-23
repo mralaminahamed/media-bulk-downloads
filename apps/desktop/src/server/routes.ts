@@ -31,6 +31,7 @@ export interface RouteDeps {
   setSettings: (s: DesktopSettings) => Promise<void>;
   navigate: (url: string) => void;
   showBrowser?: () => void;
+  deepScan?: () => void;
   exportData: () => Promise<Backup>;
   importData: (backup: ImportPayload) => Promise<{ history: number; favourites: number }>;
 }
@@ -112,6 +113,11 @@ export function buildRoutes(deps: RouteDeps): Record<string, ApiHandler> {
 
     'POST /api/show-browser': () => {
       deps.showBrowser?.();
+      return Response.json({ ok: true });
+    },
+
+    'POST /api/deep-scan': () => {
+      deps.deepScan?.();
       return Response.json({ ok: true });
     },
   };

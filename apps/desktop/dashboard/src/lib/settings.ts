@@ -19,6 +19,7 @@ export interface DesktopSettings {
   deepScanMaxItems: number;
   deepScanMaxSeconds: number;
   deepScanMaxScrolls: number;
+  deepScanClickLoadMore: boolean;
   nearDuplicateThreshold: number;
 }
 

@@ -14,6 +14,9 @@ import { buildRoutes, type ImportPayload } from './server/routes.ts';
 import { createMediaStore, type CollectedItem } from './server/media-store.ts';
 import { createSseHub } from './server/sse.ts';
 import { DASHBOARD_ASSETS } from './generated/dashboard-assets.ts';
+import { hostFromUrl, registrableDomain } from './core-bundle/download-name.gen.js';
+import { DEEPSCAN_IIFE } from './generated/deepscan-iife.ts';
+import { loadScanMemory, saveScanMemory } from './storage/scan-memory.ts';
 
 const HOME = Deno.env.get('HOME') ?? '.';
 const store = await openStore(`${HOME}/.mbd-desktop.kv`);
@@ -89,6 +92,9 @@ const routes = buildRoutes({
   showBrowser: () => {
     win.show();
     win.focus();
+  },
+  deepScan: () => {
+    void runDeepScanFlow();
   },
   exportData,
   importData,
@@ -195,6 +201,11 @@ const handlers: Record<string, (args: string[]) => unknown | Promise<unknown>> =
     dash.focus();
     return null;
   },
+
+  deepScan: () => {
+    void runDeepScanFlow();
+    return null;
+  },
 };
 
 // There is no navigation/load event (see docs/runtime-recipe.md), and
@@ -234,6 +245,110 @@ async function awaitPageValue<T>(dispatchCode: string, timeoutMs: number): Promi
     await new Promise((res) => setTimeout(res, 200));
   }
   return undefined;
+}
+
+// Mirrors the page-side shapes written by DEEPSCAN_IIFE's `__mbdDeepScan`
+// (see src/collector/deepscan.entry.ts) — kept local so main.ts doesn't need a
+// value-import of that browser-only entry module.
+interface DeepScanProgress {
+  found: number;
+  scrolls: number;
+  elapsedMs: number;
+  reason?: string;
+}
+
+interface DeepScanResult {
+  items: CollectedItem[];
+  sample: { settleMs: number; scrolls: number } | null;
+  reason: string;
+}
+
+let scanning = false;
+
+// Deep-scan orchestration: inject the deep-scan bundle, dispatch
+// `__mbdDeepScan(cfg)`, and poll the SAME two page-side markers it writes
+// (`window.__mbdScanProgress`, `window.__mbdScanResult`) in one executeJs round
+// trip per tick — same mark-then-poll recipe as `awaitPageValue`, just reading
+// two markers instead of one so progress can be relayed over SSE as it arrives
+// rather than only once at the end.
+async function runDeepScanFlow(): Promise<void> {
+  if (scanning) return;
+  scanning = true;
+  try {
+    const host = registrableDomain(hostFromUrl(currentUrl));
+    const mem = settings2.rememberScanBehaviour && host ? await loadScanMemory(store, host) : null;
+    const seed = mem ? { settleMs: mem.settleMs, scrolls: mem.scrolls } : undefined;
+    const cfg = {
+      maxItems: settings2.deepScanMaxItems,
+      maxMs: settings2.deepScanMaxSeconds * 1000,
+      maxScrolls: settings2.deepScanMaxScrolls,
+      clickLoadMore: settings2.deepScanClickLoadMore,
+      seed,
+      excludeHostId: 'mbd-overlay',
+    };
+
+    await win.executeJs(DEEPSCAN_IIFE);
+    await win.executeJs('window.__mbdScanProgress = undefined; window.__mbdScanResult = undefined;');
+    await win.executeJs(`void __mbdDeepScan(${JSON.stringify(cfg)})`);
+
+    const start = performance.now();
+    const safetyMs = cfg.maxMs + 15000;
+    let lastProgressJson: string | undefined;
+    let lastProgress: DeepScanProgress | null = null;
+    let result: DeepScanResult | null = null;
+
+    while (performance.now() - start < safetyMs) {
+      const r = await win.executeJs<string>(
+        'JSON.stringify({ p: window.__mbdScanProgress ?? null, done: window.__mbdScanResult ?? null })',
+      );
+      if (r?.ok && r.value) {
+        let parsed: { p: DeepScanProgress | null; done: DeepScanResult | null } = { p: null, done: null };
+        try {
+          parsed = JSON.parse(r.value);
+        } catch {
+          // keep the empty parse; a malformed tick just gets retried next loop
+        }
+        if (parsed.p) {
+          lastProgress = parsed.p;
+          const pJson = JSON.stringify(parsed.p);
+          if (pJson !== lastProgressJson) {
+            lastProgressJson = pJson;
+            sse.broadcast('scan-progress', parsed.p);
+          }
+        }
+        if (parsed.done) {
+          result = parsed.done;
+          break;
+        }
+      }
+      await new Promise((res) => setTimeout(res, 400));
+    }
+
+    if (!result) {
+      console.log('[mbd] deep-scan: timed out waiting for result');
+      return;
+    }
+
+    const added = media.merge(result.items);
+    if (added.length) sse.broadcast('media-added', { added });
+    sse.broadcast('scan-progress', {
+      found: media.list().length,
+      scrolls: lastProgress?.scrolls ?? 0,
+      elapsedMs: lastProgress?.elapsedMs ?? 0,
+      reason: result.reason,
+    });
+    console.log(
+      `[mbd] deep-scan: reason=${result.reason} found=${media.list().length} added=${added.length} scrolls=${lastProgress?.scrolls ?? 0}`,
+    );
+
+    if (settings2.rememberScanBehaviour && host && result.sample) {
+      await saveScanMemory(store, host, result.sample, Date.now());
+    }
+  } catch (e) {
+    console.log('[mbd] deep-scan err:', (e as Error).message);
+  } finally {
+    scanning = false;
+  }
 }
 
 async function openAndInject(url: string): Promise<void> {
