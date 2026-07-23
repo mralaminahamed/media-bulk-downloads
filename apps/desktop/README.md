@@ -22,8 +22,12 @@ The app runs one Deno process that opens two windows:
   `build:dashboard`) served by `Deno.serve` on `127.0.0.1:<random>`. It talks to
   the backend over `fetch('/api/…')` + an SSE `/events` stream (a per-session
   token, minted at startup and passed in the URL, guards every `/api`/`/events`
-  request). Shows the media grid, multi-select, preview, download-to-queue, live
-  queue status, and History/Favourites tabs. Closing it exits the app.
+  request). Shows the media grid (with a filter toolbar — kind/format/size/search/
+  sort, reusing `@mbd/core`'s filter predicates), multi-select, preview,
+  download-to-queue, live queue status, History/Favourites tabs, and a Settings
+  surface (Downloads/Media/Display/Data/Advanced panes on KV, incl. backup
+  export/import). Settings changes take effect live — the queue + overlay read
+  them without a restart. Closing it exits the app.
 - **Browser window** — navigates external sites; a Shadow-DOM overlay injected via
   `executeJs` collects media (page → Deno over the `window.__mbdCmd` command
   queue, since `win.bind` can't resolve async handlers). Collected items flow into
