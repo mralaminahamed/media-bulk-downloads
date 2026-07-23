@@ -1,28 +1,10 @@
 import { FavouriteEntry } from '@mbd/core/types';
 import { canonicalSrcKey, SrcKeySet } from '@mbd/core/collection/canonical';
 import { durableSet } from '@mbd/storage/idb';
-import { withinByteBudget } from '@mbd/storage/byte-budget';
+import { mergeFavourites, FAVOURITES_CAP, FAVOURITES_MAX_BYTES } from '@mbd/core/collection/entry-merge';
 
 export const FAVOURITES_KEY = 'favourites';
-export const FAVOURITES_CAP = 500;
-export const FAVOURITES_MAX_BYTES = 1_000_000;
-
-/** Merge new entries into existing: dedup by src (newest wins, front),
- *  newest-first, capped by count and by serialized size. Pure. */
-export function mergeFavourites(
-  existing: FavouriteEntry[],
-  added: FavouriteEntry[],
-): FavouriteEntry[] {
-  const map = new Map<string, FavouriteEntry>();
-  for (const entry of added) {
-    const k = canonicalSrcKey(entry.src);
-    const prev = map.get(k);
-    if (!prev || entry.time > prev.time) map.set(k, entry);
-  }
-  for (const entry of existing) { const k = canonicalSrcKey(entry.src); if (!map.has(k)) map.set(k, entry); }
-  const ranked = [...map.values()].sort((a, b) => b.time - a.time).slice(0, FAVOURITES_CAP);
-  return withinByteBudget(ranked, FAVOURITES_MAX_BYTES);
-}
+export { mergeFavourites, FAVOURITES_CAP, FAVOURITES_MAX_BYTES };
 
 export async function loadFavourites(): Promise<FavouriteEntry[]> {
   const result = await chrome.storage.local.get(FAVOURITES_KEY);

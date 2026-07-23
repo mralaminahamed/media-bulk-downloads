@@ -1,5 +1,5 @@
 import type { Mock } from 'vitest';
-import { mergeHistory, recordDownloads, removeEntry, clearHistory, restoreHistory, srcsStillOnDisk, loadHistory, HISTORY_CAP, HISTORY_MAX_BYTES } from '@mbd/storage/history';
+import { recordDownloads, removeEntry, clearHistory, restoreHistory, srcsStillOnDisk, loadHistory } from '@mbd/storage/history';
 import { HistoryEntry } from '@mbd/core/types';
 import { idbGet } from '@mbd/storage/idb';
 
@@ -16,29 +16,6 @@ describe('loadHistory — corrupt storage', () => {
 
 const e = (src: string, time: number): HistoryEntry =>
   ({ src, filename: `${src}.jpg`, kind: 'image', type: 'jpeg', sourcePageUrl: 'https://p', time });
-
-describe('mergeHistory', () => {
-  it('dedups by src, newest wins and moves to front', () => {
-    const out = mergeHistory([e('a', 1), e('b', 2)], [e('a', 5)]);
-    expect(out.map((x) => x.src)).toEqual(['a', 'b']);
-    expect(out[0].time).toBe(5);
-  });
-  it('sorts newest-first and caps at HISTORY_CAP', () => {
-    const many = Array.from({ length: HISTORY_CAP + 10 }, (_, i) => e(`s${i}`, i));
-    const out = mergeHistory(many, []);
-    expect(out).toHaveLength(HISTORY_CAP);
-    expect(out[0].time).toBe(HISTORY_CAP + 9);
-  });
-  it('bounds the list by serialized byte budget (big base64-style srcs), newest kept', () => {
-    const chunk = 'x'.repeat(Math.ceil(HISTORY_MAX_BYTES / 3));
-    const big = (id: string, time: number): HistoryEntry =>
-      ({ src: `https://p/${id}/${chunk}`, filename: 'f.jpg', kind: 'image', type: 'jpeg', sourcePageUrl: 'https://p', time });
-    const out = mergeHistory([big('a', 1), big('b', 2), big('c', 3), big('d', 4)], []);
-    expect(out.length).toBeGreaterThanOrEqual(1);
-    expect(out.length).toBeLessThan(4);
-    expect(out[0].time).toBe(4);
-  });
-});
 
 describe('storage helpers', () => {
   beforeEach(() => {

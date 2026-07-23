@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { jsonByteSize, withinByteBudget } from '@mbd/storage/byte-budget';
+import { jsonByteSize, withinByteBudget } from '../../src/collection/byte-budget';
 
 describe('jsonByteSize — UTF-8 byte length of the JSON', () => {
   it('counts ASCII as one byte each', () => {
