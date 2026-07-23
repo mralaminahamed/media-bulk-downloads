@@ -4,3 +4,4 @@
 body { margin: 0; font: 14px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--fg); }
 button { font: inherit; cursor: pointer; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); padding: 5px 12px; }
 button.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+@keyframes mbd-spin { to { transform: rotate(360deg); } }
