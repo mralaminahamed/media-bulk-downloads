@@ -81,12 +81,16 @@ in a single eval) and back off when idle (200ms while interacting / a download
 is in flight, 700ms idle). Verify against a bare window with no pump: its
 traffic-light buttons work, so any control lag is your loop.
 
-## Closing the window must exit the process
+## Two windows, one lifecycle owner
 
 An infinite pump loop keeps Deno's event loop alive, so the process never exits
-on its own: the native **close** button tears down the window but the app
-lingers and the window appears not to close (minimize/maximize are pure
-window-server ops and are unaffected). Wire `win.onclose = () => Deno.exit(0)`.
+on its own: the native **close** button tears down a window but the app
+lingers unless something calls `Deno.exit`. With two windows (browsing `win` +
+dashboard `dash`), the **dashboard** owns process lifecycle — wire
+`dash.onclose = () => Deno.exit(0)`. The **browser** window's close just hides
+it (`win.onclose = () => win.hide()`); it's brought back with `win.show()` +
+`win.focus()` at the top of `openAndInject`, so navigating from the dashboard
+(`POST /api/navigate`) re-shows it.
 
 ## No navigation/load event — use a SENTINEL, not a bare readyState poll
 

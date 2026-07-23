@@ -1,0 +1,6 @@
+:root { --brand: #4F46E5; --brand-2: #818CF8; --bg: #ffffff; --fg: #111114; --muted: #6b7280; --line: #e5e7eb; --ok: #16a34a; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0f0f12; --fg: #e5e7eb; --muted: #9ca3af; --line: #26262c; } }
+* { box-sizing: border-box; }
+body { margin: 0; font: 14px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--fg); }
+button { font: inherit; cursor: pointer; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); padding: 5px 12px; }
+button.primary { background: var(--brand); border-color: var(--brand); color: #fff; }

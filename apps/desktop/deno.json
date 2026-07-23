@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "exports": "./src/main.ts",
   "tasks": {
-    "check": "deno task build:collector && deno check src/main.ts",
-    "test": "deno task build:collector && deno test -A",
+    "check": "deno task build:collector && deno task build:dashboard && deno check src/main.ts",
+    "test": "deno task build:collector && deno task build:dashboard && deno test -A",
     "build:collector": "deno run -A src/collector/build-collector.ts",
+    "build:dashboard": "deno run -A src/dashboard/build-dashboard.ts",
     "build:icons": "bash scripts/gen-icons.sh",
-    "dev": "deno task build:collector && deno desktop --hmr --no-check src/main.ts",
-    "build": "deno task build:collector && deno desktop --no-check --allow-env=HOME,MBD_DOWNLOAD_ROOT,MBD_SELFTEST --allow-read --allow-write --allow-net --unstable-kv --icon assets/icon.icns --output 'Media Bulk Downloads.app' src/main.ts && bash scripts/set-app-metadata.sh 'Media Bulk Downloads.app'"
+    "dev": "deno task build:collector && deno task build:dashboard && deno desktop --hmr --no-check src/main.ts",
+    "build": "deno task build:collector && deno task build:dashboard && deno desktop --no-check --allow-env=HOME,MBD_DOWNLOAD_ROOT,MBD_SELFTEST --allow-read --allow-write --allow-net --unstable-kv --icon assets/icon.icns --output 'Media Bulk Downloads.app' src/main.ts && bash scripts/set-app-metadata.sh 'Media Bulk Downloads.app'"
   },
   "imports": {
     "@mbd/core/": "../../packages/core/src/",
@@ -16,7 +17,9 @@
     "fflate": "npm:fflate@^0.8.3",
     "mp4box": "npm:mp4box@^2.4.1",
     "@breezystack/lamejs": "npm:@breezystack/lamejs@1.2.7",
-    "react": "npm:react@^19.2.7"
+    "react": "npm:react@^19.2.7",
+    "react-dom": "npm:react-dom@^19.2.7",
+    "react-dom/client": "npm:react-dom@^19.2.7/client"
   },
   "unstable": ["sloppy-imports", "kv"],
   "nodeModulesDir": "auto",

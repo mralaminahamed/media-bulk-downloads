@@ -9,3 +9,5 @@ dist/
 *.msi
 src/collector/collector.generated.ts
 src/core-bundle/download-name.gen.js
+dist-dashboard/
+src/dashboard/assets.generated.ts
