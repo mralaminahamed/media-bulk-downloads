@@ -3,6 +3,15 @@ import { api, type CollectedItem, subscribe } from './lib/rpc.ts';
 import { Grid } from './components/Grid.tsx';
 import { Preview } from './components/Preview.tsx';
 import { QueuePanel } from './components/QueuePanel.tsx';
+import { HistoryPanel } from './components/HistoryPanel.tsx';
+import { FavouritesPanel } from './components/FavouritesPanel.tsx';
+
+type Tab = 'library' | 'history' | 'favourites';
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'library', label: 'Library' },
+  { id: 'history', label: 'History' },
+  { id: 'favourites', label: 'Favourites' },
+];
 
 function dedupeBySrc(items: CollectedItem[]): CollectedItem[] {
   const byKey = new Map<string, CollectedItem>();
@@ -11,6 +20,7 @@ function dedupeBySrc(items: CollectedItem[]): CollectedItem[] {
 }
 
 export function App() {
+  const [tab, setTab] = useState<Tab>('library');
   const [items, setItems] = useState<CollectedItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [previewItem, setPreviewItem] = useState<CollectedItem | null>(null);
@@ -90,36 +100,73 @@ export function App() {
             }}
           />
           <h1 style={{ fontSize: 16, margin: 0, fontWeight: 600 }}>Media Bulk Downloads</h1>
-          <span style={{ color: 'var(--muted)', fontSize: 12 }}>
-            {items.length} item{items.length === 1 ? '' : 's'} · {selected.size} selected
-          </span>
-          <QueuePanel />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {notice && <span style={{ color: 'var(--ok)', fontSize: 12 }}>{notice}</span>}
-          <button type="button" onClick={selectAll} disabled={items.length === 0}>Select all</button>
-          <button type="button" onClick={selectNone} disabled={selected.size === 0}>Select none</button>
-          <button type="button" onClick={invertSelection} disabled={items.length === 0}>Invert</button>
-          <button
-            type="button"
-            className="primary"
-            onClick={downloadSelected}
-            disabled={selected.size === 0}
-          >
-            Download selected ({selected.size})
-          </button>
-        </div>
+
+        <nav role="tablist" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
+              className={tab === t.id ? 'primary' : undefined}
+              onClick={() => setTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
       </header>
 
-      {items.length === 0
-        ? (
-          <p style={{ padding: 16, color: 'var(--muted)' }}>
-            Browse a page in the browser window to start collecting media — items will appear here live.
-          </p>
-        )
-        : <Grid items={items} selected={selected} onToggle={toggle} onPreview={setPreviewItem} />}
+      {tab === 'library' && (
+        <>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              flexWrap: 'wrap',
+              padding: '12px 16px',
+              borderBottom: '1px solid var(--line)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ color: 'var(--muted)', fontSize: 12 }}>
+                {items.length} item{items.length === 1 ? '' : 's'} · {selected.size} selected
+              </span>
+              <QueuePanel />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {notice && <span style={{ color: 'var(--ok)', fontSize: 12 }}>{notice}</span>}
+              <button type="button" onClick={selectAll} disabled={items.length === 0}>Select all</button>
+              <button type="button" onClick={selectNone} disabled={selected.size === 0}>Select none</button>
+              <button type="button" onClick={invertSelection} disabled={items.length === 0}>Invert</button>
+              <button
+                type="button"
+                className="primary"
+                onClick={downloadSelected}
+                disabled={selected.size === 0}
+              >
+                Download selected ({selected.size})
+              </button>
+            </div>
+          </div>
 
-      <Preview item={previewItem} onClose={closePreview} />
+          {items.length === 0
+            ? (
+              <p style={{ padding: 16, color: 'var(--muted)' }}>
+                Browse a page in the browser window to start collecting media — items will appear here live.
+              </p>
+            )
+            : <Grid items={items} selected={selected} onToggle={toggle} onPreview={setPreviewItem} />}
+
+          <Preview item={previewItem} onClose={closePreview} />
+        </>
+      )}
+
+      {tab === 'history' && <HistoryPanel />}
+      {tab === 'favourites' && <FavouritesPanel />}
     </div>
   );
 }

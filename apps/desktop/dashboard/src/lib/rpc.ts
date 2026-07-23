@@ -10,6 +10,29 @@ export interface CollectedItem {
   sourcePage?: { url?: string; title?: string };
 }
 
+export interface StoredHistoryEntry {
+  src: string;
+  filename: string;
+  kind: 'image' | 'video' | 'audio';
+  type: string;
+  thumbnailSrc?: string;
+  sourcePageUrl: string;
+  sourcePageTitle?: string;
+  time: number;
+  downloadId?: number;
+  path?: string;
+}
+
+export interface FavouriteEntry {
+  src: string;
+  kind: 'image' | 'video' | 'audio';
+  type: string;
+  thumbnailSrc?: string;
+  sourcePageUrl: string;
+  sourcePageTitle?: string;
+  time: number;
+}
+
 const token = new URLSearchParams(location.search).get('token') ?? '';
 const h = { 'x-mbd-token': token, 'content-type': 'application/json' };
 
