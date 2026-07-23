@@ -4,12 +4,13 @@ import { openStore } from './storage/kv.ts';
 import { COLLECTOR_IIFE } from './generated/collector-iife.ts';
 import { OVERLAY_JS } from './overlay/overlay.ts';
 import { createQueue } from './platform/queue.ts';
-import { loadSettings, saveSettings } from './storage/settings.ts';
-import { clearHistory, loadHistory, removeHistoryEntry } from './storage/history.ts';
+import { DEFAULT_DESKTOP_SETTINGS, loadSettings, saveSettings, type DesktopSettings } from './storage/settings.ts';
+import { clearHistory, loadHistory, recordDownloads, removeHistoryEntry, type StoredHistoryEntry } from './storage/history.ts';
 import { addFavourite, favouriteKeys, loadFavourites, removeFavourite } from './storage/favourites.ts';
+import type { FavouriteEntry } from '@mbd/core/types';
 import { downloadedKeysOnDisk, splitByDownloaded } from './platform/dedup.ts';
 import { startServer } from './server/server.ts';
-import { buildRoutes } from './server/routes.ts';
+import { buildRoutes, type ImportPayload } from './server/routes.ts';
 import { createMediaStore, type CollectedItem } from './server/media-store.ts';
 import { createSseHub } from './server/sse.ts';
 import { DASHBOARD_ASSETS } from './generated/dashboard-assets.ts';
@@ -42,6 +43,42 @@ let currentUrl = 'https://commons.wikimedia.org/wiki/Category:Vincent_van_Gogh';
 // Dashboard backend: media store (collected items across pages) + SSE hub +
 // REST routes, served by the local-only HTTP server. The dashboard window is
 // the primary UI; it owns process lifecycle (see `dash.onclose` below).
+function pickKnownSettings(current: DesktopSettings, patch: Partial<DesktopSettings>): DesktopSettings {
+  const merged = { ...current };
+  for (const key of Object.keys(DEFAULT_DESKTOP_SETTINGS) as (keyof DesktopSettings)[]) {
+    if (key in patch) merged[key] = patch[key] as never;
+  }
+  return merged;
+}
+
+async function exportData() {
+  return {
+    version: 1,
+    settings: settings2,
+    history: await loadHistory(store),
+    favourites: await loadFavourites(store),
+  };
+}
+
+async function importData(backup: ImportPayload): Promise<{ history: number; favourites: number }> {
+  if (backup.history?.length) {
+    await recordDownloads(store, backup.history as StoredHistoryEntry[]);
+  }
+  if (backup.favourites?.length) {
+    for (const entry of backup.favourites as FavouriteEntry[]) {
+      await addFavourite(store, entry);
+    }
+  }
+  if (backup.settings) {
+    settings2 = pickKnownSettings(settings2, backup.settings);
+    await saveSettings(store, settings2);
+  }
+  return {
+    history: (await loadHistory(store)).length,
+    favourites: (await loadFavourites(store)).length,
+  };
+}
+
 const media = createMediaStore();
 const sse = createSseHub();
 const routes = buildRoutes({
@@ -61,6 +98,8 @@ const routes = buildRoutes({
     win.show();
     win.focus();
   },
+  exportData,
+  importData,
 });
 const srv = await startServer({ assets: DASHBOARD_ASSETS, api: routes, sse: (req) => sse.handler(req) });
 
