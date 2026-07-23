@@ -9,3 +9,13 @@ Deno.test('merge dedups by canonical key and returns only the newly added', () =
   assertEquals(b.map((i) => i.src), ['https://x/b.jpg']);   // a.jpg folded (same canonical key)
   assertEquals(s.list().length, 2);
 });
+
+Deno.test('merge preserves widened fields (width/height/fileSize/type) through list', () => {
+  const s = createMediaStore();
+  s.merge([{ src: 'https://x/c.jpg', kind: 'image', width: 800, height: 600, fileSize: 1234, type: 'jpeg' }]);
+  const item = s.list()[0];
+  assertEquals(item.width, 800);
+  assertEquals(item.height, 600);
+  assertEquals(item.fileSize, 1234);
+  assertEquals(item.type, 'jpeg');
+});
