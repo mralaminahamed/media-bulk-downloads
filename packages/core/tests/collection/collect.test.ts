@@ -4,10 +4,9 @@ vi.mock('@mbd/core/resolvers/sniffers/hls-sniff', async () => {
   return { __esModule: true, ...actual, sniffedHlsManifests: vi.fn(actual.sniffedHlsManifests) };
 });
 
-import { collectMedia, backgroundImageUrls } from '@/extension/content/collect';
+import { collectMedia, backgroundImageUrls } from '../../src/collection/collect';
 import { ingestSniffedHls, resetSniffedHls, sniffedHlsManifests } from '@mbd/core/resolvers/sniffers/hls-sniff';
 import { ingestSniffedMangadexMedia, __resetMangadexSniffed } from '@mbd/core/resolvers/sites/mangadex';
-import { HOST_ID } from '@/extension/bubble/mount';
 
 const setBody = (html: string) => {
   document.body.innerHTML = html;
@@ -887,17 +886,18 @@ describe('collectMedia — shadow DOM', () => {
     expect(slotted).toHaveLength(1);
   });
 
-  it('excludes media inside the extension\'s own bubble-host shadow root', () => {
-    setBody(`<div id="${HOST_ID}"></div><div id="other-host"></div>`);
-    const bubbleHost = document.getElementById(HOST_ID)!;
-    const bubbleShadow = bubbleHost.attachShadow({ mode: 'open' });
-    bubbleShadow.innerHTML = '<img src="https://cdn.com/bubble-image.jpg">';
+  it('excludes media inside a host element passed as excludeHostId, but keeps other shadow roots', () => {
+    const EXCLUDED_HOST_ID = 'mbd-bubble-host';
+    setBody(`<div id="${EXCLUDED_HOST_ID}"></div><div id="other-host"></div>`);
+    const excludedHost = document.getElementById(EXCLUDED_HOST_ID)!;
+    const excludedShadow = excludedHost.attachShadow({ mode: 'open' });
+    excludedShadow.innerHTML = '<img src="https://cdn.com/bubble-image.jpg">';
 
     const otherHost = document.getElementById('other-host')!;
     const otherShadow = otherHost.attachShadow({ mode: 'open' });
     otherShadow.innerHTML = '<img src="https://cdn.com/other-shadow.jpg">';
 
-    const media = collectMedia();
+    const media = collectMedia(undefined, { excludeHostId: EXCLUDED_HOST_ID });
     const srcs = media.map((i) => i.src);
     expect(srcs).not.toContain('https://cdn.com/bubble-image.jpg');
     expect(srcs).toContain('https://cdn.com/other-shadow.jpg');
@@ -949,5 +949,18 @@ describe('collectMedia — MangaDex chapter pages (sniffed)', () => {
     ingestSniffedMangadexMedia([{ chapterId: CID, page: 1, ext: 'png', url: pageUrl(1) }]);
     window.history.replaceState({}, '', '/title/abc');
     expect(collectMedia().some((m) => m.src.includes('.mangadex.network'))).toBe(false);
+  });
+});
+
+describe('collectMedia excludeHostId', () => {
+  it('skips media inside the excluded host element', () => {
+    document.body.innerHTML = `
+      <img id="keep" src="https://example.com/a.jpg" width="800" height="600">
+      <div id="mbd-overlay"><img src="https://example.com/ui-icon.png" width="800" height="600"></div>
+    `;
+    const items = collectMedia(undefined, { excludeHostId: 'mbd-overlay' });
+    const srcs = items.map((i) => i.src);
+    expect(srcs).toContain('https://example.com/a.jpg');
+    expect(srcs).not.toContain('https://example.com/ui-icon.png');
   });
 });
