@@ -4,7 +4,7 @@ import { openStore } from './storage/kv.ts';
 import { COLLECTOR_IIFE } from './generated/collector-iife.ts';
 import { OVERLAY_JS } from './overlay/overlay.ts';
 import { createQueue } from './platform/queue.ts';
-import { DEFAULT_DESKTOP_SETTINGS, loadSettings, saveSettings, type DesktopSettings } from './storage/settings.ts';
+import { loadSettings, pickKnownSettings, saveSettings } from './storage/settings.ts';
 import { clearHistory, loadHistory, recordDownloads, removeHistoryEntry, type StoredHistoryEntry } from './storage/history.ts';
 import { addFavourite, favouriteKeys, loadFavourites, removeFavourite } from './storage/favourites.ts';
 import type { FavouriteEntry } from '@mbd/core/types';
@@ -43,14 +43,6 @@ let currentUrl = 'https://commons.wikimedia.org/wiki/Category:Vincent_van_Gogh';
 // Dashboard backend: media store (collected items across pages) + SSE hub +
 // REST routes, served by the local-only HTTP server. The dashboard window is
 // the primary UI; it owns process lifecycle (see `dash.onclose` below).
-function pickKnownSettings(current: DesktopSettings, patch: Partial<DesktopSettings>): DesktopSettings {
-  const merged = { ...current };
-  for (const key of Object.keys(DEFAULT_DESKTOP_SETTINGS) as (keyof DesktopSettings)[]) {
-    if (key in patch) merged[key] = patch[key] as never;
-  }
-  return merged;
-}
-
 async function exportData() {
   return {
     version: 1,
