@@ -8,6 +8,7 @@ dist/
 *.rpm
 *.msi
 src/generated/collector-iife.ts
+src/generated/deepscan-iife.ts
 src/core-bundle/download-name.gen.js
 dist-dashboard/
 src/generated/dashboard-assets.ts
