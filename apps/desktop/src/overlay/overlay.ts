@@ -38,6 +38,10 @@ export const OVERLAY_JS = String.raw`
   const items = (globalThis.__mbdCollect ? globalThis.__mbdCollect({ excludeHostId: HOST_ID }) : []);
   const first = items[0];
 
+  // Push everything this page collected to the Deno side so the dashboard's
+  // media store (and its SSE-fed grid) picks it up as the user browses.
+  send('collect', [JSON.stringify(items)]);
+
   const starMarkup = first
     ? '<button id="star" title="Toggle favourite" style="cursor:pointer;border:none;background:none;font-size:16px;line-height:1;padding:0;color:#c8a400">☆</button>'
     : '';
@@ -58,7 +62,8 @@ export const OVERLAY_JS = String.raw`
     '<div style="font:13px/1.4 system-ui,sans-serif;background:#fff;color:#111;border:1px solid #d0d0d8;border-radius:10px;padding:10px 12px;max-width:360px;box-shadow:0 4px 16px rgba(0,0,0,.18)">' +
     '<div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">' +
     '<svg width="18" height="18" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex:none"><defs><linearGradient id="mbdmTile" x1="12" y1="6" x2="116" y2="122" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#818CF8"/><stop offset="1" stop-color="#4F46E5"/></linearGradient><clipPath id="mbdmPhoto"><rect x="35" y="23" width="58" height="41" rx="9"/></clipPath></defs><rect x="6" y="6" width="116" height="116" rx="28" fill="url(#mbdmTile)"/><rect x="30" y="17" width="58" height="41" rx="9" fill="#fff" opacity="0.28"/><rect x="35" y="23" width="58" height="41" rx="9" fill="#fff"/><g clip-path="url(#mbdmPhoto)"><circle cx="51" cy="38" r="6" fill="#4F46E5"/><path d="M39 64 L56 44 L68 56 L82 40 L98 64 Z" fill="#6366F1"/></g><g stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M64 74 V101"/><path d="M48 86 L64 103 L80 86"/></g></svg>' +
-    '<b style="font-size:13px">Media Bulk Downloads</b>' +
+    '<b style="font-size:13px;flex:1">Media Bulk Downloads</b>' +
+    '<button id="dashBtn" title="Open dashboard window" style="cursor:pointer;padding:2px 8px;border-radius:6px;border:1px solid #6366f1;background:#fff;color:#6366f1;font-size:11px;line-height:1.6">Dashboard</button>' +
     '</div>' +
     '<div style="display:flex;gap:6px;margin-bottom:8px">' +
     '<input id="addr" placeholder="https://…" style="flex:1;min-width:0;padding:4px 8px;border:1px solid #c8c8d0;border-radius:6px" />' +
@@ -72,6 +77,9 @@ export const OVERLAY_JS = String.raw`
     '<div id="qstatus" style="opacity:.75;font-size:12px;margin-bottom:2px"></div>' +
     '<div id="histPanel" style="display:none;max-height:160px;overflow:auto;border-top:1px solid #eee;padding-top:6px"></div>' +
     '</div>';
+
+  const dashBtn = root.getElementById('dashBtn');
+  if (dashBtn) dashBtn.addEventListener('click', () => send('focusDashboard', []));
 
   const addr = root.getElementById('addr');
   const go = root.getElementById('go');

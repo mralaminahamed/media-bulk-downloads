@@ -4,18 +4,15 @@ import { openStore } from './storage/kv.ts';
 import { COLLECTOR_IIFE } from './collector/collector.generated.ts';
 import { OVERLAY_JS } from './overlay/overlay.ts';
 import { createQueue } from './platform/queue.ts';
-import { loadSettings } from './storage/settings.ts';
+import { loadSettings, saveSettings } from './storage/settings.ts';
 import { clearHistory, loadHistory, removeHistoryEntry } from './storage/history.ts';
 import { addFavourite, favouriteKeys, loadFavourites, removeFavourite } from './storage/favourites.ts';
 import { downloadedKeysOnDisk, splitByDownloaded } from './platform/dedup.ts';
-
-interface CollectedItem {
-  src: string;
-  ext?: string;
-  type?: string;
-  kind?: 'image' | 'video' | 'audio';
-  sourcePage?: { url?: string };
-}
+import { startServer } from './server/server.ts';
+import { buildRoutes } from './server/routes.ts';
+import { createMediaStore, type CollectedItem } from './server/media-store.ts';
+import { createSseHub } from './server/sse.ts';
+import { DASHBOARD_ASSETS } from './dashboard/assets.generated.ts';
 
 const HOME = Deno.env.get('HOME') ?? '.';
 const store = await openStore(`${HOME}/.mbd-desktop.kv`);
@@ -33,18 +30,43 @@ const queue = createQueue({
   concurrency: settings.downloadConcurrency,
 });
 
-const win = new Deno.BrowserWindow({ title: 'Media Bulk Downloads', width: 1100, height: 780 });
+const win = new Deno.BrowserWindow({ title: 'Media Bulk Downloads — Browser', width: 1100, height: 780 });
 
 // The infinite pump loop keeps Deno's event loop alive, so the process never
-// exits on its own — clicking the native close button tears the window down but
-// the app lingers (the window appears not to close). Exit explicitly when the
-// window is closed. (minimize/maximize are pure window-server ops and work
-// regardless; only close needs the app to cooperate.)
+// exits on its own. The browsing window used to exit the app on close, but the
+// dashboard window now owns app lifecycle (see `dash.onclose` below) — closing
+// the browsing window just hides it so it can be reopened via navigation.
 win.onclose = () => {
-  Deno.exit(0);
+  win.hide();
 };
 
 let currentUrl = 'https://commons.wikimedia.org/wiki/Category:Vincent_van_Gogh';
+
+// Dashboard backend: media store (collected items across pages) + SSE hub +
+// REST routes, served by the local-only HTTP server. The dashboard window is
+// the primary UI; it owns process lifecycle (see `dash.onclose` below).
+const media = createMediaStore();
+const sse = createSseHub();
+let settings2 = settings;
+const routes = buildRoutes({
+  store,
+  queue,
+  media,
+  sse,
+  settings: () => settings2,
+  setSettings: async (s) => {
+    settings2 = s;
+    await saveSettings(store, s);
+  },
+  navigate: (url) => {
+    void openAndInject(url);
+  },
+});
+const srv = await startServer({ assets: DASHBOARD_ASSETS, api: routes, sse: (req) => sse.handler(req) });
+
+const dash = new Deno.BrowserWindow({ title: 'Media Bulk Downloads', width: 1180, height: 820 });
+dash.onclose = () => Deno.exit(0);
+dash.navigate(`http://127.0.0.1:${srv.port}/?token=${srv.token}`);
 
 // Page -> Deno command handlers. Each takes the JSON-string arg array the page
 // pushed and returns a JSON-serialisable result (or null). The result is
@@ -128,6 +150,18 @@ const handlers: Record<string, (args: string[]) => unknown | Promise<unknown>> =
   },
 
   getFavourites: () => loadFavourites(store),
+
+  collect: (args) => {
+    const items = JSON.parse(args[0]) as CollectedItem[];
+    const added = media.merge(items);
+    if (added.length) sse.broadcast('media-added', { added });
+    return { added: added.length, total: media.list().length };
+  },
+
+  focusDashboard: () => {
+    dash.focus();
+    return null;
+  },
 };
 
 // There is no navigation/load event (see docs/runtime-recipe.md), and
@@ -189,8 +223,14 @@ async function openAndInject(url: string): Promise<void> {
 // (close/minimize/maximize stopped responding). Response writes for commands
 // that return a value happen only on demand (a click), not every tick.
 // Returns true if any command was processed.
+let lastQueueBroadcast: string | undefined;
 async function drainOnce(): Promise<boolean> {
-  const statusJson = JSON.stringify(queue.status());
+  const status = queue.status();
+  const statusJson = JSON.stringify(status);
+  if (statusJson !== lastQueueBroadcast) {
+    lastQueueBroadcast = statusJson;
+    sse.broadcast('queue', status);
+  }
   const r = await win.executeJs<string>(
     '(() => { window.__mbdStatus = ' + statusJson +
       '; const q = (window.__mbdCmd || []); window.__mbdCmd = []; return JSON.stringify(q); })()',
