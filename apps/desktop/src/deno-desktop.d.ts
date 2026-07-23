@@ -22,6 +22,8 @@ declare global {
       focus(): void;
       reload(): void;
       setTitle(title: string): void;
+      isClosed(): boolean;
+      onclose: (() => void) | null;
     }
   }
 }

@@ -71,6 +71,23 @@ Construct: `new Deno.BrowserWindow({ title, width, height })`.
   polls `__mbdRes[id]` for the response. See `main.ts` (`drainOnce`/`pumpLoop`) and
   `overlay.ts`. Run once with `MBD_SELFTEST=1` to self-verify the round-trip.
 
+## `executeJs` runs on the UI thread — do NOT poll it hard
+
+`executeJs` executes on the webview's UI/main thread. A tight poll loop (the
+first cut did 2 calls every 150ms, forever) **starves the native window
+controls** — minimize/maximize/close stop responding. Keep the pump to ONE
+combined `executeJs` per tick (drain commands + publish `window.__mbdStatus`
+in a single eval) and back off when idle (200ms while interacting / a download
+is in flight, 700ms idle). Verify against a bare window with no pump: its
+traffic-light buttons work, so any control lag is your loop.
+
+## Closing the window must exit the process
+
+An infinite pump loop keeps Deno's event loop alive, so the process never exits
+on its own: the native **close** button tears down the window but the app
+lingers and the window appears not to close (minimize/maximize are pure
+window-server ops and are unaffected). Wire `win.onclose = () => Deno.exit(0)`.
+
 ## No navigation/load event — use a SENTINEL, not a bare readyState poll
 
 The `on*` handlers are ONLY input/resize/move/close/menu. **There is NO

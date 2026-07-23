@@ -35,6 +35,15 @@ const queue = createQueue({
 
 const win = new Deno.BrowserWindow({ title: 'Media Bulk Downloads', width: 1100, height: 780 });
 
+// The infinite pump loop keeps Deno's event loop alive, so the process never
+// exits on its own — clicking the native close button tears the window down but
+// the app lingers (the window appears not to close). Exit explicitly when the
+// window is closed. (minimize/maximize are pure window-server ops and work
+// regardless; only close needs the app to cooperate.)
+win.onclose = () => {
+  Deno.exit(0);
+};
+
 let currentUrl = 'https://commons.wikimedia.org/wiki/Category:Vincent_van_Gogh';
 
 // Page -> Deno command handlers. Each takes the JSON-string arg array the page
@@ -173,50 +182,62 @@ async function openAndInject(url: string): Promise<void> {
   console.log('[mbd] collected count:', count?.value);
 }
 
-// Drain the page-side command queue once: pull every queued command, run its
-// handler, deliver each result back to `window.__mbdRes[id]`, then publish the
-// current queue status to `window.__mbdStatus` (the overlay reads it directly
-// instead of making a round-trip call).
-async function drainOnce(): Promise<void> {
+// Drain the page-side command queue once, in a SINGLE executeJs round-trip that
+// also publishes queue status to `window.__mbdStatus`. Keeping this to one call
+// per tick matters: executeJs runs on the webview's UI thread, so hammering it
+// (the old 2-calls-every-150ms loop) starved the native window controls
+// (close/minimize/maximize stopped responding). Response writes for commands
+// that return a value happen only on demand (a click), not every tick.
+// Returns true if any command was processed.
+async function drainOnce(): Promise<boolean> {
+  const statusJson = JSON.stringify(queue.status());
   const r = await win.executeJs<string>(
-    '(() => { const q = (window.__mbdCmd || []); window.__mbdCmd = []; return JSON.stringify(q); })()',
+    '(() => { window.__mbdStatus = ' + statusJson +
+      '; const q = (window.__mbdCmd || []); window.__mbdCmd = []; return JSON.stringify(q); })()',
   );
-  if (r?.ok && r.value) {
-    let cmds: Array<{ id?: string; cmd: string; args?: string[] }> = [];
-    try {
-      cmds = JSON.parse(r.value);
-    } catch {
-      cmds = [];
+  if (!r?.ok || !r.value) return false;
+  let cmds: Array<{ id?: string; cmd: string; args?: string[] }> = [];
+  try {
+    cmds = JSON.parse(r.value);
+  } catch {
+    cmds = [];
+  }
+  for (const c of cmds) {
+    let result: unknown = null;
+    const h = handlers[c.cmd];
+    if (h) {
+      try {
+        result = await h(c.args ?? []);
+      } catch (e) {
+        console.log('[mbd] cmd err', c.cmd, (e as Error).message);
+      }
     }
-    for (const c of cmds) {
-      let result: unknown = null;
-      const h = handlers[c.cmd];
-      if (h) {
-        try {
-          result = await h(c.args ?? []);
-        } catch (e) {
-          console.log('[mbd] cmd err', c.cmd, (e as Error).message);
-        }
-      }
-      if (c.id) {
-        await win.executeJs(
-          '(window.__mbdRes = window.__mbdRes || {})[' + JSON.stringify(c.id) + '] = ' +
-            JSON.stringify(result ?? null),
-        );
-      }
+    if (c.id) {
+      await win.executeJs(
+        '(window.__mbdRes = window.__mbdRes || {})[' + JSON.stringify(c.id) + '] = ' +
+          JSON.stringify(result ?? null),
+      );
     }
   }
-  await win.executeJs('window.__mbdStatus = ' + JSON.stringify(queue.status()));
+  return cmds.length > 0;
 }
 
+// Adaptive cadence: poll briskly while the user is interacting or a download is
+// in flight (status must stay live), and back off hard when idle so the UI
+// thread is essentially free and native window controls stay responsive.
 async function pumpLoop(): Promise<void> {
+  let idleTicks = 0;
   for (;;) {
+    let busy = false;
     try {
-      await drainOnce();
+      const processed = await drainOnce();
+      const s = queue.status();
+      busy = processed || s.pending + s.active > 0;
     } catch (e) {
       console.log('[mbd] pump err:', (e as Error).message);
     }
-    await new Promise((res) => setTimeout(res, 150));
+    idleTicks = busy ? 0 : Math.min(idleTicks + 1, 10);
+    await new Promise((res) => setTimeout(res, idleTicks > 5 ? 700 : 200));
   }
 }
 
