@@ -48,6 +48,14 @@ export async function buildCoreBundle(): Promise<void> {
       rollupOptions: { external: [] },
     },
   });
+
+  // Vite/Rollup emit plain JS with no type info. Prepend a `@ts-self-types`
+  // directive so Deno associates the hand-written download-name.gen.d.ts with
+  // this generated file for every importer, without each import site needing
+  // its own `@ts-types` comment.
+  const genPath = fileURLToPath(new URL('../core-bundle/download-name.gen.js', import.meta.url));
+  const bundled = await Deno.readTextFile(genPath);
+  await Deno.writeTextFile(genPath, `// @ts-self-types="./download-name.gen.d.ts"\n${bundled}`);
 }
 
 if (import.meta.main) {

@@ -24,14 +24,8 @@ export async function clearFavourites(store: Store): Promise<void> {
   await store.durableSet(KEY, []);
 }
 
-/** SrcKeySet instance type. The bundle is a plain .js file (no wired-up .d.ts
- *  companion for it), so its class exports type-check via checkJs inference
- *  rather than a hand-written ambient declaration — `InstanceType<typeof X>`
- *  reads that inferred shape without redeclaring it. */
-export type FavouriteSrcKeySet = InstanceType<typeof SrcKeySet>;
-
 /** SrcKeySet over current favourites, so callers can test `.has(item.src)`
  *  across CDN variants without touching canonicalSrcKey themselves. */
-export async function favouriteKeys(store: Store): Promise<FavouriteSrcKeySet> {
+export async function favouriteKeys(store: Store): Promise<SrcKeySet> {
   return SrcKeySet.from((await loadFavourites(store)).map((e) => e.src));
 }
