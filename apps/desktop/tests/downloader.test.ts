@@ -40,3 +40,13 @@ Deno.test('downloadOne cannot escape the root via a crafted template', async () 
   );
   assert(path.startsWith(root), `path escaped root: ${path}`);
 });
+
+Deno.test('namingMode original uses the source basename', async () => {
+  const root = await Deno.makeTempDir();
+  const fetchImpl = (() => Promise.resolve(new Response(new Uint8Array([1])))) as unknown as typeof fetch;
+  const { path } = await downloadOne(
+    { src: 'https://h/sunset.jpg', ext: 'jpg' },
+    { root, template: '', index: 0, namingMode: 'original', fetchImpl },
+  );
+  assert(path.endsWith('sunset.jpg'), `expected original basename, got ${path}`);
+});

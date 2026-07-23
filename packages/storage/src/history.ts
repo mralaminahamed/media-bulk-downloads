@@ -1,25 +1,10 @@
 import { HistoryEntry } from '@mbd/core/types';
 import { canonicalSrcKey } from '@mbd/core/collection/canonical';
 import { durableSet } from '@mbd/storage/idb';
-import { withinByteBudget } from '@mbd/storage/byte-budget';
+import { mergeHistory, HISTORY_CAP, HISTORY_MAX_BYTES } from '@mbd/core/collection/entry-merge';
 
 export const HISTORY_KEY = 'downloadHistory';
-export const HISTORY_CAP = 500;
-export const HISTORY_MAX_BYTES = 2_000_000;
-
-/** Merge new entries into existing: dedup by src (newest wins, front), sorted
- *  newest-first, capped by count and by serialized size. Pure. */
-export function mergeHistory(existing: HistoryEntry[], added: HistoryEntry[]): HistoryEntry[] {
-  const map = new Map<string, HistoryEntry>();
-  for (const entry of added) {
-    const k = canonicalSrcKey(entry.src);
-    const prev = map.get(k);
-    if (!prev || entry.time > prev.time) map.set(k, entry);
-  }
-  for (const entry of existing) { const k = canonicalSrcKey(entry.src); if (!map.has(k)) map.set(k, entry); }
-  const ranked = [...map.values()].sort((a, b) => b.time - a.time).slice(0, HISTORY_CAP);
-  return withinByteBudget(ranked, HISTORY_MAX_BYTES);
-}
+export { mergeHistory, HISTORY_CAP, HISTORY_MAX_BYTES };
 
 export async function loadHistory(): Promise<HistoryEntry[]> {
   const result = await chrome.storage.local.get(HISTORY_KEY);

@@ -6,3 +6,9 @@
 // import by relative path — the same "embed, don't resolve at runtime" approach
 // the collector IIFE uses.
 export { buildDownloadFilename } from '@mbd/core/collection/download-name';
+export {
+  mergeHistory, mergeFavourites,
+  HISTORY_CAP, HISTORY_MAX_BYTES, FAVOURITES_CAP, FAVOURITES_MAX_BYTES,
+} from '@mbd/core/collection/entry-merge';
+export { partitionByDownloaded } from '@mbd/core/collection/download-dedupe';
+export { canonicalSrcKey, SrcKeySet } from '@mbd/core/collection/canonical';
