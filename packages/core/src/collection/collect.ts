@@ -194,6 +194,20 @@ function knownThumbSize(img: HTMLImageElement | null): number {
   return Math.max(Number(img.getAttribute('width')) || 0, Number(img.getAttribute('height')) || 0);
 }
 
+/** True when `el` (or a light-DOM ancestor of it) has the given id. A manual
+ *  walk instead of `el.closest('#'+id)` — `id` is a caller-supplied string
+ *  (e.g. `excludeHostId`) with no guarantee it's a syntactically valid CSS ID
+ *  selector (leading digit, space, colon, …); interpolating it raw into a
+ *  selector can throw a `DOMException` and fail collection for the whole page. */
+function hasAncestorWithId(el: Element, id: string): boolean {
+  let node: Element | null = el;
+  while (node) {
+    if (node.id === id) return true;
+    node = node.parentElement;
+  }
+  return false;
+}
+
 export function collectMedia(
   scanRoots?: ScanRoot[],
   opts?: { smartPageDefaults?: boolean; resolveOriginals?: boolean; excludeHostId?: string },
@@ -585,7 +599,7 @@ export function collectMedia(
       ? [root as HTMLElement, ...Array.from((root as Element).querySelectorAll<HTMLElement>('*'))]
       : Array.from(root.querySelectorAll<HTMLElement>('*'));
     els.forEach((el) => {
-      if (opts?.excludeHostId && el.closest(`#${opts.excludeHostId}`)) return;
+      if (opts?.excludeHostId && hasAncestorWithId(el, opts.excludeHostId)) return;
 
       const shadow = el.shadowRoot;
       if (shadow) addRoot(shadow);

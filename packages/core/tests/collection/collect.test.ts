@@ -963,4 +963,19 @@ describe('collectMedia excludeHostId', () => {
     expect(srcs).toContain('https://example.com/a.jpg');
     expect(srcs).not.toContain('https://example.com/ui-icon.png');
   });
+
+  it('does not throw when excludeHostId is not a valid raw CSS selector token (leading digit), and still excludes that host', () => {
+    const UNSAFE_ID = '1overlay';
+    document.body.innerHTML = `
+      <img id="keep2" src="https://example.com/b.jpg" width="800" height="600">
+      <div id="${UNSAFE_ID}"><img src="https://example.com/unsafe-host.jpg" width="800" height="600"></div>
+    `;
+    let items: ReturnType<typeof collectMedia> = [];
+    expect(() => {
+      items = collectMedia(undefined, { excludeHostId: UNSAFE_ID });
+    }).not.toThrow();
+    const srcs = items.map((i) => i.src);
+    expect(srcs).toContain('https://example.com/b.jpg');
+    expect(srcs).not.toContain('https://example.com/unsafe-host.jpg');
+  });
 });
