@@ -1,3 +1,9 @@
 dist/
 .deno/
 *.mbd-build/
+*.app/
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+*.msi
