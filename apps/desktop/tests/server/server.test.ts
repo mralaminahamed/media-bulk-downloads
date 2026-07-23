@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes } from 'jsr:@std/assert';
-import { startServer } from '../src/server/server.ts';
+import { startServer } from '../../src/server/server.ts';
 
 const assets = { '/': { body: '<div id="root">__MBD_TOKEN__</div>', type: 'text/html; charset=utf-8' } };
 

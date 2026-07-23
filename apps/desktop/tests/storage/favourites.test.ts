@@ -1,6 +1,6 @@
 import { assert, assertEquals } from 'jsr:@std/assert';
-import { openStore } from '../src/storage/kv.ts';
-import { addFavourite, removeFavourite, clearFavourites, loadFavourites, favouriteKeys } from '../src/storage/favourites.ts';
+import { openStore } from '../../src/storage/kv.ts';
+import { addFavourite, removeFavourite, clearFavourites, loadFavourites, favouriteKeys } from '../../src/storage/favourites.ts';
 import type { FavouriteEntry } from '@mbd/core/types';
 
 const f = (src: string, time: number, extra: Partial<FavouriteEntry> = {}): FavouriteEntry => ({

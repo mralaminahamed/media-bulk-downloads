@@ -1,8 +1,8 @@
 import { assertEquals } from 'jsr:@std/assert';
-import { openStore } from '../src/storage/kv.ts';
-import { recordDownloads, loadHistory, removeHistoryEntry, clearHistory } from '../src/storage/history.ts';
+import { openStore } from '../../src/storage/kv.ts';
+import { recordDownloads, loadHistory, removeHistoryEntry, clearHistory } from '../../src/storage/history.ts';
 import type { HistoryEntry } from '@mbd/core/types';
-import type { StoredHistoryEntry } from '../src/storage/history.ts';
+import type { StoredHistoryEntry } from '../../src/storage/history.ts';
 
 const h = (
   src: string,

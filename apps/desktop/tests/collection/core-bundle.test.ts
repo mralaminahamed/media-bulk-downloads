@@ -1,5 +1,5 @@
 import { assert, assertEquals } from 'jsr:@std/assert';
-import { buildCoreBundle } from '../src/collector/build-collector.ts';
+import { buildCoreBundle } from '../../src/build/collector.ts';
 import type { HistoryEntry } from '@mbd/core/types';
 
 const h = (src: string, time: number): HistoryEntry => ({
@@ -13,7 +13,7 @@ const h = (src: string, time: number): HistoryEntry => ({
 
 Deno.test('core bundle exports the backend surface and merges correctly', async () => {
   await buildCoreBundle();
-  const m = await import('../src/core-bundle/download-name.gen.js');
+  const m = await import('../../src/core-bundle/download-name.gen.js');
   assertEquals(typeof m.buildDownloadFilename, 'function');
   assertEquals(typeof m.mergeHistory, 'function');
   assertEquals(typeof m.partitionByDownloaded, 'function');

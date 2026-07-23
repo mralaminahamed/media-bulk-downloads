@@ -159,8 +159,8 @@ built IIFE is not beside the running module. Options for Task 7:
   to a stable path the import can reference; verify `with { type: 'text' }` is
   honored by `deno desktop`'s bundler — fall back to inlining a generated
   `collector.ts` that `export const COLLECTOR = "…"`.)
-- Or generate `src/collector/collector.generated.ts` (`export const COLLECTOR_IIFE = <string>`)
-  from `build-collector.ts` and import that.
+- Or generate `src/generated/collector-iife.ts` (`export const COLLECTOR_IIFE = <string>`)
+  from `src/build/collector.ts` and import that.
 
 Do NOT rely on reading `dist/collector.iife.js` at runtime via a relative path.
 
@@ -174,8 +174,8 @@ file to `<root>/wikimedia.org/image_1.svg`. The recipe below is what actually wo
    passes; the run/build tasks also pass `--no-check` (the desktop compiler's type
    env differs).
 2. Embed the collector IIFE as a **generated string module** (`build:collector`
-   emits `collector.generated.ts` exporting `COLLECTOR_IIFE`), not a relative file
-   read — `import.meta.url` points into a temp compile dir at runtime.
+   emits `src/generated/collector-iife.ts` exporting `COLLECTOR_IIFE`), not a
+   relative file read — `import.meta.url` points into a temp compile dir at runtime.
 3. Pre-bundle backend `@mbd/core` value-imports into `core-bundle/download-name.gen.js`
    (imported by relative path); keep `@mbd/core/types` as `import type`.
 4. `navigateAndWait(url)` (sentinel, above) → `executeJs(COLLECTOR_IIFE)` →

@@ -1,5 +1,5 @@
 import { assertEquals } from 'jsr:@std/assert';
-import { createMediaStore } from '../src/server/media-store.ts';
+import { createMediaStore } from '../../src/server/media-store.ts';
 
 Deno.test('merge dedups by canonical key and returns only the newly added', () => {
   const s = createMediaStore();
