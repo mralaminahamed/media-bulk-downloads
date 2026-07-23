@@ -32,3 +32,11 @@ Deno.test('history records, dedups by canonical key, removes, clears', async () 
   assertEquals((await loadHistory(store)).length, 0);
   store.close();
 });
+
+Deno.test('recorded path survives the store round-trip (mergeHistory + KV serialization)', async () => {
+  const store = await openStore(await Deno.makeTempFile({ suffix: '.kv' }));
+  await recordDownloads(store, [h('https://x/a.jpg', 1, { path: '/exists/a.jpg' })]);
+  const [entry] = await loadHistory(store);
+  assertEquals(entry.path, '/exists/a.jpg');
+  store.close();
+});
