@@ -5,28 +5,48 @@ import type { StoredHistoryEntry } from '../lib/rpc.ts';
 export function HistoryPanel() {
   const [items, setItems] = useState<StoredHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  async function loadHistory() {
+    const r = await api.get('/api/history');
+    setItems((r as { items: StoredHistoryEntry[] }).items);
+  }
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    api.get('/api/history').then((r) => {
-      if (cancelled) return;
-      setItems((r as { items: StoredHistoryEntry[] }).items);
-      setLoading(false);
+    loadHistory().finally(() => {
+      if (!cancelled) setLoading(false);
     });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  function remove(src: string) {
+  useEffect(() => {
+    if (!error) return;
+    const t = setTimeout(() => setError(null), 4000);
+    return () => clearTimeout(t);
+  }, [error]);
+
+  async function remove(src: string) {
     setItems((prev) => prev.filter((it) => it.src !== src));
-    api.del('/api/history/' + encodeURIComponent(src));
+    try {
+      await api.del('/api/history/' + encodeURIComponent(src));
+    } catch {
+      setError('Failed to remove item — reloading history');
+      await loadHistory();
+    }
   }
 
-  function clearAll() {
+  async function clearAll() {
     setItems([]);
-    api.del('/api/history');
+    try {
+      await api.del('/api/history');
+    } catch {
+      setError('Failed to clear history — reloading history');
+      await loadHistory();
+    }
   }
 
   if (loading) return <p style={{ padding: 16, color: 'var(--muted)' }}>Loading history…</p>;
@@ -37,7 +57,10 @@ export function HistoryPanel() {
         <span style={{ color: 'var(--muted)', fontSize: 12 }}>
           {items.length} download{items.length === 1 ? '' : 's'}
         </span>
-        <button type="button" onClick={clearAll} disabled={items.length === 0}>Clear all</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {error && <span style={{ color: '#dc2626', fontSize: 12 }}>{error}</span>}
+          <button type="button" onClick={clearAll} disabled={items.length === 0}>Clear all</button>
+        </div>
       </div>
 
       {items.length === 0

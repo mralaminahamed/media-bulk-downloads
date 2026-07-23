@@ -25,6 +25,7 @@ export function App() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [previewItem, setPreviewItem] = useState<CollectedItem | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     api.get('/api/media').then((r) => {
@@ -66,9 +67,16 @@ export function App() {
 
   async function downloadSelected() {
     const srcs = [...selected];
-    const r = (await api.post('/api/download', { srcs })) as { queued: number; skipped: number };
-    setNotice(`queued ${r.queued}, skipped ${r.skipped}`);
-    setSelected(new Set());
+    setBusy(true);
+    try {
+      const r = (await api.post('/api/download', { srcs })) as { queued: number; skipped: number };
+      setNotice(`queued ${r.queued}, skipped ${r.skipped}`);
+      setSelected(new Set());
+    } catch {
+      setNotice('Download failed — try again');
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -146,7 +154,7 @@ export function App() {
                 type="button"
                 className="primary"
                 onClick={downloadSelected}
-                disabled={selected.size === 0}
+                disabled={busy || selected.size === 0}
               >
                 Download selected ({selected.size})
               </button>

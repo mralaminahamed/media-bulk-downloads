@@ -5,33 +5,49 @@ import type { FavouriteEntry } from '../lib/rpc.ts';
 export function FavouritesPanel() {
   const [items, setItems] = useState<FavouriteEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  async function loadFavourites() {
+    const r = await api.get('/api/favourites');
+    setItems((r as { items: FavouriteEntry[] }).items);
+  }
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    api.get('/api/favourites').then((r) => {
-      if (cancelled) return;
-      setItems((r as { items: FavouriteEntry[] }).items);
-      setLoading(false);
+    loadFavourites().finally(() => {
+      if (!cancelled) setLoading(false);
     });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  function remove(src: string) {
+  useEffect(() => {
+    if (!error) return;
+    const t = setTimeout(() => setError(null), 4000);
+    return () => clearTimeout(t);
+  }, [error]);
+
+  async function remove(src: string) {
     setItems((prev) => prev.filter((it) => it.src !== src));
-    api.del('/api/favourites/' + encodeURIComponent(src));
+    try {
+      await api.del('/api/favourites/' + encodeURIComponent(src));
+    } catch {
+      setError('Failed to remove item — reloading favourites');
+      await loadFavourites();
+    }
   }
 
   if (loading) return <p style={{ padding: 16, color: 'var(--muted)' }}>Loading favourites…</p>;
 
   return (
     <div style={{ padding: 16 }}>
-      <div style={{ marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <span style={{ color: 'var(--muted)', fontSize: 12 }}>
           {items.length} favourite{items.length === 1 ? '' : 's'}
         </span>
+        {error && <span style={{ color: '#dc2626', fontSize: 12 }}>{error}</span>}
       </div>
 
       {items.length === 0
