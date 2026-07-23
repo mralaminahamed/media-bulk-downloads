@@ -83,7 +83,9 @@ const handlers: Record<string, (args: string[]) => unknown | Promise<unknown>> =
       const item = JSON.parse(args[0]) as CollectedItem;
       const { path } = await downloadOne(item, {
         root,
-        template: '{domain}',
+        template: settings2.downloadPath,
+        namingMode: settings2.namingMode,
+        fileNamePrefix: settings2.fileNamePrefix,
         index: 0,
         sourcePageUrl: currentUrl,
       });

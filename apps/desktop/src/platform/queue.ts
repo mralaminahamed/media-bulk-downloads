@@ -41,7 +41,7 @@ export function createQueue(deps: Deps): Queue {
   let active = 0, done = 0, failed = 0;
   let idleResolvers: Array<() => void> = [];
 
-  const persist = () => deps.store.durableSet(KEY, pending).catch(() => {});
+  const persist = () => deps.store.durableSet(KEY, pending);
   const settleIdle = () => {
     if (active === 0 && pending.length === 0) {
       idleResolvers.forEach((r) => r());
@@ -85,11 +85,11 @@ export function createQueue(deps: Deps): Queue {
   function pump(): void {
     while (active < deps.settings().downloadConcurrency && pending.length) {
       const item = pending.shift()!;
-      void persist();
+      void persist().catch((e) => console.warn('[mbd] queue persist failed:', (e as Error).message));
       active++;
       void runOne(item).finally(() => {
         active--;
-        void persist();
+        void persist().catch((e) => console.warn('[mbd] queue persist failed:', (e as Error).message));
         pump();
         settleIdle();
       });
