@@ -1,0 +1,31 @@
+{
+  "version": "5",
+  "specifiers": {
+    "npm:@breezystack/lamejs@1.2.7": "1.2.7",
+    "npm:fflate@~0.8.3": "0.8.3",
+    "npm:mp4box@^2.4.1": "2.4.1",
+    "npm:react@^19.2.7": "19.2.8"
+  },
+  "npm": {
+    "@breezystack/lamejs@1.2.7": {
+      "integrity": "sha512-6wc7ck65ctA75Hq7FYHTtTvGnYs6msgdxiSUICQ+A01nVOWg6rqouZB8IdyteRlfpYYiFovkf67dIeOgWIUzTA=="
+    },
+    "fflate@0.8.3": {
+      "integrity": "sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA=="
+    },
+    "mp4box@2.4.1": {
+      "integrity": "sha512-0HGX7nXoDIX6FKLVl4a3wtYjBlwqsN3xuQC3GXzNtKp98FXUOhDSq623azsz8DG5ptd9ZXcXodDkgbdMZOjWvw=="
+    },
+    "react@19.2.8": {
+      "integrity": "sha512-PWaYA1L/q9u2u7xYQi+Y3L3Yfnie7XyLeaJICV1MGD6LprsBxcAqGjYyr0eY3p+QdsA+x/Irkt4Qif8D63+Sbw=="
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "npm:@breezystack/lamejs@1.2.7",
+      "npm:fflate@~0.8.3",
+      "npm:mp4box@^2.4.1",
+      "npm:react@^19.2.7"
+    ]
+  }
+}
