@@ -12,6 +12,8 @@ export default [
       'apps/safari-native/DerivedData/**',
       'apps/safari-native/Media Bulk Downloads/**',
       'apps/safari-native/MediaBulkDownloads/**',
+      'apps/desktop/**',
+      'docs/website/**',
       'assets/v2/**',
       'test-samples/**',
     ],
