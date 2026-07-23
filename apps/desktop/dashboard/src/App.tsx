@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, type CollectedItem, subscribe } from './lib/rpc.ts';
 import { Grid } from './components/Grid.tsx';
 import { Preview } from './components/Preview.tsx';
+import { QueuePanel } from './components/QueuePanel.tsx';
 
 function dedupeBySrc(items: CollectedItem[]): CollectedItem[] {
   const byKey = new Map<string, CollectedItem>();
@@ -13,6 +14,7 @@ export function App() {
   const [items, setItems] = useState<CollectedItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [previewItem, setPreviewItem] = useState<CollectedItem | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     api.get('/api/media').then((r) => {
@@ -46,6 +48,19 @@ export function App() {
       return next;
     });
 
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 4000);
+    return () => clearTimeout(t);
+  }, [notice]);
+
+  async function downloadSelected() {
+    const srcs = [...selected];
+    const r = (await api.post('/api/download', { srcs })) as { queued: number; skipped: number };
+    setNotice(`queued ${r.queued}, skipped ${r.skipped}`);
+    setSelected(new Set());
+  }
+
   return (
     <div>
       <header
@@ -78,11 +93,21 @@ export function App() {
           <span style={{ color: 'var(--muted)', fontSize: 12 }}>
             {items.length} item{items.length === 1 ? '' : 's'} · {selected.size} selected
           </span>
+          <QueuePanel />
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {notice && <span style={{ color: 'var(--ok)', fontSize: 12 }}>{notice}</span>}
           <button type="button" onClick={selectAll} disabled={items.length === 0}>Select all</button>
           <button type="button" onClick={selectNone} disabled={selected.size === 0}>Select none</button>
           <button type="button" onClick={invertSelection} disabled={items.length === 0}>Invert</button>
+          <button
+            type="button"
+            className="primary"
+            onClick={downloadSelected}
+            disabled={selected.size === 0}
+          >
+            Download selected ({selected.size})
+          </button>
         </div>
       </header>
 
