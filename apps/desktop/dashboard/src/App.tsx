@@ -8,12 +8,14 @@ import { QueuePanel } from './components/QueuePanel.tsx';
 import { HistoryPanel } from './components/HistoryPanel.tsx';
 import { FavouritesPanel } from './components/FavouritesPanel.tsx';
 import { FilterToolbar } from './components/FilterToolbar.tsx';
+import { Settings } from './components/Settings.tsx';
 
-type Tab = 'library' | 'history' | 'favourites';
+type Tab = 'library' | 'history' | 'favourites' | 'settings';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'library', label: 'Library' },
   { id: 'history', label: 'History' },
   { id: 'favourites', label: 'Favourites' },
+  { id: 'settings', label: 'Settings' },
 ];
 
 function dedupeBySrc(items: CollectedItem[]): CollectedItem[] {
@@ -212,6 +214,7 @@ export function App() {
 
       {tab === 'history' && <HistoryPanel />}
       {tab === 'favourites' && <FavouritesPanel />}
+      {tab === 'settings' && <Settings />}
     </div>
   );
 }
