@@ -33,19 +33,33 @@ const queue = createQueue({
   settings: () => settings2,
 });
 
-const win = new Deno.BrowserWindow({ title: 'Media Bulk Downloads — Browser', width: 1100, height: 780 });
+let win: Deno.BrowserWindow | null = null;
+let browserShown = false;
+let pumpStarted = false;
 
-// The dashboard window owns app lifecycle (see `dash.onclose` below). The
-// browsing window is a HIDDEN background surface by default — navigation +
-// collection run in it without stealing focus, and collected media streams to
-// the dashboard grid via SSE regardless of visibility. The dashboard's "Show
-// browser" control reveals it on demand; closing it just re-hides it.
-win.onclose = () => {
-  win.hide();
-};
-win.hide();
+// The dashboard window owns app lifecycle (see `dash.onclose` below) and is
+// the only window opened at startup. The browsing window is NOT created
+// eagerly — a window that doesn't exist can't show. It's created lazily on
+// first use (URL-bar navigate, "Show browser", or a deep-scan/capture that
+// needs a page) via `ensureBrowser()`, starts hidden, and stays hidden unless
+// the user reveals it; closing it just re-hides it instead of destroying it.
+function ensureBrowser(): Deno.BrowserWindow {
+  if (win) return win;
+  const created = new Deno.BrowserWindow({ title: 'Media Bulk Downloads — Browser', width: 1100, height: 780 });
+  created.onclose = () => {
+    browserShown = false;
+    win?.hide();
+  };
+  created.hide();
+  win = created;
+  if (!pumpStarted) {
+    pumpStarted = true;
+    void pumpLoop();
+  }
+  return created;
+}
 
-let currentUrl = 'https://commons.wikimedia.org/wiki/Category:Vincent_van_Gogh';
+let currentUrl = '';
 
 // Dashboard backend: media store (collected items across pages) + SSE hub +
 // REST routes, served by the local-only HTTP server. The dashboard window is
@@ -94,8 +108,10 @@ const routes = buildRoutes({
     void openAndInject(url);
   },
   showBrowser: () => {
-    win.show();
-    win.focus();
+    const w = ensureBrowser();
+    browserShown = true;
+    w.show();
+    w.focus();
   },
   deepScan: () => {
     void runDeepScanFlow();
@@ -226,11 +242,13 @@ const handlers: Record<string, (args: string[]) => unknown | Promise<unknown>> =
 // document, navigate, then poll until the marker is gone (= the new document
 // committed) AND it has finished loading.
 async function navigateAndWait(url: string, timeoutMs = 20000): Promise<boolean> {
-  await win.executeJs('window.__mbdNavMark = true');
-  win.navigate(url);
+  const w = win;
+  if (!w) return false;
+  await w.executeJs('window.__mbdNavMark = true');
+  w.navigate(url);
   const start = performance.now();
   while (performance.now() - start < timeoutMs) {
-    const r = await win.executeJs<boolean>(
+    const r = await w.executeJs<boolean>(
       "typeof window.__mbdNavMark === 'undefined' && document.readyState === 'complete'",
     );
     if (r?.ok && r.value === true) return true;
@@ -246,11 +264,13 @@ async function navigateAndWait(url: string, timeoutMs = 20000): Promise<boolean>
 // synchronous executeJs reads poll that marker until it's set (or timeoutMs
 // elapses) — the same mark-then-poll recipe navigateAndWait uses for navigation.
 async function awaitPageValue<T>(dispatchCode: string, timeoutMs: number): Promise<T | undefined> {
-  await win.executeJs('window.__mbdVerify = undefined');
-  await win.executeJs(dispatchCode);
+  const w = win;
+  if (!w) return undefined;
+  await w.executeJs('window.__mbdVerify = undefined');
+  await w.executeJs(dispatchCode);
   const start = performance.now();
   while (performance.now() - start < timeoutMs) {
-    const r = await win.executeJs<{ ready: boolean; value: T }>(
+    const r = await w.executeJs<{ ready: boolean; value: T }>(
       "(typeof window.__mbdVerify !== 'undefined' ? { ready: true, value: window.__mbdVerify } : { ready: false, value: null })",
     );
     if (r?.ok && r.value?.ready) return r.value.value;
@@ -285,6 +305,12 @@ let scanning = false;
 // rather than only once at the end.
 async function runDeepScanFlow(): Promise<void> {
   if (scanning) return;
+  // A scan needs an already-browsed page — don't spin up a blank window for it.
+  const w = win;
+  if (!w) {
+    sse.broadcast('scan-progress', { found: 0, scrolls: 0, elapsedMs: 0, reason: 'error' });
+    return;
+  }
   scanning = true;
   let lastProgress: DeepScanProgress | null = null;
   try {
@@ -300,9 +326,9 @@ async function runDeepScanFlow(): Promise<void> {
       excludeHostId: 'mbd-overlay',
     };
 
-    await win.executeJs(DEEPSCAN_IIFE);
-    await win.executeJs('window.__mbdScanProgress = undefined; window.__mbdScanResult = undefined;');
-    await win.executeJs(`void __mbdDeepScan(${JSON.stringify(cfg)})`);
+    await w.executeJs(DEEPSCAN_IIFE);
+    await w.executeJs('window.__mbdScanProgress = undefined; window.__mbdScanResult = undefined;');
+    await w.executeJs(`void __mbdDeepScan(${JSON.stringify(cfg)})`);
 
     const start = performance.now();
     const safetyMs = cfg.maxMs + 15000;
@@ -310,7 +336,7 @@ async function runDeepScanFlow(): Promise<void> {
     let result: DeepScanResult | null = null;
 
     while (performance.now() - start < safetyMs) {
-      const r = await win.executeJs<string>(
+      const r = await w.executeJs<string>(
         'JSON.stringify({ p: window.__mbdScanProgress ?? null, done: window.__mbdScanResult ?? null })',
       );
       if (r?.ok && r.value) {
@@ -427,19 +453,23 @@ async function runCaptureFlow(src: string): Promise<void> {
 }
 
 async function openAndInject(url: string): Promise<void> {
-  // Navigate + collect in the background WITHOUT showing/focusing the browsing
-  // window — it stays hidden by default (the dashboard's "Show browser" reveals
-  // it). Collected media reaches the dashboard grid via SSE regardless.
+  // Lazily create the browsing window, then navigate + collect in the
+  // background WITHOUT showing/focusing it — it stays hidden unless the user
+  // already revealed it (the dashboard's "Show browser" control). Collected
+  // media reaches the dashboard grid via SSE regardless of visibility.
+  const w = ensureBrowser();
   currentUrl = url;
   const ready = await navigateAndWait(url);
   console.log('[mbd] page ready:', ready, url);
-  await win.executeJs(COLLECTOR_IIFE);
-  await win.executeJs(OVERLAY_JS);
+  await w.executeJs(COLLECTOR_IIFE);
+  await w.executeJs(OVERLAY_JS);
 
-  const count = await win.executeJs<number>(
+  const count = await w.executeJs<number>(
     "(globalThis.__mbdCollect ? globalThis.__mbdCollect({ excludeHostId: 'mbd-overlay' }).length : 0)",
   );
   console.log('[mbd] collected count:', count?.value);
+
+  if (!browserShown) w.hide();
 }
 
 // Drain the page-side command queue once, in a SINGLE executeJs round-trip that
@@ -451,13 +481,15 @@ async function openAndInject(url: string): Promise<void> {
 // Returns true if any command was processed.
 let lastQueueBroadcast: string | undefined;
 async function drainOnce(): Promise<boolean> {
+  const w = win;
+  if (!w) return false;
   const status = queue.status();
   const statusJson = JSON.stringify(status);
   if (statusJson !== lastQueueBroadcast) {
     lastQueueBroadcast = statusJson;
     sse.broadcast('queue', status);
   }
-  const r = await win.executeJs<string>(
+  const r = await w.executeJs<string>(
     '(() => { window.__mbdStatus = ' + statusJson +
       '; const q = (window.__mbdCmd || []); window.__mbdCmd = []; return JSON.stringify(q); })()',
   );
@@ -479,7 +511,7 @@ async function drainOnce(): Promise<boolean> {
       }
     }
     if (c.id) {
-      await win.executeJs(
+      await w.executeJs(
         '(window.__mbdRes = window.__mbdRes || {})[' + JSON.stringify(c.id) + '] = ' +
           JSON.stringify(result ?? null),
       );
@@ -507,14 +539,18 @@ async function pumpLoop(): Promise<void> {
   }
 }
 
-await openAndInject(currentUrl);
-void pumpLoop();
+// Startup opens ONLY the dashboard above (+ `Deno.serve` inside it, which
+// keeps the process alive) — nothing here creates or navigates the browsing
+// window; that happens lazily via `ensureBrowser()`/`openAndInject()` on
+// first use (URL-bar navigate, "Show browser", or a deep-scan/capture).
 
-// Transport self-test (off by default): push a request-style command into the
-// page queue exactly as a real button click does, and confirm the pump loop
-// dispatches it and delivers a response back through __mbdRes. Proves the whole
-// page -> Deno -> page round-trip without a human click.
+// Transport self-test (off by default): browse a real page so there's
+// something to collect, then push a request-style command into the page
+// queue exactly as a real button click does, and confirm the pump loop
+// dispatches it and delivers a response back through __mbdRes. Proves the
+// whole page -> Deno -> page round-trip without a human click.
 if (Deno.env.get('MBD_SELFTEST')) {
+  await openAndInject('https://commons.wikimedia.org/wiki/Category:Vincent_van_Gogh');
   const probe = await awaitPageValue<
     { ok: boolean; downloadPath: unknown; historyLen: number }
   >(
