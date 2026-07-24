@@ -9,7 +9,7 @@ export interface DisplayPaneProps {
 export function DisplayPane({ settings, patch }: DisplayPaneProps) {
   return (
     <div>
-      <h2 style={{ fontSize: 14, margin: '0 0 8px' }}>Display</h2>
+      <p className="eyebrow" style={{ margin: '0 0 12px' }}>Display</p>
 
       <NumberField
         label="Thumbnail size"

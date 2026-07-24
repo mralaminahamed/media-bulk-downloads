@@ -606,17 +606,3 @@ input[type="range"] {
     animation: none;
   }
 }
-
-/* ── Compatibility aliases (temporary) ───────────────────────────────────────
-   The dashboard's existing components still reference the old --bg/--fg/
-   --muted/--ok token names from before this design-system adoption. Keep them
-   mapped onto the new tokens so those components keep rendering; remove this
-   block once every component is migrated to the extension token names
-   directly (--panel/--ink/--ink-3, and an explicit success color). */
-:root,
-:host {
-  --bg: var(--panel);
-  --fg: var(--ink);
-  --muted: var(--ink-3);
-  --ok: #16a34a;
-}

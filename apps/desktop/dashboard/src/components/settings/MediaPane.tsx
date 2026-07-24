@@ -9,7 +9,7 @@ export interface MediaPaneProps {
 export function MediaPane({ settings, patch }: MediaPaneProps) {
   return (
     <div>
-      <h2 style={{ fontSize: 14, margin: '0 0 8px' }}>Media</h2>
+      <p className="eyebrow" style={{ margin: '0 0 12px' }}>Media</p>
 
       <NumberField
         label="Minimum image size"
