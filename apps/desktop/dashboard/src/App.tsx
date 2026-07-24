@@ -78,7 +78,10 @@ export function App() {
     api.post('/api/deep-scan').catch(() => setNotice('Could not start deep scan'));
   }
 
-  const capturableSrcs = useMemo(
+  // A manifest (HLS .m3u8 or DASH .mpd) isn't a downloadable file, so it stays
+  // out of the file-download path regardless of whether it gets a Capture
+  // button (see Grid.tsx: Capture is HLS-only, this exclusion is not).
+  const manifestSrcs = useMemo(
     () => new Set(items.filter((it) => it.hlsManifest).map((it) => it.src)),
     [items],
   );
@@ -107,7 +110,7 @@ export function App() {
   }, [notice]);
 
   async function downloadSelected() {
-    const srcs = [...selected].filter((src) => !capturableSrcs.has(src));
+    const srcs = [...selected].filter((src) => !manifestSrcs.has(src));
     setBusy(true);
     try {
       const r = (await api.post('/api/download', { srcs })) as { queued: number; skipped: number };

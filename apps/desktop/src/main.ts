@@ -146,7 +146,7 @@ const handlers: Record<string, (args: string[]) => unknown | Promise<unknown>> =
 
   downloadAll: async (args) => {
     try {
-      const items = JSON.parse(args[0]) as CollectedItem[];
+      const items = (JSON.parse(args[0]) as CollectedItem[]).filter((it) => !it.hlsManifest);
       let keep = items;
       let skipped: CollectedItem[] = [];
       if (settings2.skipDuplicateDownloads) {

@@ -43,3 +43,39 @@ Deno.test('captureStream cannot escape root via a crafted source page URL', asyn
 
   assert(path.startsWith(root), `path escaped root: ${path}`);
 });
+
+Deno.test('captureStream gives two captures from the same host distinct filenames', async () => {
+  const root = await Deno.makeTempDir();
+
+  const first = await captureStream(
+    { src: 'https://ex.com/alpha.m3u8', hlsManifest: 'https://ex.com/alpha.m3u8', sourcePage: { url: 'https://ex.com/watch' } },
+    { root, quality: 'highest', captureImpl: fakeCapture as never },
+  );
+  const second = await captureStream(
+    { src: 'https://ex.com/bravo.m3u8', hlsManifest: 'https://ex.com/bravo.m3u8', sourcePage: { url: 'https://ex.com/watch' } },
+    { root, quality: 'highest', captureImpl: fakeCapture as never },
+  );
+
+  assert(first.path !== second.path, `two captures collided on one filename: ${first.path}`);
+  assert(first.path.startsWith(root) && second.path.startsWith(root));
+
+  const [a, b] = await Promise.all([Deno.readFile(first.path), Deno.readFile(second.path)]);
+  assertEquals(a.length, 3);
+  assertEquals(b.length, 3);
+});
+
+Deno.test('captureStream still names the file uniquely when the manifest URL has no usable basename', async () => {
+  const root = await Deno.makeTempDir();
+
+  const first = await captureStream(
+    { src: 'https://ex.com/', hlsManifest: 'https://ex.com/', sourcePage: { url: 'https://ex.com/watch' } },
+    { root, quality: 'highest', captureImpl: fakeCapture as never },
+  );
+  await new Promise((r) => setTimeout(r, 5));
+  const second = await captureStream(
+    { src: 'https://ex.com/', hlsManifest: 'https://ex.com/', sourcePage: { url: 'https://ex.com/watch' } },
+    { root, quality: 'highest', captureImpl: fakeCapture as never },
+  );
+
+  assert(first.path !== second.path, `two captures collided on one filename: ${first.path}`);
+});

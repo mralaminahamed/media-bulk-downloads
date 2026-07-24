@@ -50,7 +50,7 @@ export function buildRoutes(deps: RouteDeps): Record<string, ApiHandler> {
       const { srcs } = (await req.json()) as { srcs: string[] };
       const items = srcs
         .map((src) => deps.media.get(src))
-        .filter((it): it is NonNullable<typeof it> => it != null);
+        .filter((it): it is NonNullable<typeof it> => it != null && !it.hlsManifest);
       let keep = items;
       let skipped: typeof items = [];
       if (deps.settings().skipDuplicateDownloads) {

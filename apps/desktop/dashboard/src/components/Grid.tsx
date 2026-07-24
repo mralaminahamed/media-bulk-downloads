@@ -48,16 +48,20 @@ function Tile(
 ) {
   const [failed, setFailed] = useState(false);
   const thumb = item.thumbnailSrc ?? item.poster ?? item.src;
-  const isCapturable = Boolean(item.hlsManifest);
+  // Any manifest item (HLS .m3u8 or DASH .mpd) is not a downloadable file, so
+  // it's never selectable/toggleable. Only true HLS gets the Capture
+  // affordance — DASH capture isn't implemented yet, so it stays inert.
+  const isManifest = Boolean(item.hlsManifest);
+  const isHls = item.type === 'm3u8';
 
   return (
     <div
-      role={isCapturable ? undefined : 'button'}
-      aria-pressed={isCapturable ? undefined : isSelected}
-      tabIndex={isCapturable ? undefined : 0}
-      onClick={isCapturable ? undefined : () => onToggle(item.src)}
+      role={isManifest ? undefined : 'button'}
+      aria-pressed={isManifest ? undefined : isSelected}
+      tabIndex={isManifest ? undefined : 0}
+      onClick={isManifest ? undefined : () => onToggle(item.src)}
       onDoubleClick={() => onPreview?.(item)}
-      onKeyDown={isCapturable ? undefined : (e) => {
+      onKeyDown={isManifest ? undefined : (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onToggle(item.src);
@@ -70,11 +74,11 @@ function Tile(
         overflow: 'hidden',
         border: isSelected
           ? '2px solid var(--brand)'
-          : isCapturable
+          : isHls
           ? '1px dashed var(--brand-2)'
           : '1px solid var(--line)',
         background: 'var(--bg)',
-        cursor: isCapturable ? 'default' : 'pointer',
+        cursor: isManifest ? 'default' : 'pointer',
       }}
     >
       {failed || !thumb
@@ -148,7 +152,7 @@ function Tile(
         </button>
       )}
 
-      {isCapturable && (
+      {isHls && (
         <span
           aria-hidden
           style={{
@@ -168,7 +172,7 @@ function Tile(
         </span>
       )}
 
-      {isCapturable && onCapture && (
+      {isHls && onCapture && (
         <button
           type="button"
           onClick={(e) => {
@@ -191,7 +195,7 @@ function Tile(
         </button>
       )}
 
-      {!isCapturable && isSelected && (
+      {!isManifest && isSelected && (
         <span
           aria-hidden
           style={{

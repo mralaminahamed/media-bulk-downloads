@@ -54,6 +54,39 @@ function withExtension(rel: string, ext: string): string {
   return `${base}.${ext}`;
 }
 
+/** Slugifies a URL's last path segment for use in a filename, or null when
+ *  there isn't a usable one (data/blob URI, trailing slash, unparsable URL). */
+function slugFromUrl(url: string | undefined): string | null {
+  if (!url) return null;
+  let pathname: string;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    return null;
+  }
+  const last = pathname.split('/').filter(Boolean).pop() ?? '';
+  if (!last) return null;
+  let decoded = last;
+  try {
+    decoded = decodeURIComponent(last);
+  } catch {
+    /* keep raw on malformed escapes */
+  }
+  const dot = decoded.lastIndexOf('.');
+  const base = dot > 0 ? decoded.slice(0, dot) : decoded;
+  const slug = base.replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^[-.]+|[-.]+$/g, '');
+  return slug || null;
+}
+
+/** A token that keeps two captures from the same host from landing on one
+ *  filename: the manifest/src basename when it has a usable one, else a
+ *  millisecond timestamp. Restricted to filename-safe characters; the caller
+ *  additionally runs it back through the core naming pipeline's sanitizer. */
+function captureToken(item: CaptureItem): string {
+  const token = slugFromUrl(item.hlsManifest) ?? slugFromUrl(item.src) ?? `${Date.now()}`;
+  return token.replace(/[^a-zA-Z0-9._-]/g, '');
+}
+
 export async function captureStream(
   item: CaptureItem,
   opts: CaptureOpts,
@@ -68,7 +101,7 @@ export async function captureStream(
 
   const settings = {
     downloadPath: '{domain}',
-    fileNamePrefix: 'video_',
+    fileNamePrefix: `video-${captureToken(item)}-`,
     namingMode: 'prefixed',
   } as unknown as SettingsData;
   const rel = withExtension(

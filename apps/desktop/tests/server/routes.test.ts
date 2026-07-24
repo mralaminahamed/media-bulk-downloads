@@ -39,6 +39,38 @@ Deno.test('download enqueues known items, skips unknown srcs', async () => {
   store.close();
 });
 
+Deno.test('download rejects srcs whose media-store item carries an hlsManifest', async () => {
+  const store = await openStore(await Deno.makeTempFile({ suffix: '.kv' }));
+  const media = createMediaStore();
+  media.merge([
+    { src: 'https://x/a.jpg', kind: 'image' },
+    { src: 'https://x/v.m3u8', kind: 'video', type: 'm3u8', hlsManifest: 'https://x/v.m3u8' },
+  ]);
+  const enqueued: unknown[] = [];
+  const queue = { enqueue: (xs: unknown[]) => { enqueued.push(...xs); return Promise.resolve(); }, status: () => ({ pending: 0, active: 0, done: 0, failed: 0 }), drain: () => Promise.resolve(), resume: () => Promise.resolve() };
+  let settings = await loadSettings(store);
+  settings = { ...settings, skipDuplicateDownloads: false };
+  const routes = buildRoutes({
+    store,
+    queue,
+    media,
+    sse: createSseHub(),
+    settings: () => settings,
+    setSettings: async (s) => { settings = s; await saveSettings(store, s); },
+    navigate: () => {},
+    exportData: async () => ({ version: 1, settings, history: await loadHistory(store), favourites: await loadFavourites(store) }),
+    importData: async () => ({ history: 0, favourites: 0 }),
+  });
+  const res = await routes['POST /api/download'](
+    json({ srcs: ['https://x/a.jpg', 'https://x/v.m3u8'] }),
+    new URL('http://x/api/download'),
+  );
+  assertEquals(await res.json(), { queued: 1, skipped: 0 });
+  assertEquals(enqueued.length, 1);
+  assertEquals((enqueued[0] as { src: string }).src, 'https://x/a.jpg');
+  store.close();
+});
+
 Deno.test('settings round-trip through PUT then GET', async () => {
   const store = await openStore(await Deno.makeTempFile({ suffix: '.kv' }));
   let settings = await loadSettings(store);

@@ -1,7 +1,8 @@
 // Hand-written types for the generated `stream.gen.js` (gitignored,
-// Vite-bundled from stream-entry.ts by build-collector.ts's buildStreamBundle()).
-// Associated to the generated JS via a `@ts-self-types` directive that
-// buildStreamBundle() prepends to the emitted file — see build-collector.ts.
+// Vite-bundled from stream-entry.ts by core-bundle/stream.build.ts's
+// buildStreamBundle()). Associated to the generated JS via a `@ts-self-types`
+// directive that buildStreamBundle() prepends to the emitted file — see
+// core-bundle/stream.build.ts.
 
 export interface HlsByteRange {
   length: number;
