@@ -26,8 +26,8 @@ The app runs one Deno process that opens two windows:
   dotgrid brand header, and OS-following dark mode. A URL bar is the first row
   under the header. Served by `Deno.serve` on `127.0.0.1:<random>`. It talks to
   the backend over `fetch('/api/…')` + an SSE `/events` stream (a per-session
-  token, minted at startup and passed in the URL, guards every `/api`/`/events`
-  request). Shows the media grid (with a filter toolbar — kind/format/size/search/
+  token, minted at startup and embedded in the served HTML shell — the webview
+  drops the launch URL's query string — guards every `/api`/`/events` request). Shows the media grid (with a filter toolbar — kind/format/size/search/
   sort, reusing `@mbd/core`'s filter predicates), multi-select, preview,
   download-to-queue, live queue status, History/Favourites tabs, and a Settings
   surface (Downloads/Media/Display/Data/Advanced panes on KV, incl. backup
