@@ -27,7 +27,7 @@ export function Preview({ item, onClose, maxSize }: PreviewProps) {
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,0.75)',
+        background: 'var(--overlay)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -37,23 +37,25 @@ export function Preview({ item, onClose, maxSize }: PreviewProps) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{ position: 'relative', maxWidth: maxDim, maxHeight: maxDimH }}
+        style={{
+          position: 'relative',
+          maxWidth: maxDim,
+          maxHeight: maxDimH,
+          background: 'var(--panel)',
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid var(--line)',
+          boxShadow: '0 24px 48px -16px rgba(0, 0, 0, 0.45)',
+          padding: 12,
+          overflow: 'hidden',
+        }}
       >
         <button
           type="button"
           onClick={onClose}
           aria-label="Close preview"
-          style={{
-            position: 'absolute',
-            top: -40,
-            right: 0,
-            background: 'transparent',
-            border: 'none',
-            color: '#fff',
-            fontSize: 22,
-            lineHeight: 1,
-            padding: 4,
-          }}
+          title="Close"
+          className="iconbtn"
+          style={{ position: 'absolute', top: 6, right: 6, zIndex: 1 }}
         >
           ✕
         </button>
@@ -65,21 +67,21 @@ export function Preview({ item, onClose, maxSize }: PreviewProps) {
               poster={item.poster}
               controls
               autoPlay
-              style={{ maxWidth: maxDim, maxHeight: maxDimH, display: 'block', borderRadius: 8 }}
+              style={{ maxWidth: maxDim, maxHeight: maxDimH, display: 'block', borderRadius: 'var(--radius-sm)' }}
             />
           )
           : item.kind === 'audio'
           ? (
-            <div
-              style={{
-                background: 'var(--bg)',
-                color: 'var(--fg)',
-                padding: 24,
-                borderRadius: 8,
-                minWidth: 320,
-              }}
-            >
-              <p style={{ marginTop: 0, wordBreak: 'break-all', color: 'var(--muted)', fontSize: 12 }}>
+            <div style={{ minWidth: 320 }}>
+              <p
+                style={{
+                  marginTop: 0,
+                  paddingRight: 32,
+                  wordBreak: 'break-all',
+                  color: 'var(--ink-3)',
+                  fontSize: 12,
+                }}
+              >
                 {item.src}
               </p>
               <audio src={item.src} controls autoPlay style={{ width: '100%' }} />
@@ -89,7 +91,7 @@ export function Preview({ item, onClose, maxSize }: PreviewProps) {
             <img
               src={item.src}
               alt=""
-              style={{ maxWidth: maxDim, maxHeight: maxDimH, display: 'block', borderRadius: 8 }}
+              style={{ maxWidth: maxDim, maxHeight: maxDimH, display: 'block', borderRadius: 'var(--radius-sm)' }}
             />
           )}
       </div>
