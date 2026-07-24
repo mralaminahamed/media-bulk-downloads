@@ -64,6 +64,31 @@ Deno.test('captureStream gives two captures from the same host distinct filename
   assertEquals(b.length, 3);
 });
 
+Deno.test('captureStream gives two captures with the SAME manifest basename (different hosts) distinct filenames', async () => {
+  const root = await Deno.makeTempDir();
+
+  const first = await captureStream(
+    { src: 'https://a.com/x/playlist.m3u8', hlsManifest: 'https://a.com/x/playlist.m3u8', sourcePage: { url: 'https://a.com/watch' } },
+    { root, quality: 'highest', captureImpl: fakeCapture as never },
+  );
+  await new Promise((r) => setTimeout(r, 5));
+  const second = await captureStream(
+    { src: 'https://b.com/y/playlist.m3u8', hlsManifest: 'https://b.com/y/playlist.m3u8', sourcePage: { url: 'https://b.com/watch' } },
+    { root, quality: 'highest', captureImpl: fakeCapture as never },
+  );
+
+  assert(
+    first.path !== second.path,
+    `two captures with the identical manifest basename "playlist.m3u8" collided: ${first.path}`,
+  );
+  assert(first.path.includes('playlist') && second.path.includes('playlist'), 'expected the basename slug to remain for readability');
+  assert(first.path.startsWith(root) && second.path.startsWith(root));
+
+  const [a, b] = await Promise.all([Deno.readFile(first.path), Deno.readFile(second.path)]);
+  assertEquals(a.length, 3);
+  assertEquals(b.length, 3);
+});
+
 Deno.test('captureStream still names the file uniquely when the manifest URL has no usable basename', async () => {
   const root = await Deno.makeTempDir();
 

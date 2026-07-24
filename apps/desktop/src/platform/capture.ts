@@ -78,12 +78,18 @@ function slugFromUrl(url: string | undefined): string | null {
   return slug || null;
 }
 
-/** A token that keeps two captures from the same host from landing on one
- *  filename: the manifest/src basename when it has a usable one, else a
- *  millisecond timestamp. Restricted to filename-safe characters; the caller
- *  additionally runs it back through the core naming pipeline's sanitizer. */
+/** A token that keeps two captures from colliding on one filename: the
+ *  manifest/src basename slug (when there's a usable one — for
+ *  readability) plus a millisecond timestamp (for uniqueness). HLS
+ *  manifests are almost always named generically (`playlist.m3u8`,
+ *  `master.m3u8`), so the slug alone repeats across unrelated videos;
+ *  the timestamp guarantees two captures never overwrite each other even
+ *  when the basename is identical. Restricted to filename-safe characters;
+ *  the caller additionally runs it back through the core naming pipeline's
+ *  sanitizer. */
 function captureToken(item: CaptureItem): string {
-  const token = slugFromUrl(item.hlsManifest) ?? slugFromUrl(item.src) ?? `${Date.now()}`;
+  const slug = slugFromUrl(item.hlsManifest) ?? slugFromUrl(item.src);
+  const token = slug ? `${slug}-${Date.now()}` : `${Date.now()}`;
   return token.replace(/[^a-zA-Z0-9._-]/g, '');
 }
 
