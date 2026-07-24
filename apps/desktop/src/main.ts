@@ -50,6 +50,7 @@ function ensureBrowser(): Deno.BrowserWindow {
     browserShown = false;
     win?.hide();
   };
+  created.hide();
   win = created;
   if (!pumpStarted) {
     pumpStarted = true;
