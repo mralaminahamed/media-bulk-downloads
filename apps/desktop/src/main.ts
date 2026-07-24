@@ -35,13 +35,15 @@ const queue = createQueue({
 
 const win = new Deno.BrowserWindow({ title: 'Media Bulk Downloads — Browser', width: 1100, height: 780 });
 
-// The infinite pump loop keeps Deno's event loop alive, so the process never
-// exits on its own. The browsing window used to exit the app on close, but the
-// dashboard window now owns app lifecycle (see `dash.onclose` below) — closing
-// the browsing window just hides it so it can be reopened via navigation.
+// The dashboard window owns app lifecycle (see `dash.onclose` below). The
+// browsing window is a HIDDEN background surface by default — navigation +
+// collection run in it without stealing focus, and collected media streams to
+// the dashboard grid via SSE regardless of visibility. The dashboard's "Show
+// browser" control reveals it on demand; closing it just re-hides it.
 win.onclose = () => {
   win.hide();
 };
+win.hide();
 
 let currentUrl = 'https://commons.wikimedia.org/wiki/Category:Vincent_van_Gogh';
 
@@ -425,8 +427,9 @@ async function runCaptureFlow(src: string): Promise<void> {
 }
 
 async function openAndInject(url: string): Promise<void> {
-  win.show();
-  win.focus();
+  // Navigate + collect in the background WITHOUT showing/focusing the browsing
+  // window — it stays hidden by default (the dashboard's "Show browser" reveals
+  // it). Collected media reaches the dashboard grid via SSE regardless.
   currentUrl = url;
   const ready = await navigateAndWait(url);
   console.log('[mbd] page ready:', ready, url);
