@@ -54,9 +54,9 @@ export function FavouritesPanel() {
       {items.length === 0
         ? <p style={{ color: 'var(--ink-3)' }}>Starred items will show up here.</p>
         : (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <ul style={{ display: 'flex', flexDirection: 'column', listStyle: 'none', margin: 0, padding: 0 }}>
             {items.map((it) => (
-              <div
+              <li
                 key={it.src}
                 style={{
                   display: 'flex',
@@ -104,9 +104,9 @@ export function FavouritesPanel() {
                 >
                   ✕
                 </button>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
     </div>
   );

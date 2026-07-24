@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import type { CSSProperties } from 'react';
 
 const rowStyle: CSSProperties = {
@@ -35,11 +36,13 @@ export interface ToggleRowProps {
 }
 
 export function ToggleRow({ label, checked, onChange, hint }: ToggleRowProps) {
+  const id = useId();
   return (
     <div style={rowStyle}>
       <div style={labelRowStyle}>
-        <span style={labelStyle}>{label}</span>
+        <label htmlFor={id} style={labelStyle}>{label}</label>
         <button
+          id={id}
           type="button"
           role="switch"
           aria-checked={checked}

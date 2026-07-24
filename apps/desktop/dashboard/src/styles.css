@@ -481,6 +481,15 @@ input[type="range"] {
   transform: translateY(-2px);
 }
 
+/* Static card — same base look as .card (border/radius/background) for
+   non-clickable containers (e.g. the settings pane), with no hover lift. */
+.card-static {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  overflow: hidden;
+}
+
 .checker {
   --checker-bg: #ffffff;
   --checker-sq: #f0f0f4;

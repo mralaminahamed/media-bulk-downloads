@@ -69,9 +69,9 @@ export function HistoryPanel() {
       {items.length === 0
         ? <p style={{ color: 'var(--ink-3)' }}>Downloads you make will show up here.</p>
         : (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <ul style={{ display: 'flex', flexDirection: 'column', listStyle: 'none', margin: 0, padding: 0 }}>
             {items.map((it) => (
-              <div
+              <li
                 key={it.src}
                 style={{
                   display: 'flex',
@@ -119,9 +119,9 @@ export function HistoryPanel() {
                 >
                   ✕
                 </button>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
     </div>
   );

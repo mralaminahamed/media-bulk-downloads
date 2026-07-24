@@ -116,7 +116,7 @@ export function Settings({ onSettingsChange }: SettingsProps = {}) {
 
       {error && <p style={{ color: 'var(--warn)', fontSize: 12, marginTop: 0 }}>{error}</p>}
 
-      <div className="card" style={{ maxWidth: 560, padding: '16px 20px' }}>
+      <div className="card-static" style={{ maxWidth: 560, padding: '16px 20px' }}>
         {pane === 'downloads' && <DownloadsPane settings={settings} patch={patch} />}
         {pane === 'media' && <MediaPane settings={settings} patch={patch} />}
         {pane === 'display' && <DisplayPane settings={settings} patch={patch} />}
