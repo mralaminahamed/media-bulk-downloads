@@ -274,6 +274,7 @@ let scanning = false;
 async function runDeepScanFlow(): Promise<void> {
   if (scanning) return;
   scanning = true;
+  let lastProgress: DeepScanProgress | null = null;
   try {
     const host = registrableDomain(hostFromUrl(currentUrl));
     const mem = settings2.rememberScanBehaviour && host ? await loadScanMemory(store, host) : null;
@@ -294,7 +295,6 @@ async function runDeepScanFlow(): Promise<void> {
     const start = performance.now();
     const safetyMs = cfg.maxMs + 15000;
     let lastProgressJson: string | undefined;
-    let lastProgress: DeepScanProgress | null = null;
     let result: DeepScanResult | null = null;
 
     while (performance.now() - start < safetyMs) {
@@ -352,6 +352,12 @@ async function runDeepScanFlow(): Promise<void> {
     }
   } catch (e) {
     console.log('[mbd] deep-scan err:', (e as Error).message);
+    sse.broadcast('scan-progress', {
+      found: lastProgress?.found ?? 0,
+      scrolls: lastProgress?.scrolls ?? 0,
+      elapsedMs: lastProgress?.elapsedMs ?? 0,
+      reason: 'error',
+    });
   } finally {
     scanning = false;
   }
