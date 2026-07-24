@@ -19,7 +19,12 @@ Desktop build of Media Bulk Downloads (Deno desktop). Requires Deno 2.9+.
 The app runs one Deno process that opens two windows:
 
 - **Dashboard window** — a React app (`dashboard/`, built by Vite → embedded via
-  `build:dashboard`) served by `Deno.serve` on `127.0.0.1:<random>`. It talks to
+  `build:dashboard`) styled to match the browser extension's popup: it reuses the
+  extension's "precision utility" design system — the same tokens + component
+  classes (`.btn`/`.field`/`.chip`/`.card`/`.eyebrow`/`.hairline`/`.dotgrid`/`.num`,
+  copied as plain CSS into `dashboard/src/styles.css`; no Tailwind build), a
+  dotgrid brand header, and OS-following dark mode. A URL bar is the first row
+  under the header. Served by `Deno.serve` on `127.0.0.1:<random>`. It talks to
   the backend over `fetch('/api/…')` + an SSE `/events` stream (a per-session
   token, minted at startup and passed in the URL, guards every `/api`/`/events`
   request). Shows the media grid (with a filter toolbar — kind/format/size/search/
