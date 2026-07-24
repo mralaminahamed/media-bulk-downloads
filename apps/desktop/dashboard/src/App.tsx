@@ -36,6 +36,7 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [appSettings, setAppSettings] = useState<DesktopSettings | null>(null);
+  const [addr, setAddr] = useState('');
 
   const available = useMemo(() => deriveFilterOptions(items as unknown as ImageInfo[]), [items]);
   const visible = useMemo(
@@ -72,6 +73,13 @@ export function App() {
 
   function showBrowser() {
     api.post('/api/show-browser').catch(() => setNotice('Could not show the browser window'));
+  }
+
+  function navigateTo() {
+    let u = addr.trim();
+    if (!u) return;
+    if (!/^[a-z]+:\/\//i.test(u)) u = 'https://' + u;
+    api.post('/api/navigate', { url: u }).catch(() => setNotice('Could not navigate'));
   }
 
   function triggerDeepScan() {
@@ -169,6 +177,27 @@ export function App() {
               </button>
             ))}
           </nav>
+          <form
+            onSubmit={(e) => { e.preventDefault(); navigateTo(); }}
+            style={{ display: 'flex', gap: 6, flex: 1, minWidth: 180, maxWidth: 560 }}
+          >
+            <input
+              value={addr}
+              onChange={(e) => setAddr(e.target.value)}
+              placeholder="Enter a URL to browse…"
+              aria-label="Browse URL"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                padding: '5px 10px',
+                border: '1px solid var(--line)',
+                borderRadius: 6,
+                background: 'var(--bg)',
+                color: 'var(--fg)',
+              }}
+            />
+            <button type="submit" disabled={!addr.trim()}>Go</button>
+          </form>
           <button type="button" onClick={showBrowser}>Show browser</button>
         </div>
       </header>
