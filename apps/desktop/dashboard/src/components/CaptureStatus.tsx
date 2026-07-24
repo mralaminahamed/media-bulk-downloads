@@ -59,16 +59,14 @@ export function CaptureStatus() {
   if (items.length === 0) return null;
 
   return (
-    <div role="status" style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 12 }}>
+    <div role="status" style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
       {items.map(([src, entry]) => {
         const failed = entry.reason === 'error';
         const complete = entry.reason === 'complete';
         const done = Boolean(entry.reason);
-        const label = failed
-          ? 'Capture failed'
-          : complete
-          ? 'Captured'
-          : `Capturing… ${entry.done}/${entry.total}`;
+        const determinate = entry.total > 0;
+        const pct = determinate ? Math.min(100, Math.round((entry.done / entry.total) * 100)) : 0;
+        const label = failed ? 'Capture failed' : complete ? 'Captured' : 'Capturing…';
 
         return (
           <div
@@ -77,23 +75,39 @@ export function CaptureStatus() {
               display: 'flex',
               alignItems: 'center',
               gap: 6,
-              color: failed ? '#dc2626' : done ? 'var(--ok)' : 'var(--brand)',
+              color: failed ? 'var(--warn)' : done ? 'var(--brand-ink)' : 'var(--ink-2)',
             }}
           >
-            {!done && (
-              <span
-                aria-hidden
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  border: '2px solid var(--brand)',
-                  borderTopColor: 'transparent',
-                  animation: 'mbd-spin 0.8s linear infinite',
-                }}
-              />
-            )}
             <span>{label}</span>
+            {!done && (
+              <>
+                <span className="num">{entry.done}/{entry.total}</span>
+                <div
+                  style={{
+                    position: 'relative',
+                    width: 40,
+                    height: 4,
+                    borderRadius: 999,
+                    overflow: 'hidden',
+                    background: 'var(--panel-2)',
+                  }}
+                >
+                  {determinate
+                    ? (
+                      <div
+                        style={{
+                          width: `${pct}%`,
+                          height: '100%',
+                          borderRadius: 999,
+                          background: 'var(--brand)',
+                          transition: 'width 200ms ease',
+                        }}
+                      />
+                    )
+                    : <div className="progress-indet" style={{ position: 'absolute', inset: 0 }} />}
+                </div>
+              </>
+            )}
           </div>
         );
       })}

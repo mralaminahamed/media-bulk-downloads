@@ -25,13 +25,25 @@ export function QueuePanel() {
   if (total === 0) return null;
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        height: 24,
+        padding: '0 10px',
+        border: '1px solid var(--line)',
+        borderRadius: 'var(--radius-sm)',
+        background: 'var(--panel)',
+        fontSize: 11,
+      }}
+    >
       <div
         style={{
-          width: 90,
-          height: 6,
-          borderRadius: 3,
-          background: 'var(--line)',
+          width: 48,
+          height: 4,
+          borderRadius: 999,
+          background: 'var(--panel-2)',
           overflow: 'hidden',
         }}
       >
@@ -39,18 +51,18 @@ export function QueuePanel() {
           style={{
             width: `${pct}%`,
             height: '100%',
-            background: 'var(--ok)',
+            background: 'var(--brand)',
             transition: 'width 200ms ease',
           }}
         />
       </div>
-      <span style={{ color: 'var(--muted)' }}>
-        <strong style={{ color: 'var(--brand)' }}>{active}</strong> active ·{' '}
-        <strong style={{ color: 'var(--fg)' }}>{pending}</strong> pending ·{' '}
-        <strong style={{ color: 'var(--ok)' }}>{done}</strong> done
+      <span style={{ color: 'var(--ink-2)' }}>
+        <strong className="num" style={{ color: 'var(--ink-2)' }}>{active}</strong> active ·{' '}
+        <strong className="num" style={{ color: 'var(--ink)' }}>{pending}</strong> pending ·{' '}
+        <strong className="num" style={{ color: 'var(--brand-ink)' }}>{done}</strong> done
         {failed > 0 && (
           <>
-            {' '}· <strong style={{ color: '#dc2626' }}>{failed}</strong> failed
+            {' '}· <strong className="num" style={{ color: 'var(--warn)' }}>{failed}</strong> failed
           </>
         )}
       </span>
