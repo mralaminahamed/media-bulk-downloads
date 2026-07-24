@@ -7,6 +7,7 @@ import { Grid } from './components/Grid.tsx';
 import { Preview } from './components/Preview.tsx';
 import { QueuePanel } from './components/QueuePanel.tsx';
 import { ScanStatus } from './components/ScanStatus.tsx';
+import { CaptureStatus } from './components/CaptureStatus.tsx';
 import { HistoryPanel } from './components/HistoryPanel.tsx';
 import { FavouritesPanel } from './components/FavouritesPanel.tsx';
 import { FilterToolbar } from './components/FilterToolbar.tsx';
@@ -77,17 +78,27 @@ export function App() {
     api.post('/api/deep-scan').catch(() => setNotice('Could not start deep scan'));
   }
 
-  const selectAll = () => setSelected(new Set(visible.map((it) => it.src)));
+  const capturableSrcs = useMemo(
+    () => new Set(items.filter((it) => it.hlsManifest).map((it) => it.src)),
+    [items],
+  );
+  const downloadableVisible = useMemo(() => visible.filter((it) => !it.hlsManifest), [visible]);
+
+  const selectAll = () => setSelected(new Set(downloadableVisible.map((it) => it.src)));
   const selectNone = () => setSelected(new Set());
   const invertSelection = () =>
     setSelected((prev) => {
       const next = new Set(prev);
-      for (const it of visible) {
+      for (const it of downloadableVisible) {
         if (next.has(it.src)) next.delete(it.src);
         else next.add(it.src);
       }
       return next;
     });
+
+  function onCapture(src: string) {
+    api.post('/api/capture', { src }).catch(() => setNotice('Capture failed to start'));
+  }
 
   useEffect(() => {
     if (!notice) return;
@@ -96,7 +107,7 @@ export function App() {
   }, [notice]);
 
   async function downloadSelected() {
-    const srcs = [...selected];
+    const srcs = [...selected].filter((src) => !capturableSrcs.has(src));
     setBusy(true);
     try {
       const r = (await api.post('/api/download', { srcs })) as { queued: number; skipped: number };
@@ -180,6 +191,7 @@ export function App() {
               </span>
               <QueuePanel />
               <ScanStatus />
+              <CaptureStatus />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {notice && <span style={{ color: 'var(--ok)', fontSize: 12 }}>{notice}</span>}
@@ -225,6 +237,7 @@ export function App() {
                 selected={selected}
                 onToggle={toggle}
                 onPreview={setPreviewItem}
+                onCapture={onCapture}
                 tileSize={appSettings?.thumbnailSize}
               />
             )}

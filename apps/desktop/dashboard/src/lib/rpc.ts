@@ -8,6 +8,7 @@ export interface CollectedItem {
   width?: number;
   height?: number;
   sourcePage?: { url?: string; title?: string };
+  hlsManifest?: string;
 }
 
 export interface StoredHistoryEntry {
