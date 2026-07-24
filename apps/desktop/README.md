@@ -29,8 +29,12 @@ The app runs one Deno process that opens two windows:
   export/import). A "Deep scan" button runs a bounded injected scroll loop
   (reusing `@mbd/core`'s `runDeepScan`) to surface lazy-loaded media before
   collecting, with per-registrable-host scan memory that warm-starts repeats and
-  a live progress indicator (SSE). Settings changes take effect live — the queue
-  + overlay read them without a restart. Closing it exits the app.
+  a live progress indicator (SSE). HLS video items are badged and offer a
+  "Capture" action — the Deno backend fetches + decrypts + muxes the stream to an
+  `.mp4` (reusing `@mbd/core`'s `captureHls` + mp4box, run server-side so no
+  offscreen document is needed), with `capture-progress` over SSE and a
+  configurable quality. Settings changes take effect live — the queue + overlay
+  read them without a restart. Closing it exits the app.
 - **Browser window** — navigates external sites; a Shadow-DOM overlay injected via
   `executeJs` collects media (page → Deno over the `window.__mbdCmd` command
   queue, since `win.bind` can't resolve async handlers). Collected items flow into
