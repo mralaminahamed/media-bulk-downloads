@@ -34,7 +34,13 @@ export interface FavouriteEntry {
   time: number;
 }
 
-const token = new URLSearchParams(location.search).get('token') ?? '';
+// The laufey webview drops the query string on navigate, so the session token
+// is embedded in the HTML shell (server.ts replaces `__MBD_TOKEN__`) and read
+// from there. The query string is a fallback for environments that keep it
+// (e.g. opening the dashboard in a normal browser).
+const embedded = document.querySelector('meta[name="mbd-token"]')?.getAttribute('content') ?? '';
+const token = (embedded && embedded !== '__MBD_TOKEN__' ? embedded : null) ??
+  new URLSearchParams(location.search).get('token') ?? '';
 const h = { 'x-mbd-token': token, 'content-type': 'application/json' };
 
 async function toJson(res: Response): Promise<unknown> {

@@ -81,6 +81,22 @@ in a single eval) and back off when idle (200ms while interacting / a download
 is in flight, 700ms idle). Verify against a bare window with no pump: its
 traffic-light buttons work, so any control lag is your loop.
 
+## `navigate()` DROPS the query string — embed page state in the shell
+
+**VERIFIED GOTCHA:** after `dash.navigate('http://127.0.0.1:PORT/?token=…')` the
+webview commits `location.href` as `http://127.0.0.1:PORT/` — **`location.search`
+is empty**. Anything the page needs from the launch URL must therefore travel a
+different way. The dashboard's session token rides in the served HTML: `index.html`
+carries `<meta name="mbd-token" content="__MBD_TOKEN__" />`, the server replaces
+`__MBD_TOKEN__` when serving `/`, and `rpc.ts` reads the token off that meta (with
+`location.search` kept only as a fallback for opening the dashboard in a normal
+browser). Reading the token from `location.search` alone leaves it empty in the
+webview, so every `/api` + `/events` call 401s — the only visible symptom is a
+"Could not navigate" toast (the one fetch with a surfaced `.catch`); the grid,
+settings, and SSE fail silently. (`EventSource` can't set headers, so `/events`
+still takes the token as a query param — built from the meta-resolved token, not
+the dropped launch-URL query.)
+
 ## Two windows, one lifecycle owner
 
 An infinite pump loop keeps Deno's event loop alive, so the process never exits
