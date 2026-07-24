@@ -1,7 +1,617 @@
-:root { --brand: #4F46E5; --brand-2: #818CF8; --bg: #ffffff; --fg: #111114; --muted: #6b7280; --line: #e5e7eb; --ok: #16a34a; }
-@media (prefers-color-scheme: dark) { :root { --bg: #0f0f12; --fg: #e5e7eb; --muted: #9ca3af; --line: #26262c; } }
-* { box-sizing: border-box; }
-body { margin: 0; font: 14px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--fg); }
-button { font: inherit; cursor: pointer; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); padding: 5px 12px; }
-button.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
-@keyframes mbd-spin { to { transform: rotate(360deg); } }
+/* ── Design tokens ───────────────────────────────────────────────────────────
+   "Precision utility": cool paper canvas, ink text, a single indigo accent,
+   monospace numerics, hairline borders instead of heavy shadows.
+   Declared on :host too so the tokens inherit inside the bubble's Shadow DOM. */
+:root,
+:host {
+  --paper: #fafafb;
+  --panel: #ffffff;
+  --panel-2: #f5f5f8;
+
+  --ink: #17181c;
+  --ink-2: #5f616c;
+  --ink-3: #9a9ca6;
+
+  --line: #ececf1;
+  --line-strong: #dedde5;
+
+  --brand: #6366f1;
+  --brand-ink: #4f46e5;
+  --brand-soft: #eef0fe;
+  --ring: rgba(99, 102, 241, 0.35);
+
+  /* Semantic warning tone (errors), kept separate from the indigo accent. */
+  --warn: #b45309;
+
+  /* Modal scrim. A theme-independent dark wash with a faint indigo-cool cast
+     (never derived from --ink, which inverts light↔dark and would whiten the
+     overlay in dark mode). Alpha baked in — apply as bg-[var(--overlay)]. */
+  --overlay: rgba(18, 19, 30, 0.55);
+  /* Hover veil over media thumbnails — a dark wash in BOTH themes so the action
+     buttons read on top. Theme-independent for the same reason as --overlay. */
+  --scrim: rgba(10, 11, 16, 0.45);
+  /* Hairline ring on floating controls (round buttons, the downloaded badge).
+     Flips polarity by theme so the edge stays visible on either canvas. */
+  --ctl-ring: rgba(0, 0, 0, 0.06);
+
+  /* Corner-radius scale. lg = modals/large tiles, md = cards, sm = inputs &
+     buttons, xs = chips/tags. Components use these instead of ad-hoc px. */
+  --radius-lg: 12px;
+  --radius: 10px;
+  --radius-sm: 7px;
+  --radius-xs: 5px;
+
+  /* Moving highlight for loading skeletons; softened in dark so it doesn't glare. */
+  --skeleton-sheen: rgba(255, 255, 255, 0.65);
+
+  --font-sans: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+
+  /* Adapt native controls (scrollbars, form widgets, focus) to the theme. */
+  color-scheme: light dark;
+}
+
+/* ── Dark theme ──────────────────────────────────────────────────────────────
+   Follows the OS setting. Every surface reads from tokens, so overriding the
+   ramp here re-skins the whole popup and the bubble's Shadow DOM in one place.
+   Same near-black canvas / lifted panels / light ink, brighter indigo accent
+   so the single accent still reads against a dark background. */
+@media (prefers-color-scheme: dark) {
+  :root,
+  :host {
+    --paper: #0e0f13;
+    --panel: #16181e;
+    --panel-2: #1e2029;
+
+    --ink: #e9eaef;
+    --ink-2: #a4a6b2;
+    --ink-3: #6d6f7c;
+
+    --line: #23252e;
+    --line-strong: #33353f;
+
+    --brand: #818cf8;
+    --brand-ink: #6366f1;
+    --brand-soft: #1c1b39;
+    --ring: rgba(129, 140, 248, 0.4);
+    --skeleton-sheen: rgba(255, 255, 255, 0.05);
+    --warn: #fbbf24;
+    /* Deeper on the near-black canvas so lifted panels read against it. */
+    --overlay: rgba(3, 4, 9, 0.66);
+    /* On dark surfaces a black ring vanishes — use a faint light edge instead. */
+    --ctl-ring: rgba(255, 255, 255, 0.12);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font: 14px/1.5 var(--font-sans);
+  background: var(--paper);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button {
+  font: inherit;
+}
+
+/* Base surface for the app. The popup body sets these directly; the bubble
+   panel applies this class inside its Shadow DOM. */
+.mbd-app {
+  font-family: var(--font-sans);
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+}
+
+/* Thin, unobtrusive scrollbar. */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 999px;
+  border: 2px solid var(--paper);
+}
+.scroll-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-3);
+}
+
+/* Focus ring: crisp indigo, keyboard-only. */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ── Signature elements ──────────────────────────────────────────────────── */
+
+/* Monospace micro-label. */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Drop the native number spinners — they collide with in-field suffix labels
+   (e.g. the "KB" adornment) and clutter the precision-utility look. */
+input.num[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+input.num[type="number"]::-webkit-outer-spin-button,
+input.num[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.hairline {
+  border-color: var(--line);
+}
+
+/* Faint dotted-grid texture for the header. */
+.dotgrid {
+  background-image: radial-gradient(var(--line-strong) 0.75px, transparent 0.75px);
+  background-size: 11px 11px;
+  background-position: -1px -1px;
+}
+
+/* Type filter pills. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 27px;
+  padding: 0 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease, transform 0.1s ease;
+}
+.chip:hover {
+  border-color: var(--ink-3);
+  color: var(--ink);
+}
+.chip:active {
+  transform: scale(0.97);
+}
+.chip.is-active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper); /* inverts with the theme so text stays legible on --ink */
+}
+
+/* Segmented control (single-choice, e.g. size buckets). A quiet track with a
+   lifted "thumb" on the active segment — reads as one control, not loose pills. */
+.segwrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+}
+.seg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 23px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.seg:hover {
+  color: var(--ink);
+}
+.seg.is-active {
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 0.5px var(--line-strong);
+}
+
+/* Even segments — every segment shares the track width equally, so the control
+   reads as one uniform unit (needs a defined width on the .segwrap). The tighter
+   padding keeps the equal columns compact. */
+.segwrap-even .seg {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 4px;
+}
+
+/* Count badge — active-filter feedback. */
+.countpill {
+  display: inline-flex;
+  align-items: center;
+  height: 17px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* Square icon button. */
+.iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+}
+.iconbtn:hover {
+  background: var(--panel-2);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+/* Compact icon button — dense action rows (e.g. history entries). */
+.iconbtn-sm {
+  width: 28px;
+  height: 28px;
+}
+
+/* Buttons. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+.btn:active {
+  transform: translateY(0.5px);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  color: #fff;
+  background: var(--brand-ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 1px 2px rgba(79, 70, 229, 0.25);
+}
+.btn-primary:not(:disabled):hover {
+  background: #4338ca;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 3px 10px rgba(79, 70, 229, 0.3);
+}
+
+.btn-ghost {
+  color: var(--ink);
+  background: var(--panel);
+  border-color: var(--line-strong);
+}
+.btn-ghost:hover {
+  background: var(--panel-2);
+  border-color: var(--ink-3);
+}
+
+/* Compact button — headers, toolbars, dense rows. Overrides the .btn box. */
+.btn-sm {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+/* Split button — two .btn halves fused into one control (e.g. Download + caret). */
+.btn-group {
+  display: inline-flex;
+}
+.btn-group > .btn:not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.btn-group > .btn:not(:first-child) {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left-color: rgba(255, 255, 255, 0.22);
+}
+
+/* Text field. */
+.field {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 13px;
+  width: 100%;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+.field:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+.field::placeholder {
+  color: var(--ink-3);
+}
+.field:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Native <select> on .field. Our own chevron tinted to --ink-3 (theme-aware
+   via the dark override below), with room reserved on the right so text
+   never runs under it. */
+select.field {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 30px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='16'%20height='16'%20viewBox='0%200%2016%2016'%20fill='none'%20stroke='%239a9ca6'%20stroke-width='1.6'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M4%206l4%204%204-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  background-size: 15px 15px;
+}
+@media (prefers-color-scheme: dark) {
+  select.field {
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='16'%20height='16'%20viewBox='0%200%2016%2016'%20fill='none'%20stroke='%236d6f7c'%20stroke-width='1.6'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M4%206l4%204%204-4'/%3E%3C/svg%3E");
+  }
+}
+
+/* Icon-prefixed search input. */
+input[type="search"].field {
+  padding-left: 32px;
+  height: 30px;
+}
+
+/* Multi-line variant. .field hard-sets height:34px, which would crush a
+   <textarea> to one line — give textareas their own sizing while keeping the
+   brand border, focus ring, and radius. */
+textarea.field {
+  height: auto;
+  min-height: 76px;
+  padding: 8px 10px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+/* Tint all native checkbox / radio / range controls with the brand accent, so
+   any control (not just the ones styled inline) reads on-brand. */
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+  accent-color: var(--brand-ink);
+}
+
+/* Toggle switch. */
+.switch {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--line-strong);
+  border: none;
+  cursor: pointer;
+  transition: background 0.16s ease;
+  flex: none;
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform 0.16s ease;
+}
+.switch[aria-checked="true"] {
+  background: var(--brand-ink);
+}
+.switch[aria-checked="true"]::after {
+  transform: translateX(14px);
+}
+.switch:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Image card. */
+.card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.card:hover {
+  border-color: var(--brand);
+  box-shadow: 0 6px 18px -8px rgba(79, 70, 229, 0.35);
+  transform: translateY(-2px);
+}
+
+/* Static card — same base look as .card (border/radius/background) for
+   non-clickable containers (e.g. the settings pane), with no hover lift. */
+.card-static {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.checker {
+  --checker-bg: #ffffff;
+  --checker-sq: #f0f0f4;
+  background-color: var(--checker-bg);
+  background-image:
+    linear-gradient(45deg, var(--checker-sq) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--checker-sq) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--checker-sq) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--checker-sq) 75%);
+  background-size: 14px 14px;
+  background-position: 0 0, 0 7px, 7px -7px, -7px 0;
+}
+@media (prefers-color-scheme: dark) {
+  .checker {
+    --checker-bg: #1a1b20;
+    --checker-sq: #262830;
+  }
+}
+
+/* ── Loading skeleton ────────────────────────────────────────────────────────
+   A quiet placeholder surface with a sweeping highlight. Sits under real
+   content (thumbnails, grid tiles) until it loads. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--panel-2);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, var(--skeleton-sheen), transparent);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* Motion. */
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.reveal {
+  animation: reveal 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.overlay-in {
+  animation: overlay-in 0.16s ease both;
+}
+.sheet-in {
+  animation: sheet-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Indeterminate progress bar — a rounded segment sliding across the track, for
+   work whose size isn't known up front (e.g. resolving videos). */
+@keyframes progress-slide {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(360%);
+  }
+}
+.progress-indet::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 28%;
+  border-radius: 999px;
+  background: var(--brand);
+  animation: progress-slide 1.15s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress-indet::after {
+    animation: none;
+    width: 100%;
+    opacity: 0.4;
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .overlay-in,
+  .sheet-in {
+    animation: none;
+  }
+  .skeleton::after {
+    animation: none;
+  }
+}

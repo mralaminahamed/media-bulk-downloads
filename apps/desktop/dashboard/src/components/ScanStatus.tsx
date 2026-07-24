@@ -36,9 +36,8 @@ export function ScanStatus() {
   if (!progress) return null;
 
   const done = Boolean(progress.reason);
-  const label = done
-    ? `${REASON_LABEL[progress.reason ?? ''] ?? 'Scan stopped'} — ${progress.found} found`
-    : `Scanning… found ${progress.found} (scroll ${progress.scrolls})`;
+  const failed = progress.reason === 'error';
+  const reasonLabel = REASON_LABEL[progress.reason ?? ''] ?? 'Scan stopped';
 
   return (
     <div
@@ -48,23 +47,38 @@ export function ScanStatus() {
         alignItems: 'center',
         gap: 6,
         fontSize: 12,
-        color: done ? 'var(--ok)' : 'var(--brand)',
+        color: failed ? 'var(--warn)' : done ? 'var(--brand-ink)' : 'var(--ink-2)',
       }}
     >
       {!done && (
-        <span
+        <div
           aria-hidden
           style={{
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            border: '2px solid var(--brand)',
-            borderTopColor: 'transparent',
-            animation: 'mbd-spin 0.8s linear infinite',
+            position: 'relative',
+            width: 28,
+            height: 4,
+            borderRadius: 999,
+            overflow: 'hidden',
+            background: 'var(--panel-2)',
           }}
-        />
+        >
+          <div className="progress-indet" style={{ position: 'absolute', inset: 0 }} />
+        </div>
       )}
-      <span>{label}</span>
+      <span>
+        {done
+          ? (
+            <>
+              {reasonLabel} — <strong className="num">{progress.found}</strong> found
+            </>
+          )
+          : (
+            <>
+              Scanning… found <strong className="num">{progress.found}</strong> (scroll{' '}
+              <strong className="num">{progress.scrolls}</strong>)
+            </>
+          )}
+      </span>
     </div>
   );
 }

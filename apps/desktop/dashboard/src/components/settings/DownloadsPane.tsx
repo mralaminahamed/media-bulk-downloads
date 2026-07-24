@@ -14,7 +14,7 @@ const NAMING_OPTIONS = [
 export function DownloadsPane({ settings, patch }: DownloadsPaneProps) {
   return (
     <div>
-      <h2 style={{ fontSize: 14, margin: '0 0 8px' }}>Downloads</h2>
+      <p className="eyebrow" style={{ margin: '0 0 12px' }}>Downloads</p>
 
       <TextField
         label="Download path"

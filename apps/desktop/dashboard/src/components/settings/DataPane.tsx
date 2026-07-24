@@ -18,8 +18,8 @@ const labelRowStyle: CSSProperties = {
   gap: 12,
 };
 
-const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 500 };
-const hintStyle: CSSProperties = { display: 'block', marginTop: 4, fontSize: 11, color: 'var(--muted)' };
+const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 500, color: 'var(--ink)' };
+const hintStyle: CSSProperties = { display: 'block', marginTop: 4, fontSize: 11, color: 'var(--ink-3)' };
 
 interface ImportResult {
   ok: boolean;
@@ -106,10 +106,10 @@ export function DataPane() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 14, margin: '0 0 8px' }}>Data</h2>
+      <p className="eyebrow" style={{ margin: '0 0 12px' }}>Data</p>
 
       {(error ?? notice) && (
-        <p style={{ fontSize: 12, marginTop: 0, color: error ? '#dc2626' : 'var(--ok)' }}>
+        <p style={{ fontSize: 12, marginTop: 0, color: error ? 'var(--warn)' : 'var(--brand-ink)' }}>
           {error ?? notice}
         </p>
       )}
@@ -117,7 +117,7 @@ export function DataPane() {
       <div style={rowStyle}>
         <div style={labelRowStyle}>
           <span style={labelStyle}>Export backup</span>
-          <button type="button" onClick={exportBackup}>Export</button>
+          <button type="button" className="btn btn-sm btn-ghost" onClick={exportBackup}>Export</button>
         </div>
         <span style={hintStyle}>Download settings, history, and favourites as a JSON file</span>
       </div>
@@ -125,12 +125,15 @@ export function DataPane() {
       <div style={rowStyle}>
         <div style={labelRowStyle}>
           <span style={labelStyle}>Import backup</span>
+          <button type="button" className="btn btn-sm btn-ghost" onClick={() => fileInputRef.current?.click()}>
+            Import
+          </button>
           <input
             ref={fileInputRef}
             type="file"
             accept="application/json"
             onChange={(e) => importBackup(e.target.files)}
-            style={{ fontSize: 12, maxWidth: 200 }}
+            style={{ display: 'none' }}
           />
         </div>
         <span style={hintStyle}>Merges history & favourites and restores settings from the backup file</span>
@@ -139,7 +142,12 @@ export function DataPane() {
       <div style={rowStyle}>
         <div style={labelRowStyle}>
           <span style={labelStyle}>Clear history</span>
-          <button type="button" onClick={clearHistoryClick}>
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost"
+            onClick={clearHistoryClick}
+            style={confirmingClear ? { color: 'var(--warn)', borderColor: 'var(--warn)' } : undefined}
+          >
             {confirmingClear ? 'Confirm clear?' : 'Clear history'}
           </button>
         </div>

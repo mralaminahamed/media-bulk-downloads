@@ -89,33 +89,34 @@ export function Settings({ onSettingsChange }: SettingsProps = {}) {
     if (error) {
       return (
         <div style={{ padding: 16 }}>
-          <p style={{ color: '#dc2626', fontSize: 12, marginTop: 0 }}>{error}</p>
-          <button type="button" className="primary" onClick={loadSettings}>Retry</button>
+          <p style={{ color: 'var(--warn)', fontSize: 12, marginTop: 0 }}>{error}</p>
+          <button type="button" className="btn btn-sm" onClick={loadSettings}>Retry</button>
         </div>
       );
     }
-    return <p style={{ padding: 16, color: 'var(--muted)' }}>Loading settings…</p>;
+    return <p style={{ padding: 16, color: 'var(--ink-3)' }}>Loading settings…</p>;
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-      <nav style={{ width: 150, flexShrink: 0, padding: '16px 8px', borderRight: '1px solid var(--line)' }}>
+    <div style={{ padding: 16 }}>
+      <nav role="tablist" aria-label="Settings sections" className="segwrap" style={{ flexWrap: 'wrap', marginBottom: 16 }}>
         {PANES.map((p) => (
           <button
             key={p.id}
             type="button"
+            role="tab"
+            aria-selected={pane === p.id}
             onClick={() => setPane(p.id)}
-            className={pane === p.id ? 'primary' : undefined}
-            style={{ display: 'block', width: '100%', textAlign: 'left', marginBottom: 4 }}
+            className={`seg${pane === p.id ? ' is-active' : ''}`}
           >
             {p.label}
           </button>
         ))}
       </nav>
 
-      <div style={{ flex: 1, minWidth: 0, maxWidth: 560, padding: '16px 24px' }}>
-        {error && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 0 }}>{error}</p>}
+      {error && <p style={{ color: 'var(--warn)', fontSize: 12, marginTop: 0 }}>{error}</p>}
 
+      <div className="card-static" style={{ maxWidth: 560, padding: '16px 20px' }}>
         {pane === 'downloads' && <DownloadsPane settings={settings} patch={patch} />}
         {pane === 'media' && <MediaPane settings={settings} patch={patch} />}
         {pane === 'display' && <DisplayPane settings={settings} patch={patch} />}

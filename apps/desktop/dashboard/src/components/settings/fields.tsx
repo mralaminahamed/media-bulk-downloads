@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import type { CSSProperties } from 'react';
 
 const rowStyle: CSSProperties = {
@@ -13,18 +14,8 @@ const labelRowStyle: CSSProperties = {
   gap: 12,
 };
 
-const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 500 };
-const hintStyle: CSSProperties = { display: 'block', marginTop: 4, fontSize: 11, color: 'var(--muted)' };
-
-const inputStyle: CSSProperties = {
-  height: 30,
-  borderRadius: 6,
-  border: '1px solid var(--line)',
-  background: 'var(--bg)',
-  color: 'var(--fg)',
-  padding: '0 8px',
-  fontSize: 12,
-};
+const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 500, color: 'var(--ink)' };
+const hintStyle: CSSProperties = { display: 'block', marginTop: 4, fontSize: 11, color: 'var(--ink-3)' };
 
 function clamp(n: number, min?: number, max?: number): number {
   let v = n;
@@ -45,45 +36,24 @@ export interface ToggleRowProps {
 }
 
 export function ToggleRow({ label, checked, onChange, hint }: ToggleRowProps) {
+  const id = useId();
   return (
-    <label style={{ ...rowStyle, cursor: 'pointer' }}>
-      <span style={labelRowStyle}>
-        <span style={labelStyle}>{label}</span>
-        <span style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
-          <input
-            type="checkbox"
-            checked={checked}
-            onChange={(e) => onChange(e.target.checked)}
-            style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', margin: 0, cursor: 'pointer' }}
-          />
-          <span
-            aria-hidden
-            style={{
-              width: 36,
-              height: 20,
-              borderRadius: 10,
-              background: checked ? 'var(--brand)' : 'var(--line)',
-              transition: 'background 150ms ease',
-            }}
-          >
-            <span
-              style={{
-                display: 'block',
-                width: 16,
-                height: 16,
-                marginTop: 2,
-                marginLeft: checked ? 18 : 2,
-                borderRadius: '50%',
-                background: '#fff',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.25)',
-                transition: 'margin-left 150ms ease',
-              }}
-            />
-          </span>
-        </span>
-      </span>
+    <div style={rowStyle}>
+      <div style={labelRowStyle}>
+        <label htmlFor={id} style={labelStyle}>{label}</label>
+        <button
+          id={id}
+          type="button"
+          role="switch"
+          aria-checked={checked}
+          aria-label={label}
+          title={label}
+          onClick={() => onChange(!checked)}
+          className="switch"
+        />
+      </div>
       <Hint hint={hint} />
-    </label>
+    </div>
   );
 }
 
@@ -111,7 +81,8 @@ export function NumberField({ label, value, onChange, min, max, hint }: NumberFi
             if (Number.isNaN(n)) return;
             onChange(clamp(n, min, max));
           }}
-          style={{ ...inputStyle, width: 84, textAlign: 'right' }}
+          className="field num"
+          style={{ width: 84, textAlign: 'right' }}
         />
       </div>
       <Hint hint={hint} />
@@ -137,7 +108,8 @@ export function TextField({ label, value, onChange, placeholder, hint }: TextFie
           value={value}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
-          style={{ ...inputStyle, width: 220 }}
+          className="field"
+          style={{ width: 220 }}
         />
       </div>
       <Hint hint={hint} />
@@ -166,7 +138,8 @@ export function SelectField({ label, value, options, onChange, hint }: SelectFie
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          style={{ ...inputStyle, width: 160 }}
+          className="field"
+          style={{ width: 160 }}
         >
           {options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
         </select>

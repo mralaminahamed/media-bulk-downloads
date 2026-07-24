@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react';
 import type { AvailableOptions, FilterOptions, SortKey } from '@mbd/core/types';
 import { FORMAT_LABELS } from '@mbd/core/collection/filters';
 import { DEFAULT_FILTERS } from '../lib/filters.ts';
@@ -31,16 +30,6 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'type', label: 'Sort: Type' },
 ];
 
-const fieldStyle: CSSProperties = {
-  height: 30,
-  borderRadius: 6,
-  border: '1px solid var(--line)',
-  background: 'var(--bg)',
-  color: 'var(--fg)',
-  padding: '0 8px',
-  fontSize: 12,
-};
-
 export function FilterToolbar({ filters, available, onChange }: FilterToolbarProps) {
   const formatFamily: 'image' | 'video' | 'audio' = filters.mediaKind === 'all' ? 'image' : filters.mediaKind;
   const formatOptions = available.formats[formatFamily];
@@ -68,7 +57,8 @@ export function FilterToolbar({ filters, available, onChange }: FilterToolbarPro
           placeholder="Search media…"
           aria-label="Search media"
           title="Search media"
-          style={{ ...fieldStyle, width: '100%' }}
+          className="field"
+          style={{ width: '100%' }}
         />
       </label>
 
@@ -77,7 +67,8 @@ export function FilterToolbar({ filters, available, onChange }: FilterToolbarPro
         title="Media kind"
         value={filters.mediaKind}
         onChange={(e) => onChange({ mediaKind: e.target.value as FilterOptions['mediaKind'], imageType: 'all' })}
-        style={fieldStyle}
+        className="field"
+        style={{ height: 30, width: 130 }}
       >
         {available.kinds.map((k) => (
           <option key={k} value={k}>{KIND_LABELS[k]}</option>
@@ -90,7 +81,8 @@ export function FilterToolbar({ filters, available, onChange }: FilterToolbarPro
           title="Media format"
           value={filters.imageType}
           onChange={(e) => onChange({ imageType: e.target.value })}
-          style={fieldStyle}
+          className="field"
+          style={{ height: 30, width: 130 }}
         >
           {formatOptions.map((f) => (
             <option key={f} value={f}>{f === 'all' ? 'All formats' : (FORMAT_LABELS[f] ?? f.toUpperCase())}</option>
@@ -104,7 +96,8 @@ export function FilterToolbar({ filters, available, onChange }: FilterToolbarPro
           title="Size"
           value={filters.sizeBucket}
           onChange={(e) => onChange({ sizeBucket: e.target.value as FilterOptions['sizeBucket'] })}
-          style={fieldStyle}
+          className="field"
+          style={{ height: 30, width: 110 }}
         >
           {available.sizeBuckets.map((b) => (
             <option key={b} value={b}>{SIZE_LABELS[b]}</option>
@@ -114,7 +107,7 @@ export function FilterToolbar({ filters, available, onChange }: FilterToolbarPro
 
       <label
         htmlFor="filter-min-size"
-        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)' }}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--ink-3)' }}
       >
         Min KB
         <input
@@ -124,7 +117,8 @@ export function FilterToolbar({ filters, available, onChange }: FilterToolbarPro
           value={filters.minSize || ''}
           placeholder="0"
           onChange={(e) => onChange({ minSize: parseInt(e.target.value, 10) || 0 })}
-          style={{ ...fieldStyle, width: 64, textAlign: 'right' }}
+          className="field num"
+          style={{ height: 30, width: 64, textAlign: 'right' }}
         />
       </label>
 
@@ -133,7 +127,8 @@ export function FilterToolbar({ filters, available, onChange }: FilterToolbarPro
         title="Sort order"
         value={filters.sortBy}
         onChange={(e) => onChange({ sortBy: e.target.value as SortKey })}
-        style={fieldStyle}
+        className="field"
+        style={{ height: 30, width: 150 }}
       >
         {SORT_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
       </select>
@@ -144,7 +139,7 @@ export function FilterToolbar({ filters, available, onChange }: FilterToolbarPro
         disabled={filters.sortBy === 'default'}
         title={filters.sortDir === 'asc' ? 'Ascending' : 'Descending'}
         aria-label={`Sort direction: ${filters.sortDir === 'asc' ? 'ascending' : 'descending'}`}
-        style={{ padding: '5px 8px', opacity: filters.sortBy === 'default' ? 0.4 : 1 }}
+        className="iconbtn iconbtn-sm"
       >
         {filters.sortDir === 'asc' ? '↑' : '↓'}
       </button>
@@ -153,7 +148,8 @@ export function FilterToolbar({ filters, available, onChange }: FilterToolbarPro
         <button
           type="button"
           onClick={() => onChange(DEFAULT_FILTERS)}
-          style={{ marginLeft: 'auto', color: 'var(--brand)', fontWeight: 600 }}
+          className="btn btn-sm btn-ghost"
+          style={{ marginLeft: 'auto' }}
         >
           Clear
         </button>

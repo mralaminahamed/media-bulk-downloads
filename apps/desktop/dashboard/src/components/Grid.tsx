@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { CSSProperties } from 'react';
 import type { CollectedItem } from '../lib/rpc.ts';
 
 const DEFAULT_TILE_SIZE = 150;
@@ -37,6 +38,21 @@ export function Grid({ items, selected, onToggle, onPreview, onCapture, tileSize
   );
 }
 
+const badgeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  background: 'var(--brand-soft)',
+  color: 'var(--ink-2)',
+  fontSize: 10,
+  fontWeight: 600,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+  padding: '2px 6px',
+  borderRadius: 'var(--radius-xs)',
+  lineHeight: 1,
+  pointerEvents: 'none',
+};
+
 function Tile(
   { item, isSelected, onToggle, onPreview, onCapture }: {
     item: CollectedItem;
@@ -47,6 +63,7 @@ function Tile(
   },
 ) {
   const [failed, setFailed] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const thumb = item.thumbnailSrc ?? item.poster ?? item.src;
   // Any manifest item (HLS .m3u8 or DASH .mpd) is not a downloadable file, so
   // it's never selectable/toggleable. Only true HLS gets the Capture
@@ -67,17 +84,15 @@ function Tile(
           onToggle(item.src);
         }
       }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setHovered(true)}
+      onBlur={() => setHovered(false)}
+      className="card"
       style={{
         position: 'relative',
         aspectRatio: '1 / 1',
-        borderRadius: 8,
-        overflow: 'hidden',
-        border: isSelected
-          ? '2px solid var(--brand)'
-          : isHls
-          ? '1px dashed var(--brand-2)'
-          : '1px solid var(--line)',
-        background: 'var(--bg)',
+        boxShadow: isSelected ? '0 0 0 2px var(--brand)' : undefined,
         cursor: isManifest ? 'default' : 'pointer',
       }}
     >
@@ -90,7 +105,8 @@ function Tile(
               justifyContent: 'center',
               width: '100%',
               height: '100%',
-              color: 'var(--muted)',
+              background: 'var(--panel-2)',
+              color: 'var(--ink-3)',
               fontSize: 12,
               textAlign: 'center',
               padding: 8,
@@ -100,31 +116,32 @@ function Tile(
           </div>
         )
         : (
-          <img
-            src={thumb}
-            loading="lazy"
-            onError={() => setFailed(true)}
-            alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          />
+          <div className="checker" style={{ width: '100%', height: '100%' }}>
+            <img
+              src={thumb}
+              loading="lazy"
+              onError={() => setFailed(true)}
+              alt=""
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+          </div>
         )}
 
+      {/* Hover/focus veil surfacing the action buttons below. */}
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'var(--scrim)',
+          opacity: hovered ? 1 : 0,
+          transition: 'opacity 0.15s ease',
+          pointerEvents: 'none',
+        }}
+      />
+
       {item.kind !== 'image' && (
-        <span
-          style={{
-            position: 'absolute',
-            left: 6,
-            bottom: 6,
-            background: 'rgba(0,0,0,0.65)',
-            color: '#fff',
-            fontSize: 10,
-            fontWeight: 600,
-            letterSpacing: 0.4,
-            padding: '2px 6px',
-            borderRadius: 4,
-            textTransform: 'uppercase',
-          }}
-        >
+        <span style={{ ...badgeStyle, position: 'absolute', left: 6, bottom: 6 }}>
           {item.kind}
         </span>
       )}
@@ -132,6 +149,7 @@ function Tile(
       {onPreview && (
         <button
           type="button"
+          className="iconbtn iconbtn-sm"
           onClick={(e) => {
             e.stopPropagation();
             onPreview(item);
@@ -142,10 +160,9 @@ function Tile(
             position: 'absolute',
             top: 6,
             right: 6,
-            lineHeight: 1,
-            padding: '3px 6px',
-            fontSize: 12,
-            opacity: 0.85,
+            background: 'var(--panel)',
+            opacity: hovered ? 1 : 0,
+            transition: 'opacity 0.15s ease',
           }}
         >
           ⤢
@@ -153,21 +170,7 @@ function Tile(
       )}
 
       {isHls && (
-        <span
-          aria-hidden
-          style={{
-            position: 'absolute',
-            top: 6,
-            left: 6,
-            background: 'var(--brand-2)',
-            color: '#fff',
-            fontSize: 10,
-            fontWeight: 600,
-            letterSpacing: 0.4,
-            padding: '2px 6px',
-            borderRadius: 4,
-          }}
-        >
+        <span aria-hidden style={{ ...badgeStyle, position: 'absolute', top: 6, left: 6 }}>
           HLS
         </span>
       )}
@@ -175,6 +178,7 @@ function Tile(
       {isHls && onCapture && (
         <button
           type="button"
+          className="btn btn-sm btn-primary"
           onClick={(e) => {
             e.stopPropagation();
             onCapture(item.src);
@@ -185,10 +189,8 @@ function Tile(
             position: 'absolute',
             right: 6,
             bottom: 6,
-            lineHeight: 1,
-            padding: '3px 8px',
-            fontSize: 11,
-            fontWeight: 600,
+            opacity: hovered ? 1 : 0,
+            transition: 'opacity 0.15s ease',
           }}
         >
           Capture

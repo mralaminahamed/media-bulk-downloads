@@ -18,8 +18,8 @@ export interface AdvancedPaneProps {
 export function AdvancedPane({ settings, patch }: AdvancedPaneProps) {
   return (
     <div>
-      <h2 style={{ fontSize: 14, margin: '0 0 8px' }}>Advanced</h2>
-      <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 0 }}>
+      <p className="eyebrow" style={{ margin: '0 0 12px' }}>Advanced</p>
+      <p style={{ color: 'var(--ink-3)', fontSize: 12, marginTop: 0 }}>
         Some of these settings are used by upcoming deep-scan and duplicate-detection features and have
         no visible effect yet — they're saved now so those features can pick them up later.
       </p>
@@ -78,7 +78,7 @@ export function AdvancedPane({ settings, patch }: AdvancedPaneProps) {
         hint="Hamming distance below which images count as near-duplicates (2–16)"
       />
 
-      <h2 style={{ fontSize: 14, margin: '16px 0 8px' }}>Stream capture</h2>
+      <p className="eyebrow" style={{ margin: '20px 0 12px' }}>Stream capture</p>
 
       <SelectField
         label="Stream quality"
