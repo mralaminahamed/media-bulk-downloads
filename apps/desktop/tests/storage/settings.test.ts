@@ -1,6 +1,12 @@
 import { assertEquals } from 'jsr:@std/assert';
 import { openStore } from '../../src/storage/kv.ts';
-import { DEFAULT_DESKTOP_SETTINGS, loadSettings, pickKnownSettings, saveSettings } from '../../src/storage/settings.ts';
+import {
+  DEFAULT_DESKTOP_SETTINGS,
+  loadSettings,
+  pickKnownSettings,
+  saveSettings,
+  type DesktopSettings,
+} from '../../src/storage/settings.ts';
 
 Deno.test('settings default then round-trip', async () => {
   const store = await openStore(await Deno.makeTempFile({ suffix: '.kv' }));
@@ -108,4 +114,28 @@ Deno.test('pickKnownSettings leaves a key untouched when absent from the patch',
   const current = { ...DEFAULT_DESKTOP_SETTINGS, fileNamePrefix: 'custom_' };
   const result = pickKnownSettings(current, {});
   assertEquals(result.fileNamePrefix, 'custom_');
+});
+
+Deno.test('streamQuality defaults to auto', () => {
+  assertEquals(DEFAULT_DESKTOP_SETTINGS.streamQuality, 'auto');
+});
+
+Deno.test('streamQuality round-trips through the KV store', async () => {
+  const store = await openStore(await Deno.makeTempFile({ suffix: '.kv' }));
+  const next = { ...DEFAULT_DESKTOP_SETTINGS, streamQuality: '720' as const };
+  await saveSettings(store, next);
+  const loaded = await loadSettings(store);
+  assertEquals(loaded.streamQuality, '720');
+  store.close();
+});
+
+Deno.test('pickKnownSettings rejects an invalid streamQuality, keeping the current value', () => {
+  const current = { ...DEFAULT_DESKTOP_SETTINGS, streamQuality: 'best' as const };
+  const result = pickKnownSettings(current, { streamQuality: 'ultra-hd' as unknown as DesktopSettings['streamQuality'] });
+  assertEquals(result.streamQuality, 'best');
+});
+
+Deno.test('pickKnownSettings accepts a valid streamQuality', () => {
+  const result = pickKnownSettings(DEFAULT_DESKTOP_SETTINGS, { streamQuality: '1080' });
+  assertEquals(result.streamQuality, '1080');
 });

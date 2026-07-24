@@ -23,6 +23,8 @@ export interface DesktopSettings {
   deepScanMaxScrolls: number;
   deepScanClickLoadMore: boolean;
   nearDuplicateThreshold: number;
+  // Stream capture
+  streamQuality: 'auto' | 'best' | 'worst' | '1080' | '720' | '480';
 }
 
 export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = {
@@ -44,6 +46,7 @@ export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = {
   deepScanMaxScrolls: 200,
   deepScanClickLoadMore: false,
   nearDuplicateThreshold: 8,
+  streamQuality: 'auto',
 };
 
 const NUMBER_BOUNDS: Partial<Record<keyof DesktopSettings, [number, number]>> = {
@@ -58,6 +61,7 @@ const NUMBER_BOUNDS: Partial<Record<keyof DesktopSettings, [number, number]>> = 
 };
 
 const NAMING_MODES = new Set(['original', 'prefixed']);
+const STREAM_QUALITIES = new Set(['auto', 'best', 'worst', '1080', '720', '480']);
 
 function sanitizeSettingValue<K extends keyof DesktopSettings>(
   key: K,
@@ -78,6 +82,9 @@ function sanitizeSettingValue<K extends keyof DesktopSettings>(
   }
   if (key === 'namingMode') {
     return (NAMING_MODES.has(incoming as string) ? incoming : current) as DesktopSettings[K];
+  }
+  if (key === 'streamQuality') {
+    return (STREAM_QUALITIES.has(incoming as string) ? incoming : current) as DesktopSettings[K];
   }
   return (typeof incoming === 'string' ? incoming : fallback) as DesktopSettings[K];
 }

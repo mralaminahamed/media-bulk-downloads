@@ -21,6 +21,8 @@ export interface DesktopSettings {
   deepScanMaxScrolls: number;
   deepScanClickLoadMore: boolean;
   nearDuplicateThreshold: number;
+  // Stream capture
+  streamQuality: 'auto' | 'best' | 'worst' | '1080' | '720' | '480';
 }
 
 export type SettingsPatch = (partial: Partial<DesktopSettings>, debounce?: boolean) => void;
