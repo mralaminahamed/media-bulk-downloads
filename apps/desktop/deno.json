@@ -5,7 +5,7 @@
   "tasks": {
     "check": "deno task build:collector && deno task build:dashboard && deno check src/main.ts",
     "test": "deno task build:collector && deno task build:dashboard && deno test -A",
-    "build:collector": "deno run -A src/build/collector.ts && deno run -A src/collector/deepscan.build.ts",
+    "build:collector": "deno run -A src/build/collector.ts && deno run -A src/collector/deepscan.build.ts && deno run -A src/core-bundle/stream.build.ts",
     "build:dashboard": "deno run -A src/build/dashboard.ts",
     "build:icons": "bash scripts/gen-icons.sh",
     "dev": "deno task build:collector && deno task build:dashboard && deno desktop --hmr --no-check src/main.ts",

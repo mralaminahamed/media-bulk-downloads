@@ -1,5 +1,14 @@
 import type { DesktopSettings } from '../../lib/settings.ts';
-import { NumberField, ToggleRow } from './fields.tsx';
+import { NumberField, SelectField, ToggleRow } from './fields.tsx';
+
+const STREAM_QUALITY_OPTIONS: { value: DesktopSettings['streamQuality']; label: string }[] = [
+  { value: 'auto', label: 'Auto' },
+  { value: 'best', label: 'Best' },
+  { value: 'worst', label: 'Worst' },
+  { value: '1080', label: '1080p' },
+  { value: '720', label: '720p' },
+  { value: '480', label: '480p' },
+];
 
 export interface AdvancedPaneProps {
   settings: DesktopSettings;
@@ -67,6 +76,16 @@ export function AdvancedPane({ settings, patch }: AdvancedPaneProps) {
         min={2}
         max={16}
         hint="Hamming distance below which images count as near-duplicates (2–16)"
+      />
+
+      <h2 style={{ fontSize: 14, margin: '16px 0 8px' }}>Stream capture</h2>
+
+      <SelectField
+        label="Stream quality"
+        value={settings.streamQuality}
+        options={STREAM_QUALITY_OPTIONS}
+        onChange={(v) => patch({ streamQuality: v as DesktopSettings['streamQuality'] })}
+        hint="Preferred rendition when capturing an HLS stream"
       />
     </div>
   );

@@ -17,6 +17,7 @@ export interface CollectedItem {
   unresolvedImage?: boolean;
   mediaKey?: string;
   sourcePage?: { url?: string; title?: string };
+  hlsManifest?: string;
 }
 
 export interface MediaStore {

@@ -32,6 +32,7 @@ export interface RouteDeps {
   navigate: (url: string) => void;
   showBrowser?: () => void;
   deepScan?: () => void;
+  capture?: (src: string) => void;
   exportData: () => Promise<Backup>;
   importData: (backup: ImportPayload) => Promise<{ history: number; favourites: number }>;
 }
@@ -49,7 +50,7 @@ export function buildRoutes(deps: RouteDeps): Record<string, ApiHandler> {
       const { srcs } = (await req.json()) as { srcs: string[] };
       const items = srcs
         .map((src) => deps.media.get(src))
-        .filter((it): it is NonNullable<typeof it> => it != null);
+        .filter((it): it is NonNullable<typeof it> => it != null && !it.hlsManifest);
       let keep = items;
       let skipped: typeof items = [];
       if (deps.settings().skipDuplicateDownloads) {
@@ -118,6 +119,12 @@ export function buildRoutes(deps: RouteDeps): Record<string, ApiHandler> {
 
     'POST /api/deep-scan': () => {
       deps.deepScan?.();
+      return Response.json({ ok: true });
+    },
+
+    'POST /api/capture': async (req) => {
+      const { src } = (await req.json()) as { src: string };
+      deps.capture?.(src);
       return Response.json({ ok: true });
     },
   };

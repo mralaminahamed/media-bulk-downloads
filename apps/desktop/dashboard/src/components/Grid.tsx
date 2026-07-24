@@ -8,10 +8,11 @@ export interface GridProps {
   selected: Set<string>;
   onToggle: (src: string) => void;
   onPreview?: (item: CollectedItem) => void;
+  onCapture?: (src: string) => void;
   tileSize?: number;
 }
 
-export function Grid({ items, selected, onToggle, onPreview, tileSize }: GridProps) {
+export function Grid({ items, selected, onToggle, onPreview, onCapture, tileSize }: GridProps) {
   const size = tileSize ?? DEFAULT_TILE_SIZE;
   return (
     <div
@@ -29,6 +30,7 @@ export function Grid({ items, selected, onToggle, onPreview, tileSize }: GridPro
           isSelected={selected.has(item.src)}
           onToggle={onToggle}
           onPreview={onPreview}
+          onCapture={onCapture}
         />
       ))}
     </div>
@@ -36,24 +38,30 @@ export function Grid({ items, selected, onToggle, onPreview, tileSize }: GridPro
 }
 
 function Tile(
-  { item, isSelected, onToggle, onPreview }: {
+  { item, isSelected, onToggle, onPreview, onCapture }: {
     item: CollectedItem;
     isSelected: boolean;
     onToggle: (src: string) => void;
     onPreview?: (item: CollectedItem) => void;
+    onCapture?: (src: string) => void;
   },
 ) {
   const [failed, setFailed] = useState(false);
   const thumb = item.thumbnailSrc ?? item.poster ?? item.src;
+  // Any manifest item (HLS .m3u8 or DASH .mpd) is not a downloadable file, so
+  // it's never selectable/toggleable. Only true HLS gets the Capture
+  // affordance — DASH capture isn't implemented yet, so it stays inert.
+  const isManifest = Boolean(item.hlsManifest);
+  const isHls = item.type === 'm3u8';
 
   return (
     <div
-      role="button"
-      aria-pressed={isSelected}
-      tabIndex={0}
-      onClick={() => onToggle(item.src)}
+      role={isManifest ? undefined : 'button'}
+      aria-pressed={isManifest ? undefined : isSelected}
+      tabIndex={isManifest ? undefined : 0}
+      onClick={isManifest ? undefined : () => onToggle(item.src)}
       onDoubleClick={() => onPreview?.(item)}
-      onKeyDown={(e) => {
+      onKeyDown={isManifest ? undefined : (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onToggle(item.src);
@@ -64,9 +72,13 @@ function Tile(
         aspectRatio: '1 / 1',
         borderRadius: 8,
         overflow: 'hidden',
-        border: isSelected ? '2px solid var(--brand)' : '1px solid var(--line)',
+        border: isSelected
+          ? '2px solid var(--brand)'
+          : isHls
+          ? '1px dashed var(--brand-2)'
+          : '1px solid var(--line)',
         background: 'var(--bg)',
-        cursor: 'pointer',
+        cursor: isManifest ? 'default' : 'pointer',
       }}
     >
       {failed || !thumb
@@ -140,7 +152,50 @@ function Tile(
         </button>
       )}
 
-      {isSelected && (
+      {isHls && (
+        <span
+          aria-hidden
+          style={{
+            position: 'absolute',
+            top: 6,
+            left: 6,
+            background: 'var(--brand-2)',
+            color: '#fff',
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: 0.4,
+            padding: '2px 6px',
+            borderRadius: 4,
+          }}
+        >
+          HLS
+        </span>
+      )}
+
+      {isHls && onCapture && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCapture(item.src);
+          }}
+          title="Capture stream"
+          aria-label="Capture stream"
+          style={{
+            position: 'absolute',
+            right: 6,
+            bottom: 6,
+            lineHeight: 1,
+            padding: '3px 8px',
+            fontSize: 11,
+            fontWeight: 600,
+          }}
+        >
+          Capture
+        </button>
+      )}
+
+      {!isManifest && isSelected && (
         <span
           aria-hidden
           style={{

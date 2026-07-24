@@ -3,7 +3,8 @@
 // on @mbd/core/types (erased at runtime, no resolution needed).
 import { buildDownloadFilename } from '../core-bundle/download-name.gen.js';
 import type { ImageInfo, SettingsData } from '@mbd/core/types';
-import { dirname, join, normalize, SEPARATOR } from 'jsr:@std/path';
+import { dirname } from 'jsr:@std/path';
+import { containedPath } from './paths.ts';
 
 export interface DownloadItem {
   src: string;
@@ -37,12 +38,7 @@ export async function downloadOne(
   } as unknown as SettingsData;
 
   const rel = buildDownloadFilename(item as unknown as ImageInfo, opts.index, settings, opts.sourcePageUrl);
-
-  const rootNorm = normalize(opts.root);
-  const abs = normalize(join(rootNorm, rel));
-  if (abs !== rootNorm && !abs.startsWith(rootNorm + SEPARATOR)) {
-    throw new Error(`refusing path outside root: ${abs}`);
-  }
+  const abs = containedPath(opts.root, rel);
 
   const doFetch = opts.fetchImpl ?? fetch;
   const res = await doFetch(item.src, { headers: opts.headers });
