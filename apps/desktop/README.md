@@ -26,8 +26,11 @@ The app runs one Deno process that opens two windows:
   sort, reusing `@mbd/core`'s filter predicates), multi-select, preview,
   download-to-queue, live queue status, History/Favourites tabs, and a Settings
   surface (Downloads/Media/Display/Data/Advanced panes on KV, incl. backup
-  export/import). Settings changes take effect live — the queue + overlay read
-  them without a restart. Closing it exits the app.
+  export/import). A "Deep scan" button runs a bounded injected scroll loop
+  (reusing `@mbd/core`'s `runDeepScan`) to surface lazy-loaded media before
+  collecting, with per-registrable-host scan memory that warm-starts repeats and
+  a live progress indicator (SSE). Settings changes take effect live — the queue
+  + overlay read them without a restart. Closing it exits the app.
 - **Browser window** — navigates external sites; a Shadow-DOM overlay injected via
   `executeJs` collects media (page → Deno over the `window.__mbdCmd` command
   queue, since `win.bind` can't resolve async handlers). Collected items flow into
