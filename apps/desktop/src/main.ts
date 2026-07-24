@@ -1,5 +1,7 @@
 /// <reference path="./deno-desktop.d.ts" />
+import { basename } from 'jsr:@std/path';
 import { downloadOne } from './platform/downloader.ts';
+import { captureStream, streamQualityToEngine } from './platform/capture.ts';
 import { openStore } from './storage/kv.ts';
 import { COLLECTOR_IIFE } from './generated/collector-iife.ts';
 import { OVERLAY_JS } from './overlay/overlay.ts';
@@ -95,6 +97,9 @@ const routes = buildRoutes({
   },
   deepScan: () => {
     void runDeepScanFlow();
+  },
+  capture: (src) => {
+    void runCaptureFlow(src);
   },
   exportData,
   importData,
@@ -204,6 +209,11 @@ const handlers: Record<string, (args: string[]) => unknown | Promise<unknown>> =
 
   deepScan: () => {
     void runDeepScanFlow();
+    return null;
+  },
+
+  capture: (args) => {
+    void runCaptureFlow(args[0]);
     return null;
   },
 };
@@ -360,6 +370,57 @@ async function runDeepScanFlow(): Promise<void> {
     });
   } finally {
     scanning = false;
+  }
+}
+
+const capturing = new Set<string>();
+
+// Stream-capture orchestration: runs Task 2's captureStream for the
+// media-store item at `src` (must carry an hlsManifest — plain images/videos
+// aren't capturable), relays byte progress over SSE, and records the written
+// file into history on success. Guarded per-src the same way runDeepScanFlow
+// guards the whole flow with `scanning`, so a repeat click on the same item
+// while it's in flight is a no-op rather than a duplicate capture.
+async function runCaptureFlow(src: string): Promise<void> {
+  if (capturing.has(src)) return;
+  capturing.add(src);
+  try {
+    const item = media.get(src);
+    if (!item || !item.hlsManifest) {
+      console.log('[mbd] capture err: no capturable item for', src);
+      sse.broadcast('capture-progress', { src, done: 0, total: 0, reason: 'error' });
+      return;
+    }
+
+    const quality = streamQualityToEngine(settings2.streamQuality);
+    let lastTotal = 0;
+    const { path, bytes } = await captureStream(item, {
+      root,
+      quality,
+      onProgress: (done, total) => {
+        lastTotal = total;
+        sse.broadcast('capture-progress', { src, done, total });
+      },
+    });
+
+    await recordDownloads(store, [{
+      src,
+      filename: basename(path),
+      kind: 'video',
+      type: item.type ?? 'video/mp4',
+      thumbnailSrc: item.thumbnailSrc,
+      sourcePageUrl: item.sourcePage?.url ?? currentUrl,
+      time: Date.now(),
+      path,
+    }]);
+    console.log('[mbd] captured ->', path);
+    const total = lastTotal || bytes;
+    sse.broadcast('capture-progress', { src, done: total, total, reason: 'complete' });
+  } catch (e) {
+    console.log('[mbd] capture err:', (e as Error).message);
+    sse.broadcast('capture-progress', { src, reason: 'error' });
+  } finally {
+    capturing.delete(src);
   }
 }
 

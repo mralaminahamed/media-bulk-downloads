@@ -120,6 +120,47 @@ Deno.test('settings round-trip through PUT then GET includes deepScanClickLoadMo
   store.close();
 });
 
+Deno.test('POST /api/capture invokes the injected capture dep with src', async () => {
+  const store = await openStore(await Deno.makeTempFile({ suffix: '.kv' }));
+  let settings = await loadSettings(store);
+  const calls: string[] = [];
+  const routes = buildRoutes({
+    store,
+    queue: fakeQueue,
+    media: createMediaStore(),
+    sse: createSseHub(),
+    settings: () => settings,
+    setSettings: async (s) => { settings = s; await saveSettings(store, s); },
+    navigate: () => {},
+    capture: (src) => { calls.push(src); },
+    exportData: async () => ({ version: 1, settings, history: await loadHistory(store), favourites: await loadFavourites(store) }),
+    importData: async () => ({ history: 0, favourites: 0 }),
+  });
+  const res = await routes['POST /api/capture'](json({ src: 'x' }), new URL('http://x/api/capture'));
+  assertEquals(await res.json(), { ok: true });
+  assertEquals(calls, ['x']);
+  store.close();
+});
+
+Deno.test('POST /api/capture is a no-op (still 200) when capture dep is absent', async () => {
+  const store = await openStore(await Deno.makeTempFile({ suffix: '.kv' }));
+  let settings = await loadSettings(store);
+  const routes = buildRoutes({
+    store,
+    queue: fakeQueue,
+    media: createMediaStore(),
+    sse: createSseHub(),
+    settings: () => settings,
+    setSettings: async (s) => { settings = s; await saveSettings(store, s); },
+    navigate: () => {},
+    exportData: async () => ({ version: 1, settings, history: await loadHistory(store), favourites: await loadFavourites(store) }),
+    importData: async () => ({ history: 0, favourites: 0 }),
+  });
+  const res = await routes['POST /api/capture'](json({ src: 'x' }), new URL('http://x/api/capture'));
+  assertEquals(await res.json(), { ok: true });
+  store.close();
+});
+
 Deno.test('export returns settings + history + favourites; import merges without dupes', async () => {
   const store = await openStore(await Deno.makeTempFile({ suffix: '.kv' }));
   let settings = await loadSettings(store);

@@ -32,6 +32,7 @@ export interface RouteDeps {
   navigate: (url: string) => void;
   showBrowser?: () => void;
   deepScan?: () => void;
+  capture?: (src: string) => void;
   exportData: () => Promise<Backup>;
   importData: (backup: ImportPayload) => Promise<{ history: number; favourites: number }>;
 }
@@ -118,6 +119,12 @@ export function buildRoutes(deps: RouteDeps): Record<string, ApiHandler> {
 
     'POST /api/deep-scan': () => {
       deps.deepScan?.();
+      return Response.json({ ok: true });
+    },
+
+    'POST /api/capture': async (req) => {
+      const { src } = (await req.json()) as { src: string };
+      deps.capture?.(src);
       return Response.json({ ok: true });
     },
   };

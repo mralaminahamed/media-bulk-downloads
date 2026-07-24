@@ -26,6 +26,26 @@ export interface CaptureOpts {
 /** Refuse to assemble a capture larger than this (bytes). */
 const MAX_CAPTURE_BYTES = 2_000_000_000;
 
+/** Maps the user-facing `streamQuality` setting to the capture engine's
+ *  variant selector. */
+export function streamQualityToEngine(quality: SettingsData['streamQuality']): 'highest' | 'lowest' | number {
+  switch (quality) {
+    case 'auto':
+    case 'best':
+      return 'highest';
+    case 'worst':
+      return 'lowest';
+    case '1080':
+      return 1080;
+    case '720':
+      return 720;
+    case '480':
+      return 480;
+    default:
+      return 'highest';
+  }
+}
+
 /** Swaps (or adds) `rel`'s extension for the one the capture actually produced. */
 function withExtension(rel: string, ext: string): string {
   const dot = rel.lastIndexOf('.');
