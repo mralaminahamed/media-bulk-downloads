@@ -46,7 +46,6 @@ export function Preview({ item, onClose, maxSize }: PreviewProps) {
           border: '1px solid var(--line)',
           boxShadow: '0 24px 48px -16px rgba(0, 0, 0, 0.45)',
           padding: 12,
-          overflow: 'hidden',
         }}
       >
         <button

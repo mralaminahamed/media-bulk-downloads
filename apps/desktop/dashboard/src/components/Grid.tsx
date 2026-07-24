@@ -70,7 +70,6 @@ function Tile(
   // affordance — DASH capture isn't implemented yet, so it stays inert.
   const isManifest = Boolean(item.hlsManifest);
   const isHls = item.type === 'm3u8';
-  const showActions = hovered;
 
   return (
     <div
@@ -89,14 +88,11 @@ function Tile(
       onMouseLeave={() => setHovered(false)}
       onFocus={() => setHovered(true)}
       onBlur={() => setHovered(false)}
+      className="card"
       style={{
         position: 'relative',
         aspectRatio: '1 / 1',
-        borderRadius: 'var(--radius)',
-        overflow: 'hidden',
-        border: '1px solid var(--line)',
         boxShadow: isSelected ? '0 0 0 2px var(--brand)' : undefined,
-        background: 'var(--panel)',
         cursor: isManifest ? 'default' : 'pointer',
       }}
     >
@@ -120,13 +116,15 @@ function Tile(
           </div>
         )
         : (
-          <img
-            src={thumb}
-            loading="lazy"
-            onError={() => setFailed(true)}
-            alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          />
+          <div className="checker" style={{ width: '100%', height: '100%' }}>
+            <img
+              src={thumb}
+              loading="lazy"
+              onError={() => setFailed(true)}
+              alt=""
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+          </div>
         )}
 
       {/* Hover/focus veil surfacing the action buttons below. */}
@@ -136,7 +134,7 @@ function Tile(
           position: 'absolute',
           inset: 0,
           background: 'var(--scrim)',
-          opacity: showActions ? 1 : 0,
+          opacity: hovered ? 1 : 0,
           transition: 'opacity 0.15s ease',
           pointerEvents: 'none',
         }}
@@ -163,7 +161,7 @@ function Tile(
             top: 6,
             right: 6,
             background: 'var(--panel)',
-            opacity: showActions ? 1 : 0,
+            opacity: hovered ? 1 : 0,
             transition: 'opacity 0.15s ease',
           }}
         >
@@ -180,7 +178,7 @@ function Tile(
       {isHls && onCapture && (
         <button
           type="button"
-          className="btn btn-sm"
+          className="btn btn-sm btn-primary"
           onClick={(e) => {
             e.stopPropagation();
             onCapture(item.src);
@@ -191,7 +189,7 @@ function Tile(
             position: 'absolute',
             right: 6,
             bottom: 6,
-            opacity: showActions ? 1 : 0,
+            opacity: hovered ? 1 : 0,
             transition: 'opacity 0.15s ease',
           }}
         >
