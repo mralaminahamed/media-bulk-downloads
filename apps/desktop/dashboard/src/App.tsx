@@ -6,6 +6,7 @@ import type { DesktopSettings } from './lib/settings.ts';
 import { Grid } from './components/Grid.tsx';
 import { Preview } from './components/Preview.tsx';
 import { QueuePanel } from './components/QueuePanel.tsx';
+import { ScanStatus } from './components/ScanStatus.tsx';
 import { HistoryPanel } from './components/HistoryPanel.tsx';
 import { FavouritesPanel } from './components/FavouritesPanel.tsx';
 import { FilterToolbar } from './components/FilterToolbar.tsx';
@@ -70,6 +71,10 @@ export function App() {
 
   function showBrowser() {
     api.post('/api/show-browser').catch(() => setNotice('Could not show the browser window'));
+  }
+
+  function triggerDeepScan() {
+    api.post('/api/deep-scan').catch(() => setNotice('Could not start deep scan'));
   }
 
   const selectAll = () => setSelected(new Set(visible.map((it) => it.src)));
@@ -174,9 +179,11 @@ export function App() {
                   : `${visible.length} of ${items.length} items`} · {selected.size} selected
               </span>
               <QueuePanel />
+              <ScanStatus />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {notice && <span style={{ color: 'var(--ok)', fontSize: 12 }}>{notice}</span>}
+              <button type="button" onClick={triggerDeepScan}>Deep scan</button>
               <button type="button" onClick={selectAll} disabled={items.length === 0}>Select all</button>
               <button type="button" onClick={selectNone} disabled={selected.size === 0}>Select none</button>
               <button type="button" onClick={invertSelection} disabled={items.length === 0}>Invert</button>

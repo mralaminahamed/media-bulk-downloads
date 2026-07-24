@@ -27,6 +27,7 @@ Deno.test('settings old partial forward-fills new defaults', async () => {
   assertEquals(loaded.deepScanMaxItems, 1000);
   assertEquals(loaded.deepScanMaxSeconds, 120);
   assertEquals(loaded.deepScanMaxScrolls, 200);
+  assertEquals(loaded.deepScanClickLoadMore, false);
   assertEquals(loaded.nearDuplicateThreshold, 8);
   assertEquals(loaded.metadataSidecar, false);
   assertEquals(loaded.namingMode, 'prefixed');
@@ -87,6 +88,15 @@ Deno.test('pickKnownSettings coerces non-boolean values for boolean fields', () 
     skipDuplicateDownloads: 0 as unknown as boolean,
   });
   assertEquals(result.skipDuplicateDownloads, false);
+});
+
+Deno.test('deepScanClickLoadMore round-trips through the KV store', async () => {
+  const store = await openStore(await Deno.makeTempFile({ suffix: '.kv' }));
+  const next = { ...DEFAULT_DESKTOP_SETTINGS, deepScanClickLoadMore: true };
+  await saveSettings(store, next);
+  const loaded = await loadSettings(store);
+  assertEquals(loaded.deepScanClickLoadMore, true);
+  store.close();
 });
 
 Deno.test('pickKnownSettings rejects a non-string downloadPath, falling back to the default', () => {

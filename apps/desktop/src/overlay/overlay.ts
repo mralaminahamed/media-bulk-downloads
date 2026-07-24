@@ -46,15 +46,20 @@ export const OVERLAY_JS = String.raw`
     ? '<button id="star" title="Toggle favourite" style="cursor:pointer;border:none;background:none;font-size:16px;line-height:1;padding:0;color:#c8a400">☆</button>'
     : '';
 
+  const deepScanMarkup =
+    '<button id="deepScan" style="cursor:pointer;padding:4px 10px;border-radius:6px;border:1px solid #6366f1;background:#fff;color:#6366f1">Deep scan</button>';
+
   const bodyMarkup = first
     ? '<div style="margin:6px 0;word-break:break-all;opacity:.75">' + String(first.src).slice(0, 120) + '</div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">' +
       '<button id="dl" style="cursor:pointer;padding:4px 10px;border-radius:6px;border:1px solid #6366f1;background:#6366f1;color:#fff">Download #1</button>' +
       '<button id="dlAll" style="cursor:pointer;padding:4px 10px;border-radius:6px;border:1px solid #16a34a;background:#16a34a;color:#fff">Download all (' + items.length + ')</button>' +
+      deepScanMarkup +
       '<button id="histBtn" style="cursor:pointer;padding:4px 10px;border-radius:6px;border:1px solid #c8c8d0;background:#f2f2f5;color:#111">History</button>' +
       '</div>'
     : '<div style="margin:6px 0;opacity:.7">nothing to download here</div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">' +
+      deepScanMarkup +
       '<button id="histBtn" style="cursor:pointer;padding:4px 10px;border-radius:6px;border:1px solid #c8c8d0;background:#f2f2f5;color:#111">History</button>' +
       '</div>';
 
@@ -113,6 +118,22 @@ export const OVERLAY_JS = String.raw`
       // fire-and-forget: the Deno-side downloadAll handler enqueues + dedups.
       send('downloadAll', [JSON.stringify(items)]);
       dlAll.textContent = 'Queued…';
+    });
+  }
+
+  const deepScanBtn = root.getElementById('deepScan');
+  if (deepScanBtn) {
+    deepScanBtn.addEventListener('click', () => {
+      // fire-and-forget: the Deno-side deep-scan flow does the work; the
+      // overlay has no SSE, so this is a best-effort label swap rather than
+      // a true progress readout (the dashboard's ScanStatus does that).
+      send('deepScan', []);
+      deepScanBtn.textContent = 'Scanning…';
+      deepScanBtn.disabled = true;
+      setTimeout(() => {
+        deepScanBtn.textContent = 'Deep scan';
+        deepScanBtn.disabled = false;
+      }, 5000);
     });
   }
 

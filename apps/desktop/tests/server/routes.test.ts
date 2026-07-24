@@ -59,6 +59,67 @@ Deno.test('settings round-trip through PUT then GET', async () => {
   store.close();
 });
 
+Deno.test('POST /api/deep-scan invokes the injected deepScan dep', async () => {
+  const store = await openStore(await Deno.makeTempFile({ suffix: '.kv' }));
+  let settings = await loadSettings(store);
+  let calls = 0;
+  const routes = buildRoutes({
+    store,
+    queue: fakeQueue,
+    media: createMediaStore(),
+    sse: createSseHub(),
+    settings: () => settings,
+    setSettings: async (s) => { settings = s; await saveSettings(store, s); },
+    navigate: () => {},
+    deepScan: () => { calls++; },
+    exportData: async () => ({ version: 1, settings, history: await loadHistory(store), favourites: await loadFavourites(store) }),
+    importData: async () => ({ history: 0, favourites: 0 }),
+  });
+  const res = await routes['POST /api/deep-scan'](new Request('http://x/', { method: 'POST' }), new URL('http://x/api/deep-scan'));
+  assertEquals(await res.json(), { ok: true });
+  assertEquals(calls, 1);
+  store.close();
+});
+
+Deno.test('POST /api/deep-scan is a no-op (still 200) when deepScan dep is absent', async () => {
+  const store = await openStore(await Deno.makeTempFile({ suffix: '.kv' }));
+  let settings = await loadSettings(store);
+  const routes = buildRoutes({
+    store,
+    queue: fakeQueue,
+    media: createMediaStore(),
+    sse: createSseHub(),
+    settings: () => settings,
+    setSettings: async (s) => { settings = s; await saveSettings(store, s); },
+    navigate: () => {},
+    exportData: async () => ({ version: 1, settings, history: await loadHistory(store), favourites: await loadFavourites(store) }),
+    importData: async () => ({ history: 0, favourites: 0 }),
+  });
+  const res = await routes['POST /api/deep-scan'](new Request('http://x/', { method: 'POST' }), new URL('http://x/api/deep-scan'));
+  assertEquals(await res.json(), { ok: true });
+  store.close();
+});
+
+Deno.test('settings round-trip through PUT then GET includes deepScanClickLoadMore', async () => {
+  const store = await openStore(await Deno.makeTempFile({ suffix: '.kv' }));
+  let settings = await loadSettings(store);
+  const routes = buildRoutes({
+    store,
+    queue: fakeQueue,
+    media: createMediaStore(),
+    sse: createSseHub(),
+    settings: () => settings,
+    setSettings: async (s) => { settings = s; await saveSettings(store, s); },
+    navigate: () => {},
+    exportData: async () => ({ version: 1, settings, history: await loadHistory(store), favourites: await loadFavourites(store) }),
+    importData: async () => ({ history: 0, favourites: 0 }),
+  });
+  await routes['PUT /api/settings'](json({ ...settings, deepScanClickLoadMore: true }, 'PUT'), new URL('http://x/api/settings'));
+  const got = await (await routes['GET /api/settings'](new Request('http://x/'), new URL('http://x/api/settings'))).json();
+  assertEquals(got.deepScanClickLoadMore, true);
+  store.close();
+});
+
 Deno.test('export returns settings + history + favourites; import merges without dupes', async () => {
   const store = await openStore(await Deno.makeTempFile({ suffix: '.kv' }));
   let settings = await loadSettings(store);

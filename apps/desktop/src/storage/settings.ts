@@ -21,6 +21,7 @@ export interface DesktopSettings {
   deepScanMaxItems: number;
   deepScanMaxSeconds: number;
   deepScanMaxScrolls: number;
+  deepScanClickLoadMore: boolean;
   nearDuplicateThreshold: number;
 }
 
@@ -41,6 +42,7 @@ export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = {
   deepScanMaxItems: 1000,
   deepScanMaxSeconds: 120,
   deepScanMaxScrolls: 200,
+  deepScanClickLoadMore: false,
   nearDuplicateThreshold: 8,
 };
 
