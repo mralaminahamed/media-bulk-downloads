@@ -73,21 +73,30 @@ const CHROME_KEY = /blur|preview|placeholder|thumbnail|icon/i;
  * Pure and defensive: never throws, bounded step count, cycle-guarded — mirrors
  * `extractIgMedia`'s walk bound (`seen` node Set + 400000-step cap).
  */
+/** An emitted entry tagged with the group it was collected in (see `extractFbMedia`). */
+type GroupedEntry = FbMediaEntry & { group: number };
+
 export function extractFbMedia(root: unknown): FbMediaEntry[] {
-  const out: FbMediaEntry[] = [];
+  const out: GroupedEntry[] = [];
   const seenKeys = new Set<string>();
   const nodeSeen = new Set<object>();
   const steps = { n: 0 };
-  const push = (e: FbMediaEntry): void => {
+  // Size-renditions of one photo live under sibling OBJECT keys of a single node
+  // (image / photo_image / viewer_image …) and share a group, so they still fold
+  // to the largest. DISTINCT photos live in ARRAYS (a carousel's attachments,
+  // graphql edges) and each element opens a NEW group, so they are never
+  // collapsed into each other even when they share an inherited fbid.
+  let groupSeq = 0;
+  const push = (e: FbMediaEntry, group: number): void => {
     const k = `${e.fbid}\n${e.url}`;
     if (seenKeys.has(k)) return;
     seenKeys.add(k);
-    out.push(e);
+    out.push({ ...e, group });
   };
-  const walk = (node: unknown, parentKey: string, fbid: string): void => {
+  const walk = (node: unknown, parentKey: string, fbid: string, group: number): void => {
     if (steps.n++ > 400000 || !node || typeof node !== 'object' || nodeSeen.has(node as object)) return;
     nodeSeen.add(node as object);
-    if (Array.isArray(node)) { for (const v of node) walk(v, parentKey, fbid); return; }
+    if (Array.isArray(node)) { for (const v of node) walk(v, parentKey, fbid, ++groupSeq); return; }
     const obj = node as Record<string, unknown>;
     const ownId = typeof obj.id === 'string' && /^\d{1,32}$/.test(obj.id) ? obj.id : fbid;
 
@@ -98,7 +107,7 @@ export function extractFbMedia(root: unknown): FbMediaEntry[] {
         const poster = pinFbUrl(pt?.image?.uri) ?? undefined;
         const e: FbMediaEntry = { fbid: ownId, kind: 'video', url: vurl, ext: extFromPath(vurl) === 'jpg' ? 'mp4' : extFromPath(vurl) };
         if (poster) e.poster = poster;
-        push(e);
+        push(e, group);
         break;
       }
     }
@@ -107,25 +116,33 @@ export function extractFbMedia(root: unknown): FbMediaEntry[] {
       const iurl = pinFbUrl(obj.uri);
       const w = numOr(obj.width), h = numOr(obj.height);
       if (iurl && w && h && w >= MIN_MEDIA_PX && h >= MIN_MEDIA_PX && ownId) {
-        push({ fbid: ownId, kind: 'image', url: iurl, ext: extFromPath(iurl), width: w, height: h });
+        push({ fbid: ownId, kind: 'image', url: iurl, ext: extFromPath(iurl), width: w, height: h }, group);
       }
     }
 
-    for (const [k, v] of Object.entries(obj)) walk(v, k, ownId);
+    for (const [k, v] of Object.entries(obj)) walk(v, k, ownId, group);
   };
-  walk(root, '', '');
-  return keepLargestImagePerFbid(out);
+  walk(root, '', '', 0);
+  return keepLargestImagePerGroup(out);
 }
 
-/** Per FBID keep only the largest image (originals win over thumbnails); keep all videos. */
-function keepLargestImagePerFbid(entries: FbMediaEntry[]): FbMediaEntry[] {
-  const bestImg = new Map<string, FbMediaEntry>();
+/** Per (FBID, group) keep only the largest image — size-renditions of one photo
+ *  fold to the original, while distinct photos (separate groups) all survive.
+ *  Keep all videos. */
+function keepLargestImagePerGroup(entries: GroupedEntry[]): FbMediaEntry[] {
+  const strip = (e: GroupedEntry): FbMediaEntry => {
+    const clean = { ...e } as Partial<GroupedEntry>;
+    delete clean.group;
+    return clean as FbMediaEntry;
+  };
+  const bestImg = new Map<string, GroupedEntry>();
   const rest: FbMediaEntry[] = [];
   for (const e of entries) {
-    if (e.kind !== 'image') { rest.push(e); continue; }
-    const cur = bestImg.get(e.fbid);
+    if (e.kind !== 'image') { rest.push(strip(e)); continue; }
+    const key = `${e.fbid}\n${e.group}`;
+    const cur = bestImg.get(key);
     const area = (e.width ?? 0) * (e.height ?? 0);
-    if (!cur || area > (cur.width ?? 0) * (cur.height ?? 0)) bestImg.set(e.fbid, e);
+    if (!cur || area > (cur.width ?? 0) * (cur.height ?? 0)) bestImg.set(key, e);
   }
-  return [...bestImg.values(), ...rest];
+  return [...[...bestImg.values()].map(strip), ...rest];
 }

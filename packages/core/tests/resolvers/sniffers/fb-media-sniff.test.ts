@@ -79,6 +79,34 @@ describe('extractFbMedia', () => {
     expect(out[0].width).toBe(2048);
   });
 
+  it('keeps distinct album photos that share an inherited FBID (no own id per child)', () => {
+    // A carousel/album post: the sub-photos live in an array and carry no own
+    // numeric id, so they all inherit the post's fbid. They are DISTINCT photos
+    // (different urls), not size-renditions of one, so all must survive — the
+    // per-fbid "keep largest" collapse must not eat them.
+    const json = { data: { node: { id: '555', __typename: 'Album',
+      attachments: [
+        { image: { uri: 'https://x.fbcdn.net/v/photoA_n.jpg', width: 1080, height: 1080 } },
+        { image: { uri: 'https://x.fbcdn.net/v/photoB_n.jpg', width: 1080, height: 720 } },
+      ] } } };
+    const imgs = extractFbMedia(json).filter((e) => e.kind === 'image');
+    expect(imgs.map((i) => i.url).sort()).toEqual([
+      'https://x.fbcdn.net/v/photoA_n.jpg',
+      'https://x.fbcdn.net/v/photoB_n.jpg',
+    ]);
+  });
+
+  it('still collapses size-renditions of ONE photo (sibling keys) to the largest', () => {
+    // Renditions of a single photo are sibling object keys of one node (not array
+    // elements), so they still fold to the largest — the behavior the grouping preserves.
+    const json = { data: { node: { id: '556', __typename: 'Photo',
+      thumb: { uri: 'https://x.fbcdn.net/v/one_small_n.jpg', width: 320, height: 320 },
+      full: { uri: 'https://x.fbcdn.net/v/one_big_n.jpg', width: 2048, height: 2048 } } } };
+    const imgs = extractFbMedia(json).filter((e) => e.fbid === '556' && e.kind === 'image');
+    expect(imgs).toHaveLength(1);
+    expect(imgs[0].url).toContain('one_big_n.jpg');
+  });
+
   it('extracts a real mp4 video (HD preferred) with its poster', () => {
     const json = { video: { id: '200', __typename: 'Video',
       playable_url: 'https://x.fbcdn.net/v/sd.mp4',
