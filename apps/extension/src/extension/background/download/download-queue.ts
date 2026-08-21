@@ -240,7 +240,11 @@ export async function cancelQueue(target: string): Promise<void> {
     return { state: cancel(s, target), value: toRemove };
   });
   for (const it of removed) {
-    if (it.downloadId != null) platform.downloader.cancel(it.downloadId);
+    // Never let a cancel failure abort the loop — the referer-rule teardown below
+    // must still run for this and every remaining item.
+    if (it.downloadId != null) {
+      try { platform.downloader.cancel(it.downloadId); } catch { /* already gone */ }
+    }
     if (it.ruleId != null) await removeRefererRule(it.ruleId);
   }
 }

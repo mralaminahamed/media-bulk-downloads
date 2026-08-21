@@ -15,7 +15,6 @@
  * seam).
  */
 import { platform } from '@/extension/platform';
-import { __resetChromeHeaderRulesForTest } from '@/extension/platform/chrome';
 
 const DNR_PERMISSION: chrome.permissions.Permissions = { permissions: ['declarativeNetRequestWithHostAccess'] };
 
@@ -38,12 +37,6 @@ function originOf(u: string): string {
   } catch {
     return '';
   }
-}
-
-/** Test-only: reset the header-rule id seed so a test re-seeds from its mocked
- *  session rules, matching how the module starts fresh on each service-worker launch. */
-export function __resetRefererRuleIdsForTest(): void {
-  __resetChromeHeaderRulesForTest();
 }
 
 /**
