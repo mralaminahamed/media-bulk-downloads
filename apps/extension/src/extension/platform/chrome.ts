@@ -68,6 +68,13 @@ async function nextRuleId(): Promise<number> {
   return ++ruleIdSeq;
 }
 
+/** Test-only: reset the header-rule id seed so a test re-seeds from its mocked
+ *  session rules, matching a fresh service-worker launch. */
+export function __resetChromeHeaderRulesForTest(): void {
+  ruleIdSeq = 0;
+  ruleIdSeeded = null;
+}
+
 export const chromeHeaderRules: HeaderRules = {
   available: true,
   add: async (rule: HeaderOverride) => {
