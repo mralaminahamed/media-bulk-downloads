@@ -56,6 +56,8 @@ export interface Downloader {
   /** Reveal the finished file / open it, when supported. */
   open(id: number): void;
   show(id: number): void;
+  /** Cancel an in-flight download. No-op on backends without a cancellable download. */
+  cancel(id: number): void;
   /** Subscribe to state changes (progress, completion, failure). */
   onChanged(listener: DownloadChangeListener): void;
 }

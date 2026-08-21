@@ -27,7 +27,7 @@ describe('safariDownloader (anchor-blob)', () => {
 
   it('search() returns [] and open/show are no-ops (no downloads API)', async () => {
     expect(await safariDownloader.search({ limit: 0 })).toEqual([]);
-    expect(() => { safariDownloader.open(1); safariDownloader.show(1); safariDownloader.onChanged(() => {}); }).not.toThrow();
+    expect(() => { safariDownloader.open(1); safariDownloader.show(1); safariDownloader.onChanged(() => {}); safariDownloader.cancel(1); }).not.toThrow();
   });
 });
 

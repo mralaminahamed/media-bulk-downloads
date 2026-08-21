@@ -32,6 +32,7 @@ export const chromeDownloader: Downloader = {
   search: async (q) => (await chrome.downloads.search({ id: q.id, limit: q.limit })).map(toRecord),
   open: (id) => chrome.downloads.open(id),
   show: (id) => chrome.downloads.show(id),
+  cancel: (id) => chrome.downloads.cancel(id, () => void chrome.runtime.lastError),
   onChanged: (listener) =>
     chrome.downloads.onChanged.addListener((d) =>
       listener({ id: d.id, state: d.state?.current as DownloadRecord['state'] | undefined, error: d.error?.current }),
