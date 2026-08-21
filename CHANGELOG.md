@@ -16,6 +16,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   wherever a capture host is available.
 
 ### Fixed
+- **Facebook album/carousel photos no longer collapse to one.** The graphql
+  sniffer kept only the largest image per post id, so a multi-photo post whose
+  sub-photos share the post's id surfaced just one. Distinct photos (separate
+  entries in an attachments/edges array) are now kept individually, while genuine
+  size-renditions of a single photo (sibling fields on one node) still fold to the
+  largest.
 - **Safari build no longer fails at startup.** The background touched
   `chrome.downloads`/`chrome.offscreen`/`chrome.notifications` directly, which don't
   exist on Safari (its manifest omits those permissions), so the service worker
