@@ -94,6 +94,15 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, onCaptur
   const selectedIndex = selectedSrc !== null ? images.findIndex((i) => i.src === selectedSrc) : -1;
   const selectedImage = selectedIndex >= 0 ? images[selectedIndex] : null;
 
+  // A tile/preview whose image (and fallback) failed to load — e.g. a signed
+  // FB/IG original that won't render in the extension popup. The item stays (it's
+  // still downloadable); we just swap the broken box for a graceful placeholder.
+  const [failedThumbs, setFailedThumbs] = useState<Set<string>>(new Set());
+  const markThumbFailed = (src: string): void =>
+    setFailedThumbs((prev) => (prev.has(src) ? prev : new Set(prev).add(src)));
+  const [previewFailedSrc, setPreviewFailedSrc] = useState<string | null>(null);
+  const previewFailed = previewFailedSrc !== null && previewFailedSrc === selectedSrc;
+
   const [audioChoice, setAudioChoice] = useState<{ src: string | null; format: AudioFormat | 'default' }>({ src: null, format: 'default' });
   const audioOverride: AudioFormat | 'default' = audioChoice.src === selectedSrc ? audioChoice.format : 'default';
 
@@ -222,22 +231,31 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, onCaptur
                 />
               )}
               {image.kind === 'image' && !image.unresolvedImage ? (
-                <LoadingImage
-                  key={image.thumbnailSrc ?? image.src}
-                  src={image.thumbnailSrc ?? image.src}
-                  alt={image.alt}
-                  lazy
-                  className="mbd:h-full mbd:w-full mbd:object-cover"
-                />
+                failedThumbs.has(image.src) ? (
+                  <div className="mbd:grid mbd:h-full mbd:w-full mbd:place-items-center mbd:bg-(--panel-2)" title="Preview unavailable — the original still downloads">
+                    <PhotoIcon className="mbd:h-8 mbd:w-8 mbd:text-(--ink-3)" />
+                  </div>
+                ) : (
+                  <LoadingImage
+                    key={image.thumbnailSrc ?? image.src}
+                    src={image.thumbnailSrc ?? image.src}
+                    fallbackSrc={image.thumbnailSrc ? image.src : undefined}
+                    onFailed={() => markThumbFailed(image.src)}
+                    alt={image.alt}
+                    lazy
+                    className="mbd:h-full mbd:w-full mbd:object-cover"
+                  />
+                )
               ) : isPendingImage(image) ? (
                 <div className="mbd:grid mbd:h-full mbd:w-full mbd:place-items-center mbd:bg-(--panel-2)">
                   <PhotoIcon className="mbd:h-8 mbd:w-8 mbd:text-(--ink-3)" />
                 </div>
-              ) : image.kind === 'video' && image.poster ? (
+              ) : image.kind === 'video' && image.poster && !failedThumbs.has(image.src) ? (
                 <>
                   <LoadingImage
                     key={image.poster}
                     src={image.poster}
+                    onFailed={() => markThumbFailed(image.src)}
                     alt={image.alt}
                     lazy
                     className="mbd:h-full mbd:w-full mbd:object-cover"
@@ -539,10 +557,19 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, onCaptur
                     <AudioIcon className="mbd:h-12 mbd:w-12 mbd:text-(--ink-3)" />
                     <audio key={selectedImage.src} src={selectedImage.src} controls className="mbd:w-full" />
                   </div>
+                ) : previewFailed ? (
+                  <div className="mbd:flex mbd:flex-col mbd:items-center mbd:gap-2 mbd:p-10 mbd:text-center">
+                    <PhotoIcon className="mbd:h-12 mbd:w-12 mbd:text-(--ink-3)" />
+                    <p className="mbd:max-w-64 mbd:text-[12px] mbd:leading-snug mbd:text-(--ink-2)">
+                      Can&apos;t preview this here, but the original still downloads correctly.
+                    </p>
+                  </div>
                 ) : (
                   <LoadingImage
                     key={selectedImage.src}
                     src={selectedImage.src}
+                    fallbackSrc={selectedImage.thumbnailSrc ?? selectedImage.poster}
+                    onFailed={() => setPreviewFailedSrc(selectedImage.src)}
                     alt={selectedImage.alt}
                     className="mbd:mx-auto mbd:w-full mbd:object-contain"
                     style={{ maxHeight: previewSize }}

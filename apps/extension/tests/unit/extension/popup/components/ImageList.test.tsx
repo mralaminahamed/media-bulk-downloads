@@ -20,6 +20,25 @@ describe('ImageList Component', () => {
     expect(screen.getByAltText('Test Image 2')).toBeInTheDocument();
   });
 
+  it('swaps a broken thumbnail for a placeholder but keeps the (still downloadable) tile', () => {
+    const onDownload = vi.fn();
+    render(<ImageList images={[mockImages[0]]} onImageDownload={onDownload} />);
+    fireEvent.error(screen.getByAltText('Test Image 1'));
+    // The broken <img> is gone (placeholder shown instead)...
+    expect(screen.queryByAltText('Test Image 1')).not.toBeInTheDocument();
+    // ...but the tile's download control is still there — the item wasn't dropped.
+    fireEvent.click(screen.getByTitle('Download'));
+    expect(onDownload).toHaveBeenCalledWith(mockImages[0]);
+  });
+
+  it('shows a graceful notice in the preview modal when the image cannot render', () => {
+    render(<ImageList images={[mockImages[0]]} onImageDownload={vi.fn()} />);
+    fireEvent.click(screen.getByTitle('View Details'));
+    const dialogImg = within(screen.getByRole('dialog')).getByAltText('Test Image 1');
+    fireEvent.error(dialogImg); // no fallbackSrc on this fixture → gives up immediately
+    expect(screen.getByText(/still downloads correctly/i)).toBeInTheDocument();
+  });
+
   it('calls onImageDownload when download button is clicked', () => {
     const mockDownload = vi.fn();
     render(<ImageList images={mockImages} onImageDownload={mockDownload} />);
