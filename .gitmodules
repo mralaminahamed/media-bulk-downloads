@@ -1,0 +1,3 @@
+[submodule "assets/v2/src"]
+	path = assets/v2/src
+	url = https://github.com/mralaminahamed/mbd-store-studio.git
