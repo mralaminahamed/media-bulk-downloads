@@ -16,6 +16,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   wherever a capture host is available.
 
 ### Fixed
+- **Fewer duplicate tiles on Facebook & Instagram.** The same photo served at two
+  signed/rotating CDN URLs (page hydration vs. the scroll API, or a rotating edge
+  host) used to appear as two grid tiles. Collection now dedupes by each media's
+  own id — Instagram gains a per-slide `ig:<pk>` key (mirroring Facebook's
+  `fb:<fbid>`), and the dedupe honours that key, so the same photo folds to one
+  tile while distinct carousel slides are all kept.
 - **No more duplicate file when the service worker restarts mid-download.** If the
   worker was torn down in the brief window after a queued download started but
   before its id was persisted, recovery on the next startup re-issued it — saving

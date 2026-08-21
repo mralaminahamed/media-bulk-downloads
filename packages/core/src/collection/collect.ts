@@ -215,6 +215,10 @@ export function collectMedia(
   const incremental = scanRoots !== undefined;
   const media: MediaItem[] = [];
   const seenKeys = new Set<string>();
+  // Resolver-supplied per-media identity (fb:<fbid>, ig:<pk>) — dedupes the same
+  // photo served at two signed/rotating URLs that canonicalize differently. Keys
+  // are per-photo, so carousel slides (distinct keys) are never collapsed.
+  const seenMediaKeys = new Set<string>();
   const seenSources = {
     addIfNew: (url: string): boolean => {
       const k = canonicalSrcKey(url);
@@ -228,7 +232,9 @@ export function collectMedia(
   const pushCandidate = (
     cand: MediaCandidate, resolved: string, alt: string, width: number, height: number, thumbnailOverride?: string,
   ): void => {
+    if (cand.mediaKey && seenMediaKeys.has(cand.mediaKey)) return;
     if (!seenSources.addIfNew(cand.url)) return;
+    if (cand.mediaKey) seenMediaKeys.add(cand.mediaKey);
 
     if (cand.kind === 'video' || cand.kind === 'gif') {
       const isHls = cand.ext === 'm3u8' || isHlsManifest(cand.url);

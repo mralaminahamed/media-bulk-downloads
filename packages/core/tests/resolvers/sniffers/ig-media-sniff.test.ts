@@ -101,6 +101,16 @@ describe('extractIgMedia', () => {
     ]);
   });
 
+  it('carries the per-slide media id (pk) as `key` when present', () => {
+    const out = extractIgMedia({ items: [{ ...imageMedia('AAA', 1080), pk: '3210987654321' }] });
+    expect(out[0].key).toBe('3210987654321');
+  });
+
+  it('uses the media `id` as `key` when pk is absent', () => {
+    const out = extractIgMedia({ items: [{ ...imageMedia('BBB', 640), id: '3210987654321_987' }] });
+    expect(out[0].key).toBe('3210987654321_987');
+  });
+
   it('extracts a video with poster, keyed by the post code', () => {
     const out = extractIgMedia({
       code: 'VID',

@@ -50,6 +50,7 @@ export function ingestSniffedIgMedia(entries: unknown): void {
     if (!url) continue;
     const ext = typeof e.ext === 'string' && EXT.test(e.ext) ? e.ext.toLowerCase() : e.kind === 'video' ? 'mp4' : 'jpg';
     const entry: IgMediaEntry = { code: e.code, kind: e.kind, url, ext };
+    if (typeof e.key === 'string' && /^\d+(?:_\d+)?$/.test(e.key)) entry.key = e.key;
     if (typeof e.width === 'number') entry.width = e.width;
     if (typeof e.height === 'number') entry.height = e.height;
     const poster = pinIgUrl(e.poster);
@@ -117,6 +118,9 @@ function toCandidate(e: IgMediaEntry): MediaCandidate {
   if (typeof e.height === 'number') cand.height = e.height;
   if (e.kind === 'video' && e.poster) cand.poster = e.poster;
   if (e.pending) cand.unresolvedVideo = true;
+  // Per-slide identity so the same media served at two signed URLs (page-JSON vs
+  // scroll-API, or a rotating CDN edge) dedupes to one, mirroring FB's fb:<fbid>.
+  if (e.key) cand.mediaKey = `ig:${e.key}`;
   return cand;
 }
 

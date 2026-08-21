@@ -18,6 +18,10 @@ export interface IgMediaEntry {
   kind: 'image' | 'video';
   url: string;
   ext: string;
+  /** Per-slide media id (`pk`/`id`) — distinct for each carousel slide, unlike
+   *  `code` (shared by the post). Used as a cross-rendition dedupe key so the same
+   *  slide served at two signed URLs collapses without merging distinct slides. */
+  key?: string;
   width?: number;
   height?: number;
   poster?: string;
@@ -91,7 +95,19 @@ export function bestIgImage(candidates: unknown): { url: string; width: number; 
   return bestSized(candidates);
 }
 
+/** The media's own id (`pk`, else the `id`'s leading numeric part), used as a
+ *  per-slide dedupe key. Undefined when neither is a plausible id. */
+function mediaKeyOf(node: Record<string, unknown>): string | undefined {
+  const pk = node.pk;
+  if (typeof pk === 'string' && /^\d+$/.test(pk)) return pk;
+  if (typeof pk === 'number' && Number.isFinite(pk)) return String(pk);
+  const id = node.id;
+  if (typeof id === 'string' && /^\d+(?:_\d+)?$/.test(id)) return id;
+  return undefined;
+}
+
 function emitLeaf(node: Record<string, unknown>, code: string, out: IgMediaEntry[], seenUrls: Set<string>): void {
+  const key = mediaKeyOf(node);
   if (node.video_versions) {
     const best = bestSized(node.video_versions);
     if (best) {
@@ -100,6 +116,7 @@ function emitLeaf(node: Record<string, unknown>, code: string, out: IgMediaEntry
       const poster = bestIgImage((node.image_versions2 as { candidates?: unknown } | undefined)?.candidates);
       const entry: IgMediaEntry = { code, kind: 'video', url: best.url, ext: 'mp4', width: best.width, height: best.height };
       if (poster) entry.poster = poster.url;
+      if (key) entry.key = key;
       out.push(entry);
       return;
     }
@@ -113,9 +130,13 @@ function emitLeaf(node: Record<string, unknown>, code: string, out: IgMediaEntry
     if (!img || seenUrls.has(img.url)) return;
     seenUrls.add(img.url);
     if (Number(node.media_type) === 2) {
-      out.push({ code, kind: 'video', url: img.url, ext: 'mp4', poster: img.url, pending: true, width: img.width, height: img.height });
+      const entry: IgMediaEntry = { code, kind: 'video', url: img.url, ext: 'mp4', poster: img.url, pending: true, width: img.width, height: img.height };
+      if (key) entry.key = key;
+      out.push(entry);
     } else {
-      out.push({ code, kind: 'image', url: img.url, ext: extFromIgUrl(img.url), width: img.width, height: img.height });
+      const entry: IgMediaEntry = { code, kind: 'image', url: img.url, ext: extFromIgUrl(img.url), width: img.width, height: img.height };
+      if (key) entry.key = key;
+      out.push(entry);
     }
   }
 }
