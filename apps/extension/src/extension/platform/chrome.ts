@@ -125,6 +125,8 @@ export const chromeCaptureHost: StreamCaptureHost = {
       engine: req.engine,
       quality: req.quality,
       maxBytes: req.maxBytes,
+      audioOnly: req.audioOnly,
+      audioFormat: req.audioFormat,
     })) as CaptureRunResult | undefined;
     return result ?? { ok: false, code: 'unknown' };
   },
