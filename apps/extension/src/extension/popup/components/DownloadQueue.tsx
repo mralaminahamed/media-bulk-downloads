@@ -51,6 +51,9 @@ export function DownloadQueue() {
     : Math.round((done / items.length) * 100);
 
   const retryWithReferer = async (id: string) => {
+    // chrome.permissions is absent in the content-script bubble surface; QueueRow
+    // hides this affordance there, but guard the call too so it never throws.
+    if (typeof chrome?.permissions?.request !== 'function') return;
     const granted = await chrome.permissions.request({ permissions: ['declarativeNetRequestWithHostAccess'] });
     if (granted) sendRuntimeMessage({ type: 'QUEUE_RETRY', id, referer: true });
   };

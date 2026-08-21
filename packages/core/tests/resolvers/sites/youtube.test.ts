@@ -34,6 +34,8 @@ describe('youtubeVideoId', () => {
     ['an id with an illegal char', 'https://www.youtube.com/watch?v=dQw4w9WgX!Q'],
     ['a youtu.be short link whose id is not 11 valid chars', 'https://youtu.be/short'],
     ['a youtu.be link with an over-long first segment', 'https://youtu.be/thisistoolongxx/more'],
+    ['the /embed/videoseries playlist slug (not a video)', 'https://www.youtube.com/embed/videoseries?list=PL123'],
+    ['the /embed/live_stream reserved slug (not a video)', 'https://www.youtube.com/embed/live_stream?channel=UC123'],
     ['a malformed URL', 'http://'],
   ])('returns null for %s', (_label, url) => {
     expect(youtubeVideoId(url)).toBeNull();

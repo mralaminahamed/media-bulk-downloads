@@ -19,6 +19,11 @@ import { MediaCandidate, Resolver } from '@mbd/core/resolvers/types';
 
 const ID_RE = /^[A-Za-z0-9_-]{11}$/;
 
+// Reserved 11-char /embed/ slugs that pass ID_RE but aren't videos: `videoseries`
+// (a playlist embed) and `live_stream` (legacy channel-live embed). Both would
+// otherwise yield a bogus i.ytimg thumbnail for a non-video reference.
+const RESERVED_IDS = new Set(['videoseries', 'live_stream']);
+
 const PAGE_HOSTS = new Set([
   'youtube.com',
   'www.youtube.com',
@@ -44,19 +49,20 @@ export function youtubeVideoId(raw: string | URL): string | null {
     return null;
   }
   const host = u.hostname.toLowerCase();
+  const valid = (id: string): boolean => ID_RE.test(id) && !RESERVED_IDS.has(id);
 
   if (host === 'youtu.be') {
     const id = u.pathname.slice(1).split('/')[0];
-    return ID_RE.test(id) ? id : null;
+    return valid(id) ? id : null;
   }
 
   if (!PAGE_HOSTS.has(host)) return null;
 
   const v = u.searchParams.get('v');
-  if (v && ID_RE.test(v)) return v;
+  if (v && valid(v)) return v;
 
   const m = u.pathname.match(PATH_ID_RE);
-  return m ? m[1] : null;
+  return m && valid(m[1]) ? m[1] : null;
 }
 
 const thumb = (id: string, name: string): string => `https://i.ytimg.com/vi/${id}/${name}.jpg`;

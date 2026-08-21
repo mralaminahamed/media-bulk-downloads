@@ -144,6 +144,30 @@ describe('installResponseSniffer (fetch path)', () => {
     expect(seen).toEqual(['{"MEDIA":1}']);
   });
 
+  it('reads the parsed response (JSON.stringified) when responseType is "json" — where responseText throws', () => {
+    // A real XHR with responseType set to anything but '' or 'text' throws
+    // InvalidStateError on the responseText getter. Instagram/X issue their API
+    // XHRs with responseType='json', so reading responseText loses every item.
+    XMLHttpRequest.prototype.send = vi.fn();
+    const seen: string[] = [];
+    installResponseSniffer({ isApi: (u) => u.includes('/api/'), emit: (t) => seen.push(t), urlKey: '__k' });
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', 'https://site/api/thing');
+    Object.defineProperty(xhr, 'responseType', { value: 'json', configurable: true });
+    Object.defineProperty(xhr, 'responseText', {
+      get() {
+        throw new DOMException('responseText is not available', 'InvalidStateError');
+      },
+      configurable: true,
+    });
+    Object.defineProperty(xhr, 'response', { value: { MEDIA: 1, items: [7] }, configurable: true });
+    xhr.getResponseHeader = vi.fn().mockReturnValue('application/json');
+    xhr.send();
+    xhr.dispatchEvent(new Event('load'));
+    expect(seen).toEqual([JSON.stringify({ MEDIA: 1, items: [7] })]);
+  });
+
   it('does not emit an XHR response from a non-API URL, or a non-JSON content type', () => {
     XMLHttpRequest.prototype.send = vi.fn();
     const seen: string[] = [];
