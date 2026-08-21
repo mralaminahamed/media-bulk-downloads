@@ -318,6 +318,46 @@ describe('reconcile on restart', () => {
     expect(snap.items[0].attempts).toBe(1);
   });
 
+  it('adopts a COMPLETED download by url instead of re-issuing it (SW died before markActive persisted the id)', async () => {
+    store[QUEUE_KEY] = { paused: false, items: [
+      {
+        id: 'x', url: 'https://cdn/dup.jpg', filename: 'dup.jpg', status: 'active', attempts: 0, claimedAt: 0, readyAt: 0, addedAt: 0,
+        history: { src: 'https://cdn/dup.jpg', filename: 'dup.jpg', kind: 'image', type: 'image/jpeg', thumbnailSrc: '', sourcePageUrl: '' },
+      },
+    ] };
+    (chrome.downloads.search as ReturnType<typeof vi.fn>).mockResolvedValue([{ id: 42, state: 'complete', url: 'https://cdn/dup.jpg' }]);
+    await reconcileQueue();
+    await flush();
+    const snap = await getQueueSnapshot();
+    expect(snap.items[0].status).toBe('done');
+    expect(chrome.downloads.download).not.toHaveBeenCalled();
+    expect(recordDownloads).toHaveBeenCalledWith([expect.objectContaining({ src: 'https://cdn/dup.jpg', downloadId: 42 })]);
+  });
+
+  it('adopts an IN-PROGRESS download by url instead of re-issuing it', async () => {
+    store[QUEUE_KEY] = { paused: false, items: [
+      { id: 'y', url: 'https://cdn/prog.jpg', filename: 'prog.jpg', status: 'active', attempts: 0, claimedAt: 0, readyAt: 0, addedAt: 0 },
+    ] };
+    (chrome.downloads.search as ReturnType<typeof vi.fn>).mockResolvedValue([{ id: 43, state: 'in_progress', url: 'https://cdn/prog.jpg' }]);
+    await reconcileQueue();
+    await flush();
+    const snap = await getQueueSnapshot();
+    expect(snap.items[0]).toMatchObject({ status: 'active', downloadId: 43 });
+    expect(chrome.downloads.download).not.toHaveBeenCalled();
+  });
+
+  it('re-issues a stuck-no-id download when NO recent download matches its url', async () => {
+    store[QUEUE_KEY] = { paused: false, items: [
+      { id: 'z', url: 'https://cdn/none.jpg', filename: 'none.jpg', status: 'active', attempts: 0, claimedAt: 0, readyAt: 0, addedAt: 0 },
+    ] };
+    (chrome.downloads.search as ReturnType<typeof vi.fn>).mockResolvedValue([{ id: 44, state: 'complete', url: 'https://cdn/other.jpg' }]);
+    await reconcileQueue();
+    await flush();
+    expect(chrome.downloads.download).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://cdn/none.jpg' }), expect.any(Function),
+    );
+  });
+
   it('caps interrupted retries at MAX_ATTEMPTS across SW restarts → failed, not an infinite retry', async () => {
     store[QUEUE_KEY] = { paused: false, items: [
       {

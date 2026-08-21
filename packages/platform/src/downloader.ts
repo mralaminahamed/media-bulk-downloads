@@ -23,6 +23,9 @@ export interface DownloadRequest {
 export interface DownloadRecord {
   id: number;
   filename: string;
+  /** Original request URL, when the backend reports it. Used to reconcile a
+   *  started-but-unpersisted download back to its queue item by URL. */
+  url?: string;
   state: 'in_progress' | 'complete' | 'interrupted';
   bytesReceived?: number;
   totalBytes?: number;
