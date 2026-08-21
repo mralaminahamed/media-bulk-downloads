@@ -16,6 +16,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   wherever a capture host is available.
 
 ### Fixed
+- **No more duplicate file when the service worker restarts mid-download.** If the
+  worker was torn down in the brief window after a queued download started but
+  before its id was persisted, recovery on the next startup re-issued it — saving
+  a second copy (`name (1)`). Recovery now matches the started download by URL and
+  adopts it (marking it done, or resuming progress) instead of re-downloading;
+  only a download that never actually started is re-queued.
 - **Facebook album/carousel photos no longer collapse to one.** The graphql
   sniffer kept only the largest image per post id, so a multi-photo post whose
   sub-photos share the post's id surfaced just one. Distinct photos (separate

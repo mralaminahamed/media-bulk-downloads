@@ -12,6 +12,7 @@ function toRecord(d: chrome.downloads.DownloadItem): DownloadRecord {
   return {
     id: d.id,
     filename: d.filename,
+    url: d.url,
     state: d.state as DownloadRecord['state'],
     bytesReceived: d.bytesReceived,
     totalBytes: d.totalBytes,

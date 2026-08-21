@@ -286,6 +286,29 @@ export async function reconcileQueue(): Promise<void> {
     (i) => i.status === 'active' && i.downloadId === undefined && now - (i.claimedAt ?? 0) > RECOVER_GRACE_MS,
   );
   if (stuckNoId.length) {
+    // The SW died in the window between claimNext() persisting `active` and
+    // markActive() persisting the id chrome returned — but chrome.downloads may
+    // have ALREADY started (or finished) that download. Re-issuing it blindly
+    // duplicates the file, so first try to ADOPT a recent download whose url
+    // matches the item; only genuinely-orphaned items (nothing started) re-queue.
+    let recent: DownloadRecord[];
+    try { recent = await platform.downloader.search({ limit: 100 }); } catch { recent = []; }
+    for (const it of stuckNoId) {
+      const hit = recent.find((d) => d.url === it.url && (d.state === 'complete' || d.state === 'in_progress'));
+      if (!hit) continue;
+      if (hit.state === 'complete') {
+        const done = await withState(async (s) => {
+          const cur = s.items.find((i) => i.id === it.id && i.status === 'active');
+          return cur ? { state: markDone(s, it.id), value: cur } : { state: s, value: null };
+        });
+        if (done?.history) void recordDownloads([{ ...done.history, time: now, downloadId: hit.id }]);
+      } else {
+        await withState(async (s) => ({ state: markActive(s, it.id, hit.id), value: null }));
+        ensureProgressPoll();
+      }
+    }
+    // recoverStuckActive only re-queues items STILL active-with-no-id — the ones
+    // adopted above are now done/active-with-id, so it skips them.
     await withState(async (s) => ({ state: recoverStuckActive(s, now), value: null }));
     for (const it of stuckNoId) {
       if (it.ruleId != null) await removeRefererRule(it.ruleId);
