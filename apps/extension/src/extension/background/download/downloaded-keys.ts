@@ -5,7 +5,7 @@ import { platform } from '@/extension/platform';
 /**
  * Canonical keys of every history entry whose file is still on disk (or whose
  * on-disk state is unknown), for skipping re-downloads. Mirrors the
- * GET_DOWNLOADED_SRCS handler: loadHistory + one chrome.downloads.search(limit:0)
+ * GET_DOWNLOADED_SRCS handler: loadHistory + one platform.downloader.search(limit:0)
  * → stateById → srcsStillOnDisk. Degrades to an empty set on any error so a dedup
  * hiccup never blocks a download.
  */
