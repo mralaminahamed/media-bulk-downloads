@@ -22,6 +22,10 @@ const STATUS: Record<QueueStatus, { Icon: typeof ArrowPathIcon; cls: string; lab
 const iconBtn = 'mbd:grid mbd:h-5 mbd:w-5 mbd:shrink-0 mbd:place-items-center mbd:rounded mbd:text-(--ink-3) mbd:hover:text-(--ink) mbd:hover:bg-(--panel-2)';
 
 export function QueueRow({ item, onCancel, onRetry, onRetryReferer, onOpen }: QueueRowProps) {
+  // `chrome.permissions.request` (which the Referer retry needs) exists only in an
+  // extension page, not the content-script bubble surface — gate the affordance on
+  // it so the bubble degrades to a plain retry instead of throwing.
+  const canRefererRetry = typeof chrome?.permissions?.request === 'function';
   const { Icon, cls, label } = STATUS[item.status];
   const pct =
     item.status === 'active' && item.totalBytes && item.totalBytes > 0
@@ -56,7 +60,7 @@ export function QueueRow({ item, onCancel, onRetry, onRetryReferer, onOpen }: Qu
       )}
       {/* The Referer retry uses declarativeNetRequest modifyHeaders session rules,
           which Firefox doesn't support — fall back to a plain retry there. */}
-      {item.status === 'failed' && (item.hotlink && !import.meta.env.FIREFOX ? (
+      {item.status === 'failed' && (item.hotlink && !import.meta.env.FIREFOX && canRefererRetry ? (
         <button type="button" onClick={() => onRetryReferer(item.id)} className="mbd:shrink-0 mbd:text-(--ink-3) mbd:hover:text-(--ink)"
           title="Retry sending this page as the Referer (asks for permission the first time)">Retry w/ referer</button>
       ) : (

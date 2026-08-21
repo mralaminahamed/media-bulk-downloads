@@ -41,6 +41,29 @@ it('a failed hotlink item offers Retry w/ referer; a plain failed offers Retry',
   expect(onRetry).toHaveBeenCalledWith('a');
 });
 
+it('falls back to plain Retry for a hotlink item when chrome.permissions is unavailable (bubble surface)', async () => {
+  // The on-page bubble is a content script: chrome.permissions is undefined, so
+  // offering "Retry w/ referer" (which calls chrome.permissions.request) would
+  // throw. The button must degrade to a plain retry there.
+  const saved = (chrome as unknown as { permissions?: unknown }).permissions;
+  (chrome as unknown as { permissions?: unknown }).permissions = undefined;
+  try {
+    const onRetry = vi.fn();
+    const onRetryReferer = vi.fn();
+    render(
+      <ul>
+        <QueueRow item={item({ status: 'failed', error: '403', hotlink: true })} {...props} onRetry={onRetry} onRetryReferer={onRetryReferer} />
+      </ul>,
+    );
+    expect(screen.queryByRole('button', { name: /referer/i })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(onRetry).toHaveBeenCalledWith('a');
+    expect(onRetryReferer).not.toHaveBeenCalled();
+  } finally {
+    (chrome as unknown as { permissions?: unknown }).permissions = saved;
+  }
+});
+
 it('a failed item shows its error reason', () => {
   render(<ul><QueueRow item={item({ status: 'failed', error: 'SERVER_FORBIDDEN' })} {...props} /></ul>);
   expect(screen.getByText('SERVER_FORBIDDEN')).toBeInTheDocument();

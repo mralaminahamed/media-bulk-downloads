@@ -6,6 +6,20 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **Instagram/X media no longer silently dropped from XHR responses.** The response
+  sniffer read `responseText`, which throws when a page sets the request's
+  `responseType` to `json` (as Instagram/X do) — the error was swallowed and every
+  media URL in that response was lost. It now reads the parsed `response` for those
+  requests.
+- **YouTube playlist/live embeds no longer produce a bogus thumbnail.** An `/embed/`
+  URL with a reserved slug (`videoseries`, `live_stream`) was mistaken for an
+  11-character video id and turned into a dead `i.ytimg.com` thumbnail; those slugs
+  are now rejected.
+- **"Retry w/ referer" no longer breaks on the on-page bubble.** In the bubble
+  surface (a content script) `chrome.permissions` is unavailable, so the referer
+  retry threw; it now falls back to a plain retry there.
+
 ### Changed
 - The extension now declares a homepage — its **documentation site**
   (`mralaminahamed.github.io/media-bulk-downloads`) — so the "homepage" link on the

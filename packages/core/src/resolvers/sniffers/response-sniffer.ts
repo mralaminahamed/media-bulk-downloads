@@ -23,6 +23,26 @@ export interface ResponseSnifferOptions {
   contentTypeOk?: (contentType: string) => boolean;
 }
 
+/** Read an XHR body as text regardless of its `responseType`. The `responseText`
+ *  getter throws `InvalidStateError` when `responseType` is anything but '' or
+ *  'text', so a page that sets `responseType='json'` (Instagram/X do) would lose
+ *  every item if we touched `responseText` blindly. For 'json' the parsed value
+ *  is on `response`; re-serialise it so `emit`'s downstream JSON.parse still
+ *  works. Non-text binary types ('blob'/'arraybuffer'/'document') aren't
+ *  synchronously readable as text here, so they're skipped. */
+function readXhrBody(xhr: XMLHttpRequest): string | undefined {
+  const rt = xhr.responseType;
+  if (rt === '' || rt === 'text') return typeof xhr.responseText === 'string' ? xhr.responseText : undefined;
+  if (rt === 'json') {
+    try {
+      return xhr.response == null ? undefined : JSON.stringify(xhr.response);
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
 /** Wrap the page's fetch + XMLHttpRequest to feed JSON API response text to `emit`. */
 export function installResponseSniffer({ isApi, emit, urlKey, contentTypeOk }: ResponseSnifferOptions): void {
   const ctOk = contentTypeOk ?? ((ct: string) => ct.includes('json'));
@@ -65,7 +85,10 @@ export function installResponseSniffer({ isApi, emit, urlKey, contentTypeOk }: R
         try {
           const url = String((this as unknown as Record<string, unknown>)[urlKey] || '');
           const ct = this.getResponseHeader('content-type') || '';
-          if (isApi(url) && ctOk(ct) && typeof this.responseText === 'string') emit(this.responseText, url);
+          if (isApi(url) && ctOk(ct)) {
+            const body = readXhrBody(this);
+            if (typeof body === 'string') emit(body, url);
+          }
         } catch {
           /* ignore */
         }
