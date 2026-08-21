@@ -47,4 +47,22 @@ describe('collectMedia — Instagram page media (single-post page)', () => {
     const hero = collectMedia().filter((m) => m.src === HERO);
     expect(hero).toHaveLength(1);
   });
+
+  it('dedupes the same slide served at two signed URLs via its media key', () => {
+    ingestSniffedIgMedia([
+      { code: 'ABC123', kind: 'image', url: 'https://scontent.cdninstagram.com/edge1/photo_a.jpg', ext: 'jpg', key: '111', width: 1080, height: 1080 },
+      { code: 'ABC123', kind: 'image', url: 'https://scontent.cdninstagram.com/edge2/photo_b.jpg', ext: 'jpg', key: '111', width: 1080, height: 1080 },
+    ]);
+    const imgs = collectMedia().filter((m) => m.src.includes('photo_'));
+    expect(imgs).toHaveLength(1);
+  });
+
+  it('keeps distinct carousel slides (different media keys) under one post', () => {
+    ingestSniffedIgMedia([
+      { code: 'ABC123', kind: 'image', url: 'https://scontent.cdninstagram.com/slide_a.jpg', ext: 'jpg', key: '111', width: 1080, height: 1080 },
+      { code: 'ABC123', kind: 'image', url: 'https://scontent.cdninstagram.com/slide_b.jpg', ext: 'jpg', key: '222', width: 1080, height: 1080 },
+    ]);
+    const imgs = collectMedia().filter((m) => m.src.includes('slide_'));
+    expect(imgs).toHaveLength(2);
+  });
 });
