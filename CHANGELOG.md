@@ -16,6 +16,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   wherever a capture host is available.
 
 ### Fixed
+- **No more broken-image boxes in the grid or preview.** When a thumbnail can't
+  render in the popup (e.g. a signed Facebook/Instagram original that the CDN
+  won't serve to the extension without the page's referer), the tile now shows a
+  clean placeholder and the preview modal shows a short "can't preview here — the
+  original still downloads" note, instead of a broken box. The item is **never
+  hidden or dropped** — it stays fully downloadable. Images also fall back to a
+  smaller/on-page variant before giving up.
 - **Fewer duplicate tiles on Facebook & Instagram.** The same photo served at two
   signed/rotating CDN URLs (page hydration vs. the scroll API, or a rotating edge
   host) used to appear as two grid tiles. Collection now dedupes by each media's

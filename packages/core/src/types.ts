@@ -810,6 +810,12 @@ export interface LoadingImageProps {
   className: string;
   style?: CSSProperties;
   lazy?: boolean;
+  /** Tried once if `src` fails to load — e.g. a smaller/on-page variant when a
+   *  signed original won't render in the extension popup. */
+  fallbackSrc?: string;
+  /** Called when the image (and its fallback, if any) fails to load, so the
+   *  caller can show a graceful placeholder instead of a broken box. */
+  onFailed?: () => void;
 }
 
 export interface SkeletonGridProps {
