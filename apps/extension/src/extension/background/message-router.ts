@@ -27,6 +27,7 @@ import {
   clearFinishedQueue, retryAllFailedQueue, openQueueItem,
 } from '@/extension/background/download/download-queue';
 import { scheduleSidecar } from '@/extension/background/download/sidecar-writer';
+import { platform } from '@/extension/platform';
 import type { HistoryDraft, EnqueueEntry, QueueState } from '@mbd/storage/download-queue';
 import { currentSettings, excludedCache, settingsReady, excludedReady, writeSettingsPatch } from '@/extension/background/state';
 import { storeSniffedMedia, snifferByTab, resolveOriginalsBatch } from '@/extension/background/sniffer-store';
@@ -163,19 +164,16 @@ export const messageRouter: MessageRouter = {
 
   DOWNLOAD_ZIP: (message, _sender, respond) => {
     const { b64, filename } = message;
-    void settingsReady.then(() => {
+    void settingsReady.then(async () => {
       const url = `data:application/zip;base64,${b64}`;
-      chrome.downloads.download(
+      const downloadId = await platform.downloader.download(
         { url, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
-        (downloadId) => {
-          const err = chrome.runtime.lastError;
-          if (err || downloadId === undefined) {
-            respond({ status: 'error', message: `Couldn't save ${filename}.` });
-          } else {
-            respond({ status: 'success', message: `Saved ${filename}.` });
-          }
-        },
       );
+      if (downloadId === undefined) {
+        respond({ status: 'error', message: `Couldn't save ${filename}.` });
+      } else {
+        respond({ status: 'success', message: `Saved ${filename}.` });
+      }
     });
     return true;
   },
@@ -184,16 +182,13 @@ export const messageRouter: MessageRouter = {
     const { filename, text, mime } = message;
     void settingsReady.then(() => {
       const url = `data:${mime};base64,${textToBase64(text)}`;
-      chrome.downloads.download(
-        { url, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
-        () => void chrome.runtime.lastError,
-      );
+      void platform.downloader.download({ url, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' });
     });
   },
 
   DOWNLOAD_BYTES: (message) => {
     const { filename, b64, mime, source } = message;
-    void settingsReady.then(() => {
+    void settingsReady.then(async () => {
       const url = `data:${mime};base64,${b64}`;
       const sidecarJson = currentSettings.metadataSidecar && source
         ? serializeSidecar(buildMediaSidecar(
@@ -202,25 +197,23 @@ export const messageRouter: MessageRouter = {
             new Date().toISOString(),
           ))
         : undefined;
-      chrome.downloads.download(
+      const downloadId = await platform.downloader.download(
         { url, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
-        (downloadId) => {
-          if (chrome.runtime.lastError || downloadId === undefined) return;
-          if (sidecarJson) scheduleSidecar(downloadId, filename, sidecarJson);
-          if (!source) return;
-          void recordDownloads([{
-            src: source.src,
-            filename: filename.split('/').pop() ?? filename,
-            kind: source.kind,
-            type: source.type,
-            thumbnailSrc: source.thumbnailSrc ?? source.src,
-            sourcePageUrl: source.sourcePageUrl,
-            sourcePageTitle: source.sourcePageTitle,
-            time: Date.now(),
-            downloadId,
-          }]);
-        },
       );
+      if (downloadId === undefined) return;
+      if (sidecarJson) scheduleSidecar(downloadId, filename, sidecarJson);
+      if (!source) return;
+      void recordDownloads([{
+        src: source.src,
+        filename: filename.split('/').pop() ?? filename,
+        kind: source.kind,
+        type: source.type,
+        thumbnailSrc: source.thumbnailSrc ?? source.src,
+        sourcePageUrl: source.sourcePageUrl,
+        sourcePageTitle: source.sourcePageTitle,
+        time: Date.now(),
+        downloadId,
+      }]);
     });
   },
 
@@ -251,18 +244,18 @@ export const messageRouter: MessageRouter = {
   },
 
   OPEN_DOWNLOAD_FILE: (message) => {
-    chrome.downloads.open(message.downloadId);
+    platform.downloader.open(message.downloadId);
   },
 
   SHOW_DOWNLOAD: (message) => {
-    chrome.downloads.show(message.downloadId);
+    platform.downloader.show(message.downloadId);
   },
 
   GET_DOWNLOADED_SRCS: (_message, _sender, respond) => {
     void (async () => {
       try {
         const history = await loadHistory();
-        const items = await chrome.downloads.search({ limit: 0 });
+        const items = await platform.downloader.search({ limit: 0 });
         const existsById = new Map(items.map((it) => [it.id, it.exists]));
         const stateById = (id: number): DiskState =>
           existsById.has(id) ? (existsById.get(id) ? 'exists' : 'deleted') : 'unknown';

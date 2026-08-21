@@ -15,6 +15,7 @@ import { snifferByTab } from '@/extension/background/sniffer-store';
 import { setupContextMenus } from '@/extension/background/context-menu';
 import { onCommand, onContextMenuClick } from '@/extension/background/commands';
 import { messageRouter, broadcastSettings, type SendResponse } from '@/extension/background/message-router';
+import { platform } from '@/extension/platform';
 
 setApplySettingsHook(applySettings);
 
@@ -43,8 +44,8 @@ chrome.runtime.onStartup?.addListener(() => {
 });
 void settingsReady.then(() => reconcileQueue()).catch(() => {});
 
-chrome.downloads.onChanged.addListener((delta) => {
-  if (delta.error?.current === 'USER_CANCELED') void markSaveAsPromptSeen();
+platform.downloader.onChanged((change) => {
+  if (change.error === 'USER_CANCELED') void markSaveAsPromptSeen();
 });
 
 chrome.storage.onChanged.addListener((changes, namespace) => {

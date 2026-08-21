@@ -1,5 +1,6 @@
 import { loadHistory, srcsStillOnDisk, DiskState } from '@mbd/storage/history';
 import { SrcKeySet } from '@mbd/core/collection/canonical';
+import { platform } from '@/extension/platform';
 
 /**
  * Canonical keys of every history entry whose file is still on disk (or whose
@@ -11,7 +12,7 @@ import { SrcKeySet } from '@mbd/core/collection/canonical';
 export async function downloadedOnDiskKeys(): Promise<SrcKeySet> {
   try {
     const historyEntries = await loadHistory();
-    const items = await chrome.downloads.search({ limit: 0 });
+    const items = await platform.downloader.search({ limit: 0 });
     const existsById = new Map(items.map((it) => [it.id, it.exists]));
     const stateById = (id: number): DiskState =>
       existsById.has(id) ? (existsById.get(id) ? 'exists' : 'deleted') : 'unknown';

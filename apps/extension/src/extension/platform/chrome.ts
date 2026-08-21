@@ -43,12 +43,15 @@ export const chromeNotifier: Notifier = {
   available: typeof chrome !== 'undefined' && !!chrome.notifications,
   notify: (o) => {
     if (!chrome.notifications) return;
-    chrome.notifications.create({
-      type: 'basic',
-      iconUrl: o.iconUrl ?? chrome.runtime.getURL('icon/128.png'),
-      title: o.title,
-      message: o.message,
-    });
+    chrome.notifications.create(
+      {
+        type: 'basic',
+        iconUrl: o.iconUrl ?? chrome.runtime.getURL('icon/128.png'),
+        title: o.title,
+        message: o.message,
+      },
+      () => void chrome.runtime.lastError, // notifications perm not granted → ignore
+    );
   },
 };
 
