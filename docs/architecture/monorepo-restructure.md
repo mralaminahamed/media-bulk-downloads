@@ -30,7 +30,8 @@ media-bulk-downloads/                 # workspaces root (private)
 └── apps/
     ├── extension/  (@mbd/extension)  # THE WXT app — all entrypoints, background/popup/content glue, UI,
     │                                 # active-tab messaging, and the platform seam
-    └── safari-native/                # Safari Xcode wrapper (macOS) over .output/safari-mv3 — see #307
+    ├── safari-native/                # Safari Xcode wrapper (macOS) over .output/safari-mv3 — see #307
+    └── desktop/     (@mbd/desktop)   # standalone Deno downloader reusing @mbd/core (Deno.serve + React dashboard + SSE)
 ```
 
 **Dependency graph (acyclic):** `core` (leaf) ← `storage`, `platform` ← `apps/extension`.

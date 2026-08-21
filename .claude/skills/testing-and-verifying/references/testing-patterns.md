@@ -12,7 +12,7 @@ Monorepo: root `vitest.config.ts` orchestrates per-package projects
 import). Global chrome mock: `apps/extension/tests/unit/setupTests.ts`. Tests mirror
 `src/` under `tests/`.
 
-- `yarn test` — all Vitest projects + coverage (~3000 tests). **Not** e2e.
+- `yarn test` — all Vitest projects + coverage (~2,900 tests). **Not** e2e.
 - `yarn test:e2e` / `:e2e:headed` — Playwright (builds first).
 - **Check the REAL exit code** — piping through `tail`/`grep` reports the pipeline's
   status, not tsc/eslint/vitest's. `cmd > /tmp/x 2>&1; echo $?` or `${PIPESTATUS[0]}`.

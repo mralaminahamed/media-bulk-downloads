@@ -12,7 +12,7 @@ shortest decisive line.
 ```bash
 yarn type-check   # tsc -b packages + tsc --noEmit + app wxt-prepare/tsc
 yarn lint         # eslint — 0 errors (3 pre-existing exhaustive-deps warnings are OK)
-yarn test         # vitest + coverage (packages) then the app suite (~3000 tests)
+yarn test         # vitest + coverage (packages) then the app suite (~2,900 tests)
 yarn build        # wxt build → apps/extension/.output/chrome-mv3
 ```
 

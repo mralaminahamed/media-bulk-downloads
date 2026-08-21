@@ -26,11 +26,13 @@ into every browser's manifest.
    - **Edge Add-ons** → [Partner Center](https://partner.microsoft.com/dashboard/microsoftedge), the `-edge.zip` (same Chromium package family; the CWS copy/justifications apply).
    - **Firefox (AMO)** → [addons.mozilla.org/developers](https://addons.mozilla.org/developers/), the `-firefox.zip` plus the `-sources.zip` when prompted (AMO requires source for bundled add-ons).
 6. Tag the release: `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z`.
-   The tag **must** equal `package.json`'s `version` (release.yml enforces this).
+   Keep the tag equal to `package.json`'s `version` (the check release.yml runs
+   when enabled — but it is currently disabled, see below).
 
 Convention here: bump version + CHANGELOG on a branch → PR → merge to main →
-tag the merge commit. Manual store uploads (step 5) are still done by hand except
-Chrome, which the tag can auto-publish (below).
+tag the merge commit. **All** store uploads (step 5) are done by hand — the
+tag-triggered auto-publish workflow (below) is currently **disabled**, so the
+tag itself publishes nothing.
 
 Store status: Chrome / Firefox (AMO) / Edge are **live**; Opera and Safari are
 **submitted, under review**.
@@ -53,7 +55,10 @@ sniffers are inert (DOM-only collection). Full runbook + caveats:
 
 ## Automated release (`.github/workflows/release.yml`)
 
-Pushing a `vX.Y.Z` tag runs three jobs:
+This workflow is currently **disabled** (`disabled_manually` — along with Extension
+CI and Test; only Docs is active). So pushing a `vX.Y.Z` tag does **not** trigger it
+and does not auto-release or auto-publish anything — releases are done by hand. When
+it is re-enabled, a pushed tag would run three jobs:
 
 - **validate** — lint / type-check / test.
 - **release** — `yarn zip:all`, then a **GitHub Release** with all four zips
@@ -61,8 +66,9 @@ Pushing a `vX.Y.Z` tag runs three jobs:
 - **publish-chrome** — pushes the Chrome zip to the Web Store via Google's
   **official REST API with plain `curl`** (no npm package — the
   `chrome-webstore-upload-cli` path broke, see below). `workflow_dispatch`
-  re-runs publish-chrome against the current `package.json` version without a new
-  tag: `gh workflow run release.yml --ref <branch>`.
+  would re-run publish-chrome against the current `package.json` version without a
+  new tag (`gh workflow run release.yml --ref <branch>`) — but that dispatch is
+  **rejected while the workflow is disabled**.
 
 The GitHub Release always works; the Chrome publish depends on credentials being
 right (below). Edge/Firefox/Opera stay manual — grab their zips from the Release.
@@ -77,8 +83,9 @@ application" OAuth client**: `CHROME_CLIENT_ID`, `CHROME_CLIENT_SECRET`,
 
 Full setup — minting the refresh token step by step, the v1.1-vs-v2 rationale, and
 the `invalid_grant` / `unauthorized_client` / `Unauthorized` / `publisherId` error
-catalog — is in **`references/chrome-webstore-api.md`**. Re-publish the current
-version without a new tag: `gh workflow run release.yml --ref <branch>`.
+catalog — is in **`references/chrome-webstore-api.md`**. Once the workflow is
+re-enabled, re-publish the current version without a new tag with
+`gh workflow run release.yml --ref <branch>` (rejected while it is disabled).
 
 ## Permissions & privacy (keep in sync with the store justifications)
 

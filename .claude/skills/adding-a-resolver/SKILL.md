@@ -13,7 +13,7 @@ The collection engine turns a raw URL into `MediaCandidate[]`. Two layers:
    `looksLikeMediaUrl()`. Add host-agnostic CDN rules here.
 2. **Platform resolvers** — `packages/core/src/resolvers/`. The registry in
    `index.ts` runs platform resolvers first, then the generic one last (31 entries:
-   30 dedicated + `generic`; ~64 modules under `sites/` counting page-readers +
+   30 dedicated + `generic`; ~67 modules under `sites/` counting page-readers +
    network-tier handlers).
 
 ## Recon FIRST — is it even worth a resolver?
@@ -91,7 +91,7 @@ interface MediaCandidate {
   (`mastodon.ts`) is host-agnostic the other way — it matches the
   `/media_attachments/files/` path on any instance, then rewrites `/small/` →
   `/original/`.
-- **Video embeds are wired in `content/collect.ts`, not the registry.** An
+- **Video embeds are wired in `packages/core/src/collection/collect.ts`, not the registry.** An
   `<iframe>`/anchor embed (Vimeo, Dailymotion) has no on-page `<img>`/`<video>`, so
   a `pushX` helper in `collect.ts` (e.g. `pushDailymotion`, mirroring `pushVimeo`)
   emits `unresolvedVideo: true` + `resolveHint: { platform, id }`; the real stream
@@ -106,7 +106,7 @@ interface MediaCandidate {
 - Shape-validate any page-controlled value (e.g. a `data-*` id) before putting it
   in a URL path (`/^[a-z0-9]+$/i`).
 - Add tests in `packages/core/tests/resolvers/sites/<site>.test.ts` (call the
-  resolver directly) and, for collection wiring, `apps/extension/tests/unit/extension/content/collect.test.ts`.
+  resolver directly) and, for collection wiring, `packages/core/tests/collection/collect.test.ts` (plus the split `apps/extension/tests/unit/extension/content/collect-*.test.ts` suites).
 - Verify live: bundle the real `collectMedia()` into an IIFE exposing
   `window.__bench` via a Vite/esbuild lib build, inject it into the target page
   with the browser javascript tool, and run it once. Strip query strings from any
@@ -131,7 +131,7 @@ interface MediaCandidate {
   `resolvers/sites/*.ts`, `resolvers/network.ts` (Phase-2), `resolvers/sniffers/*`
   (MAIN-world fetch/XHR extractors), and `collection/imageUrl.ts` (CDN rules)
 - Wiring tests — `packages/core/tests/resolvers/sites/*.test.ts`,
-  `apps/extension/tests/unit/extension/content/collect.test.ts`
+  `packages/core/tests/collection/collect.test.ts`, and `apps/extension/tests/unit/extension/content/collect-*.test.ts`
 - Acknowledgement policy — README §Acknowledgements: gallery-dl is a **factual
   reference only** (endpoints / URL shapes); never copy its GPL source
 

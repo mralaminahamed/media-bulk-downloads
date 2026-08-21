@@ -18,7 +18,7 @@ own `src/` under `tests/`). Run: `yarn test` (root, all projects + coverage).
 ## Two suites + the gate
 
 - **Unit / integration** (this skill's focus): `yarn test` — package projects
-  (merged coverage) then the app suite (~3000 tests total).
+  (merged coverage) then the app suite (~2,900 tests total).
 - **End-to-end** (Playwright, real Chromium, drives the on-page bubble):
   `yarn test:e2e` / `:e2e:headed` — it `wxt build`s first, then loads the built
   extension. Specs/fixtures/pages under `apps/extension/tests/e2e/` (see its
