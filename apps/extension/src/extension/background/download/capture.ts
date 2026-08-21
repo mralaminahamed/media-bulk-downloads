@@ -1,10 +1,11 @@
-import { AudioFormat, CaptureRunResult, ImageInfo } from '@mbd/core/types';
+import { AudioFormat, ImageInfo } from '@mbd/core/types';
 import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { recordDownloads } from '@mbd/storage/history';
 import { STREAM_MAX_BYTES } from '@mbd/core/download/stream/capture-constants';
 import { streamQualityToEngine } from '@mbd/core/download/stream/quality';
 import { currentSettings } from '@/extension/background/state';
 import { notifyBatchDone } from '@/extension/background/download/downloads';
+import { platform } from '@/extension/platform';
 
 /**
  * Per-capture tab id, keyed by the capture's runId, so a CAPTURE_PROGRESS
@@ -17,34 +18,12 @@ import { notifyBatchDone } from '@/extension/background/download/downloads';
  */
 export const captureRunTabs = new Map<string, number>();
 
-const OFFSCREEN_URL = 'offscreen.html';
-
 /**
- * Ensure the single offscreen document exists (creating it on first capture and
- * reusing it after). Tolerates the concurrent-create race: two rapid captures can
- * both see no document, and the second createDocument throws — if a document now
- * exists, that is fine.
- */
-export async function ensureOffscreen(): Promise<void> {
-  if (!import.meta.env.FIREFOX) {
-    if (await chrome.offscreen.hasDocument()) return;
-    try {
-      await chrome.offscreen.createDocument({
-        url: OFFSCREEN_URL,
-        reasons: [chrome.offscreen.Reason.BLOBS],
-        justification: 'Assemble HLS/DASH stream segments into a downloadable video file.',
-      });
-    } catch (e) {
-      if (!(await chrome.offscreen.hasDocument())) throw e;
-    }
-  }
-}
-
-/**
- * Capture one HLS/DASH stream item to a downloaded file: run the offscreen
- * engine, then hand the muxed BLOB (never the manifest URL) to chrome.downloads.
- * Shared by the popup's CAPTURE_STREAM handler and the bulk "Download all" path,
- * so neither ever saves the raw manifest text. Returns a status descriptor.
+ * Capture one HLS/DASH stream item to a downloaded file: run the capture host
+ * (Chrome: offscreen document; Firefox/Safari: in-process), then hand the muxed
+ * BLOB (never the manifest URL) to the downloader. Shared by the popup's
+ * CAPTURE_STREAM handler and the bulk "Download all" path, so neither ever saves
+ * the raw manifest text. Returns a status descriptor.
  */
 export async function captureStreamToFile(
   item: ImageInfo,
@@ -57,26 +36,21 @@ export async function captureStreamToFile(
   | { ok: true; filename: string; saved: boolean; segmentCount: number; muxedAudio: boolean }
   | { ok: false; code: string }
 > {
-  if (import.meta.env.FIREFOX) return { ok: false, code: 'unsupported_browser' };
-  await ensureOffscreen();
+  if (!platform.captureHost.available) return { ok: false, code: 'unsupported_browser' };
   const audioFormat = audioOnly ? (audioFormatOverride ?? currentSettings.audioFormat) : 'm4a';
-  const result = (await chrome.runtime.sendMessage({
-    type: 'CAPTURE_RUN',
+  const result = await platform.captureHost.run({
     runId,
-    manifestUrl: item.hlsManifest,
+    manifestUrl: item.hlsManifest ?? '',
     engine: item.type === 'mpd' ? 'dash' : 'hls',
     quality: qualityOverride ?? streamQualityToEngine(currentSettings.streamQuality),
     maxBytes: STREAM_MAX_BYTES,
     audioOnly,
     audioFormat,
-  })) as CaptureRunResult | undefined;
+  });
   if (!result || !result.ok) return { ok: false, code: result?.ok === false ? result.code : 'unknown' };
   const filename = buildDownloadFilename({ ...item, ext: result.ext }, 0, currentSettings, sourcePage?.url);
-  const downloadId = await new Promise<number | undefined>((resolve) =>
-    chrome.downloads.download(
-      { url: result.blobUrl, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
-      (id) => resolve(chrome.runtime.lastError ? undefined : id),
-    ),
+  const downloadId = await platform.downloader.download(
+    { url: result.blobUrl, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
   );
   const saved = downloadId !== undefined;
   if (downloadId !== undefined) {

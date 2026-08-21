@@ -118,6 +118,7 @@ global.chrome = {
         download: vi.fn(),
         open: vi.fn(),
         show: vi.fn(),
+        cancel: vi.fn((_id: number, cb?: () => void) => cb && cb()),
         search: vi.fn().mockResolvedValue([]),
         onChanged: {
             addListener: vi.fn(),

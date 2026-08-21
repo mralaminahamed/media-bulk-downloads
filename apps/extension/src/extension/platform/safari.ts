@@ -42,6 +42,7 @@ export const safariDownloader: Downloader = {
   search: async () => [], // no downloads API → no on-disk history to query
   open: () => {}, // unsupported — no download id to open
   show: () => {}, // unsupported — no reveal-in-folder
+  cancel: () => {}, // unsupported — an <a download> click can't be cancelled
   onChanged: () => {}, // no progress/completion events
 };
 

@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   applyRefererRule, removeRefererRule, hasDnrPermission, requestDnrPermission,
-  __resetRefererRuleIdsForTest,
 } from '@/extension/background/download/hotlink-rewrite';
+import { __resetChromeHeaderRulesForTest } from '@/extension/platform/chrome';
 
 let sessionRules: { id: number }[];
 let updateSessionRules: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
-  __resetRefererRuleIdsForTest();
+  __resetChromeHeaderRulesForTest();
   sessionRules = [];
   updateSessionRules = vi.fn(async (o: { addRules?: { id: number }[]; removeRuleIds?: number[] }) => {
     if (o.removeRuleIds) sessionRules = sessionRules.filter((r) => !o.removeRuleIds!.includes(r.id));

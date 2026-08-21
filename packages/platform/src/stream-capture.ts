@@ -14,10 +14,15 @@ export interface CaptureRunRequest {
   runId: string;
   manifestUrl: string;
   engine: 'hls' | 'dash';
-  /** Target vertical resolution to pick from the variants. */
-  quality: number;
+  /** Target vertical resolution to pick from the variants, or a relative pick. */
+  quality: number | 'highest' | 'lowest';
   /** Hard byte ceiling for the assembled file. */
   maxBytes: number;
+  /** Extract only the audio track (drops video). */
+  audioOnly?: boolean;
+  /** Audio container/codec for an audio-only capture. Mirrors @mbd/core's
+   *  AudioFormat; 'm4a' keeps the extracted AAC, the 'mp3-*' values transcode. */
+  audioFormat?: 'm4a' | 'mp3-128' | 'mp3-192' | 'mp3-320';
 }
 
 /** Result of a capture run — an object URL for the assembled file, or a failure

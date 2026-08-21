@@ -79,9 +79,7 @@ describe('queue dispatcher', () => {
     await flush();
     if (downloadCb) downloadCb();
     await flush();
-    await handleDownloadChanged({
-      id: 100, state: { current: 'complete', previous: 'in_progress' },
-    } as chrome.downloads.DownloadDelta);
+    await handleDownloadChanged({ id: 100, state: 'complete' });
     await flush();
     const snap = await getQueueSnapshot();
     expect(snap.items.find((i) => i.url === 'u1')!.status).toBe('done');
@@ -94,9 +92,7 @@ describe('queue dispatcher', () => {
     await flush();
     if (downloadCb) downloadCb();
     await flush();
-    await handleDownloadChanged({
-      id: 100, state: { current: 'interrupted', previous: 'in_progress' },
-    } as chrome.downloads.DownloadDelta);
+    await handleDownloadChanged({ id: 100, state: 'interrupted' });
     await flush();
     const snap = await getQueueSnapshot();
     expect(snap.items[0].attempts).toBe(1);
@@ -111,9 +107,7 @@ describe('hotlink 403 handling', () => {
       src: url, filename: url.split('/').pop()!, kind: 'image' as const, type: 'image/jpeg', thumbnailSrc: '', sourcePageUrl,
     },
   });
-  const forbidden = (id: number) => ({
-    id, state: { current: 'interrupted', previous: 'in_progress' }, error: { previous: null, current: 'SERVER_FORBIDDEN' },
-  } as unknown as chrome.downloads.DownloadDelta);
+  const forbidden = (id: number) => ({ id, state: 'interrupted' as const, error: 'SERVER_FORBIDDEN' });
 
   it('403 + permission → arms Referer rewrite, retries with a DNR rule, then completes and tears it down', async () => {
     permGranted = true;
@@ -131,7 +125,7 @@ describe('hotlink 403 handling', () => {
 
     if (downloadCb) downloadCb();
     await flush();
-    await handleDownloadChanged({ id: 101, state: { current: 'complete', previous: 'in_progress' } } as chrome.downloads.DownloadDelta);
+    await handleDownloadChanged({ id: 101, state: 'complete' });
     await flush();
     snap = await getQueueSnapshot();
     expect(snap.items[0].status).toBe('done');
@@ -194,7 +188,7 @@ describe('hotlink 403 handling', () => {
     await flush();
     if (downloadCb) downloadCb();
     await flush();
-    await handleDownloadChanged({ id: 100, state: { current: 'interrupted', previous: 'in_progress' } } as chrome.downloads.DownloadDelta);
+    await handleDownloadChanged({ id: 100, state: 'interrupted' });
     await flush();
     const snap = await getQueueSnapshot();
     expect(snap.items[0].status).toBe('queued');
@@ -209,7 +203,7 @@ describe('user-cancelled download (Save-As dialog dismissed)', () => {
     await saveQueue({ paused: false, items: [
       { id: 'a', url: 'u', filename: 'a.jpg', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, downloadId: 5 },
     ] });
-    await handleDownloadChanged({ id: 5, state: { current: 'interrupted', previous: 'in_progress' }, error: { current: 'USER_CANCELED' } } as unknown as chrome.downloads.DownloadDelta);
+    await handleDownloadChanged({ id: 5, state: 'interrupted', error: 'USER_CANCELED' });
     const s = await loadQueue();
     expect(s.items[0].status).toBe('failed');
     expect(s.items[0].error).toBe('Cancelled');
@@ -219,7 +213,7 @@ describe('user-cancelled download (Save-As dialog dismissed)', () => {
     await saveQueue({ paused: false, items: [
       { id: 'b', url: 'u', filename: 'b.jpg', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, downloadId: 6 },
     ] });
-    await handleDownloadChanged({ id: 6, state: { current: 'interrupted', previous: 'in_progress' }, error: { current: 'NETWORK_FAILED' } } as unknown as chrome.downloads.DownloadDelta);
+    await handleDownloadChanged({ id: 6, state: 'interrupted', error: 'NETWORK_FAILED' });
     const s = await loadQueue();
     expect(s.items[0].status).toBe('queued');
     expect(s.items[0].attempts).toBe(1);
@@ -405,14 +399,14 @@ describe('retry re-pump when the backoff exceeds the fixed nudge (stuck-queue fi
       await vi.advanceTimersByTimeAsync(0);
       expect(chrome.downloads.download).toHaveBeenCalledTimes(1);
 
-      await handleDownloadChanged({ id: 100, state: { current: 'interrupted', previous: 'in_progress' } } as chrome.downloads.DownloadDelta);
+      await handleDownloadChanged({ id: 100, state: 'interrupted' });
       await vi.advanceTimersByTimeAsync(0);
       await vi.advanceTimersByTimeAsync(1200);
       expect(chrome.downloads.download).toHaveBeenCalledTimes(2);
       downloadCb?.();
       await vi.advanceTimersByTimeAsync(0);
 
-      await handleDownloadChanged({ id: 101, state: { current: 'interrupted', previous: 'in_progress' } } as chrome.downloads.DownloadDelta);
+      await handleDownloadChanged({ id: 101, state: 'interrupted' });
       await vi.advanceTimersByTimeAsync(0);
       await vi.advanceTimersByTimeAsync(2200);
       expect(chrome.downloads.download).toHaveBeenCalledTimes(3);
@@ -438,7 +432,7 @@ describe('retry re-pump when the backoff exceeds the fixed nudge (stuck-queue fi
       await vi.advanceTimersByTimeAsync(0);
       expect(chrome.downloads.download).toHaveBeenCalledTimes(2);
 
-      await handleDownloadChanged({ id: 101, state: { current: 'interrupted', previous: 'in_progress' } } as chrome.downloads.DownloadDelta);
+      await handleDownloadChanged({ id: 101, state: 'interrupted' });
       await vi.advanceTimersByTimeAsync(0);
       await vi.advanceTimersByTimeAsync(1200);
       expect(chrome.downloads.download).toHaveBeenCalledTimes(3);

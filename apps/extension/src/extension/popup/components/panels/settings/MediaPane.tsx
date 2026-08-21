@@ -3,6 +3,7 @@ import { SettingsPaneProps } from '@mbd/core/types';
 import { NumberField } from '@/extension/popup/components/fields/NumberField';
 import { ToggleRow } from '@/extension/popup/components/fields/ToggleRow';
 import { AdvancedDisclosure } from '@/extension/popup/components/panels/settings/AdvancedDisclosure';
+import { platform } from '@/extension/platform';
 
 const MediaPane: React.FC<SettingsPaneProps> = ({
   settings,
@@ -47,10 +48,10 @@ const MediaPane: React.FC<SettingsPaneProps> = ({
       checked={settings.resolveOriginals}
       onToggle={() => toggle('resolveOriginals')}
     />
-    {/* Stream capture assembles segments in a chrome.offscreen blob document,
-        which Firefox has no equivalent for, so the feature isn't offered there
-        (enabling it would only surface capture items that fail on click). */}
-    {!import.meta.env.FIREFOX && (
+    {/* Stream capture needs a byte-capable host (chrome.offscreen on Chrome, the
+        DOM-capable background/extension page on Firefox/Safari). Offered wherever
+        the platform seam reports a capture host. */}
+    {platform.captureHost.available && (
       <ToggleRow
         id="set-captureHlsStreams"
         label="Capture video streams (HLS & DASH)"

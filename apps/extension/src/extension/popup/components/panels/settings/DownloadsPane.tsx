@@ -6,6 +6,7 @@ import { SelectField } from '@/extension/popup/components/fields/SelectField';
 import { AUDIO_FORMATS, AUDIO_FORMAT_LABELS } from '@mbd/core/download/stream/mp3';
 import { ToggleRow } from '@/extension/popup/components/fields/ToggleRow';
 import { AdvancedDisclosure } from '@/extension/popup/components/panels/settings/AdvancedDisclosure';
+import { platform } from '@/extension/platform';
 
 const DownloadsPane: React.FC<DownloadsPaneProps> = ({
   settings,
@@ -113,9 +114,9 @@ const DownloadsPane: React.FC<DownloadsPaneProps> = ({
       </>
     )}
 
-    {/* Stream capture is Chrome-only (offscreen assembly), so the rendition
-        preference is only shown where it can take effect. */}
-    {!import.meta.env.FIREFOX && (
+    {/* The rendition preference is only shown where stream capture can run
+        (the platform seam reports a capture host). */}
+    {platform.captureHost.available && (
       <>
         <SelectField
           id="set-streamQuality"

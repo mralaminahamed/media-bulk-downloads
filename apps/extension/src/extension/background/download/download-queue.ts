@@ -7,6 +7,12 @@ import {
 import { recordDownloads } from '@mbd/storage/history';
 import { applyRefererRule, removeRefererRule, hasDnrPermission } from '@/extension/background/download/hotlink-rewrite';
 import { scheduleSidecar } from '@/extension/background/download/sidecar-writer';
+import { platform } from '@/extension/platform';
+import type { DownloadRecord } from '@mbd/platform';
+
+/** The subset of a download state-change the queue reacts to (the platform
+ *  Downloader's onChanged payload). */
+type DownloadChange = { id: number; state?: DownloadRecord['state']; error?: string };
 
 interface Deps {
   getConcurrency: () => number;
@@ -33,19 +39,14 @@ function withState<T>(fn: (s: QueueState) => Promise<{ state: QueueState; value:
 }
 
 function startDownload(url: string, filename: string): Promise<number | undefined> {
-  return new Promise((resolve) =>
-    chrome.downloads.download(
-      { url, filename, saveAs: deps.getSaveAs(), conflictAction: 'uniquify' },
-      (id) => resolve(chrome.runtime.lastError ? undefined : id),
-    ),
-  );
+  return platform.downloader.download({ url, filename, saveAs: deps.getSaveAs(), conflictAction: 'uniquify' });
 }
 
 export function initQueueDispatcher(d: Deps): void {
   deps = d;
   if (nudgeTimer) { clearTimeout(nudgeTimer); nudgeTimer = null; nudgeReadyAt = Infinity; }
-  chrome.downloads.onChanged.addListener((delta) => {
-    void handleDownloadChanged(delta);
+  platform.downloader.onChanged((change) => {
+    void handleDownloadChanged(change);
   });
 }
 
@@ -96,25 +97,25 @@ export async function pump(): Promise<void> {
   await armRetryNudge();
 }
 
-async function interruptError(delta: chrome.downloads.DownloadDelta): Promise<string | undefined> {
-  if (delta.error?.current) return delta.error.current;
+async function interruptError(change: DownloadChange): Promise<string | undefined> {
+  if (change.error) return change.error;
   try {
-    const [dl] = await chrome.downloads.search({ id: delta.id });
+    const [dl] = await platform.downloader.search({ id: change.id });
     return dl?.error;
   } catch {
     return undefined;
   }
 }
 
-export async function handleDownloadChanged(delta: chrome.downloads.DownloadDelta): Promise<void> {
-  const current = delta.state?.current;
+export async function handleDownloadChanged(change: DownloadChange): Promise<void> {
+  const current = change.state;
   if (current !== 'complete' && current !== 'interrupted') return;
 
   const snapshot = await loadQueue();
-  const item = snapshot.items.find((i) => i.downloadId === delta.id && i.status === 'active');
+  const item = snapshot.items.find((i) => i.downloadId === change.id && i.status === 'active');
   if (!item) return;
 
-  const errCode = current === 'interrupted' ? await interruptError(delta) : undefined;
+  const errCode = current === 'interrupted' ? await interruptError(change) : undefined;
   const forbidden = errCode === 'SERVER_FORBIDDEN';
   const cancelled = errCode === 'USER_CANCELED';
   const rewrite = forbidden && !item.useReferer && (await hasDnrPermission());
@@ -143,7 +144,7 @@ export async function handleDownloadChanged(delta: chrome.downloads.DownloadDelt
 
   if (item.ruleId != null) await removeRefererRule(item.ruleId);
   if (done?.history) {
-    void recordDownloads([{ ...done.history, time: Date.now(), downloadId: delta.id }]);
+    void recordDownloads([{ ...done.history, time: Date.now(), downloadId: change.id }]);
   }
   void pump();
 }
@@ -194,8 +195,8 @@ async function pollProgress(): Promise<void> {
   const progress: { downloadId: number; bytesReceived: number; totalBytes?: number }[] = [];
   const terminal: { id: number; state: 'complete' | 'interrupted' }[] = [];
   for (const it of actives) {
-    let dl: chrome.downloads.DownloadItem | undefined;
-    try { [dl] = await chrome.downloads.search({ id: it.downloadId }); } catch { dl = undefined; }
+    let dl: DownloadRecord | undefined;
+    try { [dl] = await platform.downloader.search({ id: it.downloadId }); } catch { dl = undefined; }
     if (!dl) continue;
     if (dl.state === 'complete' || dl.state === 'interrupted') {
       terminal.push({ id: it.downloadId as number, state: dl.state });
@@ -214,7 +215,7 @@ async function pollProgress(): Promise<void> {
   }
 
   for (const t of terminal) {
-    await handleDownloadChanged({ id: t.id, state: { current: t.state, previous: 'in_progress' } } as chrome.downloads.DownloadDelta);
+    await handleDownloadChanged({ id: t.id, state: t.state });
   }
 }
 
@@ -239,10 +240,10 @@ export async function cancelQueue(target: string): Promise<void> {
     return { state: cancel(s, target), value: toRemove };
   });
   for (const it of removed) {
+    // Never let a cancel failure abort the loop — the referer-rule teardown below
+    // must still run for this and every remaining item.
     if (it.downloadId != null) {
-      await new Promise<void>((resolve) => {
-        try { chrome.downloads.cancel(it.downloadId as number, () => resolve()); } catch { resolve(); }
-      });
+      try { platform.downloader.cancel(it.downloadId); } catch { /* already gone */ }
     }
     if (it.ruleId != null) await removeRefererRule(it.ruleId);
   }
@@ -269,7 +270,7 @@ export async function retryAllFailedQueue(): Promise<void> {
 export async function openQueueItem(id: string): Promise<void> {
   const s = await loadQueue();
   const it = s.items.find((i) => i.id === id);
-  if (it && it.status === 'done' && it.downloadId !== undefined) chrome.downloads.open(it.downloadId);
+  if (it && it.status === 'done' && it.downloadId !== undefined) platform.downloader.open(it.downloadId);
 }
 
 export async function reconcileQueue(): Promise<void> {
@@ -293,9 +294,9 @@ export async function reconcileQueue(): Promise<void> {
 
   const actives = snapshot.items.filter((i) => i.status === 'active' && i.downloadId !== undefined);
   for (const item of actives) {
-    let hit: chrome.downloads.DownloadItem | undefined;
+    let hit: DownloadRecord | undefined;
     try {
-      [hit] = await chrome.downloads.search({ id: item.downloadId });
+      [hit] = await platform.downloader.search({ id: item.downloadId });
     } catch {
       hit = undefined;
     }

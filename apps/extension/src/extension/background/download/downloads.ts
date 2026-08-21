@@ -6,6 +6,7 @@ import { recordDownloads } from '@mbd/storage/history';
 import { currentSettings } from '@/extension/background/state';
 import { downloadedOnDiskKeys } from '@/extension/background/download/downloaded-keys';
 import { scheduleSidecar } from '@/extension/background/download/sidecar-writer';
+import { platform } from '@/extension/platform';
 
 /**
  * Downloads each eligible image and records the successful ones to history,
@@ -43,35 +44,27 @@ export async function downloadAndRecord(
   );
   const capturedAt = new Date().toISOString();
   const entries = await Promise.all(
-    toDownload.map(
-      (image, index) =>
-        new Promise<HistoryEntry | null>((resolve) => {
-          const filename = paths[index];
-          chrome.downloads.download(
-            { url: image.src, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
-            (downloadId) => {
-              if (chrome.runtime.lastError || downloadId === undefined) {
-                resolve(null);
-                return;
-              }
-              if (currentSettings.metadataSidecar) {
-                scheduleSidecar(downloadId, filename, serializeSidecar(buildMediaSidecar(image, sourcePage, capturedAt)));
-              }
-              resolve({
-                src: image.src,
-                filename: filename.split('/').pop() ?? filename,
-                kind: image.kind,
-                type: image.type,
-                thumbnailSrc: image.thumbnailSrc ?? image.poster ?? image.src,
-                sourcePageUrl: image.sourcePage?.url ?? sourcePage?.url ?? '',
-                sourcePageTitle: image.sourcePage?.title ?? sourcePage?.title,
-                time: Date.now(),
-                downloadId,
-              });
-            },
-          );
-        }),
-    ),
+    toDownload.map(async (image, index): Promise<HistoryEntry | null> => {
+      const filename = paths[index];
+      const downloadId = await platform.downloader.download(
+        { url: image.src, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
+      );
+      if (downloadId === undefined) return null;
+      if (currentSettings.metadataSidecar) {
+        scheduleSidecar(downloadId, filename, serializeSidecar(buildMediaSidecar(image, sourcePage, capturedAt)));
+      }
+      return {
+        src: image.src,
+        filename: filename.split('/').pop() ?? filename,
+        kind: image.kind,
+        type: image.type,
+        thumbnailSrc: image.thumbnailSrc ?? image.poster ?? image.src,
+        sourcePageUrl: image.sourcePage?.url ?? sourcePage?.url ?? '',
+        sourcePageTitle: image.sourcePage?.title ?? sourcePage?.title,
+        time: Date.now(),
+        downloadId,
+      };
+    }),
   );
   const recorded = entries.filter((e): e is HistoryEntry => e !== null);
   await recordDownloads(recorded);
@@ -106,14 +99,6 @@ export function downloadStatusMessage(r: DownloadResult): string {
  * granted, so it's silent unless the user asked for it.
  */
 export function notifyBatchDone(result: DownloadResult): void {
-  if (!currentSettings.notifyOnComplete || !chrome.notifications || (result.total === 0 && result.skipped === 0)) return;
-  chrome.notifications.create(
-    {
-      type: 'basic',
-      iconUrl: chrome.runtime.getURL('icon/128.png'),
-      title: 'Media Bulk Downloads',
-      message: downloadStatusMessage(result),
-    },
-    () => void chrome.runtime.lastError, // notifications perm not granted → ignore
-  );
+  if (!currentSettings.notifyOnComplete || !platform.notifier.available || (result.total === 0 && result.skipped === 0)) return;
+  platform.notifier.notify({ title: 'Media Bulk Downloads', message: downloadStatusMessage(result) });
 }

@@ -6,7 +6,23 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Stream capture (HLS & DASH) now works on Firefox and Safari.** Capture used to
+  be Chrome-only because it assembled segments in a `chrome.offscreen` document.
+  The engine now runs in each browser's own DOM-capable context (offscreen on
+  Chrome; the background/extension page on Firefox and Safari) through a shared
+  capture core, so audio-only capture and MP3 transcode behave identically
+  everywhere. The "Capture video streams" toggle and quality selector appear
+  wherever a capture host is available.
+
 ### Fixed
+- **Safari build no longer fails at startup.** The background touched
+  `chrome.downloads`/`chrome.offscreen`/`chrome.notifications` directly, which don't
+  exist on Safari (its manifest omits those permissions), so the service worker
+  threw before registering its message handlers and the extension was inert. Every
+  browser-divergent call now goes through the `@mbd/platform` capability seam, so
+  Safari uses its real fallbacks (a `fetch`→`<a download>` downloader, in-process
+  capture, no-op notifications/header-rules) and the rest of the app works.
 - **Instagram/X media no longer silently dropped from XHR responses.** The response
   sniffer read `responseText`, which throws when a page sets the request's
   `responseType` to `json` (as Instagram/X do) — the error was swallowed and every

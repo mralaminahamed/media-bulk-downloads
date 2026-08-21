@@ -32,6 +32,7 @@ export const chromeDownloader: Downloader = {
   search: async (q) => (await chrome.downloads.search({ id: q.id, limit: q.limit })).map(toRecord),
   open: (id) => chrome.downloads.open(id),
   show: (id) => chrome.downloads.show(id),
+  cancel: (id) => chrome.downloads.cancel(id, () => void chrome.runtime.lastError),
   onChanged: (listener) =>
     chrome.downloads.onChanged.addListener((d) =>
       listener({ id: d.id, state: d.state?.current as DownloadRecord['state'] | undefined, error: d.error?.current }),
@@ -42,12 +43,15 @@ export const chromeNotifier: Notifier = {
   available: typeof chrome !== 'undefined' && !!chrome.notifications,
   notify: (o) => {
     if (!chrome.notifications) return;
-    chrome.notifications.create({
-      type: 'basic',
-      iconUrl: o.iconUrl ?? chrome.runtime.getURL('icon/128.png'),
-      title: o.title,
-      message: o.message,
-    });
+    chrome.notifications.create(
+      {
+        type: 'basic',
+        iconUrl: o.iconUrl ?? chrome.runtime.getURL('icon/128.png'),
+        title: o.title,
+        message: o.message,
+      },
+      () => void chrome.runtime.lastError, // notifications perm not granted → ignore
+    );
   },
 };
 
@@ -62,6 +66,13 @@ async function nextRuleId(): Promise<number> {
   }
   await ruleIdSeeded;
   return ++ruleIdSeq;
+}
+
+/** Test-only: reset the header-rule id seed so a test re-seeds from its mocked
+ *  session rules, matching a fresh service-worker launch. */
+export function __resetChromeHeaderRulesForTest(): void {
+  ruleIdSeq = 0;
+  ruleIdSeeded = null;
 }
 
 export const chromeHeaderRules: HeaderRules = {
@@ -114,6 +125,8 @@ export const chromeCaptureHost: StreamCaptureHost = {
       engine: req.engine,
       quality: req.quality,
       maxBytes: req.maxBytes,
+      audioOnly: req.audioOnly,
+      audioFormat: req.audioFormat,
     })) as CaptureRunResult | undefined;
     return result ?? { ok: false, code: 'unknown' };
   },

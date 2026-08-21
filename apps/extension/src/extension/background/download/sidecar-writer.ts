@@ -1,5 +1,7 @@
 import { textToBase64 } from '@mbd/core/download/base64';
 import { sidecarName } from '@mbd/core/download/metadata-sidecar';
+import { platform } from '@/extension/platform';
+import type { DownloadRecord } from '@mbd/platform';
 
 /**
  * Writes a `<mediafile>.json` provenance sidecar (#284) named to match the media
@@ -38,25 +40,22 @@ const dirOf = (p: string): string => {
 
 function writeSidecar(p: PendingSidecar, mediaFinalPath: string): void {
   const relative = `${p.dir}${baseOf(mediaFinalPath)}`;
-  chrome.downloads.download(
-    {
-      url: `data:application/json;base64,${textToBase64(p.json)}`,
-      filename: sidecarName(relative),
-      saveAs: false,
-      conflictAction: 'uniquify',
-    },
-    () => void chrome.runtime.lastError,
-  );
+  void platform.downloader.download({
+    url: `data:application/json;base64,${textToBase64(p.json)}`,
+    filename: sidecarName(relative),
+    saveAs: false,
+    conflictAction: 'uniquify',
+  });
 }
 
-function onChanged(delta: chrome.downloads.DownloadDelta): void {
-  const p = pending.get(delta.id);
+function onChanged(change: { id: number; state?: DownloadRecord['state']; error?: string }): void {
+  const p = pending.get(change.id);
   if (!p) return;
-  const state = delta.state?.current;
+  const state = change.state;
   if (state !== 'complete' && state !== 'interrupted') return;
-  pending.delete(delta.id);
+  pending.delete(change.id);
   if (state !== 'complete') return;
-  void chrome.downloads.search({ id: delta.id }).then((items) => {
+  void platform.downloader.search({ id: change.id }).then((items) => {
     const finalPath = items?.[0]?.filename;
     if (finalPath) writeSidecar(p, finalPath);
   });
@@ -71,7 +70,7 @@ export function scheduleSidecar(mediaDownloadId: number, requestedPath: string, 
   pending.set(mediaDownloadId, { json, dir: dirOf(requestedPath) });
   if (!installed) {
     installed = true;
-    chrome.downloads.onChanged.addListener(onChanged);
+    platform.downloader.onChanged(onChanged);
   }
 }
 

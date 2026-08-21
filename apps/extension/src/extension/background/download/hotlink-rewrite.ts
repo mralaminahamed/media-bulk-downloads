@@ -8,7 +8,13 @@
  *
  * `declarativeNetRequestWithHostAccess` is an OPTIONAL permission: the request must come from a
  * user gesture (the popup's "Retry with page referer"), never the background SW.
+ *
+ * The DNR session-rule mechanics live in the platform seam (`platform.headerRules`,
+ * a no-op on Firefox/Safari); this module owns only the referer/origin business
+ * logic and the optional-permission gating (chrome.permissions is not part of the
+ * seam).
  */
+import { platform } from '@/extension/platform';
 
 const DNR_PERMISSION: chrome.permissions.Permissions = { permissions: ['declarativeNetRequestWithHostAccess'] };
 
@@ -37,60 +43,15 @@ function originOf(u: string): string {
  * Add a session rule that sets Referer + Origin on requests to `url`, returning
  * its rule id (for later teardown). `refererPageUrl` is the item's source page;
  * when absent, falls back to the media URL's own origin (still lifts many CDN
- * referer checks). Rule ids are allocated above the current max session-rule id
- * so a worker restart can't collide with a lingering rule.
+ * referer checks). Delegates the DNR mechanics + id allocation to the seam.
  */
-let ruleIdSeq = 0;
-let ruleIdSeeded: Promise<void> | null = null;
-async function nextRuleId(): Promise<number> {
-  if (!ruleIdSeeded) {
-    ruleIdSeeded = chrome.declarativeNetRequest
-      .getSessionRules()
-      .then((rules) => { ruleIdSeq = rules.reduce((max, r) => Math.max(max, r.id), 0); })
-      .catch(() => { ruleIdSeq = 0; });
-  }
-  await ruleIdSeeded;
-  return ++ruleIdSeq;
-}
-
-/** Test-only: reset the id seed so a test re-seeds from its mocked session rules,
- *  matching how the module starts fresh on each service-worker launch. */
-export function __resetRefererRuleIdsForTest(): void {
-  ruleIdSeq = 0;
-  ruleIdSeeded = null;
-}
-
 export async function applyRefererRule(url: string, refererPageUrl?: string): Promise<number> {
   const referer = refererPageUrl && originOf(refererPageUrl) ? refererPageUrl : originOf(url);
   const origin = originOf(referer);
-  const id = await nextRuleId();
-  const requestHeaders: chrome.declarativeNetRequest.ModifyHeaderInfo[] = [
-    { header: 'referer', operation: 'set' as chrome.declarativeNetRequest.HeaderOperation, value: referer },
-  ];
-  if (origin) {
-    requestHeaders.push({ header: 'origin', operation: 'set' as chrome.declarativeNetRequest.HeaderOperation, value: origin });
-  }
-  await chrome.declarativeNetRequest.updateSessionRules({
-    addRules: [
-      {
-        id,
-        priority: 1,
-        condition: { urlFilter: `|${url}` },
-        action: {
-          type: 'modifyHeaders' as chrome.declarativeNetRequest.RuleActionType,
-          requestHeaders,
-        },
-      },
-    ],
-  });
-  return id;
+  return platform.headerRules.add({ urlFilter: `|${url}`, referer, origin: origin || undefined });
 }
 
-/** Remove a session rule added by applyRefererRule. Never throws. */
+/** Remove a session rule added by applyRefererRule. Never throws (seam contract). */
 export async function removeRefererRule(id: number): Promise<void> {
-  try {
-    await chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: [id] });
-  } catch {
-    // Rule already gone / DNR unavailable — nothing to clean up.
-  }
+  await platform.headerRules.remove(id);
 }
