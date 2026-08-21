@@ -45,5 +45,5 @@ Support is delivered in **four escalating tiers**, each a fallback for the last,
    each SSRF-host-pinned and read-only.
 
 **Consequence for "unsupported" sites:** a site absent from the coverage matrix is usually *already collected* by tier 1–2; a dedicated resolver (tier 3–4) is warranted **only** when the original is
-hidden from the DOM. This is the maturity check — breadth comes from the generic tiers, precision from the dedicated ones, and every tier is covered by the ~3,000-test suite across
+hidden from the DOM. This is the maturity check — breadth comes from the generic tiers, precision from the dedicated ones, and every tier is covered by the ~2,900-test suite across
 Chrome/Firefox/Edge/Safari.

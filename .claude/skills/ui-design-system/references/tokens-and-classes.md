@@ -30,7 +30,7 @@ Use these; never hardcode. Values shown light → dark.
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--paper` / `--panel` / `--panel-2` | #fff / #f7f7fa / #f0f0f4 | #0e0f13 / #16181e / #1e2029 | surfaces (base → lifted) |
+| `--paper` / `--panel` / `--panel-2` | #fafafb / #ffffff / #f5f5f8 | #0e0f13 / #16181e / #1e2029 | surfaces (base → lifted) |
 | `--ink` / `--ink-2` / `--ink-3` | #17181c / #5f616c / #9a9ca6 | #e9eaef / #a4a6b2 / #6d6f7c | text (body / data / decorative-only) |
 | `--line` / `--line-strong` | #ececf1 / #dedde5 | #23252e / #33353f | hairlines / stronger borders |
 | `--brand` / `--brand-ink` / `--brand-soft` / `--ring` | #6366f1 / #4f46e5 / #eef0fe / rgba(99,102,241,.35) | #818cf8 / #6366f1 / #1c1b39 / … | single indigo accent |
@@ -52,7 +52,7 @@ in dark mode). There is **no `--radius-md`** — the "md" tier is bare `--radius
 · `.chip` (27h filter) · `.seg` (23h) in `.segwrap` (`.segwrap-even` + fixed width =
 equal columns) · `.switch` (toggle) · `.card` · `.countpill` · `.num` (tabular mono)
 · `.eyebrow` (mono micro-label) · `.hairline` (border) · `.dotgrid` (header texture)
-· `.checker` (transparency backdrop) · `.skeleton` + `.shimmer` · `.scroll-thin` ·
+· `.checker` (transparency backdrop) · `.skeleton` (shimmer via `::after` + `@keyframes shimmer`) · `.scroll-thin` ·
 `.reveal` / `.overlay-in` / `.sheet-in` / `.progress-indet` (entrance/loading anim).
 
 **Heights for one-line alignment:** btn 38 · btn-sm 30 · iconbtn/donatebtn 32 ·

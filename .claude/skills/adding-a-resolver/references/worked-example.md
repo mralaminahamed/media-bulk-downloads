@@ -56,7 +56,7 @@ registry's host index so it's only tried on Spiegel URLs (see "the contract" bel
   directly with a fabricated `<picture>`/`<img srcset>` DOM (jsdom) — assert it
   returns the widest URL, the `mediaKey`, and that a non-Spiegel URL returns `[]`.
   Add a collection-wiring test in
-  `apps/extension/tests/unit/extension/content/collect.test.ts`.
+  `packages/core/tests/collection/collect.test.ts` (or a matching `apps/extension/tests/unit/extension/content/collect-*.test.ts` suite).
 
 ## When to copy this vs. something else
 

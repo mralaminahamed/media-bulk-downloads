@@ -18,7 +18,7 @@ rationale: `docs/architecture/monorepo-restructure.md`.
 
 | Package | Path | What lives here | May import |
 |---|---|---|---|
-| `@mbd/core` | `packages/core/src/` | PURE domain logic: collection, resolvers, sniffers, `download/stream` (HLS/DASH), `net`. No DOM-app or extension glue. | nothing from the other three (deps: `fflate`, `mp4box`) |
+| `@mbd/core` | `packages/core/src/` | PURE domain logic: collection, resolvers, sniffers, `download/stream` (HLS/DASH), `net`. No DOM-app or extension glue. | nothing from the other three (deps: `fflate`, `mp4box`, `@breezystack/lamejs`) |
 | `@mbd/storage` | `packages/storage/src/` | `chrome.storage` + IndexedDB wrappers: settings, history, favourites, excluded, download-queue, idb, sync, per-host. | `@mbd/core` only (+ `idb-keyval`) |
 | `@mbd/platform` | `packages/platform/src/` | Browser-capability seam: downloader / notifier / header-rules / stream-capture-host contracts + per-browser capability detection. | nothing (standalone seam) |
 | `@mbd/extension` | `apps/extension/src/` | The WXT app: `entrypoints/` (background, content, MAIN-world sniffers, offscreen), `extension/{background,content,popup,bubble,offscreen}`. | all three |

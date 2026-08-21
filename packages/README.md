@@ -6,7 +6,7 @@ glue. Each package is a yarn workspace (`workspaces: ["packages/*", "apps/*"]`).
 
 | Package             | Path            | Responsibility                                                                                                                            | May import                                                 |
 |---------------------|-----------------|-------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------|
-| **`@mbd/core`**     | `core/src/`     | Pure domain logic: collection, resolvers, sniffers, `download/stream` (HLS/DASH), `net`. No DOM-app or extension glue, **no `chrome.*`**. | nothing from the other packages (deps: `fflate`, `mp4box`) |
+| **`@mbd/core`**     | `core/src/`     | Pure domain logic: collection, resolvers, sniffers, `download/stream` (HLS/DASH), `net`. No DOM-app or extension glue, **no `chrome.*`**. | nothing from the other packages (deps: `fflate`, `mp4box`, `@breezystack/lamejs`) |
 | **`@mbd/storage`**  | `storage/src/`  | `chrome.storage` + IndexedDB wrappers: settings, history, favourites, excluded, download-queue, idb, sync, per-host.                      | `@mbd/core` only (+ `idb-keyval`)                          |
 | **`@mbd/platform`** | `platform/src/` | Browser-capability seam: downloader / notifier / header-rules / stream-capture-host contracts + per-browser capability detection.         | nothing (standalone seam)                                  |
 

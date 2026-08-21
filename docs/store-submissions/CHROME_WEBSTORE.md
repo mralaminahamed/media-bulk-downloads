@@ -17,7 +17,7 @@ Version at time of writing: **1.3.0** · Manifest **V3**.
 - [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`.
 - [ ] `minimum_chrome_version: 109` is set in the Chrome/Edge manifest (the `chrome.offscreen` floor for HLS/DASH capture); the Firefox manifest omits it and pins `gecko.strict_min_version` instead.
 - [ ] Optional permissions declared: `notifications` and `declarativeNetRequestWithHostAccess` (both requested at runtime, not at install — see §4).
-- [ ] `commands` (keyboard shortcuts) and the MAIN-world content scripts (page + Instagram/X media sniffers) are present — no extra permission needed, but note them for review (see §4).
+- [ ] `commands` (keyboard shortcuts) and the MAIN-world content scripts (page + Instagram/X/Facebook/Pinterest/MangaDex media sniffers plus the all-URLs HLS sniffer) are present — no extra permission needed, but note them for review (see §4).
 - [ ] Icons 16/32/48/64/128 present (`apps/extension/src/public/icon/`) — ✅ already in the build.
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
 - [ ] At least **1 screenshot** at 1280×800 or 640×400 (see §5) — ✅ seven real captures in `assets/v2/` (`screenshot-1-grab` … `screenshot-7-history`); Chrome shows up to 5.
@@ -291,7 +291,7 @@ Explicitly answer *No* to: personally identifiable information, health, financia
 & payment, authentication, personal communications, location, web history, and
 user activity. The extension does not collect or transmit user data. The optional
 `notifications` permission only shows a local desktop toast and collects nothing;
-the Instagram/X media sniffers read only what the page already loaded and send
+the Instagram/X/Facebook/Pinterest/MangaDex media sniffers and the all-URLs HLS sniffer read only what the page already loaded and send
 nothing off-device.
 
 **Certifications (check all three):**

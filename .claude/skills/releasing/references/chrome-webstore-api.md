@@ -53,7 +53,9 @@ OAuth client, or the token step fails with `unauthorized_client`.
 ## Re-running without a new tag
 
 `publish-chrome` supports `workflow_dispatch` — it publishes the current
-`package.json` version: `gh workflow run release.yml --ref <branch>`.
+`package.json` version: `gh workflow run release.yml --ref <branch>`. Note the
+workflow is currently **disabled** (`disabled_manually`), so this dispatch is
+rejected until it is re-enabled; today's Chrome publish is done by hand.
 
 ## Links
 

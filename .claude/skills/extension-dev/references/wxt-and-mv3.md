@@ -17,7 +17,7 @@ are optional further reading.
   perms. Icons: 16/32/48/64/128.
 - **Entrypoints** (`src/entrypoints/`) are thin WXT wrappers that side-effect-import
   the real modules under `src/extension/`: `background.ts`, `content.ts`,
-  `*-media-sniffer.content.ts` (five MAIN-world sniffers: fb/hls/ig/pinterest/x),
+  `*-media-sniffer.content.ts` (six MAIN-world sniffers: fb/hls/ig/pinterest/mangadex/x),
   `offscreen/`, `popup/`. The popup file is **`popup.html`**, not `index.html`
   (`chrome.action.setPopup('popup.html')` — else `ERR_FILE_NOT_FOUND`).
 - Commands: `yarn dev` / `dev:firefox`; `yarn build[:firefox|:edge|:safari|:all]`;

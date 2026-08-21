@@ -122,7 +122,7 @@ packages/                       # each package: src/ + tests/ (its own Vitest pr
         index.ts                 #     REGISTRY + resolve() dispatch
         network.ts               #     opt-in fetch() dispatch (~20 platforms)
         sites/                   #     per-host resolvers (+ vimeo.ts id-extraction only)
-        sniffers/                #     response/hls/ig/x/fb/pinterest MAIN-world sniffers
+        sniffers/                #     response/hls/ig/x/fb/pinterest/mangadex MAIN-world sniffers
       download/                 #   zip · base64 · convert/ · stream/ (HLS/DASH byte-logic)
       net/                      #   fetch retry
       types.ts                  #   shared TypeScript types (ChromeMessage, ImageInfo, …)
@@ -137,7 +137,7 @@ apps/
   extension/       @mbd/extension
     wxt.config.ts               # WXT build config (manifest fn, targets, zip)
     src/
-      entrypoints/              # background · content · ig/x/fb/pinterest/hls MAIN-world
+      entrypoints/              # background · content · ig/x/fb/pinterest/mangadex/hls MAIN-world
                                  #   sniffers · offscreen (HLS/DASH capture) · popup
       public/icon/              # extension icons
       types/                    # ambient CSS-module declarations

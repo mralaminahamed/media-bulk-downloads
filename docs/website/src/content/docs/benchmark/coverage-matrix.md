@@ -7,7 +7,7 @@ description: "CDN-family to site coverage matrix — every supported site mapped
 
 ## C. Coverage matrix (CDN family → sites)
 
-Beyond the live rows above, the engine's behavior on a site is determined by the **CDN family** it serves from. This matrix maps 136 popular sites/services to the rule they exercise and how coverage
+Beyond the live rows above, the engine's behavior on a site is determined by the **CDN family** it serves from. This matrix maps 144 popular sites/services to the rule they exercise and how coverage
 was established: **[L]** live-injected in this run, **[C]** covered by the same CDN rule verified on a live site (or built and verified against a real sampled URL — HTTP/`Image()` — pulled from that
 site), **[N]** needs opt-in network (Phase 2), **[A]** auth/bot-gated (not automatable logged-out), **[G]** a known gap.
 

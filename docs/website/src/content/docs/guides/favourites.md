@@ -49,7 +49,7 @@ sequenceDiagram
   U->>P: click ★ on a tile
   P->>SW: sendMessage({ type:"ADD_FAVOURITE", entry })
   SW->>F: addFavourite(entry)
-  F->>F: mergeFavourites(existing, [entry])<br/>dedup by canonical src key · newest-first<br/>cap 500 entries + 2 MB
+  F->>F: mergeFavourites(existing, [entry])<br/>dedup by canonical src key · newest-first<br/>cap 500 entries + 1 MB
   F->>ST: durableSet → storage.local.set({ favourites: merged })<br/>(+ IndexedDB mirror)
   ST-->>P: storage.onChanged (area:"local")
   ST-->>P2: storage.onChanged (area:"local")

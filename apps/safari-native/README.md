@@ -51,7 +51,7 @@ degrades around rather than routing through the seam:
 - **MAIN-world sniffers don't inject.** `world: "MAIN"` content scripts are
   unsupported by the current Safari (`safari-web-extension-converter` warns:
   *"the following keys in your manifest.json are not supported … `world`"*). The
-  five passive network sniffers (`fb` / `hls` / `ig` / `pinterest` /
+  six passive network sniffers (`fb` / `hls` / `ig` / `pinterest` / `mangadex` /
   `x-media-sniffer`) rely on MAIN-world injection to observe the page's own
   GraphQL / `.m3u8` requests. On Safari they are inert, so Instagram / Facebook
   full-resolution capture, HLS-via-player detection, and X / Pinterest / Threads

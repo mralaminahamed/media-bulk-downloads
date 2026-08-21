@@ -10,10 +10,10 @@ bulk-downloads images/video/audio from any page, built with **WXT** in a
 ```bash
 yarn dev            # Chrome dev (HMR) → apps/extension/.output/chrome-mv3
 yarn build          # also :firefox :edge :safari :all
-yarn zip            # store zips → apps/extension/.output/  (also :firefox :edge :all)
+yarn zip            # store zips → apps/extension/.output/  (also :firefox :edge :safari :all)
 yarn type-check     # wxt prepare + tsc -b + tsc --noEmit   (run before trusting tsc)
 yarn lint           # eslint (whole workspace)
-yarn test           # vitest + coverage (packages) then the app suite (~3000 tests)
+yarn test           # vitest + coverage (packages) then the app suite (~2,900 tests)
 yarn test:e2e       # Playwright, real Chromium, drives the on-page bubble
 ```
 

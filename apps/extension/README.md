@@ -14,7 +14,7 @@ src/
 │   ├── background.ts      #   service worker
 │   ├── content.ts         #   the content-script relay + bubble mount
 │   ├── *-media-sniffer.content.ts   # MAIN-world passive sniffers
-│   │                                #   (fb / ig / x / pinterest / hls)
+│   │                                #   (fb / ig / x / pinterest / mangadex / hls)
 │   ├── offscreen/          #   offscreen document (stream assembly)
 │   └── popup/              #   popup entry
 ├── extension/            # the app logic behind the entrypoints
