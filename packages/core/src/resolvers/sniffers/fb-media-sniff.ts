@@ -24,8 +24,18 @@ const isFbHost = (h: string): boolean =>
   h === 'fbcdn.net' || h.endsWith('.fbcdn.net') || h === 'cdninstagram.com' || h.endsWith('.cdninstagram.com');
 
 /** Return url only if it is an https fbcdn/cdninstagram URL, else null. Untrusted-input guard. */
+/** An `&amp;`-escaped URL lifted straight out of HTML parses fine but pins to a
+ *  DIFFERENT, permanently-403 URL: every parameter after the first is named
+ *  `amp;<name>`, so the CDN sees no `oh`/`oe` at all. Reject it rather than
+ *  storing a silently-dead link. */
+function hasEscapedAmpersand(url: string): boolean {
+  const q = url.indexOf('?');
+  return q !== -1 && /[?&]amp;[a-z0-9_-]+=/i.test(url.slice(q));
+}
+
 export function pinFbUrl(url: unknown): string | null {
   if (typeof url !== 'string') return null;
+  if (hasEscapedAmpersand(url)) return null;
   try {
     const u = new URL(url);
     return u.protocol === 'https:' && isFbHost(u.hostname) ? u.href : null;
