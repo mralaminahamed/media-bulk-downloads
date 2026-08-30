@@ -96,10 +96,16 @@ export function galleryLinkCandidate(a: HTMLAnchorElement): UrlCandidate | null 
   return thumb ? { url: href, thumbnailSrc: thumb } : { url: href };
 }
 
-/** <img> URLs hidden inside a <noscript> block (common no-JS lazy fallback). */
+/**
+ * Media URLs hidden inside a `<noscript>` block — the no-JS fallback a lazy
+ * loader ships, and often the only place the FULL-size URL appears in the
+ * markup. Re-parsed with DOMParser, then read with the same lazy-attribute and
+ * srcset logic as a live element, so `data-src` and `<picture><source>` inside
+ * the block are picked up too.
+ */
 export function noscriptImageCandidates(ns: HTMLElement): UrlCandidate[] {
   let html = ns.textContent || '';
-  if (!html.includes('<img') && html.includes('&lt;')) {
+  if (!html.includes('<img') && !html.includes('<source') && html.includes('&lt;')) {
     html = html
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
@@ -107,7 +113,7 @@ export function noscriptImageCandidates(ns: HTMLElement): UrlCandidate[] {
       .replace(/&#0?39;/g, '\'')
       .replace(/&amp;/g, '&');
   }
-  if (!html.includes('<img')) return [];
+  if (!html.includes('<img') && !html.includes('<source')) return [];
   let doc: Document;
   try {
     doc = new DOMParser().parseFromString(html, 'text/html');
@@ -115,13 +121,12 @@ export function noscriptImageCandidates(ns: HTMLElement): UrlCandidate[] {
     return [];
   }
   const out: UrlCandidate[] = [];
-  doc.querySelectorAll('img').forEach((img) => {
-    const u = img.getAttribute('src');
-    if (u) out.push({ url: u });
-    const ss = img.getAttribute('srcset');
-    if (ss) {
-      const best = bestSrcsetUrl(ss);
-      if (best) out.push({ url: best });
+  const seen = new Set<string>();
+  doc.querySelectorAll('img, source').forEach((el) => {
+    for (const url of imageUrlsFromElement(el)) {
+      if (seen.has(url)) continue;
+      seen.add(url);
+      out.push({ url });
     }
   });
   return out;

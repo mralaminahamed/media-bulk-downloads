@@ -176,13 +176,14 @@ describe('noscriptImageCandidates', () => {
     expect(noscriptImageCandidates(ns)).toEqual([{ url: 'https://cdn.com/real.png' }]);
   });
 
-  it('also extracts the best srcset candidate from a noscript <img srcset>', () => {
+  it('extracts every srcset rendition, widest first, like the live <img> path does', () => {
     const ns = document.createElement('noscript');
     ns.textContent =
       '<img src="https://cdn.com/lo.jpg" srcset="https://cdn.com/a-320.jpg 320w, https://cdn.com/a-1200.jpg 1200w">';
     expect(noscriptImageCandidates(ns)).toEqual([
       { url: 'https://cdn.com/lo.jpg' },
       { url: 'https://cdn.com/a-1200.jpg' },
+      { url: 'https://cdn.com/a-320.jpg' },
     ]);
   });
 
@@ -218,6 +219,7 @@ describe('noscriptImageCandidates', () => {
     expect(noscriptImageCandidates(ns)).toEqual([
       { url: 'https://cdn.com/one.jpg' },
       { url: 'https://cdn.com/two-hi.jpg' },
+      { url: 'https://cdn.com/two-lo.jpg' },
     ]);
   });
 
@@ -253,5 +255,34 @@ describe('bestSrcsetUrl — density descriptors', () => {
   it('prefers the widest w over any density', () => {
     expect(bestSrcsetUrl('a.jpg 400w, b.jpg 800w')).toBe('b.jpg');
     expect(bestSrcsetUrl('a.jpg 2x, b.jpg 800w')).toBe('b.jpg');
+  });
+});
+
+describe('noscriptImageCandidates — beyond img[src]', () => {
+  const ns = (html: string): HTMLElement => {
+    const el = document.createElement('noscript');
+    el.textContent = html;
+    return el;
+  };
+
+  it('reads the lazy-loader attributes the noscript fallback carries', () => {
+    const out = noscriptImageCandidates(ns('<img data-src="https://cdn.ex/full.jpg" src="https://cdn.ex/blank.gif">'));
+    expect(out.map((c) => c.url)).toContain('https://cdn.ex/full.jpg');
+  });
+
+  it('reads <source> inside a <picture> fallback', () => {
+    const out = noscriptImageCandidates(ns('<picture><source srcset="https://cdn.ex/a.webp 1200w"><img src="https://cdn.ex/a.jpg"></picture>'));
+    const urls = out.map((c) => c.url);
+    expect(urls).toContain('https://cdn.ex/a.webp');
+    expect(urls).toContain('https://cdn.ex/a.jpg');
+  });
+
+  it('still handles an entity-escaped block', () => {
+    const out = noscriptImageCandidates(ns('&lt;img src=&quot;https://cdn.ex/esc.jpg&quot;&gt;'));
+    expect(out.map((c) => c.url)).toEqual(['https://cdn.ex/esc.jpg']);
+  });
+
+  it('returns [] for a block with no images', () => {
+    expect(noscriptImageCandidates(ns('<p>enable javascript</p>'))).toEqual([]);
   });
 });

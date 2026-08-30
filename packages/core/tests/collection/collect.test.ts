@@ -1046,3 +1046,45 @@ describe('collectMedia — structured data', () => {
     expect(collectMedia().map((m) => m.src)).toContain('https://cdn.ex/a.jpg');
   });
 });
+
+describe('collectMedia — element types beyond <img>', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('collects an inline SVG <image href>', () => {
+    document.body.innerHTML = '<svg><image href="https://cdn.ex/svg-a.png" width="800" height="600"></image></svg>';
+    expect(collectMedia().map((m) => m.src)).toContain('https://cdn.ex/svg-a.png');
+  });
+
+  it('collects an SVG <image xlink:href> (legacy markup)', () => {
+    document.body.innerHTML = '<svg><image xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://cdn.ex/svg-b.png"></image></svg>';
+    expect(collectMedia().map((m) => m.src)).toContain('https://cdn.ex/svg-b.png');
+  });
+
+  it('collects an <object data> image and video', () => {
+    document.body.innerHTML =
+      '<object type="image/png" data="https://cdn.ex/obj.png"></object>' +
+      '<object type="video/mp4" data="https://cdn.ex/obj.mp4"></object>';
+    const items = collectMedia();
+    expect(items.map((m) => m.src)).toContain('https://cdn.ex/obj.png');
+    expect(items.find((m) => m.src === 'https://cdn.ex/obj.mp4')?.kind).toBe('video');
+  });
+
+  it('collects an <embed src>', () => {
+    document.body.innerHTML = '<embed type="image/jpeg" src="https://cdn.ex/emb.jpg">';
+    expect(collectMedia().map((m) => m.src)).toContain('https://cdn.ex/emb.jpg');
+  });
+
+  it('collects an <input type=image> src', () => {
+    document.body.innerHTML = '<input type="image" src="https://cdn.ex/submit.png">';
+    expect(collectMedia().map((m) => m.src)).toContain('https://cdn.ex/submit.png');
+  });
+
+  it('ignores an <object>/<embed> that is not media', () => {
+    document.body.innerHTML =
+      '<object type="application/pdf" data="https://cdn.ex/doc.pdf"></object>' +
+      '<embed type="application/x-shockwave-flash" src="https://cdn.ex/old.swf">';
+    const srcs = collectMedia().map((m) => m.src);
+    expect(srcs).not.toContain('https://cdn.ex/doc.pdf');
+    expect(srcs).not.toContain('https://cdn.ex/old.swf');
+  });
+});
