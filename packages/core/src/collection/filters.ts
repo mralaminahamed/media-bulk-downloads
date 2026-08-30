@@ -9,6 +9,7 @@ import { originalNameFromUrl } from '@mbd/core/collection/download-name';
 import { isEmojiUrl } from '@mbd/core/collection/emoji';
 import { SrcKeySet } from '@mbd/core/collection/canonical';
 import { hostFromUrl, registrableDomain } from '@mbd/core/collection/paths';
+import { IMAGE_FORMAT_LABELS } from '@mbd/core/collection/media-formats';
 
 /**
  * Whether an image passes the global user settings (minimum size + base64
@@ -173,10 +174,10 @@ export function applyToolbarFilters(
 
 /** Human labels for canonical `type` strings; a type with no entry falls back to uppercase. */
 export const FORMAT_LABELS: Record<string, string> = {
-  jpeg: 'JPEG', png: 'PNG', gif: 'GIF', svg: 'SVG', webp: 'WebP',
-  avif: 'AVIF', heic: 'HEIC', heif: 'HEIF', jxl: 'JXL',
-  mp4: 'MP4', webm: 'WebM', ogg: 'OGG', mov: 'MOV',
-  mp3: 'MP3', wav: 'WAV', m4a: 'M4A', flac: 'FLAC',
+  ...IMAGE_FORMAT_LABELS,
+  mp4: 'MP4', webm: 'WebM', ogg: 'OGG', mov: 'MOV', mkv: 'MKV', m4v: 'M4V',
+  mp3: 'MP3', wav: 'WAV', m4a: 'M4A', aac: 'AAC', flac: 'FLAC', opus: 'Opus',
+  m3u8: 'HLS', mpd: 'DASH',
 };
 
 /** Bucket for an item's largest KNOWN edge, or null when dimensions are unknown.

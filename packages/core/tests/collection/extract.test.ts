@@ -237,3 +237,21 @@ describe('noscriptImageCandidates', () => {
     }
   });
 });
+
+describe('bestSrcsetUrl — density descriptors', () => {
+  it('treats a descriptor-less candidate as 1x, not 0x', () => {
+    // Per the HTML spec a candidate with no descriptor is 1x, so a 0.5x sibling
+    // must never beat it.
+    expect(bestSrcsetUrl('full.jpg, half.jpg 0.5x')).toBe('full.jpg');
+    expect(bestSrcsetUrl('half.jpg 0.5x, full.jpg')).toBe('full.jpg');
+  });
+
+  it('still prefers a denser explicit candidate over the bare one', () => {
+    expect(bestSrcsetUrl('one.jpg, two.jpg 2x')).toBe('two.jpg');
+  });
+
+  it('prefers the widest w over any density', () => {
+    expect(bestSrcsetUrl('a.jpg 400w, b.jpg 800w')).toBe('b.jpg');
+    expect(bestSrcsetUrl('a.jpg 2x, b.jpg 800w')).toBe('b.jpg');
+  });
+});

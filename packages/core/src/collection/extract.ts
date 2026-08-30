@@ -24,7 +24,8 @@ const LAZY_BG_ATTRS = ['data-bg', 'data-background', 'data-background-image'];
 /**
  * Highest-resolution candidate in a srcset. Prefers the widest `w` descriptor;
  * for a pure-density srcset (`hi.jpg 2x, lo.jpg 1x`, no widths) prefers the
- * densest `x` instead of blindly returning the last entry.
+ * densest `x` instead of blindly returning the last entry. A candidate with no
+ * descriptor counts as `1x`, as the HTML spec defines it.
  */
 export function bestSrcsetUrl(srcset: string): string | null {
   return bestSrcsetFrom(splitSrcsetCandidates(srcset));
@@ -44,7 +45,9 @@ function bestSrcsetFrom(entries: string[]): string | null {
     const url = parts[0];
     const descr = parts.slice(1).join(' ');
     const w = num(descr.match(/([\d.]+)w/)?.[1]);
-    const x = num(descr.match(/([\d.]+)x/)?.[1]);
+    // A candidate with no descriptor is 1x per the HTML spec — scoring it 0
+    // would let a 0.5x sibling win and pick the SMALLER image.
+    const x = descr.includes('x') ? num(descr.match(/([\d.]+)x/)?.[1]) : 1;
     if (!best || w > best.w || (w === best.w && x > best.x)) best = { url, w, x };
   }
   return best?.url ?? null;
