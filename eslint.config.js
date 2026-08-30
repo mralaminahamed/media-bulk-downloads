@@ -16,6 +16,7 @@ export default [
       'docs/website/**',
       'assets/v2/**',
       'test-samples/**',
+      '.remember/**',
     ],
   },
   js.configs.recommended,

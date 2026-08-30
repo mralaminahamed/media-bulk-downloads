@@ -14,15 +14,54 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   capture core, so audio-only capture and MP3 transcode behave identically
   everywhere. The "Capture video streams" toggle and quality selector appear
   wherever a capture host is available.
+- **Expiring links are now recognised as expiring.** Media served from a signed
+  CDN — Facebook/Instagram (`oh`/`oe`), CloudFront, presigned S3/GCS, Akamai
+  token-auth — carries a built-in expiry. Collection now reads that expiry off
+  the URL and carries it through the grid, History, Favourites and the download
+  queue. A queued item whose link has expired fails immediately with "Link
+  expired" instead of spending three attempts and backoff on a guaranteed 403,
+  and History/Favourites show a placeholder with a "collect it again" hint rather
+  than a broken image and a dead re-download button.
 
 ### Fixed
 - **No more broken-image boxes in the grid or preview.** When a thumbnail can't
-  render in the popup (e.g. a signed Facebook/Instagram original that the CDN
-  won't serve to the extension without the page's referer), the tile now shows a
-  clean placeholder and the preview modal shows a short "can't preview here — the
-  original still downloads" note, instead of a broken box. The item is **never
-  hidden or dropped** — it stays fully downloadable. Images also fall back to a
-  smaller/on-page variant before giving up.
+  render in the popup, the tile now shows a clean placeholder and the preview
+  modal explains why, instead of a broken box. The item is **never hidden or
+  dropped**. Images also fall back to a smaller/on-page variant before giving up.
+- **The popup no longer claims an unpreviewable image "still downloads
+  correctly".** That was inherited from a wrong diagnosis: Facebook/Instagram
+  media is not referer-locked (a signed URL serves from any origin with no
+  referer and no cookies) — it expires. The copy now says what is actually true,
+  and an expired item says so outright.
+- **Keyboard-shortcut and context-menu downloads are no longer reported as
+  successful when they fail.** Both used to record a history entry the moment the
+  browser handed back a download id, so a download that started and then 403'd
+  was written to history as a success and the completion toast counted it. Both
+  now go through the same download queue as the popup, which reports the real
+  outcome.
+- **Downloads finally complete on Safari.** The Safari backend returned a
+  constant download id and never emitted a completion event, so the queue's
+  poller spun forever and every item was re-issued on each background restart
+  until it hit the retry limit and was marked failed. It now tracks real ids and
+  reports completion.
+- **Exported backups no longer carry live Facebook/Instagram signing tokens.**
+  The export sanitizer didn't recognise `oh`, `oe` or the `_nc_*` session
+  parameters, so a shared or synced backup file leaked them. They are stripped
+  now, and the affected entries are marked so a restored copy shows the
+  "collect it again" hint instead of silently failing to re-download.
+- **"Copy links" / "Export links" hand back working URLs.** They ran through the
+  same sanitizer, which strips the signature a signed URL needs — the copied link
+  was dead on arrival. That surface exists to give the user a usable link, so it
+  now uses the URL as-is; backups, metadata sidecars and the yt-dlp command still
+  strip.
+- **Fewer duplicate Instagram tiles.** The per-slide dedupe key was only set when
+  Instagram's payload happened to include a `pk`; it now falls back to the media
+  id in the CDN filename, so a photo served from two rotating edges still folds
+  to one tile.
+- **A `&amp;`-escaped Facebook/Instagram URL is no longer stored.** Lifted
+  straight out of HTML, it parses fine but points at a permanently-403 URL
+  (every parameter after the first is named `amp;…`). Such URLs are now rejected
+  at the sniffer boundary rather than saved as a silently dead link.
 - **Fewer duplicate tiles on Facebook & Instagram.** The same photo served at two
   signed/rotating CDN URLs (page hydration vs. the scroll API, or a rotating edge
   host) used to appear as two grid tiles. Collection now dedupes by each media's
