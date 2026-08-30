@@ -14,6 +14,19 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   capture core, so audio-only capture and MP3 transcode behave identically
   everywhere. The "Capture video streams" toggle and quality selector appear
   wherever a capture host is available.
+- **Structured data is now a collection source.** Publishers declare the
+  full-resolution file in schema.org JSON-LD (`ImageObject`/`VideoObject`
+  `contentUrl`) and microdata for search engines, while the page itself often
+  shows only a resized copy. Those originals are now collected — no extra
+  requests, and it works on any site that ships the markup.
+- **Media in `<object>`, `<embed>`, `<input type="image">` and inline SVG
+  `<image>` is collected.** Previously only `<img>`, `<picture>`, `<video>`,
+  `<audio>`, links and iframes were scanned.
+- **"Check sizes" — real file sizes and formats on request.** A new button asks
+  each CDN how big an item actually is (and what it actually is) with one small
+  request per item, so the size column, the size sort and the size filter work
+  on remote media instead of showing nothing. Opt-in per click; collection still
+  makes no network requests.
 - **Expiring links are now recognised as expiring.** Media served from a signed
   CDN — Facebook/Instagram (`oh`/`oe`), CloudFront, presigned S3/GCS, Akamai
   token-auth — carries a built-in expiry. Collection now reads that expiry off
@@ -24,6 +37,22 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   than a broken image and a dead re-download button.
 
 ### Fixed
+- **HEIC, HEIF, JPEG XL, TIFF, JPEG 2000 and APNG images are saved correctly.**
+  They were all written to disk as `.jpg` — the right bytes under a name that
+  broke every viewer — because four separate format lists in the code disagreed
+  about which extensions exist. The format filter also offered HEIC/HEIF/JXL
+  chips that could never match anything; they work now.
+- **The best `srcset` candidate is chosen correctly.** A candidate with no
+  descriptor is 1x, but it was scored as 0, so markup like
+  `full.jpg, half.jpg 0.5x` picked the *smaller* image.
+- **The minimum-size filter now applies to `srcset` alternates.** Only the
+  rendition the browser had painted carried dimensions, so every alternate,
+  `<picture>` source and `<noscript>` fallback slipped past the size filter
+  unmeasured. Each candidate now carries the intrinsic width its `w` descriptor
+  declares.
+- **`<noscript>` fallbacks are read properly.** That block is where lazy loaders
+  put the un-lazy full-size URL, but only `src` and `srcset` on an `<img>` were
+  read — `data-src` and `<picture><source>` inside it were ignored.
 - **No more broken-image boxes in the grid or preview.** When a thumbnail can't
   render in the popup, the tile now shows a clean placeholder and the preview
   modal explains why, instead of a broken box. The item is **never hidden or

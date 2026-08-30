@@ -139,15 +139,44 @@ flowchart TB
 | Source             | Attributes / pattern                                                                                                                                                                                                                                                                                                                                                                                                     |
 |--------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Lazy `src`         | In preference order: `data-orig-file`, `data-large-file` (WordPress/Jetpack **true original** — surfaced first so it wins with no CDN rule), then `data-src`, `data-original`, `data-original-src`, `data-actualsrc`, `data-lazy-src`, `data-lazy`, `data-lazyload`, `data-hi-res-src`, `data-src-large`, `data-full-src`, `data-image`, `data-echo`, `data-flickity-lazyload`. `currentSrc`/`src` slots in after these. |
-| Srcset             | `srcset`, `data-srcset`, `data-lazy-srcset` — the widest `w` candidate (or densest `x` for a pure-density set) is kept, plus every candidate URL.                                                                                                                                                                                                                                                                        |
+| Srcset             | `srcset`, `data-srcset`, `data-lazy-srcset` — the widest `w` candidate (or densest `x` for a pure-density set) is kept, plus every candidate URL. Each candidate carries the intrinsic width its `w` descriptor declares; a candidate with **no** descriptor counts as `1x`, per the HTML spec.                                                                                                                          |
 | Background         | `data-bg`, `data-background`, `data-background-image`, plus computed `background-image` (`image-set()`/`-webkit-image-set()` contribute only the highest-resolution candidate per layer).                                                                                                                                                                                                                                |
-| `<noscript>`       | Parsed with `DOMParser` (entities un-escaped first if needed); the real image often lives here for no-JS users.                                                                                                                                                                                                                                                                                                          |
+| `<noscript>`       | Parsed with `DOMParser` (entities un-escaped first if needed), then read with the same lazy-attribute + srcset logic as a live element, so `data-src` and `<picture><source>` inside the block count. The real image often lives here for no-JS users.                                                                                                                                                                    |
 | Gallery `<a href>` | Anchor whose href `looksLikeMediaUrl` → href is the original, inner `<img>` is the `thumbnailSrc`.                                                                                                                                                                                                                                                                                                                       |
+| Embedded elements  | `<object data>`, `<embed src>` (taken only when the declared MIME says media, or — with no type — when the URL looks like media), `<input type="image" src>`, and inline SVG `<image href>` / `xlink:href`.                                                                                                                                                                                                              |
+| Structured data    | schema.org JSON-LD and microdata — see below.                                                                                                                                                                                                                                                                                                                                                                            |
 
 `imageUrlsFromElement()` returns the primary candidate at index 0; `collect.ts`
 pairs index 0 with the element's DOM dimensions. When index 0 is a
 `data-orig-file`/`data-large-file` original (not what the element is displaying), those dimensions are withheld so the on-screen thumbnail's size doesn't mislabel the larger original and get it
 wrongly dropped by the minimum-size filter.
+
+### Structured data (`@mbd/core/collection/structured-data.ts`)
+
+`ImageObject.contentUrl` and `VideoObject.contentUrl` are, by definition, the URL of the **file**. Publishers emit them in `<script type="application/ld+json">` for
+search engines, so a news, recipe, listing or video page routinely declares the full-resolution original there while the DOM carries only a resized `<img>`. The reader
+walks `@graph`, nested arrays and mixed string/`ImageObject` `image` values, takes the declared `width`/`height`, and keeps a `VideoObject`'s `thumbnailUrl` as the
+poster. `itemprop` microdata (`contentUrl`, `thumbnailUrl`, `image`) is read the same way.
+
+The payload is page-authored and therefore untrusted: parsing never throws on malformed JSON, only `http(s)` URLs are accepted, and the walk is bounded by depth (12),
+nodes (5 000) and output (200).
+
+## Media formats (`@mbd/core/collection/media-formats.ts`)
+
+One table owns every format question — is this URL media, what is its canonical `type`, what extension should the saved file carry, and what does the format filter call
+it. It covers JPEG (incl. `jfif`/`jpe`), PNG, APNG, GIF, WebP, AVIF, HEIC, HEIF, JPEG XL, TIFF, JPEG 2000, BMP, ICO and SVG (`svgz` keeps its own name, since the
+canonical `.svg` would misrepresent a gzipped file).
+
+Before this table there were four independent lists that disagreed, and a `.heic` URL was a valid dedupe key but an unknown type — so it was saved as `photo.jpg`
+carrying HEIC bytes.
+
+## Sizes and types over the network (`@mbd/core/net/size-probe.ts`)
+
+Collection cannot know how big a remote file is (`fileSize` is 0 for everything but a `data:` URI) or what an extension-less URL really contains. The popup's
+**Check sizes** button asks each CDN directly: a `HEAD`, falling back to a one-byte ranged `GET` for the many CDNs that reject `HEAD`, reading `Content-Length` /
+`Content-Range` for the size and `Content-Type` for the real format. It is explicit and user-initiated — collection itself still issues no requests — SSRF-guarded inside
+the primitive, capped at 400 items with 6 in flight and a 10 s per-request timeout. A returned type only fills a type the URL could not supply; it never overrides a
+known one.
 
 ## Resolver registry (`@mbd/core/resolvers/`)
 
