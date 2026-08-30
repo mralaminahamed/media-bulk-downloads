@@ -17,6 +17,7 @@ import { detectAvType, isUndownloadableMedia, isHlsManifest, isDashManifest } fr
 import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates, bestSrcsetUrl } from '@mbd/core/collection/extract';
 import { canonicalSrcKey } from '@mbd/core/collection/canonical';
 import { readUrlLease } from '@mbd/core/net/url-lease';
+import { structuredDataMedia } from '@mbd/core/collection/structured-data';
 import { resolve, MediaCandidate } from '@mbd/core/resolvers';
 import { twitterGifCandidate, twitterVideoPending } from '@mbd/core/resolvers/sites/twitter';
 import { instagramPageMedia } from '@mbd/core/resolvers/sites/instagram';
@@ -816,6 +817,13 @@ export function collectMedia(
 
   if (!incremental) {
     if (!heroFirst) collectHeroMeta();
+
+    // schema.org contentUrl is the file itself — publishers ship the
+    // full-resolution original here while the DOM carries only a resized <img>.
+    for (const m of structuredDataMedia(document)) {
+      if (m.kind === 'video') collectAv(m.url, 'video', undefined, '', m.poster);
+      else collectImageInfo(m.url, '', m.width ?? 0, m.height ?? 0);
+    }
 
     const ogVideoType = document.querySelector('meta[property="og:video:type"]')?.getAttribute('content') || undefined;
     const ogPoster = document

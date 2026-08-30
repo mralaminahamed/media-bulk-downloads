@@ -1006,3 +1006,43 @@ describe('collectMedia — signed-URL lease', () => {
     expect('expiresAt' in img).toBe(false);
   });
 });
+
+describe('collectMedia — structured data', () => {
+  const ld = (obj: unknown): void => {
+    const s = document.createElement('script');
+    s.type = 'application/ld+json';
+    s.textContent = JSON.stringify(obj);
+    document.head.appendChild(s);
+  };
+
+  afterEach(() => { document.head.innerHTML = ''; document.body.innerHTML = ''; });
+
+  it('collects the full-resolution contentUrl the DOM never shows', () => {
+    document.body.innerHTML = '<img src="https://cdn.ex/thumb-320.jpg" width="320" height="200">';
+    ld({ '@type': 'NewsArticle', image: { '@type': 'ImageObject', contentUrl: 'https://cdn.ex/original-4000.jpg', width: 4000, height: 2500 } });
+
+    const srcs = collectMedia().map((m) => m.src);
+    expect(srcs).toContain('https://cdn.ex/original-4000.jpg');
+  });
+
+  it('carries the declared dimensions onto the item', () => {
+    ld({ '@type': 'ImageObject', contentUrl: 'https://cdn.ex/big.jpg', width: 4000, height: 2500 });
+    const item = collectMedia().find((m) => m.src === 'https://cdn.ex/big.jpg');
+    expect(item).toMatchObject({ width: 4000, height: 2500 });
+  });
+
+  it('collects a VideoObject as a video with its poster', () => {
+    ld({ '@type': 'VideoObject', contentUrl: 'https://cdn.ex/clip.mp4', thumbnailUrl: 'https://cdn.ex/poster.jpg' });
+    const item = collectMedia().find((m) => m.src === 'https://cdn.ex/clip.mp4');
+    expect(item).toMatchObject({ kind: 'video', poster: 'https://cdn.ex/poster.jpg' });
+  });
+
+  it('ignores a malformed block instead of failing the whole scan', () => {
+    const s = document.createElement('script');
+    s.type = 'application/ld+json';
+    s.textContent = '{ nope';
+    document.head.appendChild(s);
+    document.body.innerHTML = '<img src="https://cdn.ex/a.jpg" width="800" height="600">';
+    expect(collectMedia().map((m) => m.src)).toContain('https://cdn.ex/a.jpg');
+  });
+});
