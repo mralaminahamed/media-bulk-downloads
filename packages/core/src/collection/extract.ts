@@ -8,6 +8,11 @@ import { looksLikeMediaUrl, splitSrcsetCandidates } from '@mbd/core/collection/i
 export interface UrlCandidate {
   url: string;
   thumbnailSrc?: string;
+  /** Intrinsic width from a srcset `w` descriptor, which the spec defines as the
+   *  resource's real pixel width — the only size a lazy/alternate candidate
+   *  reveals without loading it. Absent for `x` (density) descriptors, which say
+   *  nothing about pixels. */
+  width?: number;
 }
 
 const LAZY_SRC_ATTRS = [
@@ -53,11 +58,21 @@ function bestSrcsetFrom(entries: string[]): string | null {
   return best?.url ?? null;
 }
 
-/** Ordered, de-duped raw URLs from an <img>/<source>-like element. */
-export function imageUrlsFromElement(el: Element): string[] {
-  const out: string[] = [];
-  const push = (u: string | null | undefined) => {
-    if (u && !out.includes(u)) out.push(u);
+/** The `w` descriptor on a srcset entry, or undefined for `x`/bare entries. */
+function widthOf(entry: string): number | undefined {
+  const w = Number(entry.split(/\s+/).slice(1).join(' ').match(/([\d.]+)w/)?.[1]);
+  return Number.isFinite(w) && w > 0 ? w : undefined;
+}
+
+/** Ordered, de-duped media candidates from an <img>/<source>-like element, each
+ *  carrying its srcset `w` width when the markup declared one. */
+export function imageUrlsFromElement(el: Element): UrlCandidate[] {
+  const out: UrlCandidate[] = [];
+  const seen = new Set<string>();
+  const push = (u: string | null | undefined, width?: number) => {
+    if (!u || seen.has(u)) return;
+    seen.add(u);
+    out.push(width === undefined ? { url: u } : { url: u, width });
   };
 
   for (const attr of LAZY_SRC_ATTRS) push(el.getAttribute(attr));
@@ -66,8 +81,13 @@ export function imageUrlsFromElement(el: Element): string[] {
     const ss = el.getAttribute(attr);
     if (ss) {
       const cands = splitSrcsetCandidates(ss);
-      push(bestSrcsetFrom(cands));
-      for (const c of cands) push(c.split(/\s+/)[0]);
+      const best = bestSrcsetFrom(cands);
+      const byUrl = new Map(cands.map((c) => [c.split(/\s+/)[0], widthOf(c)]));
+      push(best, best ? byUrl.get(best) : undefined);
+      for (const c of cands) {
+        const url = c.split(/\s+/)[0];
+        push(url, widthOf(c));
+      }
     }
   }
   for (const attr of LAZY_BG_ATTRS) {
@@ -123,10 +143,10 @@ export function noscriptImageCandidates(ns: HTMLElement): UrlCandidate[] {
   const out: UrlCandidate[] = [];
   const seen = new Set<string>();
   doc.querySelectorAll('img, source').forEach((el) => {
-    for (const url of imageUrlsFromElement(el)) {
-      if (seen.has(url)) continue;
-      seen.add(url);
-      out.push({ url });
+    for (const cand of imageUrlsFromElement(el)) {
+      if (seen.has(cand.url)) continue;
+      seen.add(cand.url);
+      out.push(cand);
     }
   });
   return out;

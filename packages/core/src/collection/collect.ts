@@ -257,11 +257,13 @@ export function collectMedia(
 
     let w = cand.width ?? width;
     let h = cand.height ?? height;
-    if (w === 0 && h === 0) {
+    // Fill whichever edge is still unknown — a srcset `w` descriptor gives the
+    // width only, and the URL often names both.
+    if (w === 0 || h === 0) {
       const dims = parseUrlDimensions(resolved) ?? parseUrlDimensions(cand.url);
       if (dims) {
-        w = dims.width;
-        h = dims.height;
+        if (w === 0) w = dims.width;
+        if (h === 0) h = dims.height;
       }
     }
 
@@ -674,15 +676,23 @@ export function collectMedia(
     imgs.forEach((img) => {
       const { width, height } = getImageDimensions(img);
       const loaded = img.currentSrc || img.src;
-      imageUrlsFromElement(img).forEach((src) => {
-        const isLoaded = resolveUrl(src) === loaded;
-        collectImageInfo(src, img.alt, isLoaded ? width : 0, isLoaded ? height : 0, undefined, img);
+      imageUrlsFromElement(img).forEach((cand) => {
+        const isLoaded = resolveUrl(cand.url) === loaded;
+        // The painted rendition knows both edges; any other candidate knows only
+        // what its srcset `w` descriptor declared.
+        collectImageInfo(
+          cand.url, img.alt,
+          isLoaded ? width : cand.width ?? 0,
+          isLoaded ? height : 0,
+          undefined, img,
+        );
       });
     });
 
     pictures.forEach((picture) => {
       picture.querySelectorAll('source').forEach((source) => {
-        imageUrlsFromElement(source).forEach((src) => collectImageInfo(src, '', 0, 0, undefined, source));
+        imageUrlsFromElement(source).forEach((cand) =>
+          collectImageInfo(cand.url, '', cand.width ?? 0, 0, undefined, source));
       });
     });
 

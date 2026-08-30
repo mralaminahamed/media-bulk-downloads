@@ -7,6 +7,12 @@ vi.mock('@mbd/core/resolvers/sniffers/hls-sniff', async () => {
 import { collectMedia, backgroundImageUrls } from '../../src/collection/collect';
 import { ingestSniffedHls, resetSniffedHls, sniffedHlsManifests } from '@mbd/core/resolvers/sniffers/hls-sniff';
 import { ingestSniffedMangadexMedia, __resetMangadexSniffed } from '@mbd/core/resolvers/sites/mangadex';
+import { filterImagesBySettings } from '@mbd/core/collection/filters';
+import type { SettingsData } from '@mbd/core/types';
+
+const DEFAULT_FILTER_SETTINGS = {
+  minimumImageSize: 0, excludeBase64Images: false, excludeEmoji: false, captureHlsStreams: true,
+} as unknown as SettingsData;
 
 const setBody = (html: string) => {
   document.body.innerHTML = html;
@@ -1086,5 +1092,36 @@ describe('collectMedia — element types beyond <img>', () => {
     const srcs = collectMedia().map((m) => m.src);
     expect(srcs).not.toContain('https://cdn.ex/doc.pdf');
     expect(srcs).not.toContain('https://cdn.ex/old.swf');
+  });
+});
+
+describe('collectMedia — srcset width descriptors', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('carries each srcset candidate\'s w descriptor onto its item', () => {
+    document.body.innerHTML =
+      '<img src="https://cdn.ex/base.jpg" srcset="https://cdn.ex/s-320.jpg 320w, https://cdn.ex/s-1600.jpg 1600w">';
+    const items = collectMedia();
+    expect(items.find((i) => i.src === 'https://cdn.ex/s-1600.jpg')?.width).toBe(1600);
+    expect(items.find((i) => i.src === 'https://cdn.ex/s-320.jpg')?.width).toBe(320);
+  });
+
+  it('lets the minimum-size filter actually exclude a small srcset rendition', () => {
+    document.body.innerHTML =
+      '<img src="https://cdn.ex/b.jpg" srcset="https://cdn.ex/tiny-64.jpg 64w, https://cdn.ex/big-2000.jpg 2000w">';
+    const kept = filterImagesBySettings(collectMedia(), { ...DEFAULT_FILTER_SETTINGS, minimumImageSize: 200 }).map((i) => i.src);
+    expect(kept).toContain('https://cdn.ex/big-2000.jpg');
+    expect(kept).not.toContain('https://cdn.ex/tiny-64.jpg');
+  });
+
+  it('leaves a density-only srcset dimensionless (an x descriptor says nothing about pixels)', () => {
+    document.body.innerHTML = '<img src="https://cdn.ex/c.jpg" srcset="https://cdn.ex/d-2x.jpg 2x">';
+    expect(collectMedia().find((i) => i.src === 'https://cdn.ex/d-2x.jpg')?.width).toBe(0);
+  });
+
+  it('fills the missing edge from the URL when only one dimension is known', () => {
+    document.body.innerHTML = '<img src="https://cdn.ex/x.jpg" srcset="https://cdn.ex/e-800x600.jpg 800w">';
+    const item = collectMedia().find((i) => i.src === 'https://cdn.ex/e-800x600.jpg');
+    expect(item).toMatchObject({ width: 800, height: 600 });
   });
 });
