@@ -523,3 +523,44 @@ describe('cancelling an item tears down its in-flight download + DNR rule (leak 
     expect((await getQueueSnapshot()).items).toHaveLength(0);
   });
 });
+
+describe('expired signed URLs', () => {
+  const PAST = Date.UTC(2020, 0, 1);
+
+  it('pump() never dispatches an item whose lease has lapsed', async () => {
+    await enqueueDownloads([{ url: 'https://cdn/old.jpg', filename: 'old.jpg', expiresAt: PAST }]);
+    await flush();
+
+    expect(chrome.downloads.download).not.toHaveBeenCalled();
+    const snap = await getQueueSnapshot();
+    expect(snap.items[0]).toMatchObject({ status: 'failed', error: 'Link expired', expired: true });
+    expect(snap.items[0].hotlink).toBeUndefined();
+  });
+
+  it('still dispatches an item whose lease is in the future', async () => {
+    await enqueueDownloads([{ url: 'https://cdn/new.jpg', filename: 'new.jpg', expiresAt: Date.now() + 3_600_000 }]);
+    await flush();
+    expect(chrome.downloads.download).toHaveBeenCalledTimes(1);
+  });
+
+  it('a 403 on an expired item fails as expired, never as hotlink', async () => {
+    permGranted = true;
+    await enqueueDownloads([{ url: 'https://cdn/w.jpg', filename: 'w.jpg' }]);
+    await flush();
+    if (downloadCb) downloadCb();
+    await flush();
+
+    // The lease lapses while the request is in flight.
+    const cur = store[QUEUE_KEY] as { items: Array<Record<string, unknown>> };
+    cur.items[0] = { ...cur.items[0], expiresAt: PAST };
+
+    await handleDownloadChanged({ id: 100, state: 'interrupted', error: 'SERVER_FORBIDDEN' });
+    await flush();
+
+    const snap = await getQueueSnapshot();
+    expect(snap.items[0]).toMatchObject({ status: 'failed', expired: true });
+    expect(snap.items[0].hotlink).toBeUndefined();
+    expect(snap.items[0].useReferer).toBeUndefined();
+    expect(dnrRules.length).toBe(0);
+  });
+});

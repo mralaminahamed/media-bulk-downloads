@@ -95,14 +95,14 @@ describe('download-queue reducer', () => {
   it('markFailed flags hotlink 403s (opt-in retry) but not ordinary failures', () => {
     let s = emptyQueue();
     s = enqueue(s, [{ url: 'u1', filename: 'f1' }, { url: 'u2', filename: 'f2' }], T0);
-    expect(markFailed(s, s.items[0].id, 'SERVER_FORBIDDEN', true).items[0].hotlink).toBe(true);
+    expect(markFailed(s, s.items[0].id, 'SERVER_FORBIDDEN', { hotlink: true }).items[0].hotlink).toBe(true);
     expect(markFailed(s, s.items[1].id, 'boom').items[1].hotlink).toBeUndefined();
   });
 
   it('retryFailed can arm the Referer rewrite and clears the hotlink flag', () => {
     let s = emptyQueue();
     s = enqueue(s, [{ url: 'u1', filename: 'f1' }], T0);
-    s = markFailed(s, s.items[0].id, 'SERVER_FORBIDDEN', true);
+    s = markFailed(s, s.items[0].id, 'SERVER_FORBIDDEN', { hotlink: true });
     const plain = retryFailed(s, s.items[0].id, T0 + 5);
     expect(plain.items[0]).toMatchObject({ status: 'queued', hotlink: undefined, useReferer: undefined });
     const withReferer = retryFailed(s, s.items[0].id, T0 + 5, true);
@@ -250,5 +250,34 @@ describe('enqueue — finished items bounded by serialized bytes (not only count
     expect(done.length).toBeGreaterThanOrEqual(1);
     expect(Math.min(...done.map((i) => i.addedAt))).toBeGreaterThan(T0);
     expect(s.items.some((i) => i.id === 'q1')).toBe(true);
+  });
+});
+
+describe('expired items', () => {
+  it('markFailed flags an expired lease and never flags it hotlink', () => {
+    let s = enqueue(emptyQueue(), [{ url: 'u', filename: 'f' }], 1);
+    s = markFailed(s, s.items[0].id, 'Link expired', { expired: true });
+    expect(s.items[0]).toMatchObject({ status: 'failed', error: 'Link expired', expired: true });
+    expect(s.items[0].hotlink).toBeUndefined();
+  });
+
+  it('carries expiresAt from the enqueue entry onto the item', () => {
+    const s = enqueue(emptyQueue(), [{ url: 'u', filename: 'f', expiresAt: 1234 }], 1);
+    expect(s.items[0].expiresAt).toBe(1234);
+  });
+
+  it('scheduleRetry does not re-queue an expired item — it stays failed', () => {
+    let s = enqueue(emptyQueue(), [{ url: 'u', filename: 'f' }], 1);
+    s = markFailed(s, s.items[0].id, 'Link expired', { expired: true });
+    s = scheduleRetry(s, s.items[0].id, 2);
+    expect(s.items[0].status).toBe('failed');
+  });
+
+  it('retryFailed clears the expired flag so a user-forced retry still runs', () => {
+    let s = enqueue(emptyQueue(), [{ url: 'u', filename: 'f' }], 1);
+    s = markFailed(s, s.items[0].id, 'Link expired', { expired: true });
+    s = retryFailed(s, s.items[0].id, 5);
+    expect(s.items[0].status).toBe('queued');
+    expect(s.items[0].expired).toBeUndefined();
   });
 });

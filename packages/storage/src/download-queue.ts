@@ -41,6 +41,13 @@ export interface QueueItem {
    *  absent when Chrome doesn't know the size. */
   bytesReceived?: number;
   totalBytes?: number;
+  /** Epoch ms at which `url`'s CDN signature stops being honoured (see
+   *  @mbd/core/net/url-lease). Absent for an unsigned URL. */
+  expiresAt?: number;
+  /** This item failed because its signed URL had already expired. Retrying the
+   *  same URL cannot succeed, so the popup offers no retry and scheduleRetry
+   *  leaves it alone. */
+  expired?: boolean;
 }
 
 export interface QueueState {
@@ -54,6 +61,8 @@ export interface EnqueueEntry {
   history?: HistoryDraft;
   /** Serialized metadata sidecar (#284), written on completion; see QueueItem.sidecar. */
   sidecar?: string;
+  /** See QueueItem.expiresAt. */
+  expiresAt?: number;
 }
 
 export const MAX_ATTEMPTS = 3;
@@ -102,6 +111,7 @@ export function enqueue(state: QueueState, entries: EnqueueEntry[], now: number)
     additions.push({
       id: makeId(now), url: e.url, filename: e.filename, status: 'queued',
       attempts: 0, readyAt: now, addedAt: now, history: e.history, sidecar: e.sidecar,
+      expiresAt: e.expiresAt,
     });
   }
   return { ...state, items: pruneFinished([...state.items, ...additions]) };
@@ -141,12 +151,23 @@ export function markDone(state: QueueState, id: string): QueueState {
   return patch(state, id, (i) => ({ ...i, status: 'done' }));
 }
 
-export function markFailed(state: QueueState, id: string, error: string, hotlink = false): QueueState {
-  return patch(state, id, (i) => ({ ...i, status: 'failed', error, hotlink: hotlink || undefined }));
+export function markFailed(
+  state: QueueState,
+  id: string,
+  error: string,
+  opts: { hotlink?: boolean; expired?: boolean } = {},
+): QueueState {
+  return patch(state, id, (i) => ({
+    ...i, status: 'failed', error,
+    hotlink: opts.hotlink || undefined,
+    expired: opts.expired || undefined,
+  }));
 }
 
 export function scheduleRetry(state: QueueState, id: string, now: number): QueueState {
   return patch(state, id, (i) => {
+    // An expired signed URL cannot succeed on a retry — leave it terminal.
+    if (i.expired) return i;
     const attempts = i.attempts + 1;
     if (attempts >= MAX_ATTEMPTS) {
       return { ...i, attempts, status: 'failed', error: i.error ?? 'retry limit reached', downloadId: undefined };
@@ -198,7 +219,8 @@ export function retryFailed(state: QueueState, id: string, now: number, useRefer
     i.status === 'failed'
       ? {
           ...i, status: 'queued', attempts: 0, error: undefined, readyAt: now,
-          downloadId: undefined, hotlink: undefined, useReferer: useReferer || undefined,
+          downloadId: undefined, hotlink: undefined, expired: undefined,
+          useReferer: useReferer || undefined,
           bytesReceived: undefined, totalBytes: undefined,
         }
       : i,
@@ -225,7 +247,7 @@ export function retryAllFailed(state: QueueState, now: number): QueueState {
     items: state.items.map((i) =>
       i.status === 'failed'
         ? { ...i, status: 'queued' as const, attempts: 0, error: undefined, readyAt: now,
-            downloadId: undefined, hotlink: undefined, useReferer: undefined,
+            downloadId: undefined, hotlink: undefined, expired: undefined, useReferer: undefined,
             bytesReceived: undefined, totalBytes: undefined }
         : i,
     ),
