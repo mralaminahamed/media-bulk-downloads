@@ -47,6 +47,8 @@ export function useFavourites(
       time: Date.now(),
       ...(image.thumbnailSrc ?? image.poster ? { thumbnailSrc: image.thumbnailSrc ?? image.poster } : {}),
       ...(sourcePage.title ? { sourcePageTitle: sourcePage.title } : {}),
+      ...(image.expiresAt !== undefined ? { expiresAt: image.expiresAt } : {}),
+      ...(image.mediaKey ? { mediaKey: image.mediaKey } : {}),
     };
     sendRuntimeMessage({ type: 'ADD_FAVOURITE', entry });
     setFavouriteSrcs((prev) => prev.withAdded(image.src));

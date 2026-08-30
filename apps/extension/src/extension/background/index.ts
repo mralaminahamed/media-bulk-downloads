@@ -118,6 +118,7 @@ export { sanitizePathSegment } from '@mbd/core/collection/paths';
 export { buildDownloadFilename, extensionForType, originalNameFromUrl } from '@mbd/core/collection/download-name';
 export { loadSettings } from '@/extension/background/state';
 export { isInjectableUrl, updateTabBadge } from '@/extension/background/badge';
-export { downloadAndRecord, downloadStatusMessage } from '@/extension/background/download/downloads';
+export { downloadStatusMessage, notifyBatchDone } from '@/extension/background/download/downloads';
+export { enqueueMedia, buildEnqueueEntries } from '@/extension/background/download/enqueue-media';
 export { resolveOriginalsBatch, storeSniffedMedia } from '@/extension/background/sniffer-store';
 export { setupContextMenus, mediaFromContext } from '@/extension/background/context-menu';
