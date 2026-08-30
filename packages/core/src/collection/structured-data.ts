@@ -131,9 +131,9 @@ function isMediaNode(node: Record<string, unknown>): boolean {
 const MICRODATA_SEL = '[itemprop="contentUrl"], [itemprop="thumbnailUrl"], [itemprop="image"]';
 
 function fromMicrodata(doc: Document, seen: Set<string>, out: StructuredMedia[]): void {
-  let els: NodeListOf<Element>;
+  let els: Element[];
   try {
-    els = doc.querySelectorAll(MICRODATA_SEL);
+    els = Array.from(doc.querySelectorAll(MICRODATA_SEL));
   } catch {
     return;
   }
@@ -155,11 +155,11 @@ export function structuredDataMedia(doc: Document): StructuredMedia[] {
   const seen = new Set<string>();
   const budget = { nodes: MAX_NODES };
 
-  let scripts: NodeListOf<Element>;
+  let scripts: Element[];
   try {
-    scripts = doc.querySelectorAll('script[type="application/ld+json"]');
+    scripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
   } catch {
-    scripts = [] as unknown as NodeListOf<Element>;
+    scripts = [];
   }
   for (const s of scripts) {
     if (out.length >= MAX_ITEMS) break;

@@ -661,10 +661,11 @@ export function collectMedia(
         case 'A': anchors.push(el as HTMLAnchorElement); break;
         case 'NOSCRIPT': noscripts.push(el); break;
         case 'IFRAME': iframes.push(el as HTMLIFrameElement); break;
-        case 'OBJECT':
-        case 'EMBED':
-        case 'INPUT':
-        // An inline SVG <image>; SVG tag names are lower-case, unlike HTML's.
+        // <object>/<embed>/<input type=image>, plus an inline SVG <image> (SVG
+        // tag names are lower-case, unlike HTML's).
+        case 'OBJECT': // fallthrough
+        case 'EMBED': // fallthrough
+        case 'INPUT': // fallthrough
         case 'image': embedded.push(el); break;
       }
 

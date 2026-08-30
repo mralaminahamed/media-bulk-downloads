@@ -1662,3 +1662,40 @@ describe('settings sync → on-page bubble broadcast', () => {
     });
   });
 });
+
+describe('runtime message router — PROBE_MEDIA_META', () => {
+  const call = (srcs: string[]): Promise<{ meta: Record<string, { ok: boolean; bytes?: number; type?: string }> }> =>
+    new Promise((resolve) => {
+      messageHandler({ type: 'PROBE_MEDIA_META', srcs }, {}, resolve);
+    });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('reports each item\'s real size from the CDN', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      new Response(null, { status: 200, headers: { 'content-length': '54321', 'content-type': 'image/webp' } }));
+
+    const { meta } = await call(['https://cdn.ex/a.bin']);
+    expect(meta['https://cdn.ex/a.bin']).toEqual({ ok: true, bytes: 54321, type: 'webp' });
+  });
+
+  it('marks a link the CDN refuses as not ok', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(null, { status: 403 }));
+    const { meta } = await call(['https://cdn.ex/gone.jpg']);
+    expect(meta['https://cdn.ex/gone.jpg']).toEqual({ ok: false });
+  });
+
+  it('never issues a request for a private host', async () => {
+    const f = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(null, { status: 200 }));
+    const { meta } = await call(['http://192.168.0.1/x.jpg']);
+    expect(meta['http://192.168.0.1/x.jpg']).toEqual({ ok: false });
+    expect(f).not.toHaveBeenCalled();
+  });
+
+  it('dedupes the request list', async () => {
+    const f = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      new Response(null, { status: 200, headers: { 'content-length': '10' } }));
+    await call(['https://cdn.ex/same.jpg', 'https://cdn.ex/same.jpg']);
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+});
