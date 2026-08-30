@@ -205,6 +205,19 @@ export interface ResolveOriginalsResponse {
   resolved: Record<string, ResolvedMedia>;
 }
 
+/** Popup → background: ask the CDN for each item's real size and content type
+ *  (a HEAD, or a one-byte ranged GET). Explicit and user-initiated — collection
+ *  itself never issues a request. */
+export interface ProbeMediaMetaMessage {
+  type: 'PROBE_MEDIA_META';
+  srcs: string[];
+}
+
+export interface ProbeMediaMetaResponse {
+  /** Keyed by src. `ok:false` means the CDN would not serve it. */
+  meta: Record<string, { ok: boolean; bytes?: number; type?: string }>;
+}
+
 /** Content → background: mp4/HLS URLs the page's own API responses exposed, per tab.
  *  Each pair is `[mediaId, ResolvedMedia]`; the background re-pins + stores them. */
 export interface XMediaSeenMessage {
@@ -536,6 +549,7 @@ export type ChromeMessage =
   | DeepScanAbortMessage
   | DeepScanProgress
   | ResolveOriginalsMessage
+  | ProbeMediaMetaMessage
   | XMediaSeenMessage
   | OpenDownloadMessage
   | ShowDownloadMessage

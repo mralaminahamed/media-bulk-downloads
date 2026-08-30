@@ -4,6 +4,7 @@ import { filterImagesBySettings, applyToolbarFilters, filterExcluded, ExcludedMa
 import { mergeScannedMedia } from '@mbd/core/collection/merge';
 import { loadStoredSettings } from '@mbd/storage/settings';
 import { requestResolveOriginals } from '@/extension/shared/active-tab/resolve-originals-active';
+import { requestMediaMeta } from '@/extension/shared/active-tab/probe-media-meta';
 import { getPageType } from '@/extension/shared/active-tab/collect-active-tab';
 import { applyResolved } from '@/extension/popup/apply-resolved';
 import { SrcKeySet } from '@mbd/core/collection/canonical';
@@ -41,6 +42,8 @@ export interface UseMediaEngineResult {
   handleFetchVideo: (image: ImageInfo) => Promise<void>;
   handleFetchAllVideos: () => Promise<void>;
   fetchingAllVideos: boolean;
+  handleProbeSizes: () => Promise<void>;
+  probingSizes: boolean;
   fetchingSrcs: Set<string>;
   resolveFailedSrcs: Set<string>;
   rawImagesRef: RefObject<ImageInfo[]>;
@@ -97,6 +100,7 @@ export function useMediaEngine({
   const [resolveFailedSrcs, setResolveFailedSrcs] = useState<Set<string>>(new Set());
   const [fetchingSrcs, setFetchingSrcs] = useState<Set<string>>(new Set());
   const [fetchingAllVideos, setFetchingAllVideos] = useState(false);
+  const [probingSizes, setProbingSizes] = useState(false);
   const [progress, setProgress] = useState<{ label: string; done: number; total: number } | null>(null);
 
   const rawImagesRef = useRef<ImageInfo[]>([]);
@@ -362,6 +366,48 @@ export function useMediaEngine({
     });
   };
 
+  /**
+   * Ask the CDN how big every shown item actually is, and what it really is —
+   * an explicit, user-initiated network pass. Collection can't know either:
+   * fileSize is 0 for anything but a data: URI, and a URL with no extension has
+   * no type, so the size column, the size sort and the extension are all
+   * guesses until this runs. A `type` from the response also corrects an item
+   * whose URL gave nothing away.
+   */
+  const handleProbeSizes = async (): Promise<void> => {
+    const targets = state.filteredImages.filter((i) => i.fileSize === 0 && /^https?:/i.test(i.src));
+    if (!targets.length) return;
+    const generation = resolveGenRef.current;
+    setProbingSizes(true);
+    setProgress({ label: 'Checking sizes', done: 0, total: 0 });
+    let meta: Awaited<ReturnType<typeof requestMediaMeta>>;
+    try {
+      meta = await requestMediaMeta(targets.map((t) => t.src));
+    } finally {
+      setProgress(null);
+      setProbingSizes(false);
+    }
+    if (generation !== resolveGenRef.current) return;
+
+    const apply = (list: ImageInfo[]): ImageInfo[] =>
+      list.map((i) => {
+        const m = meta[i.src];
+        if (!m?.ok) return i;
+        const next = { ...i };
+        if (m.bytes !== undefined) next.fileSize = m.bytes;
+        // Only fill a type the URL couldn't supply — never override a known one.
+        if (m.type && next.type === 'unknown') next.type = m.type;
+        return next;
+      });
+
+    rawImagesRef.current = apply(rawImagesRef.current);
+    setState((prev) => {
+      const images = apply(prev.images);
+      const eligible = filterExcluded(filterImagesBySettings(images, settingsRef.current), excludedRef.current);
+      return { ...prev, images, filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloaded) };
+    });
+  };
+
   return {
     state,
     setState,
@@ -375,6 +421,8 @@ export function useMediaEngine({
     handleFetchVideo,
     handleFetchAllVideos,
     fetchingAllVideos,
+    handleProbeSizes,
+    probingSizes,
     fetchingSrcs,
     resolveFailedSrcs,
     rawImagesRef,

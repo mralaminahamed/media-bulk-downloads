@@ -8,6 +8,7 @@ import {
   todayISO,
 } from '@mbd/core/collection/paths';
 import { avExtensionForType, extensionFromUrl } from '@mbd/core/collection/mediaType';
+import { imageExtForType } from '@mbd/core/collection/media-formats';
 
 /**
  * Naming and folder-path derivation for downloads. Kept in `shared/` (not the
@@ -20,20 +21,7 @@ import { avExtensionForType, extensionFromUrl } from '@mbd/core/collection/media
  * Maps a collected image type to a safe file extension.
  */
 export function extensionForType(type: string): string {
-  switch (type) {
-    case 'jpeg':
-      return 'jpg';
-    case 'png':
-    case 'gif':
-    case 'webp':
-    case 'svg':
-    case 'avif':
-    case 'bmp':
-    case 'ico':
-      return type;
-    default:
-      return 'jpg';
-  }
+  return imageExtForType(type) ?? 'jpg';
 }
 
 /**

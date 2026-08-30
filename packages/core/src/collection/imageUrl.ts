@@ -1,3 +1,5 @@
+import { normalizeImageFormat, MEDIA_EXT_URL_RE } from '@mbd/core/collection/media-formats';
+
 /**
  * Pure, network-free helpers for everything derivable from an image URL string:
  * type detection (extension or query param), dimension parsing, and CDN upgrade
@@ -5,31 +7,14 @@
  */
 /**
  * Determines the image type from its URL, ignoring query strings and fragments.
- * Returns a lowercase extension-style type, or 'unknown'.
+ * Returns a canonical type from the shared format table, or 'unknown'.
  */
 export function getImageType(src: string): string {
   const path = src.split(/[?#]/)[0];
   const lastSegment = path.split('/').pop() ?? '';
   const dotIndex = lastSegment.lastIndexOf('.');
   if (dotIndex === -1) return 'unknown';
-
-  const extension = lastSegment.slice(dotIndex + 1).toLowerCase();
-  switch (extension) {
-    case 'jpg':
-    case 'jpeg':
-    case 'jfif':
-      return 'jpeg';
-    case 'png':
-    case 'gif':
-    case 'webp':
-    case 'svg':
-    case 'avif':
-    case 'bmp':
-    case 'ico':
-      return extension;
-    default:
-      return 'unknown';
-  }
+  return normalizeFormat(lastSegment.slice(dotIndex + 1));
 }
 
 /**
@@ -81,23 +66,7 @@ export function splitSrcsetCandidates(srcset: string): string[] {
 
 /** Normalizes a raw format token (extension or query value) to our type vocab. */
 function normalizeFormat(raw: string): string {
-  const ext = raw.toLowerCase();
-  switch (ext) {
-    case 'jpg':
-    case 'jpeg':
-    case 'jfif':
-      return 'jpeg';
-    case 'png':
-    case 'gif':
-    case 'webp':
-    case 'svg':
-    case 'avif':
-    case 'bmp':
-    case 'ico':
-      return ext;
-    default:
-      return 'unknown';
-  }
+  return normalizeImageFormat(raw);
 }
 
 /**
@@ -122,7 +91,7 @@ export function detectType(url: string): string {
 /** Known media CDN hostnames (used by looksLikeMediaUrl + the gallery-link rule). */
 const MEDIA_HOSTS = /(?:^|\.)(?:pbs\.twimg\.com|cdn\.shopify\.com|images\.unsplash\.com|plus\.unsplash\.com|i\.pinimg\.com|i\.ytimg\.com|img\.youtube\.com|i\.redd\.it|preview\.redd\.it|miro\.medium\.com|lh\d\.googleusercontent\.com|googleusercontent\.com|ggpht\.com|media-amazon\.com|ssl-images-amazon\.com|wp\.com|imgix\.net|cdn\.bsky\.app)$/i;
 
-const MEDIA_EXT = /\.(?:jpe?g|jfif|png|gif|webp|avif|bmp|ico|svg|mp4|m4v|webm|ogv|mov|mp3|wav|ogg|oga|m4a|aac|flac|opus)(?:$|[?#])/i;
+const MEDIA_EXT = MEDIA_EXT_URL_RE;
 
 /** Audio/video format tokens not covered by normalizeFormat (which is image-only). */
 const AV_FORMATS = new Set([

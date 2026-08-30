@@ -8,6 +8,11 @@ import { looksLikeMediaUrl, splitSrcsetCandidates } from '@mbd/core/collection/i
 export interface UrlCandidate {
   url: string;
   thumbnailSrc?: string;
+  /** Intrinsic width from a srcset `w` descriptor, which the spec defines as the
+   *  resource's real pixel width — the only size a lazy/alternate candidate
+   *  reveals without loading it. Absent for `x` (density) descriptors, which say
+   *  nothing about pixels. */
+  width?: number;
 }
 
 const LAZY_SRC_ATTRS = [
@@ -24,7 +29,8 @@ const LAZY_BG_ATTRS = ['data-bg', 'data-background', 'data-background-image'];
 /**
  * Highest-resolution candidate in a srcset. Prefers the widest `w` descriptor;
  * for a pure-density srcset (`hi.jpg 2x, lo.jpg 1x`, no widths) prefers the
- * densest `x` instead of blindly returning the last entry.
+ * densest `x` instead of blindly returning the last entry. A candidate with no
+ * descriptor counts as `1x`, as the HTML spec defines it.
  */
 export function bestSrcsetUrl(srcset: string): string | null {
   return bestSrcsetFrom(splitSrcsetCandidates(srcset));
@@ -44,17 +50,29 @@ function bestSrcsetFrom(entries: string[]): string | null {
     const url = parts[0];
     const descr = parts.slice(1).join(' ');
     const w = num(descr.match(/([\d.]+)w/)?.[1]);
-    const x = num(descr.match(/([\d.]+)x/)?.[1]);
+    // A candidate with no descriptor is 1x per the HTML spec — scoring it 0
+    // would let a 0.5x sibling win and pick the SMALLER image.
+    const x = descr.includes('x') ? num(descr.match(/([\d.]+)x/)?.[1]) : 1;
     if (!best || w > best.w || (w === best.w && x > best.x)) best = { url, w, x };
   }
   return best?.url ?? null;
 }
 
-/** Ordered, de-duped raw URLs from an <img>/<source>-like element. */
-export function imageUrlsFromElement(el: Element): string[] {
-  const out: string[] = [];
-  const push = (u: string | null | undefined) => {
-    if (u && !out.includes(u)) out.push(u);
+/** The `w` descriptor on a srcset entry, or undefined for `x`/bare entries. */
+function widthOf(entry: string): number | undefined {
+  const w = Number(entry.split(/\s+/).slice(1).join(' ').match(/([\d.]+)w/)?.[1]);
+  return Number.isFinite(w) && w > 0 ? w : undefined;
+}
+
+/** Ordered, de-duped media candidates from an <img>/<source>-like element, each
+ *  carrying its srcset `w` width when the markup declared one. */
+export function imageUrlsFromElement(el: Element): UrlCandidate[] {
+  const out: UrlCandidate[] = [];
+  const seen = new Set<string>();
+  const push = (u: string | null | undefined, width?: number) => {
+    if (!u || seen.has(u)) return;
+    seen.add(u);
+    out.push(width === undefined ? { url: u } : { url: u, width });
   };
 
   for (const attr of LAZY_SRC_ATTRS) push(el.getAttribute(attr));
@@ -63,8 +81,13 @@ export function imageUrlsFromElement(el: Element): string[] {
     const ss = el.getAttribute(attr);
     if (ss) {
       const cands = splitSrcsetCandidates(ss);
-      push(bestSrcsetFrom(cands));
-      for (const c of cands) push(c.split(/\s+/)[0]);
+      const best = bestSrcsetFrom(cands);
+      const byUrl = new Map(cands.map((c) => [c.split(/\s+/)[0], widthOf(c)]));
+      push(best, best ? byUrl.get(best) : undefined);
+      for (const c of cands) {
+        const url = c.split(/\s+/)[0];
+        push(url, widthOf(c));
+      }
     }
   }
   for (const attr of LAZY_BG_ATTRS) {
@@ -93,10 +116,16 @@ export function galleryLinkCandidate(a: HTMLAnchorElement): UrlCandidate | null 
   return thumb ? { url: href, thumbnailSrc: thumb } : { url: href };
 }
 
-/** <img> URLs hidden inside a <noscript> block (common no-JS lazy fallback). */
+/**
+ * Media URLs hidden inside a `<noscript>` block — the no-JS fallback a lazy
+ * loader ships, and often the only place the FULL-size URL appears in the
+ * markup. Re-parsed with DOMParser, then read with the same lazy-attribute and
+ * srcset logic as a live element, so `data-src` and `<picture><source>` inside
+ * the block are picked up too.
+ */
 export function noscriptImageCandidates(ns: HTMLElement): UrlCandidate[] {
   let html = ns.textContent || '';
-  if (!html.includes('<img') && html.includes('&lt;')) {
+  if (!html.includes('<img') && !html.includes('<source') && html.includes('&lt;')) {
     html = html
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
@@ -104,7 +133,7 @@ export function noscriptImageCandidates(ns: HTMLElement): UrlCandidate[] {
       .replace(/&#0?39;/g, '\'')
       .replace(/&amp;/g, '&');
   }
-  if (!html.includes('<img')) return [];
+  if (!html.includes('<img') && !html.includes('<source')) return [];
   let doc: Document;
   try {
     doc = new DOMParser().parseFromString(html, 'text/html');
@@ -112,13 +141,12 @@ export function noscriptImageCandidates(ns: HTMLElement): UrlCandidate[] {
     return [];
   }
   const out: UrlCandidate[] = [];
-  doc.querySelectorAll('img').forEach((img) => {
-    const u = img.getAttribute('src');
-    if (u) out.push({ url: u });
-    const ss = img.getAttribute('srcset');
-    if (ss) {
-      const best = bestSrcsetUrl(ss);
-      if (best) out.push({ url: best });
+  const seen = new Set<string>();
+  doc.querySelectorAll('img, source').forEach((el) => {
+    for (const cand of imageUrlsFromElement(el)) {
+      if (seen.has(cand.url)) continue;
+      seen.add(cand.url);
+      out.push(cand);
     }
   });
   return out;

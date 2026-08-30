@@ -7,6 +7,12 @@ vi.mock('@mbd/core/resolvers/sniffers/hls-sniff', async () => {
 import { collectMedia, backgroundImageUrls } from '../../src/collection/collect';
 import { ingestSniffedHls, resetSniffedHls, sniffedHlsManifests } from '@mbd/core/resolvers/sniffers/hls-sniff';
 import { ingestSniffedMangadexMedia, __resetMangadexSniffed } from '@mbd/core/resolvers/sites/mangadex';
+import { filterImagesBySettings } from '@mbd/core/collection/filters';
+import type { SettingsData } from '@mbd/core/types';
+
+const DEFAULT_FILTER_SETTINGS = {
+  minimumImageSize: 0, excludeBase64Images: false, excludeEmoji: false, captureHlsStreams: true,
+} as unknown as SettingsData;
 
 const setBody = (html: string) => {
   document.body.innerHTML = html;
@@ -1004,5 +1010,118 @@ describe('collectMedia — signed-URL lease', () => {
     const [img] = collectMedia();
     expect(img.expiresAt).toBeUndefined();
     expect('expiresAt' in img).toBe(false);
+  });
+});
+
+describe('collectMedia — structured data', () => {
+  const ld = (obj: unknown): void => {
+    const s = document.createElement('script');
+    s.type = 'application/ld+json';
+    s.textContent = JSON.stringify(obj);
+    document.head.appendChild(s);
+  };
+
+  afterEach(() => { document.head.innerHTML = ''; document.body.innerHTML = ''; });
+
+  it('collects the full-resolution contentUrl the DOM never shows', () => {
+    document.body.innerHTML = '<img src="https://cdn.ex/thumb-320.jpg" width="320" height="200">';
+    ld({ '@type': 'NewsArticle', image: { '@type': 'ImageObject', contentUrl: 'https://cdn.ex/original-4000.jpg', width: 4000, height: 2500 } });
+
+    const srcs = collectMedia().map((m) => m.src);
+    expect(srcs).toContain('https://cdn.ex/original-4000.jpg');
+  });
+
+  it('carries the declared dimensions onto the item', () => {
+    ld({ '@type': 'ImageObject', contentUrl: 'https://cdn.ex/big.jpg', width: 4000, height: 2500 });
+    const item = collectMedia().find((m) => m.src === 'https://cdn.ex/big.jpg');
+    expect(item).toMatchObject({ width: 4000, height: 2500 });
+  });
+
+  it('collects a VideoObject as a video with its poster', () => {
+    ld({ '@type': 'VideoObject', contentUrl: 'https://cdn.ex/clip.mp4', thumbnailUrl: 'https://cdn.ex/poster.jpg' });
+    const item = collectMedia().find((m) => m.src === 'https://cdn.ex/clip.mp4');
+    expect(item).toMatchObject({ kind: 'video', poster: 'https://cdn.ex/poster.jpg' });
+  });
+
+  it('ignores a malformed block instead of failing the whole scan', () => {
+    const s = document.createElement('script');
+    s.type = 'application/ld+json';
+    s.textContent = '{ nope';
+    document.head.appendChild(s);
+    document.body.innerHTML = '<img src="https://cdn.ex/a.jpg" width="800" height="600">';
+    expect(collectMedia().map((m) => m.src)).toContain('https://cdn.ex/a.jpg');
+  });
+});
+
+describe('collectMedia — element types beyond <img>', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('collects an inline SVG <image href>', () => {
+    document.body.innerHTML = '<svg><image href="https://cdn.ex/svg-a.png" width="800" height="600"></image></svg>';
+    expect(collectMedia().map((m) => m.src)).toContain('https://cdn.ex/svg-a.png');
+  });
+
+  it('collects an SVG <image xlink:href> (legacy markup)', () => {
+    document.body.innerHTML = '<svg><image xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://cdn.ex/svg-b.png"></image></svg>';
+    expect(collectMedia().map((m) => m.src)).toContain('https://cdn.ex/svg-b.png');
+  });
+
+  it('collects an <object data> image and video', () => {
+    document.body.innerHTML =
+      '<object type="image/png" data="https://cdn.ex/obj.png"></object>' +
+      '<object type="video/mp4" data="https://cdn.ex/obj.mp4"></object>';
+    const items = collectMedia();
+    expect(items.map((m) => m.src)).toContain('https://cdn.ex/obj.png');
+    expect(items.find((m) => m.src === 'https://cdn.ex/obj.mp4')?.kind).toBe('video');
+  });
+
+  it('collects an <embed src>', () => {
+    document.body.innerHTML = '<embed type="image/jpeg" src="https://cdn.ex/emb.jpg">';
+    expect(collectMedia().map((m) => m.src)).toContain('https://cdn.ex/emb.jpg');
+  });
+
+  it('collects an <input type=image> src', () => {
+    document.body.innerHTML = '<input type="image" src="https://cdn.ex/submit.png">';
+    expect(collectMedia().map((m) => m.src)).toContain('https://cdn.ex/submit.png');
+  });
+
+  it('ignores an <object>/<embed> that is not media', () => {
+    document.body.innerHTML =
+      '<object type="application/pdf" data="https://cdn.ex/doc.pdf"></object>' +
+      '<embed type="application/x-shockwave-flash" src="https://cdn.ex/old.swf">';
+    const srcs = collectMedia().map((m) => m.src);
+    expect(srcs).not.toContain('https://cdn.ex/doc.pdf');
+    expect(srcs).not.toContain('https://cdn.ex/old.swf');
+  });
+});
+
+describe('collectMedia — srcset width descriptors', () => {
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('carries each srcset candidate\'s w descriptor onto its item', () => {
+    document.body.innerHTML =
+      '<img src="https://cdn.ex/base.jpg" srcset="https://cdn.ex/s-320.jpg 320w, https://cdn.ex/s-1600.jpg 1600w">';
+    const items = collectMedia();
+    expect(items.find((i) => i.src === 'https://cdn.ex/s-1600.jpg')?.width).toBe(1600);
+    expect(items.find((i) => i.src === 'https://cdn.ex/s-320.jpg')?.width).toBe(320);
+  });
+
+  it('lets the minimum-size filter actually exclude a small srcset rendition', () => {
+    document.body.innerHTML =
+      '<img src="https://cdn.ex/b.jpg" srcset="https://cdn.ex/tiny-64.jpg 64w, https://cdn.ex/big-2000.jpg 2000w">';
+    const kept = filterImagesBySettings(collectMedia(), { ...DEFAULT_FILTER_SETTINGS, minimumImageSize: 200 }).map((i) => i.src);
+    expect(kept).toContain('https://cdn.ex/big-2000.jpg');
+    expect(kept).not.toContain('https://cdn.ex/tiny-64.jpg');
+  });
+
+  it('leaves a density-only srcset dimensionless (an x descriptor says nothing about pixels)', () => {
+    document.body.innerHTML = '<img src="https://cdn.ex/c.jpg" srcset="https://cdn.ex/d-2x.jpg 2x">';
+    expect(collectMedia().find((i) => i.src === 'https://cdn.ex/d-2x.jpg')?.width).toBe(0);
+  });
+
+  it('fills the missing edge from the URL when only one dimension is known', () => {
+    document.body.innerHTML = '<img src="https://cdn.ex/x.jpg" srcset="https://cdn.ex/e-800x600.jpg 800w">';
+    const item = collectMedia().find((i) => i.src === 'https://cdn.ex/e-800x600.jpg');
+    expect(item).toMatchObject({ width: 800, height: 600 });
   });
 });

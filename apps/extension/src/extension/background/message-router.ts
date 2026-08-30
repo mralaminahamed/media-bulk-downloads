@@ -2,6 +2,7 @@ import {
   ChromeMessage,
   DownloadResponse,
   ResolveOriginalsResponse,
+  ProbeMediaMetaResponse,
   CaptureStreamResponse,
   SettingsData,
   ListVariantsResult,
@@ -18,6 +19,8 @@ import { streamErrorMessage } from '@mbd/core/download/stream/stream-error-messa
 import { isMasterPlaylist } from '@mbd/core/download/stream/hls';
 import { variantsFromMaster, variantsFromMpd } from '@mbd/core/download/stream/variants';
 import { assertSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
+import { probeMediaMetaBatch } from '@mbd/core/net/size-probe';
+import { retryingFetch } from '@mbd/core/net/retry';
 import { readBoundedText } from '@mbd/core/download/stream/bounded-fetch';
 import {
   pauseQueue, resumeQueue, cancelQueue, retryQueueItem, getQueueSnapshot,
@@ -33,7 +36,7 @@ import { captureStreamToFile, captureRunTabs } from '@/extension/background/down
 
 /** Response callback shape for the background message router. */
 export type SendResponse = (
-  response: DownloadResponse | ResolveOriginalsResponse | string[] | CaptureStreamResponse | QueueState | SettingsData | ListVariantsResult,
+  response: DownloadResponse | ResolveOriginalsResponse | ProbeMediaMetaResponse | string[] | CaptureStreamResponse | QueueState | SettingsData | ListVariantsResult,
 ) => void;
 
 /** Push the current settings to every tab's content script so the on-page bubble
@@ -64,6 +67,12 @@ export function broadcastSettings(settings: SettingsData): void {
 /** The object-shaped ChromeMessages (those with a discriminating `type`); the
  *  union also carries bare-string messages (GET_IMAGES, …) handled elsewhere. */
 type ObjectMessage = Extract<ChromeMessage, { type: string }>;
+
+/** Bounds on the explicit size/type probe: one request per item, so a huge
+ *  gallery must not turn one click into a thousand parallel requests. */
+const PROBE_CAP = 400;
+const PROBE_CONCURRENCY = 6;
+const PROBE_TIMEOUT_MS = 10_000;
 
 /** Popup status for a queued batch, including any skipped-as-duplicate count. */
 function queuedSkipMessage(queued: number, skipped: number): string {
@@ -268,6 +277,14 @@ export const messageRouter: MessageRouter = {
     };
     if (sender.tab?.id != null) run(sender.tab.id);
     else chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => run(tabs[0]?.id));
+    return true;
+  },
+
+  PROBE_MEDIA_META: (message, _sender, respond) => {
+    const srcs = [...new Set(message.srcs)].slice(0, PROBE_CAP);
+    void probeMediaMetaBatch(srcs, { fetch: retryingFetch(fetch, { maxAttempts: 2, timeoutMs: PROBE_TIMEOUT_MS }) }, PROBE_CONCURRENCY)
+      .then((meta) => respond({ meta }))
+      .catch(() => respond({ meta: {} }));
     return true;
   },
 

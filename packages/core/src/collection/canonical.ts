@@ -11,6 +11,7 @@
  */
 
 import { isCloudinaryTransform } from '@mbd/core/collection/imageUrl';
+import { MEDIA_EXT_PATH_RE } from '@mbd/core/collection/media-formats';
 
 /** A per-CDN canonical-key rule: match a URL, then reduce it to a stable key. */
 export interface SrcKeyRule {
@@ -89,7 +90,7 @@ export const SRC_KEY_RULES: SrcKeyRule[] = [
  * extension-less path — otherwise two distinct images served by one script
  * (`attachment.php?id=1` vs `?id=2`) would collapse to a single key.
  */
-const MEDIA_EXT = /\.(?:jpe?g|png|gif|webp|avif|bmp|ico|svgz?|tiff?|hei[cf]|jfif|jxl|jp2|mp4|webm|mov|m4v|mkv|avi|m3u8|mpd|mp3|m4a|aac|ogg|ogv|opus|oga|wav|flac)$/i;
+const MEDIA_EXT = MEDIA_EXT_PATH_RE;
 
 /**
  * Query params that are transport noise, not identity — dropped from a dynamic

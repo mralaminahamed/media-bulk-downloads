@@ -2,6 +2,9 @@ import {
   imageUrlsFromElement, bestSrcsetUrl, galleryLinkCandidate, noscriptImageCandidates,
 } from '@mbd/core/collection/extract';
 
+/** imageUrlsFromElement returns candidates; most cases only assert the URLs. */
+const urlsFrom = (el: Element): string[] => imageUrlsFromElement(el).map((c) => c.url);
+
 describe('bestSrcsetUrl', () => {
   it('picks the highest-width candidate', () => {
     expect(bestSrcsetUrl('a.jpg 320w, b.jpg 1024w, c.jpg 640w')).toBe('b.jpg');
@@ -28,7 +31,7 @@ describe('imageUrlsFromElement', () => {
     const img = document.createElement('img');
     img.setAttribute('data-src', 'real.jpg');
     img.setAttribute('data-srcset', 't-320.jpg 320w, t-1200.jpg 1200w');
-    const urls = imageUrlsFromElement(img);
+    const urls = urlsFrom(img);
     expect(urls).toContain('real.jpg');
     expect(urls).toContain('t-1200.jpg');
   });
@@ -37,7 +40,7 @@ describe('imageUrlsFromElement', () => {
     const img = document.createElement('img');
     img.setAttribute('src', 'https://cdn.com/img-300x200.jpg');
     img.setAttribute('data-orig-file', 'https://cdn.com/img.jpg');
-    const urls = imageUrlsFromElement(img);
+    const urls = urlsFrom(img);
     expect(urls[0]).toBe('https://cdn.com/img.jpg');
     expect(urls).toContain('https://cdn.com/img-300x200.jpg');
   });
@@ -47,7 +50,7 @@ describe('imageUrlsFromElement', () => {
     img.setAttribute('data-large-file', 'https://cdn.com/large.jpg');
     img.setAttribute('data-actualsrc', 'https://cdn.com/actual.jpg');
     img.setAttribute('data-echo', 'https://cdn.com/echo.jpg');
-    const urls = imageUrlsFromElement(img);
+    const urls = urlsFrom(img);
     expect(urls).toEqual(
       expect.arrayContaining(['https://cdn.com/large.jpg', 'https://cdn.com/actual.jpg', 'https://cdn.com/echo.jpg']),
     );
@@ -58,7 +61,7 @@ describe('imageUrlsFromElement', () => {
     img.className = '_images';
     img.setAttribute('src', 'https://www.webtoons.com/.../bg_transparency.png');
     img.setAttribute('data-url', 'https://webtoon-phinf.pstatic.net/x/y/z.jpg?type=q90');
-    expect(imageUrlsFromElement(img)).toContain('https://webtoon-phinf.pstatic.net/x/y/z.jpg?type=q90');
+    expect(urlsFrom(img)).toContain('https://webtoon-phinf.pstatic.net/x/y/z.jpg?type=q90');
   });
 
   it('dedupes a URL that appears via two different lazy attributes', () => {
@@ -66,26 +69,26 @@ describe('imageUrlsFromElement', () => {
     const same = 'https://cdn.com/same.jpg';
     img.setAttribute('data-orig-file', same);
     img.setAttribute('src', same);
-    const urls = imageUrlsFromElement(img);
+    const urls = urlsFrom(img);
     expect(urls.filter((u) => u === same)).toHaveLength(1);
   });
 
   it('falls back to the src attribute on a non-<img> element with no currentSrc property', () => {
     const source = document.createElement('source');
     source.setAttribute('src', 'https://cdn.com/fallback.jpg');
-    expect(imageUrlsFromElement(source)).toContain('https://cdn.com/fallback.jpg');
+    expect(urlsFrom(source)).toContain('https://cdn.com/fallback.jpg');
   });
 
   it('reads a plain srcset attribute and a data-lazy-srcset attribute', () => {
     const img = document.createElement('img');
     img.setAttribute('srcset', 'plain-320.jpg 320w, plain-900.jpg 900w');
-    expect(imageUrlsFromElement(img)).toEqual(
+    expect(urlsFrom(img)).toEqual(
       expect.arrayContaining(['plain-900.jpg', 'plain-320.jpg']),
     );
 
     const lazy = document.createElement('img');
     lazy.setAttribute('data-lazy-srcset', 'lazy-320.jpg 320w, lazy-900.jpg 900w');
-    expect(imageUrlsFromElement(lazy)).toEqual(
+    expect(urlsFrom(lazy)).toEqual(
       expect.arrayContaining(['lazy-900.jpg', 'lazy-320.jpg']),
     );
   });
@@ -98,9 +101,9 @@ describe('imageUrlsFromElement', () => {
       <img src="https://cdn.com/hero-fallback.jpg" data-src="https://cdn.com/hero-lazy.jpg">
     `;
     const [avifSource, webpSource, img] = Array.from(picture.children) as [HTMLSourceElement, HTMLSourceElement, HTMLImageElement];
-    expect(imageUrlsFromElement(avifSource)).toEqual(['hero-avif-1200.avif', 'hero-avif-480.avif']);
-    expect(imageUrlsFromElement(webpSource)).toEqual(['hero-webp-1200.webp', 'hero-webp-480.webp']);
-    expect(imageUrlsFromElement(img)).toEqual(['https://cdn.com/hero-lazy.jpg', 'https://cdn.com/hero-fallback.jpg']);
+    expect(urlsFrom(avifSource)).toEqual(['hero-avif-1200.avif', 'hero-avif-480.avif']);
+    expect(urlsFrom(webpSource)).toEqual(['hero-webp-1200.webp', 'hero-webp-480.webp']);
+    expect(urlsFrom(img)).toEqual(['https://cdn.com/hero-lazy.jpg', 'https://cdn.com/hero-fallback.jpg']);
   });
 });
 
@@ -108,22 +111,22 @@ describe('imageUrlsFromElement — CSS background lazy attrs', () => {
   it('extracts the URL from a data-bg url(...) wrapper', () => {
     const el = document.createElement('div');
     el.setAttribute('data-bg', "url('https://cdn.com/bg.jpg')");
-    expect(imageUrlsFromElement(el)).toContain('https://cdn.com/bg.jpg');
+    expect(urlsFrom(el)).toContain('https://cdn.com/bg.jpg');
   });
   it('uses a bare data-background value that is not wrapped in url()', () => {
     const el = document.createElement('div');
     el.setAttribute('data-background', 'https://cdn.com/plain-bg.png');
-    expect(imageUrlsFromElement(el)).toContain('https://cdn.com/plain-bg.png');
+    expect(urlsFrom(el)).toContain('https://cdn.com/plain-bg.png');
   });
   it('extracts an unquoted url(...) value', () => {
     const el = document.createElement('div');
     el.setAttribute('data-bg', 'url(https://cdn.com/no-quotes.jpg)');
-    expect(imageUrlsFromElement(el)).toContain('https://cdn.com/no-quotes.jpg');
+    expect(urlsFrom(el)).toContain('https://cdn.com/no-quotes.jpg');
   });
   it('reads the data-background-image attribute', () => {
     const el = document.createElement('div');
     el.setAttribute('data-background-image', "url('https://cdn.com/bg-image-attr.jpg')");
-    expect(imageUrlsFromElement(el)).toContain('https://cdn.com/bg-image-attr.jpg');
+    expect(urlsFrom(el)).toContain('https://cdn.com/bg-image-attr.jpg');
   });
 });
 
@@ -176,13 +179,14 @@ describe('noscriptImageCandidates', () => {
     expect(noscriptImageCandidates(ns)).toEqual([{ url: 'https://cdn.com/real.png' }]);
   });
 
-  it('also extracts the best srcset candidate from a noscript <img srcset>', () => {
+  it('extracts every srcset rendition, widest first, like the live <img> path does', () => {
     const ns = document.createElement('noscript');
     ns.textContent =
       '<img src="https://cdn.com/lo.jpg" srcset="https://cdn.com/a-320.jpg 320w, https://cdn.com/a-1200.jpg 1200w">';
     expect(noscriptImageCandidates(ns)).toEqual([
       { url: 'https://cdn.com/lo.jpg' },
-      { url: 'https://cdn.com/a-1200.jpg' },
+      { url: 'https://cdn.com/a-1200.jpg', width: 1200 },
+      { url: 'https://cdn.com/a-320.jpg', width: 320 },
     ]);
   });
 
@@ -217,7 +221,8 @@ describe('noscriptImageCandidates', () => {
       '<img srcset="https://cdn.com/two-lo.jpg 320w, https://cdn.com/two-hi.jpg 900w">';
     expect(noscriptImageCandidates(ns)).toEqual([
       { url: 'https://cdn.com/one.jpg' },
-      { url: 'https://cdn.com/two-hi.jpg' },
+      { url: 'https://cdn.com/two-hi.jpg', width: 900 },
+      { url: 'https://cdn.com/two-lo.jpg', width: 320 },
     ]);
   });
 
@@ -235,5 +240,69 @@ describe('noscriptImageCandidates', () => {
     } finally {
       global.DOMParser = RealDOMParser;
     }
+  });
+});
+
+describe('bestSrcsetUrl — density descriptors', () => {
+  it('treats a descriptor-less candidate as 1x, not 0x', () => {
+    // Per the HTML spec a candidate with no descriptor is 1x, so a 0.5x sibling
+    // must never beat it.
+    expect(bestSrcsetUrl('full.jpg, half.jpg 0.5x')).toBe('full.jpg');
+    expect(bestSrcsetUrl('half.jpg 0.5x, full.jpg')).toBe('full.jpg');
+  });
+
+  it('still prefers a denser explicit candidate over the bare one', () => {
+    expect(bestSrcsetUrl('one.jpg, two.jpg 2x')).toBe('two.jpg');
+  });
+
+  it('prefers the widest w over any density', () => {
+    expect(bestSrcsetUrl('a.jpg 400w, b.jpg 800w')).toBe('b.jpg');
+    expect(bestSrcsetUrl('a.jpg 2x, b.jpg 800w')).toBe('b.jpg');
+  });
+});
+
+describe('noscriptImageCandidates — beyond img[src]', () => {
+  const ns = (html: string): HTMLElement => {
+    const el = document.createElement('noscript');
+    el.textContent = html;
+    return el;
+  };
+
+  it('reads the lazy-loader attributes the noscript fallback carries', () => {
+    const out = noscriptImageCandidates(ns('<img data-src="https://cdn.ex/full.jpg" src="https://cdn.ex/blank.gif">'));
+    expect(out.map((c) => c.url)).toContain('https://cdn.ex/full.jpg');
+  });
+
+  it('reads <source> inside a <picture> fallback', () => {
+    const out = noscriptImageCandidates(ns('<picture><source srcset="https://cdn.ex/a.webp 1200w"><img src="https://cdn.ex/a.jpg"></picture>'));
+    const urls = out.map((c) => c.url);
+    expect(urls).toContain('https://cdn.ex/a.webp');
+    expect(urls).toContain('https://cdn.ex/a.jpg');
+  });
+
+  it('still handles an entity-escaped block', () => {
+    const out = noscriptImageCandidates(ns('&lt;img src=&quot;https://cdn.ex/esc.jpg&quot;&gt;'));
+    expect(out.map((c) => c.url)).toEqual(['https://cdn.ex/esc.jpg']);
+  });
+
+  it('returns [] for a block with no images', () => {
+    expect(noscriptImageCandidates(ns('<p>enable javascript</p>'))).toEqual([]);
+  });
+});
+
+describe('imageUrlsFromElement — srcset width descriptors', () => {
+  it('attaches the w descriptor to each candidate', () => {
+    const img = document.createElement('img');
+    img.setAttribute('srcset', 'https://cdn.ex/a-320.jpg 320w, https://cdn.ex/a-1600.jpg 1600w');
+    const byUrl = new Map(imageUrlsFromElement(img).map((c) => [c.url, c.width]));
+    expect(byUrl.get('https://cdn.ex/a-1600.jpg')).toBe(1600);
+    expect(byUrl.get('https://cdn.ex/a-320.jpg')).toBe(320);
+  });
+
+  it('leaves width undefined for density and plain-src candidates', () => {
+    const img = document.createElement('img');
+    img.setAttribute('src', 'https://cdn.ex/base.jpg');
+    img.setAttribute('srcset', 'https://cdn.ex/hi.jpg 2x');
+    for (const c of imageUrlsFromElement(img)) expect(c.width).toBeUndefined();
   });
 });

@@ -2,6 +2,7 @@
  * Network-free video/audio type detection and a skip list for media that
  * `chrome.downloads` cannot fetch as a single file.
  */
+import { isImageExt } from '@mbd/core/collection/media-formats';
 
 const VIDEO_TYPES: Record<string, string> = {
   mp4: 'mp4', m4v: 'm4v', webm: 'webm', ogv: 'ogg', ogg: 'ogg', mov: 'mov', qt: 'mov',
@@ -22,8 +23,6 @@ export function extensionFromUrl(url: string): string | null {
   return /^[a-z0-9]{1,5}$/.test(ext) ? ext : null;
 }
 
-const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'jfif', 'png', 'gif', 'webp', 'svg', 'avif', 'bmp', 'ico']);
-
 /**
  * The URL's path extension when it names a known image format, preserving the
  * literal spelling (`.jpg` stays `jpg`, not the canonical `jpeg`). Null for
@@ -32,9 +31,9 @@ const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'jfif', 'png', 'gif', 'webp', 'svg', 
  */
 export function imageExtFromUrl(url: string): string | null {
   const ext = extensionFromUrl(url);
-  if (ext && IMAGE_EXTS.has(ext)) return ext;
+  if (ext && isImageExt(ext)) return ext;
   const at = /@([a-z0-9]{1,5})$/i.exec(url.split(/[?#]/)[0]);
-  return at && IMAGE_EXTS.has(at[1].toLowerCase()) ? at[1].toLowerCase() : null;
+  return at && isImageExt(at[1]) ? at[1].toLowerCase() : null;
 }
 
 /** Normalizes a few MIME subtypes to our canonical format keys. */

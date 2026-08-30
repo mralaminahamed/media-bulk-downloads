@@ -11,12 +11,13 @@
  */
 
 import { ImageInfo, MediaItem } from '@mbd/core/types';
-import { detectType, parseUrlDimensions } from '@mbd/core/collection/imageUrl';
+import { detectType, parseUrlDimensions, looksLikeMediaUrl } from '@mbd/core/collection/imageUrl';
 import { classifyPage, collectPageSignals } from '@mbd/core/collection/pageType';
 import { detectAvType, isUndownloadableMedia, isHlsManifest, isDashManifest } from '@mbd/core/collection/mediaType';
 import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates, bestSrcsetUrl } from '@mbd/core/collection/extract';
 import { canonicalSrcKey } from '@mbd/core/collection/canonical';
 import { readUrlLease } from '@mbd/core/net/url-lease';
+import { structuredDataMedia } from '@mbd/core/collection/structured-data';
 import { resolve, MediaCandidate } from '@mbd/core/resolvers';
 import { twitterGifCandidate, twitterVideoPending } from '@mbd/core/resolvers/sites/twitter';
 import { instagramPageMedia } from '@mbd/core/resolvers/sites/instagram';
@@ -256,11 +257,13 @@ export function collectMedia(
 
     let w = cand.width ?? width;
     let h = cand.height ?? height;
-    if (w === 0 && h === 0) {
+    // Fill whichever edge is still unknown — a srcset `w` descriptor gives the
+    // width only, and the URL often names both.
+    if (w === 0 || h === 0) {
       const dims = parseUrlDimensions(resolved) ?? parseUrlDimensions(cand.url);
       if (dims) {
-        w = dims.width;
-        h = dims.height;
+        if (w === 0) w = dims.width;
+        if (h === 0) h = dims.height;
       }
     }
 
@@ -577,6 +580,44 @@ export function collectMedia(
     media.push(item);
   };
 
+  /**
+   * `<object data>`, `<embed src>`, `<input type=image src>` and inline SVG
+   * `<image href>` — media the page paints through an element the <img>/<video>
+   * walk never sees. `<object>`/`<embed>` also host PDFs and plugin content, so
+   * they are taken only when the declared `type` (or the URL) says media.
+   */
+  const collectEmbedded = (el: Element): void => {
+    const tag = el.tagName;
+
+    if (tag === 'image') {
+      const href = el.getAttribute('href') || el.getAttribute('xlink:href') || '';
+      if (href) collectImageInfo(href, '', 0, 0, undefined, el);
+      return;
+    }
+
+    if (tag === 'INPUT') {
+      if ((el.getAttribute('type') || '').toLowerCase() !== 'image') return;
+      const src = el.getAttribute('src');
+      if (src) collectImageInfo(src, el.getAttribute('alt') || '', 0, 0, undefined, el);
+      return;
+    }
+
+    const raw = tag === 'OBJECT' ? el.getAttribute('data') : el.getAttribute('src');
+    if (!raw) return;
+    const mime = (el.getAttribute('type') || '').toLowerCase();
+    if (mime.startsWith('video/') || mime.startsWith('audio/')) {
+      collectAv(raw, mime.startsWith('audio/') ? 'audio' : 'video', mime, '');
+      return;
+    }
+    if (mime.startsWith('image/')) {
+      collectImageInfo(raw, '', 0, 0, undefined, el);
+      return;
+    }
+    // No declared type — fall back to what the URL looks like, so a plugin or
+    // PDF <object> is never collected as an image.
+    if (!mime && looksLikeMediaUrl(resolveUrl(raw))) collectImageInfo(raw, '', 0, 0, undefined, el);
+  };
+
   const roots: ScanRoot[] = scanRoots ?? [document];
   const seenRoots = new Set<ScanRoot>(roots);
   const addRoot = (r: Document | ShadowRoot | null | undefined): void => {
@@ -600,6 +641,7 @@ export function collectMedia(
     const anchors: HTMLAnchorElement[] = [];
     const noscripts: HTMLElement[] = [];
     const iframes: HTMLIFrameElement[] = [];
+    const embedded: Element[] = [];
     const backgrounds: [Element, string][] = [];
 
     const els: HTMLElement[] = isElement
@@ -619,6 +661,12 @@ export function collectMedia(
         case 'A': anchors.push(el as HTMLAnchorElement); break;
         case 'NOSCRIPT': noscripts.push(el); break;
         case 'IFRAME': iframes.push(el as HTMLIFrameElement); break;
+        // <object>/<embed>/<input type=image>, plus an inline SVG <image> (SVG
+        // tag names are lower-case, unlike HTML's).
+        case 'OBJECT': // fallthrough
+        case 'EMBED': // fallthrough
+        case 'INPUT': // fallthrough
+        case 'image': embedded.push(el); break;
       }
 
       if (hasLayout && el.offsetWidth === 0 && el.offsetHeight === 0) return;
@@ -629,17 +677,27 @@ export function collectMedia(
     imgs.forEach((img) => {
       const { width, height } = getImageDimensions(img);
       const loaded = img.currentSrc || img.src;
-      imageUrlsFromElement(img).forEach((src) => {
-        const isLoaded = resolveUrl(src) === loaded;
-        collectImageInfo(src, img.alt, isLoaded ? width : 0, isLoaded ? height : 0, undefined, img);
+      imageUrlsFromElement(img).forEach((cand) => {
+        const isLoaded = resolveUrl(cand.url) === loaded;
+        // The painted rendition knows both edges; any other candidate knows only
+        // what its srcset `w` descriptor declared.
+        collectImageInfo(
+          cand.url, img.alt,
+          isLoaded ? width : cand.width ?? 0,
+          isLoaded ? height : 0,
+          undefined, img,
+        );
       });
     });
 
     pictures.forEach((picture) => {
       picture.querySelectorAll('source').forEach((source) => {
-        imageUrlsFromElement(source).forEach((src) => collectImageInfo(src, '', 0, 0, undefined, source));
+        imageUrlsFromElement(source).forEach((cand) =>
+          collectImageInfo(cand.url, '', cand.width ?? 0, 0, undefined, source));
       });
     });
+
+    embedded.forEach((el) => collectEmbedded(el));
 
     backgrounds.forEach(([el, bgImage]) => {
       for (const url of backgroundImageUrls(bgImage)) {
@@ -816,6 +874,13 @@ export function collectMedia(
 
   if (!incremental) {
     if (!heroFirst) collectHeroMeta();
+
+    // schema.org contentUrl is the file itself — publishers ship the
+    // full-resolution original here while the DOM carries only a resized <img>.
+    for (const m of structuredDataMedia(document)) {
+      if (m.kind === 'video') collectAv(m.url, 'video', undefined, '', m.poster);
+      else collectImageInfo(m.url, '', m.width ?? 0, m.height ?? 0);
+    }
 
     const ogVideoType = document.querySelector('meta[property="og:video:type"]')?.getAttribute('content') || undefined;
     const ogPoster = document
