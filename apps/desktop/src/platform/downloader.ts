@@ -1,7 +1,7 @@
 // Value-import from the pre-bundled ESM (deno desktop can't resolve bare
 // @mbd/core source imports — see docs/runtime-recipe.md). Type-only imports stay
 // on @mbd/core/types (erased at runtime, no resolution needed).
-import { buildDownloadFilename } from '../core-bundle/download-name.gen.js';
+import { buildDownloadFilename, assertSafeCaptureUrl } from '../core-bundle/download-name.gen.js';
 import type { ImageInfo, SettingsData } from '@mbd/core/types';
 import { dirname } from 'jsr:@std/path';
 import { containedPath } from './paths.ts';
@@ -39,6 +39,11 @@ export async function downloadOne(
 
   const rel = buildDownloadFilename(item as unknown as ImageInfo, opts.index, settings, opts.sourcePageUrl);
   const abs = containedPath(opts.root, rel);
+
+  // `item.src` is page-controlled, exactly like the URLs the capture engines
+  // fetch — guard it the same way so a crafted page can't aim the backend at a
+  // private/internal address.
+  assertSafeCaptureUrl(item.src);
 
   const doFetch = opts.fetchImpl ?? fetch;
   const res = await doFetch(item.src, { headers: opts.headers });

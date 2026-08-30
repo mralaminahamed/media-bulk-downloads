@@ -14,3 +14,4 @@ export { partitionByDownloaded } from '@mbd/core/collection/download-dedupe';
 export { canonicalSrcKey, SrcKeySet } from '@mbd/core/collection/canonical';
 export { blendMemory, clampMemory, evictToCap } from '@mbd/core/collection/scan-memory';
 export { registrableDomain, hostFromUrl } from '@mbd/core/collection/paths';
+export { assertSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';

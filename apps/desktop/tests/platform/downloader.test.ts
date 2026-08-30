@@ -50,3 +50,25 @@ Deno.test('namingMode original uses the source basename', async () => {
   );
   assert(path.endsWith('sunset.jpg'), `expected original basename, got ${path}`);
 });
+
+Deno.test('downloadOne refuses a private/internal src (SSRF guard)', async () => {
+  const root = await Deno.makeTempDir();
+  let fetched = false;
+  const fetchImpl = (() => {
+    fetched = true;
+    return Promise.resolve(new Response(new Uint8Array([1])));
+  }) as unknown as typeof fetch;
+
+  let threw = false;
+  try {
+    await downloadOne(
+      { src: 'http://127.0.0.1/admin/secret.jpg', ext: 'jpg' },
+      { root, template: '{domain}', index: 0, fetchImpl },
+    );
+  } catch {
+    threw = true;
+  }
+
+  assert(threw, 'expected downloadOne to reject a loopback src');
+  assert(!fetched, 'expected no fetch to be issued for a loopback src');
+});

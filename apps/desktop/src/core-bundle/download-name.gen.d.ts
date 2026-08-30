@@ -26,3 +26,4 @@ export function clampMemory(raw: unknown): ScanMemory | null;
 export function evictToCap(store: Record<string, ScanMemory>, cap?: number): Record<string, ScanMemory>;
 export function registrableDomain(host: string): string;
 export function hostFromUrl(url?: string): string;
+export function assertSafeCaptureUrl(rawUrl: string): void;
