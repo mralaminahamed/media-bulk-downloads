@@ -164,3 +164,44 @@ describe('parseBackup', () => {
     expect(b?.favourites[1].sourcePageUrl).toBe('');
   });
 });
+
+describe('backup round-trip of a signed URL', () => {
+  const SIGNED = 'https://scontent.xx.fbcdn.net/v/t39/a.jpg?stp=dst-jpg&oh=00_AfSecret&oe=68B2C3D4';
+  const entry = {
+    src: SIGNED,
+    filename: 'a.jpg',
+    kind: 'image' as const,
+    type: 'jpeg',
+    sourcePageUrl: 'https://facebook.com/p/1',
+    time: 5,
+    mediaKey: 'fb:123',
+    expiresAt: 1_800_000_000_000,
+  };
+
+  it('strips the signing tokens from the exported src', () => {
+    const out = buildBackup(DEFAULT_SETTINGS, [], [entry], [], 'now');
+    expect(out.history[0].src).not.toContain('oh=');
+    expect(out.history[0].src).not.toContain('oe=');
+  });
+
+  it('marks the exported entry srcRedacted so restore knows the url is not fetchable', () => {
+    const out = buildBackup(DEFAULT_SETTINGS, [], [entry], [], 'now');
+    expect(out.history[0].srcRedacted).toBe(true);
+  });
+
+  it('leaves an unsigned entry untouched and unflagged', () => {
+    const plain = { ...entry, src: 'https://example.com/a.jpg', mediaKey: undefined, expiresAt: undefined };
+    const out = buildBackup(DEFAULT_SETTINGS, [], [plain], [], 'now');
+    expect(out.history[0].src).toBe('https://example.com/a.jpg');
+    expect(out.history[0].srcRedacted).toBeUndefined();
+  });
+
+  it('preserves mediaKey, expiresAt and srcRedacted through parseBackup', () => {
+    const parsed = parseBackup(JSON.stringify(buildBackup(DEFAULT_SETTINGS, [], [entry], [], 'now')));
+    expect(parsed?.history[0]).toMatchObject({
+      mediaKey: 'fb:123',
+      expiresAt: 1_800_000_000_000,
+      srcRedacted: true,
+    });
+  });
+});

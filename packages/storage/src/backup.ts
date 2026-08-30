@@ -39,9 +39,15 @@ function safeSourceUrl(v: unknown): string {
  *  signing tokens (same url-secrets contract the sidecar/command surfaces apply).
  *  The stored copies keep their raw URLs as the internal re-download key; only the
  *  exported copy is sanitized. */
-function sanitizeEntry<T extends { src: string; thumbnailSrc?: string }>(e: T): T {
-  const out = { ...e, src: stripUrlSecrets(e.src) };
+function sanitizeEntry<T extends { src: string; thumbnailSrc?: string; srcRedacted?: boolean }>(e: T): T {
+  const src = stripUrlSecrets(e.src);
+  const out = { ...e, src };
   if (typeof e.thumbnailSrc === 'string') out.thumbnailSrc = stripUrlSecrets(e.thumbnailSrc);
+  // A stripped `src` is no longer a working download target. Say so on the entry
+  // rather than letting a restored copy 403 silently — the panels disable
+  // re-download for it, and `mediaKey` + `sourcePageUrl` survive as the durable
+  // way back to the media.
+  if (src !== e.src) out.srcRedacted = true;
   return out;
 }
 
@@ -64,10 +70,17 @@ export function buildBackup(
   };
 }
 
-/** Coerce a stored media entry: numeric time, and an href-safe sourcePageUrl. */
-function normalizeEntry<T extends { time?: unknown; sourcePageUrl?: unknown }>(e: T): T {
-  const out = { ...e, time: Number(e.time) || 0 } as T & { sourcePageUrl?: string };
+/** Coerce a stored media entry: numeric time, an href-safe sourcePageUrl, and a
+ *  numeric `expiresAt` (a hand-edited backup can carry anything). `mediaKey` and
+ *  `srcRedacted` pass through as-is. */
+function normalizeEntry<T extends { time?: unknown; sourcePageUrl?: unknown; expiresAt?: unknown }>(e: T): T {
+  const out = { ...e, time: Number(e.time) || 0 } as T & { sourcePageUrl?: string; expiresAt?: number };
   if ('sourcePageUrl' in e) out.sourcePageUrl = safeSourceUrl(e.sourcePageUrl);
+  if ('expiresAt' in e) {
+    const n = Number(e.expiresAt);
+    if (Number.isFinite(n)) out.expiresAt = n;
+    else delete out.expiresAt;
+  }
   return out;
 }
 

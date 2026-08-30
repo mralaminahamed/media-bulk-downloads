@@ -66,3 +66,29 @@ describe('stripUrlSecrets — Sankaku host-scoped e/m', () => {
     expect(stripUrlSecrets(url)).toBe(url);
   });
 });
+
+describe('stripUrlSecrets — fbcdn / cdninstagram signing tokens', () => {
+  const SIGNED =
+    'https://scontent-fra5-2.cdninstagram.com/v/t51.2885-15/1_n.jpg' +
+    '?stp=dst-jpg_e35&_nc_ht=scontent-fra5-2.cdninstagram.com&_nc_cat=110' +
+    '&_nc_ohc=AbCdEf&_nc_oc=Q6cZ&_nc_gid=GGG&_nc_sid=SSS&oh=00_AfDeadBeef&oe=68B2C3D4';
+
+  it('removes the signature, expiry and per-session tokens', () => {
+    const out = stripUrlSecrets(SIGNED);
+    for (const p of ['oh=', 'oe=', '_nc_ohc=', '_nc_oc=', '_nc_gid=', '_nc_sid=']) {
+      expect(out).not.toContain(p);
+    }
+  });
+
+  it('keeps the non-secret size and edge hints', () => {
+    const out = stripUrlSecrets(SIGNED);
+    expect(out).toContain('stp=dst-jpg_e35');
+    expect(out).toContain('_nc_cat=110');
+    expect(out).toContain('/v/t51.2885-15/1_n.jpg');
+  });
+
+  it('applies to *.fbcdn.net too, and to no other host', () => {
+    expect(stripUrlSecrets('https://scontent.xx.fbcdn.net/v/x.jpg?oh=00_A&oe=68B2C3D4')).not.toContain('oh=');
+    expect(stripUrlSecrets('https://cdn.example.com/x.jpg?oh=00_A&oe=68B2C3D4')).toContain('oh=');
+  });
+});

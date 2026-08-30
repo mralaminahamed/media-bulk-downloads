@@ -7,7 +7,6 @@ import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { hostFromUrl, registrableDomain, todayISO } from '@mbd/core/collection/paths';
 import { requestCaptureStream } from '@/extension/shared/active-tab/capture-stream-active';
 import { isSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
-import { stripUrlSecrets } from '@mbd/core/net/url-secrets';
 import { copyText, downloadText, mapWithConcurrency, sendRuntimeMessage } from '@/extension/popup/utils';
 import { downloadable } from '@/extension/popup/lib/appHelpers';
 
@@ -259,7 +258,11 @@ export function useDownloadActions({
   };
 
   const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
-  const linkList = (images: ImageInfo[]): string => images.map((i) => stripUrlSecrets(i.src)).join('\n');
+  // The raw URL — this surface exists to hand the user a link they can open or
+  // feed to a downloader, and a signed CDN URL with its signature stripped is a
+  // guaranteed 403. Disk/sharing surfaces (backup, sidecar, the yt-dlp command)
+  // still go through stripUrlSecrets.
+  const linkList = (images: ImageInfo[]): string => images.map((i) => i.src).join('\n');
   const linksFileName = (url?: string): string => {
     const domain = registrableDomain(hostFromUrl(url));
     return `${domain ? `${domain}-` : ''}media-links-${todayISO()}.txt`;
