@@ -258,3 +258,14 @@ describe('extractIgMedia', () => {
     expect(extractIgMedia({ a: { b: { c: {} } } })).toEqual([]);
   });
 });
+
+describe('pinIgUrl — &amp;-escaped payloads', () => {
+  it('rejects a url whose query carries an amp;-prefixed parameter name', () => {
+    expect(pinIgUrl('https://scontent.cdninstagram.com/v/a.jpg?stp=x&amp;oh=00_A&amp;oe=68B2C3D4')).toBeNull();
+  });
+
+  it('still accepts a normally-encoded url', () => {
+    const u = 'https://scontent.cdninstagram.com/v/a.jpg?stp=x&oh=00_A&oe=68B2C3D4';
+    expect(pinIgUrl(u)).toBe(u);
+  });
+});

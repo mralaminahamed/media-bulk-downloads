@@ -3,7 +3,7 @@ import { filterImagesBySettings, filterExcluded, isPendingOrStream } from '@mbd/
 import { newCaptureRunId } from '@/extension/shared/active-tab/capture-stream-active';
 import { addFavourite } from '@mbd/storage/favourites';
 import { currentSettings, excludedCache, settingsReady, excludedReady } from '@/extension/background/state';
-import { downloadAndRecord } from '@/extension/background/download/downloads';
+import { enqueueMedia } from '@/extension/background/download/enqueue-media';
 import { captureStreamToFile, captureRunTabs } from '@/extension/background/download/capture';
 import { MENU, mediaFromContext } from '@/extension/background/context-menu';
 
@@ -25,7 +25,7 @@ export function downloadAllForTab(tab?: chrome.tabs.Tab): void {
       const eligible = filterExcluded(filterImagesBySettings(images, currentSettings), excludedCache);
       const streams = eligible.filter((i) => i.hlsManifest);
       const regular = eligible.filter((i) => !isPendingOrStream(i));
-      if (regular.length) void downloadAndRecord(regular, sourcePage, { skipDuplicates: currentSettings.skipDuplicateDownloads });
+      if (regular.length) void enqueueMedia(regular, sourcePage, { skipDuplicates: currentSettings.skipDuplicateDownloads });
       const captureOne = (s: ImageInfo): Promise<unknown> => {
         const runId = newCaptureRunId();
         captureRunTabs.set(runId, tabId);
@@ -60,7 +60,7 @@ export function onContextMenuClick(info: chrome.contextMenus.OnClickData, tab?: 
 
   if (info.menuItemId === MENU.downloadImage || info.menuItemId === MENU.downloadMedia) {
     const media = mediaFromContext(info);
-    if (media) void settingsReady.then(() => downloadAndRecord([media], sourcePage, { skipDuplicates: false }));
+    if (media) void settingsReady.then(() => enqueueMedia([media], sourcePage));
     return;
   }
 

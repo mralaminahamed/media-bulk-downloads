@@ -5,6 +5,8 @@ import {
   type EnqueueEntry, type QueueState, type QueueItem,
 } from '@mbd/storage/download-queue';
 import { recordDownloads } from '@mbd/storage/history';
+import { isLeaseExpired } from '@mbd/core/net/url-lease';
+import { notifyBatchDone } from '@/extension/background/download/downloads';
 import { applyRefererRule, removeRefererRule, hasDnrPermission } from '@/extension/background/download/hotlink-rewrite';
 import { scheduleSidecar } from '@/extension/background/download/sidecar-writer';
 import { platform } from '@/extension/platform';
@@ -50,12 +52,29 @@ export function initQueueDispatcher(d: Deps): void {
   });
 }
 
-export async function enqueueDownloads(entries: EnqueueEntry[]): Promise<number> {
+/** Batch outcome accumulated across the whole queue drain, so the completion
+ *  toast reports what actually happened rather than what was dispatched. The
+ *  keyboard/context-menu surface used to notify off the dispatch count. */
+let batch = { done: 0, failed: 0, skipped: 0 };
+
+async function notifyIfDrained(): Promise<void> {
+  if (batch.done === 0 && batch.failed === 0 && batch.skipped === 0) return;
+  let s: QueueState;
+  try { s = await loadQueue(); } catch { return; }
+  if (s.items.some((i) => i.status === 'queued' || i.status === 'active')) return;
+  const { done, failed, skipped } = batch;
+  batch = { done: 0, failed: 0, skipped: 0 };
+  notifyBatchDone({ total: done + failed, succeeded: done, failed, skipped });
+}
+
+export async function enqueueDownloads(entries: EnqueueEntry[], skipped = 0): Promise<number> {
+  batch.skipped += skipped;
   const added = await withState(async (s) => {
     const next = enqueue(s, entries, Date.now());
     return { state: next, value: next.items.length - s.items.length };
   });
   void pump();
+  if (added === 0) void notifyIfDrained();
   return added;
 }
 
@@ -67,6 +86,16 @@ export async function pump(): Promise<void> {
       return c ? { state: c.state, value: c.item } : { state: s, value: null };
     });
     if (!claimed) break;
+    // A lapsed signed URL is a guaranteed 403 — fail it here rather than
+    // spending a request and MAX_ATTEMPTS of backoff on it.
+    if (isLeaseExpired(claimed.expiresAt, Date.now())) {
+      await withState(async (s) => ({
+        state: markFailed(s, claimed.id, 'Link expired', { expired: true }),
+        value: null,
+      }));
+      batch.failed++;
+      continue;
+    }
     let ruleId: number | undefined;
     if (claimed.useReferer) {
       try {
@@ -118,13 +147,17 @@ export async function handleDownloadChanged(change: DownloadChange): Promise<voi
   const errCode = current === 'interrupted' ? await interruptError(change) : undefined;
   const forbidden = errCode === 'SERVER_FORBIDDEN';
   const cancelled = errCode === 'USER_CANCELED';
-  const rewrite = forbidden && !item.useReferer && (await hasDnrPermission());
+  // A 403 on a lapsed lease is expiry, not hotlink protection — a Referer
+  // rewrite cannot help, so never arm one and never offer the retry.
+  const expired = forbidden && isLeaseExpired(item.expiresAt, Date.now());
+  const rewrite = forbidden && !expired && !item.useReferer && (await hasDnrPermission());
 
   const done = await withState(async (s) => {
     const cur = s.items.find((i) => i.id === item.id && i.status === 'active');
     if (!cur) return { state: s, value: null };
     if (current === 'complete') return { state: markDone(s, cur.id), value: cur };
     if (forbidden) {
+      if (expired) return { state: markFailed(s, cur.id, 'Link expired', { expired: true }), value: null };
       if (rewrite) {
         const items = s.items.map((i) =>
           i.id === cur.id
@@ -136,7 +169,7 @@ export async function handleDownloadChanged(change: DownloadChange): Promise<voi
         );
         return { state: { ...s, items }, value: null };
       }
-      return { state: markFailed(s, cur.id, 'SERVER_FORBIDDEN', true), value: null };
+      return { state: markFailed(s, cur.id, 'SERVER_FORBIDDEN', { hotlink: true }), value: null };
     }
     if (cancelled) return { state: markFailed(s, cur.id, 'Cancelled'), value: null };
     return { state: scheduleRetry(s, cur.id, Date.now()), value: null };
@@ -146,7 +179,14 @@ export async function handleDownloadChanged(change: DownloadChange): Promise<voi
   if (done?.history) {
     void recordDownloads([{ ...done.history, time: Date.now(), downloadId: change.id }]);
   }
+  const settled = await loadQueue();
+  const after = settled.items.find((i) => i.id === item.id);
+  if (after?.status === 'done') batch.done++;
+  else if (after?.status === 'failed') batch.failed++;
+  // Never await pump() here: it resolves only once the backend's download
+  // callback fires, which for a caller awaiting this handler is a deadlock.
   void pump();
+  void notifyIfDrained();
 }
 
 let nudgeTimer: ReturnType<typeof setTimeout> | null = null;

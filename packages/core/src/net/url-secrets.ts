@@ -17,6 +17,14 @@ const SECRET_PARAM_PREFIX = /^(?:x-amz-|x-goog-)/i;
 
 const HOST_SCOPED_SECRETS: ReadonlyArray<{ host: RegExp; params: ReadonlySet<string> }> = [
   { host: /(?:^|\.)sankakucomplex\.com$/i, params: new Set(['e', 'm']) },
+  // Facebook/Instagram sign each media URL with `oh` (HMAC) + `oe` (hex-seconds
+  // expiry) and tag it with per-session/per-viewer ids. None match the generic
+  // patterns above, so they survived into backups and sidecars. `stp` (size
+  // token), `_nc_ht` and `_nc_cat` (edge hints) carry nothing secret — kept.
+  {
+    host: /(?:^|\.)(?:fbcdn\.net|cdninstagram\.com)$/i,
+    params: new Set(['oh', 'oe', '_nc_ohc', '_nc_oc', '_nc_gid', '_nc_sid']),
+  },
 ];
 
 const isSecretParam = (name: string): boolean =>

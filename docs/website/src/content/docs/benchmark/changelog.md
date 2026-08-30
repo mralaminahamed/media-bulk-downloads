@@ -421,6 +421,15 @@ Corrected:
 - 🔧 **YouTube** — `→maxresdefault` replaced a working `hqdefault` with a dead link when maxres was absent (404, common). Now upgrades only small thumbs → `hqdefault`, the always-present max; existing
   hq/sd/maxres are left as the page served them.
 - 🔧 **BBC** — the width rewrite targeted `1920`, which **404s on the `/news/` path**; now targets `2048` (served on both `/news/` and `/ace/standard/`).
+- 🔧 **Facebook / Instagram are NOT referer-locked (2026-08-30)** — three places in the code asserted that `*.fbcdn.net` / `*.cdninstagram.com` media 403s
+  without the page's `Referer`, and a UI fix shipped on that premise told the user a broken tile "still downloads correctly". **Measured 2026-08-30** against
+  live signed `*.cdninstagram.com` URLs, requested from an unrelated origin with `referrerPolicy: no-referrer` and `credentials: omit`: the pristine URL
+  returned **200, 33 338 bytes**, and rendered as an `<img>` at 1920×790. Tampering `oh`, back-dating `oe`, pushing `oe` further out, removing both, or forging
+  a larger `stp` each fail. These URLs are self-authenticating by design so they survive hotlinking until `oe`; the only failure modes are a tampered
+  signature, a lapsed `oe`, and a forged size token. The real cause of broken FB/IG tiles is **expiry**, worst in History/Favourites, which hold a `src`
+  indefinitely. Fixed by reading the expiry as a first-class value (`@mbd/core/net/url-lease.ts`) and carrying it to every surface — see
+  [the collection pipeline](/media-bulk-downloads/how-it-works/collection-pipeline/#signed-url-leases). The `declarativeNetRequest` referer machinery is kept
+  for CDNs where hotlink blocking is actually demonstrated, but it does nothing for FB/IG.
 
 Reverted:
 

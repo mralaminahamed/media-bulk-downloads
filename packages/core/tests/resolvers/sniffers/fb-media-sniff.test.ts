@@ -214,3 +214,14 @@ describe('extractFbMedia — UI-chrome rejection (discovery-spike reconciliation
     expect(imgs[0].url).toContain('vi_n.jpg');
   });
 });
+
+describe('pinFbUrl — &amp;-escaped payloads', () => {
+  it('rejects a url whose query carries an amp;-prefixed parameter name', () => {
+    expect(pinFbUrl('https://scontent.xx.fbcdn.net/v/a.jpg?stp=x&amp;oh=00_A&amp;oe=68B2C3D4')).toBeNull();
+  });
+
+  it('still accepts a normally-encoded url', () => {
+    const u = 'https://scontent.xx.fbcdn.net/v/a.jpg?stp=x&oh=00_A&oe=68B2C3D4';
+    expect(pinFbUrl(u)).toBe(u);
+  });
+});

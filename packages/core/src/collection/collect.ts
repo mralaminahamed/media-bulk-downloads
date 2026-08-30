@@ -16,6 +16,7 @@ import { classifyPage, collectPageSignals } from '@mbd/core/collection/pageType'
 import { detectAvType, isUndownloadableMedia, isHlsManifest, isDashManifest } from '@mbd/core/collection/mediaType';
 import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates, bestSrcsetUrl } from '@mbd/core/collection/extract';
 import { canonicalSrcKey } from '@mbd/core/collection/canonical';
+import { readUrlLease } from '@mbd/core/net/url-lease';
 import { resolve, MediaCandidate } from '@mbd/core/resolvers';
 import { twitterGifCandidate, twitterVideoPending } from '@mbd/core/resolvers/sites/twitter';
 import { instagramPageMedia } from '@mbd/core/resolvers/sites/instagram';
@@ -1011,5 +1012,11 @@ export function collectMedia(
     }
   }
 
+  // Stamp the signed-URL lease once, over every push path (resolver candidate,
+  // sniffed manifest, plain <img>/<video>), so no collection route can forget it.
+  for (const item of media) {
+    const lease = readUrlLease(item.src);
+    if (lease) item.expiresAt = lease.expiresAt;
+  }
   return media;
 }

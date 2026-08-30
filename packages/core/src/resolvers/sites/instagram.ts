@@ -4,7 +4,11 @@ import { IgMediaEntry, extractIgMedia, shortcodeFromUrl, pinIgUrl } from '@mbd/c
 /**
  * Instagram resolver. Instagram serves images/videos from signed CDNs
  * (`*.cdninstagram.com`, `*.fbcdn.net`) whose `stp` size token is covered by the
- * `oh` signature — rewriting a thumbnail to a bigger size returns 403. But the
+ * `oh` signature — rewriting a thumbnail to a bigger size returns 403. The
+ * signature also carries an `oe` expiry; measured 2026-08-30, an unexpired
+ * signed URL serves 200 from any origin with no Referer and no cookies, so
+ * these URLs are NOT hotlink-protected — they simply die at `oe`
+ * (see @mbd/core/net/url-lease). But the
  * page ships every post's full media graph (largest `image_versions2.candidates`
  * and real `video_versions` mp4s) inside its own `<script type="application/json">`
  * hydration, and in the GraphQL/api responses it fetches on scroll (captured by
@@ -112,6 +116,19 @@ function codeFromContext(ctx: ResolveContext): string | null {
   return shortcodeFromUrl(ctx.pageUrl);
 }
 
+/** IG names every CDN object `<mediaId>_<n>_<owner>_n.<ext>`. When an entry
+ *  arrives without a `pk` (common for hydration blobs and some api shapes) that
+ *  leading id is still a stable per-media identity, so a rotating CDN edge
+ *  serving the same photo twice dedupes instead of duplicating the row. */
+function mediaIdFromCdnPath(url: string): string | null {
+  try {
+    const base = new URL(url).pathname.split('/').pop() ?? '';
+    return /^(\d{6,})_/.exec(base)?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function toCandidate(e: IgMediaEntry): MediaCandidate {
   const cand: MediaCandidate = { url: e.url, kind: e.kind, ext: e.ext };
   if (typeof e.width === 'number') cand.width = e.width;
@@ -120,7 +137,8 @@ function toCandidate(e: IgMediaEntry): MediaCandidate {
   if (e.pending) cand.unresolvedVideo = true;
   // Per-slide identity so the same media served at two signed URLs (page-JSON vs
   // scroll-API, or a rotating CDN edge) dedupes to one, mirroring FB's fb:<fbid>.
-  if (e.key) cand.mediaKey = `ig:${e.key}`;
+  const key = e.key ?? mediaIdFromCdnPath(e.url);
+  if (key) cand.mediaKey = `ig:${key}`;
   return cand;
 }
 

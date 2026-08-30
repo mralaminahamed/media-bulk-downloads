@@ -335,3 +335,31 @@ describe('Bug fix: push loop handles very large arrays (no RangeError)', () => {
     expect(instagramPageMedia('https://www.instagram.com/x/p/BIGCAP/')).toHaveLength(4000);
   });
 });
+
+describe('instagram mediaKey fallback (rotating-CDN dedupe)', () => {
+  beforeEach(() => { __resetIgResolver(); });
+
+  it('derives a mediaKey from the CDN filename when the entry carries no pk', () => {
+    document.body.innerHTML = '<a href="/p/CODE1/"><img id="t" src="https://scontent.cdninstagram.com/v/t51/thumb.jpg"></a>';
+    ingestSniffedIgMedia([
+      { code: 'CODE1', kind: 'image', url: 'https://scontent.cdninstagram.com/v/t51.2885-15/499123456_1_n.jpg', ext: 'jpg' },
+    ]);
+    const [cand] = instagramResolver.resolve(
+      new URL('https://scontent.cdninstagram.com/v/t51/thumb.jpg'),
+      { el: document.getElementById('t') as Element, pageUrl: 'https://www.instagram.com/p/CODE1/', allowNetwork: false },
+    );
+    expect(cand.mediaKey).toBe('ig:499123456');
+  });
+
+  it('still prefers the explicit pk when the entry has one', () => {
+    document.body.innerHTML = '<a href="/p/CODE2/"><img id="t2" src="https://scontent.cdninstagram.com/v/t51/thumb.jpg"></a>';
+    ingestSniffedIgMedia([
+      { code: 'CODE2', kind: 'image', url: 'https://scontent.cdninstagram.com/v/t51/999_1_n.jpg', ext: 'jpg', key: '42_7' },
+    ]);
+    const [cand] = instagramResolver.resolve(
+      new URL('https://scontent.cdninstagram.com/v/t51/thumb.jpg'),
+      { el: document.getElementById('t2') as Element, pageUrl: 'https://www.instagram.com/p/CODE2/', allowNetwork: false },
+    );
+    expect(cand.mediaKey).toBe('ig:42_7');
+  });
+});

@@ -7,9 +7,6 @@ import {
   ListVariantsResult,
 } from '@mbd/core/types';
 import { filterImagesBySettings, filterExcluded } from '@mbd/core/collection/filters';
-import { buildDownloadFilename } from '@mbd/core/collection/download-name';
-import { partitionByDownloaded, uniquifyBatchNames } from '@mbd/core/collection/download-dedupe';
-import { downloadedOnDiskKeys } from '@/extension/background/download/downloaded-keys';
 import { textToBase64 } from '@mbd/core/download/base64';
 import { buildMediaSidecar, serializeSidecar } from '@mbd/core/download/metadata-sidecar';
 import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk, DiskState } from '@mbd/storage/history';
@@ -23,12 +20,13 @@ import { variantsFromMaster, variantsFromMpd } from '@mbd/core/download/stream/v
 import { assertSafeCaptureUrl } from '@mbd/core/download/stream/ssrf-guard';
 import { readBoundedText } from '@mbd/core/download/stream/bounded-fetch';
 import {
-  enqueueDownloads, pauseQueue, resumeQueue, cancelQueue, retryQueueItem, getQueueSnapshot,
+  pauseQueue, resumeQueue, cancelQueue, retryQueueItem, getQueueSnapshot,
   clearFinishedQueue, retryAllFailedQueue, openQueueItem,
 } from '@/extension/background/download/download-queue';
+import { enqueueMedia } from '@/extension/background/download/enqueue-media';
 import { scheduleSidecar } from '@/extension/background/download/sidecar-writer';
 import { platform } from '@/extension/platform';
-import type { HistoryDraft, EnqueueEntry, QueueState } from '@mbd/storage/download-queue';
+import type { QueueState } from '@mbd/storage/download-queue';
 import { currentSettings, excludedCache, settingsReady, excludedReady, writeSettingsPatch } from '@/extension/background/state';
 import { storeSniffedMedia, snifferByTab, resolveOriginalsBatch } from '@/extension/background/sniffer-store';
 import { captureStreamToFile, captureRunTabs } from '@/extension/background/download/capture';
@@ -96,35 +94,9 @@ export const messageRouter: MessageRouter = {
           ? images
           : filterExcluded(filterImagesBySettings(images, currentSettings), excludedCache);
 
-        let skipped = 0;
-        let toDownload = eligible;
-        if (!message.explicit && currentSettings.skipDuplicateDownloads) {
-          const onDiskKeys = await downloadedOnDiskKeys();
-          const part = partitionByDownloaded(eligible, onDiskKeys);
-          toDownload = part.keep;
-          skipped = part.skipped.length;
-        }
-
-        const paths = uniquifyBatchNames(
-          toDownload.map((image, index) => buildDownloadFilename(image, index, currentSettings, sourcePage?.url)),
-        );
-        const capturedAt = new Date().toISOString();
-        const entries: EnqueueEntry[] = toDownload.map((image, i) => {
-          const filename = paths[i];
-          const history: HistoryDraft = {
-            src: image.src,
-            filename: filename.split('/').pop() ?? filename,
-            kind: image.kind,
-            type: image.type,
-            thumbnailSrc: image.thumbnailSrc ?? image.poster ?? image.src,
-            sourcePageUrl: image.sourcePage?.url ?? sourcePage?.url ?? '',
-            sourcePageTitle: image.sourcePage?.title ?? sourcePage?.title,
-          };
-          const entry: EnqueueEntry = { url: image.src, filename, history };
-          if (currentSettings.metadataSidecar) entry.sidecar = serializeSidecar(buildMediaSidecar(image, image.sourcePage ?? sourcePage, capturedAt));
-          return entry;
+        const { queued, skipped } = await enqueueMedia(eligible, sourcePage, {
+          skipDuplicates: !message.explicit && currentSettings.skipDuplicateDownloads,
         });
-        const queued = await enqueueDownloads(entries);
         respond({ status: 'success', message: queuedSkipMessage(queued, skipped) });
       } catch (e) {
         respond({ status: 'error', message: `Queue failed: ${e instanceof Error ? e.message : 'unknown error'}` });

@@ -36,7 +36,18 @@ describe('ImageList Component', () => {
     fireEvent.click(screen.getByTitle('View Details'));
     const dialogImg = within(screen.getByRole('dialog')).getByAltText('Test Image 1');
     fireEvent.error(dialogImg); // no fallbackSrc on this fixture → gives up immediately
-    expect(screen.getByText(/still downloads correctly/i)).toBeInTheDocument();
+    expect(screen.getByText(/can.t preview this here/i)).toBeInTheDocument();
+    // Must NOT promise a download it can't guarantee (the pre-lease copy did).
+    expect(screen.queryByText(/still downloads correctly/i)).not.toBeInTheDocument();
+  });
+
+  it('says the link expired, not that it still downloads, once the lease has lapsed', () => {
+    const expired = { ...mockImages[0], expiresAt: Date.UTC(2020, 0, 1) };
+    render(<ImageList images={[expired]} onImageDownload={vi.fn()} />);
+    fireEvent.click(screen.getByTitle('View Details'));
+    const dialogImg = within(screen.getByRole('dialog')).getByAltText('Test Image 1');
+    fireEvent.error(dialogImg);
+    expect(screen.getByText(/signature has expired/i)).toBeInTheDocument();
   });
 
   it('calls onImageDownload when download button is clicked', () => {

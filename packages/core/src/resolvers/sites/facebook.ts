@@ -3,12 +3,17 @@ import { FbMediaEntry, pinFbUrl, fbidFromUrl, extractFbMedia } from '@mbd/core/r
 
 /**
  * Facebook resolver. FB serves media from signed CDNs (*.fbcdn.net,
- * *.cdninstagram.com) whose size token is covered by the URL signature, so a
- * thumbnail cannot be rewritten to its original. The page already ships each
- * photo/video's real URL inside its GraphQL responses and hydration JSON,
- * captured by the MAIN-world `fb-media-sniffer` and fed here via
- * `ingestSniffedFbMedia`, plus this module's own read of embedded
- * `<script type="application/json">` hydration blocks.
+ * *.cdninstagram.com): `oh` is an HMAC over the whole URL and `oe` a hex-seconds
+ * expiry, so a thumbnail's `stp` size token cannot be rewritten to its original.
+ * Measured 2026-08-30: an intact, unexpired signed URL serves 200 from ANY
+ * origin with no Referer and no cookies — these URLs are not hotlink-protected,
+ * and the only failure modes are a tampered signature and a lapsed `oe`. Expiry
+ * is read back out by `readUrlLease` (@mbd/core/net/url-lease).
+ *
+ * The page already ships each photo/video's real URL inside its GraphQL
+ * responses and hydration JSON, captured by the MAIN-world `fb-media-sniffer`
+ * and fed here via `ingestSniffedFbMedia`, plus this module's own read of
+ * embedded `<script type="application/json">` hydration blocks.
  *
  * So we never forge a URL: given a tile, we find its owner fbid (from the
  * enclosing photo/video/watch/reel link, else the page URL) and return every

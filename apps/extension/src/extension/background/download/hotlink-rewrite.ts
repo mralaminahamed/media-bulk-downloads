@@ -1,10 +1,16 @@
 /**
- * Hotlink 403 fix (#197). Many CDNs return 403 to a media request whose `Referer`
+ * Hotlink 403 fix (#197). Some CDNs return 403 to a media request whose `Referer`
  * doesn't match the origin site; extension downloads carry none. When a queued
  * download 403s, the dispatcher installs a short-lived `declarativeNetRequest`
  * session rule that sets `Referer` (and `Origin`) to the item's source page for
  * that one URL, retries, then tears the rule down. Restores access to media the
  * user can already view — not an auth/paywall bypass.
+ *
+ * NOT the fix for Facebook/Instagram. Measured 2026-08-30: signed fbcdn /
+ * cdninstagram URLs are self-authenticating and serve from any origin with no
+ * Referer at all — their 403s are signature expiry, which a Referer cannot
+ * repair. The queue routes an expired item down the `expired` path instead and
+ * never arms a rule for it (see @mbd/core/net/url-lease).
  *
  * `declarativeNetRequestWithHostAccess` is an OPTIONAL permission: the request must come from a
  * user gesture (the popup's "Retry with page referer"), never the background SW.

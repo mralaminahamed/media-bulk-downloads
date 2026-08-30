@@ -979,3 +979,30 @@ describe('collectMedia excludeHostId', () => {
     expect(srcs).not.toContain('https://example.com/unsafe-host.jpg');
   });
 });
+
+describe('collectMedia — signed-URL lease', () => {
+  /** 2027-01-01T00:00:00Z as fbcdn writes it: lower-case hex seconds. */
+  const OE = Math.floor(Date.UTC(2027, 0, 1) / 1000).toString(16);
+
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('stamps expiresAt on a collected image served from a signed CDN', () => {
+    document.body.innerHTML = `<img src="https://scontent.xx.fbcdn.net/v/t39/a.jpg?oh=00_Ab&oe=${OE}" width="800" height="600">`;
+    const [img] = collectMedia();
+    expect(img.expiresAt).toBe(parseInt(OE, 16) * 1000);
+  });
+
+  it('stamps expiresAt on a collected video too', () => {
+    document.body.innerHTML = `<video src="https://scontent.xx.fbcdn.net/v/t39/a.mp4?oh=00_Ab&oe=${OE}"></video>`;
+    const [vid] = collectMedia();
+    expect(vid.kind).toBe('video');
+    expect(vid.expiresAt).toBe(parseInt(OE, 16) * 1000);
+  });
+
+  it('omits the field entirely for an unsigned URL', () => {
+    document.body.innerHTML = '<img src="https://example.com/plain.jpg" width="800" height="600">';
+    const [img] = collectMedia();
+    expect(img.expiresAt).toBeUndefined();
+    expect('expiresAt' in img).toBe(false);
+  });
+});

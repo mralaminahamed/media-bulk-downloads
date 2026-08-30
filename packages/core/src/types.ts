@@ -65,6 +65,10 @@ export interface ImageInfo {
    *  Drives per-item `{host}`/`{domain}` download tokens and the grid's source
    *  tooltip. Absent for single active-tab collection (that path is unchanged). */
   sourcePage?: { url: string; title?: string };
+  /** Epoch ms at which `src`'s CDN signature stops being honoured, read by
+   *  `readUrlLease` at collection time. Absent for the overwhelmingly common
+   *  unsigned URL; a lapsed value means the URL is permanently dead. */
+  expiresAt?: number;
 }
 
 /** Preferred name for a collected media item (image, video, or audio). */
@@ -99,6 +103,15 @@ export interface HistoryEntry {
   /** chrome.downloads id — enables "open file" / "reveal in folder". Absent on
    *  entries recorded before this was tracked, and on failed downloads. */
   downloadId?: number;
+  /** See ImageInfo.expiresAt. History is the longest-lived holder of a signed
+   *  URL, so this is where a lapsed lease shows up first. */
+  expiresAt?: number;
+  /** Resolver-supplied cross-rendition identity (`fb:<fbid>`, `ig:<pk>`), kept
+   *  so a restored backup can be matched back to freshly-collected media. */
+  mediaKey?: string;
+  /** This entry came from a backup whose `src` had its signing tokens stripped
+   *  on export — the URL is no longer a working download target. */
+  srcRedacted?: boolean;
 }
 
 export interface FavouriteEntry {
@@ -109,6 +122,10 @@ export interface FavouriteEntry {
   sourcePageUrl: string;
   sourcePageTitle?: string;
   time: number;
+  /** See HistoryEntry.expiresAt / mediaKey / srcRedacted. */
+  expiresAt?: number;
+  mediaKey?: string;
+  srcRedacted?: boolean;
 }
 
 export type ExcludedKind = 'url' | 'host';

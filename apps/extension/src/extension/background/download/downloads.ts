@@ -1,81 +1,16 @@
-import { HistoryEntry, ImageInfo } from '@mbd/core/types';
-import { buildDownloadFilename } from '@mbd/core/collection/download-name';
-import { partitionByDownloaded, uniquifyBatchNames } from '@mbd/core/collection/download-dedupe';
-import { buildMediaSidecar, serializeSidecar } from '@mbd/core/download/metadata-sidecar';
-import { recordDownloads } from '@mbd/storage/history';
 import { currentSettings } from '@/extension/background/state';
-import { downloadedOnDiskKeys } from '@/extension/background/download/downloaded-keys';
-import { scheduleSidecar } from '@/extension/background/download/sidecar-writer';
 import { platform } from '@/extension/platform';
 
-/**
- * Downloads each eligible image and records the successful ones to history,
- * tagged with the source page they came from. Failures (a Chrome-reported
- * `lastError`, or no `downloadId`) are silently skipped — nothing is recorded
- * for them.
- */
-/** Outcome of a download batch, used to report the real status to the popup. */
+/** Outcome of a download batch, used to report the real status to the user. */
 export interface DownloadResult {
-  /** How many items were actually attempted (eligible, after any duplicate skip). */
+  /** How many items reached a terminal state (done + failed). */
   total: number;
-  /** How many downloads chrome actually started (returned a downloadId). */
+  /** How many actually finished downloading. */
   succeeded: number;
-  /** How many failed to start (no id / runtime.lastError). */
+  /** How many ended failed. */
   failed: number;
   /** How many were skipped as already-on-disk duplicates. */
   skipped: number;
-}
-
-export async function downloadAndRecord(
-  eligible: ImageInfo[],
-  sourcePage: { url: string; title?: string } | undefined,
-  opts: { skipDuplicates?: boolean } = {},
-): Promise<DownloadResult> {
-  let toDownload = eligible;
-  let skipped = 0;
-  if (opts.skipDuplicates) {
-    const onDiskKeys = await downloadedOnDiskKeys();
-    const part = partitionByDownloaded(eligible, onDiskKeys);
-    toDownload = part.keep;
-    skipped = part.skipped.length;
-  }
-  const paths = uniquifyBatchNames(
-    toDownload.map((image, index) => buildDownloadFilename(image, index, currentSettings, sourcePage?.url)),
-  );
-  const capturedAt = new Date().toISOString();
-  const entries = await Promise.all(
-    toDownload.map(async (image, index): Promise<HistoryEntry | null> => {
-      const filename = paths[index];
-      const downloadId = await platform.downloader.download(
-        { url: image.src, filename, saveAs: currentSettings.saveAs, conflictAction: 'uniquify' },
-      );
-      if (downloadId === undefined) return null;
-      if (currentSettings.metadataSidecar) {
-        scheduleSidecar(downloadId, filename, serializeSidecar(buildMediaSidecar(image, sourcePage, capturedAt)));
-      }
-      return {
-        src: image.src,
-        filename: filename.split('/').pop() ?? filename,
-        kind: image.kind,
-        type: image.type,
-        thumbnailSrc: image.thumbnailSrc ?? image.poster ?? image.src,
-        sourcePageUrl: image.sourcePage?.url ?? sourcePage?.url ?? '',
-        sourcePageTitle: image.sourcePage?.title ?? sourcePage?.title,
-        time: Date.now(),
-        downloadId,
-      };
-    }),
-  );
-  const recorded = entries.filter((e): e is HistoryEntry => e !== null);
-  await recordDownloads(recorded);
-  const result: DownloadResult = {
-    total: toDownload.length,
-    succeeded: recorded.length,
-    failed: toDownload.length - recorded.length,
-    skipped,
-  };
-  notifyBatchDone(result);
-  return result;
 }
 
 /** `1 file` / `N files` — correct singular/plural for a count. */

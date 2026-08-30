@@ -24,12 +24,33 @@ import {
   originalNameFromUrl,
   DEFAULT_SETTINGS,
   resolveOriginalsBatch,
-  downloadAndRecord,
+  buildEnqueueEntries,
   downloadStatusMessage,
+  notifyBatchDone,
   setupContextMenus,
   mediaFromContext,
 } from '@/extension/background';
 import { CaptureRunResult, ImageInfo, SettingsData } from '@mbd/core/types';
+
+/** The download path is now async through the queue (load → enqueue → save →
+ *  pump → dispatch), so a single microtask turn is no longer enough. */
+const settleQueue = async (turns = 8): Promise<void> => {
+  for (let i = 0; i < turns; i++) await new Promise((r) => setTimeout(r, 0));
+};
+
+/** chrome.storage.local backed by a real in-memory object — the queue reads back
+ *  what it just wrote, so a flat mockResolvedValue would strand every item. */
+const mockLocalStore = (initial: Record<string, unknown> = {}): Record<string, unknown> => {
+  const store: Record<string, unknown> = { ...initial };
+  (chrome.storage.local.get as Mock).mockReset().mockImplementation(async (keys?: unknown) => {
+    if (typeof keys === 'string') return keys in store ? { [keys]: store[keys] } : {};
+    return { ...store };
+  });
+  (chrome.storage.local.set as Mock).mockReset().mockImplementation(async (o: Record<string, unknown>) => {
+    Object.assign(store, o);
+  });
+  return store;
+};
 
 const messageHandler = (global.chrome.runtime.onMessage.addListener as Mock).mock.calls[0][0];
 const contextMenuHandler = (global.chrome.contextMenus.onClicked.addListener as Mock).mock.calls[0][0];
@@ -597,9 +618,8 @@ describe('GET_DOWNLOADED_SRCS handler', () => {
   });
 });
 
-describe('downloadAndRecord', () => {
+describe('buildEnqueueEntries', () => {
   beforeEach(() => {
-    (chrome.downloads.download as Mock).mockReset();
     (chrome.storage.local.get as Mock).mockReset().mockResolvedValue({ downloadHistory: [] });
     (chrome.storage.local.set as Mock).mockReset().mockResolvedValue(undefined);
   });
@@ -607,77 +627,63 @@ describe('downloadAndRecord', () => {
   const img = (src: string) =>
     ({ src, alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' as const });
 
-  it('records one entry per successful download with the source page', async () => {
-    (chrome.downloads.download as Mock).mockImplementation((_opts, cb) => cb(42));
-    await downloadAndRecord([img('https://c/a.jpg')], { url: 'https://page', title: 'T' });
-    const written = (chrome.storage.local.set as Mock).mock.calls[0][0].downloadHistory;
-    expect(written).toHaveLength(1);
-    expect(written[0]).toMatchObject({ src: 'https://c/a.jpg', kind: 'image', sourcePageUrl: 'https://page', sourcePageTitle: 'T', downloadId: 42 });
-  });
-
-  it('passes the settings-derived filename, saveAs, and conflictAction to chrome.downloads', async () => {
-    (chrome.downloads.download as Mock).mockImplementation((_opts, cb) => cb(1));
-    await downloadAndRecord([img('https://c/a.jpg')], undefined);
-    expect(chrome.downloads.download).toHaveBeenCalledWith(
-      expect.objectContaining({ url: 'https://c/a.jpg', filename: 'image_1.jpg', saveAs: false, conflictAction: 'uniquify' }),
-      expect.any(Function),
-    );
-  });
-
-  it('does not record a failed download', async () => {
-    (chrome.downloads.download as Mock).mockImplementation((_opts, cb) => {
-      (chrome.runtime as unknown as { lastError?: unknown }).lastError = { message: 'x' };
-      cb(undefined);
-      (chrome.runtime as unknown as { lastError?: unknown }).lastError = undefined;
+  it('builds one queue entry per item, carrying the source page into the history draft', async () => {
+    const { entries } = await buildEnqueueEntries([img('https://c/a.jpg')], { url: 'https://page', title: 'T' });
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ url: 'https://c/a.jpg', filename: 'image_1.jpg' });
+    expect(entries[0].history).toMatchObject({
+      src: 'https://c/a.jpg', kind: 'image', sourcePageUrl: 'https://page', sourcePageTitle: 'T',
     });
-    await downloadAndRecord([img('https://c/b.jpg')], undefined);
-    expect(chrome.storage.local.set as Mock).not.toHaveBeenCalled();
   });
 
-  it('#284 (I5): schedules a sidecar for the keyboard/context-menu surface when metadataSidecar is on', async () => {
-    (scheduleSidecar as Mock).mockClear();
+  it('derives the filename from settings', async () => {
+    const { entries } = await buildEnqueueEntries([img('https://c/a.jpg')], undefined);
+    expect(entries[0].filename).toBe('image_1.jpg');
+  });
+
+  it('carries a signed URL lease onto the entry and its history draft', async () => {
+    const expiresAt = Date.UTC(2027, 0, 1);
+    const { entries } = await buildEnqueueEntries([{ ...img('https://c/a.jpg'), expiresAt }], undefined);
+    expect(entries[0].expiresAt).toBe(expiresAt);
+    expect(entries[0].history?.expiresAt).toBe(expiresAt);
+  });
+
+  it('#284 (I5): attaches a secret-free sidecar when metadataSidecar is on', async () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { metadataSidecar: true } }));
     loadSettings();
     await new Promise((r) => setTimeout(r, 0));
-    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(50));
 
-    await downloadAndRecord([img('https://c/a.jpg?token=SECRET')], { url: 'https://p', title: 'T' });
+    const { entries } = await buildEnqueueEntries([img('https://c/a.jpg?token=SECRET')], { url: 'https://p', title: 'T' });
 
-    expect(scheduleSidecar).toHaveBeenCalledWith(50, 'image_1.jpg', expect.stringContaining('"pageUrl": "https://p"'));
-    const json = (scheduleSidecar as Mock).mock.calls[0][2] as string;
-    expect(json).not.toContain('SECRET');
+    expect(entries[0].sidecar).toContain('"pageUrl": "https://p"');
+    expect(entries[0].sidecar).not.toContain('SECRET');
 
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: {} }));
     loadSettings();
     await new Promise((r) => setTimeout(r, 0));
   });
 
-  it('#284: does NOT schedule a sidecar when metadataSidecar is off (default)', async () => {
-    (scheduleSidecar as Mock).mockClear();
-    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(1));
-    await downloadAndRecord([img('https://c/a.jpg')], undefined);
-    expect(scheduleSidecar).not.toHaveBeenCalled();
+  it('#284: attaches no sidecar when metadataSidecar is off (default)', async () => {
+    const { entries } = await buildEnqueueEntries([img('https://c/a.jpg')], undefined);
+    expect(entries[0].sidecar).toBeUndefined();
   });
 
   it('skips already-downloaded srcs when skipDuplicates is set', async () => {
     vi.spyOn(dlKeys, 'downloadedOnDiskKeys').mockResolvedValue(SrcKeySet.from(['https://x/a.png']));
-    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(11));
-    const result = await downloadAndRecord(
+    const { entries, skipped } = await buildEnqueueEntries(
       [img('https://x/a.png'), img('https://x/b.png')],
       { url: 'https://p' },
       { skipDuplicates: true },
     );
-    expect(chrome.downloads.download).toHaveBeenCalledTimes(1);
-    expect(result.skipped).toBe(1);
-    expect(result.total).toBe(1);
+    expect(entries).toHaveLength(1);
+    expect(skipped).toBe(1);
   });
 
   it('does not skip when skipDuplicates is absent (default)', async () => {
     const spy = vi.spyOn(dlKeys, 'downloadedOnDiskKeys');
-    (chrome.downloads.download as Mock).mockImplementation((_o, cb) => cb(11));
-    const result = await downloadAndRecord([img('https://x/a.png')], { url: 'https://p' });
+    const { skipped } = await buildEnqueueEntries([img('https://x/a.png')], { url: 'https://p' });
     expect(spy).not.toHaveBeenCalled();
-    expect(result.skipped).toBe(0);
+    expect(skipped).toBe(0);
   });
 });
 
@@ -921,8 +927,7 @@ describe('context menu', () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({}));
     loadSettings();
     (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb(1));
-    (chrome.storage.local.get as Mock).mockReset().mockResolvedValue({ downloadHistory: [], favourites: [] });
-    (chrome.storage.local.set as Mock).mockReset().mockResolvedValue(undefined);
+    mockLocalStore({ downloadHistory: [], favourites: [] });
     (chrome.tabs.sendMessage as Mock).mockReset();
   });
 
@@ -942,7 +947,7 @@ describe('context menu', () => {
 
   it('downloads the single right-clicked image without the size filter', async () => {
     contextMenuHandler(info({ menuItemId: 'mbd-download-image', srcUrl: 'https://cdn/pic.jpg', mediaType: 'image' }), tab({ url: 'https://page', title: 'T' }));
-    await new Promise((r) => setTimeout(r, 0));
+    await settleQueue();
     expect(chrome.downloads.download).toHaveBeenCalledWith(
       expect.objectContaining({ url: expect.stringContaining('pic.jpg'), filename: expect.stringMatching(/image_1\.(jpe?g)$/) }),
       expect.any(Function),
@@ -953,7 +958,7 @@ describe('context menu', () => {
     (chrome.tabs.sendMessage as Mock).mockImplementation((_id, _msg, cb) =>
       cb([{ src: 'https://c/a.jpg', kind: 'image', type: 'jpeg', width: 0, height: 0, fileSize: 0, isBase64: false, alt: '' }]));
     contextMenuHandler(info({ menuItemId: 'mbd-download-all' }), tab({ id: 9, url: 'https://page', title: 'T' }));
-    await new Promise((r) => setTimeout(r, 0));
+    await settleQueue();
     expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(9, 'GET_IMAGES', expect.any(Function));
     expect(chrome.downloads.download).toHaveBeenCalled();
   });
@@ -973,8 +978,7 @@ describe('context menu', () => {
         { src: 'https://x/m.m3u8', hlsManifest: 'https://x/m.m3u8', type: 'm3u8', kind: 'video', width: 0, height: 0, fileSize: 0, isBase64: false, alt: '' },
       ]));
     contextMenuHandler(info({ menuItemId: 'mbd-download-all' }), tab({ id: 9, url: 'https://page', title: 'T' }));
-    await new Promise((r) => setTimeout(r, 0));
-    await new Promise((r) => setTimeout(r, 0));
+    await settleQueue();
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'CAPTURE_RUN', manifestUrl: 'https://x/m.m3u8', engine: 'hls' }),
     );
@@ -997,7 +1001,7 @@ describe('context menu', () => {
         },
       ]));
     contextMenuHandler(info({ menuItemId: 'mbd-download-all' }), tab({ id: 9, url: 'https://page', title: 'T' }));
-    await new Promise((r) => setTimeout(r, 0));
+    await settleQueue();
     const dlUrls = (chrome.downloads.download as Mock).mock.calls.map((c) => c[0].url);
     expect(dlUrls.some((u: string) => u.includes('real.jpg'))).toBe(true);
     expect(dlUrls.some((u: string) => u.includes('status/1/photo/1'))).toBe(false);
@@ -1054,8 +1058,7 @@ describe('keyboard commands', () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({}));
     loadSettings();
     (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb?.(1));
-    (chrome.storage.local.get as Mock).mockReset().mockResolvedValue({ downloadHistory: [] });
-    (chrome.storage.local.set as Mock).mockReset().mockResolvedValue(undefined);
+    mockLocalStore({ downloadHistory: [] });
     (chrome.tabs.query as Mock).mockReset();
     (chrome.tabs.sendMessage as Mock).mockReset();
   });
@@ -1065,7 +1068,7 @@ describe('keyboard commands', () => {
     (chrome.tabs.sendMessage as Mock).mockImplementation((_id, _msg, cb) =>
       cb([{ src: 'https://c/a.jpg', kind: 'image', type: 'jpeg', width: 0, height: 0, fileSize: 0, isBase64: false, alt: '' }]));
     commandHandler('download-all-media');
-    await new Promise((r) => setTimeout(r, 0));
+    await settleQueue();
     expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(3, 'GET_IMAGES', expect.any(Function));
     expect(chrome.downloads.download).toHaveBeenCalled();
   });
@@ -1077,23 +1080,29 @@ describe('keyboard commands', () => {
 });
 
 describe('completion notification', () => {
-  const img = (src: string): ImageInfo =>
-    ({ src, alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image' });
-
   beforeEach(() => {
-    (chrome.downloads.download as Mock).mockReset().mockImplementation((_o, cb) => cb(1));
-    (chrome.storage.local.get as Mock).mockReset().mockResolvedValue({ downloadHistory: [] });
-    (chrome.storage.local.set as Mock).mockReset().mockResolvedValue(undefined);
     (chrome.notifications.create as Mock).mockReset();
   });
   afterEach(() => vi.restoreAllMocks());
 
-  it('fires a toast after a batch when notifyOnComplete is on', async () => {
+  it('fires a toast for a finished batch when notifyOnComplete is on', async () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { notifyOnComplete: true } }));
     loadSettings();
-    await downloadAndRecord([img('https://c/a.jpg')], undefined);
+    await new Promise((r) => setTimeout(r, 0));
+    notifyBatchDone({ total: 1, succeeded: 1, failed: 0, skipped: 0 });
     expect(chrome.notifications.create).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'basic', title: 'Media Bulk Downloads', message: 'Downloaded 1 file.' }),
+      expect.any(Function),
+    );
+  });
+
+  it('reports a failure honestly rather than as a success', async () => {
+    (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { notifyOnComplete: true } }));
+    loadSettings();
+    await new Promise((r) => setTimeout(r, 0));
+    notifyBatchDone({ total: 1, succeeded: 0, failed: 1, skipped: 0 });
+    expect(chrome.notifications.create).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "Couldn't download 1 file." }),
       expect.any(Function),
     );
   });
@@ -1101,37 +1110,28 @@ describe('completion notification', () => {
   it('stays silent when notifyOnComplete is off', async () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { notifyOnComplete: false } }));
     loadSettings();
-    await downloadAndRecord([img('https://c/a.jpg')], undefined);
+    await new Promise((r) => setTimeout(r, 0));
+    notifyBatchDone({ total: 1, succeeded: 1, failed: 0, skipped: 0 });
     expect(chrome.notifications.create).not.toHaveBeenCalled();
   });
 
   it('swallows a lastError in the notification callback (notifications permission not granted)', async () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { notifyOnComplete: true } }));
     loadSettings();
+    await new Promise((r) => setTimeout(r, 0));
     (chrome.notifications.create as Mock).mockImplementation((_opts, cb: () => void) => {
       (chrome.runtime as unknown as { lastError?: unknown }).lastError = { message: 'notifications permission not granted' };
       cb();
       (chrome.runtime as unknown as { lastError?: unknown }).lastError = null;
     });
-    await expect(downloadAndRecord([img('https://c/a.jpg')], undefined)).resolves.toMatchObject({ succeeded: 1 });
-    expect(chrome.notifications.create).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Downloaded 1 file.' }),
-      expect.any(Function),
-    );
+    expect(() => notifyBatchDone({ total: 1, succeeded: 1, failed: 0, skipped: 0 })).not.toThrow();
   });
 
   it('fires a "nothing new" toast when a batch is entirely duplicates (total 0, skipped > 0)', async () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { notifyOnComplete: true } }));
     loadSettings();
-    vi.spyOn(dlKeys, 'downloadedOnDiskKeys').mockResolvedValue(
-      SrcKeySet.from(['https://c/a.jpg', 'https://c/b.jpg']),
-    );
-    const result = await downloadAndRecord(
-      [img('https://c/a.jpg'), img('https://c/b.jpg')],
-      undefined,
-      { skipDuplicates: true },
-    );
-    expect(result).toMatchObject({ total: 0, succeeded: 0, failed: 0, skipped: 2 });
+    await new Promise((r) => setTimeout(r, 0));
+    notifyBatchDone({ total: 0, succeeded: 0, failed: 0, skipped: 2 });
     expect(chrome.notifications.create).toHaveBeenCalledWith(
       expect.objectContaining({ message: expect.stringContaining('already saved') }),
       expect.any(Function),
@@ -1141,8 +1141,8 @@ describe('completion notification', () => {
   it('stays silent when there is nothing to download and nothing was skipped (total 0, skipped 0)', async () => {
     (chrome.storage.sync.get as Mock).mockImplementation((_k, cb) => cb({ settings: { notifyOnComplete: true } }));
     loadSettings();
-    const result = await downloadAndRecord([], undefined);
-    expect(result).toMatchObject({ total: 0, succeeded: 0, failed: 0, skipped: 0 });
+    await new Promise((r) => setTimeout(r, 0));
+    notifyBatchDone({ total: 0, succeeded: 0, failed: 0, skipped: 0 });
     expect(chrome.notifications.create).not.toHaveBeenCalled();
   });
 });

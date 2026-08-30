@@ -297,7 +297,31 @@ one
 everything else drops its query for a real-media-file path, or strips volatile/transform params for a dynamic (`.php`/extension-less) path.
 
 A resolver-supplied `mediaKey` overrides the canonical key for cross-scan merges (`merge.ts`): a later, upgraded rendition that repeats an existing `mediaKey`
-replaces the earlier row in place instead of adding a duplicate.
+replaces the earlier row in place instead of adding a duplicate. Instagram entries that arrive without an explicit `pk` fall back to the media id in the CDN
+filename, so a photo served from two rotating edges still folds to one row.
+
+## Signed-URL leases
+
+Some media is served from a **signed** CDN whose URL carries its own expiry: Facebook/Instagram (`oh` HMAC + `oe` hex-seconds expiry), CloudFront (`Expires` +
+`Signature` + `Key-Pair-Id`), presigned S3/GCS (`X-Amz-Date` + `X-Amz-Expires`, `X-Goog-*`), and Akamai token-auth (`~exp=` in the path). Such a URL is
+**self-authenticating** — measured 2026-08-30, an intact, unexpired `*.fbcdn.net` / `*.cdninstagram.com` URL serves `200` from any origin, with **no `Referer`
+and no cookies**. It is not hotlink-protected; it simply stops working once its expiry passes. (An earlier explanation attributing these failures to referer
+locking was wrong; the `Referer`-rewrite retry in the download queue remains for CDNs where hotlink blocking is actually demonstrated.)
+
+`readUrlLease()` (`@mbd/core/net/url-lease.ts`) reads that expiry off the URL string alone — no resolver has to opt in, so a presigned S3 URL picked up by the
+generic resolver benefits as much as a Facebook one. `collectMedia()` stamps the result onto every collected item as `expiresAt` (epoch ms) in a single pass at
+the end of the scan, and it travels with the item into History, Favourites and the download queue.
+
+Downstream, the lease is **advisory** — a 60-second skew grace means a slightly stale clock never refuses a download that would have worked — but where it has
+clearly lapsed, every surface says so instead of guessing:
+
+| surface | expired behaviour |
+| --- | --- |
+| Grid / preview | placeholder plus "this link expired — reopen the page and collect again"; the item is never hidden or dropped |
+| Download queue | fails immediately as `Link expired`, without issuing a request or spending retries; no `Retry w/ referer` offered |
+| History / Favourites | placeholder instead of a broken image; the re-download control is disabled with the reason, and the source-page link stays live |
+
+A URL with no recognised signing scheme gets no lease and behaves exactly as before.
 
 ---
 
