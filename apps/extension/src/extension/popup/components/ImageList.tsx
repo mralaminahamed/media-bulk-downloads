@@ -25,6 +25,7 @@ import { AudioIcon } from '@/extension/popup/components/icons/AudioIcon';
 import { LoadingImage } from '@/extension/popup/components/LoadingImage';
 import { SelectCheckbox } from '@/extension/popup/components/fields/SelectCheckbox';
 import { hostFromUrl, registrableDomain } from '@mbd/core/collection/paths';
+import { isLeaseExpired } from '@mbd/core/net/url-lease';
 
 const SIZE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
 
@@ -56,6 +57,22 @@ const sourceTooltip = (img: ImageInfo): string | undefined => {
 };
 
 /** A Twitter video whose real file hasn't been fetched yet: shown, not downloadable. */
+/** A signed CDN URL that has outlived its `oe`/`Expires` token is dead for the
+ *  download too, so the placeholder must not promise one. Measured: fbcdn/IG
+ *  media is NOT referer-locked; expiry is the real failure mode. */
+const isExpired = (img: ImageInfo): boolean =>
+  img.expiresAt !== undefined && isLeaseExpired(img.expiresAt, Date.now());
+
+const thumbFailedHint = (img: ImageInfo): string =>
+  isExpired(img)
+    ? 'This link expired — reopen the page and collect again'
+    : 'Preview unavailable here — the download may still work';
+
+const previewFailedHint = (img: ImageInfo): string =>
+  isExpired(img)
+    ? 'This link\u2019s signature has expired, so it can\u2019t be previewed or downloaded. Reopen the page and collect again to get a fresh one.'
+    : 'Can\u2019t preview this here. The download may still work — the queue will tell you if it doesn\u2019t.';
+
 const isPendingVideo = (img: ImageInfo): boolean => img.kind === 'video' && !!img.unresolvedVideo;
 
 /** A Twitter image whose real file hasn't been fetched yet (from an unpainted
@@ -232,7 +249,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, onCaptur
               )}
               {image.kind === 'image' && !image.unresolvedImage ? (
                 failedThumbs.has(image.src) ? (
-                  <div className="mbd:grid mbd:h-full mbd:w-full mbd:place-items-center mbd:bg-(--panel-2)" title="Preview unavailable — the original still downloads">
+                  <div className="mbd:grid mbd:h-full mbd:w-full mbd:place-items-center mbd:bg-(--panel-2)" title={thumbFailedHint(image)}>
                     <PhotoIcon className="mbd:h-8 mbd:w-8 mbd:text-(--ink-3)" />
                   </div>
                 ) : (
@@ -561,7 +578,7 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, onCaptur
                   <div className="mbd:flex mbd:flex-col mbd:items-center mbd:gap-2 mbd:p-10 mbd:text-center">
                     <PhotoIcon className="mbd:h-12 mbd:w-12 mbd:text-(--ink-3)" />
                     <p className="mbd:max-w-64 mbd:text-[12px] mbd:leading-snug mbd:text-(--ink-2)">
-                      Can&apos;t preview this here, but the original still downloads correctly.
+                      {previewFailedHint(selectedImage)}
                     </p>
                   </div>
                 ) : (

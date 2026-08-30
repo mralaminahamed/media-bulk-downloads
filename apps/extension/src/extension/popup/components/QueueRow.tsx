@@ -19,6 +19,10 @@ const STATUS: Record<QueueStatus, { Icon: typeof ArrowPathIcon; cls: string; lab
   queued: { Icon: ClockIcon, cls: 'mbd:text-(--ink-3)', label: 'Queued' },
 };
 
+/** An expired signed URL is dead for good — the only recovery is re-collecting
+ *  the page, which re-signs it. */
+const EXPIRED_HINT = 'This link\u2019s signature expired. Reopen the page and collect again to get a fresh one.';
+
 const iconBtn = 'mbd:grid mbd:h-5 mbd:w-5 mbd:shrink-0 mbd:place-items-center mbd:rounded mbd:text-(--ink-3) mbd:hover:text-(--ink) mbd:hover:bg-(--panel-2)';
 
 export function QueueRow({ item, onCancel, onRetry, onRetryReferer, onOpen }: QueueRowProps) {
@@ -51,7 +55,11 @@ export function QueueRow({ item, onCancel, onRetry, onRetryReferer, onOpen }: Qu
         </span>
       )}
 
-      {item.status === 'failed' && item.error && <span className="mbd:shrink-0 mbd:truncate mbd:text-(--ink-3)" title={item.error}>{item.error}</span>}
+      {item.status === 'failed' && (item.expired ? (
+        <span className="mbd:shrink-0 mbd:truncate mbd:text-(--ink-3)" title={EXPIRED_HINT}>Link expired</span>
+      ) : item.error ? (
+        <span className="mbd:shrink-0 mbd:truncate mbd:text-(--ink-3)" title={item.error}>{item.error}</span>
+      ) : null)}
 
       {item.status === 'done' && (
         <button type="button" aria-label="Open file" title="Open file" onClick={() => onOpen(item.id)} className={iconBtn}>
@@ -59,8 +67,9 @@ export function QueueRow({ item, onCancel, onRetry, onRetryReferer, onOpen }: Qu
         </button>
       )}
       {/* The Referer retry uses declarativeNetRequest modifyHeaders session rules,
-          which Firefox doesn't support — fall back to a plain retry there. */}
-      {item.status === 'failed' && (item.hotlink && !import.meta.env.FIREFOX && canRefererRetry ? (
+          which Firefox doesn't support — fall back to a plain retry there. An
+          expired signed URL gets no retry at all: the same URL cannot succeed. */}
+      {item.status === 'failed' && !item.expired && (item.hotlink && !import.meta.env.FIREFOX && canRefererRetry ? (
         <button type="button" onClick={() => onRetryReferer(item.id)} className="mbd:shrink-0 mbd:text-(--ink-3) mbd:hover:text-(--ink)"
           title="Retry sending this page as the Referer (asks for permission the first time)">Retry w/ referer</button>
       ) : (

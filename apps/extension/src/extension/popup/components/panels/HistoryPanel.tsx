@@ -13,6 +13,7 @@ import { relativeTime, sendRuntimeMessage } from '@/extension/popup/utils';
 import { LoadingImage } from '@/extension/popup/components/LoadingImage';
 import { useDialog } from '@/extension/popup/hooks/useDialog';
 import { ClearAllButton } from '@/extension/popup/components/fields/ClearAllButton';
+import { staleReason } from '@/extension/popup/components/panels/stale-entry';
 
 export interface HistoryPanelProps {
   onClose: () => void;
@@ -121,11 +122,21 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
             sorted.map((entry) => (
               <div key={entry.src} className="card mbd:flex mbd:items-center mbd:gap-2.5 mbd:p-2">
                 <div className="checker mbd:relative mbd:h-11 mbd:w-11 mbd:flex-none mbd:overflow-hidden mbd:rounded-sm">
-                  <LoadingImage
-                    src={entry.thumbnailSrc ?? entry.src}
-                    alt={entry.filename}
-                    className="mbd:h-full mbd:w-full mbd:object-cover"
-                  />
+                  {staleReason(entry) ? (
+                    <div
+                      className="mbd:grid mbd:h-full mbd:w-full mbd:place-items-center mbd:bg-(--panel-2)"
+                      title={staleReason(entry) as string}
+                      data-testid="history-stale-thumb"
+                    >
+                      <PhotoIcon className="mbd:h-5 mbd:w-5 mbd:text-(--ink-3)" />
+                    </div>
+                  ) : (
+                    <LoadingImage
+                      src={entry.thumbnailSrc ?? entry.src}
+                      alt={entry.filename}
+                      className="mbd:h-full mbd:w-full mbd:object-cover"
+                    />
+                  )}
                 </div>
                 <div className="mbd:min-w-0 mbd:flex-1">
                   <p className="mbd:truncate mbd:text-[12px] mbd:font-medium mbd:text-(--ink)">{entry.filename}</p>

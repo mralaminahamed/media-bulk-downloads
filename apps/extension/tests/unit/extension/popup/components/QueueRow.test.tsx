@@ -76,3 +76,23 @@ it('a queued item offers Cancel and no progress bar', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
   expect(onCancel).toHaveBeenCalledWith('a');
 });
+
+it('an expired item says so and offers no retry (the same URL cannot succeed)', () => {
+  render(
+    <ul>
+      <QueueRow item={item({ status: 'failed', error: 'Link expired', expired: true })} {...props} />
+    </ul>,
+  );
+  expect(screen.getByText('Link expired')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /referer/i })).not.toBeInTheDocument();
+});
+
+it('an expired item does not offer the referer retry even when it 403d', () => {
+  render(
+    <ul>
+      <QueueRow item={item({ status: 'failed', error: 'Link expired', expired: true, hotlink: true })} {...props} />
+    </ul>,
+  );
+  expect(screen.queryByRole('button', { name: /referer/i })).not.toBeInTheDocument();
+});

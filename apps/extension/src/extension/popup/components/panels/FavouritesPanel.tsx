@@ -4,6 +4,7 @@ import {
   TrashIcon,
   ArrowDownTrayIcon,
   ArrowTopRightOnSquareIcon,
+  PhotoIcon,
 } from '@heroicons/react/24/outline';
 import { FavouriteEntry } from '@mbd/core/types';
 import { loadFavourites, FAVOURITES_KEY } from '@mbd/storage/favourites';
@@ -11,6 +12,7 @@ import { relativeTime, sendRuntimeMessage } from '@/extension/popup/utils';
 import { LoadingImage } from '@/extension/popup/components/LoadingImage';
 import { useDialog } from '@/extension/popup/hooks/useDialog';
 import { ClearAllButton } from '@/extension/popup/components/fields/ClearAllButton';
+import { staleReason } from '@/extension/popup/components/panels/stale-entry';
 
 export interface FavouritesPanelProps {
   onClose: () => void;
@@ -117,14 +119,26 @@ const FavouritesPanel: React.FC<FavouritesPanelProps> = ({ onClose }) => {
           {sorted.length === 0 ? (
             <p className="mbd:py-8 mbd:text-center mbd:text-[12px] mbd:text-(--ink-2)">No favourites yet</p>
           ) : (
-            sorted.map((entry) => (
+            sorted.map((entry) => {
+              const stale = staleReason(entry);
+              return (
               <div key={entry.src} className="card mbd:flex mbd:items-center mbd:gap-2.5 mbd:p-2">
                 <div className="checker mbd:relative mbd:h-11 mbd:w-11 mbd:flex-none mbd:overflow-hidden mbd:rounded-sm">
-                  <LoadingImage
-                    src={entry.thumbnailSrc ?? entry.src}
-                    alt={displayName(entry.src)}
-                    className="mbd:h-full mbd:w-full mbd:object-cover"
-                  />
+                  {stale ? (
+                    <div
+                      className="mbd:grid mbd:h-full mbd:w-full mbd:place-items-center mbd:bg-(--panel-2)"
+                      title={stale}
+                      data-testid="favourite-stale-thumb"
+                    >
+                      <PhotoIcon className="mbd:h-5 mbd:w-5 mbd:text-(--ink-3)" />
+                    </div>
+                  ) : (
+                    <LoadingImage
+                      src={entry.thumbnailSrc ?? entry.src}
+                      alt={displayName(entry.src)}
+                      className="mbd:h-full mbd:w-full mbd:object-cover"
+                    />
+                  )}
                 </div>
                 <div className="mbd:min-w-0 mbd:flex-1">
                   <p className="mbd:truncate mbd:text-[12px] mbd:font-medium mbd:text-(--ink)">{displayName(entry.src)}</p>
@@ -149,7 +163,13 @@ const FavouritesPanel: React.FC<FavouritesPanelProps> = ({ onClose }) => {
                   <button onClick={() => openSource(entry)} className="iconbtn iconbtn-sm" title="Open source in new tab" aria-label="Open source in new tab">
                     <ArrowTopRightOnSquareIcon className="mbd:h-[15px] mbd:w-[15px]" />
                   </button>
-                  <button onClick={() => handleDownload(entry)} className="iconbtn iconbtn-sm" title="Download" aria-label="Download">
+                  <button
+                    onClick={() => handleDownload(entry)}
+                    disabled={stale !== null}
+                    className="iconbtn iconbtn-sm"
+                    title={stale ?? 'Download'}
+                    aria-label="Download"
+                  >
                     <ArrowDownTrayIcon className="mbd:h-[15px] mbd:w-[15px]" />
                   </button>
                   <button onClick={() => handleRemove(entry)} className="iconbtn iconbtn-sm" title="Remove" aria-label="Remove">
@@ -157,7 +177,8 @@ const FavouritesPanel: React.FC<FavouritesPanelProps> = ({ onClose }) => {
                   </button>
                 </div>
               </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
