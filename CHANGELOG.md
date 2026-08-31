@@ -37,6 +37,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   than a broken image and a dead re-download button.
 
 ### Fixed
+- **Instagram and Facebook no longer show videos as un-downloadable poster tiles.**
+  A reel or video that had only its cover image (no playable video URL seen yet) was
+  collected as a "video" whose file was actually the poster — a placeholder that
+  filled the grid but could never be downloaded. These cover-only clips are now
+  skipped; the video is collected once its real progressive `.mp4` is seen
+  (open/play it, or scroll the reels feed).
 - **HEIC, HEIF, JPEG XL, TIFF, JPEG 2000 and APNG images are saved correctly.**
   They were all written to disk as `.jpg` — the right bytes under a name that
   broke every viewer — because four separate format lists in the code disagreed

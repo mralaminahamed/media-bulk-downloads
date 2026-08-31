@@ -25,10 +25,6 @@ export interface IgMediaEntry {
   width?: number;
   height?: number;
   poster?: string;
-  /** A clip we only have the cover for (reels-grid feed) — no mp4 URL yet. `url`
-   *  is the cover; it resolves to a real video once that reel's own response
-   *  (carrying `video_versions`) is seen. */
-  pending?: boolean;
 }
 
 const isIgHost = (h: string): boolean =>
@@ -132,22 +128,20 @@ function emitLeaf(node: Record<string, unknown>, code: string, out: IgMediaEntry
     }
     // `video_versions` is present but unusable (empty/`[]` during transcoding, or
     // every variant failed the CDN host-pin so bestSized returned null): fall
-    // through to the cover in `image_versions2` rather than dropping the slide —
-    // for a reel (media_type 2) that surfaces as a pending video below.
+    // through to `image_versions2`, but for a reel (media_type 2) that is now
+    // just a cover — dropped below, not surfaced as a fake video.
   }
   if (node.image_versions2) {
+    // A video/reel (media_type 2) that reached here has no usable mp4 — only its
+    // poster. That is not a downloadable video, so don't collect it (it used to
+    // surface as a pending "play to fetch" cover-only tile).
+    if (Number(node.media_type) === 2) return;
     const img = bestIgImage((node.image_versions2 as { candidates?: unknown }).candidates);
     if (!img || seenUrls.has(img.url)) return;
     seenUrls.add(img.url);
-    if (Number(node.media_type) === 2) {
-      const entry: IgMediaEntry = { code, kind: 'video', url: img.url, ext: 'mp4', poster: img.url, pending: true, width: img.width, height: img.height };
-      if (key) entry.key = key;
-      out.push(entry);
-    } else {
-      const entry: IgMediaEntry = { code, kind: 'image', url: img.url, ext: extFromIgUrl(img.url), width: img.width, height: img.height };
-      if (key) entry.key = key;
-      out.push(entry);
-    }
+    const entry: IgMediaEntry = { code, kind: 'image', url: img.url, ext: extFromIgUrl(img.url), width: img.width, height: img.height };
+    if (key) entry.key = key;
+    out.push(entry);
   }
 }
 

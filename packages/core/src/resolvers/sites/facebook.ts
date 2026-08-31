@@ -40,6 +40,9 @@ export function ingestSniffedFbMedia(entries: unknown): void {
     const e = raw as Record<string, unknown>;
     if (typeof e.fbid !== 'string' || !/^\d{1,32}$/.test(e.fbid)) continue;
     if (e.kind !== 'image' && e.kind !== 'video') continue;
+    // A cover-only video (poster, no playable url) is not downloadable — never
+    // collect it, even from a forged envelope claiming `pending`.
+    if (e.pending === true) continue;
     const url = pinFbUrl(e.url);
     if (!url) continue;
     const ext = typeof e.ext === 'string' && FB_EXT.test(e.ext) ? e.ext.toLowerCase() : e.kind === 'video' ? 'mp4' : 'jpg';
@@ -48,7 +51,6 @@ export function ingestSniffedFbMedia(entries: unknown): void {
     if (typeof e.height === 'number') entry.height = e.height;
     const poster = pinFbUrl(e.poster);
     if (e.kind === 'video' && poster) entry.poster = poster;
-    if (e.pending === true) entry.pending = true;
     clean.push(entry);
   }
   if (!clean.length) return;
@@ -108,18 +110,7 @@ function toCandidate(e: FbMediaEntry): MediaCandidate {
   if (typeof e.width === 'number') c.width = e.width;
   if (typeof e.height === 'number') c.height = e.height;
   if (e.kind === 'video' && e.poster) c.poster = e.poster;
-  if (e.pending) c.unresolvedVideo = true;
   return c;
-}
-
-/**
- * Once a video's real playable URL has been seen (a resolved video for its
- * fbid), drop the pending cover-only entry for that same fbid so the tile is
- * downloadable rather than stuck "not fetched". Entries here all share one fbid.
- */
-function preferResolved(entries: FbMediaEntry[]): FbMediaEntry[] {
-  const hasReal = entries.some((e) => e.kind === 'video' && !e.pending);
-  return hasReal ? entries.filter((e) => !(e.kind === 'video' && e.pending)) : entries;
 }
 
 /**
@@ -137,8 +128,7 @@ function preferResolved(entries: FbMediaEntry[]): FbMediaEntry[] {
  *  2. FR1 — keep only the largest remaining image by width*height (missing
  *     width/height counts as area 0); ties keep the LAST (newest-ingested) one,
  *     matching the store's existing newest-wins eviction behavior. All videos
- *     are always kept, pending or resolved.
- *  3. Then apply the existing pending-video collapse (`preferResolved`).
+ *     are always kept.
  *
  * Shared by facebookResolver.resolve and facebookPageMedia so the rule lives once.
  */
@@ -159,7 +149,7 @@ function collapseFbidGroup(entries: FbMediaEntry[]): FbMediaEntry[] {
     if (!bestImage || area >= bestArea) bestImage = e;
   }
 
-  return preferResolved(bestImage ? [...videos, bestImage] : videos);
+  return bestImage ? [...videos, bestImage] : videos;
 }
 
 const FB_CDN = /(?:^|\.)(?:fbcdn\.net|cdninstagram\.com)$/i;

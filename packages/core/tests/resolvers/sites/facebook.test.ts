@@ -101,10 +101,13 @@ describe('ingestSniffedFbMedia + facebookResolver.resolve', () => {
     expect(c.ext).toBe('jpg');
   });
 
-  it('a pending-only video (cover seen, no playable url yet) yields unresolvedVideo:true', () => {
+  it('drops a forged cover-only (pending) video — never surfaced as an unresolvedVideo', () => {
+    // A cover-only video (poster, no playable url) is not downloadable and must not
+    // be collected, even from a forged envelope claiming `pending`. Nothing real is
+    // stored for the fbid, so resolve falls back to the thumbnail passthrough image.
     ingestSniffedFbMedia([{ fbid: '300', kind: 'video', url: `${CDN}/cover_n.jpg`, ext: 'jpg', poster: `${CDN}/cover_n.jpg`, pending: true }]);
-    const [c] = facebookResolver.resolve(u(`${CDN}/cover_n.jpg`), ctxWithLink('/videos/300'));
-    expect(c).toMatchObject({ kind: 'video', unresolvedVideo: true, poster: `${CDN}/cover_n.jpg` });
+    const out = facebookResolver.resolve(u(`${CDN}/cover_n.jpg`), ctxWithLink('/videos/300'));
+    expect(out).toEqual([{ url: `${CDN}/cover_n.jpg`, kind: 'image', mediaKey: 'fb:300' }]);
   });
 
   it('returns [] when no fbid can be recovered from the link or the page URL', () => {
