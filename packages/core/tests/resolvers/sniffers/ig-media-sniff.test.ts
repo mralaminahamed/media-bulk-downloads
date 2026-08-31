@@ -131,16 +131,16 @@ describe('extractIgMedia', () => {
     ]);
   });
 
-  it('falls back to a pending video when video_versions is present but empty (transcoding)', () => {
+  it('drops a cover-only video when video_versions is present but empty (transcoding)', () => {
+    // A reel with no usable mp4 is just a poster — not a downloadable video, so
+    // it must not be collected as a (pending) video.
     const out = extractIgMedia({
       code: 'REEL',
       media_type: 2,
       video_versions: [],
       image_versions2: { candidates: [{ url: 'https://x.cdninstagram.com/REEL_cover_n.jpg', width: 640, height: 1136 }] },
     });
-    expect(out).toEqual([
-      { code: 'REEL', kind: 'video', url: 'https://x.cdninstagram.com/REEL_cover_n.jpg', ext: 'mp4', poster: 'https://x.cdninstagram.com/REEL_cover_n.jpg', pending: true, width: 640, height: 1136 },
-    ]);
+    expect(out).toEqual([]);
   });
 
   it('falls back to the cover image when every video variant fails the CDN host-pin', () => {
@@ -184,24 +184,14 @@ describe('extractIgMedia', () => {
     ]);
   });
 
-  it('emits a reels-grid clip (media_type 2, cover only, no video_versions) as a pending video', () => {
+  it('drops a reels-grid clip that is cover-only (media_type 2, no video_versions)', () => {
+    // Cover-only clip — no mp4 — is just a poster; not collected.
     const out = extractIgMedia({
       code: 'REEL',
       media_type: 2,
       image_versions2: { candidates: [{ url: 'https://x.cdninstagram.com/REEL_cover_n.jpg', width: 640, height: 1136 }] },
     });
-    expect(out).toEqual([
-      {
-        code: 'REEL',
-        kind: 'video',
-        url: 'https://x.cdninstagram.com/REEL_cover_n.jpg',
-        ext: 'mp4',
-        poster: 'https://x.cdninstagram.com/REEL_cover_n.jpg',
-        pending: true,
-        width: 640,
-        height: 1136,
-      },
-    ]);
+    expect(out).toEqual([]);
   });
 
   it('dedups the same media url reached twice (grid + hydration)', () => {

@@ -16,8 +16,6 @@ export interface FbMediaEntry {
   width?: number;
   height?: number;
   poster?: string;
-  /** A video we only have a cover for yet (no playable URL seen). */
-  pending?: boolean;
 }
 
 const isFbHost = (h: string): boolean =>

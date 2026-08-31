@@ -50,6 +50,9 @@ export function ingestSniffedIgMedia(entries: unknown): void {
     const e = raw as Record<string, unknown>;
     if (typeof e.code !== 'string' || !SHORTCODE.test(e.code)) continue;
     if (e.kind !== 'image' && e.kind !== 'video') continue;
+    // A cover-only video (poster, no mp4) is not downloadable — never collect it,
+    // even from a forged envelope claiming `pending`.
+    if (e.pending === true) continue;
     const url = pinIgUrl(e.url);
     if (!url) continue;
     const ext = typeof e.ext === 'string' && EXT.test(e.ext) ? e.ext.toLowerCase() : e.kind === 'video' ? 'mp4' : 'jpg';
@@ -59,7 +62,6 @@ export function ingestSniffedIgMedia(entries: unknown): void {
     if (typeof e.height === 'number') entry.height = e.height;
     const poster = pinIgUrl(e.poster);
     if (e.kind === 'video' && poster) entry.poster = poster;
-    if (e.pending === true) entry.pending = true;
     clean.push(entry);
   }
   if (!clean.length) return;
@@ -134,22 +136,11 @@ function toCandidate(e: IgMediaEntry): MediaCandidate {
   if (typeof e.width === 'number') cand.width = e.width;
   if (typeof e.height === 'number') cand.height = e.height;
   if (e.kind === 'video' && e.poster) cand.poster = e.poster;
-  if (e.pending) cand.unresolvedVideo = true;
   // Per-slide identity so the same media served at two signed URLs (page-JSON vs
   // scroll-API, or a rotating CDN edge) dedupes to one, mirroring FB's fb:<fbid>.
   const key = e.key ?? mediaIdFromCdnPath(e.url);
   if (key) cand.mediaKey = `ig:${key}`;
   return cand;
-}
-
-/**
- * Once a reel's real mp4 has been seen (a resolved video for its code), drop the
- * pending cover-only entry for that same code so the tile is downloadable rather
- * than stuck "not fetched". Entries here all share one shortcode.
- */
-function preferResolved(entries: IgMediaEntry[]): IgMediaEntry[] {
-  const hasResolvedVideo = entries.some((e) => e.kind === 'video' && !e.pending);
-  return hasResolvedVideo ? entries.filter((e) => !(e.kind === 'video' && e.pending)) : entries;
 }
 
 export const instagramResolver: Resolver = {
@@ -161,7 +152,7 @@ export const instagramResolver: Resolver = {
     if (!code) return [];
     const entries = buildByCode().get(code);
     if (!entries || !entries.length) return [];
-    return preferResolved(entries).map(toCandidate);
+    return entries.map(toCandidate);
   },
 };
 
@@ -177,5 +168,5 @@ export function instagramPageMedia(pageUrl?: string): MediaCandidate[] {
   const code = shortcodeFromUrl(pageUrl);
   if (!code) return [];
   const entries = buildByCode().get(code);
-  return entries ? preferResolved(entries).map(toCandidate) : [];
+  return entries ? entries.map(toCandidate) : [];
 }
