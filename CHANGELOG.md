@@ -50,6 +50,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   were fetched; a stream whose quality list can't load says so in the picker; a ZIP
   that can't fetch any file explains it's downloading them individually; and a
   failed stream capture no longer shows an internal error code.
+- **Captured HLS/DASH videos now save reliably when "Ask where to save" is on.**
+  The muxed file's temporary blob URL was released after 60 seconds — if the Save
+  dialog stayed open longer, the download read a released blob and silently saved
+  nothing. The blob is now kept alive long enough to cover any realistic dialog
+  delay.
 - **Batch "downloaded N files" toasts no longer over-count.** A completion seen by
   both the progress poll and the download-change event double-counted; counts now
   come from the transition each event actually made.
