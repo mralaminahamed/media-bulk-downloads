@@ -171,8 +171,9 @@ and the real progressive-mp4 `video_versions` live in the page's own
 2026-07-06 against a public profile: single image, reel (9 MB mp4, HTTP 200), and 9- and 10-slide carousels (every child 1440 px, HTTP 200). Facebook (row 55) now has its own dedicated resolver + a
 passive MAIN-world sniffer (`fb-media-sniffer`), covering photos and reels at 77–90% original-image accuracy — see §G below for the full measurement. Instagram media served from `fbcdn.net` is covered
 by the Instagram resolver. Reels-tab / grid **clips ship only a cover** (`media_type` 2 with no
-`video_versions`, confirmed live) — no bulk mp4 exists without forging the private per-reel GraphQL, which this extension does not do. They surface as **pending videos** (poster = cover) that upgrade
-to the real mp4 when the reel's own response is sniffed (on play/open).
+`video_versions`, confirmed live) — no bulk mp4 exists without forging the private per-reel GraphQL, which this extension does not do. **Cover-only clips are not collected**: a reel appears only
+once its real mp4 (`video_versions`) is sniffed (on play/open), and then as a directly-downloadable video — never a poster-only pending tile. Facebook behaves the same (`extractFbMedia` emits a
+video only when a real playable URL exists).
 
 ⁴ Rows 59–62 are newer dedicated resolvers, each with unit tests and an e2e page fixture driving the real bubble (PRs #266–#268); their URL shapes come from real samples. **Threads** image extraction
 was live-verified 2026-07-10 (grid originals 1119–3277 px across three public profiles; see §I for Threads video) — hence **L**. **Bluesky / Arc XP / magnific** are verified against those real-sampled

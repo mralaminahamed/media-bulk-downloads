@@ -107,15 +107,15 @@ storage path for user edits versus automatic recording.
 
 - `packages/storage/src/history.ts` — `HISTORY_KEY`, `HISTORY_CAP` (500),
   `HISTORY_MAX_BYTES` (2,000,000), `mergeHistory`, `recordDownloads`,
-  `removeEntry`, `clearHistory`, `srcsStillOnDisk`, and the `writeChain`
-  serializer.
+  `removeEntry`, `clearHistory`, `srcsStillOnDisk`, `diskState` / `DiskState`,
+  and the `writeChain` serializer.
 - `apps/extension/src/extension/background/download/downloads.ts` —
   `downloadAndRecord` (keyboard-command / context-menu path).
 - `apps/extension/src/extension/background/download/download-queue.ts` —
   `handleDownloadChanged` and `reconcileQueue`, which call `recordDownloads` on completion and on restart reconcile.
 - `apps/extension/src/extension/background/message-router.ts` — the
   `CLEAR_HISTORY` / `REMOVE_HISTORY_ENTRY` / `OPEN_DOWNLOAD_FILE` /
-  `SHOW_DOWNLOAD` / `GET_DOWNLOADED_SRCS` / `OPEN_URL` handlers.
+  `SHOW_DOWNLOAD` / `GET_DOWNLOADED_SRCS` / `GET_DOWNLOAD_STATES` / `OPEN_URL` handlers.
 - `apps/extension/src/extension/popup/components/panels/HistoryPanel.tsx` — the panel UI.
 - `apps/extension/src/extension/popup/hooks/useDownloadHistory.ts` — the grid's downloaded-on-disk set.
 

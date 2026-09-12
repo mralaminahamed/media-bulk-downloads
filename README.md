@@ -269,7 +269,8 @@ audio-only streams — which can optionally be **transcoded to MP3** (128 / 192 
 320 kbps) instead of the M4A passthrough (Settings → Stream capture). It selects
 the variant closest to 720p by default — change this
 under **Settings → Stream capture quality** (auto / best / worst / 1080 / 720 / 480) —
-and runs in the background service worker plus a hidden **offscreen document**, so
+and runs in the background service worker plus a hidden **offscreen document**
+(Chrome/Edge; Firefox and Safari run the same capture core in-page), so
 capture keeps running even if you close the popup.
 
 **Not captured, by design:** **DRM** (Widevine / PlayReady / FairPlay,
