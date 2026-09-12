@@ -308,9 +308,9 @@ const App: React.FC<AppProps> = ({
                   : scope !== 'active'
                     ? 'scanning tabs'
                     : 'scanning this page'
-                : total === 1
-                  ? 'item on this page'
-                  : 'items on this page'}
+                : scope === 'active'
+                  ? (total === 1 ? 'item on this page' : 'items on this page')
+                  : (total === 1 ? 'item across tabs' : 'items across tabs')}
             </span>
           </div>
           <div className="mbd:flex mbd:items-center mbd:gap-1.5">
@@ -332,6 +332,19 @@ const App: React.FC<AppProps> = ({
                 <option value="all-tabs">All tabs</option>
                 <option value="selected">{selectedTabIds.length > 0 ? `Selected (${selectedTabIds.length})` : 'Selected tabs…'}</option>
               </select>
+            )}
+            {surface === 'popup' && scope === 'selected' && (
+              <button
+                type="button"
+                onClick={() => setShowTabPicker(true)}
+                disabled={state.isLoading}
+                className="btn btn-ghost mbd:flex-none mbd:py-0"
+                style={{ height: 30 }}
+                title="Change which tabs to collect from"
+                aria-label="Change selected tabs"
+              >
+                Edit
+              </button>
             )}
             {deepScanning && (
               <span className="num mbd:inline-flex mbd:items-center mbd:rounded-full mbd:bg-(--brand-soft) mbd:px-2 mbd:py-0.5 mbd:text-[10px] mbd:font-semibold mbd:text-(--brand-ink)">
@@ -478,7 +491,7 @@ const App: React.FC<AppProps> = ({
           {pendingVideoCount > 0 && (
             <button
               onClick={() => void handleFetchAllVideos()}
-              disabled={fetchingVideos}
+              disabled={fetchingVideos || progress !== null}
               className="btn btn-ghost mbd:flex-none"
               title="Fetch every pending video's real file over the network"
             >
@@ -489,7 +502,7 @@ const App: React.FC<AppProps> = ({
           {unsizedCount > 0 && (
             <button
               onClick={() => void handleProbeSizes()}
-              disabled={probingSizes}
+              disabled={probingSizes || progress !== null}
               className="btn btn-ghost mbd:flex-none"
               title="Ask each CDN for the real file size and type (one small request per item)"
             >
@@ -501,6 +514,7 @@ const App: React.FC<AppProps> = ({
             <DownloadButton
               label="Download selected"
               count={selectedCount}
+              disabled={progress !== null}
               onDownload={handleDownloadSelected}
               onZip={handleDownloadSelectedZip}
               onCopyLinks={() => void handleCopyLinks(selectedDownloadable())}
@@ -511,7 +525,7 @@ const App: React.FC<AppProps> = ({
             <DownloadButton
               label="Download"
               count={downloadableShown > 0 ? downloadableShown : undefined}
-              disabled={downloadableShown === 0}
+              disabled={downloadableShown === 0 || progress !== null}
               onDownload={handleBulkDownload}
               onZip={handleBulkDownloadZip}
               onCopyLinks={() => void handleCopyLinks(downloadable(state.filteredImages))}

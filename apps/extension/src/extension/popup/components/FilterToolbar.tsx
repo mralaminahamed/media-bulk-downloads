@@ -86,6 +86,10 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
     // Nothing left pending → drop a stale fetched/pending selection (its chip is
     // gone, so an empty grid would otherwise have no visible control to clear).
     if (pendingCount === 0 && filters.resolveState !== 'all') patch.resolveState = 'all';
+    // No near-duplicates left → drop a stale duplicate selection (its chip is gone,
+    // mirroring the resolveState reset above), so the grid isn't left empty with no
+    // visible control to recover.
+    if (nearDuplicateCount === 0 && filters.duplicateState !== 'unique') patch.duplicateState = 'unique';
     if (Object.keys(patch).length > 0) {
       const next = { ...filters, ...patch };
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -94,7 +98,7 @@ const FilterToolbar: React.FC<FilterToolbarProps> = ({ onFilterChange, extension
     }
     // Fires when the option set changes (App memoizes `available`) or pending clears.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [available, pendingCount]);
+  }, [available, pendingCount, nearDuplicateCount]);
 
   const update = (patch: Partial<FilterOptions>) => {
     const next = { ...filters, ...patch };

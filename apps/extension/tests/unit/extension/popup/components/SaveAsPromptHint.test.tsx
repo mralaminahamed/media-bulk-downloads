@@ -15,13 +15,32 @@ it('renders nothing when dismissed', async () => {
   await waitFor(() => expect(container).toBeEmptyDOMElement());
 });
 
-it('shows the hint when seen and not dismissed; Open opens Chrome download settings', async () => {
-  vi.spyOn(store, 'loadSaveAsHintState').mockResolvedValue({ seen: true, dismissed: false });
-  const create = vi.spyOn(chrome.tabs, 'create').mockImplementation((() => {}) as never);
-  render(<SaveAsPromptHint />);
-  expect(await screen.findByText(/ask where to save each file/i)).toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: /open download settings/i }));
-  expect(create).toHaveBeenCalledWith({ url: 'chrome://settings/downloads' });
+it('shows the hint when seen and not dismissed; on Chromium, Open opens the download settings', async () => {
+  const ua = navigator.userAgent;
+  Object.defineProperty(navigator, 'userAgent', { value: 'Mozilla/5.0 Chrome/120.0 Safari/537.36', configurable: true });
+  try {
+    vi.spyOn(store, 'loadSaveAsHintState').mockResolvedValue({ seen: true, dismissed: false });
+    const create = vi.spyOn(chrome.tabs, 'create').mockImplementation((() => {}) as never);
+    render(<SaveAsPromptHint />);
+    expect(await screen.findByText(/ask where to save each file/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /open download settings/i }));
+    expect(create).toHaveBeenCalledWith({ url: 'chrome://settings/downloads' });
+  } finally {
+    Object.defineProperty(navigator, 'userAgent', { value: ua, configurable: true });
+  }
+});
+
+it('hides the Open-settings deep link on non-Chromium browsers (Firefox)', async () => {
+  const ua = navigator.userAgent;
+  Object.defineProperty(navigator, 'userAgent', { value: 'Mozilla/5.0 Firefox/121.0', configurable: true });
+  try {
+    vi.spyOn(store, 'loadSaveAsHintState').mockResolvedValue({ seen: true, dismissed: false });
+    render(<SaveAsPromptHint />);
+    expect(await screen.findByText(/ask where to save each file/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /open download settings/i })).not.toBeInTheDocument();
+  } finally {
+    Object.defineProperty(navigator, 'userAgent', { value: ua, configurable: true });
+  }
 });
 
 it('hides the Open-settings button in the bubble surface (chrome.tabs is undefined there)', async () => {

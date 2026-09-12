@@ -43,6 +43,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   use `redirect: 'error'`, matching the ZIP fetch guard.
 
 ### Fixed
+- **Popup/bubble UX fixes.** The detail preview no longer closes when you press
+  "Get video" (it updates to the downloadable file in place); arrow keys no longer
+  page the preview while you're using the quality/audio dropdowns; the "Selected
+  tabs" scope now has an Edit button to change the tab set without switching scopes;
+  the header count reads "across tabs" (not "on this page") in multi-tab scopes;
+  the download / ZIP / "Get all videos" / "Check sizes" actions are disabled while
+  another operation is running (no more overlapping runs); the "Ask where to save"
+  hint no longer hardcodes "Chrome" and hides the Chromium-only settings link on
+  other browsers; and the Duplicates filter resets when a stricter re-run leaves no
+  near-duplicates (no more empty grid with a vanished control).
 - **Clearer feedback for downloads and fetches.** Failed queue items now show a
   plain-language reason instead of a raw code (e.g. "Blocked by the server — try
   'Retry w/ referer'." rather than `SERVER_FORBIDDEN`); "Check sizes" reports a

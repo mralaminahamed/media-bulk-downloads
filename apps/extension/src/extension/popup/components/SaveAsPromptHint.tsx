@@ -34,13 +34,17 @@ export function SaveAsPromptHint({ surface = 'popup' }: { surface?: 'popup' | 'b
 
   if (!seen || dismissed) return null;
 
+  // The chrome://settings/downloads deep-link only resolves on Chromium — Firefox
+  // and Safari use a different (or no) settings URL, so hide it there.
+  const isChromium = /Chrome\//.test(navigator.userAgent) && !/Firefox\//.test(navigator.userAgent);
+
   return (
     <section className="mbd:border-t hairline mbd:bg-(--panel) mbd:px-4 mbd:py-2.5 mbd:text-[11px] mbd:text-(--ink-2)" aria-label="Save-As prompt hint">
       <div className="mbd:flex mbd:items-start mbd:gap-2">
         <p className="mbd:min-w-0 mbd:flex-1">
-          Chrome is asking where to save each file. Turn off{' '}
+          Your browser is asking where to save each file. Turn off{' '}
           <strong className="mbd:text-(--ink)">&ldquo;Ask where to save each file before downloading&rdquo;</strong>{' '}
-          in Chrome&rsquo;s download settings for silent saves.
+          in your browser&rsquo;s download settings for silent saves.
         </p>
         <button
           type="button" aria-label="Dismiss" title="Dismiss"
@@ -50,7 +54,7 @@ export function SaveAsPromptHint({ surface = 'popup' }: { surface?: 'popup' | 'b
           <XMarkIcon className="mbd:h-3.5 mbd:w-3.5" />
         </button>
       </div>
-      {surface === 'popup' && (
+      {surface === 'popup' && isChromium && (
         <button
           type="button"
           onClick={() => chrome.tabs.create({ url: 'chrome://settings/downloads' })}
