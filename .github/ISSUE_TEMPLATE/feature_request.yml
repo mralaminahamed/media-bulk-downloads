@@ -21,11 +21,15 @@ body:
       options:
         - Collection (finding media)
         - Original-quality upgrades / resolvers
-        - Filtering
-        - Downloading / naming
+        - Stream capture (HLS / DASH)
+        - Filtering / search / near-duplicates
+        - Downloading / naming / ZIP / convert
+        - Download queue
         - Download history
+        - Favourites
+        - Collect across tabs
         - Deep scan
-        - Settings
+        - Settings / backup
         - On-page bubble
         - Other
     validations:
