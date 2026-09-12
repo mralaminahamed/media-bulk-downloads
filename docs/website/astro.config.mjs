@@ -83,6 +83,12 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Reference',
+          items: [
+            { label: 'Settings reference', slug: 'reference/settings' },
+          ],
+        },
+        {
           label: 'Help & support',
           items: [
             { label: 'FAQ & troubleshooting', slug: 'help/faq' },
