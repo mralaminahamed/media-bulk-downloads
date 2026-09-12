@@ -1,6 +1,6 @@
 import {
   loadQueue, saveQueue, enqueue, claimNext, markActive, markDone, markFailed,
-  scheduleRetry, cancel, retryFailed, setProgress, clearFinished, retryAllFailed,
+  scheduleRetry, cancel, retryFailed, setProgress, clearDone, retryAllFailed,
   recoverStuckActive, RECOVER_GRACE_MS,
   type EnqueueEntry, type QueueState, type QueueItem,
 } from '@mbd/storage/download-queue';
@@ -298,8 +298,8 @@ export async function getQueueSnapshot(): Promise<QueueState> {
   return loadQueue();
 }
 
-export async function clearFinishedQueue(): Promise<void> {
-  await withState(async (s) => ({ state: clearFinished(s), value: null }));
+export async function clearDoneQueue(): Promise<void> {
+  await withState(async (s) => ({ state: clearDone(s), value: null }));
 }
 
 export async function retryAllFailedQueue(): Promise<void> {

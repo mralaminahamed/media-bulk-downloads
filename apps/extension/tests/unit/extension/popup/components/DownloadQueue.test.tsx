@@ -26,6 +26,29 @@ it('shows the summary as an aria-live region with the overall bar and counts', a
   expect(live).toHaveTextContent('1 failed');
 });
 
+it('reads 100% when every item is done, even with unsized items or bytesReceived < totalBytes', async () => {
+  setQueue({ paused: false, items: [
+    { id: 'a', url: 'u', filename: 'a', status: 'done', attempts: 0, readyAt: 0, addedAt: 0, bytesReceived: 900, totalBytes: 1000 }, // final poll short
+    { id: 'b', url: 'u', filename: 'b', status: 'done', attempts: 0, readyAt: 0, addedAt: 0 }, // unknown size
+    { id: 'c', url: 'u', filename: 'c', status: 'done', attempts: 0, readyAt: 0, addedAt: 0, bytesReceived: 0, totalBytes: 0 },
+  ] });
+  render(<DownloadQueue />);
+  const bar = await screen.findByRole('progressbar', { name: /overall download progress/i });
+  expect(bar).toHaveAttribute('aria-valuenow', '100');
+});
+
+it('blends done items (full) with an active item\'s live byte fraction', async () => {
+  // 1 done (=1.0) + 1 active at 5/10 (=0.5) + 1 queued (=0) over 3 items → 50%
+  setQueue({ paused: false, items: [
+    { id: 'a', url: 'u', filename: 'a', status: 'done', attempts: 0, readyAt: 0, addedAt: 0 },
+    { id: 'b', url: 'u', filename: 'b', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, downloadId: 1, bytesReceived: 5, totalBytes: 10 },
+    { id: 'c', url: 'u', filename: 'c', status: 'queued', attempts: 0, readyAt: 0, addedAt: 0 },
+  ] });
+  render(<DownloadQueue />);
+  const bar = await screen.findByRole('progressbar', { name: /overall download progress/i });
+  expect(bar).toHaveAttribute('aria-valuenow', '50');
+});
+
 it('Retry failed shows only when there are failures and dispatches retry-all', async () => {
   const send = vi.spyOn(utils, 'sendRuntimeMessage').mockImplementation(() => {});
   setQueue({ paused: false, items: [

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   emptyQueue, enqueue, claimNext, activeCount, markActive, markDone,
-  markFailed, scheduleRetry, cancel, retryFailed, clearFinished,
+  markFailed, scheduleRetry, cancel, retryFailed, clearDone,
   backoffMs, MAX_ATTEMPTS, setProgress, retryAllFailed, FINISHED_CAP,
   recoverStuckActive,
 } from '@mbd/storage/download-queue';
@@ -131,12 +131,19 @@ describe('download-queue reducer', () => {
     expect(s.items[0]).toMatchObject({ status: 'queued', attempts: 0, readyAt: T0 + 10, error: undefined });
   });
 
-  it('clearFinished drops done+failed', () => {
+  it('clearDone removes only done items, keeping queued/active/failed', () => {
     let s = emptyQueue();
-    s = enqueue(s, [{ url: 'u1', filename: 'f1' }, { url: 'u2', filename: 'f2' }], T0);
-    s = markDone(s, s.items[0].id);
-    s = markFailed(s, s.items[1].id, 'x');
-    expect(clearFinished(s).items).toHaveLength(0);
+    s = enqueue(s, [
+      { url: 'u1', filename: 'f1' }, { url: 'u2', filename: 'f2' },
+      { url: 'u3', filename: 'f3' }, { url: 'u4', filename: 'f4' },
+    ], T0);
+    s = markDone(s, s.items[0].id); // done -> removed
+    s = markFailed(s, s.items[1].id, 'x'); // failed -> kept
+    s = markActive(s, s.items[2].id, 99); // active -> kept
+    // item[3] stays queued -> kept
+    const out = clearDone(s).items;
+    expect(out.map((i) => i.status).sort()).toEqual(['active', 'failed', 'queued']);
+    expect(out.some((i) => i.status === 'done')).toBe(false);
   });
 });
 

@@ -37,6 +37,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   than a broken image and a dead re-download button.
 
 ### Fixed
+- **"Clear done" in the download queue now removes only completed items.** It also
+  removed `failed` items before (the label said "done", but the action cleared every
+  finished item). Failed items now stay — with their Retry — and queued / in-progress
+  items are untouched. Use "Cancel all" to stop live downloads.
+- **The download-queue progress bar reaches 100% when every item is done.** It was
+  measured only over items with a known byte size, using each item's last-polled
+  `bytesReceived` (which isn't forced to the total on completion), so a finished
+  batch — especially one mixing sized and unsized items — stopped a few percent
+  short. Progress is now the mean per-item completion, counting each done item as
+  fully complete; only in-progress items contribute live byte-progress.
 - **Download History "Open file" / "Show in folder" no longer silently do nothing
   after the browser's download list is cleared.** Both actions need the browser's
   own download record; once you clear Chrome's download list (or delete the file
