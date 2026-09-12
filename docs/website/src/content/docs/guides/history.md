@@ -25,6 +25,17 @@ without digging through the OS downloads folder.
 "Open file" and "Show in folder" render only when the entry carries a
 `downloadId`. Every download recorded going forward has one. It is absent on entries carried over from before this was tracked.
 
+Both actions need the browser's own download record, which is gone once you clear
+Chrome's download list (or the file is deleted from disk) — and there is no API to
+open a file by path. So the panel asks the background for each download's on-disk
+state (`GET_DOWNLOAD_STATES` → one `chrome.downloads.search`, mapped through
+`diskState`): when the record is cleared (`unknown`) or the file is deleted
+(`deleted`), the two actions are replaced by a short "re-download to open it" hint
+rather than silently doing nothing. Re-download and Open source stay available. The
+panel stays optimistic (keeps the actions) until the background answers, so a
+sleeping worker never hides a working button. This is independent of the ✓ badge,
+which deliberately keeps `unknown` entries (see `srcsStillOnDisk` below).
+
 Re-download sends the item with `explicit: true`. That bypasses the collection size, base64, and blocklist filters and the "skip already-downloaded" dedup, so an item you picked from history is never
 silently dropped. It mirrors the context-menu single download.
 

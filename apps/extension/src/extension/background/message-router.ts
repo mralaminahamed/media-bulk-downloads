@@ -6,11 +6,12 @@ import {
   CaptureStreamResponse,
   SettingsData,
   ListVariantsResult,
+  DownloadState,
 } from '@mbd/core/types';
 import { filterImagesBySettings, filterExcluded } from '@mbd/core/collection/filters';
 import { textToBase64 } from '@mbd/core/download/base64';
 import { buildMediaSidecar, serializeSidecar } from '@mbd/core/download/metadata-sidecar';
-import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk, DiskState } from '@mbd/storage/history';
+import { recordDownloads, removeEntry, clearHistory, restoreHistory, loadHistory, srcsStillOnDisk, diskState } from '@mbd/storage/history';
 import { addFavourite, removeFavourite, clearFavourites, restoreFavourites } from '@mbd/storage/favourites';
 import { addExcluded, removeExcluded, clearExcluded, restoreExcluded } from '@mbd/storage/excluded';
 import { savePerHostSettings, clearPerHostSettings } from '@mbd/storage/per-host-settings';
@@ -36,7 +37,7 @@ import { captureStreamToFile, captureRunTabs } from '@/extension/background/down
 
 /** Response callback shape for the background message router. */
 export type SendResponse = (
-  response: DownloadResponse | ResolveOriginalsResponse | ProbeMediaMetaResponse | string[] | CaptureStreamResponse | QueueState | SettingsData | ListVariantsResult,
+  response: DownloadResponse | ResolveOriginalsResponse | ProbeMediaMetaResponse | string[] | CaptureStreamResponse | QueueState | SettingsData | ListVariantsResult | DownloadState[],
 ) => void;
 
 /** Push the current settings to every tab's content script so the on-page bubble
@@ -237,10 +238,20 @@ export const messageRouter: MessageRouter = {
       try {
         const history = await loadHistory();
         const items = await platform.downloader.search({ limit: 0 });
-        const existsById = new Map(items.map((it) => [it.id, it.exists]));
-        const stateById = (id: number): DiskState =>
-          existsById.has(id) ? (existsById.get(id) ? 'exists' : 'deleted') : 'unknown';
-        respond(srcsStillOnDisk(history, stateById));
+        const existsById = new Map(items.map((it) => [it.id, it.exists === true]));
+        respond(srcsStillOnDisk(history, (id) => diskState(id, existsById)));
+      } catch {
+        respond([]);
+      }
+    })();
+    return true;
+  },
+
+  GET_DOWNLOAD_STATES: (_message, _sender, respond) => {
+    void (async () => {
+      try {
+        const items = await platform.downloader.search({ limit: 0 });
+        respond(items.map((it) => ({ id: it.id, exists: it.exists !== false })));
       } catch {
         respond([]);
       }

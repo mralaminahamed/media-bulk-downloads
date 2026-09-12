@@ -95,6 +95,29 @@ export function fetchDownloadedOnDisk(): Promise<Set<string>> {
   });
 }
 
+/**
+ * Per-download openability from the browser's records: `exists → id`. Used by the
+ * History panel to gate "Open file" / "Show in folder" — an id absent from the map
+ * means the browser record was cleared, `false` means the file was deleted; either
+ * way the file can't be opened by id. Resolves to `null` when the worker gives no
+ * answer, so the UI stays optimistic (keeps the buttons) instead of hiding them.
+ */
+export function fetchDownloadStates(): Promise<Map<number, boolean> | null> {
+  return new Promise((resolve) => {
+    try {
+      chrome.runtime.sendMessage({ type: 'GET_DOWNLOAD_STATES' }, (states?: { id: number; exists: boolean }[]) => {
+        if (chrome.runtime.lastError || !Array.isArray(states)) {
+          resolve(null);
+          return;
+        }
+        resolve(new Map(states.map((s) => [s.id, s.exists])));
+      });
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
 /** Compact relative time: "now", "5m", "3h", "2d", else a date. */
 export function relativeTime(ms: number): string {
     const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));

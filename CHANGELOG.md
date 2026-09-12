@@ -37,6 +37,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   than a broken image and a dead re-download button.
 
 ### Fixed
+- **Download History "Open file" / "Show in folder" no longer silently do nothing
+  after the browser's download list is cleared.** Both actions need the browser's
+  own download record; once you clear Chrome's download list (or delete the file
+  from disk), that record is gone and there is no way to open the file by path. The
+  panel now checks each download's on-disk state and, when it can't be opened,
+  replaces the two buttons with a short "re-download to open it" hint instead of
+  failing silently. Re-download and Open source stay available, and the "already
+  downloaded" ✓ badge is unaffected.
 - **Instagram and Facebook no longer show videos as un-downloadable poster tiles.**
   A reel or video that had only its cover image (no playable video URL seen yet) was
   collected as a "video" whose file was actually the poster — a placeholder that
