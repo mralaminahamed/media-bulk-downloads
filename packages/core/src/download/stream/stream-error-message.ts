@@ -19,6 +19,6 @@ export function streamErrorMessage(code: string): string {
     case 'unsupported_browser': return 'Stream capture isn’t available in this browser yet.';
     case 'empty': return 'Nothing could be downloaded from this stream.';
     case 'fetch-failed': return 'Part of the stream couldn’t be downloaded.';
-    default: return `Couldn’t capture the stream (${code}).`;
+    default: return 'Couldn’t capture the stream. Please try again.';
   }
 }

@@ -3,6 +3,7 @@ import {
 } from '@heroicons/react/24/outline';
 import type { QueueItem, QueueStatus } from '@mbd/storage/download-queue';
 import { formatFileSize } from '@/extension/popup/components/ImageList';
+import { queueErrorMessage } from '@/extension/popup/components/queue-error-message';
 
 export interface QueueRowProps {
   item: QueueItem;
@@ -58,7 +59,7 @@ export function QueueRow({ item, onCancel, onRetry, onRetryReferer, onOpen }: Qu
       {item.status === 'failed' && (item.expired ? (
         <span className="mbd:shrink-0 mbd:truncate mbd:text-(--ink-3)" title={EXPIRED_HINT}>Link expired</span>
       ) : item.error ? (
-        <span className="mbd:shrink-0 mbd:truncate mbd:text-(--ink-3)" title={item.error}>{item.error}</span>
+        <span className="mbd:shrink-0 mbd:truncate mbd:text-(--ink-3)" title={queueErrorMessage(item.error)}>{queueErrorMessage(item.error)}</span>
       ) : null)}
 
       {item.status === 'done' && (

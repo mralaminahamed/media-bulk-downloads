@@ -199,7 +199,7 @@ export function useDownloadActions({
       sendRuntimeMessage({ type: 'DOWNLOAD_IMAGES', images: failed, sourcePage } as DownloadMessage);
     }
     const okCount = toConvert.length - failed.length - blocked;
-    const failedNote = failed.length ? ` ${failed.length} couldn't convert — saved original.` : '';
+    const failedNote = failed.length ? ` ${failed.length} couldn't convert — saving the original instead.` : '';
     const blockedNote = blocked ? ` ${blocked} blocked.` : '';
     setState((prev) => ({ ...prev, status: `Converted ${okCount} image${okCount === 1 ? '' : 's'} to ${target.toUpperCase()}.${failedNote}${blockedNote}` }));
   };
@@ -231,6 +231,7 @@ export function useDownloadActions({
     setProgress(null);
 
     if (ok === 0) {
+      setState((prev) => ({ ...prev, status: `Couldn't fetch files for the ZIP — downloading ${images.length} item${images.length === 1 ? '' : 's'} individually instead.` }));
       void sendPlainDownload(images);
       return;
     }
