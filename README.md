@@ -345,8 +345,7 @@ Each package/app carries its own README; the full design record is the
 ## Documentation
 
 📖 **Docs site:** **<https://mralaminahamed.github.io/media-bulk-downloads/>** — the
-guides and benchmark below, published from [`docs/website/`](./docs/website/) (Astro
-Starlight). Browse the source pages directly here too:
+guides and benchmark below. Browse the source pages directly here too:
 
 | Guide                                                       |                                                |
 |-------------------------------------------------------------|------------------------------------------------|

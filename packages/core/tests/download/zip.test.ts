@@ -1,7 +1,11 @@
 import { buildZip, zipFileName } from '@mbd/core/download/zip';
 import { unzipSync } from 'fflate';
-import { DEFAULT_SETTINGS } from '@mbd/storage/settings';
+import { DEFAULT_SETTINGS as DEFAULTS } from '@mbd/storage/settings';
 import { ImageInfo, SettingsData } from '@mbd/core/types';
+
+// These tests assert deterministic prefixed filenames (image_1.jpg …); pin the
+// naming mode so they test ZIP mechanics, not the global naming default.
+const DEFAULT_SETTINGS: SettingsData = { ...DEFAULTS, namingMode: 'prefixed' };
 
 const img = (src: string, extra: Partial<ImageInfo> = {}): ImageInfo =>
   ({ src, alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image', ...extra });

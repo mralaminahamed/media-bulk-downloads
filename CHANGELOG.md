@@ -201,6 +201,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   retry threw; it now falls back to a plain retry there.
 
 ### Changed
+- **New defaults: the floating bubble is on, and downloads keep their original
+  filename.** The on-page floating bubble is now enabled by default (was off), and
+  file naming defaults to Original — each file keeps its own name from its URL —
+  instead of the numbered `image_N` prefix. Both remain changeable in Settings, and
+  existing users' saved preferences are untouched.
 - The extension now declares a homepage — its **documentation site**
   (`mralaminahamed.github.io/media-bulk-downloads`) — so the "homepage" link on the
   browser's extensions page points to the docs instead of defaulting to the store.
