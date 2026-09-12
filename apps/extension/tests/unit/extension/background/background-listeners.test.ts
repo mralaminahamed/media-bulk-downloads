@@ -376,7 +376,7 @@ describe('background tab lifecycle listeners', () => {
     await flush();
 
     expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(3, 'GET_IMAGES', expect.any(Function));
-    expect(chrome.action.setPopup).toHaveBeenCalledWith({ tabId: 3, popup: 'popup.html' });
+    expect(chrome.action.setPopup).toHaveBeenCalledWith({ tabId: 3, popup: '' });
   });
 
   it('skips the badge (count off) and the action-mode update when tabs.get lastErrors', () => {
@@ -399,7 +399,7 @@ describe('background tab lifecycle listeners', () => {
     onUpdated(7, { status: 'complete' }, { url: 'https://example.com' });
     await flush();
 
-    expect(chrome.action.setPopup).toHaveBeenCalledWith({ tabId: 7, popup: 'popup.html' });
+    expect(chrome.action.setPopup).toHaveBeenCalledWith({ tabId: 7, popup: '' });
     expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(7, 'GET_IMAGES', expect.any(Function));
   });
 
@@ -417,7 +417,7 @@ describe('background tab lifecycle listeners', () => {
 
     onUpdated(9, { url: 'https://example.com/next' }, { url: 'https://example.com/next' });
 
-    expect(chrome.action.setPopup).toHaveBeenCalledWith({ tabId: 9, popup: 'popup.html' });
+    expect(chrome.action.setPopup).toHaveBeenCalledWith({ tabId: 9, popup: '' });
     expect(chrome.action.setBadgeText).not.toHaveBeenCalled();
   });
 

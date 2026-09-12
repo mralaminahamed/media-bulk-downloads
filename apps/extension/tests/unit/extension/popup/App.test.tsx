@@ -330,14 +330,14 @@ describe('App Component', () => {
 
     fireEvent.click(screen.getByTitle('Settings'));
     fireEvent.click(screen.getByRole('tab', { name: /Display/i }));
-    fireEvent.click(screen.getByRole('switch', { name: /show floating bubble/i }));
+    // The floating bubble is on by default, so its corner/panel controls are already
+    // shown — no need to toggle it on first.
     fireEvent.change(screen.getByLabelText('Bubble corner:'), { target: { value: 'top-left' } });
     fireEvent.change(screen.getByLabelText('Panel position:'), { target: { value: 'center' } });
     fireEvent.click(screen.getByText('Save'));
 
     const call = (chrome.runtime.sendMessage as Mock).mock.calls.find((c) => c[0]?.type === 'SET_SETTINGS');
     expect(call?.[0].patch).toEqual(expect.objectContaining({
-      bubbleEnabled: true,
       bubblePosition: { corner: 'top-left' },
       bubblePanelPlacement: 'center',
     }));

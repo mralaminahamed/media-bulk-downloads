@@ -137,7 +137,9 @@ describe('Background Script', () => {
   });
 
   describe('buildDownloadFilename', () => {
-    const settings: SettingsData = { ...DEFAULT_SETTINGS };
+    // This block asserts the prefixed image_N scheme; pin it (the global default is
+    // now 'original') so the cases below stay about the prefixed/subfolder mechanics.
+    const settings: SettingsData = { ...DEFAULT_SETTINGS, namingMode: 'prefixed' };
     const img = (over: Partial<ImageInfo>): ImageInfo => ({
       src: 'x.jpg', alt: '', width: 0, height: 0, type: 'jpeg', fileSize: 0, isBase64: false, kind: 'image', ...over,
     });
@@ -658,7 +660,7 @@ describe('buildEnqueueEntries', () => {
   it('builds one queue entry per item, carrying the source page into the history draft', async () => {
     const { entries } = await buildEnqueueEntries([img('https://c/a.jpg')], { url: 'https://page', title: 'T' });
     expect(entries).toHaveLength(1);
-    expect(entries[0]).toMatchObject({ url: 'https://c/a.jpg', filename: 'image_1.jpg' });
+    expect(entries[0]).toMatchObject({ url: 'https://c/a.jpg', filename: 'a.jpg' });
     expect(entries[0].history).toMatchObject({
       src: 'https://c/a.jpg', kind: 'image', sourcePageUrl: 'https://page', sourcePageTitle: 'T',
     });
@@ -666,7 +668,7 @@ describe('buildEnqueueEntries', () => {
 
   it('derives the filename from settings', async () => {
     const { entries } = await buildEnqueueEntries([img('https://c/a.jpg')], undefined);
-    expect(entries[0].filename).toBe('image_1.jpg');
+    expect(entries[0].filename).toBe('a.jpg');
   });
 
   it('carries a signed URL lease onto the entry and its history draft', async () => {
@@ -792,7 +794,7 @@ describe('DOWNLOAD_IMAGES — settings gate (no ephemeral-worker default-setting
     await new Promise((r) => setTimeout(r, 0));
 
     expect(chrome.downloads.download).toHaveBeenCalledWith(
-      expect.objectContaining({ filename: 'Pics/image_1.jpg' }),
+      expect.objectContaining({ filename: 'Pics/a.jpg' }),
       expect.any(Function),
     );
     expect((local.downloadQueue as { items: { status: string }[] }).items[0].status).toBe('active');
@@ -977,7 +979,7 @@ describe('context menu', () => {
     contextMenuHandler(info({ menuItemId: 'mbd-download-image', srcUrl: 'https://cdn/pic.jpg', mediaType: 'image' }), tab({ url: 'https://page', title: 'T' }));
     await settleQueue();
     expect(chrome.downloads.download).toHaveBeenCalledWith(
-      expect.objectContaining({ url: expect.stringContaining('pic.jpg'), filename: expect.stringMatching(/image_1\.(jpe?g)$/) }),
+      expect.objectContaining({ url: expect.stringContaining('pic.jpg'), filename: expect.stringMatching(/pic\.jpe?g$/) }),
       expect.any(Function),
     );
   });
