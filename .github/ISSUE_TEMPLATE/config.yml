@@ -1,5 +1,11 @@
 blank_issues_enabled: false
 contact_links:
+  - name: FAQ & troubleshooting
+    url: https://mralaminahamed.github.io/media-bulk-downloads/help/faq/
+    about: Check the FAQ first. It may already answer your question or fix the problem.
+  - name: Documentation
+    url: https://mralaminahamed.github.io/media-bulk-downloads/
+    about: Guides for every feature, plus how it all works under the hood.
   - name: Security vulnerability
     url: https://github.com/mralaminahamed/media-bulk-downloads/blob/main/SECURITY.md
     about: Please report security issues privately, not as a public issue.

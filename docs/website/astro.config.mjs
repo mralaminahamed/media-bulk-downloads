@@ -76,6 +76,13 @@ export default defineConfig({
             { label: 'Coverage changelog', slug: 'benchmark/changelog' },
           ],
         },
+        {
+          label: 'Help & support',
+          items: [
+            { label: 'FAQ & troubleshooting', slug: 'help/faq' },
+            { label: 'Report an issue', slug: 'help/report-an-issue' },
+          ],
+        },
       ],
     }),
   ],
