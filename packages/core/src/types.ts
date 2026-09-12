@@ -252,6 +252,12 @@ export interface DownloadState {
   exists: boolean;
 }
 
+/** The popup/bubble opened and the user can see the download queue, so the
+ *  toolbar's red failed-download alert badge can be cleared. */
+export interface DownloadsSeenMessage {
+  type: 'DOWNLOADS_SEEN';
+}
+
 /** Ask the background for the on-disk state of every download the browser still
  *  knows about, so the History panel can gate "Open file" / "Show in folder":
  *  neither can succeed once the record is gone or the file is deleted. Response is
@@ -571,6 +577,7 @@ export type ChromeMessage =
   | ShowDownloadMessage
   | GetDownloadedSrcsMessage
   | GetDownloadStatesMessage
+  | DownloadsSeenMessage
   | OpenUrlMessage
   | ClearHistoryMessage
   | RemoveHistoryMessage

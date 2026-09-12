@@ -7,6 +7,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **The toolbar icon flags failed downloads.** When a download fails, the toolbar
+  badge shows the failed count in red across every tab — so a failure isn't silent
+  when the popup is closed (e.g. context-menu or keyboard-shortcut downloads). It
+  clears when you open the popup (where the queue shows the failed rows), and a new
+  failure re-flags it. No new permissions.
 - **Stream capture (HLS & DASH) now works on Firefox and Safari.** Capture used to
   be Chrome-only because it assembled segments in a `chrome.offscreen` document.
   The engine now runs in each browser's own DOM-capable context (offscreen on

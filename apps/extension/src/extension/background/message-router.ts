@@ -30,6 +30,7 @@ import {
 import { enqueueMedia } from '@/extension/background/download/enqueue-media';
 import { scheduleSidecar } from '@/extension/background/download/sidecar-writer';
 import { platform } from '@/extension/platform';
+import { ackDownloadAlerts } from '@/extension/background/badge';
 import type { QueueState } from '@mbd/storage/download-queue';
 import { currentSettings, excludedCache, settingsReady, excludedReady, writeSettingsPatch } from '@/extension/background/state';
 import { storeSniffedMedia, snifferByTab, resolveOriginalsBatch } from '@/extension/background/sniffer-store';
@@ -245,6 +246,10 @@ export const messageRouter: MessageRouter = {
       }
     })();
     return true;
+  },
+
+  DOWNLOADS_SEEN: () => {
+    ackDownloadAlerts();
   },
 
   GET_DOWNLOAD_STATES: (_message, _sender, respond) => {

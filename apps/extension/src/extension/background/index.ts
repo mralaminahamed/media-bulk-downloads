@@ -8,8 +8,9 @@ import {
   currentSettings, excludedReady, settingsReady,
   loadSettings, reloadExcluded, resolveSettingsGate, setCurrentSettings, setApplySettingsHook,
 } from '@/extension/background/state';
+import { QUEUE_KEY, loadQueue, type QueueState } from '@mbd/storage/download-queue';
 import {
-  applySettings, updateTabBadge, updateTabActionMode, updateAllTabsBadges, BADGE_COLOR,
+  applySettings, updateTabBadge, updateTabActionMode, updateAllTabsBadges, BADGE_COLOR, setDownloadFailedCount,
 } from '@/extension/background/badge';
 import { snifferByTab } from '@/extension/background/sniffer-store';
 import { setupContextMenus } from '@/extension/background/context-menu';
@@ -44,6 +45,11 @@ chrome.runtime.onStartup?.addListener(() => {
 });
 void settingsReady.then(() => reconcileQueue()).catch(() => {});
 
+// Seed the failed-download alert badge from the persisted queue on wake, so a
+// failure that happened while the SW was asleep is shown without waiting for the
+// next queue change.
+void loadQueue().then((q) => setDownloadFailedCount(q.items.filter((i) => i.status === 'failed').length)).catch(() => {});
+
 platform.downloader.onChanged((change) => {
   if (change.error === 'USER_CANCELED') void markSaveAsPromptSeen();
 });
@@ -58,6 +64,10 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
   } else if (namespace === 'local' && changes[EXCLUDED_KEY]) {
     reloadExcluded();
     if (currentSettings.showImageCount) void excludedReady.then(() => updateAllTabsBadges());
+  } else if (namespace === 'local' && changes[QUEUE_KEY]) {
+    const q = changes[QUEUE_KEY].newValue as QueueState | undefined;
+    const failed = Array.isArray(q?.items) ? q.items.filter((i) => i.status === 'failed').length : 0;
+    setDownloadFailedCount(failed);
   }
 });
 
