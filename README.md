@@ -4,8 +4,8 @@
 
 # Media Bulk Downloads
 
-**Grab every image, video, and audio file on a page — filter, preview, and download in bulk.**
-Fast, network-free by default, and built for Chrome, Firefox, Edge, and Safari from one codebase.
+**Grab every image, video, and audio file on a page, then filter, preview, and download them in bulk.**
+Works in Chrome, Firefox, Edge, and Safari from one codebase, and reads only what the page already loaded.
 
 <p>
   <a href="https://chromewebstore.google.com/detail/media-bulk-downloads/jmdhkdengijmmkelofaleinbipophckn"><img alt="Available in the Chrome Web Store" src="./assets/badges/chrome-web-store.png" height="52"></a>
@@ -33,11 +33,11 @@ Fast, network-free by default, and built for Chrome, Firefox, Edge, and Safari f
 
 ## What it does
 
-Your browser's **Save image as…** grabs one file at a time and never sees lazy-loaded
+Your browser's **Save image as…** grabs one file at a time. It never sees lazy-loaded
 images, responsive `srcset` sources, CSS backgrounds, or gallery links. Media Bulk
 Downloads scans the whole page, gathers every image, video, and audio file it can find,
-upgrades thumbnails to their originals, and lets you **filter, preview, and download the
-lot** — one click for one file, one click for the entire filtered set.
+upgrades thumbnails to their originals, and lets you filter, preview, and download the
+lot: one click for one file, or one click for the whole filtered set.
 
 It reads only what the page already loaded, so nothing leaves your device.
 
@@ -48,97 +48,97 @@ It reads only what the page already loaded, so nothing leaves your device.
   `data-large-file` originals, and other `data-*` sources)
 - Responsive `srcset` / `<picture>` sources and `<noscript>` fallbacks
 - CSS `background-image` URLs, including `image-set()` (highest-resolution candidate)
-- Media inside **open Shadow DOM** (web components) and **same-origin iframes**
+- Media inside open Shadow DOM (web components) and same-origin iframes
 - `og:image` / `twitter:image` and `<link rel=preload as=image>` hero images
 - Gallery `<a href>` links (Reddit, Wallhaven, and similar)
 - Direct-file `<video>` and `<audio>` sources, plus direct `og:video` mp4s (news,
   product, and embed pages that expose the file only in a meta tag)
-- **HLS streams** (`.m3u8`) exposed in the page **or fetched by its player**
-  (`hls.js`, via a passive network sniffer) — captured (manifest + segments
-  fetched, AES-128 decrypted, assembled into one `.ts`/`.mp4`). DRM and live
-  streams are refused; see [Capture below](#hls--dash-stream-capture)
-- **YouTube video posters** — an embedded player `<iframe>` or a link to a video
+- HLS streams (`.m3u8`) exposed in the page or fetched by its player
+  (`hls.js`, via a passive network sniffer). These are captured: the manifest and
+  segments are fetched, AES-128 is decrypted, and everything is assembled into one
+  `.ts`/`.mp4`. DRM and live streams are refused; see [Capture below](#hls--dash-stream-capture).
+- YouTube video posters. An embedded player `<iframe>` or a link to a video
   (`watch`, `youtu.be`, `/embed`, `/shorts`, `/live`, `youtube-nocookie`) becomes
-  its downloadable poster thumbnail, even with no `<img>` on the page
+  its downloadable poster thumbnail, even with no `<img>` on the page.
 
 **Upgrades to original quality**
-- **De-proxies** wrapped URLs (Next.js `_next/image` — absolute and relative —
-  weserv, Cloudinary fetch)
-- **CDN upgrades** thumbnails to full size (Twitter/X `name=orig`, YouTube
+- De-proxies wrapped URLs (Next.js `_next/image`, absolute and relative, plus
+  weserv and Cloudinary fetch)
+- Rewrites CDN thumbnails to full size (Twitter/X `name=orig`, YouTube
   `hqdefault`, Pinterest `/originals/`, Google `=s0`, and dozens more families)
-- **Deep scan** — an opt-in, bounded auto-scroll that surfaces virtualized and
+- Deep scan: an opt-in, bounded auto-scroll that surfaces virtualized and
   infinite-scroll media (it scrolls the page and any nested scroll panes; the page
-  loads its own media). Its limits — max items, time, and scroll steps — are
+  loads its own media). Its limits (max items, time, and scroll steps) are
   configurable in Settings, it tells you when a limit stopped it early, and it can
-  optionally click **“Load more”** buttons (off by default)
-- **Resolve originals** — an optional setting that fetches the exact
+  optionally click "Load more" buttons (off by default).
+- Resolve originals: an optional setting that fetches the exact
   highest-resolution file from supported hosts (off by default)
 
 **Filters and downloads cleanly**
-- Filter by **kind** (image / video / audio), **format** (jpg, png, gif, webp, mp4,
-  webm, mp3…), and **size**
-- **Search** the grid by filename, alt text, type, or URL, and **sort** by name,
-  size, dimensions, or type — handy on pages with hundreds of items
-- **Find near-duplicates** — an on-demand perceptual-hash (pHash) pass that hides
-  lower-resolution copies of the same image, keeping the largest; reversible via
-  the **Duplicates** filter, with a configurable similarity threshold in Settings
-- **Collect across tabs** — pull media from **all** or **selected** open tabs in a
+- Filter by kind (image / video / audio), format (jpg, png, gif, webp, mp4,
+  webm, mp3, and more), and size
+- Search the grid by filename, alt text, type, or URL, and sort by name,
+  size, dimensions, or type, which helps on pages with hundreds of items
+- Find near-duplicates: an on-demand perceptual-hash (pHash) pass that hides
+  lower-resolution copies of the same image and keeps the largest. It's reversible via
+  the Duplicates filter, with a configurable similarity threshold in Settings.
+- Collect across tabs: pull media from all or selected open tabs in a
   single pass and download the combined set, each file tagged with its own source
   tab (tab picker in the popup)
-- Download one item or the entire filtered set — as separate files or bundled
-  into a single **ZIP archive** (same folder layout inside; items a CDN blocks
+- Download one item or the entire filtered set, as separate files or bundled
+  into a single ZIP archive (same folder layout inside; items a CDN blocks
   fall back to individual downloads automatically)
-- Correct file extensions (never a `.jpg` on a real `.png`)
-- Optional **format conversion** on download — re-encode raster images (incl.
-  WebP/AVIF) to **PNG** or **JPEG** (Settings → Downloads). Embedded **EXIF/XMP
-  metadata is preserved** by default across the re-encode (copyright, author,
-  capture info); switch to **Strip** to intentionally remove it (e.g. GPS)
-- Configurable naming scheme and a **download-path template** — `{host}`,
-  `{domain}`, `{date}`, `{kind}` tokens save each site to its own folder
-- **Copy or export links** — copy the shown/selected URLs to the clipboard, or
+- Correct file extensions, never a `.jpg` on a real `.png`
+- Optional format conversion on download: re-encode raster images (including
+  WebP/AVIF) to PNG or JPEG (Settings → Downloads). Embedded EXIF/XMP
+  metadata is preserved by default across the re-encode (copyright, author,
+  capture info); switch to Strip to remove it on purpose (for example, GPS).
+- Configurable naming scheme and a download-path template. The `{host}`,
+  `{domain}`, `{date}`, and `{kind}` tokens save each site to its own folder.
+- Copy or export links: copy the shown or selected URLs to the clipboard, or
   export them as a `.txt`, from the download button's menu
-- **Download queue** — batches run through a persistent queue with a popup panel;
-  it survives closing the popup and resumes interrupted items
-- **Download history** with open-file, reveal-in-folder, and re-download actions
-- **Favourites** — star media to a saved list that persists across sessions,
+- Download queue: batches run through a persistent queue with a popup panel.
+  It survives closing the popup and resumes interrupted items.
+- Download history with open-file, reveal-in-folder, and re-download actions
+- Favourites: star media to a saved list that persists across sessions and is
   re-downloadable anytime
-- **Backup & restore** — export your settings, favourites, and history to a JSON
+- Backup and restore: export your settings, favourites, and history to a JSON
   file and import it back (Settings → Backup)
-- **Reset & clear** — reset all settings to defaults, or clear all local data
+- Reset and clear: reset all settings to defaults, or clear all local data
   (history, favourites, blocked sources) in one step (Settings → Data)
 
 **Private by design**
-- **Network-free by default** — collection reads only what the page already loaded
+- Network-free by default: collection reads only what the page already loaded
 - No accounts, no analytics, no servers; settings and history never leave your device
 - Full policy in [PRIVACY.md](./PRIVACY.md)
 
 ## Install
 
-**Store availability** — where you can install it today. Opera and Safari
-submissions are in the stores' review queues and will go live once approved:
+Where you can install it today. The Opera and Safari submissions are in the stores'
+review queues and will go live once approved:
 
 | Store                            | Status          | Get it                                                                                                     |
 |----------------------------------|-----------------|------------------------------------------------------------------------------------------------------------|
 | Chrome Web Store                 | ✅ Live          | [Install](https://chromewebstore.google.com/detail/media-bulk-downloads/jmdhkdengijmmkelofaleinbipophckn)  |
 | Firefox Add-ons (AMO)            | ✅ Live          | [Install](https://addons.mozilla.org/en-US/firefox/addon/media-bulk-downloads/)                            |
 | Microsoft Edge Add-ons           | ✅ Live          | [Install](https://microsoftedge.microsoft.com/addons/detail/media-bulk-downloads/ihhhecmabfocelgmjafijchhhlpdlnll) |
-| Opera Add-ons                    | 🕓 Under review  | Chromium build works meanwhile — install from the Chrome Web Store                                          |
+| Opera Add-ons                    | 🕓 Under review  | The Chromium build works meanwhile; install from the Chrome Web Store                                       |
 | Safari (Mac App Store)           | 🕓 Under review  | macOS wrapper submitted; see the [Safari note](#build--package) below                                      |
 
-**From the Chrome Web Store** —
-[**install Media Bulk Downloads**](https://chromewebstore.google.com/detail/media-bulk-downloads/jmdhkdengijmmkelofaleinbipophckn),
+**From the Chrome Web Store:**
+[install Media Bulk Downloads](https://chromewebstore.google.com/detail/media-bulk-downloads/jmdhkdengijmmkelofaleinbipophckn),
 one click, no account. Other Chromium browsers (Brave, Opera, Vivaldi) can install the
 Chrome build too.
 
-**From Firefox Add-ons (AMO)** —
-[**install Media Bulk Downloads**](https://addons.mozilla.org/en-US/firefox/addon/media-bulk-downloads/)
+**From Firefox Add-ons (AMO):**
+[install Media Bulk Downloads](https://addons.mozilla.org/en-US/firefox/addon/media-bulk-downloads/)
 for Firefox 140+.
 
-**From the Microsoft Edge Add-ons store** —
-[**install Media Bulk Downloads**](https://microsoftedge.microsoft.com/addons/detail/media-bulk-downloads/ihhhecmabfocelgmjafijchhhlpdlnll),
+**From the Microsoft Edge Add-ons store:**
+[install Media Bulk Downloads](https://microsoftedge.microsoft.com/addons/detail/media-bulk-downloads/ihhhecmabfocelgmjafijchhhlpdlnll),
 one click, no account.
 
-**From source** — requires **Node 20.19+** and Corepack Yarn (`.nvmrc` pins 22). The
+**From source:** requires Node 20.19+ and Corepack Yarn (`.nvmrc` pins 22). The
 build runs on [WXT](https://wxt.dev), which targets every browser from one codebase:
 
 ```bash
@@ -150,7 +150,7 @@ yarn dev            # Chrome: builds apps/extension/.output/chrome-mv3 and auto-
 # yarn dev:firefox  # Firefox: builds apps/extension/.output/firefox-mv3 and opens a dev profile
 ```
 
-`yarn dev` opens a browser with the extension loaded. To load a build by hand:
+`yarn dev` opens a browser with the extension loaded. To load a build by hand,
 open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, and
 select `apps/extension/.output/chrome-mv3`.
 
@@ -169,37 +169,37 @@ yarn zip:all        # store zips for all three  → apps/extension/.output/*.zip
 | Microsoft Edge Add-ons | `media-bulk-downloads-<version>-edge.zip`                         |
 | Firefox Add-ons (AMO)  | `media-bulk-downloads-<version>-firefox.zip` + the `-sources.zip` |
 
-Per-browser scripts (`build:firefox`, `zip:edge`, …) exist too. Validate the Firefox
+Per-browser scripts (`build:firefox`, `zip:edge`, and so on) exist too. Validate the Firefox
 package with `yarn lint:firefox`. To load it by hand:
 `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on…** → pick
 `apps/extension/.output/firefox-mv3/manifest.json`.
 
 > **Safari** ships as a native macOS wrapper (`apps/safari-native/`, generated by
 > `safari-web-extension-converter`) around the `yarn build:safari` output
-> (`apps/extension/.output/safari-mv3`); the extension code targets Safari through
-> the `@mbd/platform` capability seam. The Mac App Store submission is **under
-> review** — not yet live. Building and submitting it require macOS + Xcode. See
+> (`apps/extension/.output/safari-mv3`). The extension code targets Safari through
+> the `@mbd/platform` capability seam. The Mac App Store submission is under
+> review, not yet live. Building and submitting it require macOS and Xcode. See
 > [#307](https://github.com/mralaminahamed/media-bulk-downloads/issues/307) and
 > [`docs/store-submissions/SAFARI_APPSTORE.md`](./docs/store-submissions/SAFARI_APPSTORE.md).
 
 ## Usage
 
-1. **Click the toolbar icon** on any page — the popup opens and scans for media.
-2. **Browse the grid** — hover to preview, click a tile for the full-size view.
-3. **Filter** by kind, format, or file size — or **search** and **sort** the grid
+1. **Click the toolbar icon** on any page. The popup opens and scans for media.
+2. **Browse the grid.** Hover to preview, click a tile for the full-size view.
+3. **Filter** by kind, format, or file size, or **search** and **sort** the grid
    from the row above the filters.
 4. **Download** one item (click it) or every filtered item (**Download all**).
    Use the button's caret to grab the set **As ZIP archive** instead of separate
    files.
-5. **Deep scan** (optional) — trigger the auto-scroll to pull in media on
-   infinite-scroll pages. Tune its limits — and enable optional **“Load more”**
-   clicking — under **Settings → Deep scan**.
+5. **Deep scan** (optional): trigger the auto-scroll to pull in media on
+   infinite-scroll pages. Tune its limits, and enable optional **"Load more"**
+   clicking, under **Settings → Deep scan**.
 
-Prefer to stay on the page? The optional **on-page bubble** gives you the same tools in
+Prefer to stay on the page? The optional on-page bubble gives you the same tools in
 a draggable panel without opening the toolbar popup.
 
 In a hurry? **Right-click** anywhere for **Download all media on this page**, or right-click
-an image for **Download image (original quality)** and **Add image to Favourites** — no popup needed.
+an image for **Download image (original quality)** and **Add image to Favourites**, no popup needed.
 
 **Keyboard shortcuts** (rebind at `chrome://extensions/shortcuts`):
 
@@ -217,7 +217,7 @@ an image for **Download image (original quality)** and **Add image to Favourites
 | `storage`        | Keep your settings and download history locally on your device            |
 | `tabs`           | Read the active tab's URL/title to label downloads and open a source page |
 | `contextMenus`   | Add right-click actions (download all / this image, add to favourites)    |
-| `offscreen`      | Assemble HLS/DASH video streams (fetch + join segments) in the background  |
+| `offscreen`      | Assemble HLS/DASH video streams (fetch and join segments) in the background |
 | `<all_urls>`     | Read media on whatever page you run the extension on                      |
 
 Optional (requested only when you turn the feature on, never at install):
@@ -225,13 +225,13 @@ Optional (requested only when you turn the feature on, never at install):
 | Permission             | Why it's needed                                                                          |
 |------------------------|------------------------------------------------------------------------------------------|
 | `notifications`        | Show a desktop toast when a download batch finishes (Settings → Downloads)                |
-| `declarativeNetRequestWithHostAccess` | Retry a hotlink-blocked download (HTTP 403) with the source page as `Referer` — requested only when you use "Retry w/ referer" on a failed item, and used only for that one request |
+| `declarativeNetRequestWithHostAccess` | Retry a hotlink-blocked download (HTTP 403) with the source page as `Referer`. Requested only when you use "Retry w/ referer" on a failed item, and used only for that one request. |
 
 ## Supported sites
 
-The engine works on **any website** through its generic pipeline — `srcset` /
+The engine works on any website through its generic pipeline: `srcset` /
 `<picture>`, de-proxying, and 90+ CDN-family upgrade rules. On top of that it ships
-**dedicated per-site resolvers** for platforms where the original hides behind page
+dedicated per-site resolvers for platforms where the original hides behind page
 JSON, signed CDNs, or embeds. A representative selection:
 
 | Category            | Sites                                                                          |
@@ -247,72 +247,72 @@ JSON, signed CDNs, or embeds. A representative selection:
 | Image hosts         | imgur · Image Chest · Tenor · Postimages · and more                           |
 | Creator platforms   | Patreon · Pixiv Fanbox                                                         |
 
-…plus **100+ more sites and CDN families**. The full, live-verified list — every
-site, its upgrade mechanism, and how coverage was established — is the
-[**coverage matrix**](https://mralaminahamed.github.io/media-bulk-downloads/benchmark/coverage-matrix/).
+Plus 100+ more sites and CDN families. The full, live-verified list (every
+site, its upgrade mechanism, and how coverage was established) is the
+[coverage matrix](https://mralaminahamed.github.io/media-bulk-downloads/benchmark/coverage-matrix/).
 
 > **A note on how coverage is verified.** Most sites here were recon'd and
-> validated by **AI agents** — probing the live site, comparing byte sizes, and
-> confirming the upgrade mechanism — rather than exhaustively hand-tested by a
+> validated by AI agents, which probe the live site, compare byte sizes, and
+> confirm the upgrade mechanism, rather than being hand-tested by a
 > person. Sites change their markup and CDNs without notice, so a resolver that
 > worked at validation time can drift. If a site stops resolving correctly,
 > please [open an issue](https://github.com/mralaminahamed/media-bulk-downloads/issues).
 
 ## HLS & DASH stream capture
 
-When a page exposes an adaptive-streaming manifest — **HLS** (`.m3u8`) or **DASH**
-(`.mpd`) — via a native `<video>`/`<source>`, an `og:video`, or a direct link, it
-appears in the grid tagged **HLS · capture**. **Capture** fetches the manifest and every
-segment, decrypts standard **AES-128** where present, and assembles them into a
+When a page exposes an adaptive-streaming manifest, HLS (`.m3u8`) or DASH
+(`.mpd`), via a native `<video>`/`<source>`, an `og:video`, or a direct link, it
+appears in the grid tagged **HLS · capture**. Capture fetches the manifest and every
+segment, decrypts standard AES-128 where present, and assembles them into a
 single file: MPEG-TS `.ts` or `.mp4` for video (audio muxed in), or `.m4a` / AAC for
-audio-only streams — which can optionally be **transcoded to MP3** (128 / 192 /
+audio-only streams. Audio-only can optionally be transcoded to MP3 (128 / 192 /
 320 kbps) instead of the M4A passthrough (Settings → Stream capture). It selects
-the variant closest to 720p by default — change this
-under **Settings → Stream capture quality** (auto / best / worst / 1080 / 720 / 480) —
-and runs in the background service worker plus a hidden **offscreen document**
+the variant closest to 720p by default; change this
+under **Settings → Stream capture quality** (auto / best / worst / 1080 / 720 / 480).
+It runs in the background service worker plus a hidden offscreen document
 (Chrome/Edge; Firefox and Safari run the same capture core in-page), so
 capture keeps running even if you close the popup.
 
-**Not captured, by design:** **DRM** (Widevine / PlayReady / FairPlay,
-`SAMPLE-AES`) and **live** streams — capturing them would breach the stream's DRM
+**Not captured, by design:** DRM (Widevine / PlayReady / FairPlay,
+`SAMPLE-AES`) and live streams. Capturing them would breach the stream's DRM
 and Chrome Web Store policy. Streams larger than the ~1 GB size cap report a
 message rather than exhausting memory.
 
 Streams are found two ways: in the page DOM, and via a passive, MAIN-world
-**network sniffer** that notes the `.m3u8` manifests `hls.js` / native players
-fetch over XHR — the common modern case, where the manifest never touches the
+network sniffer that notes the `.m3u8` manifests `hls.js` and native players
+fetch over XHR. That's the common modern case, where the manifest never touches the
 DOM. The sniffer only observes request URLs (never response bodies) and forges no
 requests of its own.
 
 ## Tech stack
 
-- **[WXT](https://wxt.dev)** — multi-browser MV3 build (Chrome · Firefox · Edge · Safari)
+- **[WXT](https://wxt.dev)** for the multi-browser MV3 build (Chrome · Firefox · Edge · Safari)
   from one codebase, with dev auto-reload and per-browser zips
-- **React 19** + **TypeScript** — type-safe UI
-- **Tailwind CSS v4** — utility-first styling on a small design-token system
-- **Vite** (via WXT) — fast bundling
-- **Vitest** + **Testing Library** — unit/integration suite; each package runs as its own
-  project (`packages/*/tests/`) with per-package coverage, the app under `apps/extension/tests/unit/`
-- **Playwright** — end-to-end tests under `apps/extension/tests/e2e/` that load the built
-  extension in real Chromium and drive the on-page bubble (`yarn test:e2e`)
-- **web-ext** — Firefox package validation
+- **React 19** and **TypeScript** for a type-safe UI
+- **Tailwind CSS v4** for utility-first styling on a small design-token system
+- **Vite** (via WXT) for bundling
+- **Vitest** and **Testing Library** for the unit/integration suite. Each package runs as its own
+  project (`packages/*/tests/`) with per-package coverage; the app lives under `apps/extension/tests/unit/`.
+- **Playwright** for end-to-end tests under `apps/extension/tests/e2e/`. They load the built
+  extension in real Chromium and drive the on-page bubble (`yarn test:e2e`).
+- **web-ext** for Firefox package validation
 
 ## Dependencies
 
-Media Bulk Downloads runs **entirely inside your browser**. It does **not** use
-**Scrapfly**, any third-party scraping API, or an external proxy service — no request
+Media Bulk Downloads runs entirely inside your browser. It does not use
+**Scrapfly**, any third-party scraping API, or an external proxy service; no request
 is ever routed through a server operated by us or anyone else. There is no backend.
 
-- **Collection is network-free by default** — it reads the media already present in
-  the page's DOM. The optional HLS sniffer only *observes* the manifest URLs a player
+- **Collection is network-free by default.** It reads the media already present in
+  the page's DOM. The optional HLS sniffer only observes the manifest URLs a player
   fetches (URLs only, never response bodies) and forges no requests of its own.
-- **When it does fetch** — the opt-in *Resolve originals* setting and HLS/DASH
-  **Capture** — it uses the browser's built-in `fetch`/XHR to request the file
-  **directly from the site's own origin/CDN**, with no intermediary.
+- **When it does fetch** (the opt-in *Resolve originals* setting and HLS/DASH
+  capture) it uses the browser's built-in `fetch`/XHR to request the file
+  directly from the site's own origin/CDN, with no intermediary.
 - **Saving** goes through the browser's own download manager (`chrome.downloads`).
 
-The only runtime libraries bundled are small, pure-in-browser helpers — no HTTP
-client, no headless browser:
+The only runtime libraries bundled are small, pure-in-browser helpers. There is no HTTP
+client and no headless browser:
 
 | Package                | Role                                                |
 |------------------------|-----------------------------------------------------|
@@ -323,30 +323,29 @@ client, no headless browser:
 | `react` / `react-dom`  | popup and on-page-bubble UI                         |
 | `@heroicons/react`     | UI icons                                            |
 
-Everything else in the repo is build / test tooling (see [Tech stack](#tech-stack)),
+Everything else in the repo is build and test tooling (see [Tech stack](#tech-stack)),
 not a runtime dependency.
 
 ## Project structure
 
-A **yarn-workspaces monorepo** — three browser-agnostic packages consumed by one
-WXT app (import direction: app → storage/platform → core):
+A yarn-workspaces monorepo: three browser-agnostic packages consumed by one
+WXT app (import direction is app → storage/platform → core).
 
-- **`packages/core`** (`@mbd/core`) — collection, resolvers (+ sniffers), download
-  byte-logic, net, types. **Zero `chrome.*`.**
-- **`packages/storage`** (`@mbd/storage`) — settings, history, favourites, excluded,
-  queue over `chrome.storage` + IndexedDB.
-- **`packages/platform`** (`@mbd/platform`) — browser-capability contracts + detection.
-- **`apps/extension`** (`@mbd/extension`) — the WXT app (Chrome · Firefox · Edge ·
-  Safari): entrypoints, background, popup, content, bubble, offscreen.
+- **`packages/core`** (`@mbd/core`): collection, resolvers (and sniffers), download
+  byte-logic, net, types. Zero `chrome.*`.
+- **`packages/storage`** (`@mbd/storage`): settings, history, favourites, excluded,
+  and queue over `chrome.storage` + IndexedDB.
+- **`packages/platform`** (`@mbd/platform`): browser-capability contracts and detection.
+- **`apps/extension`** (`@mbd/extension`): the WXT app (Chrome · Firefox · Edge ·
+  Safari) with its entrypoints, background, popup, content, bubble, and offscreen.
 
 Each package/app carries its own README; the full design record is the
 [monorepo restructure](./docs/architecture/monorepo-restructure.md).
 
 ## Documentation
 
-📖 **Docs site:** **<https://mralaminahamed.github.io/media-bulk-downloads/>** — the
-guides and benchmark below, published from [`docs/website/`](./docs/website/) (Astro
-Starlight). Browse the source pages directly here too:
+📖 **Docs site:** **<https://mralaminahamed.github.io/media-bulk-downloads/>** for the
+guides and benchmark below. Browse the source pages directly here too:
 
 | Guide                                                       |                                                |
 |-------------------------------------------------------------|------------------------------------------------|
@@ -362,15 +361,15 @@ Starlight). Browse the source pages directly here too:
 | [Badge](https://mralaminahamed.github.io/media-bulk-downloads/how-it-works/badge/)                             | The per-tab media count on the toolbar icon    |
 | [In-page Bubble](https://mralaminahamed.github.io/media-bulk-downloads/guides/bubble/)                   | The Shadow-DOM launcher lifecycle              |
 
-**Reference:** [Changelog](./CHANGELOG.md) — release history ·
-[Feature one-pager](./docs/marketing/one-pager.md) — at-a-glance overview ·
-[Collection Benchmark](https://mralaminahamed.github.io/media-bulk-downloads/benchmark/overview/) — live, reproducible upgrade measurements ·
-[Coverage matrix](https://mralaminahamed.github.io/media-bulk-downloads/benchmark/coverage-matrix/) — every supported site + its upgrade rule ·
-[Monorepo restructure](./docs/architecture/monorepo-restructure.md) — packages/app design record
+**Reference:** [Changelog](./CHANGELOG.md) for release history ·
+[Feature one-pager](./docs/marketing/one-pager.md) for an at-a-glance overview ·
+[Collection Benchmark](https://mralaminahamed.github.io/media-bulk-downloads/benchmark/overview/) for live, reproducible upgrade measurements ·
+[Coverage matrix](https://mralaminahamed.github.io/media-bulk-downloads/benchmark/coverage-matrix/) for every supported site and its upgrade rule ·
+[Monorepo restructure](./docs/architecture/monorepo-restructure.md) for the packages/app design record
 
 ## Contributing
 
-Contributions are welcome — please read the [Contributing Guide](./CONTRIBUTING.md) first.
+Contributions are welcome. Please read the [Contributing Guide](./CONTRIBUTING.md) first.
 Before opening a PR, make sure the full gate passes:
 
 ```bash
@@ -393,20 +392,20 @@ Found a vulnerability? See [SECURITY.md](./SECURITY.md) for private disclosure.
 
 Media Bulk Downloads is free and open source. If it saves you time, you can help:
 
-- **Sponsor** — via the **Sponsor** button on this repo, or directly at
+- **Sponsor** via the **Sponsor** button on this repo, or directly at
   [alaminahamed.com/donate](https://alaminahamed.com/donate) (also the **Support the
   project** heart in the extension's popup).
-- **Star** the repo, report bugs, and send PRs — see [Contributing](./CONTRIBUTING.md).
+- **Star** the repo, report bugs, and send PRs. See [Contributing](./CONTRIBUTING.md).
 
 ## Acknowledgements
 
-Site-coverage research for many of the platform resolvers — the public media
-endpoints and the URL-match patterns each site uses to expose its media — was
+Site-coverage research for many of the platform resolvers (the public media
+endpoints and the URL-match patterns each site uses to expose its media) was
 informed by [**gallery-dl**](https://github.com/mikf/gallery-dl) by Mike Fährmann,
-an excellent and comprehensive media-download project, and a continuing reference as
+a comprehensive media-download project and a continuing reference as
 we add support for more sites.
 
-gallery-dl is used **only as a factual reference** — for *how* a site exposes its
+gallery-dl is used **only as a factual reference**, for *how* a site exposes its
 media (endpoints, URL shapes, embedded-JSON keys). It is licensed **GPL-2.0**, and
 **no gallery-dl source code is copied, adapted, or bundled** into this extension;
 every resolver here is an independent implementation. Our thanks to its maintainers
