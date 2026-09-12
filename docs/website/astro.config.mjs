@@ -46,10 +46,16 @@ export default defineConfig({
           items: [
             { label: 'Download & queue', slug: 'guides/download' },
             { label: 'Download paths', slug: 'guides/download-paths' },
+            { label: 'Convert on download', slug: 'guides/convert-on-download' },
+            { label: 'Stream capture (HLS & DASH)', slug: 'guides/stream-capture' },
+            { label: 'Deep scan', slug: 'guides/deep-scan' },
+            { label: 'Find near-duplicates', slug: 'guides/near-duplicates' },
+            { label: 'Collect across tabs', slug: 'guides/collect-across-tabs' },
             { label: 'Favourites', slug: 'guides/favourites' },
             { label: 'History', slug: 'guides/history' },
             { label: 'On-page bubble', slug: 'guides/bubble' },
-            { label: 'Deep scan', slug: 'guides/deep-scan' },
+            { label: 'Shortcuts & context menu', slug: 'guides/shortcuts-and-context-menu' },
+            { label: 'Backup & restore', slug: 'guides/backup-restore' },
           ],
         },
         {

@@ -34,8 +34,8 @@ Four tokens exist. Anything else in `{...}` is dropped.
 
 ## Examples
 
-Source page `https://www.twitter.com/...`, first JPEG in the batch, default
-`image_` prefix:
+Source page `https://www.twitter.com/...`, first JPEG in the batch, prefixed
+naming (`image_`):
 
 | Template          | Saved as                                       |
 |-------------------|------------------------------------------------|

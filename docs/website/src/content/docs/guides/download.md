@@ -33,8 +33,8 @@ Both paths share the same filename builder and the same duplicate handling, desc
 
 ### The name (`namingMode`)
 
-- **`prefixed`** (default): `<fileNamePrefix><n>.<ext>`, where `n` is the item's 1-based position in the batch (`image_1.jpg`, `image_2.png`). A blank prefix falls back to `image_`.
-- **`original`**: the source URL's basename, with the extension re-derived as above (`sunset.jpg`). Falls back to the prefixed form when the URL has no usable name: `data:` / `blob:` URIs, or a path
+- **`prefixed`**: `<fileNamePrefix><n>.<ext>`, where `n` is the item's 1-based position in the batch (`image_1.jpg`, `image_2.png`). A blank prefix falls back to `image_`.
+- **`original`** (default): the source URL's basename, with the extension re-derived as above (`sunset.jpg`). Falls back to the prefixed form when the URL has no usable name: `data:` / `blob:` URIs, or a path
   that ends in a slash or has no basename.
 
 ### The folder
@@ -47,7 +47,7 @@ safety rules that keep a path inside `Downloads/` are documented in
 
 | Setting                  | Default    | Effect                                                               |
 |--------------------------|------------|----------------------------------------------------------------------|
-| `namingMode`             | `prefixed` | Keep the source name (`original`) or use `fileNamePrefix` + index    |
+| `namingMode`             | `original` | Keep the source name (`original`) or use `fileNamePrefix` + index    |
 | `fileNamePrefix`         | `image_`   | Prefix for the `prefixed` form                                       |
 | `downloadPath`           | *(empty)*  | Relative folder template, see [Download paths](/media-bulk-downloads/guides/download-paths/) |
 | `saveAs`                 | `false`    | Show Chrome's native "Save As" dialog for each file                  |

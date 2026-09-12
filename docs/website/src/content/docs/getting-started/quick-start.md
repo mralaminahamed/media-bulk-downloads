@@ -50,10 +50,10 @@ yarn build        # production build
 
 ## First use
 
-The toolbar icon does one of two things, depending on your settings:
+The toolbar icon does one of two things, depending on your settings and the page:
 
-- **Popup (default):** clicking the icon opens the popup panel.
-- **Bubble:** with **Show floating bubble on pages** turned on, clicking the icon toggles an in-page floating panel instead. See [In-page Bubble](/media-bulk-downloads/guides/bubble/).
+- **Bubble (default):** **Show floating bubble on pages** is on by default, so on any normal web page clicking the icon toggles an in-page floating panel. See [In-page Bubble](/media-bulk-downloads/guides/bubble/).
+- **Popup:** on restricted pages where the bubble can't run (the Chrome Web Store, AMO, `chrome://` pages), or with that setting off, clicking the icon opens the popup panel instead.
 
 Once the panel is open:
 
