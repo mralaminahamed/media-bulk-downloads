@@ -64,9 +64,10 @@ it('falls back to plain Retry for a hotlink item when chrome.permissions is unav
   }
 });
 
-it('a failed item shows its error reason', () => {
+it('a failed item shows a human error reason, not the raw code', () => {
   render(<ul><QueueRow item={item({ status: 'failed', error: 'SERVER_FORBIDDEN' })} {...props} /></ul>);
-  expect(screen.getByText('SERVER_FORBIDDEN')).toBeInTheDocument();
+  expect(screen.getByText(/Retry w\/ referer/i)).toBeInTheDocument();
+  expect(screen.queryByText('SERVER_FORBIDDEN')).not.toBeInTheDocument();
 });
 
 it('a queued item offers Cancel and no progress bar', async () => {

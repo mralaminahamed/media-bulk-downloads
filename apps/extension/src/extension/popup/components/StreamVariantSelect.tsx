@@ -27,7 +27,7 @@ const StreamVariantSelect: React.FC<Props> = ({ state, value, onEnsure, onChange
     onMouseDown={() => { if (state.status === 'idle') onEnsure(); }}
     onChange={(e) => onChange(e.target.value === 'auto' ? null : Number(e.target.value))}
   >
-    <option value="auto">Auto{state.status === 'loading' ? ' — loading…' : ' (global)'}</option>
+    <option value="auto">Auto{state.status === 'loading' ? ' — loading…' : state.status === 'error' ? ' — couldn’t load qualities' : ' (global)'}</option>
     {state.variants.map((v) => (
       <option key={v.height} value={String(v.height)}>{v.label}</option>
     ))}

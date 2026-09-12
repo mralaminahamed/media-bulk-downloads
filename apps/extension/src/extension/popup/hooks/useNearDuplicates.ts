@@ -73,7 +73,10 @@ export function useNearDuplicates({
 
     const eligible = filterExcluded(filterImagesBySettings(rawImagesRef.current, settingsRef.current), excludedRef.current);
     const targets = eligible.filter(isHashCandidate);
-    if (targets.length < 2) return;
+    if (targets.length < 2) {
+      setState((prev) => ({ ...prev, status: 'Need at least two comparable images to find near-duplicates.' }));
+      return;
+    }
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -150,9 +153,15 @@ export function useNearDuplicates({
     };
 
     rawImagesRef.current = rawImagesRef.current.map(applyMark);
+    const dupCount = [...marks.values()].filter((m) => m.nearDuplicate).length;
     setState((prev) => {
       const eligibleNow = filterExcluded(filterImagesBySettings(rawImagesRef.current, settingsRef.current), excludedRef.current);
-      return { ...prev, images: eligibleNow, filteredImages: applyToolbarFilters(eligibleNow, filtersRef.current, isDownloaded) };
+      return {
+        ...prev,
+        images: eligibleNow,
+        filteredImages: applyToolbarFilters(eligibleNow, filtersRef.current, isDownloaded),
+        status: dupCount ? `Found ${dupCount} near-duplicate${dupCount === 1 ? '' : 's'}.` : 'No near-duplicates found.',
+      };
     });
   }, [running, rawImagesRef, settingsRef, excludedRef, filtersRef, isDownloaded, setState]);
 

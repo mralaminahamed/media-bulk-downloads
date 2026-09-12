@@ -355,6 +355,11 @@ export function useMediaEngine({
     if (generation !== resolveGenRef.current) return;
     const failed = srcs.filter((s) => !resolved[s]);
     if (failed.length) setResolveFailedSrcs((p) => { const n = new Set(p); failed.forEach((s) => n.add(s)); return n; });
+    const got = srcs.length - failed.length;
+    setState((prev) => ({
+      ...prev,
+      status: `Fetched ${got} of ${srcs.length} video${srcs.length === 1 ? '' : 's'}${failed.length ? ` — ${failed.length} couldn’t be fetched` : ''}.`,
+    }));
 
     const byOldSrc = new Map<string, ImageInfo>();
     for (const t of targets) {
@@ -394,6 +399,13 @@ export function useMediaEngine({
       setProbingSizes(false);
     }
     if (generation !== resolveGenRef.current) return;
+
+    const sized = targets.filter((t) => meta[t.src]?.ok && meta[t.src]?.bytes !== undefined).length;
+    const unknown = targets.length - sized;
+    setState((prev) => ({
+      ...prev,
+      status: `Checked ${targets.length} size${targets.length === 1 ? '' : 's'}${unknown ? ` — ${unknown} still unknown` : ''}.`,
+    }));
 
     const apply = (list: ImageInfo[]): ImageInfo[] =>
       list.map((i) => {

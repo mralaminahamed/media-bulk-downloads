@@ -43,6 +43,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   use `redirect: 'error'`, matching the ZIP fetch guard.
 
 ### Fixed
+- **Clearer feedback for downloads and fetches.** Failed queue items now show a
+  plain-language reason instead of a raw code (e.g. "Blocked by the server — try
+  'Retry w/ referer'." rather than `SERVER_FORBIDDEN`); "Check sizes" reports a
+  summary ("Checked N sizes — M still unknown"); "Get all videos" reports how many
+  were fetched; a stream whose quality list can't load says so in the picker; a ZIP
+  that can't fetch any file explains it's downloading them individually; and a
+  failed stream capture no longer shows an internal error code.
 - **Captured HLS/DASH videos now save reliably when "Ask where to save" is on.**
   The muxed file's temporary blob URL was released after 60 seconds — if the Save
   dialog stayed open longer, the download read a released blob and silently saved

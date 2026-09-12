@@ -9,8 +9,9 @@ describe('streamErrorMessage', () => {
     expect(streamErrorMessage('audio-unavailable')).toMatch(/no separate audio/i);
     expect(streamErrorMessage('too-large')).toMatch(/1 GB/);
   });
-  it('falls back for an unknown code', () => {
+  it('falls back for an unknown code without leaking the raw code to the user', () => {
     expect(streamErrorMessage('weird')).toMatch(/Couldn.t capture/i);
+    expect(streamErrorMessage('weird')).not.toContain('weird');
   });
   it('maps the DASH-only codes', () => {
     expect(streamErrorMessage('no-representations')).toMatch(/no downloadable video/i);
