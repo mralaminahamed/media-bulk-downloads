@@ -1,6 +1,6 @@
 ---
 title: "Quick Start"
-description: "Install, build, and load Media Bulk Downloads unpacked, then scan and download your first media — plus the full settings reference."
+description: "Install, build, and load Media Bulk Downloads unpacked, then scan and download your first media, plus the full settings reference."
 ---
 
 ## Prerequisites
@@ -66,7 +66,7 @@ Once the panel is open:
 
 Click any tile to preview it full-size with its dimensions, type, and source:
 
-![The preview modal — an item shown full size with its dimensions, type, and source, with previous/next controls.](../../../assets/screenshots/preview.png)
+![The preview modal: an item shown full size with its dimensions, type, and source, with previous/next controls.](../../../assets/screenshots/preview.png)
 
 ## Settings
 

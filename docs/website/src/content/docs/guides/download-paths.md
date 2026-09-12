@@ -53,7 +53,7 @@ The Settings panel shows a live preview against a sample site as you type.
 `expandPathTemplate(template, tokens)` runs three steps (`packages/core/src/collection/paths.ts`):
 
 1. Replace each known token with its value. The value first goes through
-   `toSegment` — `sanitizePathSegment` plus stripping every `/`. A token value is always one segment, so a value that contains a slash can't add folders.
+   `toSegment`: `sanitizePathSegment` plus stripping every `/`. A token value is always one segment, so a value that contains a slash can't add folders.
 2. Delete any leftover `{...}`. An unknown token like `{typo}` is removed, not written literally.
 3. Run the whole joined path through `sanitizePathSegment`.
 
@@ -90,19 +90,19 @@ Downloads/Media/twitter.com/2026-07-13/image_1.jpg
 
 ## Rules and edge cases
 
-- **`{host}` vs `{domain}`** — `www.twitter.com`, `m.twitter.com`, and
+- **`{host}` vs `{domain}`**: `www.twitter.com`, `m.twitter.com`, and
   `twitter.com` are three hosts but one domain. Use `{domain}` to group a site's subdomains. `registrableDomain` drops `www.` and subdomains against a small built-in set of two-part suffixes (`co.uk`,
   `com.au`, and a handful more). It is a heuristic, not a full public-suffix list.
-- **Unknown site** — a file opened directly has no source page, so `{host}` and
+- **Unknown site**: a file opened directly has no source page, so `{host}` and
   `{domain}` resolve to empty. The empty segment collapses. `Media/{domain}`
   saves to `Downloads/Media/...`, never an empty or `unknown` folder.
-- **Name collisions** — the download call passes `conflictAction: 'uniquify'`, so a clash appends ` (1)`. Per-site folders make clashes rarer.
+- **Name collisions**: the download call passes `conflictAction: 'uniquify'`, so a clash appends ` (1)`. Per-site folders make clashes rarer.
 
 ## Implementation
 
-- `expandPathTemplate(template, tokens)` — token substitution plus sanitizing (`packages/core/src/collection/paths.ts`).
-- `hostFromUrl`, `registrableDomain`, `todayISO` — token-value helpers (same file).
-- `buildDownloadFilename(image, index, settings, sourcePageUrl?)` — resolves the tokens against the source page and prepends the folder (`packages/core/src/collection/download-name.ts`).
+- `expandPathTemplate(template, tokens)`: token substitution plus sanitizing (`packages/core/src/collection/paths.ts`).
+- `hostFromUrl`, `registrableDomain`, `todayISO`: token-value helpers (same file).
+- `buildDownloadFilename(image, index, settings, sourcePageUrl?)`: resolves the tokens against the source page and prepends the folder (`packages/core/src/collection/download-name.ts`).
   `downloadAndRecord` threads the source URL in.
 - The default `downloadPath` is `''` (`packages/storage/src/settings.ts`), stored in `chrome.storage.sync` under the `settings` key.
 

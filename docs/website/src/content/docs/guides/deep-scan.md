@@ -1,10 +1,10 @@
 ---
 title: "Deep Scan"
-description: "Opt-in, bounded auto-scroll that surfaces lazy and virtualized media — its caps, stop reasons, and per-host scan memory."
+description: "Opt-in, bounded auto-scroll that surfaces lazy and virtualized media: its caps, stop reasons, and per-host scan memory."
 ---
 
 Deep scan surfaces media that isn't in the DOM until the page scrolls:
-virtualized feeds (Twitter/X timelines), infinite scroll, and lazy carousels. It is **opt-in** and **bounded**. The extension makes no network requests of its own during a scan. It scrolls the page,
+virtualized feeds (Twitter/X timelines), infinite scroll, and lazy carousels. It is opt-in and bounded. The extension makes no network requests of its own during a scan. It scrolls the page,
 waits for the DOM to settle, and re-reads it. The page loads its own media.
 
 ## Popup path (over messaging)
@@ -75,7 +75,7 @@ sequenceDiagram
 The bubble reads caps from `settingsRef.current`, which a `storage.onChanged`
 listener keeps live. Editing the caps in Settings updates a running-again scan, not just the next mount.
 
-## The loop (`@mbd/core/collection/deepScan.ts` — pure)
+## The loop (`@mbd/core/collection/deepScan.ts`, pure)
 
 ```mermaid
 flowchart TB
@@ -125,7 +125,7 @@ The final progress event carries a `reason` (`DeepScanStopReason`) so the popup 
 
 | Reason        | Trigger                                                                          |
 |---------------|----------------------------------------------------------------------------------|
-| `complete`    | Idle rounds hit or page bottom reached — nothing left to load                    |
+| `complete`    | Idle rounds hit or page bottom reached, nothing left to load                     |
 | `max-items`   | `maxItems` cap reached                                                           |
 | `max-time`    | `maxMs` wall-clock cap reached                                                   |
 | `max-scrolls` | The (possibly stretched) scroll cap reached                                      |
@@ -147,7 +147,7 @@ The step size and the settle wait both adapt during the scan, so the loop covers
 - **Nested scrollers** (always on): each step also advances any inner
   `overflow-y: auto|scroll` pane that has more than 200 px of un-scrolled content and isn't already at its bottom, not just the page. Some galleries lazy-load inside their own scroll pane, so the page
   scroller alone never advances them.
-- **Load-more clicking** (opt-in, **off by default** — Settings → Media → Advanced → *Click "Load more" buttons*): when enabled, each step may click up to 3 matching `<button>` / `role="button"`
+- **Load-more clicking** (opt-in, off by default, under Settings → Media → Advanced → *Click "Load more" buttons*): when enabled, each step may click up to 3 matching `<button>` / `role="button"`
   controls per round. The text or
   `aria-label` must read as an expander ("load/show/view/see/read more", "load additional", "more results/items/photos/images/posts"). "Learn more" is deliberately excluded. Real buttons only, never
   `<a href>` links, which would navigate away and tear down the scan.
@@ -157,7 +157,7 @@ The step size and the settle wait both adapt during the scan, so the loop covers
 **Setting:** "Remember scan behaviour per site" (`rememberScanBehaviour`), **on by default**. Local only, never synced. "Reset this site" clears it, and resetting a host's per-host settings clears it
 too.
 
-The store lives in `chrome.storage.local` under `perHostScanMemory`: a record keyed by registrable domain. Each entry is three numbers — `settleMs`,
+The store lives in `chrome.storage.local` under `perHostScanMemory`: a record keyed by registrable domain. Each entry is three numbers: `settleMs`,
 `scrolls`, `updatedAt`. No URLs, no page content. The store is LRU-capped at 200 hosts; `settleMs` is clamped to ≤ 10000 and `scrolls` to ≤ 500.
 
 **Cold vs warm start.** The first scan of a host has no memory and behaves exactly like a scan with the setting off. On a repeat scan, `startDeepScan`
@@ -172,7 +172,7 @@ loads that host's memory and seeds the loop:
 - Nothing is written on an `aborted` or `error` run.
 - The fresh settle EMA is always blended into the stored value (cross-visit EMA, weight 0.5).
 - Scroll depth is blended in only when the run ended on `complete` or
-  `max-scrolls` — a genuine depth signal. A `max-time` / `max-items` stop under-counts depth, so the previous remembered value is kept instead of lowered.
+  `max-scrolls`, a genuine depth signal. A `max-time` / `max-items` stop under-counts depth, so the previous remembered value is kept instead of lowered.
 - The write is routed through the background (`SAVE_SCAN_MEMORY`) so saves and
   "Reset this site" share one serialized writer across tabs. It is fire-and-forget: if the background worker is asleep, the write is dropped and the value is re-learned on the next scan.
 
@@ -189,7 +189,7 @@ loads that host's memory and seeds the loop:
   filter is relaxed.
 - **Resolution still applies**: each scan round calls the same `collectMedia()`
   as the initial scan, so newly-found items can carry `resolveHint` /
-  `unresolvedVideo` like any other item. After the merge, `applyResolution` runs again and resolves them when `resolveOriginals` is on — see
+  `unresolvedVideo` like any other item. After the merge, `applyResolution` runs again and resolves them when `resolveOriginals` is on. See
   [Resolve Originals](/media-bulk-downloads/how-it-works/resolve-originals/).
 
 Pipeline that each scan round feeds into: [Collection Pipeline](/media-bulk-downloads/how-it-works/collection-pipeline/) ·

@@ -22,7 +22,7 @@ See CONTRIBUTING.md for setup and the checks CI runs.
 
 ## How verified
 
-<!-- How you confirmed it works — the flow you drove, sites tested, etc. -->
+<!-- How you confirmed it works: the flow you drove, sites tested, etc. -->
 
 ## Screenshots / recording
 

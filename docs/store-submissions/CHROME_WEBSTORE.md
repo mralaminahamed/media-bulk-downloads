@@ -1,4 +1,4 @@
-# Chrome Web Store — Submission Package
+# Chrome Web Store: Submission Package
 
 Everything needed to publish **Media Bulk Downloads** to the Chrome Web Store:
 copy-paste listing fields, per-permission justifications, the privacy
@@ -16,23 +16,23 @@ Version at time of writing: **1.3.0** · Manifest **V3**.
 - [ ] `wxt.config.ts` name/description correct; version comes from `apps/extension/package.json`. `yarn build` emits `apps/extension/.output/chrome-mv3/manifest.json`.
 - [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`.
 - [ ] `minimum_chrome_version: 109` is set in the Chrome/Edge manifest (the `chrome.offscreen` floor for HLS/DASH capture); the Firefox manifest omits it and pins `gecko.strict_min_version` instead.
-- [ ] Optional permissions declared: `notifications` and `declarativeNetRequestWithHostAccess` (both requested at runtime, not at install — see §4).
-- [ ] `commands` (keyboard shortcuts) and the MAIN-world content scripts (page + Instagram/X/Facebook/Pinterest/MangaDex media sniffers plus the all-URLs HLS sniffer) are present — no extra permission needed, but note them for review (see §4).
-- [ ] Icons 16/32/48/64/128 present (`apps/extension/src/public/icon/`) — ✅ already in the build.
+- [ ] Optional permissions declared: `notifications` and `declarativeNetRequestWithHostAccess` (both requested at runtime, not at install; see §4).
+- [ ] `commands` (keyboard shortcuts) and the MAIN-world content scripts (page + Instagram/X/Facebook/Pinterest/MangaDex media sniffers plus the all-URLs HLS sniffer) are present. No extra permission needed, but note them for review (see §4).
+- [ ] Icons 16/32/48/64/128 present (`apps/extension/src/public/icon/`). ✅ already in the build.
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
-- [ ] At least **1 screenshot** at 1280×800 or 640×400 (see §5) — ✅ seven real captures in `assets/v2/` (`screenshot-1-grab` … `screenshot-7-history`); Chrome shows up to 5.
-- [ ] Promo tiles (optional): small 440×280 + marquee 1400×560 — ✅ in `assets/v2/` (`promo-small-440x280.png`, `promo-marquee-1400x560.png`).
+- [ ] At least **1 screenshot** at 1280×800 or 640×400 (see §5). ✅ seven real captures in `assets/v2/` (`screenshot-1-grab` … `screenshot-7-history`); Chrome shows up to 5.
+- [ ] Promo tiles (optional): small 440×280 + marquee 1400×560. ✅ in `assets/v2/` (`promo-small-440x280.png`, `promo-marquee-1400x560.png`).
 - [ ] `apps/extension/.output/media-bulk-downloads-<version>-chrome.zip` produced by `yarn zip`.
 - [ ] Single-purpose description, permission justifications, and data disclosures filled in (below).
 
 > **Adding permissions on an update:** this submission is **1.3.0**; the previous
-> live listing is **1.2.0**. **1.3.0 adds no new permissions** — the manifest set is
+> live listing is **1.2.0**. **1.3.0 adds no new permissions**: the manifest set is
 > unchanged from 1.2.0, so it triggers no fuller re-review and no re-permission
 > prompt for existing users. (For reference, the last permission change was
 > 1.1.0 → 1.2.0, which added the optional `declarativeNetRequestWithHostAccess`
-> permission — the hotlink-403 Referer retry.) Any *future* update that adds a
+> permission, the hotlink-403 Referer retry.) Any *future* update that adds a
 > permission triggers a fuller re-review; the optional ones are requested at
-> runtime, so they don't re-prompt existing users on update — fill a justification
+> runtime, so they don't re-prompt existing users on update; fill a justification
 > for each new permission (§4) before submitting.
 
 ---
@@ -45,7 +45,7 @@ Version at time of writing: **1.3.0** · Manifest **V3**.
 Media Bulk Downloads
 ```
 
-**Summary / short description** (≤ 132 chars) — reuse the manifest description:
+**Summary / short description** (≤ 132 chars). Reuse the manifest description:
 
 ```
 Bulk-download images, video & audio from any web page. Smart type filters, instant preview, original quality — fast and private.
@@ -140,7 +140,7 @@ is viewing and lets them preview, filter, and download those files in bulk.
 
 ---
 
-## 4. Permission justifications (required — one per permission)
+## 4. Permission justifications (required, one per permission)
 
 **downloads**
 
@@ -212,7 +212,7 @@ a request the user initiated, and restores access to media the user can already
 view — it is not an auth or paywall bypass.
 ```
 
-**Host permissions — `<all_urls>`**
+**Host permissions (`<all_urls>`)**
 
 ```
 The extension must read the media elements on whatever page the user runs it on,
@@ -228,7 +228,7 @@ transmit page content for any other purpose.
 ```
 
 > **Content scripts / `commands`:** the manifest also declares keyboard shortcuts
-> (`commands`) and seven content scripts — one ISOLATED-world page collector
+> (`commands`) and seven content scripts: one ISOLATED-world page collector
 > (`<all_urls>`, runs on open) plus six MAIN-world media sniffers. One sniffer is
 > host-agnostic: the **HLS/DASH manifest sniffer** (`<all_urls>`), which only reads
 > the request URLs of `.m3u8`/`.mpd` manifests the page's own player fetches so a
@@ -248,33 +248,33 @@ extension: `assets/v2/src/capture-screenshots.mjs` loads `apps/extension/.output
 into Chromium (Playwright), drives the on-page bubble over a local gallery page,
 and screenshots the genuine UI at exact 1280×800 (run it from the repo so
 `node_modules` resolves; `yarn build` first). The same harness also exports
-`panel-real.png` — the real panel on transparent alpha. The **promo tiles** are
+`panel-real.png`, the real panel on transparent alpha. The **promo tiles** are
 rendered from HTML via `assets/v2/src/render.js`: the marquee, small, and Opera
 tiles composite that **real captured panel** over the brand canvas (no mock UI);
 store-logo is pure brand art (icon + wordmark). Seven screenshots are provided;
 the **Chrome Web Store shows up to 5**, so upload 1–5 there (Edge/Firefox allow
-more — add 6–7).
+more, add 6–7).
 
 | Asset              | Size                | Required                 | File / shot                                                                     |
 |--------------------|---------------------|--------------------------|---------------------------------------------------------------------------------|
 | Store icon         | 128×128             | required                 | ✅ `apps/extension/src/public/icon/128.png`                                                     |
-| Screenshot 1       | 1280×800            | ✅ (≥1 required)          | ✅ `assets/v2/screenshot-1-grab-1280x800.png` — real popup over a page: media grid, toolbar, Download 14 |
-| Screenshot 2       | 1280×800            | optional                 | ✅ `assets/v2/screenshot-2-preview-1280x800.png` — preview modal (dimensions, type, source) |
-| Screenshot 3       | 1280×800            | optional                 | ✅ `assets/v2/screenshot-3-settings-1280x800.png` — settings: folder tokens, naming, convert |
-| Screenshot 4       | 1280×800            | optional                 | ✅ `assets/v2/screenshot-4-filters-1280x800.png` — filters: format / size / base64, search, sort |
-| Screenshot 5       | 1280×800            | optional                 | ✅ `assets/v2/screenshot-5-favourites-1280x800.png` — favourites saved across pages |
-| Screenshot 6       | 1280×800            | optional                 | ✅ `assets/v2/screenshot-6-excluded-1280x800.png` — Excluded-sources blocklist (host / URL) |
-| Screenshot 7       | 1280×800            | optional                 | ✅ `assets/v2/screenshot-7-history-1280x800.png` — download history with re-download / open / reveal |
+| Screenshot 1       | 1280×800            | ✅ (≥1 required)          | ✅ `assets/v2/screenshot-1-grab-1280x800.png`, real popup over a page: media grid, toolbar, Download 14 |
+| Screenshot 2       | 1280×800            | optional                 | ✅ `assets/v2/screenshot-2-preview-1280x800.png`, preview modal (dimensions, type, source) |
+| Screenshot 3       | 1280×800            | optional                 | ✅ `assets/v2/screenshot-3-settings-1280x800.png`, settings: folder tokens, naming, convert |
+| Screenshot 4       | 1280×800            | optional                 | ✅ `assets/v2/screenshot-4-filters-1280x800.png`, filters: format / size / base64, search, sort |
+| Screenshot 5       | 1280×800            | optional                 | ✅ `assets/v2/screenshot-5-favourites-1280x800.png`, favourites saved across pages |
+| Screenshot 6       | 1280×800            | optional                 | ✅ `assets/v2/screenshot-6-excluded-1280x800.png`, Excluded-sources blocklist (host / URL) |
+| Screenshot 7       | 1280×800            | optional                 | ✅ `assets/v2/screenshot-7-history-1280x800.png`, download history with re-download / open / reveal |
 | Small promo tile   | 440×280             | optional                 | ✅ `assets/v2/promo-small-440x280.png`                                              |
 | Marquee promo tile | 1400×560            | optional (featured only) | ✅ `assets/v2/promo-marquee-1400x560.png`                                           |
 | Store logo (Edge)  | 300×300             | required (Edge)          | ✅ `assets/v2/store-logo-300x300.png`                                               |
 | Opera promo        | 300×188             | optional (Opera)         | ✅ `assets/v2/opera-promo-300x188.png`                                              |
 
 The promo tiles carry the brand mark (the toolbar icon), the wordmark, the
-"images · video · audio, original quality" message, and the real panel — to
+"images · video · audio, original quality" message, and the real panel. To
 regenerate, run the capture harness first (produces `panel-real.png`) then
 `node assets/v2/src/render.js` from the repo so `node_modules` resolves. Tip:
-shoot each screenshot in both light and dark once and pick the stronger — the
+shoot each screenshot in both light and dark once and pick the stronger; the
 UI supports both.
 
 ---
@@ -292,7 +292,7 @@ editing `PRIVACY.md` on `main`.)
 
 **Single purpose:** as in §3.
 
-**Data usage — what this item collects:** none of the listed categories.
+**Data usage (what this item collects):** none of the listed categories.
 Explicitly answer *No* to: personally identifiable information, health, financial
 & payment, authentication, personal communications, location, web history, and
 user activity. The extension does not collect or transmit user data. The optional
@@ -357,7 +357,7 @@ re-validates (lint / type-check / tests), packages all browser zips, publishes a
 **GitHub Release** with them attached, and pushes the **Chrome** zip to the Web
 Store. The workflow first checks the tag matches `package.json` and skips the
 store publish (with a warning, release still succeeds) when the Chrome secrets
-are not set — so it is safe to add before configuring them.
+are not set, so it is safe to add before configuring them.
 
 Configure these repository secrets (**Settings → Secrets and variables →
 Actions**) to enable the Chrome Web Store publish:
@@ -365,7 +365,7 @@ Actions**) to enable the Chrome Web Store publish:
 | Secret                 | What it is                                                                                                                                                                                                               |
 |------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `CHROME_EXTENSION_ID`  | the item id (`jmdhkdengijmmkelofaleinbipophckn`)                                                                                                                                                                         |
-| `CHROME_PUBLISHER_ID`  | your developer-account **publisher ID** — required by `chrome-webstore-upload` v6+. Find it on the [Developer Dashboard](https://chrome.google.com/webstore/devconsole) → **Account** (the numeric/string publisher id). |
+| `CHROME_PUBLISHER_ID`  | your developer-account **publisher ID**, required by `chrome-webstore-upload` v6+. Find it on the [Developer Dashboard](https://chrome.google.com/webstore/devconsole) → **Account** (the numeric/string publisher id). |
 | `CHROME_CLIENT_ID`     | OAuth client id for the [Chrome Web Store API](https://developer.chrome.com/docs/webstore/using-api)                                                                                                                     |
 | `CHROME_CLIENT_SECRET` | OAuth client secret                                                                                                                                                                                                      |
 | `CHROME_REFRESH_TOKEN` | OAuth refresh token                                                                                                                                                                                                      |

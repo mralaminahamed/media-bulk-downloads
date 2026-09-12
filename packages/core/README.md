@@ -1,8 +1,8 @@
-# @mbd/core — Domain Core
+# @mbd/core: Domain Core
 
-Browser-agnostic domain library for **Media Bulk Downloads**: media collection,
-per-site resolvers, HLS/DASH byte-logic, and the shared type contracts. **Zero
-`chrome.*` APIs** — everything here is pure and runs anywhere (the extension, a
+Browser-agnostic domain library for Media Bulk Downloads: media collection,
+per-site resolvers, HLS/DASH byte-logic, and the shared type contracts. It uses no
+`chrome.*` APIs; everything here is pure and runs anywhere (the extension, a
 test, a Node script).
 
 ## Public API
@@ -32,7 +32,7 @@ src/
 
 ## Boundary
 
-Browser-agnostic. No `chrome.*`, no DOM-mount code, no persistence — those live
+Browser-agnostic. No `chrome.*`, no DOM-mount code, no persistence; those live
 in [`@mbd/storage`](../storage/README.md), [`@mbd/platform`](../platform/README.md),
 and the app. Runtime deps are small pure-in-browser helpers: `fflate`, `mp4box`,
 `@breezystack/lamejs`.
@@ -49,5 +49,5 @@ yarn test          # all packages + the app
 
 See the [Architecture guide](https://mralaminahamed.github.io/media-bulk-downloads/how-it-works/architecture/),
 [Collection Pipeline](https://mralaminahamed.github.io/media-bulk-downloads/how-it-works/collection-pipeline/), and
-[Resolve Originals](https://mralaminahamed.github.io/media-bulk-downloads/how-it-works/resolve-originals/) for the full design —
-this README is a map, those are the source of truth.
+[Resolve Originals](https://mralaminahamed.github.io/media-bulk-downloads/how-it-works/resolve-originals/) for the full design.
+This README is a map; those are the source of truth.

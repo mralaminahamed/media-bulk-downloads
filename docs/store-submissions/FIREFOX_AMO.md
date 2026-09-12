@@ -1,9 +1,9 @@
-# Firefox Add-ons (AMO) — Submission Package
+# Firefox Add-ons (AMO): Submission Package
 
 Everything needed to publish **Media Bulk Downloads** to
 [addons.mozilla.org](https://addons.mozilla.org/developers/): copy-paste listing
-fields, permission notes, the privacy disclosures, required assets, and — the
-part unique to Firefox — the **source-code submission and reproducible build
+fields, permission notes, the privacy disclosures, required assets, and (the
+part unique to Firefox) the **source-code submission and reproducible build
 instructions** reviewers require.
 
 Version at time of writing: **1.3.0** · Manifest **V3** (Firefox 140+). This is
@@ -13,11 +13,11 @@ so all three stores match.
 
 > **Live listing:** https://addons.mozilla.org/en-US/firefox/addon/media-bulk-downloads/
 
-> **Different from Chrome / Edge — don't miss these:**
+> **Different from Chrome / Edge, don't miss these:**
 > - AMO is **free**; you sign in with a Firefox account.
 > - The add-on **ID is mandatory** and already baked into the manifest
     > (`browser_specific_settings.gecko.id` = `media-bulk-downloads@mralaminahamed`).
-> - **Source code submission is mandatory** — the package is bundled/transpiled,
+> - **Source code submission is mandatory**: the package is bundled/transpiled,
     > so you must upload the `…-sources.zip` *and* give reviewers reproducible
     > build steps (§7). This is the one thing Chrome/Edge don't ask for.
 > - The manifest already declares **no data collection**
@@ -32,9 +32,9 @@ so all three stores match.
 - [ ] `wxt.config.ts` sets the Firefox `gecko.id`, `strict_min_version: '140.0'`, and `data_collection_permissions: { required: ['none'] }`. `yarn build:firefox` emits
   `apps/extension/.output/firefox-mv3/manifest.json`.
 - [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, host `<all_urls>`; optional `notifications` and `declarativeNetRequestWithHostAccess` (both
-  requested at runtime). Note: `offscreen` is **Chrome-only** — `wxt.config.ts` omits it from the Firefox build (Firefox has no `chrome.offscreen`, and AMO rejects the permission). HLS/DASH stream
+  requested at runtime). Note: `offscreen` is **Chrome-only**: `wxt.config.ts` omits it from the Firefox build (Firefox has no `chrome.offscreen`, and AMO rejects the permission). HLS/DASH stream
   capture still works: on Firefox it runs the shared capture core in the DOM-capable background page instead of an offscreen document.
-- [ ] Icons 16/32/48/64/128 present (`apps/extension/src/public/icon/`) — ✅ already in the build; AMO uses the manifest icons (no separate store logo).
+- [ ] Icons 16/32/48/64/128 present (`apps/extension/src/public/icon/`). ✅ already in the build; AMO uses the manifest icons (no separate store logo).
 - [ ] `yarn lint` and `wxt build -b firefox` pass clean (AMO runs its own validator on upload too).
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
 - [ ] At least **1 screenshot** (see §5).
@@ -51,7 +51,7 @@ so all three stores match.
 Media Bulk Downloads
 ```
 
-**Summary** (≤ 250 chars) — reuse the manifest description:
+**Summary** (≤ 250 chars). Reuse the manifest description:
 
 ```
 Bulk-download images, video & audio from any web page. Smart type filters, instant preview, original quality — fast and private.
@@ -141,10 +141,10 @@ Source code: https://github.com/mralaminahamed/media-bulk-downloads
 |-----------------|-----------------------------------------------------------------------------------------------------------------------------|----------------------------------------|
 | Add-on ID       | `media-bulk-downloads@mralaminahamed`                                                                                       | `browser_specific_settings.gecko.id`   |
 | Minimum Firefox | `140.0` (desktop) · `142.0` (Android)                                                                                       | `strict_min_version`                   |
-| Background      | MV3 **event page** (`background.scripts: ["background.js"]`) — WXT converts the service worker to Firefox's event-page form | WXT build                              |
+| Background      | MV3 **event page** (`background.scripts: ["background.js"]`); WXT converts the service worker to Firefox's event-page form | WXT build                              |
 | Data collection | `none` (declared)                                                                                                           | `data_collection_permissions.required` |
 
-The ID is permanent — never change it, or AMO treats future uploads as a
+The ID is permanent; never change it, or AMO treats future uploads as a
 different add-on and existing users won't get updates.
 
 ---
@@ -154,19 +154,19 @@ different add-on and existing users won't get updates.
 Firefox shows users the permission prompt automatically; add these to the
 **Notes to reviewer** so the human reviewer can map each permission to a use.
 
-**downloads / downloads.open** — save the images/video/audio the user selects
+**downloads / downloads.open**: save the images/video/audio the user selects
 through the browser's download manager, and reopen a previously downloaded file
 from the in-extension history. This is the core action.
 
-**storage** — stores the user's own preferences (`browser.storage.sync`) and
+**storage**: stores the user's own preferences (`browser.storage.sync`) and
 their local download history (`browser.storage.local`) on their device. No
 content is transmitted.
 
-**tabs** — reads the active tab's URL and title to (1) label each download with
+**tabs**: reads the active tab's URL and title to (1) label each download with
 the page it came from, and (2) open a media item's source page in a new tab when
 the user asks. No browsing history is collected or sent.
 
-**contextMenus** — adds right-click menu items ("Download all media on this
+**contextMenus**: adds right-click menu items ("Download all media on this
 page"; on an image/video/audio element, "Download this media", "Download image
 (original quality)", "Add image to Favourites") so the user can act without
 opening the popup. Each triggers the same local download the popup performs.
@@ -175,14 +175,14 @@ opening the popup. Each triggers the same local download the popup performs.
 > document to capture HLS/DASH streams; Firefox has no `chrome.offscreen`, so
 > `wxt.config.ts` omits the permission from the Firefox build and capture runs the
 > same core in the DOM-capable background page instead (`run-capture.ts`). The
-> feature still works — there is simply no `offscreen` justification to provide for AMO.
+> feature still works; there is no `offscreen` justification to provide for AMO.
 
-**Host permissions — `<all_urls>`** — the extension must read the media elements
+**Host permissions (`<all_urls>`)**: the extension must read the media elements
 on whatever page the user runs it on, which can be any site. It activates only
 when the user opens the popup or enables the on-page panel. Small content scripts
 read the page's media; on a few sites (e.g. Instagram, X/Twitter, Facebook,
 Pinterest, MangaDex) a passive script observes the page's own media network
-responses so posted images/videos resolve to real downloadable files — it reads
+responses so posted images/videos resolve to real downloadable files; it reads
 only the request URLs/JSON the page itself already loaded and never sends them
 off-device. When the optional "resolve originals" setting is on, it also fetches a
 higher-resolution version of a downloaded item directly from that media's own CDN.
@@ -196,14 +196,14 @@ It does not read or transmit page content for any other purpose.
 > loaded and sends nothing off-device. Firefox 128+ supports MAIN-world content
 > scripts; these are manifest keys, not extra permissions, and are covered by the
 > `<all_urls>` justification above. (Stream *capture* itself is unavailable on
-> Firefox — see the `offscreen` note above — but the manifest sniffer still runs.)
+> Firefox, see the `offscreen` note above, but the manifest sniffer still runs.)
 
-**notifications (optional)** — off until the user enables it. Shows a desktop
-notification with the result of a download batch — the only feedback when the
+**notifications (optional)**: off until the user enables it. Shows a desktop
+notification with the result of a download batch, the only feedback when the
 user downloads via a keyboard shortcut or the right-click menu with no popup
 open. Requested at runtime the first time it is enabled, never at install.
 
-**declarativeNetRequestWithHostAccess (optional)** — off until the user enables it. Fixes
+**declarativeNetRequestWithHostAccess (optional)**: off until the user enables it. Fixes
 hotlink-protected downloads: some CDNs reject a file request whose Referer header
 doesn't match the page it is shown on (HTTP 403). When a download the user
 started fails that way, the extension can retry it with a temporary, single-URL
@@ -211,29 +211,29 @@ session rule that sets Referer/Origin to that item's own source page, then remov
 the rule right after. Requested at runtime the first time the user chooses "Retry
 with page referer" on a failed download, never at install. It only modifies
 headers on a request the user initiated and restores access to media the user can
-already view — not an auth or paywall bypass.
+already view, not an auth or paywall bypass.
 
 ---
 
 ## 5. Required visual assets
 
-AMO uses the **manifest icons** (no separate store logo). Add screenshots to make
-the listing land. The seven real 1280×800 captures in `assets/v2/` from the
+AMO uses the **manifest icons** (no separate store logo). Add screenshots so the
+listing shows the extension in use. The seven real 1280×800 captures in `assets/v2/` from the
 Chrome/Edge packages are reused here as-is; AMO lets you add a **caption** per
-screenshot, so paste the ones below. AMO accepts up to 10 — all seven fit.
+screenshot, so paste the ones below. AMO accepts up to 10; all seven fit.
 
 | Asset        | Size     | Required           | File / caption                                                                                                                          |
 |--------------|----------|--------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
 | Add-on icon  | 128×128  | ✅ (from manifest)  | `apps/extension/src/public/icon/128.png`                                                                                                               |
-| Screenshot 1 | 1280×800 | ✅ (≥1 recommended) | `assets/v2/screenshot-1-grab-1280x800.png` — **Every image, video, and audio file on the page — in one grid, ready to download.**       |
-| Screenshot 2 | 1280×800 | optional           | `assets/v2/screenshot-2-preview-1280x800.png` — **Preview any item full-size with its dimensions, type, and source.**                   |
-| Screenshot 3 | 1280×800 | optional           | `assets/v2/screenshot-3-settings-1280x800.png` — **Sort downloads into folders with path tokens, naming rules, and format conversion.** |
-| Screenshot 4 | 1280×800 | optional           | `assets/v2/screenshot-4-filters-1280x800.png` — **Filter by format and size, search by name, and sort — narrow a busy page fast.**      |
-| Screenshot 5 | 1280×800 | optional           | `assets/v2/screenshot-5-favourites-1280x800.png` — **Star media to Favourites that stays with you across pages.**                       |
-| Screenshot 6 | 1280×800 | optional           | `assets/v2/screenshot-6-excluded-1280x800.png` — **Block sources you never want to see with the Excluded-sources list.**                |
-| Screenshot 7 | 1280×800 | optional           | `assets/v2/screenshot-7-history-1280x800.png` — **Re-download, open, or reveal anything from your download history.**                   |
+| Screenshot 1 | 1280×800 | ✅ (≥1 recommended) | `assets/v2/screenshot-1-grab-1280x800.png`: **Every image, video, and audio file on the page — in one grid, ready to download.**       |
+| Screenshot 2 | 1280×800 | optional           | `assets/v2/screenshot-2-preview-1280x800.png`: **Preview any item full-size with its dimensions, type, and source.**                   |
+| Screenshot 3 | 1280×800 | optional           | `assets/v2/screenshot-3-settings-1280x800.png`: **Sort downloads into folders with path tokens, naming rules, and format conversion.** |
+| Screenshot 4 | 1280×800 | optional           | `assets/v2/screenshot-4-filters-1280x800.png`: **Filter by format and size, search by name, and sort — narrow a busy page fast.**      |
+| Screenshot 5 | 1280×800 | optional           | `assets/v2/screenshot-5-favourites-1280x800.png`: **Star media to Favourites that stays with you across pages.**                       |
+| Screenshot 6 | 1280×800 | optional           | `assets/v2/screenshot-6-excluded-1280x800.png`: **Block sources you never want to see with the Excluded-sources list.**                |
+| Screenshot 7 | 1280×800 | optional           | `assets/v2/screenshot-7-history-1280x800.png`: **Re-download, open, or reveal anything from your download history.**                   |
 
-PNG or JPEG, 1280×800. Order 1→7 tells the story: find → preview → organize →
+PNG or JPEG, 1280×800. Order 1→7 follows the flow: find → preview → organize →
 filter → favourite → exclude → history.
 
 ---
@@ -255,7 +255,7 @@ data-collection section select **"This add-on does not collect any data."**
 Settings and history stay on the device; nothing is transmitted.
 
 **Remote code:** No. All code is bundled in the package; nothing is fetched and
-executed at runtime. (AMO rejects add-ons that run remote code — make sure this
+executed at runtime. (AMO rejects add-ons that run remote code, so make sure this
 answer stays "No".)
 
 ---
@@ -263,7 +263,7 @@ answer stays "No".)
 ## 7. Source code & reviewer build instructions (mandatory)
 
 AMO requires the **source code** for any add-on whose submitted files are
-bundled, minified, or transpiled — which this one is (WXT + TypeScript + a
+bundled, minified, or transpiled, which this one is (WXT + TypeScript + a
 bundler). When prompted during submission, upload the sources archive and paste
 the build steps so a reviewer can reproduce the exact package.
 

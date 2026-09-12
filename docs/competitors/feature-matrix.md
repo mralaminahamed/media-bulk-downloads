@@ -1,7 +1,7 @@
-# Feature matrix — Media Bulk Downloads vs the field
+# Feature matrix: Media Bulk Downloads vs the field
 
 > Head-to-head against the top tool in each category. Web-verified July 2026.
-> ✅ yes · ⚠️ partial / caveated · ❌ no · — not applicable.
+> ✅ yes · ⚠️ partial / caveated · ❌ no · n/a = not applicable.
 > Detail and sources: [`image-downloaders.md`](./image-downloaders.md),
 > [`video-and-stream-downloaders.md`](./video-and-stream-downloaders.md),
 > [`desktop-cli-and-site-specific.md`](./desktop-cli-and-site-specific.md).
@@ -16,8 +16,8 @@
 | Fatkun                          |         ✅          |   ✅    |         ❌         |         ❌         |            ⚠️             |         ⚠️         |     ✅      |       ❌        |           ⚠️            |
 | Download All Images             |         ✅          |   ✅    |         ❌         |         ❌         |            ⚠️             |         ✅          |     ✅      |       ❌        |           ⚠️            |
 | Simple Mass Downloader          |        ⚠️³         |   ✅    |        ⚠️         |         ❌         |             ❌             |         ❌          |     ❌      |       ❌        |            ✅            |
-| Video DownloadHelper            |         ✅          |   ❌    |         ✅         |         ✅         |             —             |         —          |     ❌      |       ✅⁴       |           ⚠️            |
-| FetchV                          |         ✅          |   ❌    |         ✅         |        ⚠️⁵        |             —             |         —          |     ❌      |       ⚠️       |           ⚠️            |
+| Video DownloadHelper            |         ✅          |   ❌    |         ✅         |         ✅         |            n/a            |        n/a         |     ❌      |       ✅⁴       |           ⚠️            |
+| FetchV                          |         ✅          |   ❌    |         ✅         |        ⚠️⁵        |            n/a            |        n/a         |     ❌      |       ⚠️       |           ⚠️            |
 | DownThemAll                     |         ✅          |   ✅    |        ⚠️         |         ❌         |             ❌             |         ❌          |     ❌      |       ❌        |            ✅            |
 | gallery-dl (CLI)                |        ⚠️⁶         |   ✅    |        ⚠️         |         ❌         |             ✅             |         ✅          |     ❌      |       ❌        |            ✅            |
 | yt-dlp (CLI)                    |        ⚠️⁶         |   ⚠️   |         ✅         |         ✅         |             ✅             |         ✅          |     ❌      |       ✅⁴       |            ✅            |
@@ -43,20 +43,20 @@
 | Video DownloadHelper            |          ✅           |           ✅            |       ❌        | Freemium (watermark) | Chrome · FF · Edge        |      ✅      | Video                                  |
 | FetchV                          |          ✅           |           ✅            |       ❌        |         Free         | Chrome · Edge             |      ✅      | Video (HLS)                            |
 | DownThemAll                     |          ✅           |           ✅            |       ✅        |         Free         | Firefox (Chrome MV2 dead) |      ❌      | Mass files                             |
-| gallery-dl (CLI)                |          ❌           |           ✅            |       ✅        |         Free         | — (terminal)              |      —      | Image/gallery archiving                |
-| yt-dlp (CLI)                    |          ❌           |           ✅            |       ✅        |         Free         | — (terminal)              |      —      | Video/audio extraction                 |
-| JDownloader 2                   |          ❌⁹          |           ✅            | ⚠️ (open-core) |       Freemium       | Desktop app               |      —      | File-hoster manager                    |
+| gallery-dl (CLI)                |          ❌           |           ✅            |       ✅        |         Free         | n/a (terminal)            |     n/a     | Image/gallery archiving                |
+| yt-dlp (CLI)                    |          ❌           |           ✅            |       ✅        |         Free         | n/a (terminal)            |     n/a     | Video/audio extraction                 |
+| JDownloader 2                   |          ❌⁹          |           ✅            | ⚠️ (open-core) |       Freemium       | Desktop app               |     n/a     | File-hoster manager                    |
 
-⁷ *Was MIT under the original author; now owned by an acquirer — current licensing/trust unclear.*
+⁷ *Was MIT under the original author; now owned by an acquirer, current licensing/trust unclear.*
 ⁸ *Declares local, but reverse-image-search + social features imply outbound calls; opaque vendor.*
-⁹ *Clipboard/link handoff into a separate desktop app — not in-page.*
+⁹ *Clipboard/link handoff into a separate desktop app, not in-page.*
 
 ## Reading the matrix
 
-- **No single competitor fills a full row of ✅ in table A.** Image tools stop at images; video tools
+- No single competitor fills a full row of ✅ in table A. Image tools stop at images; video tools
   ignore images; the CLIs are all-✅ on capture but all-❌ on in-page UX. This extension is the only
-  row that is ✅ across image **and** video capture **and** in-page UX **and** local/open-source/free.
-- The honest ceilings: **DRM and YouTube video are ❌ for every consumer tool here** (see the video
-  doc). The CLIs beat everyone on **breadth of site-aware extractors and metadata** (1,800 / 300+ vs
-  our ~30 dedicated resolvers). Those are the two fronts where we are genuinely behind — by design on the first,
+  row that is ✅ across image and video capture and in-page UX and local/open-source/free.
+- The honest ceilings: DRM and YouTube video are ❌ for every consumer tool here (see the video
+  doc). The CLIs beat everyone on breadth of site-aware extractors and metadata (1,800 / 300+ vs
+  our ~30 dedicated resolvers). Those are the two fronts where we are genuinely behind: by design on the first,
   by scope on the second.

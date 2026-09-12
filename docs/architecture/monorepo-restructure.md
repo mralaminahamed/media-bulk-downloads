@@ -1,4 +1,4 @@
-# Monorepo restructure — design & outcome
+# Monorepo restructure: design & outcome
 
 **Date:** 2026-07-13 · **Refs:** #307 (Safari support investigation)
 
@@ -7,11 +7,11 @@
 Media Bulk Downloads shipped as a single WXT app (`srcDir: src`, one `package.json`,
 Chrome/Edge/Opera/Firefox built via `wxt build -b <browser>`). Investigating Safari
 support (#307) surfaced the need for a clean seam between browser-agnostic domain
-logic and browser-divergent glue — Safari lacks `chrome.downloads`, `chrome.offscreen`,
+logic and browser-divergent glue. Safari lacks `chrome.downloads`, `chrome.offscreen`,
 and `chrome.notifications`. Rather than a lighter "capabilities layer only" change, we
 converted the repository into a full `apps/` + `packages/` yarn-workspaces monorepo.
 
-The payoff is an **enforced boundary**: the domain logic is now independently packaged
+The payoff is an enforced boundary: the domain logic is now independently packaged
 and the browser-capability contracts are explicit, which is what makes adding a
 degraded Safari target (or any future target) a matter of supplying one folder of
 implementations rather than threading `import.meta.env` branches through shared code.
@@ -28,9 +28,9 @@ media-bulk-downloads/                 # workspaces root (private)
 │   ├── storage/    (@mbd/storage)    # persistence over chrome.storage + IndexedDB (Safari-safe API)
 │   └── platform/   (@mbd/platform)   # capability CONTRACTS + feature detection (no implementations)
 └── apps/
-    ├── extension/  (@mbd/extension)  # THE WXT app — all entrypoints, background/popup/content glue, UI,
+    ├── extension/  (@mbd/extension)  # THE WXT app: all entrypoints, background/popup/content glue, UI,
     │                                 # active-tab messaging, and the platform seam
-    ├── safari-native/                # Safari Xcode wrapper (macOS) over .output/safari-mv3 — see #307
+    ├── safari-native/                # Safari Xcode wrapper (macOS) over .output/safari-mv3, see #307
     └── desktop/     (@mbd/desktop)   # standalone Deno downloader reusing @mbd/core (Deno.serve + React dashboard + SSE)
 ```
 
@@ -51,12 +51,12 @@ internal message-protocol glue, or is UI.
   cross-package cycles, so it stays unified.
 - **@mbd/storage** is separated only because its ambient `chrome.storage` dependency would
   otherwise poison core's "zero-globals, isomorphic" guarantee. It is *not* part of the
-  Safari seam — `chrome.storage` exists on Safari.
+  Safari seam: `chrome.storage` exists on Safari.
 - **@mbd/platform** is a dedicated contract package because Safari-enablement is the whole
   reason for the migration. Interfaces here (`Downloader`, `Notifier`, `HeaderRules`,
   `StreamCaptureHost`, `Capabilities`) make "interface in package, implementation in app"
   enforceable. `detectCapabilities()` is dependency-free feature detection (never UA sniffing).
-- **active-tab** moved into the app (`apps/extension/src/extension/shared/active-tab`) — it
+- **active-tab** moved into the app (`apps/extension/src/extension/shared/active-tab`). It
   drives the app's own `chrome.tabs`/`runtime` message contract, so it is glue, not library.
 
 A prerequisite refactor moved two pure helpers (`getImageType`, `parseSrcset`) out of
@@ -69,7 +69,7 @@ Source-first, not TypeScript path-mapping. Each package's `package.json` exposes
 via `exports` (with `./*` subpath wildcards; only `@mbd/core/resolvers` needs a bare entry).
 With `nodeLinker: node-modules`, yarn symlinks `node_modules/@mbd/* → packages/*`, and
 TypeScript (`moduleResolution: Bundler`), Vite/WXT, and Vitest all resolve `@mbd/core/…` to
-the `.ts` source through the symlink + `exports` — no prebuild, no `.d.ts` staging.
+the `.ts` source through the symlink + `exports`. No prebuild, no `.d.ts` staging.
 
 Type-checking builds the packages as composite projects (`tsc -b packages/core packages/storage
 packages/platform`) then the app (`tsc --noEmit`). Packages emit declaration-only into a
@@ -95,13 +95,13 @@ Import rewrites were unambiguous prefix substitutions driven by an explicit dire
 
 Each package owns its test suite under `packages/*/tests` and runs as its own Vitest project
 whose `resolve.alias` maps `@mbd/<pkg>` to the real `src/` path (not the `node_modules/@mbd/*`
-symlink), so v8 coverage **attributes the package source** instead of dropping it as node_modules.
+symlink), so v8 coverage attributes the package source instead of dropping it as node_modules.
 `core` runs under jsdom with a Blob/scroll polyfill; `storage` under jsdom with a chrome.storage
 mock + `fake-indexeddb`; `platform` under node. Shared setup lives in `tests/setup/`.
 
 The root `vitest.config.ts` runs the three package projects with merged coverage. The WXT app
-(`@mbd/extension`) keeps its own `WxtVitest` run — WxtVitest does not compose as a Vitest
-sub-project (its `@/` alias resolves against the wrong cwd) — so the root `test` script chains
+(`@mbd/extension`) keeps its own `WxtVitest` run. WxtVitest does not compose as a Vitest
+sub-project (its `@/` alias resolves against the wrong cwd), so the root `test` script chains
 both: `vitest run --coverage && yarn workspace @mbd/extension test`. Fixture reads are
 location-independent (HTML/m3u8 via vite `?raw` imports, binary via `__dirname`-relative reads),
 and `tsconfig.test.json` type-checks the relocated package tests.
@@ -111,11 +111,11 @@ package is independently testable.
 
 ## Follow-ups
 
-1. ~~**Safari enablement (#307)**~~ — **done**: `platform/safari.ts` implements the `@mbd/platform`
+1. ~~**Safari enablement (#307)**~~ (done): `platform/safari.ts` implements the `@mbd/platform`
    contracts (anchor-blob `Downloader`, no-op `Notifier`/`HeaderRules`, page-context
    `StreamCaptureHost`), and `apps/safari-native/` wraps `.output/safari-mv3` (submitted to the Mac
    App Store, under review). The planned `safari/*` directory landed as a single `safari.ts` module.
-2. **Wire the capability seam** — the background currently calls `chrome.*` directly; route it
+2. **Wire the capability seam:** the background currently calls `chrome.*` directly; route it
    through the `@mbd/platform` interfaces + `selectPlatform()` so degraded targets fall back cleanly.
-3. **Dependency hygiene** — the app under-declares nothing critical, but a pass to confirm each
+3. **Dependency hygiene:** the app under-declares nothing critical, but a pass to confirm each
    package declares exactly what it imports would harden independent builds.

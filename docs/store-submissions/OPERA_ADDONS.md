@@ -1,27 +1,27 @@
-# Opera Add-ons — Submission Package
+# Opera Add-ons: Submission Package
 
 Everything needed to publish **Media Bulk Downloads** to the Opera Add-ons store
 through the [Opera developer dashboard](https://addons.opera.com/developer/):
 copy-paste listing fields, per-permission justifications, the privacy
 disclosures, required visual assets, and the packaging steps.
 
-Version at time of writing: **1.3.0** · Manifest **V3** (Chromium — the **same
+Version at time of writing: **1.3.0** · Manifest **V3** (Chromium, the **same
 package as the Chrome build**). This is the Opera sibling of
 [CHROME_WEBSTORE.md](./CHROME_WEBSTORE.md) and [EDGE_ADDONS.md](./EDGE_ADDONS.md);
 the listing copy is intentionally identical so every store matches.
 
-> **Status:** submitted — **under review** in Opera's manual queue (not yet live).
+> **Status:** submitted, **under review** in Opera's manual queue (not yet live).
 > The Chromium build is installable meanwhile from the
 > [Chrome Web Store](https://chromewebstore.google.com/detail/media-bulk-downloads/jmdhkdengijmmkelofaleinbipophckn).
 
-> **Different from Chrome / Edge — don't miss these:**
+> **Different from Chrome / Edge, don't miss these:**
 > - Opera registration is **free** (Chrome charges a one-time $5).
-> - You upload the **`…-chrome.zip`** — there is **no separate Opera build target**
+> - You upload the **`…-chrome.zip`**: there is **no separate Opera build target**
     > in WXT; Opera runs the Chromium MV3 package as-is.
 > - Review is **manual and can be slow** (days to a few weeks), unlike Chrome's
     > mostly-automated pass.
 > - If reviewers ask for readable (un-minified) source, hand them the AMO
-    > **`…-firefox-sources.zip`** you already produce — same tree, unbundled.
+    > **`…-firefox-sources.zip`** you already produce, same tree, unbundled.
 > - Opera has **no per-permission field** and **no native shields.io badge**.
 
 ---
@@ -32,10 +32,10 @@ the listing copy is intentionally identical so every store matches.
 - [ ] `wxt.config.ts` name/description correct; version comes from `apps/extension/package.json`. `yarn zip` emits the Chromium package `apps/extension/.output/media-bulk-downloads-<version>-chrome.zip`.
 - [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`; optional `notifications` and
   `declarativeNetRequestWithHostAccess` (both requested at runtime).
-- [ ] Icons 16/32/48/64/128 present (`apps/extension/src/public/icon/`) — ✅ already in the build; Opera uses the manifest icons.
+- [ ] Icons 16/32/48/64/128 present (`apps/extension/src/public/icon/`). ✅ already in the build; Opera uses the manifest icons.
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
-- [ ] At least **1 screenshot** (see §5) — the 1280×800 shots from the Chrome package work as-is.
-- [ ] **Promotional picture 300×188 PNG** ready for the moderator (see §5) — ✅ `assets/v2/opera-promo-300x188.png`.
+- [ ] At least **1 screenshot** (see §5): the 1280×800 shots from the Chrome package work as-is.
+- [ ] **Promotional picture 300×188 PNG** ready for the moderator (see §5). ✅ `assets/v2/opera-promo-300x188.png`.
 - [ ] `apps/extension/.output/media-bulk-downloads-<version>-chrome.zip` produced by `yarn zip` (the Chrome zip is the Opera upload).
 - [ ] `…-firefox-sources.zip` on hand from `yarn zip:firefox` in case a reviewer requests source.
 - [ ] Product description, category, and privacy answers filled in (below).
@@ -50,13 +50,13 @@ the listing copy is intentionally identical so every store matches.
 Media Bulk Downloads
 ```
 
-**Short / summary description** (≤ 132 chars) — reuse the manifest description:
+**Short / summary description** (≤ 132 chars). Reuse the manifest description:
 
 ```
 Bulk-download images, video & audio from any web page. Smart type filters, instant preview, original quality — fast and private.
 ```
 
-**Category:** Productivity *(Opera also offers a **Downloads** category — either fits; pick Productivity to match the Chrome/Edge listings.)*
+**Category:** Productivity *(Opera also offers a **Downloads** category; either fits, so pick Productivity to match the Chrome/Edge listings.)*
 
 **Language:** English
 
@@ -191,7 +191,7 @@ standard HLS (.m3u8) video stream by fetching and joining its segments — entir
 on the user's device. No page content is transmitted.
 ```
 
-**Host permissions — `<all_urls>`**
+**Host permissions (`<all_urls>`)**
 
 ```
 The extension must read the media elements on whatever page the user runs it on,
@@ -207,7 +207,7 @@ transmit page content for any other purpose.
 ```
 
 > **Content scripts / `commands`:** the manifest also declares keyboard shortcuts
-> (`commands`) and seven content scripts — one ISOLATED-world page collector
+> (`commands`) and seven content scripts: one ISOLATED-world page collector
 > (`<all_urls>`, runs on open) plus six MAIN-world media sniffers. One sniffer is
 > host-agnostic: the **HLS/DASH manifest sniffer** (`<all_urls>`), which only reads
 > the request URLs of `.m3u8`/`.mpd` manifests the page's own player fetches so a
@@ -259,13 +259,13 @@ crop to size. PNG or JPEG.
 
 | Asset                   | Size        | Required      | Suggested shot                                                                                                                                 |
 |-------------------------|-------------|---------------|------------------------------------------------------------------------------------------------------------------------------------------------|
-| Icon                    | 64×64       | ✅ (manifest)  | Ships in the build — `apps/extension/src/public/icon/64.png` (rendered from `assets/v1/icon.svg`); Opera reads the manifest icons, no separate store logo needed |
+| Icon                    | 64×64       | ✅ (manifest)  | Ships in the build: `apps/extension/src/public/icon/64.png` (rendered from `assets/v1/icon.svg`); Opera reads the manifest icons, no separate store logo needed |
 | Screenshot 1            | 1280×800    | ✅ (≥1)        | Popup with a full media grid + type badges                                                                                                     |
 | Screenshot 2            | 1280×800    | optional      | Filter toolbar in use (kind/format/size)                                                                                                       |
 | Screenshot 3            | 1280×800    | optional      | Preview modal (with prev/next)                                                                                                                 |
 | Screenshot 4            | 1280×800    | optional      | Settings sheet                                                                                                                                 |
 | Screenshot 5            | 1280×800    | optional      | Download history with the open/reveal actions                                                                                                  |
-| **Promotional picture** | **300×188** | ✅ (moderator) | ✅ `assets/v2/opera-promo-300x188.png` — brand mark + wordmark + "image, video & audio" tagline                                                    |
+| **Promotional picture** | **300×188** | ✅ (moderator) | ✅ `assets/v2/opera-promo-300x188.png`, brand mark + wordmark + "image, video & audio" tagline                                                    |
 
 > **Opera-specific:** the moderator asks for a **300×188** promotional picture.
 > It ships in the repo (`assets/v2/opera-promo-300x188.png`, mirrors the Chrome
@@ -274,7 +274,7 @@ crop to size. PNG or JPEG.
 
 Tip: the 1280×800 screenshots from the Chrome package can be reused here as-is.
 Opera accepts common screenshot sizes (612×408 minimum); 1280×800 is well within
-range. Shoot each in both light and dark once and pick the stronger — the UI
+range. Shoot each in both light and dark once and pick the stronger; the UI
 supports both.
 
 ---
@@ -296,7 +296,7 @@ editing `PRIVACY.md` on `main`.)
 user data. Settings and history stay on the device.
 
 **Remote code:** No. All code is bundled in the package; nothing is fetched and
-executed at runtime. (Opera, like AMO, rejects add-ons that run remote code —
+executed at runtime. (Opera, like AMO, rejects add-ons that run remote code;
 this build runs none.)
 
 **Chromium compatibility:** the package is a standard Chromium MV3 build (the same
@@ -315,7 +315,7 @@ corepack yarn zip:all      # all packages at once
 ```
 
 Version comes from `apps/extension/package.json` (WXT writes it into every manifest). There is
-**no `zip:opera`** — Opera runs the Chrome package.
+**no `zip:opera`**: Opera runs the Chrome package.
 
 **Opera Add-ons (developer dashboard):**
 
@@ -330,14 +330,14 @@ Version comes from `apps/extension/package.json` (WXT writes it into every manif
 
 | Field    | Value                                                               | Used for           |
 |----------|---------------------------------------------------------------------|--------------------|
-| **Slug** | `media-bulk-downloads` *(Opera assigns it from the name — confirm)* | Share link (below) |
+| **Slug** | `media-bulk-downloads` *(Opera assigns it from the name; confirm)* | Share link (below) |
 
 **Share link:** `https://addons.opera.com/en/extensions/details/media-bulk-downloads/`
-(the slug is fixed once Opera assigns it — confirm the exact one in the dashboard
+(the slug is fixed once Opera assigns it; confirm the exact one in the dashboard
 before publishing it anywhere).
 
 **README badge:** shields.io has **no native Opera Add-ons badge**, so the README
-carries no Opera version badge — the Chrome, Edge, and Firefox badges already
+carries no Opera version badge; the Chrome, Edge, and Firefox badges already
 cover the shared version, which is identical across all stores.
 
 **To ship an update:** bump `version` in `package.json`, re-run `yarn zip:all`,
@@ -375,13 +375,13 @@ No data is collected or transmitted; no remote code is executed. Settings and hi
 
 ---
 
-## 9. General tab — form fields (copy-paste)
+## 9. General tab: form fields (copy-paste)
 
 The exact fields on the Opera dashboard **General** tab, in order, with the value
 to paste (or why to leave a field blank). After filling these, go to **General →
 Submit changes** to send the version to moderation.
 
-**Service website URL** — *leave blank.*
+**Service website URL**: *leave blank.*
 
 ```
 (blank)
@@ -403,7 +403,7 @@ https://github.com/mralaminahamed/media-bulk-downloads/issues
 https://github.com/mralaminahamed/media-bulk-downloads
 ```
 
-**Extension source code URL (required only for Opera moderators)** — the package
+**Extension source code URL (required only for Opera moderators)**: the package
 is bundled/minified by WXT, so Opera requires this. Pin it to the tag matching the
 uploaded version:
 
@@ -414,7 +414,7 @@ https://github.com/mralaminahamed/media-bulk-downloads/tree/v1.3.0
 > Bump the tag each release so it always corresponds to the current package
 > (`git tag v<version> && git push --tags`).
 
-**Build instructions** — paste this so a reviewer can reproduce the uploaded
+**Build instructions**: paste this so a reviewer can reproduce the uploaded
 Chromium package from source:
 
 ```
@@ -437,13 +437,13 @@ Output
 Built with WXT (https://wxt.dev); no other tooling required.
 ```
 
-**License URL** (EULA section — MIT)
+**License URL** (EULA section, MIT)
 
 ```
 https://github.com/mralaminahamed/media-bulk-downloads/blob/main/LICENSE
 ```
 
-> Use the URL **or** paste the full MIT text into *Full license text* — not both
+> Use the URL **or** paste the full MIT text into *Full license text*, not both
 > needed. The URL is enough since the repo is public.
 
 **Privacy policy URL**
@@ -453,5 +453,5 @@ https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md
 ```
 
 > Use the URL **or** paste the full text into *Full privacy policy text*. The URL
-> is enough. This satisfies Opera's requirement to describe data handling — the
+> is enough. This satisfies Opera's requirement to describe data handling: the
 > policy states no user data (including location) is collected or transmitted.

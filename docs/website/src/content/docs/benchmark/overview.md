@@ -1,9 +1,9 @@
 ---
 title: "Collection Benchmark"
-description: "Functional benchmark of the media-collection engine — coverage model, live results, and how the numbers are measured."
+description: "Functional benchmark of the media-collection engine, coverage model, live results, and how the numbers are measured."
 ---
 
-Functional benchmark of the media-collection engine against popular, high-traffic websites. It measures what the extension's **actual** `collectMedia()` pipeline (deep DOM extraction → native
+Functional benchmark of the media-collection engine against popular, high-traffic websites. It measures what the extension's actual `collectMedia()` pipeline (deep DOM extraction → native
 resolvers → URL de-proxy → CDN upgrade → dedup)
 discovers on real pages.
 
@@ -17,33 +17,33 @@ This benchmark is split across focused files under `benchmark/`:
 | File                                                | Contents                                                                    |
 |-----------------------------------------------------|-----------------------------------------------------------------------------|
 | [Method & reproduction](/media-bulk-downloads/benchmark/methodology/) | How coverage is measured, run dates, and how to reproduce it                |
-| [Live-verified results](/media-bulk-downloads/benchmark/results/)     | §A / A-2 / B — per-site collection vs upgrade, verified new-CDN rules       |
-| [Coverage matrix](/media-bulk-downloads/benchmark/coverage-matrix/)   | §C — the CDN-family → sites table                                           |
-| [Gaps found](/media-bulk-downloads/benchmark/gaps/)                   | §D — what is still open (signed / already-original)                         |
-| [Resolver candidates](/media-bulk-downloads/benchmark/candidates/)    | Un-supported sites worth a resolver — validated live status + recon verdict |
+| [Live-verified results](/media-bulk-downloads/benchmark/results/)     | §A / A-2 / B, per-site collection vs upgrade, verified new-CDN rules       |
+| [Coverage matrix](/media-bulk-downloads/benchmark/coverage-matrix/)   | §C, the CDN-family → sites table                                           |
+| [Gaps found](/media-bulk-downloads/benchmark/gaps/)                   | §D, what is still open (signed / already-original)                         |
+| [Resolver candidates](/media-bulk-downloads/benchmark/candidates/)    | Un-supported sites worth a resolver, validated live status + recon verdict |
 | [Benchmark changelog](/media-bulk-downloads/benchmark/changelog/)     | Shipped upgrade rules & resolver fixes this benchmark drove                 |
-| [Caveats](/media-bulk-downloads/benchmark/caveats/)                   | §E — how to read the numbers                                                |
-| [Accuracy studies](/media-bulk-downloads/benchmark/accuracy/)         | §G / H / I — Facebook / Instagram / Threads original-media accuracy         |
-| [Performance](/media-bulk-downloads/benchmark/performance/)           | §J / K — popup grid render + deep-scan timings                              |
+| [Caveats](/media-bulk-downloads/benchmark/caveats/)                   | §E, how to read the numbers                                                |
+| [Accuracy studies](/media-bulk-downloads/benchmark/accuracy/)         | §G / H / I, Facebook / Instagram / Threads original-media accuracy         |
+| [Performance](/media-bulk-downloads/benchmark/performance/)           | §J / K, popup grid render + deep-scan timings                              |
 
 The user-facing release history lives in the top-level [CHANGELOG.md](https://github.com/mralaminahamed/media-bulk-downloads/blob/main/CHANGELOG.md).
 
-## Coverage model — why the engine is broad *and* adaptive
+## Coverage model
 
-Support is delivered in **four escalating tiers**, each a fallback for the last, so the engine is "wildly supportive" without a per-site rule for every site:
+Support is delivered in four escalating tiers, each a fallback for the last, so the engine covers a wide range of sites without a per-site rule for every one:
 
 1. **Generic DOM collection (host-agnostic).** `collectMedia()` reads every `<img>` /
-   `<video>` / `<audio>` / `srcset` / `<picture>` / `og:*` / lazy `data-src` on the page. Any site that mounts its media as a real element with a real URL is collected with **zero per-site code** —
+   `<video>` / `<audio>` / `srcset` / `<picture>` / `og:*` / lazy `data-src` on the page. Any site that mounts its media as a real element with a real URL is collected with zero per-site code:
    this is the majority, including the whole plain-`<img>`
-   reader class (most manga readers, most image galleries; live-proved on **weebcentral**:
-   21 chapter-page originals collected with no dedicated resolver — see
+   reader class (most manga readers, most image galleries; live-proved on weebcentral:
+   21 chapter-page originals collected with no dedicated resolver, see
    [candidates.md](/media-bulk-downloads/benchmark/candidates/)).
-2. **Adaptive deep-scan.** For lazy/virtualized/infinite feeds, the bounded scroll loop (`collection/deepScan.ts`) surfaces what isn't yet in the DOM — with an **EMA-adaptive quiet window**,
+2. **Adaptive deep-scan.** For lazy/virtualized/infinite feeds, the bounded scroll loop (`collection/deepScan.ts`) surfaces what isn't yet in the DOM, with an EMA-adaptive quiet window,
    yield-driven scroll step, warm-start from a host's learned settle time, and "keep-going-when-rich" cap extension. It adapts to each page's cadence rather than using fixed timings.
 3. **90+ host-agnostic CDN upgrade rules** (`collection/imageUrl.ts`) + **30 dedicated resolvers** (`resolvers/`, plus a generic fallback = 31 registry entries) rewrite a collected thumbnail to its original.
-4. **Opt-in network tier + MAIN-world sniffers** for the hard cases — SPAs that hide the original behind canvas/blob/JS (MangaDex), signed CDNs, or player metadata (HLS/DASH, Twitter/Vimeo/Twitch/…),
+4. **Opt-in network tier + MAIN-world sniffers** for the hard cases: SPAs that hide the original behind canvas/blob/JS (MangaDex), signed CDNs, or player metadata (HLS/DASH, Twitter/Vimeo/Twitch/…),
    each SSRF-host-pinned and read-only.
 
-**Consequence for "unsupported" sites:** a site absent from the coverage matrix is usually *already collected* by tier 1–2; a dedicated resolver (tier 3–4) is warranted **only** when the original is
-hidden from the DOM. This is the maturity check — breadth comes from the generic tiers, precision from the dedicated ones, and every tier is covered by the ~2,900-test suite across
+**Consequence for "unsupported" sites:** a site absent from the coverage matrix is usually already collected by tier 1–2; a dedicated resolver (tier 3–4) is warranted only when the original is
+hidden from the DOM. Breadth comes from the generic tiers, precision from the dedicated ones, and every tier is covered by the ~2,900-test suite across
 Chrome/Firefox/Edge/Safari.

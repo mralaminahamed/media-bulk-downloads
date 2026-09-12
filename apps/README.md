@@ -1,4 +1,4 @@
-# `apps/` — deliverable applications
+# `apps/`: deliverable applications
 
 The runnable end-products of the monorepo. Each is a yarn workspace
 (`workspaces: ["packages/*", "apps/*"]`) and composes the `@mbd/*` domain
@@ -12,10 +12,10 @@ The app is the only place that touches `chrome.*` freely; everything reusable an
 browser-agnostic lives in `../packages/`. Import direction is one-way:
 **app → storage/platform → core**.
 
-`safari-native/` is **not** a yarn workspace (no `package.json`) — it holds the
+`safari-native/` is **not** a yarn workspace (no `package.json`). It holds the
 native macOS/iOS Xcode wrapper that hosts the Safari build (`-b safari`),
 generated on macOS by Apple's `safari-web-extension-converter`. The Safari app is
-**submitted to the Mac App Store and under review**; see `safari-native/README.md`.
+submitted to the Mac App Store and under review; see `safari-native/README.md`.
 
 ## Build & run (from the repo root)
 
@@ -27,11 +27,11 @@ yarn zip            # store zips in apps/extension/.output/
 ```
 
 Load unpacked from `apps/extension/.output/chrome-mv3` (or `firefox-mv3`). Safari
-runs through the native wrapper — see `safari-native/README.md`.
+runs through the native wrapper; see `safari-native/README.md`.
 
 ## More
 
-- Monorepo layout & rationale — `../docs/architecture/monorepo-restructure.md`
-- Guides — `../docs/website/src/content/docs/` (architecture, collection-pipeline, download, badge, bubble)
-- Full dev/build/debug workflow — the `extension-dev` skill (`.claude/skills/extension-dev/`)
-- Safari (submitted, under review) — `safari-native/README.md`, `../docs/store-submissions/SAFARI_APPSTORE.md`
+- Monorepo layout and rationale: `../docs/architecture/monorepo-restructure.md`
+- Guides: `../docs/website/src/content/docs/` (architecture, collection-pipeline, download, badge, bubble)
+- Full dev/build/debug workflow: the `extension-dev` skill (`.claude/skills/extension-dev/`)
+- Safari (submitted, under review): `safari-native/README.md`, `../docs/store-submissions/SAFARI_APPSTORE.md`

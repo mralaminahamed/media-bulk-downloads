@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Please report security issues **privately** — do not open a public GitHub issue.
+Please report security issues privately. Do not open a public GitHub issue.
 
 Email **alamin.ahamed.dev@gmail.com** with:
 
@@ -15,10 +15,10 @@ fixed, a new version is published and the fix is noted in the changelog.
 
 ## Supported versions
 
-The latest published version receives security fixes. Because this is a browser
-extension distributed through browser add-on stores — the Chrome Web Store,
-Firefox Add-ons (AMO), and Microsoft Edge Add-ons today, with Opera and Safari
-in review — users are auto-updated to the newest version.
+The latest published version receives security fixes. This is a browser
+extension distributed through browser add-on stores, so users are auto-updated to
+the newest version. Those stores are the Chrome Web Store, Firefox Add-ons (AMO),
+and Microsoft Edge Add-ons today, with Opera and Safari in review.
 
 ## Scope
 
