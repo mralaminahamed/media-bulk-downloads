@@ -4,7 +4,7 @@ description: "The per-tab media count on the toolbar icon, its eligibility filte
 ---
 
 The toolbar icon shows the count of eligible media on the active tab. The service worker keeps it in sync. It only draws the count when the **Show image count on toolbar icon** setting is on (`showImageCount`,
-default on).
+default on). A failed download in the queue is the one exception: it paints a red alert count that overrides the media count on every tab, and shows even when the count is off (see below).
 
 ## Flow
 
@@ -41,12 +41,24 @@ Two filters run, in order, in `updateTabBadge`:
 The remaining count is the badge text. The same two filters gate the visible list and downloads, so badge = what the panel shows = what downloads. Before counting, the worker waits for its
 settings and blocklist caches to load, so a cold-started worker doesn't over-count against an empty blocklist.
 
+## Download-failure alert
+
+When items in the download queue fail, the badge switches to a red failed-count across every tab, overriding the per-tab media count so a failure isn't silent while the popup is closed. It shows
+even when **Show image count on toolbar icon** is off.
+
+- `setDownloadFailedCount(failed)` takes the number of failed items from the persistent queue and repaints all tabs. It runs on every queue change and once when the service worker wakes (re-derived
+  from the stored queue), so a failure that happened while the worker was asleep still surfaces.
+- While the alert is active, `updateTabBadge` draws `String(failed)` in red (`BADGE_ALERT_COLOR`, `#DC2626`) ahead of the normal count. The normal media count uses `BADGE_COLOR` (`#4F46E5`).
+- Opening the popup or bubble sends `DOWNLOADS_SEEN`, which calls `ackDownloadAlerts()` and clears the alert, because you can now see the failed rows in the queue. A new failure re-arms the alert
+  even after a previous acknowledgement.
+- The alert state is in-memory. After a service-worker restart it is re-derived from the persisted queue, so it simply re-alerts, which is harmless.
+
 ## Behavior
 
 - **Loading** tabs show `...` until the tab finishes loading, then the real count.
 - If the content script can't run (`chrome://`, `about:`, the Chrome Web Store, AMO), the `GET_IMAGES` call returns a `lastError`. The worker clears that tab's badge, so a stale `...` placeholder
   doesn't stay stuck on it.
-- When **Show image count on toolbar icon** is off, existing badges are cleared and no counts are drawn. The activation and load listeners skip the badge entirely.
+- When **Show image count on toolbar icon** is off, existing badges are cleared and no counts are drawn (unless a download-failure alert is active). The activation and load listeners skip the badge entirely.
 
 ## Popup vs. bubble mode
 
