@@ -100,6 +100,10 @@ const App: React.FC<AppProps> = ({
     document.body.style.height = `${settings.popupHeight}px`;
   }, [surface, settings.popupWidth, settings.popupHeight]);
 
+  // Opening the popup/bubble means the user can see the download queue, so clear the
+  // toolbar's red failed-download alert badge.
+  useEffect(() => { sendRuntimeMessage({ type: 'DOWNLOADS_SEEN' }); }, []);
+
   const {
     state,
     setState,

@@ -49,11 +49,15 @@ export async function fetchImageBytes(url: string, signal?: AbortSignal): Promis
  * Use for messages whose response we don't consume.
  */
 export function sendRuntimeMessage(message: unknown): void {
-    const result = chrome.runtime.sendMessage(message) as Promise<unknown> | undefined;
-    if (result && typeof result.then === 'function') {
-        result.catch(() => {
-            /* no receiver / background asleep */
-        });
+    try {
+        const result = chrome.runtime.sendMessage(message) as Promise<unknown> | undefined;
+        if (result && typeof result.then === 'function') {
+            result.catch(() => {
+                /* no receiver / background asleep */
+            });
+        }
+    } catch {
+        /* fire-and-forget: no receiver, or a surface without chrome.runtime */
     }
 }
 
