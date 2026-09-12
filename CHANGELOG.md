@@ -43,6 +43,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   use `redirect: 'error'`, matching the ZIP fetch guard.
 
 ### Fixed
+- **Captured HLS/DASH videos now save reliably when "Ask where to save" is on.**
+  The muxed file's temporary blob URL was released after 60 seconds — if the Save
+  dialog stayed open longer, the download read a released blob and silently saved
+  nothing. The blob is now kept alive long enough to cover any realistic dialog
+  delay.
 - **Batch "downloaded N files" toasts no longer over-count.** A completion seen by
   both the progress poll and the download-change event double-counted; counts now
   come from the transition each event actually made.

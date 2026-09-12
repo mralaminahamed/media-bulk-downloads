@@ -16,12 +16,21 @@ import type { CaptureRunRequest } from '@mbd/platform';
  * every host that calls it. Broadcasts CAPTURE_PROGRESS for the popup/bubble.
  */
 
+/** How long a published capture blob URL is kept alive before it is revoked as a
+ *  memory-cleanup fallback. It must outlast the whole download read, which does
+ *  NOT start until the user picks a location when "Ask where to save" is on — the
+ *  Save dialog can sit open for minutes. The old 60s window revoked the blob while
+ *  that dialog was still open, so the download failed with no file saved. 10 min
+ *  covers any realistic dialog delay; the ideal (revoke exactly when the download
+ *  settles) is tracked separately. */
+const BLOB_TTL_MS = 600_000;
+
 /** Publish assembled bytes as a same-extension blob URL, kept alive long enough
- *  for the background's downloader to read it. */
+ *  for the background's downloader to read it (see BLOB_TTL_MS). */
 function publish(bytes: Uint8Array, mime: string): string {
   const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   const blobUrl = URL.createObjectURL(new Blob([ab], { type: mime }));
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), BLOB_TTL_MS);
   return blobUrl;
 }
 
