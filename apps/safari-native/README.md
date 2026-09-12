@@ -1,15 +1,15 @@
-# apps/safari-native — Safari Web Extension wrapper
+# apps/safari-native: Safari Web Extension wrapper
 
-Safari Web Extensions ship **inside a native macOS/iOS app**. The extension code
+Safari Web Extensions ship inside a native macOS/iOS app. The extension code
 is the same `@mbd/extension` build (`-b safari`); this directory holds the native
-Xcode wrapper that hosts it. The wrapper is **generated on macOS** by Apple's
-`safari-web-extension-converter` — it is not committed here because it must be
+Xcode wrapper that hosts it. The wrapper is generated on macOS by Apple's
+`safari-web-extension-converter`. It is not committed here because it must be
 produced (and re-produced) against a specific Xcode toolchain.
 
 ## Prerequisites (macOS only)
 
 - macOS with **Xcode** (Command Line Tools installed).
-- An **Apple Developer account** ($99/yr) for signing + App Store submission.
+- An **Apple Developer account** ($99/yr) for signing and App Store submission.
 - The extension built for Safari: from the repo root, `yarn build:safari`
   (emits `apps/extension/.output/safari-mv3/`).
 
@@ -55,7 +55,7 @@ degrades around rather than routing through the seam:
   `x-media-sniffer`) rely on MAIN-world injection to observe the page's own
   GraphQL / `.m3u8` requests. On Safari they are inert, so Instagram / Facebook
   full-resolution capture, HLS-via-player detection, and X / Pinterest / Threads
-  sniffing fall back to **DOM-only** collection — the same reduced coverage as
+  sniffing fall back to **DOM-only** collection, the same reduced coverage as
   running with sniffers off. No error; just fewer / lower-resolution results on
   those sites.
 

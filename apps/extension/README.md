@@ -1,9 +1,9 @@
-# @mbd/extension — Media Bulk Downloads (Browser Extension)
+# @mbd/extension: Media Bulk Downloads (Browser Extension)
 
-The **Media Bulk Downloads** browser extension itself — the WXT Manifest-V3 app
+The Media Bulk Downloads browser extension itself: the WXT Manifest-V3 app
 that ships to the Chrome Web Store, Firefox Add-ons, Microsoft Edge Add-ons, and
 (under review) the Mac App Store. It composes the browser-agnostic `@mbd/*`
-domain packages under `../../packages/` into the actual product: popup, on-page
+domain packages under `../../packages/` into the product: popup, on-page
 bubble, background worker, content scripts, and the HLS/DASH capture pipeline.
 
 ## Layout
@@ -51,9 +51,9 @@ Load unpacked: `chrome://extensions` → Developer mode → **Load unpacked** �
 
 ## Tests
 
-- **Unit / integration** (Vitest, jsdom) under `tests/unit/` — `yarn test`.
-- **End-to-end** (Playwright, real Chromium, drives the bubble) under `tests/e2e/`
-  — `yarn test:e2e`. See [`tests/e2e/README.md`](./tests/e2e/README.md).
+- **Unit / integration** (Vitest, jsdom) under `tests/unit/`: `yarn test`.
+- **End-to-end** (Playwright, real Chromium, drives the bubble) under `tests/e2e/`:
+  `yarn test:e2e`. See [`tests/e2e/README.md`](./tests/e2e/README.md).
 
 ## Boundary
 
@@ -63,8 +63,8 @@ and browser-agnostic lives in `../../packages/` (`@mbd/core`, `@mbd/storage`,
 
 ## More
 
-- [Architecture guide](https://mralaminahamed.github.io/media-bulk-downloads/how-it-works/architecture/) — surfaces, module &
+- [Architecture guide](https://mralaminahamed.github.io/media-bulk-downloads/how-it-works/architecture/): surfaces, module and
   message catalog, data model (the source of truth)
-- [`../safari-native/README.md`](../safari-native/README.md) — the Safari native
+- [`../safari-native/README.md`](../safari-native/README.md): the Safari native
   wrapper and its platform caveats
-- The `extension-dev` skill (`.claude/skills/extension-dev/`) — full dev/build/debug workflow
+- The `extension-dev` skill (`.claude/skills/extension-dev/`): full dev/build/debug workflow

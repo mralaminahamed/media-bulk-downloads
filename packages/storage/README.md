@@ -1,7 +1,7 @@
-# @mbd/storage — Persistence Layer
+# @mbd/storage: Persistence Layer
 
-The extension's **persistence layer**: settings, download history, favourites,
-excluded sources, the download queue, per-host memory, and backup/sync — over
+The extension's persistence layer: settings, download history, favourites,
+excluded sources, the download queue, per-host memory, and backup/sync, all over
 `chrome.storage` + IndexedDB, behind a Safari-safe API.
 
 ## Public API
@@ -11,7 +11,7 @@ Each module is imported directly via `@mbd/storage/<module>`:
 | Module                  | What it persists                                              |
 |-------------------------|--------------------------------------------------------------|
 | `settings`              | User preferences (`chrome.storage.sync`)                     |
-| `history`               | Download history (`chrome.storage.local`) — merge/dedup/cap  |
+| `history`               | Download history (`chrome.storage.local`), merge/dedup/cap   |
 | `favourites`            | Starred media, same merge/dedup/cap shape                    |
 | `excluded`              | Blocked source hosts / URLs                                  |
 | `download-queue`        | The persistent, resumable download queue                     |

@@ -1,6 +1,6 @@
-# @mbd/platform — Browser Capability Seam
+# @mbd/platform: Browser Capability Seam
 
-The **browser-capability seam**: capability *contracts* and runtime feature
+The browser-capability seam: capability contracts and runtime feature
 detection, kept separate from any concrete implementation. It lets the rest of
 the code target a capability instead of a specific browser, so degraded targets
 (Safari, Firefox) can fall back cleanly.
@@ -9,7 +9,7 @@ the code target a capability instead of a specific browser, so degraded targets
 
 | Import                        | What                                                          |
 |-------------------------------|---------------------------------------------------------------|
-| `@mbd/platform`               | Barrel — the contracts + `detectCapabilities()`               |
+| `@mbd/platform`               | Barrel: the contracts + `detectCapabilities()`                |
 | `@mbd/platform/capabilities`  | `detectCapabilities()` runtime feature probe                  |
 | `@mbd/platform/downloader`    | `Downloader` contract (save bytes / URL)                      |
 | `@mbd/platform/notifier`      | `Notifier` contract (finish toasts)                           |
@@ -18,11 +18,11 @@ the code target a capability instead of a specific browser, so degraded targets
 
 ## Boundary
 
-**Contracts + detection only — no implementations.** The concrete Chrome /
+**Contracts and detection only, no implementations.** The concrete Chrome /
 Firefox / Safari implementations live in the app
 (`apps/extension/src/extension/platform/`). No runtime dependencies.
 
-> Status: the seam exists but is **not yet wired into the app** — the background
+> Status: the seam exists but is not yet wired into the app. The background
 > still calls `chrome.*` directly. Routing it through these contracts +
 > `selectPlatform()` is a tracked follow-up (see the
 > [monorepo-restructure](../../docs/architecture/monorepo-restructure.md) record).

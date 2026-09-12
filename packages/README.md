@@ -1,4 +1,4 @@
-# `packages/` — domain packages
+# `packages/`: domain packages
 
 Browser-agnostic domain logic, split out of the WXT app so it can be reasoned
 about, tested, and (eventually) retargeted independently of any one browser's
@@ -13,7 +13,7 @@ glue. Each package is a yarn workspace (`workspaces: ["packages/*", "apps/*"]`).
 ## The one rule
 
 Import direction is one-way: **app → storage/platform → core**. Core is the leaf
-and stays browser-agnostic — a helper that needs a browser API belongs in the app
+and stays browser-agnostic; a helper that needs a browser API belongs in the app
 or behind the `@mbd/platform` seam, never in core. A boundary leak fails review.
 
 Cross-package imports use the package name (`@mbd/core/collection/canonical`,
@@ -22,6 +22,6 @@ Cross-package imports use the package name (`@mbd/core/collection/canonical`,
 
 ## More
 
-- Design & rationale — `../docs/architecture/monorepo-restructure.md`
-- Working in the repo — the `extension-dev` skill (`.claude/skills/extension-dev/`)
-- Adding a resolver / a store — the `adding-a-resolver` / `storage-and-settings` skills
+- Design and rationale: `../docs/architecture/monorepo-restructure.md`
+- Working in the repo: the `extension-dev` skill (`.claude/skills/extension-dev/`)
+- Adding a resolver / a store: the `adding-a-resolver` / `storage-and-settings` skills

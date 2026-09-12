@@ -1,10 +1,10 @@
-# Safari — App Store submission
+# Safari: App Store submission
 
 Safari Web Extensions are distributed as a native macOS (and optionally iOS) app
 that hosts the extension, submitted through the **Mac App Store**. This is a
 different pipeline from the Chrome/Edge/Firefox/Opera zip uploads.
 
-> Status: the Safari build ships — the extension targets Safari via
+> Status: the Safari build ships. The extension targets Safari via
 > `yarn build:safari` + the `@mbd/platform` seam, the native wrapper is generated
 > and built under `apps/safari-native/`, and the macOS app has been **submitted to
 > the Mac App Store and is under review** (not yet live). Building, signing, and
@@ -32,16 +32,16 @@ different pipeline from the Chrome/Edge/Firefox/Opera zip uploads.
 
 - [ ] Collect + preview media on a page (should match other browsers).
 - [ ] Single/save download works via the anchor-blob fallback.
-- [ ] The "Capture video streams" toggle is **shown** — Safari captures HLS/DASH by
+- [ ] The "Capture video streams" toggle is **shown**: Safari captures HLS/DASH by
       running the shared capture core in an extension page (no offscreen document needed).
 - [ ] No "Retry w/ referer" affordance (no dynamic DNR).
 - [ ] Download History / on-disk dedupe are absent or degraded (no `downloads`
-      API) — confirm the UI doesn't present broken controls.
+      API); confirm the UI doesn't present broken controls.
 
 ## App Store listing
 
-- [ ] App name, subtitle, description — **be explicit about the Safari limits**
-      (single/save-as downloads; no bulk queue or on-disk dedupe — stream capture
+- [ ] App name, subtitle, description: **be explicit about the Safari limits**
+      (single/save-as downloads; no bulk queue or on-disk dedupe, though stream capture
       does work) so the listing doesn't over-promise the Chromium/Firefox feature set.
 - [ ] Privacy: network-free by default; the opt-in original-resolution fetch is
       the only external request (mirror `PRIVACY.md`).
@@ -49,45 +49,45 @@ different pipeline from the Chrome/Edge/Firefox/Opera zip uploads.
 
 ## Permission justifications (for App Store review)
 
-The Safari build requests a **reduced** permission set — `wxt.config.ts` drops
+The Safari build requests a **reduced** permission set. `wxt.config.ts` drops
 `downloads`/`downloads.open`, `offscreen`, and the optional `notifications` /
 `declarativeNetRequestWithHostAccess` for Safari; the `@mbd/platform` seam supplies
 the fallbacks. What actually ships (verify against
 `apps/extension/.output/safari-mv3/manifest.json`): `storage`, `tabs`,
 `contextMenus`, and host `<all_urls>`.
 
-**storage** — keeps the user's own preferences and local library (download history,
+**storage**: keeps the user's own preferences and local library (download history,
 favourites, excluded sources) on the device via the extension storage API. No
 content is transmitted.
 
-**tabs** — reads the active tab's URL and title to (1) label a saved file with the
+**tabs**: reads the active tab's URL and title to (1) label a saved file with the
 page it came from and (2) open a media item's source page when the user asks. No
 browsing history is collected or sent.
 
-**contextMenus** — adds right-click actions ("Download all media on this page";
+**contextMenus**: adds right-click actions ("Download all media on this page";
 on a media element, "Download this media", "Download image (original quality)",
 "Add image to Favourites") so the user can act without opening the popup.
 
-**Host access — `<all_urls>`** — the extension must read the media elements on
+**Host access (`<all_urls>`)**: the extension must read the media elements on
 whatever page the user runs it on, which can be any site; it activates only when
 the user opens the popup or the on-page panel. When the optional "resolve
 originals" setting is on, it fetches a higher-resolution version of a downloaded
 item directly from that media's own CDN. It does not read or transmit page content
 for any other purpose. **This is the permission Apple review most often asks about**
-(see Submit, below) — justify it as "read media on any page the user chooses to
+(see Submit, below); justify it as "read media on any page the user chooses to
 download from".
 
-**Not requested on Safari** — nothing to justify for these; they are absent from
+**Not requested on Safari**: nothing to justify for these; they are absent from
 the Safari manifest: `downloads`/`downloads.open` (saving uses an anchor/blob
 fallback, no downloads API), `offscreen` (HLS/DASH capture runs in an extension
-page instead — `run-capture.ts`), `notifications`, and
+page instead, via `run-capture.ts`), `notifications`, and
 `declarativeNetRequestWithHostAccess` (no "retry with referer").
 
 > **Content scripts.** The manifest declares an ISOLATED-world page collector
 > (`<all_urls>`) plus six MAIN-world media sniffers (one `.m3u8`/`.mpd` manifest
 > sniffer on `<all_urls>`; five host-scoped to `instagram.com`, `x.com` +
 > `twitter.com`, `facebook.com`, `pinterest.com`, `mangadex.org`). **On Safari
-> these sniffers are inert — collection is DOM-only** — and each would in any case
+> these sniffers are inert (collection is DOM-only)**, and each would in any case
 > read only request URLs the page already loaded and send nothing off-device. They
 > are manifest keys, not extra permissions, covered by the `<all_urls>`
 > justification above.
@@ -96,11 +96,11 @@ page instead — `run-capture.ts`), `notifications`, and
 
 - [ ] Archive in Xcode (Product → Archive) → Distribute App → App Store Connect.
 - [ ] Complete App Store Connect metadata, upload build, submit for review.
-- [ ] Respond to review (Apple often asks about `<all_urls>` host access — justify
+- [ ] Respond to review (Apple often asks about `<all_urls>` host access; justify
       it as required for "download media from any page").
 
 ## Open decisions (from #307)
 
-- macOS only, or iOS/iPadOS too? (iOS multiplies UX work — no context menus, touch.)
+- macOS only, or iOS/iPadOS too? (iOS multiplies UX work: no context menus, touch.)
 - Is the degraded single-file download an acceptable Safari experience to ship,
   or hold Safari until (if ever) Apple ships `browser.downloads`?

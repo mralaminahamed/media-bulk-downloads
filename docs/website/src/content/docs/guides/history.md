@@ -1,12 +1,12 @@
 ---
 title: "Download History"
-description: "The log of completed downloads — open, reveal, re-download, and how entries are recorded, deduped, and capped."
+description: "The log of completed downloads: open, reveal, re-download, and how entries are recorded, deduped, and capped."
 ---
 
 Every completed download is recorded to a **Download History** list. The list survives across pages, tabs, and browser restarts, so you can find, re-open, or re-download something you saved earlier
 without digging through the OS downloads folder.
 
-![The Download History panel — each completed download with re-download, open-file, and reveal-in-folder actions.](../../../assets/screenshots/history.png)
+![The Download History panel: each completed download with re-download, open-file, and reveal-in-folder actions.](../../../assets/screenshots/history.png)
 
 ## Using it
 
@@ -26,7 +26,7 @@ without digging through the OS downloads folder.
 `downloadId`. Every download recorded going forward has one. It is absent on entries carried over from before this was tracked.
 
 Both actions need the browser's own download record, which is gone once you clear
-Chrome's download list (or the file is deleted from disk) — and there is no API to
+Chrome's download list (or the file is deleted from disk), and there is no API to
 open a file by path. So the panel asks the background for each download's on-disk
 state (`GET_DOWNLOAD_STATES` → one `chrome.downloads.search`, mapped through
 `diskState`): when the record is cleared (`unknown`) or the file is deleted
@@ -105,19 +105,19 @@ storage path for user edits versus automatic recording.
 
 ## Implementation
 
-- `packages/storage/src/history.ts` — `HISTORY_KEY`, `HISTORY_CAP` (500),
+- `packages/storage/src/history.ts`: `HISTORY_KEY`, `HISTORY_CAP` (500),
   `HISTORY_MAX_BYTES` (2,000,000), `mergeHistory`, `recordDownloads`,
   `removeEntry`, `clearHistory`, `srcsStillOnDisk`, `diskState` / `DiskState`,
   and the `writeChain` serializer.
-- `apps/extension/src/extension/background/download/downloads.ts` —
+- `apps/extension/src/extension/background/download/downloads.ts`:
   `downloadAndRecord` (keyboard-command / context-menu path).
-- `apps/extension/src/extension/background/download/download-queue.ts` —
+- `apps/extension/src/extension/background/download/download-queue.ts`:
   `handleDownloadChanged` and `reconcileQueue`, which call `recordDownloads` on completion and on restart reconcile.
-- `apps/extension/src/extension/background/message-router.ts` — the
+- `apps/extension/src/extension/background/message-router.ts`: the
   `CLEAR_HISTORY` / `REMOVE_HISTORY_ENTRY` / `OPEN_DOWNLOAD_FILE` /
   `SHOW_DOWNLOAD` / `GET_DOWNLOADED_SRCS` / `GET_DOWNLOAD_STATES` / `OPEN_URL` handlers.
-- `apps/extension/src/extension/popup/components/panels/HistoryPanel.tsx` — the panel UI.
-- `apps/extension/src/extension/popup/hooks/useDownloadHistory.ts` — the grid's downloaded-on-disk set.
+- `apps/extension/src/extension/popup/components/panels/HistoryPanel.tsx`: the panel UI.
+- `apps/extension/src/extension/popup/hooks/useDownloadHistory.ts`: the grid's downloaded-on-disk set.
 
 See also: [Download](/media-bulk-downloads/guides/download/) · [Favourites](/media-bulk-downloads/guides/favourites/) ·
 [Architecture](/media-bulk-downloads/how-it-works/architecture/).

@@ -1,15 +1,15 @@
 ---
 title: "In-page Bubble"
-description: "The optional floating in-page launcher — how it mounts in a Shadow DOM, its toggle lifecycle, and placement settings."
+description: "The optional floating in-page launcher: how it mounts in a Shadow DOM, its toggle lifecycle, and placement settings."
 ---
 
-The bubble is an optional floating launcher injected into the page. It renders the same popup UI (`popup/App.tsx`) inside an isolated **Shadow DOM**, so the page's styles and the extension's styles
+The bubble is an optional floating launcher injected into the page. It renders the same popup UI (`popup/App.tsx`) inside an isolated Shadow DOM, so the page's styles and the extension's styles
 can't collide. The toolbar popup stays as a fallback and works everywhere, including pages where content scripts can't run.
 
 ## Lifecycle (enable / disable)
 
-The content script mounts and unmounts the bubble. On load it asks the background for settings (`GET_SETTINGS`) — **not** `chrome.storage.sync` directly, which Safari content scripts don't reliably
-see — then listens for the background's
+The content script mounts and unmounts the bubble. On load it asks the background for settings (`GET_SETTINGS`), not `chrome.storage.sync` directly, which Safari content scripts don't reliably
+see. It then listens for the background's
 `SETTINGS_CHANGED` push (sent after every `SET_SETTINGS` write) to mount or unmount on later changes.
 
 ```mermaid
@@ -47,7 +47,7 @@ Mounting the bubble does not open its panel. The panel starts closed and opens o
 
 When the bubble is enabled on an injectable page, the background clears that tab's toolbar popup: `updateTabActionMode` in `background/badge.ts` sets
 `chrome.action.setPopup` to `''`. A toolbar click then fires `action.onClicked`
-instead of opening a popup. `isInjectableUrl` gates this — it's true for `http`,
+instead of opening a popup. `isInjectableUrl` gates this: it's true for `http`,
 `https`, and `file` URLs, and false for the Chrome Web Store, AMO, and browser pages. On a non-injectable tab the popup stays as the fallback.
 
 ```mermaid

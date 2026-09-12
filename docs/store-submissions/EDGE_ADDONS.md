@@ -1,21 +1,21 @@
-# Microsoft Edge Add-ons — Submission Package
+# Microsoft Edge Add-ons: Submission Package
 
 Everything needed to publish **Media Bulk Downloads** to the Microsoft Edge
 Add-ons store through [Partner Center](https://partner.microsoft.com/dashboard/microsoftedge):
 copy-paste listing fields, per-permission justifications, the privacy
 disclosures, required visual assets, and the packaging steps.
 
-Version at time of writing: **1.3.0** · Manifest **V3** (Chromium — same package
+Version at time of writing: **1.3.0** · Manifest **V3** (Chromium, same package
 family as the Chrome build). This is the Edge sibling of
 [CHROME_WEBSTORE.md](./CHROME_WEBSTORE.md); the listing copy is intentionally
 identical so both stores match.
 
-> **✅ Live** — the extension passed certification and is published at
+> **✅ Live**: the extension passed certification and is published at
 > <https://microsoftedge.microsoft.com/addons/detail/media-bulk-downloads/ihhhecmabfocelgmjafijchhhlpdlnll>.
 > This doc is now the reference for shipping **updates** (see §7 "To ship an
 > update").
 
-> **Different from Chrome — don't miss these:**
+> **Different from Chrome, don't miss these:**
 > - Edge registration is **free** (Chrome charges a one-time $5).
 > - Edge requires a **300×300** store logo (Chrome uses the 128×128 icon).
 > - You upload the **`…-edge.zip`**, not the Chrome zip.
@@ -25,12 +25,12 @@ identical so both stores match.
 
 ## 1. Pre-submission checklist
 
-- [ ] **Partner Center account** registered for the *Microsoft Edge* program (free — no registration fee).
+- [ ] **Partner Center account** registered for the *Microsoft Edge* program (free, no registration fee).
 - [ ] `wxt.config.ts` name/description correct; version comes from `apps/extension/package.json`. `yarn build:edge` emits `apps/extension/.output/edge-mv3/manifest.json`.
 - [ ] Permissions match what ships: `downloads`, `downloads.open`, `storage`, `tabs`, `contextMenus`, `offscreen`, host `<all_urls>`; optional `notifications` and
   `declarativeNetRequestWithHostAccess` (both requested at runtime).
-- [ ] Icons 16/32/48/64/128 present (`apps/extension/src/public/icon/`) — ✅ already in the build.
-- [ ] **Store logo 300×300 PNG** ready (Edge-specific, see §5) — ✅ `assets/v2/store-logo-300x300.png`.
+- [ ] Icons 16/32/48/64/128 present (`apps/extension/src/public/icon/`). ✅ already in the build.
+- [ ] **Store logo 300×300 PNG** ready (Edge-specific, see §5). ✅ `assets/v2/store-logo-300x300.png`.
 - [ ] Privacy policy hosted at a public URL (see §6): `https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md`.
 - [ ] At least **1 screenshot** at 1280×800 (or 640×480) (see §5).
 - [ ] `apps/extension/.output/media-bulk-downloads-<version>-edge.zip` produced by `yarn zip:edge`.
@@ -46,7 +46,7 @@ identical so both stores match.
 Media Bulk Downloads
 ```
 
-**Short description** (≤ 132 chars) — reuse the manifest description:
+**Short description** (≤ 132 chars). Reuse the manifest description:
 
 ```
 Bulk-download images, video & audio from any web page. Smart type filters, instant preview, original quality — fast and private.
@@ -205,7 +205,7 @@ standard HLS (.m3u8) video stream by fetching and joining its segments — entir
 on the user's device. No page content is transmitted.
 ```
 
-**Host permissions — `<all_urls>`**
+**Host permissions (`<all_urls>`)**
 
 ```
 The extension must read the media elements on whatever page the user runs it on,
@@ -221,7 +221,7 @@ transmit page content for any other purpose.
 ```
 
 > **Content scripts / `commands`:** the manifest also declares keyboard shortcuts
-> (`commands`) and seven content scripts — one ISOLATED-world page collector
+> (`commands`) and seven content scripts: one ISOLATED-world page collector
 > (`<all_urls>`, runs on open) plus six MAIN-world media sniffers. One sniffer is
 > host-agnostic: the **HLS/DASH manifest sniffer** (`<all_urls>`), which only reads
 > the request URLs of `.m3u8`/`.mpd` manifests the page's own player fetches so a
@@ -273,7 +273,7 @@ sizes. PNG or JPEG.
 
 | Asset                  | Size                  | Required        | Suggested shot                                                                                                 |
 |------------------------|-----------------------|-----------------|----------------------------------------------------------------------------------------------------------------|
-| **Store logo**         | **300×300**           | ✅ Edge-specific | ✅ `assets/v2/store-logo-300x300.png` — brand tile on a soft brand-tinted ground (rendered from `assets/v1/icon.svg`) |
+| **Store logo**         | **300×300**           | ✅ Edge-specific | ✅ `assets/v2/store-logo-300x300.png`, brand tile on a soft brand-tinted ground (rendered from `assets/v1/icon.svg`) |
 | Screenshot 1           | 1280×800 (or 640×480) | ✅ (≥1)          | Popup with a full media grid + type badges                                                                     |
 | Screenshot 2           | 1280×800 (or 640×480) | optional        | Filter toolbar in use (kind/format/size)                                                                       |
 | Screenshot 3           | 1280×800 (or 640×480) | optional        | Preview modal (with prev/next)                                                                                 |
@@ -282,7 +282,7 @@ sizes. PNG or JPEG.
 | Small promotional tile | 440×280               | optional        | Logo + "Bulk-download images, video & audio"                                                                   |
 | Large promotional tile | 1400×560              | optional        | Only if featured / for collections                                                                             |
 
-Tip: shoot each screenshot in both light and dark once and pick the stronger —
+Tip: shoot each screenshot in both light and dark once and pick the stronger;
 the UI supports both. The 1280×800 shots from the Chrome package can be reused
 here as-is.
 
@@ -308,7 +308,7 @@ user data. Answer *No* to every personal-data / usage category the form offers
 (identifiers, financial, authentication, personal communications, location, web
 history, user activity). Settings and history stay on the device.
 
-**Does this extension require a privacy policy?** Yes — provide the URL above
+**Does this extension require a privacy policy?** Yes. Provide the URL above
 (it requests broad host access and the `downloads`/`tabs` permissions, so a
 policy is expected even though nothing is collected).
 
@@ -348,10 +348,10 @@ Version comes from `apps/extension/package.json` (WXT writes it into every manif
 
 | Field            | Value                                                                                                      | Used for                                                                     |
 |------------------|------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------|
-| **Live listing** | `https://microsoftedge.microsoft.com/addons/detail/media-bulk-downloads/ihhhecmabfocelgmjafijchhhlpdlnll`   | Public store page (live) — the link in the README and store table            |
+| **Live listing** | `https://microsoftedge.microsoft.com/addons/detail/media-bulk-downloads/ihhhecmabfocelgmjafijchhhlpdlnll`   | Public store page (live); the link in the README and store table            |
 | **Store ID**     | `0RDCKGS01KRC`                                                                                              | Short share link: `https://microsoftedge.microsoft.com/addons/detail/0RDCKGS01KRC` (redirects to the slug URL above) |
 | **CRX ID**       | `ihhhecmabfocelgmjafijchhhlpdlnll`                                                                          | The README version badge (Microsoft's `getproductdetailsbycrxid` API) and the live listing slug |
-| Product ID       | *(kept private — internal Partner Center GUID)*                                                            | Dashboard deep-links only                                                    |
+| Product ID       | *(kept private, internal Partner Center GUID)*                                                            | Dashboard deep-links only                                                    |
 
 **README badge:** shields.io has **no native Edge Add-ons badge** (open request
 [badges/shields#4690](https://github.com/badges/shields/issues/4690)), so the
@@ -363,7 +363,7 @@ https://microsoftedge.microsoft.com/addons/getproductdetailsbycrxid/ihhhecmabfoc
 ```
 
 Now that the extension is certified, the badge reads the live version
-automatically — no manual bump needed. (It showed `not found` in red until
+automatically; no manual bump needed. (It showed `not found` in red until
 certification passed.)
 
 **To ship an update:** bump `version` in `package.json`, re-run `yarn zip:all`,

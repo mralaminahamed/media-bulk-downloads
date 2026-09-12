@@ -4,10 +4,11 @@ description: What Media Bulk Downloads is, the four extension surfaces, and the 
 ---
 
 Media Bulk Downloads finds every image, video, and audio file on the page you're
-viewing and lets you preview, filter, and download them in bulk — quickly, and
-without sending your browsing anywhere. It's a cross-browser Manifest-V3 extension — built for Chrome, Firefox, Edge, and Safari from one codebase; Opera and other Chromium browsers run the Chrome build (Opera and Safari store listings are under review).
+viewing and lets you preview, filter, and download them in bulk, quickly, and
+without sending your browsing anywhere. It's a cross-browser Manifest-V3 extension,
+built for Chrome, Firefox, Edge, and Safari from one codebase. Opera and other Chromium browsers run the Chrome build (Opera and Safari store listings are under review).
 
-![The Media Bulk Downloads popup open over a web page — a grid of collected images with type badges, the filter toolbar, and the Download button.](../../../assets/screenshots/popup-grab.png)
+![The Media Bulk Downloads popup open over a web page: a grid of collected images with type badges, the filter toolbar, and the Download button.](../../../assets/screenshots/popup-grab.png)
 
 ## Where to go next
 
@@ -57,7 +58,7 @@ flowchart LR
 ## Design constraints (read before changing collection)
 
 - **Passive collection is network-free.** The content script and badge derive
-  metadata from the DOM and URL strings only — no `fetch`, `HEAD`, or preload
+  metadata from the DOM and URL strings only, with no `fetch`, `HEAD`, or preload
   while scanning.
 - **Two things touch the network, neither during passive collection.**
   Image-size `HEAD` requests run only from the popup, against images the page
@@ -76,6 +77,6 @@ flowchart LR
 
 ## See also
 
-- [Collection Benchmark](/media-bulk-downloads/benchmark/overview/) — live, reproducible upgrade measurements
-- [Feature one-pager](https://github.com/mralaminahamed/media-bulk-downloads/blob/main/docs/marketing/one-pager.md) — plain-language overview
-- [Monorepo restructure](https://github.com/mralaminahamed/media-bulk-downloads/blob/main/docs/architecture/monorepo-restructure.md) — packages/app design record
+- [Collection Benchmark](/media-bulk-downloads/benchmark/overview/): live, reproducible upgrade measurements
+- [Feature one-pager](https://github.com/mralaminahamed/media-bulk-downloads/blob/main/docs/marketing/one-pager.md): plain-language overview
+- [Monorepo restructure](https://github.com/mralaminahamed/media-bulk-downloads/blob/main/docs/architecture/monorepo-restructure.md): packages/app design record

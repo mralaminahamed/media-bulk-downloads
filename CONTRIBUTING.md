@@ -6,14 +6,14 @@ the checks your change must pass, and how work is proposed.
 ## Prerequisites
 
 - **Node 20.19+** (`.nvmrc` pins 22 for development)
-- **Corepack-enabled Yarn** — this repo pins Yarn via Corepack. Do not use npm.
+- **Corepack-enabled Yarn.** This repo pins Yarn via Corepack. Do not use npm.
 
 ```bash
 corepack enable
 yarn install
 ```
 
-The build is powered by [WXT](https://wxt.dev), which targets Chrome, Firefox,
+The build uses [WXT](https://wxt.dev), which targets Chrome, Firefox,
 Edge, and Safari from one codebase.
 
 ## Develop
@@ -50,13 +50,13 @@ runs the package projects (merged coverage) then the app suite.
 
 1. Branch off `main` (`feat/…`, `fix/…`, `docs/…`, `chore/…`).
 2. Keep the change focused and match the surrounding code's style. Keep comments
-   **minimal** — the code should read for itself; reserve them for JSDoc on real
+   minimal. The code should read for itself; reserve them for JSDoc on real
    API surfaces and functional directives (`eslint-disable`, `@ts-*`). Don't add
    verbose multi-line `//` "why" blocks.
 3. Make sure all four checks above pass.
-4. Open a PR describing **what** changed and **why**, and how you verified it.
+4. Open a PR describing what changed and why, and how you verified it.
 
 ## Reporting bugs / requesting features
 
-Use the issue templates. For security issues, do **not** open a public issue —
-see [SECURITY.md](./SECURITY.md).
+Use the issue templates. For security issues, do not open a public issue.
+See [SECURITY.md](./SECURITY.md).
