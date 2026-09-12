@@ -22,7 +22,16 @@ export function useDialog(onClose: () => void, active = true) {
 
   useEffect(() => {
     if (!active) return;
-    const previouslyFocused = document.activeElement as HTMLElement | null;
+    // In the on-page bubble the panel lives inside a shadow root, where
+    // `document.activeElement` returns the shadow HOST, not the focused inner
+    // element — so read the active element from the panel's own root node
+    // (ShadowRoot or Document). Without this the Tab-trap comparisons never match
+    // (focus escapes the modal) and focus-restore captures the host.
+    const activeInRoot = (): Element | null => {
+      const root = ref.current?.getRootNode() as Document | ShadowRoot | undefined;
+      return (root?.activeElement ?? document.activeElement) ?? null;
+    };
+    const previouslyFocused = activeInRoot() as HTMLElement | null;
     ref.current?.focus();
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -36,10 +45,11 @@ export function useDialog(onClose: () => void, active = true) {
       const list = Array.from(focusables);
       const first = list[0];
       const last = list[list.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
+      const activeEl = activeInRoot();
+      if (e.shiftKey && activeEl === first) {
         e.preventDefault();
         last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
+      } else if (!e.shiftKey && activeEl === last) {
         e.preventDefault();
         first.focus();
       }

@@ -1,6 +1,6 @@
 import {
   normalizeImageFormat, imageExtForType, preferredImageExt, isImageExt, isAvExt, isStreamExt,
-  IMAGE_FORMAT_LABELS,
+  IMAGE_FORMAT_LABELS, MEDIA_EXT_PATH_RE, MEDIA_EXT_URL_RE,
 } from '@mbd/core/collection/media-formats';
 import { detectType, looksLikeMediaUrl } from '@mbd/core/collection/imageUrl';
 import { downloadExtension } from '@mbd/core/collection/download-name';
@@ -113,5 +113,19 @@ describe('end-to-end: a modern format keeps its identity all the way to disk', (
   it('keeps .svgz saveable under its own name', () => {
     expect(preferredImageExt('svgz')).toBe('svgz');
     expect(normalizeImageFormat('svgz')).toBe('svg');
+  });
+
+  it('builds the path/URL ext regexes from real file extensions only, not MIME-only aliases', () => {
+    // Real extensions still match.
+    for (const p of ['/a.jpg', '/a.jpeg', '/a.png', '/a.webp', '/a.avif', '/a.heic', '/a.svg', '/a.svgz', '/a.ico']) {
+      expect(MEDIA_EXT_PATH_RE.test(p)).toBe(true);
+    }
+    // MIME-only aliases are NOT extensions and must not match (the `.` in
+    // `vnd.microsoft.icon` also must not act as a regex wildcard).
+    for (const p of ['/a.heic-sequence', '/a.heif-sequence', '/a.x-icon', '/a.x-ms-bmp', '/a.jpeg2000', '/a.x-png']) {
+      expect(MEDIA_EXT_PATH_RE.test(p)).toBe(false);
+    }
+    expect(MEDIA_EXT_URL_RE.test('https://h/a.jpg?v=1')).toBe(true);
+    expect(MEDIA_EXT_URL_RE.test('https://h/gen.heic-sequence?id=1')).toBe(false);
   });
 });

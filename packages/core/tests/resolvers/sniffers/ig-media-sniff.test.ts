@@ -131,6 +131,17 @@ describe('extractIgMedia', () => {
     ]);
   });
 
+  it('normalizes a .jpeg image extension to jpg (matching the FB sniffer)', () => {
+    const out = extractIgMedia({
+      code: 'JPG',
+      media_type: 1,
+      image_versions2: { candidates: [{ url: 'https://x.cdninstagram.com/JPG_1080_n.jpeg', width: 1080, height: 1080 }] },
+    });
+    expect(out).toEqual([
+      { code: 'JPG', kind: 'image', url: 'https://x.cdninstagram.com/JPG_1080_n.jpeg', ext: 'jpg', width: 1080, height: 1080 },
+    ]);
+  });
+
   it('drops a cover-only video when video_versions is present but empty (transcoding)', () => {
     // A reel with no usable mp4 is just a poster — not a downloadable video, so
     // it must not be collected as a (pending) video.

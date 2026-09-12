@@ -14,6 +14,7 @@ import { ImageInfo, MediaItem } from '@mbd/core/types';
 import { detectType, parseUrlDimensions, looksLikeMediaUrl } from '@mbd/core/collection/imageUrl';
 import { classifyPage, collectPageSignals } from '@mbd/core/collection/pageType';
 import { detectAvType, isUndownloadableMedia, isHlsManifest, isDashManifest } from '@mbd/core/collection/mediaType';
+import { normalizeImageFormat } from '@mbd/core/collection/media-formats';
 import { imageUrlsFromElement, galleryLinkCandidate, noscriptImageCandidates, bestSrcsetUrl } from '@mbd/core/collection/extract';
 import { canonicalSrcKey } from '@mbd/core/collection/canonical';
 import { readUrlLease } from '@mbd/core/net/url-lease';
@@ -66,12 +67,16 @@ export function isBase64Image(src: string): boolean {
   return src.startsWith('data:image/');
 }
 
-/** Extracts the image type from a base64 data URI. */
+/** Extracts the image type from a base64 data URI, canonicalized through the
+ *  shared format table (so `data:image/jpg`/`pjpeg`/`x-png` fold to `jpeg`/`png`
+ *  like every URL-based image, instead of becoming stray format chips). Falls
+ *  back to the raw subtype for a type the table doesn't own. */
 export function getBase64ImageType(src: string): string {
   const match = src.match(/^data:image\/([\w.+-]+)\s*[;,]/i);
   if (!match) return 'unknown';
-  const type = match[1].toLowerCase();
-  return type === 'svg+xml' ? 'svg' : type;
+  const raw = match[1].toLowerCase();
+  const canonical = normalizeImageFormat(raw);
+  return canonical === 'unknown' ? raw : canonical;
 }
 
 /** Calculates the size of a base64-encoded image in bytes. */

@@ -283,7 +283,9 @@ export const messageRouter: MessageRouter = {
       const sniffed = tabId != null ? snifferByTab.get(tabId) : undefined;
       void settingsReady.then(() => {
         const authed = message.authed === true && currentSettings.sankakuAuthedOriginals === true;
-        resolveOriginalsBatch(hints, undefined, sniffed, authed).then((resolved) => respond({ resolved }));
+        resolveOriginalsBatch(hints, undefined, sniffed, authed)
+          .then((resolved) => respond({ resolved }))
+          .catch(() => respond({ resolved: {} }));
       });
     };
     if (sender.tab?.id != null) run(sender.tab.id);

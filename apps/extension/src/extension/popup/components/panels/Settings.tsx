@@ -90,8 +90,14 @@ const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsChange, settings
       persistNotify(false);
       return;
     }
+    // Persist ON first, so the setting survives the native permission prompt
+    // closing the popup (see the "survives the prompt closing the popup" test).
     persistNotify(true);
+    // chrome.permissions is absent in the content-script bubble surface — guard
+    // like DownloadQueue/QueueRow so the toggle never throws there.
+    if (typeof chrome?.permissions?.request !== 'function') return;
     chrome.permissions.request({ permissions: ['notifications'] }, (granted) => {
+      void chrome.runtime.lastError;
       if (!granted) persistNotify(false);
     });
   };

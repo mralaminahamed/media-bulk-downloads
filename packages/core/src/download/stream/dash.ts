@@ -223,6 +223,12 @@ export function expandSegments(rep: DashRepresentation, durationSec: number): { 
     let time = t.timeline[0].t ?? 0;
     for (const s of t.timeline) {
       if (s.t !== undefined) time = s.t;
+      // An open-ended run (`r="-1"` = repeat to the end of the period) can only be
+      // counted against a known duration; without one, silently emitting a single
+      // segment truncates the file. Refuse instead.
+      if (s.r < 0 && !(durationSec > 0)) {
+        throw new DashError('unsupported', 'Open-ended SegmentTimeline (r="-1") with no known presentation/period duration.');
+      }
       const repeats =
         s.r >= 0 ? s.r : s.d > 0 ? Math.max(0, Math.ceil((durationSec * t.timescale - time) / s.d) - 1) : 0;
       for (let i = 0; i <= repeats; i++) {

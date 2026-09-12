@@ -523,6 +523,22 @@ describe('Settings Component', () => {
     );
   });
 
+  it('does not throw and still persists ON when chrome.permissions is unavailable (bubble surface)', () => {
+    const perms = (chrome as unknown as { permissions: { request?: unknown } }).permissions;
+    const orig = perms.request;
+    perms.request = undefined;
+    try {
+      render(<Settings onClose={mockOnClose} onSettingsChange={mockOnSettingsChange} settings={initialSettings} />);
+      openAdvanced();
+      const toggle = screen.getByRole('switch', { name: /notify when downloads finish/i });
+      expect(() => fireEvent.click(toggle)).not.toThrow();
+      const calls = (chrome.runtime.sendMessage as Mock).mock.calls.map((c) => c[0]);
+      expect(calls).toContainEqual(expect.objectContaining({ type: 'SET_SETTINGS', patch: expect.objectContaining({ notifyOnComplete: true }) }));
+    } finally {
+      perms.request = orig;
+    }
+  });
+
   it('persists the revert immediately when the permission is denied', () => {
     (chrome.permissions.request as Mock).mockImplementation(
       (_perms: chrome.permissions.Permissions, cb: (granted: boolean) => void) => cb(false),

@@ -13,6 +13,17 @@ describe('probeMediaMeta', () => {
     expect(vi.mocked(fetchImpl).mock.calls[0][1]).toMatchObject({ method: 'HEAD' });
   });
 
+  it('forbids redirects on both the HEAD and the ranged GET (SSRF: a public URL must not 30x to an internal host)', async () => {
+    const fetchImpl: typeof fetch = vi.fn(async (_u, init) =>
+      (init as RequestInit).method === 'HEAD'
+        ? res({ status: 405 })
+        : res({ status: 206, headers: { 'content-range': 'bytes 0-0/999' } }));
+    await probeMediaMeta('https://cdn.ex/a.jpg', { fetch: fetchImpl });
+    for (const call of vi.mocked(fetchImpl).mock.calls) {
+      expect(call[1]).toMatchObject({ redirect: 'error' });
+    }
+  });
+
   it('falls back to a 1-byte ranged GET when HEAD is rejected', async () => {
     const fetchImpl = vi.fn(async (_u: URL | RequestInfo, init?: RequestInit) =>
       init?.method === 'HEAD'
