@@ -329,6 +329,16 @@ describe('expandSegments', () => {
     }
   });
 
+  it('throws unsupported for an open-ended timeline (r="-1") with no known duration (never silently truncates to one segment)', () => {
+    try {
+      expandSegments(rep({ media: 'seg-$Time$.m4s', timescale: 1, startNumber: 1, timeline: [{ t: 0, d: 100, r: -1 }] }), 0);
+      throw new Error('expected expandSegments to throw');
+    } catch (e) {
+      expect((e as DashError).code).toBe('unsupported');
+      expect((e as DashError).message).toMatch(/open-ended|duration/i);
+    }
+  });
+
   it('throws unsupported when the template has media but neither duration nor timeline', () => {
     try {
       expandSegments(rep({ media: 'seg-$Number$.m4s' }), 10);

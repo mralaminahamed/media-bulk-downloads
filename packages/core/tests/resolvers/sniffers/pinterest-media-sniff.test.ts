@@ -20,6 +20,14 @@ describe('extractPinterestMedia', () => {
     ]);
   });
 
+  it('normalizes a .jpeg image extension to jpg (matching the FB sniffer)', () => {
+    const [c] = extractPinterestMedia(boardFeed([{
+      id: '444444444444', type: 'pin',
+      images: { orig: { width: 1000, height: 1500, url: 'https://i.pinimg.com/originals/aa/bb/cc.jpeg' } },
+    }]));
+    expect(c).toMatchObject({ pinId: '444444444444', kind: 'image', url: 'https://i.pinimg.com/originals/aa/bb/cc.jpeg', ext: 'jpg' });
+  });
+
   it('falls back to the largest size when there is no orig', () => {
     const imgs = imageMap('aa/bb/cc'); delete (imgs as Record<string, unknown>).orig;
     const [c] = extractPinterestMedia(boardFeed([{ id: '111111111111', type: 'pin', images: imgs }]));

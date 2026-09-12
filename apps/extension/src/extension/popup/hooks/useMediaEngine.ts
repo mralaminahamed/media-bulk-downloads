@@ -84,6 +84,12 @@ export function useMediaEngine({
 
   const deepScanningRef = useRef(false);
   useEffect(() => { deepScanningRef.current = deepScanning; }, [deepScanning]);
+
+  // `isDownloaded` is recreated by the parent each render; mirror it into a ref so
+  // the enrich/resolve callbacks below stay stable (like filtersRef) yet always
+  // read the current predicate instead of a stale closure.
+  const isDownloadedRef = useRef(isDownloaded);
+  useEffect(() => { isDownloadedRef.current = isDownloaded; }, [isDownloaded]);
   useEffect(() => {
     const onHide = (): void => { if (deepScanningRef.current) abortDeepScan(); };
     window.addEventListener('pagehide', onHide);
@@ -140,7 +146,7 @@ export function useMediaEngine({
         return {
           ...prev,
           images: nextImages,
-          filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloaded),
+          filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloadedRef.current),
         };
       });
     });
@@ -186,7 +192,7 @@ export function useMediaEngine({
       return {
         ...prev,
         images: nextImages,
-        filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloaded),
+        filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloadedRef.current),
       };
     });
   }, [excludedRef, settingsRef]);
@@ -201,7 +207,7 @@ export function useMediaEngine({
    */
   const applyResolution = useCallback(
     (eligible: ImageInfo[], s: SettingsData): void => {
-      const filtered = applyToolbarFilters(eligible, filtersRef.current, isDownloaded);
+      const filtered = applyToolbarFilters(eligible, filtersRef.current, isDownloadedRef.current);
       setState((prev) => ({ ...prev, images: eligible, filteredImages: filtered }));
       if (s.resolveOriginals) void enrichOriginals(eligible, s.captureHlsStreams);
       void enrichImageSizes(eligible);
@@ -318,7 +324,7 @@ export function useMediaEngine({
     setState((prev) => {
       const images = swap(prev.images);
       const eligible = filterExcluded(filterImagesBySettings(images, settingsRef.current), excludedRef.current);
-      return { ...prev, images, filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloaded) };
+      return { ...prev, images, filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloadedRef.current) };
     });
   };
 
@@ -362,7 +368,7 @@ export function useMediaEngine({
     setState((prev) => {
       const images = swap(prev.images);
       const eligible = filterExcluded(filterImagesBySettings(images, settingsRef.current), excludedRef.current);
-      return { ...prev, images, filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloaded) };
+      return { ...prev, images, filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloadedRef.current) };
     });
   };
 
@@ -404,7 +410,7 @@ export function useMediaEngine({
     setState((prev) => {
       const images = apply(prev.images);
       const eligible = filterExcluded(filterImagesBySettings(images, settingsRef.current), excludedRef.current);
-      return { ...prev, images, filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloaded) };
+      return { ...prev, images, filteredImages: applyToolbarFilters(eligible, filtersRef.current, isDownloadedRef.current) };
     });
   };
 

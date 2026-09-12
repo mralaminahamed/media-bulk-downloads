@@ -582,6 +582,7 @@ export type ChromeMessage =
   | ClearExcludedMessage
   | CaptureStreamMessage
   | ListVariantsMessage
+  | CaptureRunMessage
   | CaptureProgressMessage;
 
 export interface AppState {

@@ -4,7 +4,7 @@ vi.mock('@mbd/core/resolvers/sniffers/hls-sniff', async () => {
   return { __esModule: true, ...actual, sniffedHlsManifests: vi.fn(actual.sniffedHlsManifests) };
 });
 
-import { collectMedia, backgroundImageUrls } from '../../src/collection/collect';
+import { collectMedia, backgroundImageUrls, getBase64ImageType } from '../../src/collection/collect';
 import { ingestSniffedHls, resetSniffedHls, sniffedHlsManifests } from '@mbd/core/resolvers/sniffers/hls-sniff';
 import { ingestSniffedMangadexMedia, __resetMangadexSniffed } from '@mbd/core/resolvers/sites/mangadex';
 import { filterImagesBySettings } from '@mbd/core/collection/filters';
@@ -1123,5 +1123,20 @@ describe('collectMedia — srcset width descriptors', () => {
     document.body.innerHTML = '<img src="https://cdn.ex/x.jpg" srcset="https://cdn.ex/e-800x600.jpg 800w">';
     const item = collectMedia().find((i) => i.src === 'https://cdn.ex/e-800x600.jpg');
     expect(item).toMatchObject({ width: 800, height: 600 });
+  });
+});
+
+describe('getBase64ImageType', () => {
+  it('canonicalizes data-URI subtypes through the format table (jpg/pjpeg/x-png -> jpeg/png), like URL images', () => {
+    expect(getBase64ImageType('data:image/jpg;base64,AAAA')).toBe('jpeg');
+    expect(getBase64ImageType('data:image/pjpeg;base64,AAAA')).toBe('jpeg');
+    expect(getBase64ImageType('data:image/x-png;base64,AAAA')).toBe('png');
+    expect(getBase64ImageType('data:image/svg+xml,<svg/>')).toBe('svg');
+    expect(getBase64ImageType('data:image/png;base64,AAAA')).toBe('png');
+  });
+
+  it('falls back to the raw subtype for a type the table does not own, and unknown for a non-image URI', () => {
+    expect(getBase64ImageType('data:image/fancynew;base64,AAAA')).toBe('fancynew');
+    expect(getBase64ImageType('data:text/plain,hi')).toBe('unknown');
   });
 });

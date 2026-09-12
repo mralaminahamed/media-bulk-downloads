@@ -152,37 +152,43 @@ export async function handleDownloadChanged(change: DownloadChange): Promise<voi
   const expired = forbidden && isLeaseExpired(item.expiresAt, Date.now());
   const rewrite = forbidden && !expired && !item.useReferer && (await hasDnrPermission());
 
-  const done = await withState(async (s) => {
+  // Completion is observed by BOTH the downloader.onChanged listener and the
+  // progress poller's terminal loop; both call this handler. Only the call that
+  // actually finds the item still `active` transitions it — so counters and the
+  // recorded status must come from THIS transition (`value`), never from a
+  // post-hoc loadQueue() re-read (which the second, no-op call would also read as
+  // done/failed and double-count).
+  const outcome = await withState(async (s) => {
     const cur = s.items.find((i) => i.id === item.id && i.status === 'active');
     if (!cur) return { state: s, value: null };
-    if (current === 'complete') return { state: markDone(s, cur.id), value: cur };
-    if (forbidden) {
-      if (expired) return { state: markFailed(s, cur.id, 'Link expired', { expired: true }), value: null };
-      if (rewrite) {
-        const items = s.items.map((i) =>
+    let next: QueueState;
+    if (current === 'complete') next = markDone(s, cur.id);
+    else if (forbidden && expired) next = markFailed(s, cur.id, 'Link expired', { expired: true });
+    else if (forbidden && rewrite) {
+      next = {
+        ...s,
+        items: s.items.map((i) =>
           i.id === cur.id
             ? {
                 ...i, status: 'queued' as const, readyAt: Date.now(), downloadId: undefined, ruleId: undefined, useReferer: true,
                 bytesReceived: undefined, totalBytes: undefined,
               }
             : i,
-        );
-        return { state: { ...s, items }, value: null };
-      }
-      return { state: markFailed(s, cur.id, 'SERVER_FORBIDDEN', { hotlink: true }), value: null };
-    }
-    if (cancelled) return { state: markFailed(s, cur.id, 'Cancelled'), value: null };
-    return { state: scheduleRetry(s, cur.id, Date.now()), value: null };
+        ),
+      };
+    } else if (forbidden) next = markFailed(s, cur.id, 'SERVER_FORBIDDEN', { hotlink: true });
+    else if (cancelled) next = markFailed(s, cur.id, 'Cancelled');
+    else next = scheduleRetry(s, cur.id, Date.now());
+    const status = next.items.find((i) => i.id === cur.id)?.status;
+    return { state: next, value: { status, history: current === 'complete' ? cur.history : undefined } };
   });
 
   if (item.ruleId != null) await removeRefererRule(item.ruleId);
-  if (done?.history) {
-    void recordDownloads([{ ...done.history, time: Date.now(), downloadId: change.id }]);
+  if (outcome?.history) {
+    void recordDownloads([{ ...outcome.history, time: Date.now(), downloadId: change.id }]);
   }
-  const settled = await loadQueue();
-  const after = settled.items.find((i) => i.id === item.id);
-  if (after?.status === 'done') batch.done++;
-  else if (after?.status === 'failed') batch.failed++;
+  if (outcome?.status === 'done') batch.done++;
+  else if (outcome?.status === 'failed') batch.failed++;
   // Never await pump() here: it resolves only once the backend's download
   // callback fires, which for a caller awaiting this handler is a deadlock.
   void pump();

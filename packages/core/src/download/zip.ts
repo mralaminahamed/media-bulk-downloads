@@ -1,5 +1,6 @@
 import { zipSync } from 'fflate';
 import { ImageInfo, SettingsData } from '@mbd/core/types';
+import { STREAM_MAX_BYTES } from '@mbd/core/download/stream/capture-constants';
 import { buildDownloadFilename } from '@mbd/core/collection/download-name';
 import { hostFromUrl, registrableDomain, sanitizePathSegment, todayISO } from '@mbd/core/collection/paths';
 import { buildMediaSidecar, serializeSidecar, sidecarName } from '@mbd/core/download/metadata-sidecar';
@@ -32,11 +33,11 @@ export interface ZipResult {
   failed: ImageInfo[];
 }
 
-/** Total in-memory bytes buildZip will accumulate before archiving. Mirrors the
+/** Total in-memory bytes buildZip will accumulate before archiving. Shares the
  *  stream-capture ceiling (STREAM_MAX_BYTES) so a huge selection can't exhaust the
  *  popup/bubble page's memory and lose the whole batch — items past the cap are
  *  reported in `failed` for individual download instead. */
-export const ZIP_MAX_BYTES = 1024 * 1024 * 1024;
+export const ZIP_MAX_BYTES = STREAM_MAX_BYTES;
 
 export interface ZipDeps {
   /** Injectable so tests don't hit the network. */

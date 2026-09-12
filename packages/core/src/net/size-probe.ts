@@ -84,7 +84,10 @@ export async function probeMediaMeta(url: string, deps: ProbeDeps): Promise<Medi
 
   let head: Response | undefined;
   try {
-    head = await withTimeout((signal) => deps.fetch(url, { method: 'HEAD', signal }), timeoutMs);
+    // redirect:'error' — assertSafeCaptureUrl only vetted the initial URL; without
+    // this a public URL could 30x into an internal host (SSRF), mirroring the
+    // guard fetchBytes uses in zip.ts.
+    head = await withTimeout((signal) => deps.fetch(url, { method: 'HEAD', redirect: 'error', signal }), timeoutMs);
   } catch {
     head = undefined;
   }
@@ -103,7 +106,7 @@ export async function probeMediaMeta(url: string, deps: ProbeDeps): Promise<Medi
   let ranged: Response | undefined;
   try {
     ranged = await withTimeout(
-      (signal) => deps.fetch(url, { method: 'GET', headers: { Range: 'bytes=0-0' }, signal }),
+      (signal) => deps.fetch(url, { method: 'GET', headers: { Range: 'bytes=0-0' }, redirect: 'error', signal }),
       timeoutMs,
     );
   } catch {

@@ -71,7 +71,8 @@ const IG_EXT = /^(?:jpe?g|png|webp|gif|avif|heic|mp4|mov|webm|m4v)$/i;
 export function extFromIgUrl(url: string): string {
   try {
     const ext = new URL(url).pathname.match(/\.(\w+)$/)?.[1]?.toLowerCase();
-    return ext && IG_EXT.test(ext) ? ext : 'jpg';
+    if (!ext || !IG_EXT.test(ext)) return 'jpg';
+    return ext === 'jpeg' ? 'jpg' : ext;
   } catch {
     return 'jpg';
   }

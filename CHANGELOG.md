@@ -36,7 +36,27 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and History/Favourites show a placeholder with a "collect it again" hint rather
   than a broken image and a dead re-download button.
 
+### Security
+- **The media size-probe no longer follows redirects.** `probeMediaMeta` (the
+  optional "Check sizes" fetch) validated only the initial URL, so a page-collected
+  URL could `30x` to an internal host (SSRF). Both the HEAD and the ranged GET now
+  use `redirect: 'error'`, matching the ZIP fetch guard.
+
 ### Fixed
+- **Batch "downloaded N files" toasts no longer over-count.** A completion seen by
+  both the progress poll and the download-change event double-counted; counts now
+  come from the transition each event actually made.
+- **HLS/DASH capture no longer silently truncates an open-ended stream.** A static
+  DASH manifest with an open-ended SegmentTimeline (`r="-1"`) and no known duration
+  produced a one-segment file; it now fails with a clear "unsupported" error.
+- **File extensions are consistent across sources.** Instagram/Pinterest images
+  served as `.jpeg` now save as `.jpg` (matching Facebook and URL images), and
+  `data:` images (`image/jpg`, `image/pjpeg`, `image/x-png`) canonicalize to
+  `jpeg`/`png` so a format filter no longer splits `jpg` from `jpeg`.
+- **The "Notify on complete" toggle no longer throws in the on-page bubble** (the
+  bubble surface has no `chrome.permissions`).
+- **Modal panels (History, Settings, …) keep keyboard focus trapped and restore it
+  correctly inside the on-page bubble's shadow DOM.**
 - **"Clear done" in the download queue now removes only completed items.** It also
   removed `failed` items before (the label said "done", but the action cleared every
   finished item). Failed items now stay — with their Retry — and queued / in-progress

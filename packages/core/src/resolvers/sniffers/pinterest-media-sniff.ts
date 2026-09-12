@@ -50,7 +50,8 @@ export const PIN_EXT = /^(?:jpe?g|png|webp|gif|avif|mp4|m3u8|mov|webm|m4v)$/i;
 function extFromUrl(url: string, fallback: string): string {
   try {
     const ext = new URL(url).pathname.match(/\.(\w+)$/)?.[1]?.toLowerCase();
-    return ext && PIN_EXT.test(ext) ? ext : fallback;
+    if (!ext || !PIN_EXT.test(ext)) return fallback;
+    return ext === 'jpeg' ? 'jpg' : ext;
   } catch {
     return fallback;
   }

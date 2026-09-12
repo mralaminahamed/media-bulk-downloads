@@ -27,7 +27,7 @@ interface ImageFormat {
 
 const IMAGE_FORMATS: readonly ImageFormat[] = [
   { type: 'jpeg', ext: 'jpg', label: 'JPEG', aliases: ['jpg', 'jpeg', 'jfif', 'jpe', 'pjpeg'] },
-  { type: 'png', ext: 'png', label: 'PNG', aliases: ['png'] },
+  { type: 'png', ext: 'png', label: 'PNG', aliases: ['png', 'x-png'] },
   // Animated PNG is a distinct media type (image/apng) and must keep its own
   // extension — renaming it .png loses nothing, but renaming it .jpg breaks it.
   { type: 'apng', ext: 'apng', label: 'APNG', aliases: ['apng'] },
@@ -103,14 +103,20 @@ export function isStreamExt(ext: string): boolean {
 const escapeAlt = (exts: Iterable<string>): string =>
   [...exts].sort((a, b) => b.length - a.length).join('|');
 
+// The image-format aliases include MIME-only spellings (`svg+xml`, `x-icon`,
+// `x-ms-bmp`, `heic-sequence`, `vnd.microsoft.icon`, `jpeg2000`) that are NOT real
+// file extensions — some carry `.`/`-`, which would inject regex wildcards / bogus
+// tokens into a pathname test. Keep only file-extension-shaped aliases here.
+const IMAGE_PATH_EXTS = [...BY_ALIAS.keys()].filter((e) => /^[a-z0-9]{1,5}$/.test(e));
+
 /** Every media extension, for a `$`-anchored pathname test (canonical keys). */
 export const MEDIA_EXT_PATH_RE = new RegExp(
-  `\\.(?:${escapeAlt([...BY_ALIAS.keys()].filter((e) => !e.includes('+')), )}|${escapeAlt(AV_EXTS)}|${escapeAlt(STREAM_EXTS)})$`,
+  `\\.(?:${escapeAlt(IMAGE_PATH_EXTS)}|${escapeAlt(AV_EXTS)}|${escapeAlt(STREAM_EXTS)})$`,
   'i',
 );
 
 /** Every media extension, allowing a trailing query/fragment (URL sniffing). */
 export const MEDIA_EXT_URL_RE = new RegExp(
-  `\\.(?:${escapeAlt([...BY_ALIAS.keys()].filter((e) => !e.includes('+')))}|${escapeAlt(AV_EXTS)})(?:$|[?#])`,
+  `\\.(?:${escapeAlt(IMAGE_PATH_EXTS)}|${escapeAlt(AV_EXTS)})(?:$|[?#])`,
   'i',
 );
