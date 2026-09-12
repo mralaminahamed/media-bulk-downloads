@@ -200,10 +200,32 @@ const ImageList: React.FC<ImageListProps> = ({ images, onImageDownload, onCaptur
 
   const previewRef = useDialog(close, selectedImage !== null);
 
+  // When a previewed pending video/image resolves, the parent swaps its `src` in
+  // place, so `selectedSrc` no longer matches any item and the modal would vanish.
+  // Re-point the preview at the swapped item (same poster/thumbnail/mediaKey) so it
+  // updates to the downloadable state instead of closing.
+  const lastSelectedRef = useRef<ImageInfo | null>(null);
+  useEffect(() => { if (selectedImage) lastSelectedRef.current = selectedImage; }, [selectedImage]);
+  useEffect(() => {
+    if (selectedSrc === null || images.some((i) => i.src === selectedSrc)) return;
+    const prev = lastSelectedRef.current;
+    if (!prev) return;
+    const successor = images.find((i) =>
+      (!!prev.mediaKey && i.mediaKey === prev.mediaKey) ||
+      (!!prev.poster && i.poster === prev.poster) ||
+      (!!prev.thumbnailSrc && i.thumbnailSrc === prev.thumbnailSrc),
+    );
+    if (successor) setSelectedSrc(successor.src);
+  }, [images, selectedSrc]);
+
   useEffect(() => {
     if (selectedImage === null) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      // Don't page the preview while the user is operating a form control inside it
+      // (e.g. the quality / audio-format <select>) — arrows there change the value.
+      const t = e.target as HTMLElement | null;
+      if (t && /^(SELECT|INPUT|TEXTAREA)$/.test(t.tagName)) return;
       setExcludeMenuOpen(false);
       if (e.key === 'ArrowLeft') { if (selectedIndex > 0) setSelectedSrc(images[selectedIndex - 1].src); }
       else if (selectedIndex >= 0 && selectedIndex < images.length - 1) setSelectedSrc(images[selectedIndex + 1].src);
