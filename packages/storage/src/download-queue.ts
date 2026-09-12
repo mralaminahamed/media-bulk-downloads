@@ -254,8 +254,11 @@ export function retryAllFailed(state: QueueState, now: number): QueueState {
   };
 }
 
-export function clearFinished(state: QueueState): QueueState {
-  return { ...state, items: state.items.filter(isLive) };
+/** Remove only `done` items — the "Clear done" action. Keeps `queued`, `active`,
+ *  and `failed` (failed items stay so their retry/why-it-failed affordance
+ *  survives; use `cancel(state, 'all')` to drop live items instead). */
+export function clearDone(state: QueueState): QueueState {
+  return { ...state, items: state.items.filter((i) => i.status !== 'done') };
 }
 
 export async function loadQueue(): Promise<QueueState> {

@@ -25,7 +25,7 @@ import { retryingFetch } from '@mbd/core/net/retry';
 import { readBoundedText } from '@mbd/core/download/stream/bounded-fetch';
 import {
   pauseQueue, resumeQueue, cancelQueue, retryQueueItem, getQueueSnapshot,
-  clearFinishedQueue, retryAllFailedQueue, openQueueItem,
+  clearDoneQueue, retryAllFailedQueue, openQueueItem,
 } from '@/extension/background/download/download-queue';
 import { enqueueMedia } from '@/extension/background/download/enqueue-media';
 import { scheduleSidecar } from '@/extension/background/download/sidecar-writer';
@@ -136,7 +136,7 @@ export const messageRouter: MessageRouter = {
     return true;
   },
   QUEUE_CLEAR: (_message, _sender, respond) => {
-    void clearFinishedQueue().then(() => respond({ status: 'success', message: 'Cleared' }));
+    void clearDoneQueue().then(() => respond({ status: 'success', message: 'Cleared' }));
     return true;
   },
   QUEUE_OPEN: (message, _sender, respond) => {

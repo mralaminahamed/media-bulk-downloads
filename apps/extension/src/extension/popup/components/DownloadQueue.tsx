@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import { loadQueue, QUEUE_KEY, type QueueState } from '@mbd/storage/download-queue';
+import { loadQueue, QUEUE_KEY, type QueueState, type QueueItem } from '@mbd/storage/download-queue';
 import { sendRuntimeMessage } from '@/extension/popup/utils';
 import { QueueRow } from '@/extension/popup/components/QueueRow';
 
@@ -44,11 +44,21 @@ export function DownloadQueue() {
   const failed = items.filter((i) => i.status === 'failed').length;
   const finished = items.filter((i) => i.status === 'done' || i.status === 'failed').length;
 
-  const sized = items.filter((i) => i.totalBytes && i.totalBytes > 0);
-  const overallPct = sized.length
-    ? Math.round((sized.reduce((a, i) => a + Math.min(i.bytesReceived ?? 0, i.totalBytes as number), 0) /
-        sized.reduce((a, i) => a + (i.totalBytes as number), 0)) * 100)
-    : Math.round((done / items.length) * 100);
+  // Overall progress = mean per-item completion. A `done` item is 100% regardless
+  // of its last-polled bytes (the completion event isn't forced to totalBytes), so
+  // an all-done queue always reads exactly 100%. Only `active` items with a known
+  // size contribute live byte-progress; queued/failed/unknown-size items are 0
+  // until done, so an unsized item never drags the bar below its done ratio.
+  const itemFrac = (i: QueueItem): number => {
+    if (i.status === 'done') return 1;
+    if (i.status === 'active' && i.totalBytes && i.totalBytes > 0) {
+      return Math.min(i.bytesReceived ?? 0, i.totalBytes) / i.totalBytes;
+    }
+    return 0;
+  };
+  const overallPct = items.length
+    ? Math.round((items.reduce((a, i) => a + itemFrac(i), 0) / items.length) * 100)
+    : 0;
 
   const retryWithReferer = async (id: string) => {
     // chrome.permissions is absent in the content-script bubble surface; QueueRow
@@ -100,7 +110,14 @@ export function DownloadQueue() {
         </div>
       </header>
 
-      <div className="mbd:mb-2 mbd:h-1 mbd:overflow-hidden mbd:rounded-full mbd:bg-(--panel-2)" aria-hidden="true">
+      <div
+        className="mbd:mb-2 mbd:h-1 mbd:overflow-hidden mbd:rounded-full mbd:bg-(--panel-2)"
+        role="progressbar"
+        aria-label="Overall download progress"
+        aria-valuenow={overallPct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
         <span className="mbd:block mbd:h-full mbd:rounded-full mbd:bg-(--brand-ink) mbd:transition-[width] mbd:duration-300" style={{ width: `${overallPct}%` }} />
       </div>
 

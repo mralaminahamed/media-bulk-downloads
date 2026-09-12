@@ -1635,16 +1635,18 @@ describe('QUEUE_* routing → download queue', () => {
     expect(['queued', 'active']).toContain(item.status);
   });
 
-  it('QUEUE_CLEAR clears finished (done/failed) items, keeping live ones', async () => {
+  it('QUEUE_CLEAR removes only done items, keeping queued/active/failed', async () => {
     store.downloadQueue = { paused: false, items: [
       { id: 'a', url: 'u', filename: 'a', status: 'done', attempts: 0, readyAt: 0, addedAt: 0 },
       { id: 'b', url: 'u', filename: 'b', status: 'active', attempts: 0, readyAt: 0, addedAt: 0, downloadId: 1 },
+      { id: 'c', url: 'u', filename: 'c', status: 'failed', attempts: 3, readyAt: 0, addedAt: 0, error: 'x' },
+      { id: 'd', url: 'u', filename: 'd', status: 'queued', attempts: 0, readyAt: 0, addedAt: 0 },
     ] };
     const respond = vi.fn();
     messageHandler({ type: 'QUEUE_CLEAR' }, {}, respond);
     await new Promise((r) => setTimeout(r, 0));
     const s = store.downloadQueue as { items: { id: string }[] };
-    expect(s.items.map((i) => i.id)).toEqual(['b']);
+    expect(s.items.map((i) => i.id)).toEqual(['b', 'c', 'd']);
     expect(respond).toHaveBeenCalledWith({ status: 'success', message: 'Cleared' });
   });
 
