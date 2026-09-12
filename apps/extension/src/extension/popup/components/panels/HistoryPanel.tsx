@@ -6,10 +6,11 @@ import {
   ArrowTopRightOnSquareIcon,
   PhotoIcon,
   FolderOpenIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { HistoryEntry } from '@mbd/core/types';
-import { loadHistory, HISTORY_KEY } from '@mbd/storage/history';
-import { relativeTime, sendRuntimeMessage } from '@/extension/popup/utils';
+import { loadHistory, HISTORY_KEY, diskState, DiskState } from '@mbd/storage/history';
+import { relativeTime, sendRuntimeMessage, fetchDownloadStates } from '@/extension/popup/utils';
 import { LoadingImage } from '@/extension/popup/components/LoadingImage';
 import { useDialog } from '@/extension/popup/hooks/useDialog';
 import { ClearAllButton } from '@/extension/popup/components/fields/ClearAllButton';
@@ -30,19 +31,34 @@ const safeHost = (url: string): string => {
 
 const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
+  // `null` = not yet answered by the worker → stay optimistic and keep the file
+  // actions; a Map gates them per download (see fileActionReason).
+  const [diskStates, setDiskStates] = useState<Map<number, boolean> | null>(null);
   const panelRef = useDialog(onClose);
 
   useEffect(() => {
     void loadHistory().then(setEntries);
+    void fetchDownloadStates().then(setDiskStates);
 
     const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       if (area === 'local' && changes[HISTORY_KEY]) {
         void loadHistory().then(setEntries);
+        void fetchDownloadStates().then(setDiskStates);
       }
     };
     chrome.storage.onChanged.addListener(onChanged);
     return () => chrome.storage.onChanged.removeListener(onChanged);
   }, []);
+
+  /** Why "Open file" / "Show in folder" can't work for this entry, or null when
+   *  they can (or while we don't yet know — stay optimistic). */
+  const fileActionReason = (entry: HistoryEntry): string | null => {
+    if (entry.downloadId === undefined || diskStates === null) return null;
+    const state: DiskState = diskState(entry.downloadId, diskStates);
+    if (state === 'deleted') return 'This file was removed from disk — re-download to open it.';
+    if (state === 'unknown') return 'This download’s record was cleared from the browser — re-download to open it.';
+    return null;
+  };
 
   const sorted = [...entries].sort((a, b) => b.time - a.time);
 
@@ -166,26 +182,41 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
                   >
                     <ArrowTopRightOnSquareIcon className="mbd:h-[15px] mbd:w-[15px]" />
                   </button>
-                  {entry.downloadId !== undefined && (
-                    <>
-                      <button
-                        onClick={() => openFile(entry)}
-                        className="iconbtn iconbtn-sm"
-                        title="Open file"
-                        aria-label="Open file"
-                      >
-                        <PhotoIcon className="mbd:h-[15px] mbd:w-[15px]" />
-                      </button>
-                      <button
-                        onClick={() => revealFile(entry)}
-                        className="iconbtn iconbtn-sm"
-                        title="Show in folder"
-                        aria-label="Show in folder"
-                      >
-                        <FolderOpenIcon className="mbd:h-[15px] mbd:w-[15px]" />
-                      </button>
-                    </>
-                  )}
+                  {entry.downloadId !== undefined && (() => {
+                    const reason = fileActionReason(entry);
+                    if (reason) {
+                      return (
+                        <span
+                          className="iconbtn iconbtn-sm mbd:cursor-default mbd:text-(--ink-3)"
+                          title={reason}
+                          aria-label={reason}
+                          role="note"
+                        >
+                          <ExclamationTriangleIcon className="mbd:h-[15px] mbd:w-[15px]" />
+                        </span>
+                      );
+                    }
+                    return (
+                      <>
+                        <button
+                          onClick={() => openFile(entry)}
+                          className="iconbtn iconbtn-sm"
+                          title="Open file"
+                          aria-label="Open file"
+                        >
+                          <PhotoIcon className="mbd:h-[15px] mbd:w-[15px]" />
+                        </button>
+                        <button
+                          onClick={() => revealFile(entry)}
+                          className="iconbtn iconbtn-sm"
+                          title="Show in folder"
+                          aria-label="Show in folder"
+                        >
+                          <FolderOpenIcon className="mbd:h-[15px] mbd:w-[15px]" />
+                        </button>
+                      </>
+                    );
+                  })()}
                   <button
                     onClick={() => handleRedownload(entry)}
                     className="iconbtn iconbtn-sm"

@@ -54,6 +54,17 @@ export async function restoreHistory(entries: HistoryEntry[]): Promise<void> {
 export type DiskState = 'exists' | 'deleted' | 'unknown';
 
 /**
+ * Disk state of one download, given the browser's exists-by-id map (built from
+ * `downloader.search`). 'exists' = record present, file on disk; 'deleted' =
+ * record present, file gone; 'unknown' = the browser has no record for this id
+ * (e.g. the user cleared Chrome's download list) or the entry has no downloadId.
+ */
+export function diskState(downloadId: number | undefined, existsById: Map<number, boolean>): DiskState {
+  if (downloadId === undefined || !existsById.has(downloadId)) return 'unknown';
+  return existsById.get(downloadId) ? 'exists' : 'deleted';
+}
+
+/**
  * The srcs from history whose downloaded file has NOT been positively reported gone.
  * `stateById(id)` returns 'exists' (browser knows it, file present), 'deleted' (browser
  * knows it, file removed), or 'unknown' (browser no longer has the record — e.g. the user

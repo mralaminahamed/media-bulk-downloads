@@ -618,6 +618,34 @@ describe('GET_DOWNLOADED_SRCS handler', () => {
   });
 });
 
+describe('GET_DOWNLOAD_STATES handler', () => {
+  it('responds with each known download id and whether its file exists', async () => {
+    (chrome.downloads.search as Mock).mockReset().mockResolvedValue([
+      { id: 10, exists: true },
+      { id: 20, exists: false },
+      { id: 30 }, // backend can't tell → treated as openable
+    ]);
+    const sendResponse = vi.fn();
+    const async = messageHandler({ type: 'GET_DOWNLOAD_STATES' }, {}, sendResponse);
+    expect(async).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sendResponse).toHaveBeenCalledWith([
+      { id: 10, exists: true },
+      { id: 20, exists: false },
+      { id: 30, exists: true },
+    ]);
+  });
+
+  it('responds with [] when the search rejects', async () => {
+    (chrome.downloads.search as Mock).mockReset().mockRejectedValue(new Error('search error'));
+    const sendResponse = vi.fn();
+    const async = messageHandler({ type: 'GET_DOWNLOAD_STATES' }, {}, sendResponse);
+    expect(async).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(sendResponse).toHaveBeenCalledWith([]);
+  });
+});
+
 describe('buildEnqueueEntries', () => {
   beforeEach(() => {
     (chrome.storage.local.get as Mock).mockReset().mockResolvedValue({ downloadHistory: [] });

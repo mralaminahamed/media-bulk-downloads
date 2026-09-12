@@ -244,6 +244,22 @@ export interface GetDownloadedSrcsMessage {
   type: 'GET_DOWNLOADED_SRCS';
 }
 
+/** One download's openability, from the browser's own records. `exists: false`
+ *  means the file was deleted from disk; an id ABSENT from the response means the
+ *  browser no longer has the record (the download list was cleared). */
+export interface DownloadState {
+  id: number;
+  exists: boolean;
+}
+
+/** Ask the background for the on-disk state of every download the browser still
+ *  knows about, so the History panel can gate "Open file" / "Show in folder":
+ *  neither can succeed once the record is gone or the file is deleted. Response is
+ *  a `DownloadState[]`. */
+export interface GetDownloadStatesMessage {
+  type: 'GET_DOWNLOAD_STATES';
+}
+
 /** Open a URL in a new browser tab (chrome.tabs.create). */
 export interface OpenUrlMessage {
   type: 'OPEN_URL';
@@ -554,6 +570,7 @@ export type ChromeMessage =
   | OpenDownloadMessage
   | ShowDownloadMessage
   | GetDownloadedSrcsMessage
+  | GetDownloadStatesMessage
   | OpenUrlMessage
   | ClearHistoryMessage
   | RemoveHistoryMessage

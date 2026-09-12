@@ -18,9 +18,19 @@ const lastStorageListener = (): ChangeListener => {
 describe('HistoryPanel', () => {
   beforeEach(() => {
     vi.spyOn(history, 'loadHistory').mockResolvedValue([entry]);
-    (chrome.runtime.sendMessage as Mock).mockClear();
+    (chrome.runtime.sendMessage as Mock).mockReset();
+    (chrome.runtime.sendMessage as Mock).mockImplementation(() => undefined);
   });
   afterEach(() => vi.restoreAllMocks());
+
+  /** Make GET_DOWNLOAD_STATES answer with these records (id absent = record cleared). */
+  const answerDownloadStates = (states: { id: number; exists: boolean }[]) =>
+    (chrome.runtime.sendMessage as Mock).mockImplementation(
+      (msg: { type: string }, cb?: (r: unknown) => void) => {
+        if (msg.type === 'GET_DOWNLOAD_STATES') cb?.(states);
+        return undefined;
+      },
+    );
 
   it('lists entries and clears all via the background after a two-step confirm', async () => {
     render(<HistoryPanel onClose={() => {}} />);
@@ -63,6 +73,43 @@ describe('HistoryPanel', () => {
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'OPEN_DOWNLOAD_FILE', downloadId: 12 });
     await userEvent.click(screen.getByRole('button', { name: /show in folder/i }));
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'SHOW_DOWNLOAD', downloadId: 12 });
+  });
+
+  it('keeps file/folder actions optimistically while download states are unknown', async () => {
+    // sendMessage stays a no-op (never answers GET_DOWNLOAD_STATES), so the panel
+    // must not hide the actions.
+    render(<HistoryPanel onClose={() => {}} />);
+    await screen.findByText('a.jpg');
+    expect(screen.getByRole('button', { name: /open file/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /show in folder/i })).toBeInTheDocument();
+  });
+
+  it('shows file/folder actions when the browser still has the record', async () => {
+    answerDownloadStates([{ id: 12, exists: true }]);
+    render(<HistoryPanel onClose={() => {}} />);
+    await screen.findByText('a.jpg');
+    expect(await screen.findByRole('button', { name: /open file/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /show in folder/i })).toBeInTheDocument();
+  });
+
+  it('replaces file/folder actions with a hint when the browser download list was cleared', async () => {
+    answerDownloadStates([]); // id 12 absent → record cleared
+    render(<HistoryPanel onClose={() => {}} />);
+    await screen.findByText('a.jpg');
+    expect(await screen.findByRole('note', { name: /record was cleared/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /open file/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /show in folder/i })).not.toBeInTheDocument();
+    // re-download and open-source stay available
+    expect(screen.getByRole('button', { name: /re-download/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /open source in new tab/i })).toBeInTheDocument();
+  });
+
+  it('replaces file/folder actions with a hint when the file was deleted from disk', async () => {
+    answerDownloadStates([{ id: 12, exists: false }]);
+    render(<HistoryPanel onClose={() => {}} />);
+    await screen.findByText('a.jpg');
+    expect(await screen.findByRole('note', { name: /removed from disk/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /open file/i })).not.toBeInTheDocument();
   });
 
   it('hides file/folder actions for entries with no downloadId (legacy)', async () => {

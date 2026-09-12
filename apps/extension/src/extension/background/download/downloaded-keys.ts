@@ -1,4 +1,4 @@
-import { loadHistory, srcsStillOnDisk, DiskState } from '@mbd/storage/history';
+import { loadHistory, srcsStillOnDisk, diskState } from '@mbd/storage/history';
 import { SrcKeySet } from '@mbd/core/collection/canonical';
 import { platform } from '@/extension/platform';
 
@@ -13,10 +13,8 @@ export async function downloadedOnDiskKeys(): Promise<SrcKeySet> {
   try {
     const historyEntries = await loadHistory();
     const items = await platform.downloader.search({ limit: 0 });
-    const existsById = new Map(items.map((it) => [it.id, it.exists]));
-    const stateById = (id: number): DiskState =>
-      existsById.has(id) ? (existsById.get(id) ? 'exists' : 'deleted') : 'unknown';
-    return SrcKeySet.from(srcsStillOnDisk(historyEntries, stateById));
+    const existsById = new Map(items.map((it) => [it.id, it.exists === true]));
+    return SrcKeySet.from(srcsStillOnDisk(historyEntries, (id) => diskState(id, existsById)));
   } catch {
     return SrcKeySet.from([]);
   }

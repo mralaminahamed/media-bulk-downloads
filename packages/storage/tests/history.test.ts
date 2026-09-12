@@ -1,5 +1,5 @@
 import type { Mock } from 'vitest';
-import { recordDownloads, removeEntry, clearHistory, restoreHistory, srcsStillOnDisk, loadHistory } from '@mbd/storage/history';
+import { recordDownloads, removeEntry, clearHistory, restoreHistory, srcsStillOnDisk, diskState, loadHistory } from '@mbd/storage/history';
 import { HistoryEntry } from '@mbd/core/types';
 import { idbGet } from '@mbd/storage/idb';
 
@@ -83,6 +83,25 @@ describe('srcsStillOnDisk', () => {
   it('keeps legacy entries with no downloadId regardless of state', () => {
     const history = [withId('a'), withId('b', 20)];
     expect(srcsStillOnDisk(history, () => 'deleted')).toEqual(['a']);
+  });
+});
+
+describe('diskState', () => {
+  it("is 'exists' when the browser record is present and the file is on disk", () => {
+    expect(diskState(10, new Map([[10, true]]))).toBe('exists');
+  });
+
+  it("is 'deleted' when the browser record is present but the file is gone", () => {
+    expect(diskState(10, new Map([[10, false]]))).toBe('deleted');
+  });
+
+  it("is 'unknown' when the browser has no record for the id (cleared download list)", () => {
+    expect(diskState(10, new Map([[20, true]]))).toBe('unknown');
+    expect(diskState(10, new Map())).toBe('unknown');
+  });
+
+  it("is 'unknown' for a legacy entry with no downloadId", () => {
+    expect(diskState(undefined, new Map([[10, true]]))).toBe('unknown');
   });
 });
 
