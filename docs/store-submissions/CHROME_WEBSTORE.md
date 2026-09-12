@@ -121,6 +121,12 @@ PRIVATE BY DESIGN
 
 An optional on-page bubble gives you the same tools in a draggable panel without
 opening the toolbar popup.
+
+—
+Report a bug or request a feature: https://github.com/mralaminahamed/media-bulk-downloads/issues/new
+Documentation: https://mralaminahamed.github.io/media-bulk-downloads/
+Privacy policy: https://github.com/mralaminahamed/media-bulk-downloads/blob/main/PRIVACY.md
+Source code: https://github.com/mralaminahamed/media-bulk-downloads
 ```
 
 ---

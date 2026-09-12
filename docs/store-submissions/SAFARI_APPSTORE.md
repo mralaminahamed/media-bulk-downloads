@@ -32,7 +32,8 @@ different pipeline from the Chrome/Edge/Firefox/Opera zip uploads.
 
 - [ ] Collect + preview media on a page (should match other browsers).
 - [ ] Single/save download works via the anchor-blob fallback.
-- [ ] The "Capture video streams" toggle is **hidden** (no offscreen).
+- [ ] The "Capture video streams" toggle is **shown** — Safari captures HLS/DASH by
+      running the shared capture core in an extension page (no offscreen document needed).
 - [ ] No "Retry w/ referer" affordance (no dynamic DNR).
 - [ ] Download History / on-disk dedupe are absent or degraded (no `downloads`
       API) — confirm the UI doesn't present broken controls.
@@ -40,8 +41,8 @@ different pipeline from the Chrome/Edge/Firefox/Opera zip uploads.
 ## App Store listing
 
 - [ ] App name, subtitle, description — **be explicit about the Safari limits**
-      (single/save-as downloads; no bulk queue, on-disk dedupe, or stream capture)
-      so the listing doesn't over-promise the Chromium/Firefox feature set.
+      (single/save-as downloads; no bulk queue or on-disk dedupe — stream capture
+      does work) so the listing doesn't over-promise the Chromium/Firefox feature set.
 - [ ] Privacy: network-free by default; the opt-in original-resolution fetch is
       the only external request (mirror `PRIVACY.md`).
 - [ ] Screenshots at required macOS sizes.
@@ -78,8 +79,9 @@ download from".
 
 **Not requested on Safari** — nothing to justify for these; they are absent from
 the Safari manifest: `downloads`/`downloads.open` (saving uses an anchor/blob
-fallback, no downloads API), `offscreen` (no HLS/DASH stream capture),
-`notifications`, and `declarativeNetRequestWithHostAccess` (no "retry with referer").
+fallback, no downloads API), `offscreen` (HLS/DASH capture runs in an extension
+page instead — `run-capture.ts`), `notifications`, and
+`declarativeNetRequestWithHostAccess` (no "retry with referer").
 
 > **Content scripts.** The manifest declares an ISOLATED-world page collector
 > (`<all_urls>`) plus six MAIN-world media sniffers (one `.m3u8`/`.mpd` manifest
