@@ -1,8 +1,8 @@
 import { DEFAULT_SETTINGS, withDefaults } from '@mbd/storage/settings';
 
 describe('DEFAULT_SETTINGS naming/saveAs defaults', () => {
-  it('defaults to prefixed naming and no save-as dialog', () => {
-    expect(DEFAULT_SETTINGS.namingMode).toBe('prefixed');
+  it('defaults to original naming and no save-as dialog', () => {
+    expect(DEFAULT_SETTINGS.namingMode).toBe('original');
     expect(DEFAULT_SETTINGS.saveAs).toBe(false);
   });
 

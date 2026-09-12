@@ -49,7 +49,7 @@ describe('parseBackup', () => {
     const b = parseBackup(valid);
     expect(b?.favourites[0].src).toBe('https://a');
     expect(b?.history[0].src).toBe('https://h');
-    expect(b?.settings.namingMode).toBe('prefixed');
+    expect(b?.settings.namingMode).toBe('original');
   });
 
   it('returns null for non-JSON', () => {
@@ -114,7 +114,7 @@ describe('parseBackup', () => {
     const b = parseBackup(JSON.stringify({ app: BACKUP_APP }));
     expect(b?.favourites).toEqual([]);
     expect(b?.history).toEqual([]);
-    expect(b?.settings).toMatchObject({ namingMode: 'prefixed', minimumImageSize: 0 });
+    expect(b?.settings).toMatchObject({ namingMode: 'original', minimumImageSize: 0 });
     expect(b?.version).toBe(0);
   });
 

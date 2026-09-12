@@ -75,8 +75,8 @@ Stored in `chrome.storage.sync`. The Settings sheet has four tabs.
 **Downloads**
 
 - **Save to subfolder** inside `Downloads/`. Empty by default. Supports the tokens `{host}`, `{domain}`, `{date}`, `{kind}`.
-- **File naming:** Prefixed (default) or Original. The prefix defaults to
-  `image_`, numbered per file (`image_1.jpg`).
+- **File naming:** Original (default) keeps each file's own name from its URL;
+  Prefixed numbers them per file with a prefix (`image_`, `image_1.jpg`).
 - **Convert images on download:** Keep original (default), PNG, or JPEG. When converting, **Metadata** is Preserve (copy EXIF/XMP, default) or Strip.
 - **Ask where to save each file** (off).
 - Advanced: **Simultaneous downloads** (1–10, default 5) and **Notify when downloads finish** (off).
@@ -98,7 +98,7 @@ Stored in `chrome.storage.sync`. The Settings sheet has four tabs.
 
 - **Thumbnail size** in px (64–240, default 120).
 - **Show image count on toolbar icon** (on).
-- **Show floating bubble on pages** (off), plus its corner and panel position.
+- **Show floating bubble on pages** (on by default), plus its corner and panel position.
 - Advanced: popup width (320–800, default 460), popup height (400–600, default 600), preview size (240–900, default 360), and bubble width/height.
 
 **Data**
