@@ -135,6 +135,7 @@ bitrate.
 
 ## Related
 
+- [Stream capture internals](/media-bulk-downloads/how-it-works/stream-capture/) for the engine, refusal codes, and where capture runs.
 - [Download](/media-bulk-downloads/guides/download/) for how saved files are named and de-duplicated.
 - [Collection Pipeline](/media-bulk-downloads/how-it-works/collection-pipeline/) for how streams are found.
 - [FAQ & troubleshooting](/media-bulk-downloads/help/faq/) for videos that won't download.

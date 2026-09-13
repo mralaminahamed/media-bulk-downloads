@@ -69,6 +69,8 @@ export default defineConfig({
             { label: 'Collection pipeline', slug: 'how-it-works/collection-pipeline' },
             { label: 'Resolve originals', slug: 'how-it-works/resolve-originals' },
             { label: 'Architecture', slug: 'how-it-works/architecture' },
+            { label: 'Storage & sync', slug: 'how-it-works/storage-and-sync' },
+            { label: 'Stream capture internals', slug: 'how-it-works/stream-capture' },
             { label: 'Version badge', slug: 'how-it-works/badge' },
           ],
         },

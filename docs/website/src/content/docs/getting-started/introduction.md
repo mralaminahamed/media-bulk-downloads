@@ -31,6 +31,8 @@ built for Chrome, Firefox, Edge, and Safari from one codebase. Opera and other C
 | [Favourites](/media-bulk-downloads/guides/favourites/) | The starred-media list and how it persists |
 | [Version badge](/media-bulk-downloads/how-it-works/badge/) | The per-tab media count on the toolbar icon |
 | [In-page Bubble](/media-bulk-downloads/guides/bubble/) | The injected floating launcher and its lifecycle |
+| [Storage & sync](/media-bulk-downloads/how-it-works/storage-and-sync/) | Where data lives, the durable mirror, and what leaves the device |
+| [Stream capture internals](/media-bulk-downloads/how-it-works/stream-capture/) | Parsing, decrypting, and muxing HLS/DASH into one file |
 
 ## The four surfaces at a glance
 
