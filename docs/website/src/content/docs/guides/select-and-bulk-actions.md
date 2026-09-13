@@ -7,6 +7,16 @@ Downloading everything shown is one click, but often you want a subset. Ticking
 items turns the footer's download control into a selection tool: whatever you pick
 is what gets saved, zipped, copied, or excluded.
 
+```mermaid
+flowchart LR
+  SHOWN["Shown grid"] --> PICK["Tick items / Shift-click a run / Select all shown"]
+  PICK --> SEL["Selection"]
+  SEL --> DL["Download as files"]
+  SEL --> ZIP["ZIP archive"]
+  SEL --> LINKS["Copy or export links"]
+  SEL --> EXC["Exclude"]
+```
+
 ## Selecting items
 
 - **Tick one** item by its checkbox to add it to the selection.

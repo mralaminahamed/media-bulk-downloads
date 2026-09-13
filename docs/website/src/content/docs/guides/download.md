@@ -8,19 +8,22 @@ Everything you save goes through the service worker, which owns
 
 ![The popup grid with the filter toolbar: filter by kind/format/size, search, and sort, then download one item or the whole filtered set.](../../../assets/screenshots/filters.png)
 
-There are two save paths, and they behave differently:
+Every save path now goes through the same persistent download queue:
 
 - **Bulk download** from the popup or bubble grid sends a `DOWNLOAD_IMAGES`
-  message. The worker hands the batch to a persistent download queue and records history when each file actually finishes.
-- **The keyboard command and the right-click menu** call `downloadAndRecord`, which fires `chrome.downloads` directly and records history on dispatch. This path shows a desktop toast, because usually
-  no popup is open to show status.
+  message. The worker enqueues the batch.
+- **The keyboard command and the right-click menu** enqueue the same way, through
+  `enqueueMedia`. Because usually no popup is open, this path also shows a desktop
+  toast when the batch finishes.
 
-Both paths share the same filename builder and the same duplicate handling, described first.
+Both paths share the same filename builder, the same duplicate handling, and the
+same queue, described below. History is recorded when each file actually finishes,
+not when it is dispatched.
 
 ## Naming a file (`buildDownloadFilename`)
 
 `buildDownloadFilename(image, index, settings, sourcePageUrl?)` returns a relative path (a folder template plus a filename) that
-`chrome.downloads` saves inside `Downloads/`. It lives in `packages/core` so the queue, the direct path, and the ZIP builder all produce identical names and folders.
+`chrome.downloads` saves inside `Downloads/`. It lives in `packages/core` so the queue and the ZIP builder produce identical names and folders.
 
 ### The extension (`downloadExtension`)
 
@@ -93,24 +96,25 @@ explicit? }`. The handler:
 A failed download is retried with backoff rather than dropped; a `403` can arm an optional Referer-rewrite retry when the user has opted in. Progress and retries are visible in the popup's queue
 panel.
 
-## Command and right-click: `downloadAndRecord`
+## Command and right-click
 
 The `download-all-media` keyboard command and the "Download all" /
-"Download image/media" context-menu items bypass the queue. `downloadAndRecord`:
+"Download image/media" context-menu items go through the same queue as a bulk
+download, via `enqueueMedia`:
 
-1. Skips on-disk duplicates for "Download all" (when
-   `skipDuplicateDownloads` is on). A single right-click download never skips, because the user picked that exact item.
-2. Builds and de-collides the filenames.
-3. Fires `chrome.downloads.download` for every item.
-4. Records the successes to history immediately (each already carries its
-   `downloadId`). A Chrome `lastError` or a missing `downloadId` counts as a failure: dropped, not recorded.
-5. Calls `notifyBatchDone`. If `notifyOnComplete` is on and the optional
-   `notifications` permission is granted, it shows a desktop toast, the only feedback when no popup is open. `downloadStatusMessage` builds the text:
-   `Downloaded 5 files.`, `Downloaded 3 of 5 files — 2 failed.`,
+1. "Download all" skips on-disk duplicates when `skipDuplicateDownloads` is on. A
+   single right-click download never skips, because the user picked that exact item.
+2. Builds and de-collides the filenames, then hands the batch to the queue.
+3. Each file downloads, retries on transient failure, and is recorded to history
+   only when it completes, exactly as a bulk download.
+4. When the queue drains, `notifyBatchDone` fires. If `notifyOnComplete` is on and
+   the optional `notifications` permission is granted, it shows a desktop toast,
+   the only feedback when no popup is open. `downloadStatusMessage` builds the
+   text: `Downloaded 5 files.`, `Downloaded 3 of 5 files — 2 failed.`,
    `Couldn't download 5 files.`, or `Nothing new — N already saved.`
 
-`Nothing new — N already saved` means the batch had items but every eligible one was skipped as an on-disk duplicate, so nothing was queued or downloaded. The queue path shows the same wording as
-its popup status.
+`Nothing new — N already saved` means the batch had items but every eligible one
+was skipped as an on-disk duplicate, so nothing was queued.
 
 ## Archive, text, and converted downloads
 
@@ -142,7 +146,7 @@ filters, names, or reads
   `explicit: true`. The user picked those exact items, so the size/base64/exclude filters and the on-disk dedup skip are all bypassed; naming and folder tokens still apply.
   See [Download History](/media-bulk-downloads/guides/history/) and
   [Favourites](/media-bulk-downloads/guides/favourites/).
-- One filename source of truth: `buildDownloadFilename` lives in `packages/core`, so the queue, the direct path, and the ZIP builder can never disagree on a name or folder.
+- One filename source of truth: `buildDownloadFilename` lives in `packages/core`, so the queue and the ZIP builder can never disagree on a name or folder.
 
 ## Related
 

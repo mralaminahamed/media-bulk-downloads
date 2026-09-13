@@ -103,7 +103,7 @@ Downloads/Media/twitter.com/2026-07-13/image_1.jpg
 - `expandPathTemplate(template, tokens)`: token substitution plus sanitizing (`packages/core/src/collection/paths.ts`).
 - `hostFromUrl`, `registrableDomain`, `todayISO`: token-value helpers (same file).
 - `buildDownloadFilename(image, index, settings, sourcePageUrl?)`: resolves the tokens against the source page and prepends the folder (`packages/core/src/collection/download-name.ts`).
-  `downloadAndRecord` threads the source URL in.
+  `enqueueMedia` / `buildEnqueueEntries` (and the ZIP builder) thread the source URL in.
 - The default `downloadPath` is `''` (`packages/storage/src/settings.ts`), stored in `chrome.storage.sync` under the `settings` key.
 
 ## Back-compatibility
