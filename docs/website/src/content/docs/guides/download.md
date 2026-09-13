@@ -144,5 +144,11 @@ filters, names, or reads
   [Favourites](/media-bulk-downloads/guides/favourites/).
 - One filename source of truth: `buildDownloadFilename` lives in `packages/core`, so the queue, the direct path, and the ZIP builder can never disagree on a name or folder.
 
+## Related
+
+- [The download queue](/media-bulk-downloads/guides/download-queue/) for pause, cancel, retry, and hotlink-403 recovery.
+- [Filter, search & sort](/media-bulk-downloads/guides/filter-search-sort/) to narrow what you download.
+- [Select & bulk actions](/media-bulk-downloads/guides/select-and-bulk-actions/) to download a chosen subset, ZIP, or copy links.
+
 ---
 

@@ -45,6 +45,10 @@ export default defineConfig({
           label: 'Guides',
           items: [
             { label: 'Download & queue', slug: 'guides/download' },
+            { label: 'The download queue', slug: 'guides/download-queue' },
+            { label: 'Filter, search & sort', slug: 'guides/filter-search-sort' },
+            { label: 'Select & bulk actions', slug: 'guides/select-and-bulk-actions' },
+            { label: 'Blocked sources', slug: 'guides/blocked-sources' },
             { label: 'Download paths', slug: 'guides/download-paths' },
             { label: 'Convert on download', slug: 'guides/convert-on-download' },
             { label: 'Stream capture (HLS & DASH)', slug: 'guides/stream-capture' },
@@ -86,6 +90,7 @@ export default defineConfig({
           label: 'Reference',
           items: [
             { label: 'Settings reference', slug: 'reference/settings' },
+            { label: 'Permissions & privacy', slug: 'reference/permissions' },
           ],
         },
         {

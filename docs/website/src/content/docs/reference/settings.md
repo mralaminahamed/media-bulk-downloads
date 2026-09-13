@@ -20,6 +20,7 @@ The tables below list every setting, its default, and what it controls.
 | Convert images on download | Off | Re-encode raster images to PNG or JPEG on save. See [Convert on download](/media-bulk-downloads/guides/convert-on-download/). |
 | Metadata (when converting) | Preserve | Preserve copies EXIF/XMP across the re-encode; Strip removes it. |
 | Ask where to save each file | Off | When on, the browser prompts for a location per file. |
+| Save metadata sidecar (.json) | Off | Write a sibling `<name>.json` next to each download with its source URL, page, alt text, and dimensions (provenance for archiving). Offline, no extra network. |
 | Simultaneous downloads | 5 | How many downloads run at once (1 to 10). |
 | Notify when downloads finish | Off | Desktop toast when a batch completes. Requests the notifications permission when enabled. |
 | Stream capture quality | Auto | Target rendition for captured streams (auto / best / worst / 1080 / 720 / 480). See [Stream capture](/media-bulk-downloads/guides/stream-capture/). |
@@ -37,7 +38,7 @@ The tables below list every setting, its default, and what it controls.
 | Resolve exact originals (network requests) | Off | Fetch the exact highest-resolution file from supported hosts. See [Resolve originals](/media-bulk-downloads/how-it-works/resolve-originals/). |
 | Capture video streams (HLS & DASH) | Off | Surface `.m3u8` / `.mpd` streams as capture items. See [Stream capture](/media-bulk-downloads/guides/stream-capture/). |
 | Smart page defaults | On | Seed filters from the page type on first scan. |
-| Remember scan behaviour per site | On | Reuse a site's learned deep-scan behaviour. |
+| Remember scan behaviour per site | On | Reuse a site's learned deep-scan behaviour on your next visit. Powers "Reset this site" (see [Per-site overrides](#per-site-overrides)). |
 | Deep scan: max items | 1000 | Stop after this many new items (50 to 5000). See [Deep scan](/media-bulk-downloads/guides/deep-scan/). |
 | Deep scan: max time | 20 s | Stop after this many seconds (5 to 120). |
 | Deep scan: max scroll steps | 40 | Stop after this many scrolls (5 to 200). |
@@ -62,6 +63,23 @@ The Data tab is for backup and cleanup rather than toggles:
 - **Export / import a backup** as a JSON file (settings, favourites, history, blocked sources). See [Backup & restore](/media-bulk-downloads/guides/backup-restore/).
 - **Reset all settings** to their defaults.
 - **Clear all local data** (history, favourites, blocked sources) in one step.
+
+## Per-site overrides
+
+The Settings dialog edits your global defaults. You can also snapshot the current
+collection-related settings as an override that applies only on the site you are
+on, so a site that needs a deeper scan or original-quality fetches opens that way
+every time without changing your defaults everywhere else.
+
+- **Save for this site** stores the difference from your global settings as an
+  override for the current site's domain.
+- **Reset this site** clears that override, so the site falls back to your globals.
+
+Only collection behaviour is remembered per site: minimum image size, exclude
+Base64, exclude emoji, resolve originals, capture streams, smart page defaults, the
+four deep-scan limits, and the convert-on-download settings. Download destination
+and window sizes are always global. Overrides are stored on your device (not
+synced), capped to your most recent sites.
 
 ## Notes
 
