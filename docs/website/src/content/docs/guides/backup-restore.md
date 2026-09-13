@@ -62,6 +62,7 @@ is configured.
 
 ## Related
 
+- [Storage & sync](/media-bulk-downloads/how-it-works/storage-and-sync/) for where each store lives and what the backup contains.
 - [Favourites](/media-bulk-downloads/guides/favourites/) for what favourites store.
 - [Download History](/media-bulk-downloads/guides/history/) for what history records.
 - [FAQ & troubleshooting](/media-bulk-downloads/help/faq/) for where data lives and privacy.
