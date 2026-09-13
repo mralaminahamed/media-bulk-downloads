@@ -11,6 +11,16 @@ Every filter is live: the grid updates as you type or click. A count pill on the
 **More** button and an active-filter tally tell you how much is currently hidden,
 and **Clear all** puts everything back.
 
+```mermaid
+flowchart LR
+  ALL["Everything scanned"] --> SEARCH["Search text"]
+  SEARCH --> KIND["Kind: images / video / audio"]
+  KIND --> STATUS["Status: downloaded, fetched, duplicates"]
+  STATUS --> ADV["Advanced: format, size, min-KB, Base64"]
+  ADV --> SORT["Sort order"]
+  SORT --> GRID["Shown grid"]
+```
+
 ## Search
 
 Type in the search box to match items by their file name, `alt` text, and URL. It

@@ -8,6 +8,14 @@ creatives, tracking pixels, an avatar that repeats on every page. Blocked source
 is a per-profile blocklist that hides those for good, so they stop cluttering every
 future scan instead of being filtered out by hand each time.
 
+```mermaid
+flowchart LR
+  ITEM["An item in the grid"] --> EXC["Exclude this URL / this host"]
+  EXC --> LIST["Blocklist (per profile)"]
+  LIST --> HIDE["Hidden from every future scan"]
+  LIST -->|"Remove entry"| BACK["Collected again"]
+```
+
 ## Blocking something
 
 You block by URL or by whole host:

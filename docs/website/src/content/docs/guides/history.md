@@ -58,18 +58,16 @@ A collected tile that is still on disk shows a ✓ badge in the grid. That badge
 
 ## When history is recorded
 
-A download reaches history through one of two paths, both of which call
-`recordDownloads`:
+Every download now goes through the persistent download queue and reaches history
+the same way, through `recordDownloads`. Popup bulk downloads, panel
+re-downloads, and the keyboard-command / context-menu downloads all enqueue
+(`enqueueMedia` → `enqueueDownloads`). The queue records an entry when Chrome
+reports the file `complete` (`handleDownloadChanged` in `download-queue.ts`), not
+when the download starts. If the service worker died before that `complete` event
+arrived, `reconcileQueue` records it on the next startup, so a file on disk is
+never missing from history.
 
-- **Popup bulk downloads and panel re-downloads** send `DOWNLOAD_IMAGES` to the persistent download queue (`enqueueDownloads`). The queue records the entry when Chrome reports the file `complete`
-  (`handleDownloadChanged` in
-  `download-queue.ts`), not when the download starts. If the service worker died before that `complete` event arrived, `reconcileQueue` records it on the next startup, so a file on disk is never
-  missing from history.
-- **Keyboard-command and context-menu downloads** go through `downloadAndRecord`
-  (`download/downloads.ts`), which records each item once Chrome returns a
-  `downloadId`.
-
-Failed downloads (a `runtime.lastError`, or no `downloadId`) are not recorded.
+A download that fails is not recorded: only a `complete` event writes history.
 
 ## Recording a download → live sync
 
@@ -109,8 +107,9 @@ storage path for user edits versus automatic recording.
   `HISTORY_MAX_BYTES` (2,000,000), `mergeHistory`, `recordDownloads`,
   `removeEntry`, `clearHistory`, `srcsStillOnDisk`, `diskState` / `DiskState`,
   and the `writeChain` serializer.
-- `apps/extension/src/extension/background/download/downloads.ts`:
-  `downloadAndRecord` (keyboard-command / context-menu path).
+- `apps/extension/src/extension/background/download/enqueue-media.ts`:
+  `enqueueMedia` / `buildEnqueueEntries`, the single enqueue path for the popup,
+  keyboard command, and context menu; builds the history draft carried through the queue.
 - `apps/extension/src/extension/background/download/download-queue.ts`:
   `handleDownloadChanged` and `reconcileQueue`, which call `recordDownloads` on completion and on restart reconcile.
 - `apps/extension/src/extension/background/message-router.ts`: the
