@@ -37,6 +37,7 @@ export default defineConfig({
           label: 'Getting Started',
           items: [
             { label: 'Introduction', slug: 'getting-started/introduction' },
+            { label: 'Install', slug: 'getting-started/install' },
             { label: 'Quick Start', slug: 'getting-started/quick-start' },
             { label: 'vs. other tools', slug: 'getting-started/comparison' },
           ],
@@ -91,6 +92,7 @@ export default defineConfig({
           items: [
             { label: 'Settings reference', slug: 'reference/settings' },
             { label: 'Permissions & privacy', slug: 'reference/permissions' },
+            { label: 'Glossary', slug: 'reference/glossary' },
           ],
         },
         {

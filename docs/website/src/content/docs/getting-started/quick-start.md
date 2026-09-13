@@ -70,40 +70,10 @@ Click any tile to preview it full-size with its dimensions, type, and source:
 
 ## Settings
 
-Stored in `chrome.storage.sync`. The Settings sheet has four tabs.
-
-**Downloads**
-
-- **Save to subfolder** inside `Downloads/`. Empty by default. Supports the tokens `{host}`, `{domain}`, `{date}`, `{kind}`.
-- **File naming:** Original (default) keeps each file's own name from its URL;
-  Prefixed numbers them per file with a prefix (`image_`, `image_1.jpg`).
-- **Convert images on download:** Keep original (default), PNG, or JPEG. When converting, **Metadata** is Preserve (copy EXIF/XMP, default) or Strip.
-- **Ask where to save each file** (off).
-- Advanced: **Simultaneous downloads** (1–10, default 5) and **Notify when downloads finish** (off).
-
-**Media**
-
-- **Minimum image size** in px (0–10000, default 0).
-- **Exclude Base64 images** (off) and **Exclude emoji** (off).
-- **Resolve exact originals (network requests)** (off). When on, the background fetches a hinted item's exact original from one of ~20 supported hosts (Twitter/X, Wallhaven, Unsplash, Vimeo,
-  Dailymotion, Bluesky, Pinterest, Reddit, Flickr, ArtStation, SoundCloud, Twitch, Loom, PeerTube, and more). See
-  [Resolve Originals](/media-bulk-downloads/how-it-works/resolve-originals/) for the full list.
-- **Capture video streams (HLS & DASH)** (off). Surfaces `.m3u8` and `.mpd`
-  streams as capture items.
-- **Smart page defaults** (on), **Remember scan behaviour per site** (on), **Skip images already downloaded** (on).
-- Advanced deep-scan caps: max items (50–5000, default 1000), max time in seconds (5–120, default 20), max scroll steps (5–200, default 40), and **Click "Load more" buttons** (off).
-  See [Deep Scan](/media-bulk-downloads/guides/deep-scan/).
-
-**Display**
-
-- **Thumbnail size** in px (64–240, default 120).
-- **Show image count on toolbar icon** (on).
-- **Show floating bubble on pages** (on by default), plus its corner and panel position.
-- Advanced: popup width (320–800, default 460), popup height (400–600, default 600), preview size (240–900, default 360), and bubble width/height.
-
-**Data**
-
-- Export or import a full backup (settings, favourites, history, blocked sources) as JSON.
+The Settings sheet has four tabs (Downloads, Media, Display, Data), stored in
+`chrome.storage.sync`. Every setting, its default, and what it controls are in the
+[Settings reference](/media-bulk-downloads/reference/settings/); permissions are in
+[Permissions & privacy](/media-bulk-downloads/reference/permissions/).
 
 ## Where things live
 
