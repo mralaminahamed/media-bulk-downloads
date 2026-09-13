@@ -6,6 +6,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-13
+
 ### Added
 - **The toolbar icon flags failed downloads.** When a download fails, the toolbar
   badge shows the failed count in red across every tab — so a failure isn't silent
@@ -991,7 +993,8 @@ Initial public release.
 - Twitter/X GIF thumbnails served without a path extension are collected as
   downloadable video instead of leaking as a still image.
 
-[Unreleased]: https://github.com/mralaminahamed/media-bulk-downloads/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/mralaminahamed/media-bulk-downloads/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/mralaminahamed/media-bulk-downloads/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/mralaminahamed/media-bulk-downloads/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/mralaminahamed/media-bulk-downloads/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/mralaminahamed/media-bulk-downloads/compare/v1.0.0...v1.1.0
