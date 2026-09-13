@@ -14,7 +14,8 @@ built for Chrome, Firefox, Edge, and Safari from one codebase. Opera and other C
 
 | Guide | What it covers |
 |-------|----------------|
-| [Quick Start](/media-bulk-downloads/getting-started/quick-start/) | Install, build, load unpacked, first use |
+| [Install](/media-bulk-downloads/getting-started/install/) | Install from your browser's store, or load unpacked |
+| [Quick Start](/media-bulk-downloads/getting-started/quick-start/) | Build, load unpacked, first use, and the dev gates |
 | [Architecture](/media-bulk-downloads/how-it-works/architecture/) | Monorepo layout, the four MV3 surfaces, and the message catalog |
 
 ## Workflows

@@ -12,6 +12,19 @@ For how files are named and where they land, see
 [Download & queue](/media-bulk-downloads/guides/download/). This page is about the
 queue panel itself.
 
+## Item lifecycle
+
+```mermaid
+flowchart LR
+  Q["Queued"] --> A["Active (downloading)"]
+  A --> D["Done"]
+  A --> F["Failed"]
+  F -->|"Retry / Retry w/ referer"| Q
+  Q -->|"Cancel"| X["Cancelled"]
+  A -->|"Cancel"| X
+  F -->|"Link expired"| R["No retry: re-collect the page"]
+```
+
 ## Reading the queue
 
 The header shows a running **done / total** count, a red **failed** count when
