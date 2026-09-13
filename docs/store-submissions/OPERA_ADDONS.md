@@ -89,13 +89,11 @@ FILTER, SEARCH, AND DOWNLOAD
 • Favourites: star images, video, or audio to a list that persists across pages
 
 WORKS ON THE SITES YOU USE
-• Original-quality resolvers for X/Twitter, Instagram, Facebook, Threads,
-  Bluesky, Mastodon, Pinterest, Reddit, Flickr, ArtStation, Behance, Unsplash,
-  and Wallhaven
-• Video from Vimeo, Dailymotion, YouTube poster frames, and the Booru art sites
-• Museum, stock & CDN coverage: the IIIF Image API, rawpixel, and image CDNs such
-  as Cloudinary, Sanity, Uploadcare, ImageKit, Contentful, and Cloudflare — plus
-  50+ more families
+• Original-quality resolvers for popular social networks, art and photography
+  communities, and stock-photo sites
+• Video from common video hosts and embeds, including poster frames
+• Broad CDN coverage: dozens of image-CDN families and the IIIF Image API, so
+  thumbnails resolve to their full-size original across the web
 • Capture standard HLS (.m3u8) and DASH (.mpd) video streams to a single file
   (no DRM, no live)
 • Optional WebP/AVIF → PNG/JPEG conversion that preserves EXIF/XMP metadata
